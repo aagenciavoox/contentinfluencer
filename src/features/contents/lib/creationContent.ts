@@ -16,6 +16,7 @@ import {createContentDraft} from './createContentDraft.ts';
 import {matchesTemaFilter} from './temaFilter.ts';
 import {contentReadableBody, isCarouselContent} from './carouselSlides.ts';
 import {passaNoFiltroRede} from '../../creation/lib/creationRedeFilter.ts';
+import {contentPassaFiltroSerie} from '../../editorial/lib/filtroSubarvore.ts';
 
 export const CREATION_TABS = [
   'Todos',
@@ -312,7 +313,11 @@ export function filterCreationContents(
 
   return filterContentsByCreationTab(contents, filters.tab)
     .filter(content => !filters.pilarId || content.pilarId === filters.pilarId)
-    .filter(content => !filters.seriesId || content.seriesId === filters.seriesId)
+    .filter(content => contentPassaFiltroSerie(
+      content.seriesId,
+      filters.seriesId,
+      filters.series ?? [],
+    ))
     .filter(content => !filters.temaId || (content.temaIds ?? []).includes(filters.temaId))
     .filter(content => matchesTemaFilter(content.temaIds, filters.temaIds ?? [], filters.temas))
     .filter(content => !filters.originId || livroIdsEfetivos(content).includes(filters.originId))

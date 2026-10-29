@@ -1,6 +1,6 @@
-import {useCallback, useEffect, useState, type CSSProperties} from 'react';
+import {useCallback, useEffect, useRef, useState, type CSSProperties} from 'react';
 
-/** Fonte e tamanho do texto do roteiro, guardados por usuario neste aparelho (localStorage). */
+/** Fonte e tamanho do texto do roteiro — preferência da conta (vale em todos os roteiros). */
 export type RoteiroFontId = 'default' | 'courier-prime' | 'roboto-mono' | 'share-tech-mono';
 
 export interface RoteiroFontOption {
@@ -33,6 +33,9 @@ export const DEFAULT_ROTEIRO_TYPOGRAPHY: RoteiroTypography = {
   size: ROTEIRO_FONT_SIZE_DEFAULT,
 };
 
+/** Chave em user_preferences — tipografia compartilhada por todos os roteiros. */
+export const ROTEIRO_TYPOGRAPHY_PREFERENCE_KEY = 'roteiro_typography';
+
 export function clampRoteiroFontSize(value: unknown): number {
   const n = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(n)) return ROTEIRO_FONT_SIZE_DEFAULT;
@@ -51,13 +54,26 @@ export function roteiroTypographyStorageKey(userId: string | null | undefined) {
   return `criaki-roteiro-typography:${userId || 'anon'}`;
 }
 
-function readTypography(key: string): RoteiroTypography {
+export function readLocalRoteiroTypography(key: string): RoteiroTypography {
   try {
     const raw = window.localStorage.getItem(key);
     return raw ? normalizeRoteiroTypography(JSON.parse(raw)) : DEFAULT_ROTEIRO_TYPOGRAPHY;
   } catch {
     return DEFAULT_ROTEIRO_TYPOGRAPHY;
   }
+}
+
+export function writeLocalRoteiroTypography(key: string, value: RoteiroTypography) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Sem localStorage: a preferência da conta ainda vale nesta sessão.
+  }
+}
+
+export function isDefaultRoteiroTypography(value: RoteiroTypography) {
+  return value.font === DEFAULT_ROTEIRO_TYPOGRAPHY.font
+    && value.size === DEFAULT_ROTEIRO_TYPOGRAPHY.size;
 }
 
 const loadedFonts = new Set<string>();
@@ -79,46 +95,60 @@ export function preloadRoteiroFonts() {
   ROTEIRO_FONTS.forEach(font => ensureFontLoaded(font.id));
 }
 
-const CHANGE_EVENT = 'criaki-roteiro-typography-change';
+export type RoteiroTypographyStore = {
+  preferences: Record<string, unknown>;
+  setPreference: (value: RoteiroTypography) => void;
+};
 
-export function useRoteiroTypography(userId: string | null | undefined) {
-  const key = roteiroTypographyStorageKey(userId);
-  const [state, setState] = useState<{key: string; value: RoteiroTypography}>(() => ({key, value: readTypography(key)}));
-  const value = state.key === key ? state.value : readTypography(key);
+/**
+ * Tipografia do roteiro: preferência da conta (todos os roteiros) com espelho em
+ * localStorage. Use `useRoteiroTypography` (hook com AppContext) nos componentes.
+ */
+export function useRoteiroTypographyState(
+  userId: string | null | undefined,
+  store: RoteiroTypographyStore,
+) {
+  const storageKey = roteiroTypographyStorageKey(userId);
+  const preferences = store.preferences;
+  const hasPreference = Object.prototype.hasOwnProperty.call(
+    preferences,
+    ROTEIRO_TYPOGRAPHY_PREFERENCE_KEY,
+  );
+  const preferenceValue = hasPreference
+    ? normalizeRoteiroTypography(preferences[ROTEIRO_TYPOGRAPHY_PREFERENCE_KEY])
+    : null;
+
+  const [localValue, setLocalValue] = useState(() => readLocalRoteiroTypography(storageKey));
+  const migratedRef = useRef(false);
+  const setPreference = store.setPreference;
 
   useEffect(() => {
-    if (state.key !== key) setState({key, value: readTypography(key)});
-  }, [key, state.key]);
+    setLocalValue(readLocalRoteiroTypography(storageKey));
+    migratedRef.current = false;
+  }, [storageKey]);
+
+  // Migra escolha antiga do aparelho para a preferência da conta (uma vez).
+  useEffect(() => {
+    if (migratedRef.current || hasPreference) return;
+    migratedRef.current = true;
+    const local = readLocalRoteiroTypography(storageKey);
+    if (isDefaultRoteiroTypography(local)) return;
+    setPreference(local);
+  }, [hasPreference, setPreference, storageKey]);
+
+  const value = preferenceValue ?? localValue;
 
   useEffect(() => {
     ensureFontLoaded(value.font);
   }, [value.font]);
 
-  useEffect(() => {
-    // Desktop e mobile (ou duas abas) ficam em sincronia.
-    const sync = (event: Event) => {
-      if (event instanceof StorageEvent && event.key !== key) return;
-      if (event instanceof CustomEvent && event.detail !== key) return;
-      setState({key, value: readTypography(key)});
-    };
-    window.addEventListener('storage', sync);
-    window.addEventListener(CHANGE_EVENT, sync);
-    return () => {
-      window.removeEventListener('storage', sync);
-      window.removeEventListener(CHANGE_EVENT, sync);
-    };
-  }, [key]);
-
   const update = useCallback((updates: Partial<RoteiroTypography>) => {
-    const next = normalizeRoteiroTypography({...readTypography(key), ...updates});
-    try {
-      window.localStorage.setItem(key, JSON.stringify(next));
-    } catch {
-      // Sem localStorage: vale so nesta sessao.
-    }
-    setState({key, value: next});
-    window.dispatchEvent(new CustomEvent(CHANGE_EVENT, {detail: key}));
-  }, [key]);
+    const base = preferenceValue ?? readLocalRoteiroTypography(storageKey);
+    const next = normalizeRoteiroTypography({...base, ...updates});
+    writeLocalRoteiroTypography(storageKey, next);
+    setLocalValue(next);
+    setPreference(next);
+  }, [preferenceValue, setPreference, storageKey]);
 
   return {typography: value, setTypography: update};
 }

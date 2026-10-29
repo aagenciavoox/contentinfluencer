@@ -45,6 +45,15 @@ const MENU_GAP = 6;
 const ROW_SLACK = 12;
 const DROPDOWN_OPEN_EVENT = 'skald:editor-toolbar-dropdown-open';
 
+type DropdownOpenDetail = {menuId: string; trigger: HTMLElement | null};
+
+function dropdownOpenDetail(event: Event): DropdownOpenDetail | null {
+  const detail = (event as CustomEvent<DropdownOpenDetail | string>).detail;
+  if (typeof detail === 'string') return {menuId: detail, trigger: null};
+  if (detail && typeof detail === 'object' && typeof detail.menuId === 'string') return detail;
+  return null;
+}
+
 /** Soma as larguras dos controles sem depender de quantas linhas a barra ocupa. */
 function unwrappedControlsWidth(node: HTMLDivElement | null) {
   if (!node) return 0;
@@ -225,7 +234,9 @@ export function ToolbarDropdown({
     return -1;
   };
   const activate = (index: number) => setActiveId(index >= 0 ? items[index].id : null);
-  const announceOpen = () => document.dispatchEvent(new CustomEvent(DROPDOWN_OPEN_EVENT, { detail: menuId }));
+  const announceOpen = () => document.dispatchEvent(new CustomEvent(DROPDOWN_OPEN_EVENT, {
+    detail: {menuId, trigger: triggerRef.current} satisfies DropdownOpenDetail,
+  }));
   const openMenu = (keyboard: boolean, last = false) => {
     if (disabled) return;
     if (!open) { announceOpen(); onOpen?.(); }
@@ -238,22 +249,38 @@ export function ToolbarDropdown({
   useEffect(() => { if (disabled) close(); }, [close, disabled]);
   useEffect(() => {
     if (!open) return;
+    const isOwnTarget = (target: Node | null) =>
+      !!target && (!!triggerRef.current?.contains(target) || !!menuRef.current?.contains(target));
+    const isNestedMenuTarget = (target: Node | null) => {
+      const el = target instanceof Element ? target : target?.parentElement;
+      const nested = el?.closest?.('[data-editor-toolbar-menu="true"]');
+      return !!nested && nested !== menuRef.current;
+    };
     const onOutside = (event: PointerEvent) => {
       const target = event.target as Node | null;
-      if (target && !triggerRef.current?.contains(target) && !menuRef.current?.contains(target)) close();
+      if (isOwnTarget(target) || isNestedMenuTarget(target)) return;
+      close();
     };
     const onFocus = (event: FocusEvent) => {
       if (!keyboardOpenRef.current) return;
       const target = event.target as Node | null;
-      if (target && !triggerRef.current?.contains(target) && !menuRef.current?.contains(target)) close();
+      if (isOwnTarget(target) || isNestedMenuTarget(target)) return;
+      close();
     };
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.isComposing) return;
+      // Com menu aninhado aberto, o filho trata o Escape primeiro.
+      const menus = document.querySelectorAll('[data-editor-toolbar-menu="true"]');
+      if (menus.length > 1 && menuRef.current && menus[menus.length - 1] !== menuRef.current) return;
       // Captura antes do handler de Escape da tela expandida do editor.
       event.preventDefault(); event.stopPropagation(); closeAndReturn();
     };
     const onOtherMenu = (event: Event) => {
-      if ((event as CustomEvent<string>).detail !== menuId) close();
+      const detail = dropdownOpenDetail(event);
+      if (!detail || detail.menuId === menuId) return;
+      // Menu aninhado: o gatilho mora dentro deste menu — permanece aberto.
+      if (detail.trigger && menuRef.current?.contains(detail.trigger)) return;
+      close();
     };
     document.addEventListener('pointerdown', onOutside, true);
     document.addEventListener('focusin', onFocus);

@@ -69,6 +69,8 @@ export type ScriptDraft = {
   legendaBase: string | null;
   temaIds: string[];
   tags: string[];
+  temporadaId?: string | null;
+  origemConteudoId?: string | null;
 };
 
 type MobilePane = 'script' | 'notes' | 'captions';

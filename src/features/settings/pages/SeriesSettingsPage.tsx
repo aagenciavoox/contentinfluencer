@@ -2,46 +2,39 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layers, Plus } from 'lucide-react';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
+import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { OverlayBody } from '../../../components/overlays/OverlayBody';
 import { OverlayFooter } from '../../../components/overlays/OverlayFooter';
 import { OverlayHeader } from '../../../components/overlays/OverlayHeader';
+import { SettingsPageScaffold } from '../../../components/settings/SettingsPageScaffold';
+import { SettingsGridCard, SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/SettingsGridCard';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Badge } from '../../../components/ui/Badge';
-import { MoreMenu } from '../../../components/ui/MoreMenu';
+import { FilterChips } from '../../../components/ui/FilterChips';
+import { QueryViewState, resolveQueryViewStatus } from '../../../components/ui/QueryViewState';
+import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
-import { FilterChips } from '../../../components/ui/FilterChips';
 import { ToggleRow } from '../../../components/ui/ToggleSwitch';
-import { atualizarPreferencias } from '../../editorial/lib/editorialSettings';
 import { ToolbarSearchInput } from '../../../components/ui/ToolbarSearchInput';
-import { QueryViewState, resolveQueryViewStatus } from '../../../components/ui/QueryViewState';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useIsMobile } from '../../../hooks/useIsMobile';
-import { SeriesMobileScreen } from '../../../mobile/screens/settings/SeriesMobileScreen';
 import type { Serie } from '../../../lib/database';
-import { SettingsPageScaffold } from '../../../components/settings/SettingsPageScaffold';
-import { SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/SettingsGridCard';
+import { CONFIRM, type ConfirmState } from '../../../lib/uiCopy';
+import { SeriesMobileScreen } from '../../../mobile/screens/settings/SeriesMobileScreen';
 import { generateUUID } from '../../../utils/uuid';
-import { getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
-import { pilarPrincipalDaSerie } from '../../editorial/lib/pilarDaSerie';
-import { PILAR_PRESET_CORES } from '../lib/pilarConstants';
+import { atualizarPreferencias } from '../../editorial/lib/editorialSettings';
+import { rotuloFuncaoPadrao } from '../../editorial/lib/funcoes';
+import { formatOpenItems, getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
+import { caminhoDaSerie } from '../../editorial/lib/serieArvore';
+import { exibirSeriesVisiveis, type SerieListaModo } from '../../editorial/lib/serieLista';
 import { CONTENT_STATUS, normalizeContentStatus } from '../../contents/lib/contentPipeline';
 import { isActiveCreation } from '../../contents/lib/contentWorkflow';
+import { PILAR_PRESET_CORES } from '../lib/pilarConstants';
 import { isSerieColorTaken, nextFreeSerieColor, serieColorKey, takenSerieColorKeys } from '../lib/serieColors';
 
-type SeriesFilter = 'todas' | 'ativas' | 'inativas';
-
-function formatRoteiroCount(count: number) {
-  return count === 1 ? '1 roteiro' : `${count} roteiros`;
-}
-
-function seriesMetaLine(serie: Serie, roteiroCount: number, pilarNome: string | null) {
-  const frequency = serie.frequenciaRecomendada || 'Sob demanda';
-  return [pilarNome, frequency, formatRoteiroCount(roteiroCount)]
-    .filter(Boolean)
-    .join(' · ');
-}
+type SeriesFilter = 'todas' | 'ativas' | 'inativas' | 'abertas';
 
 export function SeriesSettingsPage() {
   const { state, dispatch } = useAppContext();
@@ -50,11 +43,12 @@ export function SeriesSettingsPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<SeriesFilter>('todas');
+  const [modoLista, setModoLista] = useState<SerieListaModo>('agrupada');
+  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
   const [quickName, setQuickName] = useState('');
   const [quickColor, setQuickColor] = useState(() => nextFreeSerieColor([]));
   const editorialSettings = state.editorial;
-  // Preferências de séries: moram aqui, junto da criação de séries (antes ficavam em Editorial > Ajustes).
   const preferenciasSeries = [
     {
       key: 'quickSeriesCreate',
@@ -84,7 +78,7 @@ export function SeriesSettingsPage() {
       setQuickCreateOpen(true);
       return;
     }
-    navigate('/editorial/series/nova');
+    navigate('/series/nova');
   };
 
   const handleQuickCreate = () => {
@@ -115,10 +109,9 @@ export function SeriesSettingsPage() {
     dispatch({ type: 'ADD_SERIE', payload: serie });
     setQuickCreateOpen(false);
     setQuickName('');
-    navigate(`/series/${serie.id}/roteiros`);
+    navigate(`/series/${serie.id}`);
   };
 
-  // "Roteiros" conta só roteiros ativos: ideia, arquivado e lixeira ficam fora (R1).
   const roteiroCountBySerie = useMemo(() => {
     const map = new Map<string, number>();
     for (const content of state.contents) {
@@ -129,38 +122,46 @@ export function SeriesSettingsPage() {
     return map;
   }, [state.contents]);
 
-  const filteredSeries = useMemo(() => {
+  const openItems = useMemo(
+    () => new Map(state.series.map(serie => [
+      serie.id,
+      getSerieOpenItems(serie, { series: state.series, contents: state.contents }),
+    ])),
+    [state.contents, state.series],
+  );
+  const avisosLigados = editorialSettings.openInfoNotices;
+  const filtroAtivo: SeriesFilter = !avisosLigados && filter === 'abertas' ? 'todas' : filter;
+
+  const filtradas = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return state.series
-      .filter(serie => {
-        if (filter === 'ativas' && !serie.ativa) return false;
-        if (filter === 'inativas' && serie.ativa) return false;
-        if (!query) return true;
-        const haystack = [
-          serie.name,
-          serie.bordao,
-          serie.estruturaRoteiro,
-          serie.frequenciaRecomendada,
-        ]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase();
-        return haystack.includes(query);
-      })
-      .sort((a, b) => {
-        if (a.ativa !== b.ativa) return a.ativa ? -1 : 1;
-        return a.name.localeCompare(b.name, 'pt-BR');
-      });
-  }, [filter, search, state.series]);
+    return state.series.filter(serie => {
+      if (filtroAtivo === 'ativas' && !serie.ativa) return false;
+      if (filtroAtivo === 'inativas' && serie.ativa) return false;
+      if (filtroAtivo === 'abertas' && (openItems.get(serie.id)?.length ?? 0) === 0) return false;
+      if (!query) return true;
+      const haystack = [serie.name, serie.bordao, serie.notes, serie.frequenciaRecomendada]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [filtroAtivo, openItems, search, state.series]);
+
+  const exibicao = useMemo(
+    () => exibirSeriesVisiveis(filtradas, modoLista),
+    [filtradas, modoLista],
+  );
 
   const filterCounts = useMemo(() => {
     const ativas = state.series.filter(serie => serie.ativa).length;
+    const abertas = state.series.filter(serie => (openItems.get(serie.id)?.length ?? 0) > 0).length;
     return {
       todas: state.series.length,
       ativas,
       inativas: state.series.length - ativas,
+      abertas,
     };
-  }, [state.series]);
+  }, [openItems, state.series]);
 
   const seriesStatus = resolveQueryViewStatus({
     loading: !state.isLoaded,
@@ -169,9 +170,25 @@ export function SeriesSettingsPage() {
     itemCount: state.series.length,
   });
 
-  const openBulkPage = (serieId: string) => {
-    navigate(`/series/${serieId}/roteiros`);
+  const remover = (serie: Serie) => {
+    setConfirm({
+      ...CONFIRM.excluirSerie,
+      onConfirm: () => dispatch({ type: 'DELETE_SERIE', payload: serie.id }),
+    });
   };
+
+  const quickSheet = (
+    <QuickCreateSheet
+      open={quickCreateOpen}
+      name={quickName}
+      color={quickColor}
+      takenColors={[...takenSerieColorKeys(state.series)]}
+      onNameChange={setQuickName}
+      onColorChange={setQuickColor}
+      onClose={() => setQuickCreateOpen(false)}
+      onCreate={handleQuickCreate}
+    />
+  );
 
   if (isMobile) {
     return (
@@ -179,24 +196,16 @@ export function SeriesSettingsPage() {
         <div className="min-h-full bg-[var(--bg-primary)]">
           <SeriesMobileScreen
             series={state.series}
+            contents={state.contents}
             roteiroCountBySerie={roteiroCountBySerie}
-            onOpen={openBulkPage}
+            onOpen={serieId => navigate(`/series/${serieId}`)}
             onCreate={openCreatePage}
-            onConfigure={serieId => navigate(`/editorial/series/${serieId}`)}
-            showOpenBadges={editorialSettings.openInfoNotices}
+            onConfigure={serieId => navigate(`/series/${serieId}/editar`)}
+            showOpenBadges={avisosLigados}
             preferencias={preferenciasSeries}
           />
         </div>
-        <QuickCreateSheet
-          open={quickCreateOpen}
-          name={quickName}
-          color={quickColor}
-          takenColors={[...takenSerieColorKeys(state.series)]}
-          onNameChange={setQuickName}
-          onColorChange={setQuickColor}
-          onClose={() => setQuickCreateOpen(false)}
-          onCreate={handleQuickCreate}
-        />
+        {quickSheet}
       </>
     );
   }
@@ -214,17 +223,18 @@ export function SeriesSettingsPage() {
             <ToolbarSearchInput
               value={search}
               onChange={setSearch}
-              placeholder="Buscar série…"
+              placeholder="Buscar série ou quadro…"
               className="desktop-subheader-search"
             />
             <FilterChips<SeriesFilter>
-              value={filter}
+              value={filtroAtivo}
               onChange={setFilter}
               ariaLabel="Filtrar séries"
               options={[
                 { id: 'todas', label: 'Todas', count: filterCounts.todas },
                 { id: 'ativas', label: 'Ativas', count: filterCounts.ativas },
                 { id: 'inativas', label: 'Inativas', count: filterCounts.inativas },
+                ...(avisosLigados ? [{ id: 'abertas' as const, label: 'Em aberto', count: filterCounts.abertas }] : []),
               ]}
             />
           </div>
@@ -241,7 +251,7 @@ export function SeriesSettingsPage() {
       }
     >
       <Text variant="secondary" className="mb-4">
-        Criação em massa: abra uma série para produzir roteiros e ideias. A edição completa fica no Editorial.
+        Séries e quadros. Abrir um item mostra os episódios.
       </Text>
       <Surface padding="sm" className="mb-4 grid gap-x-6 gap-y-2 md:grid-cols-2">
         {preferenciasSeries.map(row => (
@@ -260,6 +270,19 @@ export function SeriesSettingsPage() {
           </ToggleRow>
         ))}
       </Surface>
+      {state.series.length > 0 ? (
+        <div className="mb-4">
+          <SegmentTabs<SerieListaModo>
+            value={modoLista}
+            onChange={setModoLista}
+            ariaLabel="Visualização das séries"
+            options={[
+              { id: 'agrupada', label: 'Agrupada' },
+              { id: 'lista', label: 'Lista' },
+            ]}
+          />
+        </div>
+      ) : null}
       <QueryViewState
         status={seriesStatus}
         skeletonCount={6}
@@ -273,74 +296,69 @@ export function SeriesSettingsPage() {
           </AppButton>
         }
       >
-        <div className={SETTINGS_ENTITY_GRID_CLASS}>
-          {filteredSeries.length === 0 ? (
-            <div className="col-span-full py-10 text-center">
-              <p className="text-sm font-medium text-[var(--text-tertiary)]">Nenhuma série encontrada</p>
-            </div>
-          ) : (
-            filteredSeries.map(serie => {
-              const roteiroCount = roteiroCountBySerie.get(serie.id) || 0;
-              const pilarId = pilarPrincipalDaSerie(serie);
-              const pilarNome = pilarId ? state.pilares.find(pilar => pilar.id === pilarId)?.nome ?? null : null;
-              const emAberto = editorialSettings.openInfoNotices && getSerieOpenItems(serie).length > 0;
-
+        {exibicao.length === 0 ? (
+          <div className="py-10 text-center">
+            <Text variant="body" className="text-[var(--text-tertiary)]">Nenhuma série encontrada</Text>
+          </div>
+        ) : (
+          <div className={SETTINGS_ENTITY_GRID_CLASS}>
+            {exibicao.map(({ serie, profundidade }) => {
+              const items = openItems.get(serie.id) ?? [];
+              const aberta = avisosLigados && items.length > 0;
+              const caminho = profundidade > 0
+                ? caminhoDaSerie(serie.id, state.series).slice(0, -1).map(item => item.name).filter(Boolean).join(' · ')
+                : null;
+              const roteiros = roteiroCountBySerie.get(serie.id) || 0;
               return (
-                // Card clicável: o botão ocupa o card inteiro e o fundo muda no hover.
-                // Inativa: fundo rebaixado em vez de texto apagado.
-                <Surface
+                <SettingsGridCard
                   key={serie.id}
-                  variant="interactive"
-                  padding="none"
-                  className={!serie.ativa ? 'group relative is-dimmed' : 'group relative'}
+                  compact
+                  title={serie.name}
+                  color={serie.cor || undefined}
+                  imageUrl={serie.capaUrl}
+                  active={serie.ativa}
+                  dimmed={!serie.ativa}
+                  onOpen={() => navigate(`/series/${serie.id}`)}
+                  onToggle={() => dispatch({
+                    type: 'UPDATE_SERIE',
+                    payload: { ...serie, ativa: !serie.ativa, updatedAt: new Date().toISOString() },
+                  })}
+                  onDelete={() => remover(serie)}
+                  meta={[
+                    caminho ? `Quadro de ${caminho}` : null,
+                    serie.frequenciaRecomendada || 'Sob demanda',
+                    rotuloFuncaoPadrao(serie.funcaoPadrao),
+                    `${roteiros} ${roteiros === 1 ? 'roteiro' : 'roteiros'}`,
+                  ].filter(Boolean).join(' · ')}
+                  footer={(
+                    <AppButton variant="secondary" size="sm" onClick={() => navigate(`/series/${serie.id}/editar`)}>
+                      Editar definições
+                    </AppButton>
+                  )}
                 >
-                  <div className="absolute right-2 top-2 z-10">
-                    <MoreMenu
-                      size="sm"
-                      items={[{
-                        label: 'Configurar no Editorial',
-                        onClick: () => navigate(`/editorial/series/${serie.id}`),
-                      }]}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => openBulkPage(serie.id)}
-                    className="h-full w-full rounded-[inherit] p-4 pr-12 text-left focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-                  >
-                    {/* Só o que foge do normal vira selo: "Ativa" em todas as séries era ruído. */}
-                    {!serie.ativa || emAberto ? (
-                      <div className="mb-2 flex flex-wrap items-center gap-1.5">
-                        {!serie.ativa ? <Badge variant="neutral">Inativa</Badge> : null}
-                        {emAberto ? <Badge variant="neutral">Em aberto</Badge> : null}
-                      </div>
-                    ) : null}
-                    <span className="flex min-w-0 items-center gap-2">
-                      <span
-                        aria-hidden
-                        className="entity-color-dot h-2.5 w-2.5 shrink-0 rounded-full"
-                        style={serie.cor ? { backgroundColor: serie.cor } : undefined}
-                      />
-                      <Text variant="itemTitle" as="span" className="min-w-0 truncate">{serie.name}</Text>
-                    </span>
-                    <Text variant="meta" className="mt-2">{seriesMetaLine(serie, roteiroCount, pilarNome)}</Text>
-                  </button>
-                </Surface>
+                  {aberta ? (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <Badge variant="neutral">Em aberto</Badge>
+                      <Text variant="meta" as="span">{formatOpenItems(items)}</Text>
+                    </div>
+                  ) : null}
+                </SettingsGridCard>
               );
-            })
-          )}
-        </div>
+            })}
+          </div>
+        )}
       </QueryViewState>
-
-      <QuickCreateSheet
-        open={quickCreateOpen}
-        name={quickName}
-        color={quickColor}
-        takenColors={[...takenSerieColorKeys(state.series)]}
-        onNameChange={setQuickName}
-        onColorChange={setQuickColor}
-        onClose={() => setQuickCreateOpen(false)}
-        onCreate={handleQuickCreate}
+      {quickSheet}
+      <ConfirmModal
+        open={Boolean(confirm)}
+        message={confirm?.message ?? ''}
+        confirmLabel={confirm?.confirmLabel}
+        cancelLabel={confirm?.cancelLabel}
+        onConfirm={() => {
+          confirm?.onConfirm();
+          setConfirm(null);
+        }}
+        onCancel={() => setConfirm(null)}
       />
     </SettingsPageScaffold>
   );

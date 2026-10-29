@@ -93,7 +93,12 @@ export function SeriesEditPage() {
   }, [editingSerie?.plataformas, state.platforms]);
 
   const editorialSettings = state.editorial;
-  const backToList = () => navigate('/editorial?aba=series');
+  const voltarLista = () => navigate('/series');
+  const voltarSerie = (id: string) => navigate(`/series/${id}`);
+  const voltar = () => {
+    if (isCreate || !serieId || serieId === 'nova') voltarLista();
+    else voltarSerie(serieId);
+  };
 
   const alteracoesDeLegenda = (serie: Serie) => {
     const anterior = state.series.find(item => item.id === serie.id);
@@ -137,7 +142,7 @@ export function SeriesEditPage() {
 
     setPendingApply(null);
     setLegendaPendente(null);
-    backToList();
+    voltarSerie(payload.id);
   };
 
   const seguirParaLegenda = (serie: Serie, aplicarFuncao: boolean) => {
@@ -170,17 +175,17 @@ export function SeriesEditPage() {
   const handleDelete = () => {
     if (!editingSerie) return;
     dispatch({type: 'DELETE_SERIE', payload: editingSerie.id});
-    backToList();
+    voltarLista();
   };
 
   const lastEditLabel = editingSerie?.updatedAt
     ? `Última edição ${formatDistanceToNow(new Date(editingSerie.updatedAt), {addSuffix: true, locale: ptBR})} por você.`
     : null;
 
-  const pageTitle = isCreate ? 'Nova série' : 'Editar série';
+  const pageTitle = isCreate ? 'Nova série' : 'Editar definições';
   const pageMeta = isCreate
     ? 'Cadastre os padrões e a identidade desta série.'
-    : 'Atualize os padrões e a identidade desta série.';
+    : editingSerie?.name || 'Atualize os padrões e a identidade desta série.';
 
   const handleChromeChange = useCallback((next: SerieEditChromeState) => {
     setChrome(next);
@@ -193,7 +198,7 @@ export function SeriesEditPage() {
           <Text variant="body" className="text-[var(--text-tertiary)]">
             Esta série não existe mais.
           </Text>
-          <AppButton variant="secondary" className="mt-4" onClick={backToList}>
+          <AppButton variant="secondary" className="mt-4" onClick={voltarLista}>
             Voltar para séries
           </AppButton>
         </div>
@@ -210,11 +215,12 @@ export function SeriesEditPage() {
       takenColors={[...takenSerieColorKeys(state.series, editingSerie?.id)]}
       contas={contas}
       pilares={state.pilares}
+      series={state.series}
       contents={state.contents}
       usedFormatoValues={state.series.flatMap(serie => serie.formatoVisualPadrao ?? [])}
       showOpenInfoNotice={editorialSettings.openInfoNotices}
       onSave={handleSave}
-      onCancel={backToList}
+      onCancel={voltar}
       onChromeChange={handleChromeChange}
       lastEditLabel={lastEditLabel}
     />
@@ -225,8 +231,8 @@ export function SeriesEditPage() {
       <>
         <div className="min-h-full bg-[var(--bg-primary)] px-4 pb-28 pt-4">
           <div className="mb-4 flex items-center justify-between gap-2">
-            <AppButton variant="ghost" size="sm" onClick={backToList}>
-              Séries
+            <AppButton variant="ghost" size="sm" onClick={voltar}>
+              {isCreate ? 'Séries' : 'Série'}
             </AppButton>
             <div className="flex items-center gap-2">
               {chrome ? (
@@ -294,8 +300,8 @@ export function SeriesEditPage() {
         header={
           <DesktopPageHeader
             section="Criação"
-            backLabel="Séries"
-            backTo="/editorial?aba=series"
+            backLabel={isCreate ? 'Séries' : 'Série'}
+            backTo={isCreate || !serieId ? '/series' : `/series/${serieId}`}
             title={pageTitle}
             meta={pageMeta}
             hideSearch

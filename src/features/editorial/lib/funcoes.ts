@@ -1,4 +1,5 @@
 import type { FuncaoEditorial, FuncaoOrigem, FuncaoPadraoSerie } from '../../../lib/database.ts';
+import { resolverFuncaoHerdada, type SerieHeranca } from './herancaSerie.ts';
 
 export const FUNCOES: FuncaoEditorial[] = [
   'atrair',
@@ -97,6 +98,7 @@ export type FuncaoResolvida = {
 };
 
 type ConteudoFuncao = {
+  seriesId?: string | null;
   funcao?: FuncaoEditorial | null;
   funcaoOrigem?: FuncaoOrigem | null;
   classificacaoCongeladaEm?: string | null;

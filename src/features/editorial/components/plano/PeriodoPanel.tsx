@@ -17,7 +17,7 @@ import { listarSoEmOutrasRedes } from '../../lib/soEmOutrasRedes';
 import { avisosDeOrientacao } from '../../../planejamento/lib/orientacaoEditorial';
 import type { MetasPeriodo } from '../../lib/editorialSettings';
 import { ETAPA_LABEL, ETAPAS, ETAPAS_DE_CONTEUDO, contagemPorEtapaVazia, somaDasEtapas, type ContagemPorEtapa, type Etapa } from '../../lib/etapas';
-import { expectativaNoIntervalo, lerFrequencia } from '../../lib/frequenciaSerie';
+import { contarSerieAgrupada, textoDaContagemSerie } from '../../lib/frequenciaAgrupada';
 import { FUNCAO_CURTA, FUNCOES } from '../../lib/funcoes';
 import { decisaoDoPeriodo } from '../../lib/periodoEditorial';
 import {
@@ -44,12 +44,6 @@ function celula(valor: number | null): string {
   return valor == null ? '—' : String(valor);
 }
 
-function textoDaSerie(contados: number, esperado: number | null): string {
-  if (esperado == null) return `${contados} · quando houver pauta`;
-  // Série mensal numa semana sem edição: "0 de 0" não diz nada.
-  if (esperado === 0) return contados === 0 ? 'nada previsto' : `${contados} · nada previsto`;
-  return `${contados} de ${esperado}`;
-}
 
 /** `metas` do período guarda só os ajustes. Null tira o ajuste e volta à proporção. */
 function metasCom(metas: MetasPeriodo, funcao: FuncaoEditorial, quantidade: number | null): MetasPeriodo {
@@ -574,18 +568,31 @@ export function PeriodoPanel({
       };
     });
 
+  const itensContagem = contagem.itens.map(item => ({
+    serieId: item.serieId,
+    espacoId: item.id,
+    contentId: item.contentId,
+  }));
   const series: LinhaDoPeriodo[] = state.series
     .filter(serie => serie.ativa)
     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
     .map(serie => {
-      const esperado = expectativaNoIntervalo(lerFrequencia({
-        frequenciaRecomendada: serie.frequenciaRecomendada,
-        vezes: serie.frequenciaVezes,
-        unidade: serie.frequenciaUnidade,
-        aPartirDe: serie.frequenciaAPartirDe,
-      }), periodo.inicio, periodo.fim);
-      const contados = contagem.itens.filter(item => item.serieId === serie.id).length;
-      return { id: serie.id, nome: serie.name, cor: serie.cor, texto: textoDaSerie(contados, esperado) };
+      const agrupada = contarSerieAgrupada({
+        serie,
+        series: state.series,
+        itens: itensContagem,
+        inicio: periodo.inicio,
+        fim: periodo.fim,
+      });
+      const avisoRecorte = agrupada.recorteIncompativel
+        ? ` · recortes dos filhos: ${agrupada.somaRecortesFilhos}`
+        : '';
+      return {
+        id: serie.id,
+        nome: serie.name,
+        cor: serie.cor,
+        texto: `${textoDaContagemSerie(agrupada)}${avisoRecorte}`,
+      };
     });
 
 
@@ -662,7 +669,7 @@ export function PeriodoPanel({
               variant="secondary"
               size="sm"
               rightIcon={<ArrowRight className="h-4 w-4" />}
-              onClick={() => navigate('/editorial?aba=series')}
+              onClick={() => navigate('/series')}
             >
               Ver todas as séries
             </AppButton>

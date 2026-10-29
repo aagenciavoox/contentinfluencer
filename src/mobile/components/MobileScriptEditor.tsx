@@ -5,7 +5,8 @@ import { DraftSaveBar } from '../../features/contents/components/detail/DraftSav
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../context/AuthContext';
 import { RoteiroTypographyControls } from '../../features/contents/components/detail/RoteiroTypographyControls';
-import { roteiroTypographyStyle, useRoteiroTypography } from '../../features/contents/lib/roteiroTypography';
+import { roteiroTypographyStyle } from '../../features/contents/lib/roteiroTypography';
+import { useRoteiroTypography } from '../../features/contents/lib/useRoteiroTypography';
 
 interface MobileScriptEditorProps {
   content: string;

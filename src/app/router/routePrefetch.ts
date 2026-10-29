@@ -98,7 +98,8 @@ function loaderForPath(pathname: string): RouteLoader | null {
   if (path.startsWith('/planejamento') || path.startsWith('/programacao')) return loadPlanejamento;
   if (path === '/editorial') return loadEditorial;
   if (path === '/editorial/pilares/nova' || path.startsWith('/editorial/pilares/')) return loadPillarEdit;
-  if (path === '/editorial/series/nova' || path.startsWith('/editorial/series/')) return loadSeriesEdit;
+  if (path === '/editorial/series/nova' || path === '/series/nova') return loadSeriesEdit;
+  if (path.startsWith('/editorial/series/')) return loadSeriesEdit;
   if (path === '/biblioteca/analise') return loadLibraryAnalysis;
   if (path === '/biblioteca') return loadLibrary;
   if (path.startsWith('/biblioteca/')) return loadBookDetail;
@@ -107,11 +108,15 @@ function loaderForPath(pathname: string): RouteLoader | null {
   if (path === '/gravacao') return loadRecording;
   if (path.startsWith('/gravacao/')) return loadRecordingBlock;
   if (path === '/configuracoes/perfil') return loadProfile;
-  if (path === '/configuracoes/pilares' || path === '/configuracoes/series') return loadEditorial;
+  if (path === '/configuracoes/pilares') return loadEditorial;
   if (path.startsWith('/configuracoes/pilares/')) return loadPillarEdit;
+  if (path === '/configuracoes/series') return loadSeries;
+  if (path.startsWith('/configuracoes/series/')) {
+    return path.endsWith('/editar') || path.endsWith('/nova') ? loadSeriesEdit : loadSeriesScripts;
+  }
   if (path === '/series') return loadSeries;
-  if (path.includes('/roteiros')) return loadSeriesScripts;
-  if (path === '/series/nova' || path.startsWith('/series/')) return loadSeriesEdit;
+  if (path.startsWith('/series/') && path.endsWith('/editar')) return loadSeriesEdit;
+  if (path.startsWith('/series/')) return loadSeriesScripts;
   if (path === '/contas' || path.startsWith('/configuracoes/plataformas') || path.startsWith('/configuracoes/horarios')) return loadPlatforms;
   if (path === '/analises') return loadAnalises;
   if (path.startsWith('/configuracoes/templates')) return loadSeries;

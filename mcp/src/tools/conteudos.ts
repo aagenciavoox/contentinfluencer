@@ -13,6 +13,7 @@ import {
   contentSummary,
   funcaoEfetiva,
   funcaoHerdavel,
+  funcaoHerdavelNaCadeia,
   htmlToText,
   json,
   loadLookups,
@@ -515,7 +516,10 @@ export function registerConteudos(server: McpServer) {
         // Ao publicar, a função fica fixa: mudar a série depois não reclassifica o que já saiu.
         if (args.status === 'Publicado' && !row.classificacao_congelada_em) {
           if (row.funcao_origem === 'herdada') {
-            patch.funcao = funcaoHerdavel(lookups.series.find(s => s.id === row.series_id));
+            patch.funcao = funcaoHerdavelNaCadeia(
+              typeof row.series_id === 'string' ? row.series_id : null,
+              lookups.series,
+            );
           }
           patch.classificacao_congelada_em = now;
         }

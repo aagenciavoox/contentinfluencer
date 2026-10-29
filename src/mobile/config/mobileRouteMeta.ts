@@ -113,20 +113,21 @@ export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMe
     };
   }
 
-  if (pathname === '/editorial/series/nova') {
+  if (pathname === '/editorial/series/nova' || pathname === '/series/nova') {
     return {
       title: 'Nova série',
       mode: 'back',
-      backTo: '/editorial?aba=series',
+      backTo: '/series',
       titleVariant: 'compact-center',
     };
   }
 
   if (pathname.startsWith('/editorial/series/')) {
+    const serieId = pathname.split('/')[3] || '';
     return {
-      title: 'Editar série',
+      title: 'Editar definições',
       mode: 'back',
-      backTo: '/editorial?aba=series',
+      backTo: serieId ? `/series/${serieId}` : '/series',
       titleVariant: 'compact-center',
     };
   }
@@ -158,27 +159,19 @@ export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMe
     };
   }
 
-  if (pathname.startsWith('/series/') && pathname.endsWith('/roteiros')) {
+  if (pathname.startsWith('/series/') && pathname.endsWith('/editar')) {
+    const serieId = pathname.split('/')[2] || '';
+    return {
+      title: 'Editar definições',
+      mode: 'back',
+      backTo: serieId ? `/series/${serieId}` : '/series',
+      titleVariant: 'compact-center',
+    };
+  }
+
+  if (pathname.startsWith('/series/')) {
     return {
       title: 'Série',
-      mode: 'back',
-      backTo: '/series',
-      titleVariant: 'compact-center',
-    };
-  }
-
-  if (pathname.startsWith('/series/') && pathname.endsWith('/editar')) {
-    return {
-      title: 'Editar série',
-      mode: 'back',
-      backTo: '/series',
-      titleVariant: 'compact-center',
-    };
-  }
-
-  if (pathname === '/series/nova') {
-    return {
-      title: 'Nova série',
       mode: 'back',
       backTo: '/series',
       titleVariant: 'compact-center',

@@ -183,10 +183,23 @@ export interface Serie {
   motivoEnviar?: string | null;
   /** Legenda que orienta os roteiros novos da série. Ausente no banco antigo. */
   legendaBase?: string | null;
+  /** Série pai opcional. Null = raiz. Ausente no banco antigo. */
+  parentId?: string | null;
+  /** Este registro é o escopo das temporadas. Ausente no banco antigo. */
+  usaTemporadas?: boolean;
   createdAt: string;
   updatedAt: string;
   pilarIds: string[];
   plataformas: SeriePlataforma[];
+}
+
+/** Temporada com identidade no escopo de uma série. */
+export interface Temporada {
+  id: string;
+  userId: string;
+  serieId: string;
+  nome: string;
+  createdAt: string;
 }
 
 /** Rótulo leve do roteiro. Não herda função, pilar nem estrutura de série. */
@@ -469,6 +482,10 @@ export interface Content {
   tags: string[];
   /** Temas leves, como Halloween. Ausente enquanto o vínculo não foi carregado. */
   temaIds?: string[];
+  /** Conteúdo do qual este deriva. Distinto de republicação. Ausente no banco antigo. */
+  origemConteudoId?: string | null;
+  /** Temporada do escopo ativo. Ausente no banco antigo. */
+  temporadaId?: string | null;
   notes: string | null;
   referencias: string | null;
   /** Notas livres ao lado do roteiro. Ausente enquanto o corpo não foi carregado. */
@@ -703,6 +720,7 @@ export interface AppData {
   pilares: Pilar[];
   series: Serie[];
   temas: Tema[];
+  temporadas: Temporada[];
   cenarios: Cenario[];
   looks: Look[];
   bibliotecaGeneros: BibliotecaGenero[];
@@ -770,6 +788,7 @@ export const BOOTSTRAP_DATA_DOMAINS: AppDataDomain[] = [
 function empty(): AppData {
   return {
     platforms: [], preferences: {}, dnaVoz: null, pilares: [], series: [], temas: [],
+    temporadas: [],
     cenarios: [], looks: [], bibliotecaGeneros: [], bibliotecaItems: [],
     contents: [], ideas: [], projetos: [], recordingBlocks: [], templates: [],
     agendaItems: [], postIts: [], goldenRules: [], contentMetrics: [], postingTimeEntries: [],
@@ -887,7 +906,11 @@ const SERIE_OPTIONAL_COLUMNS = [
   'frequencia_unidade',
   'frequencia_a_partir_de',
   'legenda_base',
+  'parent_id',
+  'usa_temporadas',
 ] as const;
+
+const CONTENT_AGRUPAMENTO_COLUMNS = ['origem_conteudo_id', 'temporada_id'] as const;
 
 const MIGRACAO_CONTAS = '20261015120000_contas_legendas_metricas';
 
@@ -1232,6 +1255,8 @@ const mp = {
     motivoSalvar: typeof r.motivo_salvar === 'string' ? r.motivo_salvar : null,
     motivoEnviar: typeof r.motivo_enviar === 'string' ? r.motivo_enviar : null,
     legendaBase: typeof r.legenda_base === 'string' ? r.legenda_base : null,
+    parentId: typeof r.parent_id === 'string' && r.parent_id ? r.parent_id : null,
+    usaTemporadas: r.usa_temporadas === true,
     createdAt: r.created_at, updatedAt: r.updated_at,
     pilarIds: (r.serie_pilares || []).map((sp: Row) => sp.pilar_id),
     plataformas: (r.serie_plataformas || []).map((sp: Row) => ({
@@ -1240,6 +1265,13 @@ const mp = {
       hashtags: sp.hashtags || '',
       legenda: typeof sp.legenda === 'string' ? sp.legenda : null,
     })),
+  }),
+  temporada: (r: Row): Temporada => ({
+    id: String(r.id),
+    userId: r.user_id,
+    serieId: String(r.serie_id),
+    nome: typeof r.nome === 'string' ? r.nome : '',
+    createdAt: r.created_at,
   }),
   tema: (r: Row): Tema => ({
     id: r.id,
@@ -1309,6 +1341,10 @@ const mp = {
     publishDateEnabled: r.publish_date_enabled ?? (r.publish_date != null),
     recordingDateEnabled: r.recording_date_enabled ?? (r.recording_date != null),
     script: r.script, scriptNotes: r.script_notes || [], tags: r.tags || [],
+    origemConteudoId: typeof r.origem_conteudo_id === 'string' && r.origem_conteudo_id
+      ? r.origem_conteudo_id
+      : null,
+    temporadaId: typeof r.temporada_id === 'string' && r.temporada_id ? r.temporada_id : null,
     notes: r.notes, referencias: r.referencias,
     writingNotes: r.writing_notes,
     ...readCarouselColumns(r),
@@ -1529,6 +1565,7 @@ function buildContentScheduleSelect(
   includeExternoId = true,
   includeWritingMode = true,
   includeEdicao = true,
+  includeAgrupamento = true,
 ): string {
   let columns: readonly string[] = includeMilestones
     ? [
@@ -1561,6 +1598,10 @@ function buildContentScheduleSelect(
   if (includeContagemOrigem) {
     const relation = columns[columns.length - 1];
     columns = [...columns.slice(0, -1), ...CONTENT_CONTAGEM_ORIGEM_COLUMNS, relation];
+  }
+  if (includeAgrupamento) {
+    const relation = columns[columns.length - 1];
+    columns = [...columns.slice(0, -1), ...CONTENT_AGRUPAMENTO_COLUMNS, relation];
   }
   if (includeWritingMode) {
     // Leve: só o modo. As telas vêm com o corpo, como o roteiro.
@@ -1597,8 +1638,9 @@ async function runContentScheduleSelect<T>(
   let includeExternoId = true;
   let includeWritingMode = true;
   let includeEdicao = true;
+  let includeAgrupamento = true;
 
-  for (let attempt = 0; attempt < 13; attempt += 1) {
+  for (let attempt = 0; attempt < 14; attempt += 1) {
     const result = await run(
       buildContentScheduleSelect(
         includeMilestones,
@@ -1612,6 +1654,7 @@ async function runContentScheduleSelect<T>(
         includeExternoId,
         includeWritingMode,
         includeEdicao,
+        includeAgrupamento,
       ),
     );
     if (!result.error) return result;
@@ -1627,6 +1670,12 @@ async function runContentScheduleSelect<T>(
     }
     if (includeExternoId && isMissingExternoIdColumn(result.error)) {
       includeExternoId = false;
+      continue;
+    }
+    if (includeAgrupamento && CONTENT_AGRUPAMENTO_COLUMNS.some(column =>
+      isMissingNamedColumn(result.error?.message ?? '', column),
+    )) {
+      includeAgrupamento = false;
       continue;
     }
     if (includeContagemOrigem && isMissingContagemOrigemColumns(result.error)) {
@@ -2196,6 +2245,18 @@ export async function fetchDataDomains(
         payload.temas = [];
       } else {
         payload.temas = (assertQuerySuccess('temas fetch', temasResult) || []).map(mp.tema);
+      }
+
+      const temporadasResult = await supabase
+        .from('temporadas')
+        .select('id, user_id, serie_id, nome, created_at')
+        .eq('user_id', uid)
+        .order('nome');
+      const temporadasErro = temporadasResult.error?.message ?? '';
+      if (temporadasErro && /temporadas/i.test(temporadasErro) && /does not exist|Could not find the table/i.test(temporadasErro)) {
+        payload.temporadas = [];
+      } else {
+        payload.temporadas = (assertQuerySuccess('temporadas fetch', temporadasResult) || []).map(mp.temporada);
       }
     })());
   }
@@ -2774,6 +2835,8 @@ export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 
   if ('frequenciaUnidade' in serie) row.frequencia_unidade = serie.frequenciaUnidade?.trim() || null;
   if ('frequenciaAPartirDe' in serie) row.frequencia_a_partir_de = serie.frequenciaAPartirDe || null;
   if ('legendaBase' in serie) row.legenda_base = serie.legendaBase?.trim() ? serie.legendaBase : null;
+  if ('parentId' in serie) row.parent_id = serie.parentId?.trim() || null;
+  if ('usaTemporadas' in serie) row.usa_temporadas = serie.usaTemporadas === true;
 
   for (let attempt = 0; attempt < 12; attempt += 1) {
     const { error } = await supabase.from('series').upsert(row);
@@ -2839,6 +2902,25 @@ export async function deleteSerie(id: string): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from('series').delete().eq('id', id);
   if (error) throw new Error(`delete serie: ${error.message}`);
+}
+
+export async function saveTemporada(temporada: Omit<Temporada, 'createdAt'>): Promise<void> {
+  if (!supabase) return;
+  const nome = temporada.nome.trim();
+  if (!nome) throw new Error('temporadas: nome vazio');
+  const { error } = await supabase.from('temporadas').upsert({
+    id: temporada.id,
+    user_id: temporada.userId,
+    serie_id: temporada.serieId,
+    nome,
+  });
+  if (error) throw new Error(`temporadas: ${error.message}`);
+}
+
+export async function deleteTemporada(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('temporadas').delete().eq('id', id);
+  if (error) throw new Error(`delete temporada: ${error.message}`);
 }
 
 export async function saveTema(tema: Omit<Tema, 'createdAt'>): Promise<void> {
@@ -3176,6 +3258,8 @@ export async function saveContent(
     ...(bodyLoaded ? {script_notes: content.scriptNotes} : {}),
     tags: content.tags,
     notes: content.notes, referencias: content.referencias,
+    ...('origemConteudoId' in content ? {origem_conteudo_id: content.origemConteudoId ?? null} : {}),
+    ...('temporadaId' in content ? {temporada_id: content.temporadaId ?? null} : {}),
     funcao: content.funcao ?? null,
     funcao_origem: content.funcaoOrigem ?? null,
     classificacao_congelada_em: content.classificacaoCongeladaEm ?? null,
@@ -3240,6 +3324,15 @@ export async function saveContent(
     if (missingContagem) {
       const {[missingContagem]: _removed, ...rowWithoutContagem} = row;
       row = rowWithoutContagem;
+      continue;
+    }
+
+    const missingAgrupamento = CONTENT_AGRUPAMENTO_COLUMNS.find(column =>
+      column in row && !!error.message && isMissingNamedColumn(error.message, column),
+    );
+    if (missingAgrupamento) {
+      const {[missingAgrupamento]: _removed, ...rowWithoutAgrupamento} = row;
+      row = rowWithoutAgrupamento;
       continue;
     }
 

@@ -29,6 +29,7 @@ import {
   buildMarkStandaloneContentRecordedTransition,
   normalizeRecordingTags,
 } from '../lib/recordingWorkflow';
+import {contentPassaFiltroSerie} from '../../editorial/lib/filtroSubarvore';
 import {generateUUID} from '../../../utils/uuid';
 
 type RecordingPageTab = 'queue' | 'blocks';
@@ -173,7 +174,7 @@ export function RecordingPage() {
   const prontos = [...queueContents]
     .filter(content => {
       if (filterPilar && content.pilarId !== filterPilar) return false;
-      if (filterSerie && content.seriesId !== filterSerie) return false;
+      if (filterSerie && !contentPassaFiltroSerie(content.seriesId, filterSerie, state.series)) return false;
       if (filterTag && !normalizeRecordingTags(content.tags || []).includes(filterTag)) return false;
       if (filterEnergia && content.energiaNecessaria !== filterEnergia) return false;
       if (searchTerm.trim()) {

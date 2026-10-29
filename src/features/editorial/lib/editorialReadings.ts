@@ -270,7 +270,7 @@ export function computeReadings(
         prioridade: 4,
         // Diz qual série e o que falta: "Esta série" repetido três vezes não dizia nada.
         mensagem: `«${serie.name}» tem em aberto: ${formatOpenItems(getSerieOpenItems(serie))}`,
-        acao: { rotulo: 'Abrir série', href: `/editorial/series/${serie.id}` },
+        acao: { rotulo: 'Abrir série', href: `/series/${serie.id}` },
       });
     }
   }

@@ -1,4 +1,5 @@
-import {Minus, Plus, Type} from 'lucide-react';
+import {useEffect} from 'react';
+import {Check, Minus, Plus, Type} from 'lucide-react';
 import {ToolbarDropdown} from '../../../../components/editors/EditorToolbar';
 import {SelectField} from '../../../../components/ui/SelectField';
 import {cn} from '../../../../lib/utils';
@@ -31,10 +32,49 @@ const STEP_BUTTON = cn(
   'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
 );
 
+function SizeStepper({
+  size,
+  onChange,
+}: {
+  size: number;
+  onChange: (updates: Partial<RoteiroTypography>) => void;
+}) {
+  return (
+    <div className="flex shrink-0 items-center" role="group" aria-label="Tamanho da fonte do roteiro">
+      <button
+        type="button"
+        className={STEP_BUTTON}
+        onMouseDown={event => event.preventDefault()}
+        onClick={() => onChange({size: size - 1})}
+        disabled={size <= ROTEIRO_FONT_SIZE_MIN}
+        aria-label="Diminuir tamanho da fonte"
+        title="Diminuir tamanho da fonte"
+      >
+        <Minus className="h-3.5 w-3.5" aria-hidden />
+      </button>
+      <span className="min-w-[2.75rem] text-center text-xs tabular-nums text-[var(--text-primary)]" aria-live="polite">
+        {size}px
+      </span>
+      <button
+        type="button"
+        className={STEP_BUTTON}
+        onMouseDown={event => event.preventDefault()}
+        onClick={() => onChange({size: size + 1})}
+        disabled={size >= ROTEIRO_FONT_SIZE_MAX}
+        aria-label="Aumentar tamanho da fonte"
+        title="Aumentar tamanho da fonte"
+      >
+        <Plus className="h-3.5 w-3.5" aria-hidden />
+      </button>
+    </div>
+  );
+}
+
 /**
  * Fonte e tamanho do texto do roteiro, na barra do editor.
- * variant="toolbar" (computador): menus da própria barra, cada fonte na própria fonte e
- * tamanho como "− 16px +". variant="field" (celular): seletores do design system.
+ * variant="toolbar": menus da própria barra.
+ * variant="panel": lista plana (ex.: rodapé do menu Formatar — sem dropdown aninhado).
+ * variant="field" (celular): seletores do design system.
  */
 export function RoteiroTypographyControls({
   typography,
@@ -43,8 +83,57 @@ export function RoteiroTypographyControls({
 }: {
   typography: RoteiroTypography;
   onChange: (updates: Partial<RoteiroTypography>) => void;
-  variant?: 'field' | 'toolbar';
+  variant?: 'field' | 'toolbar' | 'panel';
 }) {
+  useEffect(() => {
+    if (variant === 'panel') preloadRoteiroFonts();
+  }, [variant]);
+
+  if (variant === 'panel') {
+    return (
+      <div className="flex flex-col gap-2" title={TITLE}>
+        <p className="px-1 text-[11px] font-medium uppercase tracking-wide text-[var(--text-secondary)]">
+          Fonte do roteiro
+        </p>
+        <div className="flex flex-col gap-0.5" role="radiogroup" aria-label="Fonte do roteiro">
+          {ROTEIRO_FONTS.map(font => {
+            const active = font.id === typography.font;
+            return (
+              <button
+                key={font.id}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onMouseDown={event => event.preventDefault()}
+                onClick={() => {
+                  preloadRoteiroFonts();
+                  onChange({font: font.id});
+                }}
+                className={cn(
+                  'flex w-full items-center gap-2 rounded-[var(--radius-input)] px-2 py-1.5 text-left text-sm transition',
+                  'focus-visible:outline-none focus-visible:bg-[var(--bg-hover)]',
+                  active
+                    ? 'bg-[var(--bg-hover)] font-semibold text-[var(--text-primary)]'
+                    : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]',
+                )}
+                style={{fontFamily: font.family}}
+              >
+                <span className="min-w-0 flex-1 truncate">{font.label}</span>
+                {active ? <Check className="h-3.5 w-3.5 shrink-0" aria-hidden /> : null}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex items-center justify-between gap-2 border-t border-[var(--border-color)] px-1 pt-2">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-[var(--text-secondary)]">
+            Tamanho
+          </span>
+          <SizeStepper size={typography.size} onChange={onChange} />
+        </div>
+      </div>
+    );
+  }
+
   if (variant === 'toolbar') {
     const current = ROTEIRO_FONTS.find(font => font.id === typography.font) ?? ROTEIRO_FONTS[0];
     const size = typography.size;

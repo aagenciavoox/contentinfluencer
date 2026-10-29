@@ -1,5 +1,6 @@
 import type { Content, ContentMetric, ContentPlataforma, Pilar, Serie } from '../../../lib/database.ts';
 import { contaDaRef, redeDaConta, rotuloConta, type ContaRef } from '../../contas/lib/contas.ts';
+import { contentPassaFiltroSerie } from '../../editorial/lib/filtroSubarvore.ts';
 import { FUNCAO_LABELS, isFuncaoEditorial } from '../../editorial/lib/funcoes.ts';
 import { semanaDe } from '../../editorial/lib/periodoEditorial.ts';
 
@@ -11,6 +12,8 @@ export type FiltroAnalise = {
   base: BaseDoPeriodo;
   rede: string | null;
   contaId: string | null;
+  /** Inclui a subárvore quando a série tem filhos. */
+  serieId?: string | null;
 };
 
 export const FORMULA_ENGAJAMENTO =
@@ -112,6 +115,7 @@ export function filtrarPublicacoes({
 
   for (const content of contents) {
     if (content.deletedAt) continue;
+    if (!contentPassaFiltroSerie(content.seriesId, filtro.serieId, series)) continue;
     const serie = series.find(item => item.id === content.seriesId) ?? null;
     const pilar = pilares.find(item => item.id === content.pilarId) ?? null;
     const objetivo = isFuncaoEditorial(content.funcao) ? FUNCAO_LABELS[content.funcao] : null;

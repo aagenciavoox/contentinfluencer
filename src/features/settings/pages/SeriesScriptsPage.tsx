@@ -1,270 +1,225 @@
-import { useMemo, useState } from 'react';
-
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Layers } from 'lucide-react';
-import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
-import { SettingsPageScaffold } from '../../../components/settings/SettingsPageScaffold';
 import { AppButton } from '../../../components/ui/AppButton';
-import { SegmentTabs } from '../../../components/ui/SegmentTabs';
+import { SelectField } from '../../../components/ui/SelectField';
 import { Text } from '../../../components/ui/Text';
 import { useAppContext } from '../../../context/AppContext';
-import { useIsMobile } from '../../../hooks/useIsMobile';
-import type { Content } from '../../../lib/database';
-import { broadcastDataSync } from '../../../lib/syncBroadcast';
-import { notifySaveFeedback } from '../../../lib/saveFeedback';
 import { PageLayout } from '../../../layouts/page/PageLayout';
-import { SeriesDetailMobileScreen } from '../../../mobile/screens/settings/SeriesDetailMobileScreen';
-import { SeriesDetailHeader } from '../components/series-detail/SeriesDetailHeader';
-import { SeriesContentsFilterBar } from '../components/series-detail/SeriesContentsFilterBar';
-import { SeriesContentList } from '../components/series-detail/SeriesContentList';
-import { SeriesBulkComposer } from '../components/SeriesBulkComposer';
-import { SeriesContentPreviewModal } from '../components/series-detail/SeriesContentPreviewModal';
-import {
-  computeSeriesContentStats,
-  type SeriesContentTab,
-} from '../lib/computeSeriesContentStats';
-import { filterAndSortSeriesListItems, type SeriesListItem } from '../lib/seriesContentListUtils';
-import { CONTENT_STATUS } from '../../contents/lib/contentPipeline';
-import { formatOpenItems, getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
+import type { Content } from '../../../lib/database';
+import { withDetailBack } from '../../../lib/navigation/detailBack';
+import { broadcastDataSync } from '../../../lib/syncBroadcast';
+import { cn } from '../../../lib/utils';
+import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import { OpenInfoNotice } from '../../editorial/components/OpenInfoNotice';
+import { formatOpenItems, getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
+import { filhosDaSerie, idsDaSubarvore } from '../../editorial/lib/serieArvore';
+import { escopoTemporadas, temporadasDoEscopo } from '../../editorial/lib/temporadas';
+import { SeriesBulkDrawer, type PedidoMassa } from '../components/series-detail/SeriesBulkDrawer';
+import { SeriesEpisodeGroups } from '../components/series-detail/SeriesEpisodeGroups';
+import { SeriesAboutPanel, SeriesSettingsPanel } from '../components/series-detail/SeriesReadPanels';
+import { SeriesTrackingHeader } from '../components/series-detail/SeriesTrackingHeader';
+import { montarVistaEpisodios, temporadaInicial } from '../lib/seriesEpisodeView';
 
-function contentTypeLabel(status: string) {
-  return status === CONTENT_STATUS.IDEIA ? 'ideia' : 'roteiro';
-}
+type AbaSerie = 'episodios' | 'sobre' | 'configuracoes';
+
+const ABAS: Array<{ id: AbaSerie; label: string }> = [
+  { id: 'episodios', label: 'Episódios' },
+  { id: 'sobre', label: 'Sobre' },
+  { id: 'configuracoes', label: 'Configurações' },
+];
 
 export function SeriesScriptsPage() {
   const { serieId } = useParams<{ serieId: string }>();
   const navigate = useNavigate();
   const { state, dispatch } = useAppContext();
-  const isMobile = useIsMobile();
-  const editorialSettings = state.editorial;
-
-  const [activeTab, setActiveTab] = useState<SeriesContentTab>('roteiros');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('Todos');
-  const [sortBy, setSortBy] = useState('updatedAt:desc');
-  const [previewItem, setPreviewItem] = useState<SeriesListItem | null>(null);
-  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const [aba, setAba] = useState<AbaSerie>('episodios');
+  const [preferida, setPreferida] = useState('');
+  const [drawerAberto, setDrawerAberto] = useState(false);
+  const [pedido, setPedido] = useState<PedidoMassa | null>(null);
+  const nonce = useRef(0);
 
   const serie = state.series.find(item => item.id === serieId) ?? null;
-  const platformNames = state.platforms.filter(platform => platform.ativo).map(platform => platform.nome);
+  const editorialSettings = state.editorial;
 
-  const linkedContents = useMemo(
-    () =>
-      state.contents
-        .filter(content => content.seriesId === serieId && !content.deletedAt)
-        .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')),
-    [serieId, state.contents],
+  const linkedContents = useMemo(() => {
+    if (!serieId) return [];
+    const sub = idsDaSubarvore(serieId, state.series);
+    return state.contents.filter(content => content.seriesId && sub.has(content.seriesId) && !content.deletedAt);
+  }, [serieId, state.contents, state.series]);
+
+  const temporadasDaSerie = useMemo(() => {
+    if (!serieId) return [];
+    const escopo = escopoTemporadas(serieId, state.series);
+    return escopo ? temporadasDoEscopo(escopo.id, state.temporadas) : [];
+  }, [serieId, state.series, state.temporadas]);
+
+  const semTemporada = linkedContents.filter(content => !content.temporadaId).length;
+  const temporadaAtiva = useMemo(
+    () => temporadaInicial(temporadasDaSerie, linkedContents, preferida),
+    [linkedContents, preferida, temporadasDaSerie],
   );
 
-  // Ideias agora vivem no mesmo pipeline de Content; a lista legada fica fora
-  // desta tela para evitar duplicar itens já migrados.
-  const inboxIdeas = useMemo(() => [], []);
-
-  const stats = useMemo(
-    () => computeSeriesContentStats(linkedContents, inboxIdeas),
-    [linkedContents, inboxIdeas],
-  );
-
-  const tabCounts = useMemo(
-    () => ({
-      roteiros: stats.roteiros,
-      ideias: stats.ideias,
-      total: stats.total + stats.inboxIdeas,
-    }),
-    [stats],
-  );
-
-  const listTotalCount = useMemo(() => {
-    if (activeTab === 'roteiros') return stats.roteiros;
-    if (activeTab === 'ideias') return stats.ideias;
-    return stats.total + stats.inboxIdeas;
-  }, [activeTab, stats]);
-
-  const filteredItems = useMemo(
-    () =>
-      filterAndSortSeriesListItems(linkedContents, inboxIdeas, {
-        tab: activeTab,
-        search: searchTerm,
-        status: filterStatus,
-        sort: sortBy,
-      }),
-    [activeTab, filterStatus, linkedContents, inboxIdeas, searchTerm, sortBy],
-  );
-
-  const handleCreateBulkContents = async (contents: Content[]) => {
-    if (contents.length === 0) return;
-
-    const firstType = contentTypeLabel(contents[0].status);
-    const plural = contents.length > 1 ? `${firstType}s` : firstType;
-    notifySaveFeedback({
-      status: 'saving',
-      message: contents.length > 1 ? `Criando ${contents.length} ${plural}...` : `Criando ${firstType}...`,
+  const vista = useMemo(() => {
+    if (!serieId) return null;
+    return montarVistaEpisodios({
+      serieId,
+      series: state.series,
+      temporadas: state.temporadas,
+      contents: linkedContents,
+      temporadaSelecionada: temporadasDaSerie.length === 0 ? null : temporadaAtiva,
     });
+  }, [linkedContents, serieId, state.series, state.temporadas, temporadaAtiva, temporadasDaSerie.length]);
 
+  const idsExistentes = useMemo(() => new Set(state.contents.map(content => content.id)), [state.contents]);
+
+  const abrirEditor = () => {
+    if (serie) navigate(`/series/${serie.id}/editar`);
+  };
+
+  const abrirMassa = (origem: PedidoMassa['origem'], destinoId: string, temporadaId: string | null) => {
+    nonce.current += 1;
+    setPedido({ nonce: nonce.current, origem, serieId: destinoId, temporadaId });
+    setDrawerAberto(true);
+  };
+
+  const criarConteudos = async (contents: Content[]) => {
     for (const content of contents) {
       await dispatch(
         { type: 'ADD_CONTENT', payload: content },
         { silent: true, skipBroadcast: true },
       );
     }
-
     broadcastDataSync();
-    notifySaveFeedback({
-      status: 'success',
-      message:
-        contents.length > 1
-          ? `${contents.length} ${plural} criados`
-          : `${firstType.charAt(0).toUpperCase()}${firstType.slice(1)} criado`,
-    });
   };
 
-  if (!serie) {
-    if (isMobile) {
-      return (
-        <div className="min-h-full bg-[var(--bg-primary)] py-10 text-center">
-          <Layers className="mx-auto mb-3 h-8 w-8 opacity-10" />
+  if (!serie || !serieId || !vista) {
+    return (
+      <PageLayout variant="settings">
+        <div className="py-12 text-center stack-md">
+          <Layers className="mx-auto h-8 w-8 text-[var(--text-tertiary)]" aria-hidden />
           <Text variant="body" className="text-[var(--text-tertiary)]">
             {state.isLoaded ? 'Série não encontrada.' : 'Carregando série…'}
           </Text>
           {state.isLoaded ? (
-            <AppButton variant="secondary" className="mt-4" onClick={() => navigate('/series')}>
-              Voltar para séries
-            </AppButton>
+            <AppButton variant="secondary" onClick={() => navigate('/series')}>Voltar para séries</AppButton>
           ) : null}
         </div>
-      );
-    }
-
-    return (
-      <SettingsPageScaffold
-        title="Roteiros da série"
-        icon={Layers}
-        backTo="/series"
-        backLabel="Séries"
-      >
-        <div className="py-12 text-center">
-          <Layers className="mx-auto mb-3 h-8 w-8 opacity-10" />
-          <p className="text-sm font-medium text-[var(--text-tertiary)]">
-            {state.isLoaded ? 'Série não encontrada.' : 'Carregando série…'}
-          </p>
-          {state.isLoaded ? (
-            <AppButton
-              variant="secondary"
-              className="mt-4"
-              onClick={() => navigate('/series')}
-            >
-              Voltar para séries
-            </AppButton>
-          ) : null}
-        </div>
-      </SettingsPageScaffold>
+      </PageLayout>
     );
   }
 
-  if (isMobile) {
-    return (
-      <div className="min-h-full bg-[var(--bg-primary)]">
-        <SeriesDetailMobileScreen
-          serie={serie}
-          pilares={state.pilares}
-          platformNames={platformNames}
-          linkedContents={linkedContents}
-          linkedInboxIdeas={inboxIdeas}
-          onCreateBulkContents={handleCreateBulkContents}
-          showOpenInfoNotice={editorialSettings.openInfoNotices}
-          searchValue={searchTerm}
-          onSearchChange={setSearchTerm}
-          statusValue={filterStatus}
-          onStatusChange={setFilterStatus}
-          sortValue={sortBy}
-          onSortChange={setSortBy}
-        />
-      </div>
-    );
-  }
+  const quadros = filhosDaSerie(serie.id, state.series).length;
+  const abertos = getSerieOpenItems(serie, { series: state.series, contents: state.contents });
+  const opcoesTemporada = temporadasDaSerie.length === 0 ? [] : [
+    ...temporadasDaSerie.map(item => ({ value: item.id, label: item.nome })),
+    ...(semTemporada > 0 ? [{ value: 'none', label: 'Sem temporada' }] : []),
+  ];
+  const valorTemporada = temporadaAtiva ?? 'none';
+  const contagemTemporada = temporadaAtiva
+    ? linkedContents.filter(content => content.temporadaId === temporadaAtiva).length
+    : semTemporada;
 
   return (
-    <PageLayout
-      variant="settings"
-      header={(
-        <DesktopPageHeader
-          section="Criação"
-          title={serie.name}
-          backLabel="Séries"
-          backTo="/series"
+    <PageLayout variant="settings" contentWidth="wide" contentStack="dense">
+      <SeriesTrackingHeader
+        serie={serie}
+        episodios={linkedContents.length}
+        quadros={quadros}
+        onEdit={abrirEditor}
+        onBulk={() => abrirMassa('massa', serie.id, temporadasDaSerie.length > 0 ? temporadaAtiva : null)}
+      />
+
+      {editorialSettings.openInfoNotices && abertos.length > 0 ? (
+        <OpenInfoNotice
+          items={abertos}
+          title={`Esta série tem informações em aberto: ${formatOpenItems(abertos)}`}
+          description={null}
+          actionLabel="Editar definições"
+          onAction={abrirEditor}
         />
-      )}
-    >
-      <div className="stack-xl">
-        <SeriesDetailHeader
-          serie={serie}
-          pilares={state.pilares}
-          contentCount={linkedContents.length}
-          showMoreMenu={showHeaderMenu}
-          onToggleMore={() => setShowHeaderMenu(current => !current)}
-          onEdit={() => navigate(`/editorial/series/${serie.id}`)}
-          hideChrome
-          onMenuAction={action => {
-            if (action === 'edit') navigate(`/editorial/series/${serie.id}`);
-          }}
-        />
+      ) : null}
 
-        {editorialSettings.openInfoNotices && getSerieOpenItems(serie).length > 0 ? (
-          <OpenInfoNotice
-            items={getSerieOpenItems(serie)}
-            title={`Esta série tem informações em aberto: ${formatOpenItems(getSerieOpenItems(serie))}`}
-            description={null}
-            actionLabel="Completar no Editorial"
-            onAction={() => navigate(`/editorial/series/${serie.id}`)}
-          />
-        ) : null}
-
-        <div className="grid-series-detail">
-          <div className="min-w-0 order-2 stack-xl lg:order-1">
-            <SegmentTabs<SeriesContentTab>
-              value={activeTab}
-              onChange={setActiveTab}
-              options={[
-                { id: 'roteiros', label: 'Roteiros', count: tabCounts.roteiros },
-                { id: 'ideias', label: 'Ideias', count: tabCounts.ideias },
-                { id: 'todos', label: 'Todos', count: tabCounts.total },
-              ]}
-            />
-
-            <SeriesContentsFilterBar
-              searchValue={searchTerm}
-              onSearchChange={setSearchTerm}
-              statusValue={filterStatus}
-              onStatusChange={setFilterStatus}
-              sortValue={sortBy}
-              onSortChange={setSortBy}
-            />
-
-            <SeriesContentList
-              items={filteredItems}
-              totalCount={listTotalCount}
-              tab={activeTab}
-              onItemClick={setPreviewItem}
-            />
-          </div>
-
-          <aside className="min-w-0 order-1 lg:sticky lg:top-4 lg:order-2 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
-            <SeriesBulkComposer
-              serie={serie}
-              pilares={state.pilares}
-              platformNames={platformNames}
-              onCreate={handleCreateBulkContents}
-            />
-          </aside>
-        </div>
+      <div role="tablist" aria-label="Série" className="flex gap-6 border-b border-[var(--border-color)]">
+        {ABAS.map(item => {
+          const ativa = aba === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={ativa}
+              onClick={() => setAba(item.id)}
+              className={cn(
+                '-mb-px min-h-11 border-b-2 px-1 text-sm font-medium focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                ativa
+                  ? 'border-[var(--text-primary)] text-[var(--text-primary)]'
+                  : 'border-transparent text-[var(--text-secondary)]',
+              )}
+            >
+              {item.label}
+            </button>
+          );
+        })}
       </div>
 
-      <SeriesContentPreviewModal
-        item={previewItem}
-        serie={serie}
-        platforms={state.platforms}
-        onClose={() => setPreviewItem(null)}
+      {aba === 'episodios' ? (
+        <div className="stack-lg">
+          {opcoesTemporada.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <SelectField
+                ariaLabel="Temporada"
+                value={valorTemporada}
+                onChange={setPreferida}
+                options={opcoesTemporada}
+              />
+              <Text variant="meta">
+                {contagemTemporada === 1 ? '1 episódio' : `${contagemTemporada} episódios`}
+              </Text>
+            </div>
+          ) : null}
+          <SeriesEpisodeGroups
+            vista={vista}
+            serie={serie}
+            series={state.series}
+            onOpen={content => navigate(buildContentDetailRoute(content.id), withDetailBack(`/series/${serie.id}`))}
+            onBulk={() => abrirMassa('massa', serie.id, temporadasDaSerie.length > 0 ? temporadaAtiva : null)}
+            onAdd={grupo => abrirMassa('grupo', grupo.serieId, grupo.temporadaId)}
+          />
+        </div>
+      ) : null}
+
+      {aba === 'sobre' ? (
+        <SeriesAboutPanel
+          serie={serie}
+          series={state.series}
+          pilares={state.pilares}
+          temporadas={temporadasDaSerie}
+          onEdit={abrirEditor}
+        />
+      ) : null}
+
+      {aba === 'configuracoes' ? (
+        <SeriesSettingsPanel
+          serie={serie}
+          series={state.series}
+          plataformas={state.platforms}
+          onEdit={abrirEditor}
+        />
+      ) : null}
+
+      <SeriesBulkDrawer
+        open={drawerAberto}
+        onClose={() => setDrawerAberto(false)}
+        seriePaginaId={serie.id}
+        serieNome={serie.name}
+        series={state.series}
+        temporadas={temporadasDaSerie}
+        plataformas={state.platforms}
+        destinosPadrao={editorialSettings.destinosPadrao}
+        pedido={pedido}
+        idsExistentes={idsExistentes}
+        onCreate={criarConteudos}
       />
     </PageLayout>
   );

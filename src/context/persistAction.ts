@@ -43,6 +43,8 @@ export type PersistenceApi = Pick<DatabaseModule,
   | 'saveSeriePlataformas'
   | 'deleteSerie'
   | 'saveTema'
+  | 'saveTemporada'
+  | 'deleteTemporada'
   | 'saveContentTemas'
   | 'saveCenario'
   | 'deleteCenario'
@@ -330,6 +332,15 @@ export async function persistAction({ action, userId, state, api }: PersistActio
 
     case 'ADD_TEMA':
       await persistenceApi.saveTema({ ...action.payload, userId });
+      return;
+
+    case 'ADD_TEMPORADA':
+    case 'UPDATE_TEMPORADA':
+      await persistenceApi.saveTemporada({ ...action.payload, userId });
+      return;
+
+    case 'DELETE_TEMPORADA':
+      await persistenceApi.deleteTemporada(action.payload);
       return;
 
     case 'ADD_CENARIO':

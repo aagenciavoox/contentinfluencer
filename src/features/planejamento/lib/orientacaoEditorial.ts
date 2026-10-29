@@ -1,7 +1,9 @@
 import {addDays, differenceInCalendarDays, format, parseISO} from 'date-fns';
 import type {BibliotecaItem, Content, Serie, Tema} from '../../../lib/database.ts';
 import type {PeriodoGrade} from '../../editorial/lib/gradeCounts.ts';
+import {contarSerieAgrupada} from '../../editorial/lib/frequenciaAgrupada.ts';
 import {expectativaNoIntervalo, lerFrequencia} from '../../editorial/lib/frequenciaSerie.ts';
+import {idsDaSubarvore} from '../../editorial/lib/serieArvore.ts';
 import {idsDeObras} from './assuntosObras.ts';
 import type {PlanejamentoPostIt} from './postIt.ts';
 
@@ -229,14 +231,15 @@ function avisosDeFrequenciaSerie(
   series: readonly Serie[],
 ): AvisoOrientacao[] {
   const noRecorte = pautas.filter(pauta => noPeriodo(pauta.date, periodo) && pauta.serieId);
-  const porSerie = new Map<string, PautaNoDia[]>();
-  for (const pauta of noRecorte) {
-    const lista = porSerie.get(pauta.serieId!) ?? [];
-    lista.push(pauta);
-    porSerie.set(pauta.serieId!, lista);
-  }
-
+  const itens = noRecorte.map(pauta => ({
+    serieId: pauta.serieId,
+    espacoId: pauta.contentId
+      ? `${pauta.contentId}:original`
+      : (pauta.postItId ? `postit:${pauta.postItId}` : `${pauta.date}:${pauta.serieId}`),
+    contentId: pauta.contentId || pauta.postItId || `${pauta.date}:${pauta.serieId}`,
+  }));
   const avisos: AvisoOrientacao[] = [];
+
   for (const serie of series) {
     const freq = lerFrequencia({
       frequenciaRecomendada: serie.frequenciaRecomendada,
@@ -247,24 +250,46 @@ function avisosDeFrequenciaSerie(
     if (freq.unidade === 'sob-demanda') continue;
     const expectativa = expectativaNoIntervalo(freq, periodo.inicio, periodo.fim);
     if (expectativa == null || expectativa <= 0) continue;
-    const lista = porSerie.get(serie.id) ?? [];
+
+    const agrupada = contarSerieAgrupada({
+      serie,
+      series,
+      itens,
+      inicio: periodo.inicio,
+      fim: periodo.fim,
+    });
+    const total = agrupada.total;
+    const lista = noRecorte.filter(pauta => {
+      const sub = idsDaSubarvore(serie.id, series);
+      return Boolean(pauta.serieId && sub.has(pauta.serieId));
+    });
     const nome = serie.name.trim() || 'Quadro';
-    if (lista.length > expectativa) {
+    if (total > expectativa) {
       avisos.push({
         id: `serie-acima:${serie.id}`,
         tipo: 'serie-acima',
-        texto: `${nome} tem ${lista.length} pautas; a frequência pede ${expectativa}.`,
+        texto: `${nome} tem ${total} pautas; a frequência pede ${expectativa}.`,
         postItIds: lista.flatMap(item => item.postItId ? [item.postItId] : []),
         contentIds: lista.flatMap(item => item.contentId ? [item.contentId] : []),
         severidade: 'revisar',
       });
-    } else if (lista.length < expectativa) {
+    } else if (total < expectativa) {
       avisos.push({
         id: `serie-abaixo:${serie.id}`,
         tipo: 'serie-abaixo',
-        texto: `${nome} tem ${lista.length} de ${expectativa} pela frequência.`,
+        texto: `${nome} tem ${total} de ${expectativa} pela frequência.`,
         postItIds: lista.flatMap(item => item.postItId ? [item.postItId] : []),
         contentIds: lista.flatMap(item => item.contentId ? [item.contentId] : []),
+        severidade: 'info',
+      });
+    }
+    if (agrupada.recorteIncompativel && agrupada.somaRecortesFilhos != null && agrupada.expectativa != null) {
+      avisos.push({
+        id: `serie-recorte:${serie.id}`,
+        tipo: 'serie-acima',
+        texto: `${nome}: a soma dos recortes dos filhos (${agrupada.somaRecortesFilhos}) diverge da meta (${agrupada.expectativa}).`,
+        postItIds: [],
+        contentIds: [],
         severidade: 'info',
       });
     }

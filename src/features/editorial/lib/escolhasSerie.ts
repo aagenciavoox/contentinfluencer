@@ -1,5 +1,6 @@
 import type { FuncaoEditorial, FuncaoOrigem, FuncaoPadraoSerie, PilarOrigem } from '../../../lib/database.ts';
 import { funcaoHerdavelDaSerie } from './funcoes.ts';
+import { resolverHerancaSerie, type SerieHeranca } from './herancaSerie.ts';
 import { pilarPrincipalDaSerie } from './pilarDaSerie.ts';
 
 export type ConteudoHerdavel = {
@@ -71,15 +72,23 @@ export function aplicarEscolhasHerdadas<T extends ConteudoHerdavel>(
 
 /**
  * Uma regra para criar da série, escolher a série depois e aplicar em massa.
- * Congelado não muda, nem a série.
+ * Com `catalogo`, sobe a cadeia (pilar/função). Congelado não muda.
  */
 export function aplicarEscolhasDaSerie<T extends ConteudoHerdavel>(
   content: T,
   serie: SerieParaHeranca | null | undefined,
+  catalogo?: readonly SerieHeranca[] | null,
 ): T & ConteudoHerdavel {
   if (content.classificacaoCongeladaEm) return content;
   if (!serie) return {...content, seriesId: null};
   const comSerie = {...content, seriesId: serie.id};
+  if (catalogo && catalogo.length > 0) {
+    const resolvido = resolverHerancaSerie(comSerie, catalogo);
+    return aplicarEscolhasHerdadas(comSerie, {
+      pilarId: resolvido.pilar.pilarId,
+      funcao: resolvido.funcao.funcao,
+    });
+  }
   return aplicarEscolhasHerdadas(comSerie, {
     pilarId: pilarPrincipalDaSerie(serie),
     funcao: funcaoHerdavelDaSerie(serie),

@@ -13,6 +13,7 @@ export const initialState: AppState = {
   pilares: [],
   series: [],
   temas: [],
+  temporadas: [],
   cenarios: [],
   looks: [],
   bibliotecaGeneros: [],

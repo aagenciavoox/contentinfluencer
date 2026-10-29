@@ -49,7 +49,7 @@ export function getRouteDataDomains(href: string): AppDataDomain[] {
   if (pathname.startsWith('/series/') || pathname.startsWith('/configuracoes/series/')) {
     return ['production', 'content', 'bootstrap', 'templates'];
   }
-  if (pathname === '/series') return ['production'];
+  if (pathname === '/series') return ['production', 'content'];
   if (pathname === '/contas') {
     return ['bootstrap', 'schedule', 'content', 'production', 'analytics'];
   }

@@ -53,6 +53,8 @@ await import('./features/recommendations/recommendDailyAction.test.ts');
 await import('./features/settings/lib/pilarPostingSchedule.test.ts');
 await import('./features/settings/lib/pilarConstants.test.ts');
 await import('./features/settings/lib/serieColors.test.ts');
+await import('./features/settings/lib/seriesBulkDraft.test.ts');
+await import('./features/settings/lib/seriesEpisodeView.test.ts');
 await import('./features/editorial/lib/editorialSettings.test.ts');
 await import('./features/editorial/lib/periodoEditorial.test.ts');
 await import('./features/editorial/lib/referenciaPublicacao.test.ts');

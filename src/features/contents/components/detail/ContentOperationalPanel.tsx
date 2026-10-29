@@ -2,7 +2,10 @@ import {useEffect, useMemo, useRef, useState, type ReactNode} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {getDay, parseISO} from 'date-fns';
 import {CalendarClock, ChevronDown, Clock, ExternalLink, ImageIcon, Layers, ListChecks, Palette, Sun, Target, Video, Zap} from 'lucide-react';
-import type {Content, EnergiaNivel, Pilar, Serie} from '../../../../lib/database';
+import type {Content, EnergiaNivel, Pilar, Serie, Temporada} from '../../../../lib/database';
+import {escopoTemporadas, temporadaNoEscopo, temporadasDoEscopo} from '../../../editorial/lib/temporadas';
+import {caminhoDaSerie} from '../../../editorial/lib/serieArvore';
+import {AvisoTrocaSerieModal} from './DerivarConteudoDialog';
 import {VISUAL_FORMATS, getVisualFormatLabel} from '../../../../constants';
 import {
   FUNCAO_LABELS,
@@ -56,6 +59,7 @@ type OperationalDraft = Pick<
   | 'title'
   | 'seriesId'
   | 'temaIds'
+  | 'temporadaId'
   | 'pilarId'
   | 'bibliotecaItemId'
   | 'livroIds'
@@ -72,7 +76,7 @@ type OperationalDraft = Pick<
   | 'publishDate'
   | 'publishTime'
   | 'status'
-> & Partial<Pick<Content, 'postedAt' | 'energiaNecessaria'>>;
+> & Partial<Pick<Content, 'postedAt' | 'energiaNecessaria' | 'origemConteudoId'>>;
 
 interface ContentOperationalPanelProps {
   draft: OperationalDraft;
@@ -302,7 +306,7 @@ export function ContentStatusField({
                     ? 'bg-[var(--bg-hover)] font-semibold text-[var(--text-primary)]'
                     : permitida
                       ? 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
-                      : 'text-[var(--text-tertiary)] opacity-60',
+                      : 'text-[var(--text-tertiary)]',
                 )}
               >
                 <span className="block">{option.status}{option.atual ? ' · atual' : ''}</span>
@@ -478,11 +482,22 @@ export function ContentOperationalPanel({
   const {state, ensureDataDomains} = useAppContext();
   const navigate = useNavigate();
   useEffect(() => {
-    void ensureDataDomains(['library']);
+    void ensureDataDomains(['library', 'production']);
   }, [ensureDataDomains]);
   const publishDateOnly = draft.publishDate ? draft.publishDate.slice(0, 10) : '';
   const linkedSerie = draft.seriesId ? series.find(serie => serie.id === draft.seriesId) ?? null : null;
   const linkedPilar = draft.pilarId ? pilares.find(pilar => pilar.id === draft.pilarId) ?? null : null;
+  const temporadas = (state.temporadas ?? []) as readonly Temporada[];
+  const escopoTemp = draft.seriesId ? escopoTemporadas(draft.seriesId, series) : null;
+  const tempsDoEscopo = escopoTemp ? temporadasDoEscopo(escopoTemp.id, temporadas) : [];
+  const temporadaFora = Boolean(
+    draft.temporadaId
+    && draft.seriesId
+    && !temporadaNoEscopo(draft.temporadaId, draft.seriesId, series, temporadas),
+  );
+  const caminhoSerie = draft.seriesId
+    ? caminhoDaSerie(draft.seriesId, series).map(n => n.name).filter(Boolean).join(' · ')
+    : null;
   // Pilares ativos; o pilar já escolhido entra mesmo inativo, para a etiqueta mostrar o nome.
   const pilarTagOptions = pilares
     .filter(pilar => pilar.ativo || pilar.id === draft.pilarId)
@@ -531,8 +546,28 @@ export function ContentOperationalPanel({
   const compact = density === 'compact';
   const emptySelect = (value: unknown) => (value ? '' : 'property-row-value--empty');
   const [openSection, setOpenSection] = useState<AsideSectionId | null>(null);
+  const [seriePendenteId, setSeriePendenteId] = useState<string | null | undefined>(undefined);
   const toggleSection = (id: AsideSectionId) => {
     setOpenSection(current => (current === id ? null : id));
+  };
+
+  const aplicarSerie = (serieId: string | null) => {
+    onChange({
+      ...aplicarEscolhasDaSerie(
+        draft,
+        serieId ? series.find(serie => serie.id === serieId) ?? null : null,
+      ),
+      temporadaId: null,
+    });
+  };
+
+  const pedirTrocaSerie = (serieId: string | null) => {
+    const atual = draft.seriesId ?? null;
+    if (atual && atual !== serieId) {
+      setSeriePendenteId(serieId);
+      return;
+    }
+    aplicarSerie(serieId);
   };
 
   const formInputClass =
@@ -543,10 +578,7 @@ export function ContentOperationalPanel({
       <PropertyRow label="Série" icon={<Layers />}>
         <PropertySelect
           value={draft.seriesId ?? ''}
-          onChange={event => onChange(aplicarEscolhasDaSerie(
-            draft,
-            series.find(serie => serie.id === event.target.value) ?? null,
-          ))}
+          onChange={event => pedirTrocaSerie(event.target.value || null)}
           className={emptySelect(draft.seriesId)}
         >
           <option value="">Selecionar série…</option>
@@ -557,6 +589,32 @@ export function ContentOperationalPanel({
           ))}
         </PropertySelect>
       </PropertyRow>
+
+      {caminhoSerie && caminhoSerie.includes(' · ') ? (
+        <Text variant="meta" as="p" className="px-1 text-[var(--text-secondary)]">
+          {caminhoSerie}
+        </Text>
+      ) : null}
+
+      {escopoTemp ? (
+        <PropertyRow label="Temporada" icon={<Layers />}>
+          <PropertySelect
+            value={draft.temporadaId ?? ''}
+            onChange={event => onChange({ temporadaId: event.target.value || null })}
+            className={emptySelect(draft.temporadaId)}
+          >
+            <option value="">Sem temporada</option>
+            {tempsDoEscopo.map(temp => (
+              <option key={temp.id} value={temp.id}>{temp.nome}</option>
+            ))}
+            {temporadaFora && draft.temporadaId ? (
+              <option value={draft.temporadaId}>
+                {temporadas.find(t => t.id === draft.temporadaId)?.nome ?? 'Outro escopo'} (reorganizar)
+              </option>
+            ) : null}
+          </PropertySelect>
+        </PropertyRow>
+      ) : null}
 
       {temasField}
 
@@ -688,8 +746,21 @@ export function ContentOperationalPanel({
     </PropertySection>
   );
 
+  const avisoTrocaSerie = (
+    <AvisoTrocaSerieModal
+      open={seriePendenteId !== undefined}
+      onConfirm={() => {
+        aplicarSerie(seriePendenteId ?? null);
+        setSeriePendenteId(undefined);
+      }}
+      onCancel={() => setSeriePendenteId(undefined)}
+    />
+  );
+
   if (layout === 'form') {
     return (
+      <>
+      {avisoTrocaSerie}
       <aside className={cn('cms-panel flex flex-col gap-4 p-4', className)}>
         <div className="flex flex-col gap-1">
           <span className="text-xs font-medium text-[var(--text-secondary)]" aria-hidden>Pilar</span>
@@ -714,10 +785,7 @@ export function ContentOperationalPanel({
             maxSelections={1}
             placeholder="Selecionar série…"
             values={draft.seriesId ? [draft.seriesId] : []}
-            onChange={values => onChange(aplicarEscolhasDaSerie(
-              draft,
-              series.find(serie => serie.id === values[0]) ?? null,
-            ))}
+            onChange={values => pedirTrocaSerie(values[0] ?? null)}
             options={series.map(serie => ({value: serie.id, label: serie.name}))}
           />
         </div>
@@ -797,7 +865,7 @@ export function ContentOperationalPanel({
         {linkedSerie ? (
           <button
             type="button"
-            onClick={() => navigate('/series/' + linkedSerie.id + '/roteiros')}
+            onClick={() => navigate('/series/' + linkedSerie.id)}
             className="flex items-center justify-between gap-2 rounded-[var(--radius-input)] border border-[var(--border-color)] px-3 py-2 text-left text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)]"
           >
             <span className="truncate">{linkedSerie.name}</span>
@@ -805,11 +873,14 @@ export function ContentOperationalPanel({
           </button>
         ) : null}
       </aside>
+      </>
     );
   }
 
   if (variant === 'cards') {
     return (
+      <>
+      {avisoTrocaSerie}
       <aside
         className={cn(
           sectionsOpen
@@ -839,10 +910,7 @@ export function ContentOperationalPanel({
           <RoteiroField label="Série" icon={<Layers className="h-3.5 w-3.5" />}>
             <RoteiroSelect
               value={draft.seriesId ?? ''}
-              onChange={event => onChange(aplicarEscolhasDaSerie(
-            draft,
-            series.find(serie => serie.id === event.target.value) ?? null,
-          ))}
+              onChange={event => pedirTrocaSerie(event.target.value || null)}
             >
               <option value="">Selecionar série…</option>
               {series.map(serie => (
@@ -976,54 +1044,58 @@ export function ContentOperationalPanel({
           </Text>
         </AsideAccordion>
       </aside>
+      </>
     );
   }
 
   return (
-    <aside className={cn('flex flex-col', compact ? 'gap-[var(--space-lg)]' : 'gap-6', className)}>
-      {showTitle ? (
-        <input
-          value={draft.title}
-          onChange={event => onChange({title: event.target.value})}
-          className="content-operational-title t-page-title w-full border-0 bg-transparent p-0 outline-none placeholder:text-[var(--text-tertiary)]"
-          placeholder="Título do roteiro"
-        />
-      ) : null}
-
-      {propertiesSection}
-      {scheduleSection}
-
-      {publishDateOnly ? (
-        <>
-          <PostingTimeSuggestions
-            date={publishDateOnly}
-            selectedTime={draft.publishTime ?? ''}
-            postingTimeEntries={state.postingTimeEntries}
-            platforms={state.platforms}
-            pilar={linkedPilar}
-            onSelect={time => onChange({publishTime: time})}
+    <>
+      {avisoTrocaSerie}
+      <aside className={cn('flex flex-col', compact ? 'gap-[var(--space-lg)]' : 'gap-6', className)}>
+        {showTitle ? (
+          <input
+            value={draft.title}
+            onChange={event => onChange({title: event.target.value})}
+            className="content-operational-title t-page-title w-full border-0 bg-transparent p-0 outline-none placeholder:text-[var(--text-tertiary)]"
+            placeholder="Título do roteiro"
           />
-          {linkedPilar && pilarPostingPreview.length === 0 ? (
-            <Text variant="meta" className="text-[var(--text-tertiary)]">
-              Nenhum horário do pilar cruza com os horários configurados neste dia.
-            </Text>
-          ) : null}
-        </>
-      ) : null}
+        ) : null}
 
-      {notesSection}
+        {propertiesSection}
+        {scheduleSection}
 
-      {linkedSerie ? (
-        <PropertySection label="Vínculos">
-          <PropertyRow
-            label="Central da série"
-            icon={<ExternalLink />}
-            onClick={() => navigate('/series/' + linkedSerie.id + '/roteiros')}
-          >
-            <span className="min-w-0 truncate">{linkedSerie.name}</span>
-          </PropertyRow>
-        </PropertySection>
-      ) : null}
-    </aside>
+        {publishDateOnly ? (
+          <>
+            <PostingTimeSuggestions
+              date={publishDateOnly}
+              selectedTime={draft.publishTime ?? ''}
+              postingTimeEntries={state.postingTimeEntries}
+              platforms={state.platforms}
+              pilar={linkedPilar}
+              onSelect={time => onChange({publishTime: time})}
+            />
+            {linkedPilar && pilarPostingPreview.length === 0 ? (
+              <Text variant="meta" className="text-[var(--text-tertiary)]">
+                Nenhum horário do pilar cruza com os horários configurados neste dia.
+              </Text>
+            ) : null}
+          </>
+        ) : null}
+
+        {notesSection}
+
+        {linkedSerie ? (
+          <PropertySection label="Vínculos">
+            <PropertyRow
+              label="Central da série"
+              icon={<ExternalLink />}
+              onClick={() => navigate('/series/' + linkedSerie.id)}
+            >
+              <span className="min-w-0 truncate">{linkedSerie.name}</span>
+            </PropertyRow>
+          </PropertySection>
+        ) : null}
+      </aside>
+    </>
   );
 }

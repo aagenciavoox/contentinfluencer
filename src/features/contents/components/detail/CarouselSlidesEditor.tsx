@@ -21,7 +21,8 @@ import {
   slideLabel,
   updateSlide,
 } from '../../lib/carouselSlides';
-import {roteiroTypographyStyle, useRoteiroTypography} from '../../lib/roteiroTypography';
+import {roteiroTypographyStyle} from '../../lib/roteiroTypography';
+import {useRoteiroTypography} from '../../lib/useRoteiroTypography';
 
 interface CarouselSlidesEditorProps {
   slides: CarouselSlide[];

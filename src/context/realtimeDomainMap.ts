@@ -22,6 +22,10 @@ const REALTIME_TABLE_MAP: Record<string, RealtimeTableMapping> = {
     domains: ['production', 'bootstrap'],
     namespaces: [],
   },
+  temporadas: {
+    domains: ['production', 'bootstrap'],
+    namespaces: [],
+  },
   ideas: {
     domains: ['ideas'],
     namespaces: [],

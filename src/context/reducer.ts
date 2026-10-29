@@ -14,7 +14,7 @@ import {
 } from '../features/contents/lib/creationContent';
 import {
   AppData,
-  Content, Idea, Pilar, Serie, Tema, Cenario, Look,
+  Content, Idea, Pilar, Serie, Tema, Temporada, Cenario, Look,
   BibliotecaItem, Anotacao, Projeto, ProjetoEtapa, ProjetoLivro,
   RecordingBlock, RecordingBlockContent, Template,
   AgendaItem, GoldenRule, ContentMetric, Platform, DnaVoz, PlanejamentoPostIt,
@@ -63,6 +63,9 @@ export type AppAction =
   | { type: 'UPDATE_SERIE'; payload: Serie }
   | { type: 'DELETE_SERIE'; payload: string }
   | { type: 'ADD_TEMA';     payload: Tema }
+  | { type: 'ADD_TEMPORADA';    payload: Temporada }
+  | { type: 'UPDATE_TEMPORADA'; payload: Temporada }
+  | { type: 'DELETE_TEMPORADA'; payload: string }
 
   // ─── Cenários ───────────────────────────────────────────────────────────────
   | { type: 'ADD_CENARIO';    payload: Cenario }
@@ -199,7 +202,12 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     // ─── Sincronização ──────────────────────────────────────────────────────
     case 'SET_DATA': {
       const prefs = action.payload.preferences ?? state.preferences;
-      return { ...state, ...action.payload, theme: deriveTheme(prefs, state.theme) };
+      return {
+        ...state,
+        ...action.payload,
+        temporadas: action.payload.temporadas ?? state.temporadas ?? [],
+        theme: deriveTheme(prefs, state.theme),
+      };
     }
     case 'SET_LOADED':
       return { ...state, isLoaded: action.payload !== false };
@@ -397,7 +405,10 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case 'DELETE_SERIE':
       return {
         ...state,
-        series: state.series.filter(s => s.id !== action.payload),
+        series: state.series
+          .filter(s => s.id !== action.payload)
+          .map(s => s.parentId === action.payload ? { ...s, parentId: null } : s),
+        temporadas: state.temporadas.filter(t => t.serieId !== action.payload),
         contents: state.contents.map(c =>
           c.seriesId === action.payload ? { ...c, seriesId: null } : c
         ),
@@ -405,6 +416,31 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case 'ADD_TEMA':
       if (state.temas.some(tema => tema.id === action.payload.id)) return state;
       return { ...state, temas: [...state.temas, action.payload] };
+    case 'ADD_TEMPORADA':
+      if (state.temporadas.some(item => item.id === action.payload.id)) {
+        return {
+          ...state,
+          temporadas: state.temporadas.map(item =>
+            item.id === action.payload.id ? action.payload : item
+          ),
+        };
+      }
+      return { ...state, temporadas: [...state.temporadas, action.payload] };
+    case 'UPDATE_TEMPORADA':
+      return {
+        ...state,
+        temporadas: state.temporadas.map(item =>
+          item.id === action.payload.id ? action.payload : item
+        ),
+      };
+    case 'DELETE_TEMPORADA':
+      return {
+        ...state,
+        temporadas: state.temporadas.filter(item => item.id !== action.payload),
+        contents: state.contents.map(c =>
+          c.temporadaId === action.payload ? { ...c, temporadaId: null } : c
+        ),
+      };
 
     // ─── Cenários ───────────────────────────────────────────────────────────
     case 'ADD_CENARIO':

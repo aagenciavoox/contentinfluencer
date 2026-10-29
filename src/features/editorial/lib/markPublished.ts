@@ -3,6 +3,7 @@ import { CONTENT_STATUS } from '../../contents/lib/contentPipeline.ts';
 import { legendaEfetiva } from './captions.ts';
 import { congelarRedeReferencia } from './escolhasSerie.ts';
 import { funcaoHerdavelDaSerie } from './funcoes.ts';
+import { resolverFuncaoHerdada, type SerieHeranca } from './herancaSerie.ts';
 import { parsePostCode } from './postCode.ts';
 import { progressoPublicacao } from './publicacaoSituacao.ts';
 
@@ -17,6 +18,7 @@ export type EntradaPublicacao = {
 
 type ConteudoPublicavel = {
   status: string;
+  seriesId?: string | null;
   funcao?: FuncaoEditorial | null;
   funcaoOrigem?: FuncaoOrigem | null;
   classificacaoCongeladaEm?: string | null;
@@ -42,7 +44,9 @@ type PublicacaoPublicavel = {
 };
 
 export type MarkPublishedOptions = {
-  serie?: { funcaoPadrao?: FuncaoPadraoSerie | null } | null;
+  serie?: { id?: string; funcaoPadrao?: FuncaoPadraoSerie | null } | null;
+  /** Catálogo para subir a cadeia ao congelar função herdada. */
+  series?: readonly SerieHeranca[] | null;
   /** Rede de referência das preferências. Congela se o roteiro ainda não tiver uma. */
   redeReferenciaId?: string | null;
   now?: string | Date;
@@ -125,7 +129,19 @@ export function markPublished<C extends ConteudoPublicavel, P extends Publicacao
 
   if (!jaCongelada) {
     if (funcaoOrigem === 'herdada') {
-      funcao = funcaoHerdavelDaSerie(options?.serie ?? null);
+      if (options?.series && options.series.length > 0) {
+        funcao = resolverFuncaoHerdada(
+          {
+            seriesId: content.seriesId ?? options.serie?.id ?? null,
+            funcao: content.funcao,
+            funcaoOrigem: content.funcaoOrigem,
+            classificacaoCongeladaEm: content.classificacaoCongeladaEm,
+          },
+          options.series,
+        ).funcao;
+      } else {
+        funcao = funcaoHerdavelDaSerie(options?.serie ?? null);
+      }
     }
     classificacaoCongeladaEm = freezeInstant(options);
   }

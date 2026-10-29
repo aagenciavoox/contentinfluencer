@@ -51,6 +51,10 @@ import {assuntosEmUso, conteudoTemAssunto, nomesDasObras, nomesDosAssuntos} from
 import {avisosDeOrientacao, type AvisoOrientacao} from '../lib/orientacaoEditorial';
 import {periodoDaVista, type VistaPlanejamento} from '../lib/periodoPlanejamento';
 import {publicacoesPorDia, type PublicacaoNoDia} from '../lib/publicacoesDoMes';
+import {PeriodoPanel} from '../../editorial/components/plano/PeriodoPanel';
+import {periodoInicial, type PeriodoSelecionado} from '../../editorial/components/plano/PeriodoEditorialControl';
+import {lerPeriodoSalvo} from '../../editorial/lib/periodoEditorial';
+import {DisclosureButton} from '../../../components/ui/DisclosureButton';
 import {
   canPullContent,
   cancelPostItEdit,
@@ -168,6 +172,14 @@ export function PlanejamentoPage() {
   const [avisoAtivoId, setAvisoAtivoId] = useState<string | null>(null);
   /** Dia do post-it rápido. `undefined` = fechado; `null` = fora do calendário. */
   const [rapidoDate, setRapidoDate] = useState<string | null | undefined>(undefined);
+  const [direcaoAberta, setDirecaoAberta] = useState(false);
+  const periodoEditorial = useMemo(
+    () => (state.editorialVisao ? lerPeriodoSalvo(state.editorialVisao) : null) ?? periodoInicial(),
+    [state.editorialVisao],
+  );
+  const salvarPeriodoEditorial = (next: PeriodoSelecionado) => {
+    dispatch({ type: 'SET_EDITORIAL_VISAO', payload: next });
+  };
   /** "Mais opções" abre o post-it recém-criado já no editor completo. */
   const editarAoAbrir = useRef(false);
   /** Celular: post-it sendo movido pelo menu ⋯ (ou "Mover para…" do post-it aberto). */
@@ -783,7 +795,26 @@ export function PlanejamentoPage() {
               {rotuloDaRef(state.editorial.preferencias?.redeReferenciaId ?? state.editorial.redeReferenciaId, state.platforms)}
             </Badge>
           ) : null}
+          <div className="w-full max-w-sm">
+            <DisclosureButton
+              open={direcaoAberta}
+              onToggle={() => setDirecaoAberta(atual => !atual)}
+              controls="direcao-periodo-planejamento"
+            >
+              <Text variant="label">Prioridade e metas do período</Text>
+            </DisclosureButton>
+          </div>
         </div>
+
+        {direcaoAberta ? (
+          <div id="direcao-periodo-planejamento" className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-4">
+            <PeriodoPanel
+              periodo={periodoEditorial}
+              onPeriodoChange={salvarPeriodoEditorial}
+              onAbrirAjustes={() => navigate('/editorial?aba=direcao')}
+            />
+          </div>
+        ) : null}
 
         {assuntosDoPlanejamento.length > 0 ? (
           <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Destacar por assunto">

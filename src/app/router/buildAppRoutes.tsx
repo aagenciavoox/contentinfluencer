@@ -43,7 +43,13 @@ function LegacyPillarEditRedirect() {
 function LegacySeriesEditRedirect() {
   const { serieId } = useParams<{ serieId: string }>();
   const { search, hash } = useLocation();
-  return <Navigate to={`/editorial/series/${serieId ?? ''}${search}${hash}`} replace />;
+  return <Navigate to={`/series/${serieId ?? ''}/editar${search}${hash}`} replace />;
+}
+
+function LegacySeriesScriptsRedirect() {
+  const { serieId } = useParams<{ serieId: string }>();
+  const { search, hash } = useLocation();
+  return <Navigate to={`/series/${serieId ?? ''}${search}${hash}`} replace />;
 }
 
 export function buildAppRoutes(): RouteObject[] {
@@ -90,8 +96,8 @@ export function buildAppRoutes(): RouteObject[] {
                 { path: '/contas', element: <PlataformasSettings /> },
                 { path: '/editorial/pilares/nova', element: <PilarEditar /> },
                 { path: '/editorial/pilares/:pilarId', element: <PilarEditar /> },
-                { path: '/editorial/series/nova', element: <SeriesEditar /> },
-                { path: '/editorial/series/:serieId', element: <SeriesEditar /> },
+                { path: '/editorial/series/nova', element: <Navigate to="/series/nova" replace /> },
+                { path: '/editorial/series/:serieId', element: <LegacySeriesEditRedirect /> },
                 {
                   path: '/planejamento',
                   element: (
@@ -180,18 +186,19 @@ export function buildAppRoutes(): RouteObject[] {
                 { path: '/configuracoes/looks', element: <Navigate to="/configuracoes" replace /> },
                 { path: '/configuracoes/regras', element: <Navigate to="/editorial?aba=pilares" replace /> },
                 { path: '/series', element: <SeriesSettings /> },
-                { path: '/series/nova', element: <Navigate to="/editorial/series/nova" replace /> },
-                { path: '/series/:serieId/editar', element: <LegacySeriesEditRedirect /> },
-                { path: '/series/:serieId/roteiros', element: <SeriesRoteiros /> },
-                { path: '/configuracoes/series', element: <Navigate to="/editorial?aba=series" replace /> },
-                { path: '/configuracoes/series/nova', element: <Navigate to="/editorial/series/nova" replace /> },
+                { path: '/series/nova', element: <SeriesEditar /> },
+                { path: '/series/:serieId/editar', element: <SeriesEditar /> },
+                { path: '/series/:serieId/roteiros', element: <LegacySeriesScriptsRedirect /> },
+                { path: '/series/:serieId', element: <SeriesRoteiros /> },
+                { path: '/configuracoes/series', element: <Navigate to="/series" replace /> },
+                { path: '/configuracoes/series/nova', element: <Navigate to="/series/nova" replace /> },
                 {
                   path: '/configuracoes/series/:serieId/editar',
                   element: <LegacySeriesEditRedirect />,
                 },
                 {
                   path: '/configuracoes/series/:serieId/roteiros',
-                  element: <SeriesRoteiros />,
+                  element: <LegacySeriesScriptsRedirect />,
                 },
                 { path: '/configuracoes/plataformas', element: <Navigate to="/contas" replace /> },
                 { path: '/configuracoes/templates', element: <Navigate to="/series" replace /> },

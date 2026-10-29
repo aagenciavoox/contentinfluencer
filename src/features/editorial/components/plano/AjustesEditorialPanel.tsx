@@ -123,7 +123,7 @@ export function AjustesEditorialPanel() {
   return (
     <div className="stack-lg">
       <Text variant="secondary" as="p">
-        Estas configurações valem para todos os períodos. Prioridades e ajustes de meta de um período ficam na aba Período.
+        Estas configurações valem para todos os períodos. Prioridade, metas e ajustes semanais ficam no Planejamento.
       </Text>
 
       <CardConfiguracao

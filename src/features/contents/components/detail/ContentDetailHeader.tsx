@@ -22,6 +22,8 @@ interface ContentDetailHeaderProps {
   onPrimaryAction: (actionId?: ContentPrimaryActionId) => void;
   onRetrySave?: () => void;
   onDelete?: () => void;
+  /** Cria outro conteúdo com origem_conteudo_id. */
+  onDerivar?: () => void;
   isSaving: boolean;
   primaryBusy?: boolean;
   blockName?: string | null;
@@ -86,6 +88,7 @@ export function ContentDetailHeader({
   onPrimaryAction,
   onRetrySave,
   onDelete,
+  onDerivar,
   isSaving,
   primaryBusy,
   blockName,
@@ -170,7 +173,7 @@ export function ContentDetailHeader({
     </div>
   ) : null;
 
-  const overflowMenu = onDelete || overflowExtra ? (
+  const overflowMenu = onDelete || onDerivar || overflowExtra ? (
     <div ref={menuRef} className="relative">
       <AppButton
         variant="secondary"
@@ -198,6 +201,19 @@ export function ContentDetailHeader({
             >
               {overflowExtra}
             </div>
+          ) : null}
+          {onDerivar ? (
+            <AppButton
+              variant="ghost"
+              fullWidth
+              onClick={() => {
+                onDerivar();
+                setMenuOpen(false);
+              }}
+              className="justify-start"
+            >
+              Novo a partir deste
+            </AppButton>
           ) : null}
           {onDelete ? (
             <AppButton

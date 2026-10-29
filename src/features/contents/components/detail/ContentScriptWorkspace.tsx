@@ -4,7 +4,8 @@ import {ChevronDown} from 'lucide-react';
 import {RichTextEditor} from '../../../../components/editors/RichTextEditor';
 import type {CommentPatch} from '../../../../components/editors/commentModel';
 import {useAuth} from '../../../../context/AuthContext';
-import {roteiroTypographyStyle, useRoteiroTypography} from '../../lib/roteiroTypography';
+import {roteiroTypographyStyle} from '../../lib/roteiroTypography';
+import {useRoteiroTypography} from '../../lib/useRoteiroTypography';
 import {RoteiroTypographyControls} from './RoteiroTypographyControls';
 import {AppButton} from '../../../../components/ui/AppButton';
 import {Skeleton} from '../../../../components/ui/Skeleton';
@@ -165,7 +166,7 @@ export function ContentScriptWorkspace({
               </>
             }
             toolbarEnd={toolbarEnd}
-            typographySlot={<RoteiroTypographyControls variant="toolbar" typography={typography} onChange={setTypography} />}
+            typographySlot={<RoteiroTypographyControls variant="panel" typography={typography} onChange={setTypography} />}
             saveState={saveState}
             fullscreenAside={fullscreenAside}
             onFullscreenChange={onFullscreenChange}

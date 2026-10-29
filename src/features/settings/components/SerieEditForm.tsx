@@ -9,10 +9,12 @@ import {
 import { AppButton } from '../../../components/ui/AppButton';
 import { Badge } from '../../../components/ui/Badge';
 import { MultiFilterChips } from '../../../components/ui/MultiFilterChips';
+import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { Surface } from '../../../components/ui/Surface';
 import { SelectField } from '../../../components/ui/SelectField';
 import { TagSelect } from '../../../components/ui/TagSelect';
 import { Text } from '../../../components/ui/Text';
+import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { CoverUploadField } from '../../library/components/CoverUploadField';
 import { normalizeFormatoList, type Content, type Pilar, type Platform, type Serie } from '../../../lib/database';
 import { SerieProductionMetricsPanel } from './SerieProductionMetricsPanel';
@@ -38,8 +40,12 @@ import { expectativaNoIntervalo, lerFrequencia } from '../../editorial/lib/frequ
 import { semanaDe } from '../../editorial/lib/periodoEditorial';
 import { pilarPrincipalDaSerie } from '../../editorial/lib/pilarDaSerie';
 import { getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
+import { formariaCicloParent } from '../../editorial/lib/serieArvore';
+import { acharTemporadaPorNome, temporadasDoEscopo } from '../../editorial/lib/temporadas';
 import type { FuncaoPadraoSerie } from '../../../lib/database';
 import { FUNCAO_DESCRICOES, FUNCAO_LABELS, FUNCOES } from '../../editorial/lib/funcoes';
+import { useAppContext } from '../../../context/AppContext';
+import { useAuth } from '../../../context/AuthContext';
 
 const SERIE_DEFAULT_COR = '#6366f1';
 
@@ -169,7 +175,7 @@ function MultiChoiceField({
     setDraft('');
   };
   return (
-    <div className="space-y-2">
+    <div className="stack-sm">
       <MultiFilterChips
         value={value}
         onChange={next => onChange(normalizeFormatoList(next))}
@@ -290,10 +296,13 @@ function SuggestField({
 const inputClass =
   'ds-input w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
+type AbaCadastro = 'sobre' | 'roteiros' | 'publicacao';
+
 export function SerieEditForm({
   initial,
   contas,
   pilares,
+  series = [],
   contents = [],
   onSave,
   onCancel,
@@ -306,6 +315,8 @@ export function SerieEditForm({
   initial: Partial<Serie>;
   contas: Platform[];
   pilares: Pilar[];
+  /** Catálogo para “Faz parte de”. */
+  series?: readonly Serie[];
   contents?: Content[];
   onSave: (serie: Serie) => void;
   onCancel: () => void;
@@ -315,6 +326,12 @@ export function SerieEditForm({
   takenColors?: readonly string[];
   lastEditLabel?: string | null;
 }) {
+  const { state, dispatch } = useAppContext();
+  const { user } = useAuth();
+  const [aba, setAba] = useState<AbaCadastro>('sobre');
+  const [mostrarAgrupar, setMostrarAgrupar] = useState(Boolean(initial.parentId));
+  const [mostrarTemporadas, setMostrarTemporadas] = useState(Boolean(initial.usaTemporadas));
+  const [novaTemporadaNome, setNovaTemporadaNome] = useState('');
   const initialSnapshot = useRef({
     form: {
       id: initial.id || generateUUID(),
@@ -340,6 +357,8 @@ export function SerieEditForm({
       motivoSalvar: initial.motivoSalvar || '',
       motivoEnviar: initial.motivoEnviar || '',
       legendaBase: initial.legendaBase || '',
+      parentId: initial.parentId ?? null,
+      usaTemporadas: initial.usaTemporadas === true,
       plataformas: initial.plataformas || [],
     },
   });
@@ -365,6 +384,8 @@ export function SerieEditForm({
     if (form.motivoSalvar !== snap.form.motivoSalvar) return true;
     if (form.motivoEnviar !== snap.form.motivoEnviar) return true;
     if (form.legendaBase !== snap.form.legendaBase) return true;
+    if (form.parentId !== snap.form.parentId) return true;
+    if (form.usaTemporadas !== snap.form.usaTemporadas) return true;
     if (form.ativa !== snap.form.ativa) return true;
     if (JSON.stringify(form.plataformas) !== JSON.stringify(snap.form.plataformas)) return true;
     return false;
@@ -438,6 +459,8 @@ export function SerieEditForm({
       motivoSalvar: form.motivoSalvar.trim() || null,
       motivoEnviar: form.motivoEnviar.trim() || null,
       legendaBase: form.legendaBase.trim() || null,
+      parentId: form.parentId,
+      usaTemporadas: form.usaTemporadas,
       pilarIds: form.pilarPrincipalId ? [form.pilarPrincipalId] : [],
       plataformas: contas
         .map(conta => form.plataformas.find(item => item.platformId === conta.id))
@@ -525,24 +548,48 @@ export function SerieEditForm({
         formatoApresentacao: form.formatoApresentacao,
         motivoSalvar: form.motivoSalvar.trim() || null,
         motivoEnviar: form.motivoEnviar.trim() || null,
+        parentId: form.parentId,
+        usaTemporadas: form.usaTemporadas,
+        legendaBase: form.legendaBase.trim() || null,
         pilarIds: form.pilarPrincipalId ? [form.pilarPrincipalId] : [],
         plataformas: form.plataformas,
         createdAt: initial.createdAt || new Date().toISOString(),
         updatedAt: initial.updatedAt || new Date().toISOString(),
       };
 
+  const [confirmDesvincular, setConfirmDesvincular] = useState(false);
+  const [confirmParent, setConfirmParent] = useState<{ next: string | null; message: string } | null>(null);
+  const opcoesPai = series
+    .filter(item => item.id !== form.id && !formariaCicloParent(form.id, item.id, [
+      ...series.map(s => s.id === form.id ? { ...s, parentId: form.parentId } : s),
+    ]))
+    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+
   return (
     <div className="relative w-full">
+      <div className="mb-3">
+        <SegmentTabs<AbaCadastro>
+          value={aba}
+          onChange={setAba}
+          ariaLabel="Cadastro da série"
+          options={[
+            { id: 'sobre', label: 'Sobre' },
+            { id: 'roteiros', label: 'Roteiros' },
+            { id: 'publicacao', label: 'Publicação' },
+          ]}
+        />
+      </div>
       {showOpenInfoNotice ? (
         <OpenInfoNotice
           items={getSerieOpenItems({
+            id: form.id,
             pilarIds: form.pilarPrincipalId ? [form.pilarPrincipalId] : [],
             pilarPrincipalId: form.pilarPrincipalId,
             funcaoPadrao: form.funcaoPadrao,
             frequenciaRecomendada: form.frequenciaRecomendada,
             formatoVisualPadrao: form.formatoVisualPadrao,
             energiaPadrao: form.energiaPadrao,
-          })}
+          }, { series, contents })}
           className="mb-3"
         />
       ) : null}
@@ -581,8 +628,8 @@ export function SerieEditForm({
       </Surface>
 
       <div className="grid w-full grid-cols-1 items-start gap-3 lg:grid-cols-[minmax(0,1.7fr)_minmax(280px,0.95fr)]">
-        <div className="flex min-w-0 flex-col gap-3">
-          <Surface variant="outlined" padding="md">
+        <div className={cn('flex min-w-0 flex-col gap-3', aba !== 'sobre' && aba !== 'roteiros' && 'hidden')}>
+          <Surface variant="outlined" padding="md" className={aba !== 'sobre' ? 'hidden' : undefined}>
             <CardHeading
               title="Identidade"
               description="Como esta série aparece na sua central."
@@ -636,7 +683,141 @@ export function SerieEditForm({
             </div>
           </Surface>
 
-          <Surface variant="outlined" padding="md">
+          {aba === 'sobre' ? (
+            <Surface variant="outlined" padding="md">
+              <CardHeading
+                title="Organização opcional"
+                description="Agrupar e temporadas ficam recolhidos enquanto vazios."
+              />
+              <div className="stack-md">
+                {!mostrarAgrupar && !form.parentId ? (
+                  <AppButton variant="secondary" size="sm" onClick={() => setMostrarAgrupar(true)}>
+                    Agrupar com outra série
+                  </AppButton>
+                ) : (
+                  <div className="stack-sm">
+                    <FieldLabel>Faz parte de</FieldLabel>
+                    <SelectField
+                      ariaLabel="Faz parte de"
+                      value={form.parentId ?? ''}
+                      onChange={parentId => {
+                        const next = parentId || null;
+                        if (next === (form.parentId ?? null)) return;
+                        if (form.parentId || next) {
+                          setConfirmParent({
+                            next,
+                            message: form.parentId
+                              ? 'Mudar o pai pode alterar o agrupamento dos relatórios, porque a análise lê a série ao vivo. Classificação congelada permanece.'
+                              : 'Agrupar pode mudar metas e herança deste quadro em relação ao pai. Os episódios permanecem nesta série.',
+                          });
+                          return;
+                        }
+                        setForm(previous => ({
+                          ...previous,
+                          parentId: next,
+                          ...(next && !previous.frequenciaRecomendada.trim()
+                            ? { frequenciaRecomendada: 'Sob demanda', frequenciaVezes: null, frequenciaUnidade: '' }
+                            : {}),
+                        }));
+                      }}
+                      options={[
+                        { value: '', label: 'Nenhuma (série independente)' },
+                        ...opcoesPai.map(item => ({ value: item.id, label: item.name })),
+                      ]}
+                    />
+                    {form.parentId ? (
+                      <AppButton variant="secondary" size="sm" onClick={() => setConfirmDesvincular(true)}>
+                        Desfazer vínculo
+                      </AppButton>
+                    ) : null}
+                  </div>
+                )}
+
+                {!mostrarTemporadas && !form.usaTemporadas ? (
+                  <AppButton variant="secondary" size="sm" onClick={() => setMostrarTemporadas(true)}>
+                    Usar temporadas
+                  </AppButton>
+                ) : (
+                  <div className="stack-sm">
+                    <label className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={form.usaTemporadas}
+                        onChange={event => setForm(previous => ({
+                          ...previous,
+                          usaTemporadas: event.target.checked,
+                        }))}
+                      />
+                      <span>
+                        <span className="font-medium">Usar temporadas neste registro</span>
+                        <span className="block text-[var(--text-secondary)]">
+                          Este fica o escopo das temporadas da subárvore. Desligar preserva as linhas já criadas.
+                        </span>
+                      </span>
+                    </label>
+                    {form.usaTemporadas && form.id ? (
+                      <div className="stack-sm rounded-[var(--radius-card)] border border-[var(--border-subtle)] p-3">
+                        <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+                          Nomes neste escopo. A mesma grafia (sem maiúsculas nem espaços nas pontas) reutiliza a linha.
+                        </Text>
+                        <ul className="stack-xs">
+                          {temporadasDoEscopo(form.id, state.temporadas).map(temp => (
+                            <li key={temp.id} className="flex items-center justify-between gap-2 text-sm">
+                              <span>{temp.nome}</span>
+                              <AppButton
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => dispatch({ type: 'DELETE_TEMPORADA', payload: temp.id })}
+                              >
+                                Remover
+                              </AppButton>
+                            </li>
+                          ))}
+                        </ul>
+                        <div className="flex flex-wrap gap-2">
+                          <input
+                            value={novaTemporadaNome}
+                            onChange={event => setNovaTemporadaNome(event.target.value)}
+                            placeholder="Nova temporada…"
+                            className="min-w-[12rem] flex-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-sm"
+                          />
+                          <AppButton
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => {
+                              const nome = novaTemporadaNome.trim();
+                              if (!nome || !user?.id) return;
+                              const existente = acharTemporadaPorNome(form.id, nome, state.temporadas);
+                              if (existente) {
+                                setNovaTemporadaNome('');
+                                return;
+                              }
+                              void dispatch({
+                                type: 'ADD_TEMPORADA',
+                                payload: {
+                                  id: generateUUID(),
+                                  userId: user.id,
+                                  serieId: form.id,
+                                  nome,
+                                  createdAt: new Date().toISOString(),
+                                },
+                              });
+                              setNovaTemporadaNome('');
+                            }}
+                          >
+                            Adicionar
+                          </AppButton>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            </Surface>
+          ) : null}
+
+          <Surface variant="outlined" padding="md" className={aba !== 'sobre' ? 'hidden' : undefined}>
             <CardHeading
               title="Estratégia"
               description="Padrões usados ao criar conteúdos desta série."
@@ -895,8 +1076,8 @@ export function SerieEditForm({
           </Surface>
         </div>
 
-        <aside className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-24 lg:self-start">
-          <Surface variant="outlined" padding="sm" className="stack-sm">
+        <aside className={cn('flex min-w-0 flex-col gap-3 lg:sticky lg:top-24 lg:self-start', aba === 'roteiros' && 'hidden')}>
+          <Surface variant="outlined" padding="sm" className={cn('stack-sm', aba !== 'publicacao' && 'hidden')}>
             <CardHeading
               title="Legenda da série"
               description="Orienta os roteiros novos. Ao salvar, só atualiza roteiros que ainda seguem este texto e não foram publicados."
@@ -988,7 +1169,7 @@ export function SerieEditForm({
             )}
           </Surface>
 
-          <Surface variant="outlined" padding="md">
+          <Surface variant="outlined" padding="md" className={aba !== 'sobre' ? 'hidden' : undefined}>
             <SerieProductionMetricsPanel
               serie={serieForMetrics}
               contents={contents}
@@ -998,6 +1179,38 @@ export function SerieEditForm({
           </Surface>
         </aside>
       </div>
+
+      <ConfirmModal
+        open={confirmDesvincular}
+        message="Desfazer o vínculo remove esta série da meta e da herança do pai. Os episódios permanecem nesta série. Temporadas e classificações congeladas não mudam. O agrupamento nos relatórios muda."
+        confirmLabel="Desfazer vínculo"
+        cancelLabel="Manter vínculo"
+        onConfirm={() => {
+          setForm(previous => ({ ...previous, parentId: null }));
+          setConfirmDesvincular(false);
+          setMostrarAgrupar(false);
+        }}
+        onCancel={() => setConfirmDesvincular(false)}
+      />
+      <ConfirmModal
+        open={Boolean(confirmParent)}
+        message={confirmParent?.message ?? ''}
+        confirmLabel="Continuar"
+        cancelLabel="Cancelar"
+        onConfirm={() => {
+          if (!confirmParent) return;
+          const next = confirmParent.next;
+          setForm(previous => ({
+            ...previous,
+            parentId: next,
+            ...(next && !previous.frequenciaRecomendada.trim()
+              ? { frequenciaRecomendada: 'Sob demanda', frequenciaVezes: null, frequenciaUnidade: '' }
+              : {}),
+          }));
+          setConfirmParent(null);
+        }}
+        onCancel={() => setConfirmParent(null)}
+      />
     </div>
   );
 }

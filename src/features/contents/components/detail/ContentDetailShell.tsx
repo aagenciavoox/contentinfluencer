@@ -37,15 +37,18 @@ import {PublishingSection} from './sections/PublishingSection';
 import {MarkPostedSheet} from '../MarkPostedSheet';
 import {RecordingSection} from './sections/RecordingSection';
 import {ContentOperationalPanel} from './ContentOperationalPanel';
+import {DerivarConteudoDialog} from './DerivarConteudoDialog';
 import {isContentBodyLoaded} from '../../lib/contentBody';
 import {draftDiffers, draftFieldChanged, immediateSaveUpdates} from '../../lib/draftChanges';
 import {RoteiroSection, type ScriptDraft} from './sections/RoteiroSection';
 import {isWritingWorkspaceEnabled} from '../../../settings/lib/writingWorkspace';
 import {IdeaDetailSection, IdeaOrganizationPanel} from './sections/IdeaDetailSection';
 import {applyStatusChange, promoteContentToScript} from '../../lib/creationContent';
+import {derivarConteudo} from '../../lib/derivarConteudo';
 import {origemDoRoteiro, resolveSeriesScriptTemplate} from '../../lib/seriesScriptTemplate';
 import {livroIdsEfetivos} from '../../../../lib/livroIds';
 import {rotuloDaRef} from '../../../contas/lib/contas';
+import {buildContentDetailRoute} from '../../lib/contentDetailRoute';
 import {
   isCarouselContent,
   normalizeWritingMode,
@@ -101,6 +104,8 @@ function draftFromContent(content: Content): ContentDraft {
     legendaBase: content.legendaBase ?? null,
     temaIds: content.temaIds ?? [],
     tags: content.tags ?? [],
+    temporadaId: content.temporadaId ?? null,
+    origemConteudoId: content.origemConteudoId ?? null,
   };
 }
 
@@ -146,6 +151,7 @@ export function ContentDetailShell({
   const [isRecordingSheetOpen, setIsRecordingSheetOpen] = useState(false);
   const [recordingBlocksLoading, setRecordingBlocksLoading] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [derivarOpen, setDerivarOpen] = useState(false);
   const [markPostedOpen, setMarkPostedOpen] = useState(false);
   const [unpublishConfirm, setUnpublishConfirm] = useState<{
     status: string;
@@ -983,6 +989,21 @@ export function ContentDetailShell({
     />
   );
 
+  const derivarDialog = (
+    <DerivarConteudoDialog
+      open={derivarOpen}
+      content={mergedContent}
+      onCancel={() => setDerivarOpen(false)}
+      onConfirm={copiar => {
+        setDerivarOpen(false);
+        const novo = derivarConteudo(mergedContent, { copiar });
+        void dispatch({ type: 'ADD_CONTENT', payload: { ...novo, userId: user?.id || novo.userId } }).then(() => {
+          navigate(buildContentDetailRoute(novo.id));
+        });
+      }}
+    />
+  );
+
   if (mode === 'mobile') {
     return (
       <>
@@ -1057,6 +1078,7 @@ export function ContentDetailShell({
           onConfirm={() => void handleDelete()}
           onCancel={() => setDeleteConfirmOpen(false)}
         />
+        {derivarDialog}
       </>
     );
   }
@@ -1074,6 +1096,7 @@ export function ContentDetailShell({
             onPrimaryAction={actionId => void handlePrimaryAction(actionId)}
             onRetrySave={() => void persist()}
             onDelete={() => setDeleteConfirmOpen(true)}
+            onDerivar={() => setDerivarOpen(true)}
             isSaving={isDeleting}
             primaryBusy={isDeleting}
             blockName={blocoSelo}
@@ -1150,6 +1173,7 @@ export function ContentDetailShell({
         onConfirm={() => void handleDelete()}
         onCancel={() => setDeleteConfirmOpen(false)}
       />
+      {derivarDialog}
     </>
   );
 }

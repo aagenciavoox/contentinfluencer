@@ -342,9 +342,8 @@
   "340": "DailyRecommendationBlock.tsx",
   "341": "Tooltip.tsx",
   "342": "useNavCounts.ts",
-  "343": "LooksSettingsPage",
   "344": "lucide-react",
   "345": "resolveCurrentRead",
-  "346": "RecordingBlock",
+  "348": "Drawer.tsx",
   "352": "vite-env.d.ts"
 }

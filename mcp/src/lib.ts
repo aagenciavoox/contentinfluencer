@@ -325,6 +325,27 @@ export function funcaoHerdavel(serie: Row | null | undefined): Funcao | null {
   return isFuncao(serie?.funcao_padrao) ? serie.funcao_padrao : null;
 }
 
+/** Sobe parent_id até achar função herdável. `varia` para a subida. */
+export function funcaoHerdavelNaCadeia(
+  serieId: string | null | undefined,
+  series: readonly Row[],
+): Funcao | null {
+  if (!serieId) return null;
+  const porId = new Map(series.map(item => [String(item.id), item]));
+  let cursor: string | null = serieId;
+  const vistos = new Set<string>();
+  while (cursor && !vistos.has(cursor)) {
+    vistos.add(cursor);
+    const serie = porId.get(cursor);
+    if (!serie) return null;
+    if (serie.funcao_padrao === 'varia') return null;
+    const herdavel = funcaoHerdavel(serie);
+    if (herdavel) return herdavel;
+    cursor = typeof serie.parent_id === 'string' && serie.parent_id ? serie.parent_id : null;
+  }
+  return null;
+}
+
 /** Stories, Live e a função reter ficam fora da grade por padrão. */
 export function contaNaGradePadrao(formato: string | null | undefined, funcao: Funcao | null | undefined): boolean {
   if (funcao === 'reter') return false;
@@ -341,7 +362,10 @@ export function funcaoEfetiva(row: Row, lookups: Lookups) {
   const origem: string = row.funcao_origem ?? (stored ? 'escolhida' : 'indefinida');
   let funcao: Funcao | null = stored;
   if (!congelada && origem === 'herdada') {
-    funcao = funcaoHerdavel(lookups.series.find(s => s.id === row.series_id));
+    funcao = funcaoHerdavelNaCadeia(
+      typeof row.series_id === 'string' ? row.series_id : null,
+      lookups.series,
+    );
   } else if (origem === 'nenhuma' || origem === 'indefinida') {
     funcao = null;
   }
