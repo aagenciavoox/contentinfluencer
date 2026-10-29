@@ -52,7 +52,7 @@ function saude(input: {
     contents: input.contents ?? [],
     series: [serie],
     pilares: [pilar],
-    settings: {redeReferenciaId: null, distribuicaoFuncoes: PERCENTUAIS},
+    settings: {redeReferenciaId: null, proporcaoFuncoes: PERCENTUAIS},
     periodo: PERIODO,
   });
 }
@@ -218,7 +218,7 @@ function testFrequenciaDoPilarNaoFechaOMes() {
     contents: [...contents, extra],
     series: [serie],
     pilares: [cheio],
-    settings: {redeReferenciaId: null, distribuicaoFuncoes: PERCENTUAIS},
+    settings: {redeReferenciaId: null, proporcaoFuncoes: PERCENTUAIS},
   });
   assert.deepEqual(semLimite, []);
 
@@ -231,7 +231,7 @@ function testFrequenciaDoPilarNaoFechaOMes() {
     pilares: [cheio],
     settings: {
       redeReferenciaId: null,
-      distribuicaoFuncoes: PERCENTUAIS,
+      proporcaoFuncoes: PERCENTUAIS,
       preferencias: {
         limiteSemanal: 1,
         reservaForaSeriesSemanal: null,
@@ -263,7 +263,7 @@ function testSemExcessoEnquantoAindaCabe() {
     contents: [content],
     series: [serie],
     pilares: [pilar],
-    settings: {redeReferenciaId: null, distribuicaoFuncoes: PERCENTUAIS},
+    settings: {redeReferenciaId: null, proporcaoFuncoes: PERCENTUAIS},
   });
   assert.deepEqual(lista, []);
 }
@@ -341,7 +341,7 @@ function testPublicacaoGravadaComNomeContaQuandoReferenciaEhOId() {
     contents: [content],
     series: [serie],
     pilares: [pilar],
-    settings: {redeReferenciaId: 'plat-instagram', distribuicaoFuncoes: PERCENTUAIS},
+    settings: {redeReferenciaId: 'plat-instagram', proporcaoFuncoes: PERCENTUAIS},
     periodo: PERIODO,
     platforms,
   });
@@ -373,3 +373,37 @@ function testPublicacoesEmOutrasRedesNaoContaPublicacaoNaPropriaReferencia() {
 
 testPublicacaoGravadaComNomeContaQuandoReferenciaEhOId();
 testPublicacoesEmOutrasRedesNaoContaPublicacaoNaPropriaReferencia();
+
+function testProporcaoDefineMetaDosObjetivos() {
+  const content = createContentDraft({
+    id: 'com-proporcao',
+    status: CONTENT_STATUS.IDEIA,
+    seriesId: serie.id,
+    publishDate: '2026-10-05',
+  }, serie);
+  const counts = saudeDoMes({
+    postIts: [],
+    contents: [content],
+    series: [serie],
+    pilares: [pilar],
+    settings: {
+      redeReferenciaId: null,
+      proporcaoFuncoes: PERCENTUAIS,
+      preferencias: {
+        limiteSemanal: 7,
+        reservaForaSeriesSemanal: null,
+        redeReferenciaId: null,
+        reservaProntos: null,
+        publicoLinguagem: '',
+        disponibilidade: '',
+        hashtagsForaSeries: '',
+      },
+    },
+    periodo: {inicio: '2026-10-04', fim: '2026-10-10'},
+  });
+  assert.equal(counts.limite, 7);
+  assert.equal(counts.funcoes.find(linha => linha.id === 'atrair')?.meta, 7);
+  assert.equal(counts.funcoes.find(linha => linha.id === 'atrair')?.planejado, 1);
+}
+
+testProporcaoDefineMetaDosObjetivos();

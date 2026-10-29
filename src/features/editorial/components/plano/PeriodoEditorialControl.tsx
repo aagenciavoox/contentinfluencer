@@ -109,7 +109,7 @@ export function useContagemDoPeriodo(inicio: string, fim: string): GradeCounts {
     state.pilares,
     state.platforms,
     state.postIts,
-    state.preferences,
+    state.editorial,
   ]);
 }
 

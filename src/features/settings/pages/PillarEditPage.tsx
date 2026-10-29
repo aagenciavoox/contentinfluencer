@@ -15,6 +15,10 @@ import type { Pilar } from '../../../lib/database';
 import { CONFIRM } from '../../../lib/uiCopy';
 import { contasAtivas } from '../../contas/lib/contas';
 import {
+  patchSerieAoVincularPilar,
+  serieLigadaAoPilar,
+} from '../../editorial/lib/vincularSerieAoPilar';
+import {
   PilarEditForm,
   type PilarEditChromeState,
   type PilarEditSavePayload,
@@ -82,7 +86,9 @@ export function PillarEditPage() {
 
   const initialLinkedSerieIds = useMemo(() => {
     if (isCreate || !editingPilar) return [];
-    return state.series.filter(serie => serie.pilarIds.includes(editingPilar.id)).map(serie => serie.id);
+    return state.series
+      .filter(serie => serieLigadaAoPilar(serie, editingPilar.id))
+      .map(serie => serie.id);
   }, [editingPilar, isCreate, state.series]);
 
   const backToList = () => navigate('/editorial?aba=pilares');
@@ -90,19 +96,18 @@ export function PillarEditPage() {
   const syncSeriesLinks = useCallback(
     (pilarIdToLink: string, linkedSerieIds: string[]) => {
       for (const serie of state.series) {
-        const shouldInclude = linkedSerieIds.includes(serie.id);
-        const currentlyIncludes = serie.pilarIds.includes(pilarIdToLink);
-        if (shouldInclude === currentlyIncludes) continue;
-
-        const nextPilarIds = shouldInclude
-          ? [...serie.pilarIds, pilarIdToLink]
-          : serie.pilarIds.filter(id => id !== pilarIdToLink);
+        const patch = patchSerieAoVincularPilar(
+          serie,
+          pilarIdToLink,
+          linkedSerieIds.includes(serie.id),
+        );
+        if (!patch) continue;
 
         dispatch({
           type: 'UPDATE_SERIE',
           payload: {
             ...serie,
-            pilarIds: nextPilarIds,
+            ...patch,
             updatedAt: new Date().toISOString(),
           },
         });
@@ -170,6 +175,7 @@ export function PillarEditPage() {
       postingTimeEntries={state.postingTimeEntries}
       platforms={state.platforms}
       initialLinkedSerieIds={initialLinkedSerieIds}
+      pilares={state.pilares}
       onSave={handleSave}
       onCancel={backToList}
       onChromeChange={handleChromeChange}

@@ -132,7 +132,7 @@ export function MonthHealth({
     <>
       {semMeta ? (
         <Text variant="meta" as="p" className="mt-3 text-[var(--text-secondary)]">
-          Os pilares ainda não têm espaços por semana. Defina isso no editorial para comparar o mês.
+          Defina o limite semanal em Editorial › Ajustes para comparar o mês.
         </Text>
       ) : (
         <div className={`mt-3 ${CARD_GRID}`}>
@@ -164,7 +164,7 @@ export function MonthHealth({
         </div>
       ) : !semMeta && !temDistribuicao ? (
         <Text variant="meta" as="p" className="mt-3 text-[var(--text-secondary)]">
-          A distribuição por função aparece quando estiver salva no editorial.
+          A distribuição por objetivo aparece quando a proporção estiver salva no Editorial.
         </Text>
       ) : null}
       {counts.notaSoma ? (

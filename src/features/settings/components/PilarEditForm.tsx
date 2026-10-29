@@ -7,6 +7,7 @@ import {
   Smile,
   X,
 } from 'lucide-react';
+import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
@@ -14,6 +15,7 @@ import type { Pilar, PilarPlataforma, Platform, PostingTimeEntry, Serie } from '
 import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { cn } from '../../../lib/utils';
 import { generateUUID } from '../../../utils/uuid';
+import { pilarPrincipalDaSerie } from '../../editorial/lib/pilarDaSerie';
 import {
   WEEKDAYS_ORDERED,
   type Weekday,
@@ -170,6 +172,7 @@ export function PilarEditForm({
   postingTimeEntries,
   platforms,
   initialLinkedSerieIds,
+  pilares = [],
   onSave,
   onCancel,
   onChromeChange,
@@ -181,6 +184,7 @@ export function PilarEditForm({
   postingTimeEntries: PostingTimeEntry[];
   platforms: Platform[];
   initialLinkedSerieIds: string[];
+  pilares?: ReadonlyArray<Pick<Pilar, 'id' | 'nome'>>;
   onSave: (payload: PilarEditSavePayload) => void;
   onCancel: () => void;
   onChromeChange?: (state: PilarEditChromeState) => void;
@@ -214,13 +218,43 @@ export function PilarEditForm({
   const [form, setForm] = useState(initialSnapshot.current.form);
   const [linkedSerieIds, setLinkedSerieIds] = useState<string[]>(initialSnapshot.current.linkedSerieIds);
   const [showSeriePicker, setShowSeriePicker] = useState(false);
+  const [trocaPilarPendente, setTrocaPilarPendente] = useState<{
+    serieId: string;
+    de: string;
+    para: string;
+  } | null>(null);
   const [activePlatform, setActivePlatform] = useState(platformNames[0] ?? '');
   const seriePickerRef = useRef<HTMLDivElement>(null);
   const selectedPlatform = platformNames.includes(activePlatform) ? activePlatform : platformNames[0] ?? '';
 
-  const addSerie = (serieId: string) => {
-    setLinkedSerieIds(previous => [...previous, serieId]);
+  const nomeDoPilar = useCallback(
+    (pilarId: string | null | undefined) => {
+      if (!pilarId) return 'outro pilar';
+      return pilares.find(item => item.id === pilarId)?.nome
+        || (pilarId === form.id ? form.nome.trim() || 'este pilar' : 'outro pilar');
+    },
+    [form.id, form.nome, pilares],
+  );
+
+  const confirmarVinculo = (serieId: string) => {
+    setLinkedSerieIds(previous => (previous.includes(serieId) ? previous : [...previous, serieId]));
+    setTrocaPilarPendente(null);
     setShowSeriePicker(false);
+  };
+
+  const addSerie = (serieId: string) => {
+    const serie = series.find(item => item.id === serieId);
+    const principalAtual = serie ? pilarPrincipalDaSerie(serie) : null;
+    if (principalAtual && principalAtual !== form.id) {
+      setTrocaPilarPendente({
+        serieId,
+        de: nomeDoPilar(principalAtual),
+        para: form.nome.trim() || 'este pilar',
+      });
+      setShowSeriePicker(false);
+      return;
+    }
+    confirmarVinculo(serieId);
   };
 
   useEffect(() => {
@@ -555,22 +589,10 @@ export function PilarEditForm({
         </div>
 
         <aside className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-24 lg:self-start">
-          <Surface variant="info" padding="md">
-            <CardHeading title="Ritmo editorial" />
-            <div className="stack-sm">
-              {form.frequenciaSemanal != null ? (
-                <Text variant="body">{form.frequenciaSemanal}</Text>
-              ) : null}
-              <Text variant="meta" className="text-[var(--text-secondary)]">
-                Este número não define mais o limite. O limite fica na aba Ajustes do Editorial.
-              </Text>
-            </div>
-          </Surface>
-
           <Surface variant="outlined" padding="md">
             <CardHeading
               title="Séries vinculadas"
-              description="Séries associadas a este pilar."
+              description="O vínculo grava o pilar principal da série."
             />
             <div className="stack-md">
               {linkedSeries.map(item => (
@@ -626,6 +648,20 @@ export function PilarEditForm({
           </Surface>
         </aside>
       </div>
+      <ConfirmModal
+        open={Boolean(trocaPilarPendente)}
+        message={
+          trocaPilarPendente
+            ? `Vai trocar ${trocaPilarPendente.de} por ${trocaPilarPendente.para}.`
+            : ''
+        }
+        confirmLabel="Trocar pilar"
+        cancelLabel="Manter"
+        onConfirm={() => {
+          if (trocaPilarPendente) confirmarVinculo(trocaPilarPendente.serieId);
+        }}
+        onCancel={() => setTrocaPilarPendente(null)}
+      />
     </div>
   );
 }

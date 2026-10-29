@@ -30,7 +30,7 @@ import {CONTENT_STATUS, DISPLAY_STATUS, normalizeContentStatus} from '../../cont
 import {calendarEntryIcon, CalendarNetworkIcons} from '../../editorial-calendar/components/CalendarNetworkIcons';
 import {buildDetailBackState} from '../../../lib/navigation/detailBack';
 import {etiquetasVisiveis} from '../../creation/lib/creationItemPresentation';
-import {distribuicaoFecha} from '../../editorial/lib/gradeCounts';
+import {readProporcao} from '../../editorial/lib/proporcaoObjetivos';
 import {FUNCAO_CURTA, FUNCAO_LABELS, FUNCOES, FUNIL_DA_FUNCAO, isFuncaoEditorial, resolveFuncao} from '../../editorial/lib/funcoes';
 import {sortPilares} from '../../settings/lib/activePilares';
 import {EncaixeDialog} from '../components/EncaixeDialog';
@@ -238,7 +238,7 @@ export function PlanejamentoPage() {
       series: state.series,
       redeReferenciaId: state.editorial.redeReferenciaId,
     }),
-    [contents, state.platforms, state.series, state.preferences],
+    [contents, state.platforms, state.series, state.editorial],
   );
 
   const temasDoPlanejamento = useMemo(
@@ -395,9 +395,9 @@ export function PlanejamentoPage() {
         periodo: periodoDoMes(month),
         platforms: state.platforms,
       }),
-      temDistribuicao: distribuicaoFecha(settings.distribuicaoFuncoes),
+      temDistribuicao: readProporcao(settings.proporcaoFuncoes) != null,
     };
-  }, [postIts, contents, state.series, state.pilares, state.platforms, state.preferences, month]);
+  }, [postIts, contents, state.series, state.pilares, state.platforms, state.editorial, month]);
 
   const nextMonth = useMemo(() => addMonths(month, 1), [month]);
 

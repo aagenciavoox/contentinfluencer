@@ -21,7 +21,7 @@ function noPeriodo(data: string | null, periodo: PeriodoGrade): boolean {
 }
 
 type AjustesDoMes = Pick<EditorialSettings, 'redeReferenciaId'> & Partial<
-  Pick<EditorialSettings, 'distribuicaoFuncoes' | 'preferencias' | 'periodos'>
+  Pick<EditorialSettings, 'proporcaoFuncoes' | 'preferencias' | 'periodos'>
 >;
 
 function postItsParaContagem(
