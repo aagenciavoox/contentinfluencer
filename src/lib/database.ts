@@ -1294,6 +1294,7 @@ const mp = {
     contaNaGradeOrigem: readContaNaGradeOrigem(r.conta_na_grade_origem),
     pilarOrigem: readPilarOrigem(r.pilar_origem),
     scriptOrigem: readScriptOrigem(r.script_origem),
+    pautaDefinida: typeof r.pauta_definida === 'boolean' ? r.pauta_definida : null,
     redeReferenciaCongeladaId: typeof r.rede_referencia_congelada_id === 'string' && r.rede_referencia_congelada_id
       ? r.rede_referencia_congelada_id
       : null,

@@ -31,6 +31,7 @@ export type PostItContagem = {
   serieId?: string | null;
   pilarId?: string | null;
   objetivo?: FuncaoEditorial | string | null;
+  pautaDefinida?: boolean | null;
 };
 
 /** O percentual antigo pode vir no objeto. A conta não lê esse campo. */
@@ -239,7 +240,7 @@ function montarItens(
     const escolhido = ordenados[0];
     const entry = porConteudo.get(contentId);
     if (entry && !entry.contaNaGrade) continue;
-    const temPauta = ordenados.some(nota => postItTemPauta(nota.texto)) || entry?.temPauta === true;
+    const temPauta = ordenados.some(nota => postItTemPauta(nota.texto, nota.pautaDefinida)) || entry?.temPauta === true;
     const publicado = Boolean(entry?.realizada && noPeriodo(entry.data, periodo));
     // Conteúdo que sumiu da lista: o post-it volta a ser só planejamento.
     const etapa: Etapa = !entry ? 'planejamento' : publicado ? 'postado' : entry.etapa ?? 'roteiro';
@@ -265,7 +266,7 @@ function montarItens(
   }
 
   for (const postIt of soltos) {
-    const temPauta = postItTemPauta(postIt.texto);
+    const temPauta = postItTemPauta(postIt.texto, postIt.pautaDefinida);
     const sintetico: GradeEntry = {
       id: `post-it:${postIt.id}`,
       contentId: postIt.id,
