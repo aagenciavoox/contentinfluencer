@@ -103,11 +103,12 @@ export function WritingNotesPane({
       }),
     ],
     content: html || '',
+    editable: true,
     immediatelyRender: false,
     shouldRerenderOnTransaction: false,
     editorProps: {
       attributes: {
-        class: 'tiptap min-h-[inherit] max-w-none text-base text-[var(--text-primary)] focus:outline-none',
+        class: 'tiptap min-h-full max-w-none text-base text-[var(--text-primary)] focus:outline-none',
         role: 'textbox',
         'aria-multiline': 'true',
         'aria-label': 'Rascunho de apoio',
@@ -116,11 +117,11 @@ export function WritingNotesPane({
         const clipboard = event.clipboardData;
         if (!clipboard) return false;
         if (clipboardHasRichHtml(clipboard.getData('text/html'))) return false;
-        const html = htmlFromClipboardPlain(clipboard.getData('text/plain'));
-        if (!html) return false;
+        const pasted = htmlFromClipboardPlain(clipboard.getData('text/plain'));
+        if (!pasted) return false;
         event.preventDefault();
         const holder = document.createElement('div');
-        holder.innerHTML = html;
+        holder.innerHTML = pasted;
         const slice = ProseMirrorDOMParser.fromSchema(view.state.schema).parseSlice(holder, {
           preserveWhitespace: true,
         });
@@ -149,6 +150,12 @@ export function WritingNotesPane({
     },
   }, [documentId]);
 
+  const focusDraftEditor = useCallback((position: 'start' | 'end' = 'end') => {
+    if (!editor || editor.isDestroyed) return;
+    editor.chain().focus(position).run();
+    onFocusChangeRef.current?.(true);
+  }, [editor]);
+
   useEffect(() => {
     onEditorReady?.(editor ?? null);
     return () => onEditorReady?.(null);
@@ -157,7 +164,8 @@ export function WritingNotesPane({
   useEffect(() => {
     if (!editor || editor.isDestroyed) return;
     if (html === lastEmittedRef.current) return;
-    if (editor.isFocused) return;
+    // Não sobrescreve enquanto digita — inclusive se o foco DOM oscilar no re-render.
+    if (editor.isFocused || editor.view?.hasFocus?.()) return;
     const current = editor.getHTML();
     if (normalizeNotesHtml(current) === normalizeNotesHtml(html)) {
       lastEmittedRef.current = html;
@@ -171,6 +179,16 @@ export function WritingNotesPane({
     if (scrollTop == null || !viewportRef.current) return;
     viewportRef.current.scrollTop = scrollTop;
   }, [scrollTop]);
+
+  // Garante contenteditable após montar (evita painel “morto” em split/flex).
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    if (!editor.isEditable) editor.setEditable(true);
+    const dom = editor.view?.dom;
+    if (dom && dom.getAttribute('contenteditable') !== 'true') {
+      dom.setAttribute('contenteditable', 'true');
+    }
+  }, [editor]);
 
   const canUndo = !!editor?.can().undo();
   const canRedo = !!editor?.can().redo();
@@ -210,14 +228,20 @@ export function WritingNotesPane({
           <HistoryButton
             label="Desfazer"
             disabled={!canUndo}
-            onClick={() => editor?.chain().focus().undo().run()}
+            onClick={() => {
+              editor?.chain().focus().undo().run();
+              onFocusChangeRef.current?.(true);
+            }}
           >
             <Undo className="h-4 w-4" />
           </HistoryButton>
           <HistoryButton
             label="Refazer"
             disabled={!canRedo}
-            onClick={() => editor?.chain().focus().redo().run()}
+            onClick={() => {
+              editor?.chain().focus().redo().run();
+              onFocusChangeRef.current?.(true);
+            }}
           >
             <Redo className="h-4 w-4" />
           </HistoryButton>
@@ -226,10 +250,22 @@ export function WritingNotesPane({
       <div
         ref={viewportRef}
         className={cn(
-          'relative min-h-0 flex-1 overflow-y-auto custom-scrollbar px-4 py-4 md:px-6',
+          'relative min-h-0 flex-1 cursor-text overflow-y-auto custom-scrollbar px-4 py-4 md:px-6',
           embedded ? 'bg-[var(--bg-primary)]' : 'bg-[var(--bg-elevated)]',
         )}
         onScroll={event => onScrollTopChange?.(event.currentTarget.scrollTop)}
+        onPointerDown={event => {
+          if (!editor || editor.isDestroyed || event.button !== 0) return;
+          const target = event.target as HTMLElement;
+          if (target.closest('button, a, input, textarea, select')) return;
+          // Clique na área vazia (fora do nó editável) precisa focar o TipTap.
+          if (target.closest('.ProseMirror')) {
+            onFocusChangeRef.current?.(true);
+            return;
+          }
+          event.preventDefault();
+          focusDraftEditor('end');
+        }}
       >
         {insertUi && onInsertIntoScript ? (
           <button
@@ -245,7 +281,10 @@ export function WritingNotesPane({
             Inserir no roteiro
           </button>
         ) : null}
-        <EditorContent editor={editor} className="min-h-full max-w-none cursor-text" />
+        <EditorContent
+          editor={editor}
+          className="block h-full min-h-full max-w-none cursor-text [&_.tiptap]:min-h-full [&_.ProseMirror]:min-h-full"
+        />
       </div>
     </section>
   );

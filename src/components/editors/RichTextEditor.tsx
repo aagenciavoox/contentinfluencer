@@ -1321,6 +1321,7 @@ function RichTextEditorInstance({
             aria-label="Rascunho de apoio"
             className={cn(
               'flex min-h-0 min-w-0 flex-col overflow-hidden border-[var(--border-color)] bg-[var(--bg-primary)]',
+              '[&>section]:flex [&>section]:h-full [&>section]:min-h-0 [&>section]:flex-1 [&>section]:flex-col',
               narrowSplit ? 'min-w-0 flex-1 border-0' : 'shrink-0 border-l',
             )}
             style={narrowSplit

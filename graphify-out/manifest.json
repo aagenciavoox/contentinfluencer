@@ -165,8 +165,8 @@
     "semantic_hash": ""
   },
   "src/test-runner.ts": {
-    "mtime": 1793235525.0189328,
-    "ast_hash": "ba1a31c5e7ea0dd2be1c837c008a14a8",
+    "mtime": 1793235983.9455647,
+    "ast_hash": "33664efe6b7f9a0a89bc59b9d6c88cd9",
     "semantic_hash": ""
   },
   "src/vite-env.d.ts": {
@@ -745,8 +745,8 @@
     "semantic_hash": ""
   },
   "src/features/contents/components/detail/PlatformCopyEditor.tsx": {
-    "mtime": 1793234513.9518318,
-    "ast_hash": "9f58632f2a51d723b558b8de3349049b",
+    "mtime": 1793235887.7532175,
+    "ast_hash": "0c3324ff572da5be1831a08023605754",
     "semantic_hash": ""
   },
   "src/features/contents/components/detail/ScriptBlockToolbar.tsx": {
@@ -1715,8 +1715,8 @@
     "semantic_hash": ""
   },
   "src/lib/database.ts": {
-    "mtime": 1793235149.4156716,
-    "ast_hash": "1185597696d4de7a35a2b6e88a8953f8",
+    "mtime": 1793235969.1935513,
+    "ast_hash": "5f3f2cdc61ac79f895746dee4a1bf657",
     "semantic_hash": ""
   },
   "src/lib/dataCache.ts": {
@@ -2500,8 +2500,8 @@
     "semantic_hash": ""
   },
   "src/features/editorial-calendar/lib/publishCalendarItems.test.ts": {
-    "mtime": 1793235406.447808,
-    "ast_hash": "624c57576b9eac9454d9d117c04e46a2",
+    "mtime": 1793236117.5882466,
+    "ast_hash": "66d10a298efbe4f71971aba8486be859",
     "semantic_hash": ""
   },
   "src/features/editorial-calendar/lib/publishCalendarItems.ts": {
@@ -2545,13 +2545,13 @@
     "semantic_hash": ""
   },
   "src/features/editorial/lib/gradeEntries.test.ts": {
-    "mtime": 1793235382.8372276,
-    "ast_hash": "f0eccdd7c9ab51ea9f298ad5e84d7231",
+    "mtime": 1793236066.192627,
+    "ast_hash": "52f39bd394472e5c6041f77b78c609e5",
     "semantic_hash": ""
   },
   "src/features/editorial/lib/gradeEntries.ts": {
-    "mtime": 1793235717.8985994,
-    "ast_hash": "736565daa733b391bfe5c2cff0c9b66c",
+    "mtime": 1793235942.773955,
+    "ast_hash": "4aa6f5165a8dc1d09ec9ab4aea31dd20",
     "semantic_hash": ""
   },
   "src/features/editorial/lib/markPublished.test.ts": {
@@ -2855,8 +2855,8 @@
     "semantic_hash": ""
   },
   "mcp/src/tools/estrutura.ts": {
-    "mtime": 1793232520.932753,
-    "ast_hash": "91f61f5a1382082b024c4901ecdf2d55",
+    "mtime": 1793235910.6038249,
+    "ast_hash": "e614acde4f974b4bf6c82dc1271e6209",
     "semantic_hash": ""
   },
   "mcp/tsconfig.json": {
@@ -3070,13 +3070,13 @@
     "semantic_hash": ""
   },
   "src/features/editorial/lib/gradeCounts.test.ts": {
-    "mtime": 1793235406.4388816,
-    "ast_hash": "5de9efc1bdf3403e124e4780d40977c7",
+    "mtime": 1793236094.733685,
+    "ast_hash": "0922e1bb6185eaf8f45363af900d14ce",
     "semantic_hash": ""
   },
   "src/features/editorial/lib/gradeCounts.ts": {
-    "mtime": 1793235273.6705518,
-    "ast_hash": "57bbd784eff0e6989d606411d85dba3d",
+    "mtime": 1793235965.4950008,
+    "ast_hash": "bea8a8a04c1a3b1fa4919e592678bb34",
     "semantic_hash": ""
   },
   "src/features/editorial/lib/pilarDaSerie.ts": {
@@ -3110,8 +3110,8 @@
     "semantic_hash": ""
   },
   "src/features/planejamento/lib/postIt.ts": {
-    "mtime": 1793232521.0064251,
-    "ast_hash": "cd2684615f2831014f95aa9e1f1a755d",
+    "mtime": 1793235933.4428859,
+    "ast_hash": "2220a31407d27e3dbcdbb9889bebf2fe",
     "semantic_hash": ""
   },
   "src/features/planejamento/lib/temasPlanejamento.test.ts": {
@@ -3270,13 +3270,13 @@
     "semantic_hash": ""
   },
   "src/features/editorial/lib/pautaConteudo.test.ts": {
-    "mtime": 1792537523.5563476,
-    "ast_hash": "932f319a3e5aed1257d5239d5d04c1b9",
+    "mtime": 1793235980.083784,
+    "ast_hash": "8e598524fe42835f511a1afc58d82674",
     "semantic_hash": ""
   },
   "src/features/editorial/lib/pautaConteudo.ts": {
-    "mtime": 1792537523.55735,
-    "ast_hash": "1a5abfdc2ce693dfb83d908cfb41aa73",
+    "mtime": 1793235905.1408288,
+    "ast_hash": "b6d44d2556c22374c7b3726018228843",
     "semantic_hash": ""
   },
   "src/features/editorial/lib/periodoEditorial.test.ts": {
@@ -3285,8 +3285,8 @@
     "semantic_hash": ""
   },
   "src/features/editorial/lib/referenciaPublicacao.test.ts": {
-    "mtime": 1793235749.2776217,
-    "ast_hash": "479644779f7abd79cead73acd231ad35",
+    "mtime": 1793236009.232196,
+    "ast_hash": "f817ff12057a7cf659388091f3a7af30",
     "semantic_hash": ""
   },
   "src/features/editorial/lib/referenciaPublicacao.ts": {
@@ -3330,8 +3330,8 @@
     "semantic_hash": ""
   },
   "src/features/editorial/components/plano/PeriodoPanel.tsx": {
-    "mtime": 1793235817.7245996,
-    "ast_hash": "347caeaa64e75af01a8922dd9dc89826",
+    "mtime": 1793236289.2337193,
+    "ast_hash": "2342364acc4aa890537cb9acf3959d16",
     "semantic_hash": ""
   },
   "src/features/editorial/components/plano/campos.tsx": {
@@ -4225,8 +4225,8 @@
     "semantic_hash": ""
   },
   "src/features/planejamento/lib/orientacaoEditorial.ts": {
-    "mtime": 1793235009.527336,
-    "ast_hash": "19133186ea47055d01f3a76afaec8802",
+    "mtime": 1793236295.9816444,
+    "ast_hash": "95db7be630d8da1b1f5e51b7c22a2421",
     "semantic_hash": ""
   },
   "src/features/planejamento/lib/periodoPlanejamento.ts": {
@@ -4262,6 +4262,11 @@
   "src/features/editorial/lib/soEmOutrasRedes.ts": {
     "mtime": 1793235720.9441442,
     "ast_hash": "9f7ec4ee581a8a11047a05d8eba050a6",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20261028230000_pauta_definida.sql": {
+    "mtime": 1793235896.41306,
+    "ast_hash": "efef2381795db4bb6706d4bb5baf974d",
     "semantic_hash": ""
   }
 }
