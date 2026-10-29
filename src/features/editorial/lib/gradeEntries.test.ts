@@ -378,10 +378,10 @@ function testPublicadoEmDiaDiferenteDoPlanejadoUsaODiaReal() {
   assert.notEqual(entries[0]?.data, '2026-10-09');
 }
 
-function testDesempateForaDaBaseNaoUsaAOrdemDoArray() {
+function testSemRedeDeBaseDesempataForaDela() {
   const entries = buildGradeEntries({
     series,
-    settings,
+    settings: { redeReferenciaId: null },
     contents: [
       conteudo({
         id: 'empate',
@@ -483,7 +483,7 @@ testExcluidoEArquivadoFicamFora();
 testPublicacaoGravadaComNomeCasaComReferenciaPorId();
 testPostadoSemDataPlanejadaUsaDiaReal();
 testPublicadoEmDiaDiferenteDoPlanejadoUsaODiaReal();
-testDesempateForaDaBaseNaoUsaAOrdemDoArray();
+testSemRedeDeBaseDesempataForaDela();
 testRedeCongeladaNaoMudaComABaseNova();
 
 console.log('gradeEntries tests passed');
