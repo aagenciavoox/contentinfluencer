@@ -100,12 +100,10 @@ function testSemanaMostraInstagramNaGradeETikTokComoExtra() {
     redeReferenciaId: INSTAGRAM,
     platformFilter: 'todas',
   });
+  // Só TikTok fica fora da grade com Instagram como rede de base.
   assert.deepEqual(
     todas.map(item => ({ id: item.contentId, date: item.date?.slice(0, 10) })),
-    [
-      { id: 'semana', date: '2026-10-06' },
-      { id: 'so-tiktok', date: '2026-10-07' },
-    ],
+    [{ id: 'semana', date: '2026-10-06' }],
   );
   assert.equal(todas[0]?.date, '2026-10-06');
   assert.deepEqual(todas[0]?.platformNames, ['Instagram', 'TikTok']);

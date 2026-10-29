@@ -326,7 +326,7 @@ function testOrigemEPautaNoFluxoDaGrade() {
   assert.equal(resultado.itens.find(item => item.contentId === 'modelo')?.temPauta, false);
 }
 
-function testPublicadoForaDaBaseAindaConta() {
+function testPublicadoSoEmOutrasRedesNaoConta() {
   const entries = buildGradeEntries({
     series: serie,
     settings: { redeReferenciaId: 'plat-instagram' },
@@ -368,12 +368,9 @@ function testPublicadoForaDaBaseAindaConta() {
     settings: {},
     periodo: SEMANA,
   });
-  const original = entries.find(entry => entry.tipo === 'original');
-  assert.equal(original?.data, '2026-04-28');
-  assert.equal(original?.hora, '09:00');
-  assert.equal(resultado.previsto, 1);
-  assert.equal(resultado.publicado, 1);
-  assert.equal(entries.filter(entry => entry.tipo === 'original').length, 1);
+  assert.equal(entries.length, 0);
+  assert.equal(resultado.previsto, 0);
+  assert.equal(resultado.publicado, 0);
 }
 
 function testContaPorEtapa() {
@@ -447,7 +444,7 @@ testFrequenciaNaoCortaOItem();
 testMetaDoPeriodoNaoEscala();
 testPostItLigadoContaUmaVez();
 testOrigemEPautaNoFluxoDaGrade();
-testPublicadoForaDaBaseAindaConta();
+testPublicadoSoEmOutrasRedesNaoConta();
 testContaPorEtapa();
 
 console.log('gradeCounts tests passed');
