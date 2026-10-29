@@ -290,8 +290,8 @@ export function avisosDeOrientacao({
   /** Id de sequência intencional por contentId. Sem campo no banco, fica vazio. */
   sequenciaPorConteudo?: Readonly<Record<string, string>>;
 }): AvisoOrientacao[] {
-  // Janela um pouco maior que o período para obra em 7 dias tocar a borda.
-  const margemInicio = format(addDays(parseISO(periodo.inicio), -6), 'yyyy-MM-dd');
+  // Período + 14 dias anteriores (obra em 7 dias) + margem à frente nas bordas.
+  const margemInicio = format(addDays(parseISO(periodo.inicio), -14), 'yyyy-MM-dd');
   const margemFim = format(addDays(parseISO(periodo.fim), 6), 'yyyy-MM-dd');
   const pautas = pautasDoPeriodo({
     postIts,

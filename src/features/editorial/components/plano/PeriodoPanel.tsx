@@ -14,6 +14,7 @@ import type { FuncaoEditorial } from '../../../../lib/database';
 import { BREAKPOINTS } from '../../../../shared/breakpoints';
 import { reservaPronta, rotuloCapacidadeSeries, textoEstoque } from '../../lib/estoque';
 import { listarSoEmOutrasRedes } from '../../lib/soEmOutrasRedes';
+import { avisosDeOrientacao } from '../../../planejamento/lib/orientacaoEditorial';
 import type { MetasPeriodo } from '../../lib/editorialSettings';
 import { ETAPA_LABEL, ETAPAS, ETAPAS_DE_CONTEUDO, contagemPorEtapaVazia, somaDasEtapas, type ContagemPorEtapa, type Etapa } from '../../lib/etapas';
 import { expectativaNoIntervalo, lerFrequencia } from '../../lib/frequenciaSerie';
@@ -489,6 +490,24 @@ export function PeriodoPanel({
       acao: {
         rotulo: 'Ver quais',
         onClick: () => setFiltroItens({ titulo: 'Sem objetivo', objetivo: null, etapas: ETAPAS_DE_CONTEUDO }),
+      },
+    });
+  }
+  // Mesma leitura do Planejamento: avisos nunca bloqueiam.
+  for (const aviso of avisosDeOrientacao({
+    postIts: state.postIts,
+    contents: state.contents,
+    series: state.series,
+    temas: state.temas,
+    obras: state.bibliotecaItems,
+    periodo: { inicio: periodo.inicio, fim: periodo.fim },
+  })) {
+    avisos.push({
+      id: aviso.id,
+      texto: aviso.texto,
+      acao: {
+        rotulo: 'Abrir o planejamento',
+        onClick: () => navigate('/planejamento'),
       },
     });
   }
