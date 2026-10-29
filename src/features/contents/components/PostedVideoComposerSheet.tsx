@@ -93,7 +93,7 @@ export function buildPostedVideoContent(params: {
       publishTime: params.time || null,
       publishDateEnabled: true,
       publicationKind: entry.publicationKind,
-      status: existing?.status ?? 'agendada',
+      status: existing?.status ?? 'prevista',
       realizadaManualEm: existing?.realizadaManualEm ?? null,
       realizadaApiEm: existing?.realizadaApiEm ?? null,
       postCodigo: existing?.postCodigo ?? null,

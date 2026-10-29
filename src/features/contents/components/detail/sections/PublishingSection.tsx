@@ -7,8 +7,10 @@ import type {PostingAlert} from '../../../lib/contentPipeline';
 import {useState} from 'react';
 import {useAppContext} from '../../../../../context/AppContext';
 import {criarRepost} from '../../../../editorial/lib/destinations';
+import {progressoPublicacao} from '../../../../editorial/lib/publicacaoSituacao';
 import {PlatformCopyEditor} from '../PlatformCopyEditor';
 import {rotuloConta, rotuloDaRef} from '../../../../contas/lib/contas';
+import {Badge} from '../../../../../components/ui/Badge';
 import {Text} from '../../../../../components/ui/Text';
 
 type PublishingDraft = Pick<
@@ -53,10 +55,23 @@ export function PublishingSection({
   const [repostDate, setRepostDate] = useState('');
   const isPosted = draft.status === CONTENT_STATUS.POSTADO || Boolean(draft.postedAt);
   const materialPronto = isReadyToPublish(draft);
+  const progresso = progressoPublicacao(draft.plataformas);
   const activePlatformIds = draft.plataformas.length > 0 ? draft.plataformas.map(item => item.platformId) : [];
 
   return (
     <div className="grid gap-6">
+      {progresso.previstas > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="status" status={progresso.completo ? CONTENT_STATUS.POSTADO : 'Edição'}>
+            {progresso.completo ? 'Publicado' : `Publicação parcial · ${progresso.rotulo}`}
+          </Badge>
+          {!progresso.completo && materialPronto ? (
+            <Text variant="meta" as="span" className="text-[var(--text-secondary)]">
+              O ciclo fecha quando todas as contas previstas forem publicadas.
+            </Text>
+          ) : null}
+        </div>
+      ) : null}
       {!materialPronto && !isPosted ? (
         <Text variant="secondary">
           Dá para preparar legenda, capa, contas e datas desde já. Confirmar Programado fica para quando o material estiver em Edição · Pronto. Registrar uma publicação que já saiu continua liberado.

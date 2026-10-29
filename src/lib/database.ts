@@ -371,7 +371,17 @@ export interface CarouselSlide {
 
 export type PublicationKind = 'post' | 'repost';
 
-export type PublicacaoStatus = 'agendada' | 'publicada' | 'nao_publicada' | 'removida';
+/**
+ * Situação da publicação na conta.
+ * `agendada` é legado no banco; o app lê como `prevista` (parte 1 da migração).
+ */
+export type PublicacaoStatus =
+  | 'prevista'
+  | 'programada'
+  | 'publicada'
+  | 'nao_publicada'
+  | 'removida'
+  | 'agendada';
 
 /**
  * Publicação: a ocorrência de um conteúdo numa conta. Conta, legenda, datas,
@@ -991,9 +1001,11 @@ function isMissingPublicacaoColumns(error: {message?: string} | null | undefined
 }
 
 function readPublicacaoStatus(value: unknown): PublicacaoStatus {
-  return value === 'publicada' || value === 'nao_publicada' || value === 'removida' || value === 'agendada'
-    ? value
-    : 'agendada';
+  if (value === 'publicada' || value === 'nao_publicada' || value === 'removida' || value === 'programada' || value === 'prevista') {
+    return value;
+  }
+  // Legado: agendada e qualquer valor estranho entram como prevista.
+  return 'prevista';
 }
 
 function readRede(value: unknown): RedeSocial | null {
@@ -3304,7 +3316,7 @@ export async function saveContentPlataformas(
       publish_time: plataforma.publishTime,
       publish_date_enabled: plataforma.publishDateEnabled ?? (plataforma.publishDate != null),
       publication_kind: plataforma.publicationKind ?? 'post',
-      status: plataforma.status ?? 'agendada',
+      status: plataforma.status === 'agendada' ? 'prevista' : (plataforma.status ?? 'prevista'),
       realizada_manual_em: plataforma.realizadaManualEm ?? null,
       realizada_api_em: plataforma.realizadaApiEm ?? null,
       post_codigo: plataforma.postCodigo ?? null,

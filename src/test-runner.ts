@@ -64,6 +64,7 @@ await import('./features/projects/lib/agendaEventos.test.ts');
 await import('./features/editorial/lib/distribuirEspacos.test.ts');
 await import('./features/editorial/lib/proporcaoObjetivos.test.ts');
 await import('./features/editorial/lib/vincularSerieAoPilar.test.ts');
+await import('./features/editorial/lib/publicacaoSituacao.test.ts');
 await import('./features/editorial/lib/estoque.test.ts');
 await import('./features/editorial/lib/gradeCounts.test.ts');
 await import('./features/editorial/lib/checkEditorialConfig.test.ts');

@@ -309,7 +309,7 @@ export function canSchedulePosting(content: Pick<Content, 'publishDate' | 'plata
 }
 
 export function getDisplayStatus(
-  content: Pick<Content, 'publishDate' | 'status' | 'postedAt'>
+  content: Pick<Content, 'publishDate' | 'status' | 'postedAt' | 'edicaoConcluidaEm' | 'plataformas'>,
 ): string {
   const status = normalizeContentStatus(content.status);
 
@@ -317,12 +317,9 @@ export function getDisplayStatus(
     return CONTENT_STATUS.POSTADO;
   }
 
-  if (!content.publishDate) return status;
-
-  const publishDay = startOfDay(new Date(content.publishDate));
-  const today = startOfDay(new Date());
-
-  if (isAfter(publishDay, today) && status !== CONTENT_STATUS.POSTADO) {
+  // Programado deixa de vir da data futura: só conta programada + material pronto.
+  const temProgramada = (content.plataformas ?? []).some(item => item.status === 'programada');
+  if (temProgramada && isReadyToPublish(content)) {
     return DISPLAY_STATUS.PROGRAMADO;
   }
 
@@ -356,7 +353,7 @@ export function getPostingAlerts(content: Pick<Content, 'publishDate' | 'status'
       {
         id: 'scheduled',
         tone: 'info',
-        message: 'Data futura guardada. No calendário, este roteiro aparece como Programado.',
+        message: 'Data prevista guardada. Programado só aparece quando a conta estiver programada e o material pronto.',
       },
     ] satisfies PostingAlert[];
   }
@@ -366,7 +363,7 @@ export function getPostingAlerts(content: Pick<Content, 'publishDate' | 'status'
       {
         id: 'overdue',
         tone: 'warning',
-        message: 'Essa data já ficou para trás. O roteiro continua aqui para retomar, reagendar ou marcar como Publicado.',
+        message: 'Essa data já ficou para trás. Reagende, registre a publicação ou retire a previsão.',
       },
     ] satisfies PostingAlert[];
   }

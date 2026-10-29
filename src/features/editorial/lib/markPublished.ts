@@ -4,6 +4,7 @@ import { legendaEfetiva } from './captions.ts';
 import { congelarRedeReferencia } from './escolhasSerie.ts';
 import { funcaoHerdavelDaSerie } from './funcoes.ts';
 import { parsePostCode } from './postCode.ts';
+import { progressoPublicacao } from './publicacaoSituacao.ts';
 
 export type { PublicacaoStatus };
 
@@ -22,6 +23,8 @@ type ConteudoPublicavel = {
   postedAt?: string | null;
   link?: string | null;
   redeReferenciaCongeladaId?: string | null;
+  edicaoConcluidaEm?: string | null;
+  edicaoDispensada?: boolean;
   /** Para guardar na publicação o texto que foi ao ar. */
   legendaBase?: string | null;
 };
@@ -29,6 +32,7 @@ type ConteudoPublicavel = {
 type PublicacaoPublicavel = {
   id: string;
   status?: PublicacaoStatus | null;
+  publicationKind?: 'post' | 'repost' | null;
   realizadaManualEm?: string | null;
   realizadaApiEm?: string | null;
   postCodigo?: string | null;
@@ -109,7 +113,7 @@ export function markPublished<C extends ConteudoPublicavel, P extends Publicacao
 
   const entradaDoRoteiro = entradas.find(entrada => !entrada.id) ?? null;
   const realizadas = nextPublicacoes
-    .filter(publicacao => (publicacao.status ?? 'agendada') === 'publicada')
+    .filter(publicacao => publicacao.status === 'publicada')
     .map(publicacao => dataRealizada(publicacao));
   if (entradaDoRoteiro) realizadas.push(entradaDoRoteiro.realizadaEm);
 
@@ -133,15 +137,26 @@ export function markPublished<C extends ConteudoPublicavel, P extends Publicacao
     link = daPublicacao ?? daEntrada ?? null;
   }
 
+  const progresso = progressoPublicacao(nextPublicacoes);
+  // Parcial mantém Edição · Pronto; só fecha em Publicado quando todas as contas ativas saíram.
+  const completo = progresso.completo || Boolean(entradaDoRoteiro);
+  const status = completo ? CONTENT_STATUS.POSTADO : CONTENT_STATUS.EDICAO;
+
   return {
     content: congelarRedeReferencia({
       ...content,
-      status: CONTENT_STATUS.POSTADO,
-      postedAt,
+      status,
+      postedAt: completo ? postedAt : (content.postedAt ?? null),
       funcao,
       funcaoOrigem,
       classificacaoCongeladaEm,
       link,
+      ...(completo
+        ? {}
+        : {
+            edicaoConcluidaEm: content.edicaoConcluidaEm ?? freezeInstant(options),
+            edicaoDispensada: content.edicaoDispensada ?? false,
+          }),
     }, options?.redeReferenciaId),
     publicacoes: nextPublicacoes,
   };
@@ -161,11 +176,13 @@ export function rotuloStatusPublicacao(status: PublicacaoStatus | null | undefin
   switch (status) {
     case 'publicada':
       return 'Publicada';
+    case 'programada':
+      return 'Programada';
     case 'nao_publicada':
-      return 'Não foi ao ar';
+      return 'Não publicada';
     case 'removida':
       return 'Removida';
     default:
-      return 'Agendada';
+      return 'Prevista';
   }
 }

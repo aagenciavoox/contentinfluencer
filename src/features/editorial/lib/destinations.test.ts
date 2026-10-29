@@ -20,7 +20,7 @@ function publicacao(partial: Partial<ContentPlataforma> & Pick<ContentPlataforma
     hashtags: '',
     publishDate: null,
     publicationKind: 'post',
-    status: 'agendada',
+    status: 'prevista',
     legendaPropria: false,
     contaNaGrade: true,
     ...partial,
@@ -39,7 +39,7 @@ function testMarcarCriaAgendada() {
   assert.equal(next.length, 1);
   assert.equal(next[0]?.id, 'id-1');
   assert.equal(next[0]?.platformId, instagram.id);
-  assert.equal(next[0]?.status, 'agendada');
+  assert.equal(next[0]?.status, 'prevista');
   assert.equal(next[0]?.publicationKind, 'post');
   assert.equal(destinoMarcado(next, instagram), true);
 }
@@ -63,7 +63,7 @@ function testDesmarcarMantemPublicadaERepost() {
     id: 'rep',
     platformId: instagram.id,
     publicationKind: 'repost',
-    status: 'agendada',
+    status: 'prevista',
     publishDate: '2026-10-10',
   });
   const next = alternarDestino({
@@ -87,7 +87,7 @@ function testDestinosPadraoIgnoraInativa() {
     contentId: 'c1',
     criarId: () => 'fixo',
   });
-  assert.equal(publicacoes[0]?.status, 'agendada');
+  assert.equal(publicacoes[0]?.status, 'prevista');
   assert.equal(publicacoes[0]?.platformId, instagram.id);
 }
 
@@ -102,7 +102,7 @@ function testRepostTemDataPropria() {
   const repost = next.find(item => item.id === 'repost-1');
   assert.equal(repost?.publicationKind, 'repost');
   assert.equal(repost?.publishDate, '2026-10-12');
-  assert.equal(repost?.status, 'agendada');
+  assert.equal(repost?.status, 'prevista');
 }
 
 testMarcarCriaAgendada();

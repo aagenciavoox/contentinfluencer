@@ -80,7 +80,7 @@ export function criarPublicacaoAgendada(
     publishTime: null,
     publishDateEnabled: false,
     publicationKind: 'post',
-    status: 'agendada',
+    status: 'prevista',
     realizadaManualEm: null,
     realizadaApiEm: null,
     postCodigo: null,
@@ -91,7 +91,7 @@ export function criarPublicacaoAgendada(
 }
 
 /**
- * Marcar cria uma publicação agendada. Desmarcar remove a que ainda não foi publicada.
+ * Marcar cria uma publicação prevista. Desmarcar remove a que ainda não foi publicada.
  * Publicada e repost ficam.
  */
 export function alternarDestino(input: {

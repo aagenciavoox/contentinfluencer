@@ -9,7 +9,7 @@ function publicacao(partial: Partial<ContentPlataforma> & Pick<ContentPlataforma
     legenda: '',
     hashtags: '',
     publishDate: null,
-    status: 'agendada',
+    status: 'prevista',
     realizadaManualEm: null,
     realizadaApiEm: null,
     postCodigo: null,
@@ -144,9 +144,37 @@ function testCongelaRedeReferencia() {
   assert.equal(deNovo.content.redeReferenciaCongeladaId, 'ig');
 }
 
+function testParcialMantemEdicaoPronta() {
+  const marked = markPublished(
+    {
+      ...base,
+      status: 'Edição',
+      edicaoConcluidaEm: '2026-10-01T12:00:00.000Z',
+      edicaoDispensada: false,
+    },
+    [publicacao({ id: 'p1' }), publicacao({ id: 'p2' })],
+    [{ id: 'p1', realizadaEm: '2026-10-04T15:00:00.000Z' }],
+    { now: '2026-10-04T18:00:00.000Z' },
+  );
+  assert.equal(marked.content.status, 'Edição');
+  assert.equal(marked.content.edicaoConcluidaEm, '2026-10-01T12:00:00.000Z');
+  assert.equal(marked.content.postedAt, null);
+  assert.equal(marked.publicacoes[0]?.status, 'publicada');
+  assert.equal(marked.publicacoes[1]?.status, 'prevista');
+
+  const completo = markPublished(
+    marked.content,
+    marked.publicacoes,
+    [{ id: 'p2', realizadaEm: '2026-10-05T15:00:00.000Z' }],
+  );
+  assert.equal(completo.content.status, 'Publicado');
+  assert.equal(completo.content.postedAt, '2026-10-04T15:00:00.000Z');
+}
+
 testCongelaUmaVez();
 testNaoSobrescreveEscolhida();
 testDataMinima();
 testCongelaRedeReferencia();
+testParcialMantemEdicaoPronta();
 
 console.log('markPublished tests passed');

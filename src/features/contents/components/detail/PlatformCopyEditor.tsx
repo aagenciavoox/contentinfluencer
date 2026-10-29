@@ -58,7 +58,7 @@ export function ensurePlatformRecord(
     hashtags: '',
     publishDate: null,
     publishDateEnabled: false,
-    status: 'agendada',
+    status: 'prevista',
     realizadaManualEm: null,
     realizadaApiEm: null,
     postCodigo: null,

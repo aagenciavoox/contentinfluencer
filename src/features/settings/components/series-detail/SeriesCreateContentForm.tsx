@@ -58,7 +58,7 @@ function buildPlatformRecord(contentId: string, platformId: string, caption: str
     publishDate: null,
     publishTime: null,
     publishDateEnabled: false,
-    status: 'agendada',
+    status: 'prevista',
     realizadaManualEm: null,
     realizadaApiEm: null,
     postCodigo: null,

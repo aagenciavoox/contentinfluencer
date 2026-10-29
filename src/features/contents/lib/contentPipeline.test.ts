@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import type {Content} from '../../../lib/database.ts';
+import type {Content, ContentPlataforma} from '../../../lib/database.ts';
 import {
   applyStatusMilestones,
   CONTENT_STATUS,
@@ -58,11 +58,18 @@ function createContent(overrides: Partial<Content> = {}): Content {
 function testDisplayStatusFuturePublishDate() {
   const future = new Date();
   future.setDate(future.getDate() + 7);
-  const content = {
+  // Data futura sozinha não vira Programado.
+  assert.equal(getDisplayStatus({
     status: CONTENT_STATUS.PRODUCAO,
     publishDate: future.toISOString(),
-  };
-  assert.equal(getDisplayStatus(content), DISPLAY_STATUS.PROGRAMADO);
+  }), CONTENT_STATUS.PRODUCAO);
+
+  assert.equal(getDisplayStatus({
+    status: CONTENT_STATUS.EDICAO,
+    edicaoConcluidaEm: '2026-10-28T12:00:00.000Z',
+    publishDate: future.toISOString(),
+    plataformas: [{ status: 'programada' } as Pick<ContentPlataforma, 'status'> as ContentPlataforma],
+  }), DISPLAY_STATUS.PROGRAMADO);
 }
 
 function testDisplayStatusPastPublishDateKeepsCanonical() {
