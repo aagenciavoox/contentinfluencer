@@ -112,7 +112,7 @@ function testOriginalNaRedeDeReferencia() {
   assert.equal(semData.realizadaEm, null);
 }
 
-function testForaDaBaseAindaEntraUmaVez() {
+function testSoEmOutrasRedesNaoEntraNaGrade() {
   const entries = buildGradeEntries({
     series,
     settings,
@@ -147,9 +147,8 @@ function testForaDaBaseAindaEntraUmaVez() {
     ],
   });
 
-  assert.deepEqual(entries.map(entry => entry.contentId), ['extra', 'na-grade']);
-  assert.equal(entries.find(entry => entry.contentId === 'extra')?.tipo, 'original');
-  assert.equal(entries.find(entry => entry.contentId === 'extra')?.data, '2026-10-05');
+  assert.deepEqual(entries.map(entry => entry.contentId), ['na-grade']);
+  assert.equal(entries.find(entry => entry.contentId === 'extra'), undefined);
   assert.equal(entries.find(entry => entry.contentId === 'na-grade')?.data, '2026-10-06');
 }
 
@@ -477,7 +476,7 @@ function testRedeCongeladaNaoMudaComABaseNova() {
 }
 
 testOriginalNaRedeDeReferencia();
-testForaDaBaseAindaEntraUmaVez();
+testSoEmOutrasRedesNaoEntraNaGrade();
 testRepostComDataPropria();
 testLegadoSemPublicacoes();
 testExcluidoEArquivadoFicamFora();
