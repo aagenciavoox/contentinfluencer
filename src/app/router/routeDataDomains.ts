@@ -1,7 +1,25 @@
 import type { AppDataDomain } from '../../lib/database';
 
-/** Domains to prefetch for a given pathname (non-blocking). */
-export function getRouteDataDomains(pathname: string): AppDataDomain[] {
+/**
+ * Domínios do menu que o bootstrap não traz. O shell já pintou; buscá-los no ócio evita skeleton
+ * no primeiro clique em Hoje, Gravação, Análises, Contas e Planejamento.
+ * A biblioteca paginada segue na própria tela — a lista completa com anotações
+ * entra aqui porque Hoje não abre sem ela.
+ */
+export const NAV_IDLE_DATA_DOMAINS = [
+  'library',
+  'library-generos',
+  'recording',
+  'analytics',
+  'schedule',
+  'planejamento',
+  'agenda',
+  'projects',
+] as const satisfies readonly AppDataDomain[];
+
+/** Domains to prefetch for a given pathname (non-blocking). Query e hash são ignorados. */
+export function getRouteDataDomains(href: string): AppDataDomain[] {
+  const pathname = href.split('#')[0].split('?')[0];
   if (pathname === '/biblioteca/analise') {
     return ['library'];
   }

@@ -11,6 +11,7 @@ import { buildContentDetailRoute } from '../../features/contents/lib/contentDeta
 import { buildDetailBackState } from '../../lib/navigation/detailBack';
 import { getModuleFlags } from '../../features/settings/lib/moduleFlags';
 import { buildSidebarSections, isNavItemHidden, type NavItemDefinition } from '../../layouts/navigation/navConfig';
+import { warmRoute } from '../../app/router/routePrefetch';
 
 /** Os mesmos destinos do menu lateral, na mesma ordem, sem os módulos desligados. */
 function paletteDestinations(moduleFlags: ReturnType<typeof getModuleFlags>): NavItemDefinition[] {
@@ -27,7 +28,7 @@ interface CommandPaletteProps {
 }
 
 export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
-  const { state } = useAppContext();
+  const { state, ensureDataDomains } = useAppContext();
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
@@ -80,6 +81,8 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   // Destinos aparecem inteiros (são poucos); o corte vale só para obras, roteiros e projetos.
   const filteredResults = [...navigation.filter(matches), ...itemResults];
 
+  const selectedPath = filteredResults[selectedIndex]?.path;
+
   useEffect(() => {
     if (isOpen) {
       setSearch('');
@@ -87,6 +90,11 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
       setTimeout(() => inputRef.current?.focus(), 10);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !selectedPath) return;
+    warmRoute(selectedPath, ensureDataDomains);
+  }, [ensureDataDomains, isOpen, selectedPath]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -177,7 +185,11 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                   <button
                     key={`${item.category}-${item.id}`}
                     onClick={() => handleSelect(item)}
-                    onMouseEnter={() => !isMobile && setSelectedIndex(index)}
+                    onPointerDown={() => warmRoute(item.path, ensureDataDomains)}
+                    onMouseEnter={() => {
+                      if (!isMobile) setSelectedIndex(index);
+                      warmRoute(item.path, ensureDataDomains);
+                    }}
                     className={`w-full flex items-center gap-4 px-4 py-4 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] transition-all text-left group ${
                       index === selectedIndex ? 'bg-[var(--bg-hover)] shadow-sm' : ''
                     } ${isMobile ? 'active:bg-[var(--bg-hover)]' : ''}`}

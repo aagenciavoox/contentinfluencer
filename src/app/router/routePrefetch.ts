@@ -1,4 +1,5 @@
 import {importPage} from './chunkReload';
+import {getRouteDataDomains} from './routeDataDomains';
 
 type RouteLoader = () => Promise<unknown>;
 
@@ -67,18 +68,26 @@ const PRIMARY_LOADERS: RouteLoader[] = [
   loadDashboard,
   loadCreation,
   loadCaptions,
+  loadTranscription,
   loadCalendar,
   loadPlanejamento,
   loadEditorial,
   loadLibrary,
   loadSettings,
   loadSeries,
+  loadAnalises,
+  loadPlatforms,
   loadProjects,
   loadRecording,
+  // Abertos pelo clique num card, não pelo menu. Sem isso a primeira abertura espera o chunk.
+  loadContentDetail,
+  loadBookDetail,
+  loadProjectDetail,
+  loadRecordingBlock,
 ];
 
 function loaderForPath(pathname: string): RouteLoader | null {
-  const path = pathname.split('?')[0];
+  const path = pathname.split('#')[0].split('?')[0];
 
   if (path === '/hoje' || path === '/dashboard') return loadDashboard;
   if (path === '/criacao/legendas') return loadCaptions;
@@ -114,6 +123,18 @@ function loaderForPath(pathname: string): RouteLoader | null {
 export function prefetchRoute(href: string) {
   const loader = loaderForPath(href);
   if (loader) start(loader);
+}
+
+/** Chunk e dados da rota. O segundo argumento já ignora domínio em voo ou carregado. */
+export function warmRoute(
+  href: string,
+  ensureDataDomains?: (domains: ReturnType<typeof getRouteDataDomains>) => Promise<void> | void,
+) {
+  prefetchRoute(href);
+  if (!ensureDataDomains) return;
+  const domains = getRouteDataDomains(href);
+  if (domains.length === 0) return;
+  void ensureDataDomains(domains);
 }
 
 /** Warm the sidebar destinations after the shell is on screen. */

@@ -20,7 +20,8 @@ import { useAppContext } from '../../context/AppContext';
 import { forceMobileRefresh } from '../../lib/pwaRefresh';
 import { LOADING } from '../../lib/uiCopy';
 import { getModuleFlags } from '../../features/settings/lib/moduleFlags';
-import { prefetchPrimaryRoutes } from '../../app/router/routePrefetch';
+import { NAV_IDLE_DATA_DOMAINS } from '../../app/router/routeDataDomains';
+import { prefetchPrimaryRoutes, warmRoute } from '../../app/router/routePrefetch';
 import { seriesNeedingUniqueColors } from '../../features/settings/lib/serieColors';
 
 function AppDataLoadingScreen() {
@@ -40,7 +41,7 @@ export function AppShell() {
   const isMobile = useIsMobile();
   const location = useLocation();
   const navigate = useNavigate();
-  const { state, syncFromServer, dispatch } = useAppContext();
+  const { state, syncFromServer, dispatch, ensureDataDomains } = useAppContext();
   const { isHidden, handleScroll } = useHideOnScroll(isMobile);
   const moduleFlags = getModuleFlags(state.preferences);
 
@@ -96,13 +97,39 @@ export function AppShell() {
 
   useEffect(() => {
     if (!state.isLoaded) return;
-    const idleId = window.requestIdleCallback?.(() => prefetchPrimaryRoutes());
-    if (idleId !== undefined) {
-      return () => window.cancelIdleCallback?.(idleId);
-    }
-    const timer = window.setTimeout(prefetchPrimaryRoutes, 250);
-    return () => window.clearTimeout(timer);
-  }, [state.isLoaded]);
+
+    let lastHref = '';
+    const warmIntent = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const link = target.closest('a[href]');
+      if (!(link instanceof HTMLAnchorElement)) return;
+      const href = link.getAttribute('href');
+      if (!href || !href.startsWith('/') || href.startsWith('//')) return;
+      if (href === lastHref) return;
+      lastHref = href;
+      warmRoute(href, ensureDataDomains);
+    };
+
+    document.addEventListener('pointerdown', warmIntent, true);
+    document.addEventListener('mouseover', warmIntent, true);
+    document.addEventListener('focusin', warmIntent, true);
+
+    const warmIdle = () => {
+      prefetchPrimaryRoutes();
+      void ensureDataDomains(NAV_IDLE_DATA_DOMAINS);
+    };
+    const idleId = window.requestIdleCallback?.(warmIdle);
+    const timer = idleId === undefined ? window.setTimeout(warmIdle, 250) : undefined;
+
+    return () => {
+      document.removeEventListener('pointerdown', warmIntent, true);
+      document.removeEventListener('mouseover', warmIntent, true);
+      document.removeEventListener('focusin', warmIntent, true);
+      if (idleId !== undefined) window.cancelIdleCallback?.(idleId);
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [ensureDataDomains, state.isLoaded]);
 
   useEffect(() => {
     if (!isMobile) return;

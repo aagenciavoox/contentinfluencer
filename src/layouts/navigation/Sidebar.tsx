@@ -27,7 +27,6 @@ import {cn} from '../../lib/utils';
 import {MobileSidebarDrawer} from '../../mobile/components/MobileSidebarDrawer';
 import {BrandLockup} from './BrandLockup';
 import {getUserInitials} from './userInitials';
-import { prefetchRoute } from '../../app/router/routePrefetch';
 import {
   buildSidebarSections,
   isNavItemActive,
@@ -241,8 +240,6 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
         end={end}
         aria-current={isActive ? 'page' : undefined}
         aria-label={isCollapsed ? accessibleLabel : undefined}
-        onMouseEnter={() => prefetchRoute(to)}
-        onFocus={() => prefetchRoute(to)}
         className={() =>
           cn(
             'group relative flex items-center transition-colors duration-150',
@@ -469,8 +466,6 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
               to="/configuracoes"
               aria-label="Configurações"
               aria-current={settingsNavCurrent ? 'page' : undefined}
-              onMouseEnter={() => prefetchRoute('/configuracoes')}
-              onFocus={() => prefetchRoute('/configuracoes')}
               className={collapsedRailClass(settingsNavCurrent)}
             >
               {settingsNavCurrent ? <ActiveRailMark /> : null}
@@ -481,8 +476,6 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
           <Link
             to="/configuracoes"
             aria-current={settingsNavCurrent ? 'page' : undefined}
-            onMouseEnter={() => prefetchRoute('/configuracoes')}
-            onFocus={() => prefetchRoute('/configuracoes')}
             className={cn(
               'group flex items-center gap-3 rounded-md px-3 py-2 transition-colors',
               settingsNavCurrent

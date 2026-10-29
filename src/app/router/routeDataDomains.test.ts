@@ -11,6 +11,12 @@ function testNavigationSequenceSharesSectionOutletKey() {
   assert.deepEqual(keys, ['section', 'section', 'section', 'section']);
 }
 
+function testQueryAndHashDoNotChangeDomains() {
+  assert.deepEqual(getRouteDataDomains('/gravacao?tab=queue'), getRouteDataDomains('/gravacao'));
+  assert.deepEqual(getRouteDataDomains('/analises#topo'), getRouteDataDomains('/analises'));
+  assert.deepEqual(getRouteDataDomains('/criacao?compose=script'), getRouteDataDomains('/criacao'));
+}
+
 function testNavigationSequencePrefetchDomains() {
   assert.deepEqual(getRouteDataDomains('/criacao'), ['production', 'content']);
   assert.deepEqual(getRouteDataDomains('/criacao/legendas'), ['production', 'content']);
@@ -90,6 +96,7 @@ function testNestedSettingsDomains() {
 }
 
 testNavigationSequenceSharesSectionOutletKey();
+testQueryAndHashDoNotChangeDomains();
 testNavigationSequencePrefetchDomains();
 testQueryOnlyNavigationKeepsOutletKey();
 testContentDetailLoadsLibraryAndScriptTemplates();

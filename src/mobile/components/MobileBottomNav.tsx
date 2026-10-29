@@ -1,5 +1,4 @@
 import { Plus } from 'lucide-react';
-import { prefetchRoute } from '../../app/router/routePrefetch';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import type { ModuleFlags } from '../../features/settings/lib/moduleFlags';
@@ -28,8 +27,6 @@ function MobileBottomNavItem({
     <NavLink
       to={to}
       aria-label={label}
-      onTouchStart={() => prefetchRoute(to)}
-      onMouseEnter={() => prefetchRoute(to)}
       aria-current={isActive ? 'page' : undefined}
       className={cn(
         'relative flex h-full w-full flex-col items-center justify-center gap-0.5 rounded-full',
