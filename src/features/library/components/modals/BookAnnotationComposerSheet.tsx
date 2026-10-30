@@ -2,6 +2,7 @@ import { TextCount } from '../../../../components/ui/TextCount';
 import { useId, useRef, useState, type ReactNode } from 'react';
 import { Plus, X } from 'lucide-react';
 import { useAppContext } from '../../../../context/AppContext';
+import { useAuth } from '../../../../context/AuthContext';
 import { useIsMobile } from '../../../../hooks/useIsMobile';
 import { Dialog } from '../../../../components/overlays/Dialog';
 import { AppButton } from '../../../../components/ui/AppButton';
@@ -10,7 +11,7 @@ import { SelectField } from '../../../../components/ui/SelectField';
 import { Text } from '../../../../components/ui/Text';
 import type { Anotacao, BibliotecaItem } from '../../../../lib/database';
 import { cn } from '../../../../lib/utils';
-import { generateUUID } from '../../../../utils/uuid';
+import { ANNOTATION_TYPES, createAnnotationDraft, persistAnnotationDraft, readAnnotationDraft, writeAnnotationDraft, type AnnotationDraft } from '../../lib/annotationDraft';
 import { ANNOTATION_MAX_LENGTH, ENTER_HINT } from '../BookAnnotationCard';
 
 type TipoAnotacao = Anotacao['tipo'];
@@ -31,51 +32,72 @@ interface BookAnnotationComposerSheetProps {
   referencePlaceholder?: string;
 }
 
-const TIPOS: TipoAnotacao[] = ['Anotação', 'Trecho', 'Reação', 'Análise', 'Ideia de conteúdo', 'Pergunta'];
-
 const fieldClass =
   'w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-elevated)] px-3 py-2.5 t-body text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] hover:border-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
 const labelClass = 't-secondary block text-[var(--text-primary)]';
 
-export function BookAnnotationComposer({
+export function BookAnnotationComposer(props: BookAnnotationComposerProps) {
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
+  return <AnnotationComposerForm key={`${userId}:${props.book.id}`} {...props} userId={userId} />;
+}
+
+function AnnotationComposerForm({
   book,
   referencePlaceholder = 'Cap. / página',
   framed = true,
   onSubmitted,
   headerAside,
-}: BookAnnotationComposerProps) {
+  userId,
+}: BookAnnotationComposerProps & { userId: string | null }) {
   const { dispatch } = useAppContext();
   const isMobile = useIsMobile();
   const fieldId = useId();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [novaAnotacao, setNovaAnotacao] = useState('');
-  const [novoTipo, setNovoTipo] = useState<TipoAnotacao>('Anotação');
-  const [novoCapitulo, setNovoCapitulo] = useState('');
+  const [draft, setDraft] = useState(() => readAnnotationDraft(userId, book.id) ?? createAnnotationDraft());
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [draftStored, setDraftStored] = useState(() => Boolean(readAnnotationDraft(userId, book.id)));
+  const { texto: novaAnotacao, tipo: novoTipo, capituloRef: novoCapitulo } = draft;
 
-  const handleAddAnotacao = () => {
+  const updateDraft = (changes: Partial<AnnotationDraft>) => {
+    const next = { ...draft, ...changes };
+    setDraft(next);
+    // Grava no próprio evento: suspender/fechar o PWA não depende de um efeito posterior.
+    setDraftStored(writeAnnotationDraft(userId, book.id, next));
+  };
+
+  const handleAddAnotacao = async () => {
+    if (savingRef.current) return;
     // Sem texto, o botão leva ao campo em vez de ficar apagado.
     if (!novaAnotacao.trim()) {
-      textareaRef.current?.focus();
+      textareaRef.current?.focus({ preventScroll: true });
       return;
     }
 
-    const anotacao: Anotacao = {
-      id: generateUUID(),
-      userId: '',
-      itemId: book.id,
-      texto: novaAnotacao.trim(),
-      tipo: novoTipo,
-      capituloRef: novoCapitulo.trim() || null,
-      destilada: false,
-      contentPotential: false,
-      createdAt: new Date().toISOString(),
-      deletedAt: null,
-    };
-
-    dispatch({ type: 'ADD_ANNOTATION', payload: anotacao });
-    setNovaAnotacao('');
-    setNovoCapitulo('');
+    savingRef.current = true;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await persistAnnotationDraft({
+        userId,
+        itemId: book.id,
+        draft,
+        save: anotacao => dispatch({ type: 'ADD_ANNOTATION', payload: anotacao }),
+      });
+      setDraft({ ...createAnnotationDraft(), tipo: draft.tipo });
+      setDraftStored(false);
+    } catch {
+      setSaveError(userId
+        ? 'Não foi possível salvar. Seu texto foi mantido. Verifique a conexão e tente novamente.'
+        : 'Entre novamente na sua conta para salvar. Seu texto foi mantido.');
+      return;
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
     onSubmitted?.();
   };
 
@@ -92,8 +114,9 @@ export function BookAnnotationComposer({
           id={`${fieldId}-tipo`}
           ariaLabel="Categoria da anotação"
           value={novoTipo}
-          onChange={value => setNovoTipo(value as TipoAnotacao)}
-          options={TIPOS.map(tipo => ({ value: tipo, label: tipo }))}
+          disabled={saving}
+          onChange={value => updateDraft({ tipo: value as TipoAnotacao })}
+          options={ANNOTATION_TYPES.map(tipo => ({ value: tipo, label: tipo }))}
           block
         />
       </div>
@@ -107,7 +130,8 @@ export function BookAnnotationComposer({
           id={`${fieldId}-ref`}
           type="text"
           value={novoCapitulo}
-          onChange={event => setNovoCapitulo(event.target.value)}
+          disabled={saving}
+          onChange={event => updateDraft({ capituloRef: event.target.value })}
           onKeyDown={event => {
             // Enter na referência também salva (sem texto, leva ao campo da anotação).
             if (event.key === 'Enter' && !isMobile && !event.nativeEvent.isComposing) {
@@ -126,7 +150,8 @@ export function BookAnnotationComposer({
           ref={textareaRef}
           id={`${fieldId}-texto`}
           value={novaAnotacao}
-          onChange={event => setNovaAnotacao(event.target.value)}
+          disabled={saving}
+          onChange={event => updateDraft({ texto: event.target.value })}
           placeholder="Escreva uma nova anotação…"
           rows={5}
           maxLength={ANNOTATION_MAX_LENGTH}
@@ -147,14 +172,23 @@ export function BookAnnotationComposer({
         </div>
       </div>
 
+      {saveError ? <Text variant="secondary" role="alert" className="text-[var(--text-primary)]">{saveError}</Text> : null}
+      {novaAnotacao || novoCapitulo ? (
+        <Text variant="meta" role="status">
+          {draftStored ? 'Rascunho guardado neste aparelho.' : 'Não foi possível guardar o rascunho neste aparelho. Mantenha esta tela aberta até salvar.'}
+        </Text>
+      ) : null}
+
       <AppButton
         variant="primary"
         size="lg"
         fullWidth
         leftIcon={<Plus className="h-4 w-4" />}
         onClick={handleAddAnotacao}
+        disabled={saving}
+        aria-busy={saving}
       >
-        Adicionar anotação
+        {saving ? 'Salvando…' : saveError ? 'Tentar novamente' : 'Adicionar anotação'}
       </AppButton>
     </div>
   );
@@ -180,9 +214,10 @@ export function BookAnnotationComposerSheet({
       onClose={onClose}
       desktopMaxW="max-w-md"
       ariaLabel="Nova anotação"
+      fitVisualViewport
     >
-      <div className="px-4 pb-4 pt-2">
-        <div className="flex items-start justify-between gap-4 border-b border-[var(--border-color)] px-1 pb-4">
+      <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
+        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-[var(--border-color)] px-1 pb-4">
           <div>
             <Text variant="itemTitle" as="p" className="text-[var(--text-primary)] opacity-45">{book.titulo}</Text>
             <Text variant="label" as="span" className="mt-1 block text-[var(--text-tertiary)]">
@@ -199,7 +234,7 @@ export function BookAnnotationComposerSheet({
           </button>
         </div>
 
-        <div className="mt-5">
+        <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain pt-4">
           <BookAnnotationComposer
             key={book.id}
             book={book}

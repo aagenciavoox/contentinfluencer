@@ -4,7 +4,6 @@ import {
   Check,
   Download,
   Pencil,
-  Plus,
   Star,
 } from 'lucide-react';
 import type { Anotacao, BibliotecaItem } from '../../../lib/database';
@@ -136,7 +135,7 @@ export function BookDetailMobileScreen({
   };
 
   return (
-    <div className="stack-md pb-24">
+    <div className="stack-md">
       <Surface variant="outlined" padding="sm" className="bg-[var(--bg-secondary)]">
         <div className="flex gap-3">
           <div className="h-16 w-11 shrink-0 overflow-hidden rounded-[var(--radius-input)] bg-[var(--bg-hover)]">
@@ -302,6 +301,17 @@ export function BookDetailMobileScreen({
             />
           ) : null}
 
+          <div className="sticky top-[calc(env(safe-area-inset-top,0px)+3.5rem+1px)] z-20 -mx-4 bg-[var(--bg-primary)] px-4 py-2">
+            <AppButton
+              variant="secondary"
+              fullWidth
+              onClick={onOpenAnnotationComposer}
+              leftIcon={<Pencil className="h-4 w-4" aria-hidden />}
+            >
+              Adicionar anotação
+            </AppButton>
+          </div>
+
           {/* Uma fileira só, rolando para o lado (antes quebrava em duas linhas). */}
           <FilterChips<AnotacaoFiltro>
             ariaLabel="Filtrar anotações"
@@ -327,11 +337,6 @@ export function BookDetailMobileScreen({
             <EmptyState compact
               title="Nenhuma anotação ainda"
               description="Registre trechos, reações ou ideias de conteúdo."
-              action={
-                <AppButton variant="primary" fullWidth onClick={onOpenAnnotationComposer} leftIcon={<Plus className="h-4 w-4" />}>
-                  Nova anotação
-                </AppButton>
-              }
               icon={<BookOpen className="h-8 w-8" />}
             />
           ) : (
@@ -349,17 +354,6 @@ export function BookDetailMobileScreen({
               ))}
             </div>
           )}
-
-          {anotacoesFiltradas.length > 0 ? (
-            <button
-              type="button"
-              onClick={onOpenAnnotationComposer}
-              className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-20 inline-flex h-14 w-14 items-center justify-center rounded-full bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-[var(--shadow-dropdown)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-              aria-label="Nova anotação"
-            >
-              <Plus className="h-6 w-6" aria-hidden />
-            </button>
-          ) : null}
         </div>
       ) : null}
 

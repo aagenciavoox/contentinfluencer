@@ -872,6 +872,7 @@ export function CreationHubPage() {
 
   const desktopTabs = (
     <SegmentTabs
+      fullWidth
       options={tabOptions}
       value={activeTab}
       onChange={tab => updateSearchParam('tab', TAB_QUERY[tab], 'roteiros')}
@@ -1030,6 +1031,8 @@ export function CreationHubPage() {
   const filters = (
     <FilterBar
       className="min-w-0 flex-1"
+      panelMode="dropdown"
+      fluidSearch
       searchValue={search}
       onSearchChange={value => updateSearchParam('q', value)}
       searchPlaceholder="Buscar por título, nota ou tema…"
@@ -1160,11 +1163,13 @@ export function CreationHubPage() {
           />
         )}
         toolbar={(
-          <PageToolbar
-            tabs={desktopTabs}
-            filters={filters}
-            view={toolbarView}
-          />
+          <div className="stack-md min-w-0">
+            <div className="flex min-w-0 items-center">{desktopTabs}</div>
+            <PageToolbar
+              filters={filters}
+              view={toolbarView}
+            />
+          </div>
         )}
         mobileHeader={(
           <div className="stack-sm pb-1 pt-1">

@@ -1,10 +1,12 @@
-import { useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, Filter } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { AppButton } from './AppButton';
 import { Text } from './Text';
 import { SelectMenu } from './SelectMenu';
 import { ToolbarSearchInput } from './ToolbarSearchInput';
+import { FLOATING_MENU_HIDDEN_STYLE, FLOATING_MENU_Z_INDEX, useAnchoredPosition } from './anchoredPosition';
 
 export interface FilterOption {
   label: string;
@@ -37,6 +39,8 @@ interface FilterBarProps {
   panelExtra?: ReactNode;
   extraActiveCount?: number;
   onClearExtra?: () => void;
+  panelMode?: 'inline' | 'dropdown';
+  fluidSearch?: boolean;
 }
 
 const INACTIVE_FILTER_VALUES = new Set(['', 'todos', 'todas']);
@@ -71,10 +75,13 @@ export function FilterBar({
   panelExtra,
   extraActiveCount = 0,
   onClearExtra,
+  panelMode = 'inline',
+  fluidSearch = false,
 }: FilterBarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const panelId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
   const filterStates = filters.map(filter => {
     const inactiveValue = inactiveFilterValue(filter);
     return { filter, inactiveValue, active: filter.value !== inactiveValue };
@@ -88,6 +95,42 @@ export function FilterBar({
   const hasPanel = filters.length > 0 || hasExtraPanel;
   const panelOpen = isExpanded && hasPanel;
   const isCompact = size === 'compact';
+  const isDropdown = panelMode === 'dropdown';
+  const position = useAnchoredPosition(panelOpen && isDropdown, toggleRef, panelRef, { align: 'end', matchWidth: false });
+  const hasPosition = Boolean(position);
+
+  useEffect(() => {
+    if (!panelOpen || !isDropdown) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target || toggleRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+      // Os selects internos também abrem em portal. Escolher uma opção mantém os filtros abertos.
+      const controls = panelRef.current?.querySelectorAll('[aria-controls]') ?? [];
+      for (const control of controls) {
+        const controlled = document.getElementById(control.getAttribute('aria-controls') ?? '');
+        if (controlled?.contains(target)) return;
+      }
+      setIsExpanded(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      event.preventDefault();
+      setIsExpanded(false);
+      toggleRef.current?.focus({ preventScroll: true });
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isDropdown, panelOpen]);
+
+  useEffect(() => {
+    if (panelOpen && isDropdown && hasPosition) {
+      panelRef.current?.focus({ preventScroll: true });
+    }
+  }, [hasPosition, isDropdown, panelOpen]);
   const filterButtonLabel = activeFiltersCount > 0
     ? `Filtros (${activeFiltersCount} ${activeFiltersCount === 1 ? 'ativo' : 'ativos'})`
     : 'Filtros';
@@ -103,8 +146,57 @@ export function FilterBar({
     toggleRef.current?.focus({ preventScroll: true });
   }
 
+  const panel = panelOpen ? (
+    <div
+      ref={panelRef}
+      id={panelId}
+      role={isDropdown ? 'dialog' : 'region'}
+      aria-label="Opções de filtro"
+      tabIndex={isDropdown ? -1 : undefined}
+      style={isDropdown ? position?.style ?? FLOATING_MENU_HIDDEN_STYLE : undefined}
+      className={cn(
+        'filter-bar-panel border border-[var(--border-color)] p-3',
+        isDropdown
+          ? 'filter-bar-panel--dropdown fixed overflow-y-auto overscroll-contain rounded-[var(--radius-input)] bg-[var(--bg-elevated)] shadow-[var(--shadow-dropdown)] focus:outline-none'
+          : 'w-full rounded-[var(--radius-card-mobile)] bg-[var(--bg-primary)] shadow-none md:rounded-[var(--radius-card)]',
+        isDropdown && FLOATING_MENU_Z_INDEX,
+      )}
+    >
+      {filterStates.map(({ filter, active }) => (
+        <div key={filter.id} className="stack-sm min-w-0">
+          <Text variant="label" as="span" className="px-1">
+            {filter.label}
+          </Text>
+          <div className="relative min-w-0">
+            <SelectMenu
+              value={filter.value}
+              onChange={filter.onChange}
+              options={filter.options}
+              ariaLabel={filter.label}
+              triggerClassName={cn(
+                'filter-bar-select relative h-9 w-full pr-8 focus-visible:shadow-[var(--shadow-focus)]',
+                active ? 'filter-bar-select-active' : 'bg-[var(--bg-hover)]',
+              )}
+            >
+              <span className="min-w-0 flex-1 truncate">{selectedLabel(filter.options, filter.value, filter.label)}</span>
+              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary)]" aria-hidden="true" />
+            </SelectMenu>
+          </div>
+        </div>
+      ))}
+
+      {panelExtra}
+
+      <div className="col-span-full flex justify-end pt-2">
+        <AppButton type="button" variant="ghost" size="sm" onClick={clearFilters}>
+          Limpar filtros
+        </AppButton>
+      </div>
+    </div>
+  ) : null;
+
   return (
-    <div className={cn('filter-bar', isCompact && 'filter-bar--compact', className)}>
+    <div className={cn('filter-bar', isCompact && 'filter-bar--compact', fluidSearch && 'filter-bar--fluid-search', className)}>
       <div className="filter-bar-controls flex-wrap gap-2">
         {showSearch ? (
           <ToolbarSearchInput
@@ -124,6 +216,7 @@ export function FilterBar({
               type="button"
               onClick={() => setIsExpanded(expanded => !expanded)}
               aria-label={filterButtonLabel}
+              aria-haspopup={isDropdown ? 'dialog' : undefined}
               aria-expanded={panelOpen}
               aria-controls={panelOpen ? panelId : undefined}
               className={cn(
@@ -133,6 +226,7 @@ export function FilterBar({
             >
               <Filter className="h-3.5 w-3.5" aria-hidden="true" />
               <span className="hidden sm:inline">Filtros</span>
+              {isDropdown ? <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" /> : null}
               {activeFiltersCount > 0 ? (
                 <Text variant="label" as="span" aria-hidden="true" className="flex h-4 min-w-4 items-center justify-center rounded-[var(--radius-pill)] bg-[var(--bg-primary)] px-1 text-[var(--text-primary)]">
                   {activeFiltersCount}
@@ -158,41 +252,7 @@ export function FilterBar({
         </div>
       </div>
 
-      {panelOpen ? (
-        <div id={panelId} role="region" aria-label="Opções de filtro"
-          className="filter-bar-panel w-full rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-3 shadow-none md:rounded-[var(--radius-card)]">
-          {filterStates.map(({ filter, active }) => (
-            <div key={filter.id} className="stack-sm min-w-0">
-              <Text variant="label" as="span" className="px-1">
-                {filter.label}
-              </Text>
-              <div className="relative min-w-0">
-                <SelectMenu
-                  value={filter.value}
-                  onChange={filter.onChange}
-                  options={filter.options}
-                  ariaLabel={filter.label}
-                  triggerClassName={cn(
-                    'filter-bar-select relative h-9 w-full pr-8 focus-visible:shadow-[var(--shadow-focus)]',
-                    active ? 'filter-bar-select-active' : 'bg-[var(--bg-hover)]',
-                  )}
-                >
-                  <span className="min-w-0 flex-1 truncate">{selectedLabel(filter.options, filter.value, filter.label)}</span>
-                  <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary)]" aria-hidden="true" />
-                </SelectMenu>
-              </div>
-            </div>
-          ))}
-
-          {panelExtra}
-
-          <div className="col-span-full flex justify-end pt-2">
-            <AppButton type="button" variant="ghost" size="sm" onClick={clearFilters}>
-              Limpar filtros
-            </AppButton>
-          </div>
-        </div>
-      ) : null}
+      {panel && (isDropdown ? createPortal(panel, document.body) : panel)}
     </div>
   );
 }

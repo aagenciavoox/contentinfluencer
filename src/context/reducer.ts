@@ -485,7 +485,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         bibliotecaItems: state.bibliotecaItems.map(b =>
           b.id === action.payload.itemId
-            ? { ...b, anotacoes: [...b.anotacoes, action.payload.anotacao] }
+            ? { ...b, anotacoes: [...b.anotacoes.filter(a => a.id !== action.payload.anotacao.id), action.payload.anotacao] }
             : b
         ),
       };
@@ -496,7 +496,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         bibliotecaItems: state.bibliotecaItems.map(b =>
           b.id === addLivroId
-            ? { ...b, anotacoes: [...b.anotacoes, addedAnnotation] }
+            ? { ...b, anotacoes: [...b.anotacoes.filter(a => a.id !== addedAnnotation.id), addedAnnotation] }
             : b
         ),
       };
