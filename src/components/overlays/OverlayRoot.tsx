@@ -1,4 +1,4 @@
-import { CSSProperties, ReactNode, useRef } from 'react';
+import { CSSProperties, ReactNode, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   AnimatePresence,
@@ -8,6 +8,7 @@ import {
   type Transition,
 } from 'motion/react';
 import { cn } from '../../lib/utils';
+import { useVisualViewportBounds } from '../../hooks/useVisualViewportBounds';
 import { useOverlayBehavior } from './useOverlayBehavior';
 
 export type OverlayPlacement = 'center' | 'bottom' | 'end';
@@ -22,6 +23,7 @@ interface OverlayRootProps {
   placement?: OverlayPlacement;
   zIndex?: string;
   mobileEdgePadding?: boolean;
+  fitVisualViewport?: boolean;
   className?: string;
   panelClassName?: string;
   panelStyle?: CSSProperties;
@@ -40,6 +42,7 @@ export function OverlayRoot({
   placement = 'center',
   zIndex = 'z-[100]',
   mobileEdgePadding = true,
+  fitVisualViewport = false,
   className,
   panelClassName,
   panelStyle,
@@ -53,6 +56,28 @@ export function OverlayRoot({
   const panelRef = useRef<HTMLDivElement>(null);
   const dragControls = useDragControls();
   useOverlayBehavior(open, onClose, panelRef);
+  const viewport = useVisualViewportBounds(open && fitVisualViewport);
+
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    const active = document.activeElement;
+    if (!viewport || !panel || !(active instanceof HTMLElement) || !panel.contains(active)) return;
+
+    // Reveal the focused field inside the form after resizing, without scrolling the page.
+    let scroller = active.parentElement;
+    while (scroller && scroller !== panel) {
+      if (/(auto|scroll)/.test(getComputedStyle(scroller).overflowY) && scroller.scrollHeight > scroller.clientHeight) {
+        const field = active.getBoundingClientRect();
+        const visible = scroller.getBoundingClientRect();
+        const above = field.top - visible.top;
+        const below = field.bottom - visible.bottom;
+        if (above < 0) scroller.scrollTop += above;
+        else if (below > 0) scroller.scrollTop += Math.min(above, below);
+        break;
+      }
+      scroller = scroller.parentElement;
+    }
+  }, [viewport]);
 
   const placementClasses = {
     center: 'items-center justify-center',
@@ -85,7 +110,10 @@ export function OverlayRoot({
 
           <div
             className={cn('fixed inset-0 flex pointer-events-none', placementClasses[placement])}
-            style={panelWrapperStyle}
+            style={{
+              ...panelWrapperStyle,
+              ...(viewport ? { top: viewport.offsetTop, height: viewport.height, bottom: 'auto' } : {}),
+            }}
           >
             <motion.div
               ref={panelRef}
@@ -97,7 +125,7 @@ export function OverlayRoot({
               animate={panelAnimate}
               exit={panelExit}
               transition={panelTransition}
-              style={panelStyle}
+              style={viewport ? { ...panelStyle, maxHeight: '100%' } : panelStyle}
               drag={showMobileHandle ? 'y' : false}
               dragControls={showMobileHandle ? dragControls : undefined}
               dragListener={false}
