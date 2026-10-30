@@ -105,7 +105,7 @@ function createContent(overrides: Partial<Content> = {}): Content {
   assert.equal(recommendation?.kind, 'post');
   assert.equal(recommendation?.serie?.id, 'serie-1');
   assert.equal(recommendation?.serie?.gravadosProntos, 2);
-  assert.match(recommendation?.message ?? '', /^Cabem? mais \d+ posts? de "Humor" neste ciclo\./);
+  assert.match(recommendation?.message ?? '', /^Cabem? mais \d+ posts? de "Humor" para a meta do pilar\./);
   assert.match(recommendation?.message ?? '', /"Destrinchando" tem 2 roteiros gravados/);
   assert.doesNotMatch(recommendation?.message ?? '', /precisa|gap/);
 }

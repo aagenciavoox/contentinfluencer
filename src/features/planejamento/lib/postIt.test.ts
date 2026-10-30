@@ -8,6 +8,7 @@ import {
   deletePostIt,
   encaixarConteudo,
   escolherSerieNoPostIt,
+  movePostIt,
   postItEditDraft,
   postItKind,
   postItMudou,
@@ -257,7 +258,7 @@ function testTransformPulledRoteiroKeepsStatusAndDay() {
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.equal(result.content.status, CONTENT_STATUS.ROTEIRO);
-  assert.equal(result.content.publishDate?.slice(0, 10), '2026-12-01');
+  assert.equal(result.content.publishDate?.slice(0, 10), '2026-01-01');
   assert.equal(content.publishDate, '2026-01-01T12:00:00.000Z');
 }
 
@@ -492,7 +493,31 @@ function testClassificaOPostIt() {
   assert.equal(postItMudou(salvo, {...salvo}), false);
 }
 
+function testMoverParaSemDataEDesfazer() {
+  const postIt = createEmptyPostIt({id: 'mover', texto: 'gancho', date: '2026-10-15', now: NOW});
+  const semData = movePostIt(postIt, null, NOW);
+  assert.equal(semData.date, null);
+  assert.equal(semData.texto, 'gancho');
+  // Desfazer devolve o dia anterior sem perder o resto.
+  const desfeito = movePostIt(semData, postIt.date, NOW);
+  assert.equal(desfeito.date, '2026-10-15');
+  assert.equal(desfeito.id, postIt.id);
+}
+
+function testEtapasDoPostIt() {
+  const vazio = createEmptyPostIt({id: 'etapa', date: null, now: NOW});
+  assert.equal(postItKind(vazio, null), 'vazio');
+  const conteudo = roteiro({id: 'r-etapa'});
+  const ligado = {...vazio, contentId: conteudo.id};
+  assert.equal(postItKind(ligado, conteudo), 'roteiro');
+  assert.equal(postItKind(ligado, {...conteudo, status: CONTENT_STATUS.EDICAO}), 'edicao');
+  assert.equal(postItKind(ligado, {...conteudo, postedAt: NOW}), 'postado');
+  assert.equal(postItKind(ligado, null), 'vazio');
+}
+
 const tests = [
+  ['moves a post-it to Sem data and undoes the move', testMoverParaSemDataEDesfazer],
+  ['maps the linked content stage on the post-it', testEtapasDoPostIt],
   ['creates an empty post-it', testCreateEmptyPostIt],
   ['classifies a post-it with objetivo, série and pilar', testClassificaOPostIt],
   ['pulls content in Produção', testPullProducao],

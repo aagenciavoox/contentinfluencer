@@ -1,160 +1,67 @@
-import {useId, useState} from 'react';
+import {cn} from '../../../lib/utils';
+import {ArrowRight} from 'lucide-react';
 import {AppButton} from '../../../components/ui/AppButton';
-import {Badge} from '../../../components/ui/Badge';
 import {Surface} from '../../../components/ui/Surface';
 import {Text} from '../../../components/ui/Text';
-import type {BibliotecaItem, Content, Pilar, Serie, Tema} from '../../../lib/database';
+import {mes} from '../../../lib/dates';
+import type {Serie} from '../../../lib/database';
 import type {GradeCounts} from '../../editorial/lib/gradeCounts';
-import type {GradeEntry} from '../../editorial/lib/gradeEntries';
+import {frequenciasDoMes, ocupacaoDoMes} from '../lib/monthHealth';
 import type {AvisoOrientacao} from '../lib/orientacaoEditorial';
-import {pontosParaRevisar} from '../lib/orientacaoEditorial';
-import {rotuloDoPeriodo, type VistaPlanejamento} from '../lib/periodoPlanejamento';
-import {DistribuicaoPanel} from './DistribuicaoPanel';
 
-export function PlanejamentoResumo({
-  counts,
-  entries,
-  series,
-  pilares,
-  temas,
-  obras,
-  contents,
-  temDistribuicao,
-  outrasRedes = 0,
-  vista,
-  avisos,
-  avisoAtivoId,
-  onVerPautas,
-  onLimparDestaque,
-}: {
+export type DimensaoDoMes = 'ocupacao' | 'objetivos' | 'series' | 'variedade';
+
+/** Leituras independentes do mês completo; filtrar a grade não muda estas contas. */
+export function PlanejamentoResumo({counts, series, avisos, onDetalhes, sticky = true}: {
+  sticky?: boolean;
   counts: GradeCounts;
-  entries: readonly GradeEntry[];
   series: readonly Serie[];
-  pilares: readonly Pilar[];
-  temas: readonly Tema[];
-  obras: readonly Pick<BibliotecaItem, 'id' | 'titulo'>[];
-  contents: readonly Pick<Content, 'id' | 'temaIds' | 'bibliotecaItemId' | 'livroIds'>[];
-  temDistribuicao: boolean;
-  outrasRedes?: number;
-  vista: VistaPlanejamento;
   avisos: readonly AvisoOrientacao[];
-  avisoAtivoId: string | null;
-  onVerPautas: (aviso: AvisoOrientacao) => void;
-  onLimparDestaque: () => void;
+  onDetalhes: (dimensao?: DimensaoDoMes) => void;
 }) {
-  const [distribuicaoAberta, setDistribuicaoAberta] = useState(false);
-  const [listaAvisosAberta, setListaAvisosAberta] = useState(false);
-  const listaId = useId();
-  const revisar = pontosParaRevisar(avisos);
-  const avisoResumo = avisos.find(aviso => aviso.severidade === 'revisar') ?? avisos[0] ?? null;
-  const periodoLabel = rotuloDoPeriodo(counts.periodo, vista);
-
-  const meta = counts.totalMeta != null && counts.totalMeta > 0 ? counts.totalMeta : null;
-  const usados = counts.somaPlanejado;
-  const livres = meta != null ? Math.max(0, meta - usados) : null;
-  const acima = meta != null && usados > meta ? usados - meta : 0;
-
-  let resumoEspacos: string;
-  if (meta == null) {
-    resumoEspacos = usados === 1 ? `1 pauta ${periodoLabel}` : `${usados} pautas ${periodoLabel}`;
-  } else if (acima > 0) {
-    resumoEspacos = `${usados} de ${meta} espaços ${periodoLabel} · ${acima} acima do previsto`;
-  } else {
-    resumoEspacos = `${usados} de ${meta} espaços ${periodoLabel} · ${livres} ${livres === 1 ? 'livre' : 'livres'}`;
-  }
-
+  const ocupacao = ocupacaoDoMes(counts);
+  const frequencias = frequenciasDoMes(counts, series);
+  const abaixo = frequencias.filter(item => item.total < (item.expectativa ?? 0));
+  const metas = counts.funcoes.filter(linha => linha.meta != null);
+  const lacunas = metas.filter(linha => linha.planejado < (linha.meta ?? 0)).sort((a, b) =>
+    ((b.meta ?? 0) - b.planejado) - ((a.meta ?? 0) - a.planejado));
+  const lacuna = lacunas[0];
+  const variedade = avisos.find(aviso => aviso.tipo === 'obra-repetida' || aviso.tipo === 'tema-concentrado');
+  const dimensoes: {id: DimensaoDoMes; titulo: string; numero: string; detalhe: string}[] = [
+    {id: 'ocupacao', titulo: 'Ocupação',
+      numero: ocupacao.capacidade == null ? ocupacao.preenchidos + ' preenchidos' : ocupacao.preenchidos + ' de ' + ocupacao.capacidade + ' preenchidos',
+      detalhe: ocupacao.livres == null ? 'Capacidade não definida' : ocupacao.livres + ' espaços livres' + (ocupacao.excesso ? ' · ' + ocupacao.excesso + ' acima' : '')},
+    {id: 'objetivos', titulo: 'Objetivos',
+      numero: !metas.length ? 'Metas não definidas' : lacunas.length ? lacunas.length + (lacunas.length === 1 ? ' objetivo abaixo da meta' : ' objetivos abaixo da meta') : 'Metas atendidas',
+      detalhe: lacuna ? lacuna.rotulo + ': ' + lacuna.planejado + ' de ' + lacuna.meta : metas.length ? 'Ver distribuição por objetivo' : 'Defina no Editorial'},
+    {id: 'series', titulo: 'Séries e quadros',
+      numero: frequencias.length ? (frequencias.length - abaixo.length) + ' de ' + frequencias.length + ' na frequência' : 'Frequência não definida',
+      detalhe: abaixo.length ? abaixo.length + ' precisam de espaço' : frequencias.length ? 'Frequências atendidas no mês' : 'Ver séries do mês'},
+    {id: 'variedade', titulo: 'Variedade',
+      numero: variedade ? variedade.texto : 'Sem concentração observada',
+      detalhe: variedade?.intervalo ? 'De ' + variedade.intervalo.inicio.split('-').reverse().slice(0,2).join('/') + ' a ' + variedade.intervalo.fim.split('-').reverse().slice(0,2).join('/') : 'Assuntos no mês · obras em 7 dias'},
+  ];
   return (
-    <div className="stack-sm">
-      <Surface
-        padding="sm"
-        className="flex flex-wrap items-center gap-x-3 gap-y-2"
-      >
-        <Text variant="body" as="p" className="min-w-0 flex-1">
-          {resumoEspacos}
-        </Text>
-        <div className="flex flex-wrap items-center gap-2">
-          <AppButton variant="ghost" size="sm" onClick={() => setDistribuicaoAberta(true)}>
-            Ver distribuição →
-          </AppButton>
-          {revisar > 0 ? (
-            <AppButton
-              variant="secondary"
-              size="sm"
-              aria-expanded={listaAvisosAberta}
-              aria-controls={listaId}
-              onClick={() => setListaAvisosAberta(open => !open)}
-            >
-              <Badge variant="neutral" className="mr-1.5 bg-[color-mix(in_srgb,var(--accent-orange)_22%,var(--bg-elevated))]">
-                {revisar}
-              </Badge>
-              {revisar === 1 ? 'ponto para revisar' : 'pontos para revisar'}
-            </AppButton>
-          ) : null}
-        </div>
-      </Surface>
-
-      {listaAvisosAberta && avisos.length > 0 ? (
-        <Surface id={listaId} padding="sm" className="stack-sm">
-          {avisos.map(aviso => (
-            <div key={aviso.id} className="flex flex-wrap items-center justify-between gap-2">
-              <Text variant="body" as="p" className="min-w-0 flex-1">
-                {aviso.texto}
-              </Text>
-              <AppButton
-                variant={avisoAtivoId === aviso.id ? 'primary' : 'ghost'}
-                size="xs"
-                onClick={() => onVerPautas(aviso)}
-              >
-                Ver pautas →
-              </AppButton>
-            </div>
-          ))}
-          {avisoAtivoId ? (
-            <AppButton variant="secondary" size="sm" className="self-start" onClick={onLimparDestaque}>
-              Limpar destaque
-            </AppButton>
-          ) : null}
-        </Surface>
-      ) : null}
-
-      {!listaAvisosAberta && avisoResumo ? (
-        <Surface
-          padding="sm"
-          className="flex flex-wrap items-center justify-between gap-2 border border-[color-mix(in_srgb,var(--accent-orange)_35%,var(--border-color))] bg-[color-mix(in_srgb,var(--accent-orange)_10%,var(--bg-elevated))]"
-        >
-          <Text variant="body" as="p" className="min-w-0 flex-1">
-            {avisoResumo.texto}
-          </Text>
-          <div className="flex flex-wrap items-center gap-2">
-            <AppButton
-              variant={avisoAtivoId === avisoResumo.id ? 'primary' : 'ghost'}
-              size="sm"
-              onClick={() => onVerPautas(avisoResumo)}
-            >
-              Ver pautas →
-            </AppButton>
-            {avisoAtivoId === avisoResumo.id ? (
-              <AppButton variant="secondary" size="sm" onClick={onLimparDestaque}>
-                Limpar destaque
-              </AppButton>
+    <Surface variant="outlined" padding="none" className={cn('z-20 bg-[var(--bg-elevated)]', sticky && 'sticky top-[var(--planning-toolbar-height,64px)]')}>
+      <div className="flex items-center justify-between gap-2 border-b border-[var(--border-color)] px-3 py-1.5">
+        <Text variant="meta">Mês em foco · {mes(counts.periodo.inicio)}</Text>
+        <AppButton variant="ghost" size="xs" rightIcon={<ArrowRight className="h-3.5 w-3.5" />} onClick={() => onDetalhes()}>Detalhes do mês</AppButton>
+      </div>
+      <div className="grid grid-cols-2 divide-x divide-[var(--border-color)] lg:grid-cols-4">
+        {dimensoes.map(item => (
+          <button key={item.id} type="button" onClick={() => onDetalhes(item.id)}
+            className="min-w-0 px-3 py-3 text-left hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]">
+            <Text variant="meta" as="span" className="mb-1 block text-[var(--text-secondary)]">{item.titulo}</Text>
+            <Text variant="bodyStrong" as="span" className="block line-clamp-2 leading-snug tabular-nums">{item.numero}</Text>
+            {item.id === 'ocupacao' && ocupacao.capacidade != null ? (
+              <span className="my-2 block h-1 overflow-hidden rounded-full bg-[var(--bg-hover)]" aria-hidden>
+                <span className="block h-full rounded-full bg-[var(--brand-accent)]" style={{width: ocupacao.percentual + '%'}} />
+              </span>
             ) : null}
-          </div>
-        </Surface>
-      ) : null}
-
-      <DistribuicaoPanel
-        open={distribuicaoAberta}
-        onClose={() => setDistribuicaoAberta(false)}
-        counts={counts}
-        entries={entries}
-        series={series}
-        pilares={pilares}
-        temas={temas}
-        obras={obras}
-        temDistribuicao={temDistribuicao}
-        outrasRedes={outrasRedes}
-        contentsById={new Map(contents.map(content => [content.id, content]))}
-      />
-    </div>
+            <Text variant="meta" as="span" className="mt-1 block text-[var(--text-secondary)]">{item.detalhe}</Text>
+          </button>
+        ))}
+      </div>
+    </Surface>
   );
 }

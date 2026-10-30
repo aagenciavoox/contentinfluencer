@@ -266,7 +266,7 @@ export function postItTransformOptions(
 }
 
 function stampDay(content: Content, date: string | null): Content {
-  if (!date) return content;
+  if (!date || content.publishDate || content.plataformas.some(publicacao => publicacao.publishDate)) return content;
   return placeContentOnDay(content, date);
 }
 
@@ -291,7 +291,8 @@ function ligarPostIt(postIt: PlanejamentoPostIt, contentId: string, now: string)
 
 /**
  * Só a transformação cria ou promove conteúdo.
- * A data do post-it vira a data de publicação. Um post-it vazio que vira roteiro abre o editor.
+ * A data do post-it vira previsão quando não existe data no conteúdo.
+ * Publicações por conta já definidas são preservadas. Um post-it vazio que vira roteiro abre o editor.
  */
 export function transformPostIt(input: {
   postIt: PlanejamentoPostIt;
@@ -358,10 +359,10 @@ export function postItTitle(postIt: PlanejamentoPostIt, content: Content | null)
 export type PostItKind = 'vazio' | 'ideia' | 'roteiro' | 'producao' | 'edicao' | 'postado';
 
 export function postItKind(
-  postIt: PlanejamentoPostIt,
+  postIt: PlanejamentoPostIt | null,
   content: Content | null,
 ): PostItKind {
-  if (!postIt.contentId || !content) return 'vazio';
+  if (!content || (postIt && !postIt.contentId)) return 'vazio';
   const status = normalizeContentStatus(content.status);
   if (status === CONTENT_STATUS.POSTADO || content.postedAt) return 'postado';
   if (status === CONTENT_STATUS.EDICAO) return 'edicao';

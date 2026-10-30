@@ -105,12 +105,14 @@ function testMostraPostadosEProgramadosMasNaoOQueFicouParaTras() {
     hoje: '2026-10-14',
   });
 
-  // Data futura sem status programada não entra; vencida também não.
-  assert.deepEqual([...dias.keys()].sort(), ['2026-10-10', '2026-10-20']);
+  // Data prevista mantém a etapa e nunca vira programada apenas por ter data.
+  assert.deepEqual([...dias.keys()].sort(), ['2026-10-10', '2026-10-12', '2026-10-20', '2026-10-22']);
   assert.deepEqual(
     dias.get('2026-10-10')?.map(item => [item.titulo, item.estado]),
     [['Já foi', 'postado']],
   );
+  assert.equal(dias.get('2026-10-22')?.[0].estado, 'previsto');
+  assert.equal(dias.get('2026-10-12')?.[0].estado, 'previsto');
   assert.deepEqual(
     dias.get('2026-10-20')?.map(item => [item.titulo, item.estado, item.time]),
     [['Vai sair', 'programado', '18:00']],

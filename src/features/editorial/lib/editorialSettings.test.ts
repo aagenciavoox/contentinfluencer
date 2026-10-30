@@ -133,7 +133,6 @@ function testVersao2EspelhaPreferencias() {
         redeReferenciaId: 'nova',
         reservaProntos: 2,
         publicoLinguagem: 'leve',
-        disponibilidade: 'noites',
         hashtagsForaSeries: '#livro',
       },
       limitesHashtags: { 'plat-instagram': 8 },
@@ -147,7 +146,6 @@ function testVersao2EspelhaPreferencias() {
   assert.equal(settings.preferencias.limiteSemanal, 7);
   assert.equal(settings.preferencias.reservaForaSeriesSemanal, 3);
   assert.equal(settings.preferencias.publicoLinguagem, 'leve');
-  assert.equal(settings.preferencias.disponibilidade, 'noites');
   assert.equal(settings.preferencias.hashtagsForaSeries, '#livro');
   assert.equal(settings.limitesHashtags['plat-instagram'], 8);
   assert.equal(settings.quickSeriesCreate, false);
@@ -183,14 +181,12 @@ function testAtualizarPreferenciasEspelhaOTopo() {
   const settings = atualizarPreferencias(getEditorialSettings({}), {
     redeReferenciaId: 'plat-ig',
     reservaProntos: 6,
-    disponibilidade: 'manhãs',
   });
   assert.equal(settings.versao, 2);
   assert.equal(settings.redeReferenciaId, 'plat-ig');
   assert.equal(settings.preferencias.redeReferenciaId, 'plat-ig');
   assert.equal(settings.estoqueDesejado, 6);
   assert.equal(settings.preferencias.reservaProntos, 6);
-  assert.equal(settings.preferencias.disponibilidade, 'manhãs');
   assert.equal(settings.distribuicaoFuncoes, null);
 }
 

@@ -1,7 +1,6 @@
+import { ValorVazio } from '../../../../components/ui/ValorVazio';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { format, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { ArrowRight, CalendarRange, Flag, Layers, RotateCcw, Target } from 'lucide-react';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { Badge } from '../../../../components/ui/Badge';
@@ -11,10 +10,10 @@ import { Surface } from '../../../../components/ui/Surface';
 import { Text } from '../../../../components/ui/Text';
 import { useMediaQuery } from '../../../../hooks/useMediaQuery';
 import type { FuncaoEditorial } from '../../../../lib/database';
+import { intervalo } from '../../../../lib/dates';
 import { BREAKPOINTS } from '../../../../shared/breakpoints';
 import { reservaPronta, rotuloCapacidadeSeries, textoEstoque } from '../../lib/estoque';
 import { listarSoEmOutrasRedes } from '../../lib/soEmOutrasRedes';
-import { avisosDeOrientacao } from '../../../planejamento/lib/orientacaoEditorial';
 import type { MetasPeriodo } from '../../lib/editorialSettings';
 import { ETAPA_LABEL, ETAPAS, ETAPAS_DE_CONTEUDO, contagemPorEtapaVazia, somaDasEtapas, type ContagemPorEtapa, type Etapa } from '../../lib/etapas';
 import { contarSerieAgrupada, textoDaContagemSerie } from '../../lib/frequenciaAgrupada';
@@ -25,9 +24,9 @@ import {
   metasDoPeriodo,
   resumoDasMetas,
   somaDaProporcao,
+  proporcaoIgual,
   type OrigemDaMeta,
 } from '../../lib/proporcaoObjetivos';
-import { sortPilares } from '../../../settings/lib/activePilares';
 import { CAMPO_BASE, CampoTexto, CardConfiguracao, digitos, inteiroOuNull } from './campos';
 import { ItensDoPeriodoDialog, type FiltroDosItens } from './ItensDoPeriodoDialog';
 import { ProporcaoObjetivosEditor } from './ProporcaoObjetivosEditor';
@@ -40,8 +39,8 @@ import {
 } from './PeriodoEditorialControl';
 import { useEditorialPlano } from './useEditorialPlano';
 
-function celula(valor: number | null): string {
-  return valor == null ? '—' : String(valor);
+function celula(valor: number | null) {
+  return valor == null ? <ValorVazio /> : String(valor);
 }
 
 
@@ -55,8 +54,7 @@ function metasCom(metas: MetasPeriodo, funcao: FuncaoEditorial, quantidade: numb
 
 /** "27 de set. a 3 de out.": a semana parcial no cartão; o rótulo longo fica para o leitor de tela. */
 function rotuloCurtoDaSemana(inicio: string, fim: string): string {
-  const dia = (iso: string) => format(parseISO(iso), "d 'de' MMM", { locale: ptBR });
-  return `${dia(inicio)}. a ${dia(fim)}.`;
+  return intervalo(inicio, fim);
 }
 
 /** Cor de cada objetivo: só enfeita, o nome vem sempre ao lado. */
@@ -178,28 +176,10 @@ function BarraDaMeta({ linha }: { linha: LinhaObjetivo }) {
   );
 }
 
-function PrevistosDaMeta({
-  linha,
-  onAbrir,
-}: {
-  linha: LinhaObjetivo;
-  onAbrir: () => void;
-}) {
-  return (
-    <span className="inline-flex flex-col items-stretch">
-      <span className="inline-flex items-center justify-center gap-1">
-        <NumeroQueAbre
-          valor={linha.previsto}
-          rotulo={rotuloDoNumero(linha.previsto, linha, null)}
-          onAbrir={onAbrir}
-        />
-        {linha.meta != null ? (
-          <Text variant="secondary" as="span" className="tabular-nums">de {linha.meta}</Text>
-        ) : null}
-      </span>
-      <BarraDaMeta linha={linha} />
-    </span>
-  );
+function PrevistosDaMeta({linha,onAbrir}: {linha:LinhaObjetivo;onAbrir:()=>void}) {
+  return <button type="button" onClick={onAbrir} aria-label={rotuloDoNumero(linha.previsto,linha,null)} className="inline-flex min-h-11 items-center gap-1 rounded-[var(--radius-sm)] px-2 t-body tabular-nums underline underline-offset-4 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] hover:bg-[var(--bg-hover)]">
+    {linha.previsto}{linha.meta != null ? ' de '+linha.meta : ' previstos'} <span aria-hidden>›</span>
+  </button>;
 }
 
 /** Número que abre a lista do que está nele. Zero não abre nada. */
@@ -323,7 +303,7 @@ function MetasPorObjetivo({
     );
   }
 
-  const colunas = ['Meta', 'Previstos de meta', ...ETAPAS.map(etapa => ETAPA_LABEL[etapa])];
+  const colunas = ['Meta', 'Previstos', ...ETAPAS.map(etapa => ETAPA_LABEL[etapa])];
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-left">
@@ -409,7 +389,7 @@ function GrupoDoPeriodo({ titulo, linhas }: { titulo: string; linhas: LinhaDoPer
                 className="h-2.5 w-2.5 shrink-0 rounded-full border border-[var(--border-color)]"
                 style={linha.cor ? { backgroundColor: linha.cor } : undefined}
               />
-              <Text variant="body" as="span" className="truncate">{linha.nome}</Text>
+              <Text variant="body" as="span" className="line-clamp-2 break-words">{linha.nome}</Text>
             </span>
             <Text variant="secondary" as="span" className="shrink-0 tabular-nums">{linha.texto}</Text>
           </li>
@@ -461,21 +441,6 @@ export function PeriodoPanel({
   const objetivos = new Map(contagem.objetivos.map(objetivo => [objetivo.id, objetivo]));
 
   const avisos: Array<{ id: string; texto: string; acao?: InlineNoticeAction }> = [];
-  if (!semLimite && contagem.excesso != null && contagem.excesso > 0) {
-    avisos.push({
-      id: 'excesso',
-      texto: contagem.notaSoma ?? `O período tem ${contagem.previsto} e o limite é ${contagem.limite}.`,
-      acao: { rotulo: 'Ajustar o limite', onClick: onAbrirAjustes },
-    });
-  }
-  if (contagem.espacosLivres > 0) {
-    const n = contagem.espacosLivres;
-    avisos.push({
-      id: 'sem-pauta',
-      texto: n === 1 ? '1 espaço sem pauta.' : `${n} espaços sem pauta.`,
-      acao: { rotulo: 'Abrir o planejamento', onClick: () => navigate('/planejamento') },
-    });
-  }
   if (contagem.semObjetivo > 0) {
     const n = contagem.semObjetivo;
     avisos.push({
@@ -487,33 +452,22 @@ export function PeriodoPanel({
       },
     });
   }
-  // Mesma leitura do Planejamento: avisos nunca bloqueiam.
-  for (const aviso of avisosDeOrientacao({
-    postIts: state.postIts,
-    contents: state.contents,
-    series: state.series,
-    temas: state.temas,
-    obras: state.bibliotecaItems,
-    periodo: { inicio: periodo.inicio, fim: periodo.fim },
-  })) {
-    avisos.push({
-      id: aviso.id,
-      texto: aviso.texto,
-      acao: {
-        rotulo: 'Abrir o planejamento',
-        onClick: () => navigate('/planejamento'),
-      },
-    });
-  }
-
   const numeros = [
     { id: 'limite', rotulo: periodo.modo === 'semana' ? 'Limite da semana' : 'Limite do período', valor: celula(contagem.limite) },
-    { id: 'previstos', rotulo: 'Previstos', valor: String(contagem.previsto) },
-    { id: 'postados', rotulo: 'Publicados', valor: String(contagem.porEtapa.postado) },
+    { id: 'previstos', rotulo: 'Previstos', valor: String(contagem.previsto), detalhe: capacidadeSeries },
+    { id: 'postados', rotulo: 'Publicados', valor: String(contagem.porEtapa.postado), detalhe: null },
+    { id: 'reserva-desejada', rotulo: 'Reserva desejada', valor: celula(reserva), detalhe: null },
     {
       id: 'prontos',
-      rotulo: 'Prontos de reserva',
-      valor: reserva == null ? String(estoque.total) : textoEstoque(estoque.total, reserva),
+      rotulo: 'Reserva pronta',
+      valor: textoEstoque(estoque.total, reserva),
+      detalhe: [
+        estoque.ineditos === 1 ? '1 inédito' : `${estoque.ineditos} inéditos`,
+        `${estoque.reaproveitar} para reaproveitar`,
+        ...(soEmOutras.length > 0
+          ? [soEmOutras.length === 1 ? '1 só em outras redes' : `${soEmOutras.length} só em outras redes`]
+          : []),
+      ].join(' · '),
     },
   ];
 
@@ -554,20 +508,6 @@ export function PeriodoPanel({
     });
   }
 
-  // As contas que antes ficavam nos cards de pilar e de série: aqui, junto do período que as define.
-  const previstosPorPilar = new Map(contagem.pilares.map(linha => [linha.id, linha.previsto]));
-  const pilares: LinhaDoPeriodo[] = sortPilares(state.pilares)
-    .filter(pilar => pilar.ativo || (previstosPorPilar.get(pilar.id) ?? 0) > 0)
-    .map(pilar => {
-      const previstos = previstosPorPilar.get(pilar.id) ?? 0;
-      return {
-        id: pilar.id,
-        nome: pilar.nome,
-        cor: pilar.cor,
-        texto: previstos === 1 ? '1 previsto' : `${previstos} previstos`,
-      };
-    });
-
   const itensContagem = contagem.itens.map(item => ({
     serieId: item.serieId,
     espacoId: item.id,
@@ -604,6 +544,7 @@ export function PeriodoPanel({
 
   return (
     <div className="stack-lg">
+      <Text variant="itemTitle" as="h3">Intervalo de prioridade e metas</Text>
       <PeriodoEditorialControl periodo={periodo} onChange={onPeriodoChange} />
 
       {/* Leitura do período: os números primeiro, numa faixa só. */}
@@ -613,21 +554,15 @@ export function PeriodoPanel({
             <Surface key={item.id} variant="info" padding="sm">
               <Text variant="label">{item.rotulo}</Text>
               <Text variant="itemTitle" as="p" className="mt-1 tabular-nums">{item.valor}</Text>
+              {'detalhe' in item && item.detalhe ? (
+                <Text variant="meta" as="p" className="mt-1 text-[var(--text-secondary)]">{item.detalhe}</Text>
+              ) : null}
             </Surface>
           ))}
         </div>
         <Text variant="meta" as="p">
           {notaCapacidade ? `${notaCapacidade} ` : ''}
-          {capacidadeSeries ? `${capacidadeSeries}. ` : ''}
-          Cada ciclo conta uma vez na grade.
-        </Text>
-        <Text variant="meta" as="p">
-          Reserva: {estoque.ineditos} inédito{estoque.ineditos === 1 ? '' : 's'}
-          {' · '}
-          {estoque.reaproveitar} para reaproveitar
-          {soEmOutras.length > 0
-            ? ` · ${soEmOutras.length} só em outras redes`
-            : ''}
+          A publicação original conta uma vez. Cada repost conta de novo, mesmo em várias redes.
         </Text>
         {semLimite ? (
           <div className="flex flex-wrap items-center gap-3">
@@ -645,7 +580,7 @@ export function PeriodoPanel({
         </div>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 xl:grid-cols-2">
         <CardConfiguracao icone={<Flag className="h-5 w-5" />} titulo="Prioridade do período">
           <CampoTexto
             key={`${periodo.inicio}:${periodo.fim}`}
@@ -663,7 +598,7 @@ export function PeriodoPanel({
 
         <CardConfiguracao
           icone={<Layers className="h-5 w-5" />}
-          titulo="Pilares e séries no período"
+          titulo="Séries no período"
           acao={(
             <AppButton
               variant="secondary"
@@ -675,14 +610,9 @@ export function PeriodoPanel({
             </AppButton>
           )}
         >
-          {pilares.length > 0 || series.length > 0 ? (
-            <div className="grid gap-6 sm:grid-cols-2">
-              {pilares.length > 0 ? <GrupoDoPeriodo titulo="Pilares" linhas={pilares} /> : null}
-              {series.length > 0 ? <GrupoDoPeriodo titulo="Séries" linhas={series} /> : null}
-            </div>
-          ) : (
-            <Text variant="secondary">Nenhum pilar ou série ativa neste período.</Text>
-          )}
+          {series.length > 0 ? (
+            <GrupoDoPeriodo titulo="Frequência pedida × prevista" linhas={series} />
+          ) : <Text variant="secondary">Nenhuma série ativa neste período.</Text>}
         </CardConfiguracao>
       </div>
 
@@ -714,7 +644,7 @@ export function PeriodoPanel({
           />
         ) : null}
         {!editandoProporcao && !proporcao ? (
-          <Text variant="secondary">Sem proporção definida, as metas ficam em branco. Você ainda pode digitar uma meta só para este período.</Text>
+          <div className="stack-sm"><Text variant="secondary">Nenhuma proporção definida. As metas ficam em branco até você definir.</Text><AppButton variant="secondary" size="sm" onClick={() => salvarProporcao(proporcaoIgual())}>Usar divisão igual</AppButton></div>
         ) : null}
         {proporcao && contagem.limite == null ? (
           <Text variant="secondary" as="p">Sem limite no período, a proporção aparece só em %. Defina o limite para ver quantos roteiros cabem em cada objetivo.</Text>

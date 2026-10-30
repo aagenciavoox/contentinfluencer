@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import type {BibliotecaItem, Serie, Tema} from '../../../lib/database.ts';
 import {CONTENT_STATUS} from '../../contents/lib/contentPipeline.ts';
 import {createContentDraft} from '../../contents/lib/createContentDraft.ts';
-import {avisosDeOrientacao, pontosParaRevisar} from './orientacaoEditorial.ts';
+import {avisosDeOrientacao} from './orientacaoEditorial.ts';
 import type {PlanejamentoPostIt} from './postIt.ts';
 import {periodoDaSemana} from './periodoPlanejamento.ts';
 
@@ -61,9 +61,10 @@ function testObraApareceDuasVezesNaSemana() {
   });
   const obra = avisos.find(aviso => aviso.tipo === 'obra-repetida');
   assert.ok(obra);
-  assert.match(obra!.texto, /Sanderson aparece em 2 pautas/);
+  assert.match(obra!.texto, /2 pautas da mesma obra: Sanderson/);
   assert.deepEqual(obra!.postItIds.sort(), ['p1', 'p2']);
-  assert.equal(pontosParaRevisar(avisos) >= 1, true);
+  assert.equal(obra!.severidade, 'info');
+  assert.deepEqual(obra!.intervalo, {inicio:'2026-11-02', fim:'2026-11-08'});
 }
 
 function testSequenciaIntencionalSuprimeObra() {

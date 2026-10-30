@@ -17,7 +17,7 @@ export function DailyRecommendationBlock({
   const navigate = useNavigate();
   const { kind, pilar, serie, message, href } = recommendation;
 
-  const eyebrow = gentleLanguage ? 'O que posto hoje?' : 'Decisão do ciclo';
+  const eyebrow = gentleLanguage ? 'O que posto hoje?' : 'Metas dos pilares';
   const title =
     kind === 'post'
       ? serie
@@ -29,7 +29,7 @@ export function DailyRecommendationBlock({
           : `Produzir para "${pilar.nome}"`
         : kind === 'configure_meta'
           ? `Definir meta de "${pilar.nome}"`
-          : 'Ciclo em dia';
+          : 'Metas dos pilares cobertas';
 
   const Icon =
     kind === 'post'

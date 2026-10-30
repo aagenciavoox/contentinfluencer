@@ -1,3 +1,4 @@
+import { Text } from '../ui/Text';
 import type {ReactNode} from 'react';
 import {cn} from '../../lib/utils';
 
@@ -51,10 +52,10 @@ export function CalendarEventPill({
       >
         {icon ? <span className="mb-1 flex items-center gap-1">{icon}</span> : null}
         {secondary ? (
-          <span className="block text-2xs font-semibold uppercase tracking-wide opacity-80">{secondary}</span>
+          <Text variant="label" as="span" className="block uppercase tracking-wide opacity-80 text-inherit">{secondary}</Text>
         ) : null}
-        <span className="mt-0.5 block text-sm font-semibold leading-snug text-[var(--text-primary)]">{label}</span>
-        {time ? <span className="mt-1 block text-xs text-[var(--text-secondary)]">{time}</span> : null}
+        <Text variant="itemTitle" as="span" className="mt-0.5 block leading-snug text-[var(--text-primary)]">{label}</Text>
+        {time ? <Text variant="meta" as="span" className="mt-1 block text-[var(--text-secondary)]">{time}</Text> : null}
       </button>
     );
   }
@@ -69,7 +70,7 @@ export function CalendarEventPill({
       onDragEnd={onDragEnd}
       className={cn(
         // Na grade do mês não cabe 44px por evento; no toque ele fica com 24px, o mínimo do WCAG.
-        'flex w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-[var(--radius-sm)] px-2 py-1 text-left text-xs font-semibold leading-tight transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-6',
+        'flex w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-[var(--radius-sm)] px-2 py-1 text-left t-label leading-tight transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-6',
         className,
       )}
       style={style}

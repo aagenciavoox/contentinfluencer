@@ -198,7 +198,6 @@ function testCotaDeFuncaoEstoqueEEvento() {
       redeReferenciaId: 'ig',
       reservaProntos: null,
       publicoLinguagem: '',
-      disponibilidade: '',
       hashtagsForaSeries: '',
     },
   }, NOW));

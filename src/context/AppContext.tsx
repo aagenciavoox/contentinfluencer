@@ -70,6 +70,7 @@ const ACTION_SAVE_LABELS: Partial<Record<AppAction['type'], string>> = {
   ADD_POST_IT: 'Post-it criado',
   UPDATE_POST_IT: 'Post-it salvo',
   UPDATE_POST_ITS: 'Post-its salvos',
+  CONVERT_POST_IT: 'Pauta convertida',
   DELETE_POST_IT: 'Post-it apagado',
   DELETE_POST_ITS: 'Post-its apagados',
   UPDATE_RECORDING_BLOCK: 'Bloco salvo',
@@ -138,6 +139,10 @@ function normalizeAction(action: AppAction): AppAction {
             ?? (isUUID(action.payload.id) ? action.payload.id : generateUUID()),
         },
       };
+    case 'CONVERT_POST_IT': {
+      const content = normalizeContentId(action.payload.content);
+      return {...action, payload: {content, postIt: {...action.payload.postIt, contentId: content.id}}};
+    }
     case 'PROMOTE_IDEA': {
       const normalizedContent = normalizeContentId(action.payload.content);
       return {
@@ -233,7 +238,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (
-      actionType.includes('CONTENT')
+      actionType === 'CONVERT_POST_IT'
+      || actionType.includes('CONTENT')
       || actionType.includes('BOOK')
       || actionType.includes('BIBLIOTECA')
       || actionType.includes('ANOTACAO')
@@ -274,7 +280,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (
       userId
       && (
-        actionType === 'ADD_CONTENT'
+        actionType === 'CONVERT_POST_IT'
+        || actionType === 'ADD_CONTENT'
         || actionType === 'UPDATE_CONTENT'
         || actionType === 'DELETE_CONTENT'
         || actionType === 'DELETE_MULTIPLE_CONTENTS'

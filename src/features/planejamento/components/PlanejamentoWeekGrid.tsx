@@ -52,9 +52,9 @@ export function PlanejamentoWeekGrid({
   return (
     <div
       role="grid"
-      className="w-full min-w-0 overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-strong)] bg-[var(--bg-elevated)] shadow-[var(--shadow-raised)]"
+      className="w-full min-w-0 overflow-x-auto rounded-[var(--radius-card)] border border-[var(--border-strong)] bg-[var(--bg-elevated)] shadow-[var(--shadow-raised)]"
     >
-      <div role="row" className="grid grid-cols-7 border-b border-[var(--border-color)]">
+      <div role="row" className="grid min-w-[1120px] grid-cols-7 border-b border-[var(--border-color)]">
         {days.map(day => (
           <div
             key={dateKey(day)}
@@ -71,7 +71,7 @@ export function PlanejamentoWeekGrid({
           </div>
         ))}
       </div>
-      <div role="row" className="grid grid-cols-7 items-start">
+      <div role="row" className="grid min-w-[1120px] grid-cols-7 items-start">
         {days.map(day => {
           const key = dateKey(day);
           const dayPostIts = byDate.get(key) ?? [];
@@ -104,7 +104,7 @@ export function PlanejamentoWeekGrid({
                   leftIcon={<Plus className="h-3.5 w-3.5" />}
                   onClick={() => onAddPauta(key)}
                 >
-                  Adicionar pauta
+                  Novo post-it
                 </AppButton>
               </div>
             </div>

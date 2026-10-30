@@ -104,7 +104,7 @@ export function CalendarQuickCreatePopover({
             value={title}
             onChange={event => setTitle(event.target.value)}
             placeholder="Adicionar título"
-            className="w-full border-0 border-b-2 border-[var(--accent-blue)] bg-transparent pb-2 text-base font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
+            className="w-full border-0 border-b-2 border-[var(--accent-blue)] bg-transparent pb-2 t-body-strong text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
           />
 
           <div className="grid grid-cols-2 gap-2">
@@ -112,13 +112,13 @@ export function CalendarQuickCreatePopover({
               type="date"
               value={date}
               onChange={event => setDate(event.target.value)}
-              className="h-9 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-2 text-sm text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              className="h-9 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-2 t-body text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
             />
             <input
               type="time"
               value={time}
               onChange={event => setTime(event.target.value)}
-              className="h-9 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-2 text-sm text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              className="h-9 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-2 t-body text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
             />
           </div>
         </div>
@@ -128,7 +128,7 @@ export function CalendarQuickCreatePopover({
             type="button"
             onClick={() => onMoreOptions(payload)}
             className={cn(
-              'text-sm font-semibold text-[var(--accent-blue)] hover:underline',
+              't-body-strong text-[var(--accent-blue)] hover:underline',
               'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
             )}
           >
