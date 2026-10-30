@@ -1,15 +1,20 @@
 import { useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Layers } from 'lucide-react';
+import { Layers, Plus, Settings } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
+import { Badge } from '../../../components/ui/Badge';
+import { EmptyState } from '../../../components/ui/EmptyState';
+import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { SelectField } from '../../../components/ui/SelectField';
+import { SkeletonList } from '../../../components/ui/Skeleton';
 import { Text } from '../../../components/ui/Text';
 import { useAppContext } from '../../../context/AppContext';
+import { useIsMobile } from '../../../hooks/useIsMobile';
+import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import type { Content } from '../../../lib/database';
 import { withDetailBack } from '../../../lib/navigation/detailBack';
 import { broadcastDataSync } from '../../../lib/syncBroadcast';
-import { cn } from '../../../lib/utils';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import { OpenInfoNotice } from '../../editorial/components/OpenInfoNotice';
 import { formatOpenItems, getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
@@ -17,21 +22,27 @@ import { filhosDaSerie, idsDaSubarvore } from '../../editorial/lib/serieArvore';
 import { escopoTemporadas, temporadasDoEscopo } from '../../editorial/lib/temporadas';
 import { SeriesBulkDrawer, type PedidoMassa } from '../components/series-detail/SeriesBulkDrawer';
 import { SeriesEpisodeGroups } from '../components/series-detail/SeriesEpisodeGroups';
-import { SeriesAboutPanel, SeriesSettingsPanel } from '../components/series-detail/SeriesReadPanels';
+import { SeriesDefinicoes } from '../components/series-detail/SeriesReadPanels';
 import { SeriesTrackingHeader } from '../components/series-detail/SeriesTrackingHeader';
+import { abaDoItemAberto } from '../lib/serieEditAba';
+import { contarEpisodios } from '../../editorial/lib/contarEpisodios';
 import { montarVistaEpisodios, temporadaInicial } from '../lib/seriesEpisodeView';
 
-type AbaSerie = 'episodios' | 'sobre' | 'configuracoes';
+type AbaSerie = 'episodios' | 'definicoes';
 
-const ABAS: Array<{ id: AbaSerie; label: string }> = [
-  { id: 'episodios', label: 'Episódios' },
-  { id: 'sobre', label: 'Sobre' },
-  { id: 'configuracoes', label: 'Configurações' },
-];
+function capaHttp(value: string | null | undefined) {
+  const trimmed = value?.trim() ?? '';
+  return /^https?:\/\//i.test(trimmed) ? trimmed : null;
+}
+
+function contagem(quantidade: number, singular: string, plural: string) {
+  return `${quantidade} ${quantidade === 1 ? singular : plural}`;
+}
 
 export function SeriesScriptsPage() {
   const { serieId } = useParams<{ serieId: string }>();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { state, dispatch } = useAppContext();
   const [aba, setAba] = useState<AbaSerie>('episodios');
   const [preferida, setPreferida] = useState('');
@@ -93,18 +104,27 @@ export function SeriesScriptsPage() {
     broadcastDataSync();
   };
 
+  if (!state.isLoaded) {
+    return (
+      <PageLayout contentWidth="wide" contentStack="dense">
+        <SkeletonList count={4} variant="row" />
+      </PageLayout>
+    );
+  }
+
   if (!serie || !serieId || !vista) {
     return (
-      <PageLayout variant="settings">
-        <div className="py-12 text-center stack-md">
-          <Layers className="mx-auto h-8 w-8 text-[var(--text-tertiary)]" aria-hidden />
-          <Text variant="body" className="text-[var(--text-tertiary)]">
-            {state.isLoaded ? 'Série não encontrada.' : 'Carregando série…'}
-          </Text>
-          {state.isLoaded ? (
-            <AppButton variant="secondary" onClick={() => navigate('/series')}>Voltar para séries</AppButton>
-          ) : null}
-        </div>
+      <PageLayout contentWidth="wide" contentStack="dense">
+        <EmptyState
+          icon={<Layers className="h-8 w-8" aria-hidden />}
+          title="Série não encontrada"
+          description="Ela pode ter sido excluída, ou o endereço não corresponde a uma série."
+          action={
+            <AppButton variant="secondary" onClick={() => navigate('/series')}>
+              Voltar para séries
+            </AppButton>
+          }
+        />
       </PageLayout>
     );
   }
@@ -119,49 +139,86 @@ export function SeriesScriptsPage() {
   const contagemTemporada = temporadaAtiva
     ? linkedContents.filter(content => content.temporadaId === temporadaAtiva).length
     : semTemporada;
+  const totalEpisodios = contarEpisodios(serieId, state.series, state.contents);
+  const meta = `${contagem(totalEpisodios, 'episódio', 'episódios')} · ${contagem(quadros, 'quadro', 'quadros')}`;
+  const proposta = serie.notes?.trim() || '';
+  const capa = capaHttp(serie.capaUrl);
+  const acoes = (
+    <>
+      <AppButton
+        variant="secondary"
+        onClick={abrirEditor}
+        leftIcon={<Settings className="h-4 w-4" />}
+      >
+        Editar definições
+      </AppButton>
+      <AppButton
+        variant="primary"
+        onClick={() => abrirMassa('massa', serie.id, temporadasDaSerie.length > 0 ? temporadaAtiva : null)}
+        leftIcon={<Plus className="h-4 w-4" />}
+      >
+        Adicionar em massa
+      </AppButton>
+    </>
+  );
 
   return (
-    <PageLayout variant="settings" contentWidth="wide" contentStack="dense">
-      <SeriesTrackingHeader
-        serie={serie}
-        episodios={linkedContents.length}
-        quadros={quadros}
-        onEdit={abrirEditor}
-        onBulk={() => abrirMassa('massa', serie.id, temporadasDaSerie.length > 0 ? temporadaAtiva : null)}
-      />
+    <PageLayout
+      contentWidth="wide"
+      contentStack="dense"
+      header={
+        <DesktopPageHeader
+          section="Séries"
+          backLabel="Séries"
+          backTo="/series"
+          title={serie.name}
+          titleAside={!serie.ativa ? <Badge variant="neutral">Inativa</Badge> : undefined}
+          meta={meta}
+          actions={acoes}
+        />
+      }
+    >
+      {isMobile ? (
+        <SeriesTrackingHeader
+          serie={serie}
+          meta={meta}
+          onEdit={abrirEditor}
+          onBulk={() => abrirMassa('massa', serie.id, temporadasDaSerie.length > 0 ? temporadaAtiva : null)}
+        />
+      ) : proposta || capa ? (
+        <div className="flex items-start gap-4">
+          {capa ? (
+            <img
+              src={capa}
+              alt=""
+              className="h-28 w-28 shrink-0 rounded-[var(--radius-card)] object-cover"
+            />
+          ) : null}
+          {proposta ? (
+            <Text variant="body" className="max-w-3xl text-[var(--text-secondary)]">{proposta}</Text>
+          ) : null}
+        </div>
+      ) : null}
 
       {editorialSettings.openInfoNotices && abertos.length > 0 ? (
         <OpenInfoNotice
           items={abertos}
           title={`Esta série tem informações em aberto: ${formatOpenItems(abertos)}`}
           description={null}
-          actionLabel="Editar definições"
-          onAction={abrirEditor}
+          actionLabel="Completar agora"
+          onAction={() => navigate(`/series/${serie.id}/editar?aba=${abaDoItemAberto(abertos[0].key)}`)}
         />
       ) : null}
 
-      <div role="tablist" aria-label="Série" className="flex gap-6 border-b border-[var(--border-color)]">
-        {ABAS.map(item => {
-          const ativa = aba === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              role="tab"
-              aria-selected={ativa}
-              onClick={() => setAba(item.id)}
-              className={cn(
-                '-mb-px min-h-11 border-b-2 px-1 text-sm font-medium focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-                ativa
-                  ? 'border-[var(--text-primary)] text-[var(--text-primary)]'
-                  : 'border-transparent text-[var(--text-secondary)]',
-              )}
-            >
-              {item.label}
-            </button>
-          );
-        })}
-      </div>
+      <SegmentTabs<AbaSerie>
+        ariaLabel="Série"
+        value={aba}
+        onChange={setAba}
+        options={[
+          { id: 'episodios', label: 'Episódios', count: totalEpisodios },
+          { id: 'definicoes', label: 'Definições' },
+        ]}
+      />
 
       {aba === 'episodios' ? (
         <div className="stack-lg">
@@ -187,26 +244,16 @@ export function SeriesScriptsPage() {
             onAdd={grupo => abrirMassa('grupo', grupo.serieId, grupo.temporadaId)}
           />
         </div>
-      ) : null}
-
-      {aba === 'sobre' ? (
-        <SeriesAboutPanel
+      ) : (
+        <SeriesDefinicoes
           serie={serie}
           series={state.series}
           pilares={state.pilares}
           temporadas={temporadasDaSerie}
-          onEdit={abrirEditor}
-        />
-      ) : null}
-
-      {aba === 'configuracoes' ? (
-        <SeriesSettingsPanel
-          serie={serie}
-          series={state.series}
           plataformas={state.platforms}
-          onEdit={abrirEditor}
+          templates={state.templates}
         />
-      ) : null}
+      )}
 
       <SeriesBulkDrawer
         open={drawerAberto}

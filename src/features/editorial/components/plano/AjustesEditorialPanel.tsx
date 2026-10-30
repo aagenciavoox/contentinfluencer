@@ -1,3 +1,4 @@
+import { ValorVazio } from '../../../../components/ui/ValorVazio';
 import { useState } from 'react';
 import { CalendarDays, Clock, Hash, Pencil, Share2, Target, UserRound } from 'lucide-react';
 import { AppButton } from '../../../../components/ui/AppButton';
@@ -67,7 +68,7 @@ function ValorDoRitmo({
   return (
     <div className="min-w-0 stack-xs">
       <Text variant="bodyStrong" as="p">{rotulo}</Text>
-      <Text variant="itemTitle" as="p" className="tabular-nums">{valor == null ? '—' : String(valor)}</Text>
+      <Text variant="itemTitle" as="p" className="tabular-nums">{valor == null ? <ValorVazio /> : String(valor)}</Text>
       <Text variant="secondary" as="p">
         {valor == null ? 'Não definido' : unidade}
       </Text>
@@ -122,10 +123,6 @@ export function AjustesEditorialPanel() {
 
   return (
     <div className="stack-lg">
-      <Text variant="secondary" as="p">
-        Estas configurações valem para todos os períodos. Prioridade, metas e ajustes semanais ficam no Planejamento.
-      </Text>
-
       <CardConfiguracao
         icone={<CalendarDays className="h-5 w-5" />}
         titulo="Ritmo de criação"
@@ -177,7 +174,7 @@ export function AjustesEditorialPanel() {
             <div>
               <CampoStepper
                 id="reserva-prontos"
-                label="Conteúdos prontos de reserva"
+                label="Reserva desejada"
                 unidade="roteiros"
                 hint="Finalizados e sem data de publicação. Exclui os que ainda precisam de edição e os já agendados."
                 value={ritmo.prontos}
@@ -201,7 +198,7 @@ export function AjustesEditorialPanel() {
             </div>
             <div>
               <ValorDoRitmo
-                rotulo="Conteúdos prontos de reserva"
+                rotulo="Reserva desejada"
                 valor={preferencias.reservaProntos}
                 unidade="roteiros"
               />

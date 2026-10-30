@@ -41,17 +41,24 @@ export function ordenarEpisodios<T extends { id: string; createdAt?: string | nu
   );
 }
 
+/** Data do episódio na lista. Sem data publicada ou programada, "—". */
+export function dataDoEpisodio(
+  content: Pick<Content, 'publishDate' | 'postedAt'>,
+): string {
+  const bruto = content.postedAt || content.publishDate;
+  if (!bruto) return '—';
+  const iso = bruto.length <= 10 ? `${bruto}T12:00:00` : bruto;
+  const data = parseISO(iso);
+  if (Number.isNaN(data.getTime())) return '—';
+  return format(data, 'd MMM', { locale: ptBR }).replace(/\./g, '');
+}
+
 export function linhaDoEpisodio(
   content: Pick<Content, 'status' | 'publishDate' | 'postedAt' | 'edicaoConcluidaEm' | 'plataformas'>,
 ): string {
   const etapa = getDisplayStatusLabel(content);
-  const bruto = content.postedAt || content.publishDate;
-  if (!bruto) return `${etapa} · Sem data`;
-  const iso = bruto.length <= 10 ? `${bruto}T12:00:00` : bruto;
-  const data = parseISO(iso);
-  if (Number.isNaN(data.getTime())) return `${etapa} · Sem data`;
-  const quando = format(data, 'd MMM', { locale: ptBR }).replace(/\./g, '');
-  return `${etapa} · ${quando}`;
+  const quando = dataDoEpisodio(content);
+  return quando === '—' ? `${etapa} · Sem data` : `${etapa} · ${quando}`;
 }
 
 function coletar(grupo: GrupoEpisodios): Content[] {

@@ -1,16 +1,16 @@
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ValorVazio } from '../../../../components/ui/ValorVazio';
+import { Plus } from 'lucide-react';
 import { useState } from 'react';
+import { AppButton } from '../../../../components/ui/AppButton';
+import { Badge } from '../../../../components/ui/Badge';
+import { DisclosureButton } from '../../../../components/ui/DisclosureButton';
 import { EmptyState } from '../../../../components/ui/EmptyState';
 import { Text } from '../../../../components/ui/Text';
 import type { Content, Serie } from '../../../../lib/database';
 import { cn } from '../../../../lib/utils';
+import { getDisplayStatus, getDisplayStatusLabel } from '../../../contents/lib/contentPipeline';
 import type { GrupoEpisodios } from '../../../editorial/lib/episodiosAgrupados';
-import { linhaDoEpisodio, type VistaEpisodios } from '../../lib/seriesEpisodeView';
-
-function capaHttp(value: string | null | undefined) {
-  const trimmed = value?.trim() ?? '';
-  return /^https?:\/\//i.test(trimmed) ? trimmed : null;
-}
+import { dataDoEpisodio, type VistaEpisodios } from '../../lib/seriesEpisodeView';
 
 function totalDoGrupo(grupo: GrupoEpisodios): number {
   return grupo.contents.length + grupo.subgrupos.reduce((soma, item) => soma + totalDoGrupo(item), 0);
@@ -20,64 +20,42 @@ function contagem(quantidade: number) {
   return `${quantidade} ${quantidade === 1 ? 'episódio' : 'episódios'}`;
 }
 
-function Miniatura({ src, cor }: { src: string | null; cor: string | null }) {
-  if (src) {
-    return (
-      <img
-        src={src}
-        alt=""
-        className="h-14 w-20 shrink-0 rounded-[var(--radius-input)] object-cover"
-      />
-    );
-  }
-  return (
-    <span
-      aria-hidden
-      className="h-14 w-20 shrink-0 rounded-[var(--radius-input)]"
-      style={{ backgroundColor: cor || 'var(--bg-elevated)' }}
-    />
-  );
+function painelId(grupoId: string) {
+  return `episodios-${grupoId.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
 }
 
 function LinhaEpisodio({
   content,
   indice,
-  serie,
-  series,
   onOpen,
 }: {
   content: Content;
   indice: number;
-  serie: Serie;
-  series: readonly Serie[];
   onOpen: (content: Content) => void;
 }) {
-  const dona = series.find(item => item.id === content.seriesId) ?? serie;
+  const status = getDisplayStatus(content);
+  const data = dataDoEpisodio(content);
   return (
     <button
       type="button"
       onClick={() => onOpen(content)}
       className="flex w-full items-center gap-3 border-b border-[var(--border-color)] py-3 text-left focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
     >
-      <Miniatura src={capaHttp(dona.capaUrl) || capaHttp(serie.capaUrl)} cor={dona.cor || serie.cor} />
       <span className="min-w-0 flex-1 stack-xs">
         <Text variant="meta" as="span">Episódio {indice}</Text>
         <Text variant="itemTitle" as="span" className="block truncate">{content.title?.trim() || 'Sem título'}</Text>
-        <Text variant="meta" as="span" className="text-[var(--text-secondary)]">{linhaDoEpisodio(content)}</Text>
       </span>
+      <Badge variant="status" status={status}>{getDisplayStatusLabel(content)}</Badge>
+      <Text variant="meta" as="span" className="shrink-0">{data === '—' ? <ValorVazio /> : data}</Text>
     </button>
   );
 }
 
 function ListaEpisodios({
   contents,
-  serie,
-  series,
   onOpen,
 }: {
   contents: readonly Content[];
-  serie: Serie;
-  series: readonly Serie[];
   onOpen: (content: Content) => void;
 }) {
   return (
@@ -87,8 +65,6 @@ function ListaEpisodios({
           key={content.id}
           content={content}
           indice={index + 1}
-          serie={serie}
-          series={series}
           onOpen={onOpen}
         />
       ))}
@@ -119,43 +95,43 @@ function GrupoQuadro({
   const quadro = series.find(item => item.id === grupo.serieId);
   const descricao = grupo.serieId === serie.id ? '' : (quadro?.notes?.trim() || '');
   const total = totalDoGrupo(grupo);
+  const idPainel = painelId(grupo.id);
 
   return (
     <section className={cn(aninhado && 'border-l border-[var(--border-color)] pl-3')}>
-      <div className="flex items-start justify-between gap-3 border-b border-[var(--border-color)] py-3">
-        <button
-          type="button"
-          aria-expanded={aberto}
-          onClick={() => onToggle(grupo.id)}
-          className="flex min-w-0 flex-1 items-start gap-2 text-left focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+      <div className="flex items-start gap-2 border-b border-[var(--border-color)] py-1">
+        <DisclosureButton
+          open={aberto}
+          onToggle={() => onToggle(grupo.id)}
+          controls={idPainel}
+          trailing={<Text variant="meta" as="span">{contagem(total)}</Text>}
+          className="min-w-0 flex-1"
         >
-          {aberto
-            ? <ChevronUp className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
-            : <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-tertiary)]" aria-hidden />}
-          <span className="min-w-0 stack-xs">
+          <span className="min-w-0 stack-xs py-1">
             <Text variant="itemTitle" as="span" className="block">{grupo.rotulo}</Text>
-            <Text variant="meta" as="span">{contagem(total)}</Text>
             {descricao ? (
               <Text variant="secondary" as="span" className="line-clamp-2 block">{descricao}</Text>
             ) : null}
           </span>
-        </button>
+        </DisclosureButton>
         {grupo.foraDoEscopo ? (
-          <Text variant="meta" as="span" className="shrink-0 pt-1">Reorganizar</Text>
+          <Badge variant="neutral" className="mt-2 shrink-0">Em outra temporada</Badge>
         ) : (
-          <button
-            type="button"
+          <AppButton
+            variant="secondary"
+            size="sm"
+            className="mt-1 shrink-0"
+            leftIcon={<Plus className="h-4 w-4" />}
             onClick={() => onAdd(grupo)}
-            className="shrink-0 pt-1 text-sm font-medium text-[var(--brand-accent-text)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
           >
-            + Adicionar episódio
-          </button>
+            Adicionar episódio
+          </AppButton>
         )}
       </div>
       {aberto ? (
-        <div className="stack-sm">
+        <div id={idPainel} className="stack-sm">
           {grupo.contents.length > 0 ? (
-            <ListaEpisodios contents={grupo.contents} serie={serie} series={series} onOpen={onOpen} />
+            <ListaEpisodios contents={grupo.contents} onOpen={onOpen} />
           ) : null}
           {grupo.subgrupos.map(sub => (
             <GrupoQuadro
@@ -219,16 +195,16 @@ export function SeriesEpisodeGroups({
           />
         ))
       ) : vista.episodios.length > 0 ? (
-        <ListaEpisodios contents={vista.episodios} serie={serie} series={series} onOpen={onOpen} />
+        <ListaEpisodios contents={vista.episodios} onOpen={onOpen} />
       ) : null}
 
       {vista.fora.length > 0 ? (
         <section className="stack-sm">
           <div className="flex items-center justify-between gap-3">
             <Text variant="itemTitle" as="h2">Temporada de outro escopo</Text>
-            <Text variant="meta">Reorganizar</Text>
+            <Badge variant="neutral">Em outra temporada</Badge>
           </div>
-          <ListaEpisodios contents={vista.fora} serie={serie} series={series} onOpen={onOpen} />
+          <ListaEpisodios contents={vista.fora} onOpen={onOpen} />
         </section>
       ) : null}
 
@@ -238,13 +214,9 @@ export function SeriesEpisodeGroups({
           title="Nenhum episódio"
           description="Adicione um episódio com título e texto quando quiser começar."
           action={
-            <button
-              type="button"
-              onClick={onBulk}
-              className="text-sm font-medium text-[var(--brand-accent-text)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-            >
+            <AppButton variant="secondary" onClick={onBulk}>
               Adicionar em massa
-            </button>
+            </AppButton>
           }
         />
       ) : null}

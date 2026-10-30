@@ -71,7 +71,7 @@ export function EntityColorPicker({
               </button>
             );
           })}
-          <label className="relative inline-flex h-8 cursor-pointer items-center overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-hover)]">
+          <label className="relative inline-flex h-8 cursor-pointer items-center overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 t-label text-[var(--text-primary)] hover:bg-[var(--bg-hover)]">
             <span>Mais cores</span>
             <input
               type="color"

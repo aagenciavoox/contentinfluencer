@@ -7,9 +7,9 @@ import { FilterChips } from '../../../components/ui/FilterChips';
 import { MoreMenu } from '../../../components/ui/MoreMenu';
 import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { Text } from '../../../components/ui/Text';
-import { ToggleRow } from '../../../components/ui/ToggleSwitch';
 import { getSerieOpenItems } from '../../../features/editorial/lib/serieCompleteness';
 import { caminhoDaSerie } from '../../../features/editorial/lib/serieArvore';
+import { rotuloEpisodios } from '../../../features/editorial/lib/contarEpisodios';
 import { exibirSeriesVisiveis, type SerieListaModo } from '../../../features/editorial/lib/serieLista';
 import type { Content, Serie } from '../../../lib/database';
 import { MobileListCard } from '../../components/MobileListCard';
@@ -17,19 +17,19 @@ import { MobileSearchBar } from '../../components/MobileSearchBar';
 
 interface SeriesMobileScreenProps {
   series: Serie[];
-  contents?: readonly Pick<Content, 'seriesId' | 'deletedAt'>[];
+  contents?: readonly Pick<Content, 'id' | 'seriesId' | 'deletedAt'>[];
   roteiroCountBySerie: Map<string, number>;
   onOpen: (serieId: string) => void;
   onCreate: () => void;
   onConfigure: (serieId: string) => void;
+  onToggle: (serie: Serie) => void;
   showOpenBadges: boolean;
-  preferencias?: Array<{ key: string; title: string; description: string; enabled: boolean; toggle: () => void }>;
 }
 
 type SeriesFilter = 'todas' | 'ativas' | 'inativas' | 'abertas';
 
-function formatRoteiroCount(count: number) {
-  return `${count} roteiro${count === 1 ? '' : 's'}`;
+function formatEpisodioCount(count: number) {
+  return rotuloEpisodios(count);
 }
 
 export function SeriesMobileScreen({
@@ -39,8 +39,8 @@ export function SeriesMobileScreen({
   onOpen,
   onCreate,
   onConfigure,
+  onToggle,
   showOpenBadges,
-  preferencias = [],
 }: SeriesMobileScreenProps) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<SeriesFilter>('todas');
@@ -93,41 +93,12 @@ export function SeriesMobileScreen({
         </AppButton>
       </section>
 
-      {preferencias.length > 0 ? (
-        <section className="stack-sm rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
-          {preferencias.map(row => (
-            <ToggleRow
-              key={row.key}
-              id={`series-mobile-${row.key}`}
-              enabled={row.enabled}
-              onToggle={row.toggle}
-              title={row.title}
-              className="gap-4"
-            >
-              <span className="stack-xs">
-                <Text variant="body" as="span">{row.title}</Text>
-                <Text variant="secondary" as="span">{row.description}</Text>
-              </span>
-            </ToggleRow>
-          ))}
-        </section>
-      ) : null}
-
       {series.length > 0 ? (
         <section className="stack-sm">
           <MobileSearchBar
             value={search}
             onChange={setSearch}
             placeholder="Buscar série ou quadro…"
-          />
-          <SegmentTabs<SerieListaModo>
-            value={modoLista}
-            onChange={setModoLista}
-            ariaLabel="Visualização das séries"
-            options={[
-              { id: 'agrupada', label: 'Agrupada' },
-              { id: 'lista', label: 'Lista' },
-            ]}
           />
           <FilterChips<SeriesFilter>
             ariaLabel="Filtrar séries"
@@ -138,6 +109,16 @@ export function SeriesMobileScreen({
               { id: 'ativas', label: 'Ativas', count: filterCounts.ativas },
               { id: 'inativas', label: 'Inativas', count: filterCounts.inativas },
               ...(showOpenBadges ? [{ id: 'abertas' as const, label: 'Em aberto', count: filterCounts.abertas }] : []),
+            ]}
+          />
+          <SegmentTabs<SerieListaModo>
+            className="ml-auto"
+            value={modoLista}
+            onChange={setModoLista}
+            ariaLabel="Visualização das séries"
+            options={[
+              { id: 'agrupada', label: 'Agrupada' },
+              { id: 'lista', label: 'Lista' },
             ]}
           />
         </section>
@@ -160,7 +141,7 @@ export function SeriesMobileScreen({
           <EmptyState
             compact
             title="Nenhuma série encontrada"
-            description="Ajuste a busca ou o filtro para ver outras séries."
+            description={search.trim() ? `Nada encontrado para “${search.trim()}”.` : 'Nenhuma série corresponde a este filtro.'}
             icon={<Layers className="h-8 w-8" />}
             action={
               <AppButton
@@ -198,8 +179,8 @@ export function SeriesMobileScreen({
                       />
                       {[
                         caminho ? `Quadro de ${caminho}` : null,
-                        serie.frequenciaRecomendada || 'Sob demanda',
-                        formatRoteiroCount(roteiroCount),
+                        serie.frequenciaRecomendada || 'Frequência não definida',
+                        formatEpisodioCount(roteiroCount),
                       ].filter(Boolean).join(' · ')}
                     </Text>
                   }
@@ -207,7 +188,10 @@ export function SeriesMobileScreen({
                     <div className="mt-1 flex items-start">
                       <MoreMenu
                         size="sm"
-                        items={[{ label: 'Editar definições', onClick: () => onConfigure(serie.id) }]}
+                        items={[
+                          { label: serie.ativa ? 'Desativar' : 'Ativar', onClick: () => onToggle(serie) },
+                          { label: 'Editar definições', onClick: () => onConfigure(serie.id) },
+                        ]}
                         triggerClassName="border-transparent bg-transparent"
                       />
                     </div>

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import type { Content } from '../../../lib/database.ts';
 import { agruparEpisodios } from './episodiosAgrupados.ts';
 
 const series = [
@@ -10,10 +11,10 @@ const temporadas = [
   { id: 't1', userId: 'u', serieId: 'branbran', nome: 'Temporada 1', createdAt: '2026-01-01' },
 ];
 
-const contents = [
+const contents: Content[] = [
   { id: 'c1', seriesId: 'comece', temporadaId: 't1', deletedAt: null, title: 'A', status: 'Roteiro', slotType: null, pilarId: null, lookId: null, cenarioId: null, bibliotecaItemId: null, formatoVisual: null, energiaNecessaria: null, funcao: null, funcaoOrigem: null, classificacaoCongeladaEm: null, contaNaGrade: true, publishDate: null, recordingDate: null, link: null, script: null, scriptNotes: [], tags: [], notes: null, referencias: null, createdAt: '', updatedAt: '', userId: 'u', plataformas: [] },
   { id: 'c2', seriesId: 'branbran', temporadaId: null, deletedAt: null, title: 'B', status: 'Roteiro', slotType: null, pilarId: null, lookId: null, cenarioId: null, bibliotecaItemId: null, formatoVisual: null, energiaNecessaria: null, funcao: null, funcaoOrigem: null, classificacaoCongeladaEm: null, contaNaGrade: true, publishDate: null, recordingDate: null, link: null, script: null, scriptNotes: [], tags: [], notes: null, referencias: null, createdAt: '', updatedAt: '', userId: 'u', plataformas: [] },
-] as const;
+];
 
 const grupos = agruparEpisodios({
   serieId: 'branbran',

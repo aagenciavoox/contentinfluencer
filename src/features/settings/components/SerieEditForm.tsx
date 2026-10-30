@@ -1,4 +1,6 @@
+import { SettingsSectionCard } from '../../../components/settings/SettingsSectionCard';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import {
   ChevronDown,
@@ -7,7 +9,6 @@ import {
   Plus,
 } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
-import { Badge } from '../../../components/ui/Badge';
 import { MultiFilterChips } from '../../../components/ui/MultiFilterChips';
 import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { Surface } from '../../../components/ui/Surface';
@@ -22,13 +23,16 @@ import { TemplatesSettingsPage } from '../pages/TemplatesSettingsPage';
 import { cn } from '../../../lib/utils';
 import { useUnsavedChangesRegistration } from '../../../hooks/useUnsavedChangesRegistration';
 import { generateUUID } from '../../../utils/uuid';
+import { EntityIdentity } from '../../../components/settings/EntityIdentity';
 import { EntityColorPicker, entitySwatchInk } from './EntityColorPicker';
 import { isSerieColorTaken } from '../lib/serieColors';
 import { OpenInfoNotice } from '../../editorial/components/OpenInfoNotice';
 import { LegendaBaseField } from '../../editorial/components/legendas/LegendaBaseField';
 import { LegendaVersaoField } from '../../editorial/components/legendas/LegendaVersaoField';
 import { complementoDoRotulo, iconeDaConta, rotuloConta } from '../../contas/lib/contas';
+import { DisclosureButton } from '../../../components/ui/DisclosureButton';
 import { PlatformIcon } from '../../../components/ui/PlatformIcon';
+import { PropertyDatePicker } from '../../../components/ui/PropertyDatePicker';
 import {
   collectFormatoSuggestions,
   ENERGIA_LABELS,
@@ -46,6 +50,7 @@ import type { FuncaoPadraoSerie } from '../../../lib/database';
 import { FUNCAO_DESCRICOES, FUNCAO_LABELS, FUNCOES } from '../../editorial/lib/funcoes';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
+import { lerAbaEdicaoSerie, type AbaEdicaoSerie } from '../lib/serieEditAba';
 
 const SERIE_DEFAULT_COR = '#6366f1';
 
@@ -98,42 +103,6 @@ export type SerieEditChromeState = {
   handleCancel: () => void;
 };
 
-function serieSlugFromName(name: string): string {
-  return name
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '') || 'serie';
-}
-
-function CardHeading({
-  title,
-  description,
-  action,
-  inline = false,
-}: {
-  title: string;
-  description?: string;
-  action?: React.ReactNode;
-  inline?: boolean;
-}) {
-  return (
-    <div className="mb-4 flex items-start justify-between gap-3">
-      <div className={cn('min-w-0', inline ? 'flex flex-wrap items-baseline gap-x-2' : 'stack-sm')}>
-        <Text variant="itemTitle">{title}</Text>
-        {description ? (
-          <Text variant="meta" className="text-[var(--text-secondary)]">
-            {description}
-          </Text>
-        ) : null}
-      </div>
-      {action ? <div className="shrink-0">{action}</div> : null}
-    </div>
-  );
-}
-
 function FieldLabel({
   children,
   required,
@@ -144,7 +113,7 @@ function FieldLabel({
   optional?: boolean;
 }) {
   return (
-    <Text variant="label" className="mb-1.5 block font-medium text-[var(--text-primary)]">
+    <Text variant="label" className="mb-1.5 block text-[var(--text-primary)]">
       {children}
       {required ? <span className="text-[var(--brand-accent-text)]"> *</span> : null}
       {optional ? <span className="font-normal text-[var(--text-tertiary)]"> · opcional</span> : null}
@@ -257,7 +226,7 @@ function SuggestField({
         type="button"
         aria-label="Abrir sugestões"
         onClick={() => setOpen(current => !current)}
-        className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-[var(--radius-input)] p-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
       >
         <ChevronDown className="h-4 w-4" />
       </button>
@@ -277,7 +246,7 @@ function SuggestField({
                   onChange(option);
                   setOpen(false);
                 }}
-                className="flex w-full items-center px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                className="flex w-full items-center px-3 py-2 text-left t-body text-[var(--text-primary)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
               >
                 {option}
               </button>
@@ -294,9 +263,9 @@ function SuggestField({
 }
 
 const inputClass =
-  'ds-input w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
+  'ds-input w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-3 py-2 t-body text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
-type AbaCadastro = 'sobre' | 'roteiros' | 'publicacao';
+type AbaCadastro = AbaEdicaoSerie;
 
 export function SerieEditForm({
   initial,
@@ -328,10 +297,20 @@ export function SerieEditForm({
 }) {
   const { state, dispatch } = useAppContext();
   const { user } = useAuth();
-  const [aba, setAba] = useState<AbaCadastro>('sobre');
+  const [searchParams] = useSearchParams();
+  const abaNaUrl = lerAbaEdicaoSerie(searchParams.get('aba'));
+  const [aba, setAba] = useState<AbaCadastro>(abaNaUrl);
+
+  useEffect(() => {
+    setAba(abaNaUrl);
+  }, [abaNaUrl]);
   const [mostrarAgrupar, setMostrarAgrupar] = useState(Boolean(initial.parentId));
   const [mostrarTemporadas, setMostrarTemporadas] = useState(Boolean(initial.usaTemporadas));
   const [novaTemporadaNome, setNovaTemporadaNome] = useState('');
+  const referenciaId = state.editorial.redeReferenciaId;
+  const [contaAberta, setContaAberta] = useState<string | null>(
+    contas.some(conta => conta.id === referenciaId) ? referenciaId : contas[0]?.id ?? null,
+  );
   const initialSnapshot = useRef({
     form: {
       id: initial.id || generateUUID(),
@@ -500,8 +479,6 @@ export function SerieEditForm({
     }
   };
 
-  const slug = serieSlugFromName(form.name || 'serie');
-  const coverPreview = /^https?:\/\//i.test(form.capaUrl.trim()) ? form.capaUrl.trim() : '';
   const openTemplateCreate = useRef<(() => void) | null>(null);
   const selectedPilar = pilares.find(item => item.id === form.pilarPrincipalId) ?? null;
   const pilarChoices = pilares.filter(item => item.ativo || item.id === form.pilarPrincipalId);
@@ -594,52 +571,34 @@ export function SerieEditForm({
         />
       ) : null}
       <Surface variant="info" padding="md" className="mb-3 w-full">
-        <div className="flex w-full items-center gap-3">
-          {coverPreview ? (
-            <img
-              src={coverPreview}
-              alt=""
-              className="h-10 w-10 shrink-0 rounded-full object-cover"
-            />
-          ) : (
+        <EntityIdentity
+          name={form.name.trim() || 'Nova série'}
+          active={form.ativa}
+          inactiveLabel="Inativa"
+          icon={(
             <span
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
-              style={{backgroundColor: form.cor}}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+              style={{ backgroundColor: form.cor }}
             >
-              <Layers className="h-5 w-5" strokeWidth={1.75} style={{ color: entitySwatchInk(form.cor) }} />
+              <Layers className="h-4 w-4" strokeWidth={1.75} style={{ color: entitySwatchInk(form.cor) }} />
             </span>
           )}
-          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-            <Text variant="itemTitle" className="min-w-0 break-words">
-              {form.name.trim() || 'Nova série'}
-            </Text>
-            <Badge
-              className={form.ativa
-                ? 'border-transparent bg-[color-mix(in_srgb,var(--accent-green)_16%,transparent)] text-[var(--accent-green)]'
-                : undefined}
-            >
-              {form.ativa ? 'Ativa' : 'Inativa'}
-            </Badge>
-            <Text variant="meta" className="text-[var(--text-tertiary)]">
-              ID: {slug}
-            </Text>
-          </div>
-        </div>
+        />
       </Surface>
 
       <div className="grid w-full grid-cols-1 items-start gap-3 lg:grid-cols-[minmax(0,1.7fr)_minmax(280px,0.95fr)]">
         <div className={cn('flex min-w-0 flex-col gap-3', aba !== 'sobre' && aba !== 'roteiros' && 'hidden')}>
-          <Surface variant="outlined" padding="md" className={aba !== 'sobre' ? 'hidden' : undefined}>
-            <CardHeading
+          <SettingsSectionCard padding="md" className={aba !== 'sobre' ? 'hidden' : undefined}
               title="Identidade"
               description="Como esta série aparece na sua central."
-            />
+            >
 
             <div className="stack-lg">
               <div>
                 <FieldLabel required>Nome</FieldLabel>
                 <input
                   type="text"
+                  aria-label="Nome da série"
                   value={form.name}
                   onChange={event => setForm(previous => ({...previous, name: event.target.value}))}
                   placeholder="Ex.: Destrinchando"
@@ -651,6 +610,7 @@ export function SerieEditForm({
                 <FieldLabel>Elemento fixo</FieldLabel>
                 <input
                   type="text"
+                  aria-label="Elemento fixo"
                   value={form.bordao}
                   onChange={event => setForm(previous => ({...previous, bordao: event.target.value}))}
                   placeholder="Ex.: vamos destrinchar isso"
@@ -663,6 +623,7 @@ export function SerieEditForm({
                   <FieldLabel>Cor da série</FieldLabel>
                   <EntityColorPicker
                     variant="inline"
+                    caption="name"
                     value={form.cor}
                     unavailableColors={takenColors}
                     onChange={cor => setForm(previous => ({...previous, cor}))}
@@ -681,14 +642,13 @@ export function SerieEditForm({
                 </div>
               </div>
             </div>
-          </Surface>
+          </SettingsSectionCard>
 
           {aba === 'sobre' ? (
-            <Surface variant="outlined" padding="md">
-              <CardHeading
-                title="Organização opcional"
-                description="Agrupar e temporadas ficam recolhidos enquanto vazios."
-              />
+            <SettingsSectionCard padding="md" 
+              title="Organização opcional"
+              description="Agrupar e temporadas ficam recolhidos enquanto vazios."
+            >
               <div className="stack-md">
                 {!mostrarAgrupar && !form.parentId ? (
                   <AppButton variant="secondary" size="sm" onClick={() => setMostrarAgrupar(true)}>
@@ -715,9 +675,6 @@ export function SerieEditForm({
                         setForm(previous => ({
                           ...previous,
                           parentId: next,
-                          ...(next && !previous.frequenciaRecomendada.trim()
-                            ? { frequenciaRecomendada: 'Sob demanda', frequenciaVezes: null, frequenciaUnidade: '' }
-                            : {}),
                         }));
                       }}
                       options={[
@@ -739,7 +696,7 @@ export function SerieEditForm({
                   </AppButton>
                 ) : (
                   <div className="stack-sm">
-                    <label className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
+                    <label className="flex items-start gap-2 t-label text-[var(--text-primary)]">
                       <input
                         type="checkbox"
                         className="mt-1"
@@ -750,7 +707,7 @@ export function SerieEditForm({
                         }))}
                       />
                       <span>
-                        <span className="font-medium">Usar temporadas neste registro</span>
+                        <Text variant="bodyStrong" as="span" className="text-inherit">Usar temporadas neste registro</Text>
                         <span className="block text-[var(--text-secondary)]">
                           Este fica o escopo das temporadas da subárvore. Desligar preserva as linhas já criadas.
                         </span>
@@ -763,7 +720,7 @@ export function SerieEditForm({
                         </Text>
                         <ul className="stack-xs">
                           {temporadasDoEscopo(form.id, state.temporadas).map(temp => (
-                            <li key={temp.id} className="flex items-center justify-between gap-2 text-sm">
+                            <li key={temp.id} className="flex items-center justify-between gap-2 t-body">
                               <span>{temp.nome}</span>
                               <AppButton
                                 variant="ghost"
@@ -780,7 +737,7 @@ export function SerieEditForm({
                             value={novaTemporadaNome}
                             onChange={event => setNovaTemporadaNome(event.target.value)}
                             placeholder="Nova temporada…"
-                            className="min-w-[12rem] flex-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-sm"
+                            className="min-w-[12rem] flex-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 t-body"
                           />
                           <AppButton
                             variant="secondary"
@@ -814,14 +771,13 @@ export function SerieEditForm({
                   </div>
                 )}
               </div>
-            </Surface>
+            </SettingsSectionCard>
           ) : null}
 
-          <Surface variant="outlined" padding="md" className={aba !== 'sobre' ? 'hidden' : undefined}>
-            <CardHeading
+          <SettingsSectionCard padding="md" className={aba !== 'sobre' ? 'hidden' : undefined}
               title="Estratégia"
               description="Padrões usados ao criar conteúdos desta série."
-            />
+            >
 
             <div className="stack-lg">
               <div className="grid-form">
@@ -867,7 +823,8 @@ export function SerieEditForm({
                   <SelectField
                     block
                     ariaLabel="Frequência de publicação"
-                    value={form.frequenciaRecomendada}
+                    value={form.frequenciaRecomendada.trim()
+                      || (form.frequenciaVezes == null && !form.frequenciaUnidade.trim() ? 'Sob demanda' : '')}
                     onChange={frequenciaRecomendada => {
                       setForm(previous => ({
                         ...previous,
@@ -877,11 +834,11 @@ export function SerieEditForm({
                           : {}),
                       }));
                     }}
-                    options={[{ value: '', label: 'Escolher…' }, ...frequenciaOpcoes.map(item => ({ value: item, label: item }))]}
+                    options={frequenciaOpcoes.map(item => ({ value: item, label: item }))}
                   />
                   {selecionouSobDemanda && frequenciaLida.unidade === 'sob-demanda' ? (
                     <Text variant="meta" className="text-[var(--text-tertiary)]">
-                      Quando houver pauta
+                      Quando houver roteiro
                     </Text>
                   ) : null}
                   {mostrarFrequenciaDetalhe ? (
@@ -924,15 +881,13 @@ export function SerieEditForm({
                   ) : null}
                   <div>
                     <FieldLabel>A partir de</FieldLabel>
-                    <input
-                      type="date"
-                      aria-label="A partir de"
-                      value={form.frequenciaAPartirDe}
-                      onChange={event => setForm(previous => ({
+                    <PropertyDatePicker
+                      variant="field"
+                      value={form.frequenciaAPartirDe || null}
+                      onChange={value => setForm(previous => ({
                         ...previous,
-                        frequenciaAPartirDe: event.target.value,
+                        frequenciaAPartirDe: value ?? '',
                       }))}
-                      className={inputClass}
                     />
                   </div>
                   <Text variant="meta" className="text-[var(--text-secondary)]">
@@ -940,7 +895,7 @@ export function SerieEditForm({
                   </Text>
                   <Text variant="body">
                     {expectativaPeriodo == null
-                      ? 'Quando houver pauta'
+                      ? 'Quando houver roteiro'
                       : `Neste período, a frequência pede ${expectativaPeriodo}.`}
                   </Text>
                 </div>
@@ -1010,7 +965,7 @@ export function SerieEditForm({
                           energiaPadrao: selected ? null : value,
                         }))}
                         className={cn(
-                          'rounded-[var(--radius-input)] px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                          'rounded-[var(--radius-input)] px-3 py-2 t-body-strong focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
                           // Seleção é preta, como em todo o app; o rosa fica só para a ação principal.
                           selected
                             ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
@@ -1024,14 +979,12 @@ export function SerieEditForm({
                 </div>
               </div>
             </div>
-          </Surface>
+          </SettingsSectionCard>
 
-          <Surface variant="outlined" padding="md">
-            <CardHeading
+          <SettingsSectionCard padding="md" 
               title="Estrutura do roteiro"
               description="Modelo base para os conteúdos da série."
-              inline
-            />
+            >
             <textarea
               value={form.estruturaRoteiro}
               onChange={event => setForm(previous => ({...previous, estruturaRoteiro: event.target.value}))}
@@ -1039,14 +992,12 @@ export function SerieEditForm({
               rows={7}
               className={cn(inputClass, 'min-h-[140px] resize-y leading-relaxed')}
             />
-          </Surface>
+          </SettingsSectionCard>
 
-          <Surface variant="outlined" padding="md">
-            <CardHeading
+          <SettingsSectionCard padding="md" 
               title="Templates de roteiro"
               description="Templates desta série para começar um roteiro."
-              inline
-              action={
+              actions={
                 <AppButton
                   variant="secondary"
                   size="sm"
@@ -1057,7 +1008,7 @@ export function SerieEditForm({
                   Adicionar template
                 </AppButton>
               }
-            />
+            >
             {initial.id ? (
               <TemplatesSettingsPage
                 seriesId={initial.id}
@@ -1073,101 +1024,99 @@ export function SerieEditForm({
                 Salve a série para cadastrar templates de roteiro.
               </Text>
             )}
-          </Surface>
+          </SettingsSectionCard>
         </div>
 
         <aside className={cn('flex min-w-0 flex-col gap-3 lg:sticky lg:top-24 lg:self-start', aba === 'roteiros' && 'hidden')}>
-          <Surface variant="outlined" padding="sm" className={cn('stack-sm', aba !== 'publicacao' && 'hidden')}>
-            <CardHeading
-              title="Legenda da série"
-              description="Orienta os roteiros novos. Ao salvar, só atualiza roteiros que ainda seguem este texto e não foram publicados."
-            />
+          <SettingsSectionCard padding="md" className={cn('stack-sm', aba !== 'publicacao' && 'hidden')}
+              title="Contas"
+              description="Roteiros novos usam a legenda-base, salvo quando a conta tem a própria."
+            >
             <LegendaBaseField
               id={`serie-legenda-base-${form.id}`}
               label="Legenda-base da série"
               compact
               value={form.legendaBase}
-              descricao="Versões por conta ficam abaixo. Adaptações feitas no roteiro e textos já publicados não são reescritos."
               placeholder="Texto de origem para os roteiros novos desta série."
               onChange={legendaBase => setForm(previous => ({ ...previous, legendaBase }))}
             />
             {contas.length === 0 ? (
-              <Text variant="meta">Cadastre uma conta para criar uma versão por plataforma.</Text>
+              <Text variant="meta">Cadastre uma conta para definir legenda e hashtags.</Text>
             ) : (
               contas.map(conta => {
                 const versao = form.plataformas.find(item => item.platformId === conta.id)?.legenda ?? '';
+                const hashtags = form.plataformas.find(item => item.platformId === conta.id)?.hashtags || '';
                 const propria = versao.trim().length > 0;
+                const aberta = contaAberta === conta.id;
+                const painelId = `conta-serie-${conta.id}`;
                 return (
-                  <LegendaVersaoField
-                    key={conta.id}
-                    id={`serie-legenda-${conta.id}`}
-                    icone={iconeDaConta(conta)}
-                    rotulo={rotuloConta(conta)}
-                    detalhe={complementoDoRotulo(conta)}
-                    titulo="Versão desta conta"
-                    estado={propria ? 'propria' : 'base'}
-                    texto={propria ? versao : form.legendaBase}
-                    baseVazia={!form.legendaBase.trim()}
-                    nomeDaBase="legenda-base da série"
-                    alcanceDaBase="Esta conta voltará a acompanhar a legenda-base da série. Roteiros novos usam esse texto. Roteiros já publicados e adaptações manuais não mudam ao salvar."
-                    compact
-                    onCriarPropria={() => updatePlatformLegenda(conta.id, form.legendaBase)}
-                    onEditar={valor => updatePlatformLegenda(conta.id, valor)}
-                    onVoltarParaBase={() => updatePlatformLegenda(conta.id, null)}
-                  />
+                  <div key={conta.id} className="rounded-[var(--radius-input)] border border-[var(--border-color)]">
+                    <DisclosureButton
+                      open={aberta}
+                      onToggle={() => setContaAberta(atual => atual === conta.id ? null : conta.id)}
+                      controls={painelId}
+                      trailing={(
+                        <Text variant="meta" as="span" className="shrink-0 whitespace-nowrap text-[var(--text-secondary)]">
+                          {propria ? 'Versão própria' : 'Usando legenda-base'}
+                        </Text>
+                      )}
+                    >
+                      <PlatformIcon platform={iconeDaConta(conta)} className="h-4 w-4 shrink-0" />
+                      <Text variant="body" as="span" className="min-w-0 truncate">
+                        {rotuloConta(conta)}
+                        {complementoDoRotulo(conta) ? (
+                          <span className="text-[var(--text-secondary)]">{` ${complementoDoRotulo(conta)}`}</span>
+                        ) : null}
+                      </Text>
+                    </DisclosureButton>
+                    {aberta ? (
+                      <div id={painelId} className="stack-sm px-2 pb-3">
+                        <LegendaVersaoField
+                          id={`serie-legenda-${conta.id}`}
+                          icone={iconeDaConta(conta)}
+                          rotulo={rotuloConta(conta)}
+                          titulo="Legenda desta conta"
+                          estado={propria ? 'propria' : 'base'}
+                          texto={propria ? versao : form.legendaBase}
+                          baseVazia={!form.legendaBase.trim()}
+                          nomeDaBase="legenda-base da série"
+                          alcanceDaBase="A conta volta a usar a legenda-base nos roteiros novos."
+                          compact
+                          semTitulo
+                          onCriarPropria={() => updatePlatformLegenda(conta.id, form.legendaBase)}
+                          onEditar={valor => updatePlatformLegenda(conta.id, valor)}
+                          onVoltarParaBase={() => updatePlatformLegenda(conta.id, null)}
+                        />
+                        <div className="stack-xs">
+                          <div className="flex items-center justify-between gap-2">
+                            <Text variant="label" as="span">Hashtags</Text>
+                            <AppButton
+                              variant="secondary"
+                              size="xs"
+                              onClick={() => void copyHashtags(hashtags)}
+                              disabled={!hashtags.trim()}
+                              leftIcon={<Copy className="h-3.5 w-3.5" />}
+                              aria-label={`Copiar hashtags de ${rotuloConta(conta)}`}
+                            >
+                              Copiar
+                            </AppButton>
+                          </div>
+                          <textarea
+                            aria-label="Hashtags desta conta"
+                            value={hashtags}
+                            onChange={event => updatePlatformHashtags(conta.id, event.target.value)}
+                            placeholder="#hashtag1 #hashtag2"
+                            rows={2}
+                            className={cn(inputClass, 'min-h-[64px] resize-y leading-relaxed')}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
                 );
               })
             )}
-          </Surface>
-
-          <Surface variant="outlined" padding="md">
-            <CardHeading
-              title="Hashtags por conta"
-              description="Separe as hashtags com espaço."
-            />
-
-            {contas.length === 0 ? (
-              <Text variant="meta" className="text-[var(--text-tertiary)]">
-                Nenhuma conta ativa configurada.
-              </Text>
-            ) : (
-              <div className="stack-md">
-                {contas.map(conta => {
-                  const value = form.plataformas.find(item => item.platformId === conta.id)?.hashtags || '';
-                  return (
-                    <div key={conta.id}>
-                      <div className="mb-1.5 flex items-center justify-between gap-2">
-                        <div className="flex min-w-0 items-center gap-2">
-                          <PlatformIcon platform={iconeDaConta(conta)} className="h-4 w-4 shrink-0" />
-                          <Text variant="meta" className="font-medium text-[var(--text-primary)]">
-                            {rotuloConta(conta)}
-                          </Text>
-                        </div>
-                        <AppButton
-                          variant="secondary"
-                          size="xs"
-                          onClick={() => void copyHashtags(value)}
-                          disabled={!value.trim()}
-                          leftIcon={<Copy className="h-3.5 w-3.5" />}
-                          className="pointer-coarse:h-11"
-                          aria-label={`Copiar hashtags de ${rotuloConta(conta)}`}
-                        >
-                          Copiar
-                        </AppButton>
-                      </div>
-                      <textarea
-                        value={value}
-                        onChange={event => updatePlatformHashtags(conta.id, event.target.value)}
-                        placeholder="#hashtag1 #hashtag2"
-                        rows={2}
-                        className={cn(inputClass, 'min-h-[64px] resize-y leading-relaxed')}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </Surface>
+          </SettingsSectionCard>
 
           <Surface variant="outlined" padding="md" className={aba !== 'sobre' ? 'hidden' : undefined}>
             <SerieProductionMetricsPanel
@@ -1203,9 +1152,6 @@ export function SerieEditForm({
           setForm(previous => ({
             ...previous,
             parentId: next,
-            ...(next && !previous.frequenciaRecomendada.trim()
-              ? { frequenciaRecomendada: 'Sob demanda', frequenciaVezes: null, frequenciaUnidade: '' }
-              : {}),
           }));
           setConfirmParent(null);
         }}

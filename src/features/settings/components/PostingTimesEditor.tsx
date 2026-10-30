@@ -407,10 +407,10 @@ function DayRow({day, fimDeSemana, specificTimes, fallbackTimes, editando, onPen
       <Text variant="body" as="span" className="col-span-2 sm:col-span-1">{nome}</Text>
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         {specificTimes.map(time => (
-          <span
+          <Text variant="body" as="span"
             key={time}
             className={cn(
-              'inline-flex h-9 items-center gap-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] t-body font-semibold tabular-nums text-[var(--text-primary)]',
+              'inline-flex h-9 items-center gap-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] tabular-nums text-[var(--text-primary)]',
               editando ? 'pl-3' : 'px-3',
             )}
           >
@@ -425,18 +425,18 @@ function DayRow({day, fimDeSemana, specificTimes, fallbackTimes, editando, onPen
                 <X className="h-3.5 w-3.5" aria-hidden />
               </button>
             ) : null}
-          </span>
+          </Text>
         ))}
         {specificTimes.length === 0 && fallbackTimes.map(time => (
-          <span
+          <Text variant="body" as="span"
             key={time}
-            className="inline-flex h-9 items-center gap-1.5 rounded-[var(--radius-input)] border border-dashed border-[var(--border-strong)] px-3 t-body tabular-nums text-[var(--text-secondary)]"
+            className="inline-flex h-9 items-center gap-1.5 rounded-[var(--radius-input)] border border-dashed border-[var(--border-strong)] px-3 tabular-nums text-[var(--text-secondary)]"
             title="Do padrão geral"
           >
             {time}
             <Globe className="h-3.5 w-3.5" aria-hidden />
             <span className="sr-only">(padrão geral)</span>
-          </span>
+          </Text>
         ))}
         {!editando && specificTimes.length === 0 && fallbackTimes.length === 0 ? (
           <Text variant="secondary" as="span" className="text-[var(--text-secondary)]">Nenhum horário</Text>

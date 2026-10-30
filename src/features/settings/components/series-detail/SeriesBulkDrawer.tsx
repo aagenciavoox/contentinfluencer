@@ -8,7 +8,8 @@ import { OverlayFooter } from '../../../../components/overlays/OverlayFooter';
 import { OverlayHeader } from '../../../../components/overlays/OverlayHeader';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { Badge } from '../../../../components/ui/Badge';
-import { SegmentTabs } from '../../../../components/ui/SegmentTabs';
+import { ChoiceChips } from '../../../../components/ui/ChoiceChips';
+import { FormField } from '../../../../components/ui/FormField';
 import { SelectField } from '../../../../components/ui/SelectField';
 import { Surface } from '../../../../components/ui/Surface';
 import { Text } from '../../../../components/ui/Text';
@@ -246,34 +247,35 @@ export function SeriesBulkDrawer({
               <Surface key={bloco.id} variant="outlined" padding="md" className="stack-md">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <span className="flex min-w-0 items-center gap-2">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-sm font-medium text-[var(--text-primary)]">
+                    <Text variant="bodyStrong" as="span" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-[var(--text-primary)]">
                       {index + 1}
-                    </span>
+                    </Text>
                     <Text variant="itemTitle" as="span">Episódio {index + 1}</Text>
                     {bloco.criado ? <Badge variant="neutral">Criado</Badge> : null}
                   </span>
-                  <span className="flex items-center gap-2">
-                    <SegmentTabs<ModoBloco>
-                      value={bloco.modo}
-                      onChange={modo => alterar(bloco.id, { modo })}
-                      ariaLabel={`Tipo do episódio ${index + 1}`}
-                      options={[
-                        { id: 'roteiro', label: 'Roteiro' },
-                        { id: 'ideia', label: 'Ideia' },
-                      ]}
-                    />
-                    <AppButton
-                      variant="secondary"
-                      size="sm"
-                      iconOnly
-                      aria-label={`Remover episódio ${index + 1}`}
-                      onClick={() => remover(bloco.id)}
-                      disabled={busy}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </AppButton>
-                  </span>
+                  <AppButton
+                    variant="secondary"
+                    size="sm"
+                    iconOnly
+                    aria-label={`Remover episódio ${index + 1}`}
+                    onClick={() => remover(bloco.id)}
+                    disabled={busy}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </AppButton>
                 </div>
+
+                <ChoiceChips<ModoBloco>
+                  label={`Tipo do episódio ${index + 1}`}
+                  value={bloco.modo}
+                  onChange={modo => {
+                    if (modo) alterar(bloco.id, { modo });
+                  }}
+                  options={[
+                    { value: 'roteiro', label: 'Roteiro' },
+                    { value: 'ideia', label: 'Ideia' },
+                  ]}
+                />
 
                 {mostraQuadro || mostraTemporada ? (
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -306,15 +308,15 @@ export function SeriesBulkDrawer({
                   </div>
                 ) : null}
 
-                <label className="stack-xs">
-                  <Text variant="label" as="span">Título do episódio</Text>
+                <FormField label="Título do episódio" htmlFor={`titulo-${bloco.id}`}>
                   <input
+                    id={`titulo-${bloco.id}`}
                     value={bloco.titulo}
                     disabled={busy || bloco.criado}
                     onChange={event => alterar(bloco.id, { titulo: event.target.value })}
-                    className="ds-input w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2 text-sm"
+                    className="ds-input w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-3 py-2 t-body text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                   />
-                </label>
+                </FormField>
 
                 <div className="stack-xs">
                   <Text variant="label" as="p">{bloco.modo === 'ideia' ? 'Ideia' : 'Roteiro completo'}</Text>
