@@ -19,8 +19,11 @@ interface SettingsGridCardProps {
   imageUrl?: string | null;
   active?: boolean;
   onToggle?: () => void;
-  /** Só vale sem `onOpen`: com `onOpen`, abrir o card já edita, e "Editar" repetiria a ação. */
+  /** Abre a edição pelo menu, mesmo quando o card também abre. */
   onEdit?: () => void;
+  editLabel?: string;
+  /** Selo de inativo. Série usa "Inativa"; pilar, "Inativo". */
+  inactiveLabel?: string;
   onDelete?: () => void;
   /** O card inteiro abre o destino principal. */
   onOpen?: () => void;
@@ -36,17 +39,19 @@ function buildMoreItems({
   active,
   onToggle,
   onEdit,
+  editLabel,
   onDelete,
   includeToggle,
 }: {
   active: boolean;
   onToggle?: () => void;
   onEdit?: () => void;
+  editLabel: string;
   onDelete?: () => void;
   includeToggle: boolean;
 }): MoreMenuItem[] {
   const items: MoreMenuItem[] = [];
-  if (onEdit) items.push({ id: 'edit', label: 'Editar', onClick: onEdit });
+  if (onEdit) items.push({ id: 'edit', label: editLabel, onClick: onEdit });
   if (onToggle && includeToggle) {
     items.push({
       id: 'toggle',
@@ -101,6 +106,8 @@ export function SettingsGridCard({
   active = true,
   onToggle,
   onEdit,
+  editLabel = 'Editar',
+  inactiveLabel = 'Inativa',
   onDelete,
   onOpen,
   dimmed = false,
@@ -115,7 +122,8 @@ export function SettingsGridCard({
   const moreItems = buildMoreItems({
     active,
     onToggle,
-    onEdit: onOpen ? undefined : onEdit,
+    onEdit,
+    editLabel,
     onDelete,
     includeToggle: !showSwitch,
   });
@@ -124,7 +132,7 @@ export function SettingsGridCard({
   const cornerMenu = compact && moreItems.length > 0;
   // Ordem de leitura: nome (com a cor) primeiro, descrição, e os números no rodapé.
   // "Ativa" não vira selo: só o estado fora do normal aparece.
-  const statusBadge = compact && !active ? <Badge variant="neutral">Inativa</Badge> : null;
+  const statusBadge = compact && !active ? <Badge variant="neutral">{inactiveLabel}</Badge> : null;
   const colorDot = color ? (
     <span
       className="entity-color-dot h-2.5 w-2.5 shrink-0 rounded-full"
@@ -153,7 +161,7 @@ export function SettingsGridCard({
       ) : null}
 
       {cornerMenu ? (
-        <div className="absolute right-2 top-2 z-[2]">
+        <div className="absolute right-2 top-2 z-[2]" onClick={event => event.stopPropagation()}>
           <MoreMenu size="sm" items={moreItems} label={`Mais opções de ${title}`} />
         </div>
       ) : null}
@@ -166,9 +174,9 @@ export function SettingsGridCard({
               <>
                 <label
                   htmlFor={switchId}
-                  className="cursor-pointer text-xs font-medium text-[var(--text-secondary)]"
+                  className="cursor-pointer t-label text-[var(--text-secondary)]"
                 >
-                  {active ? 'Ativo' : 'Inativo'}
+                  {active ? 'Ativo' : inactiveLabel}
                 </label>
                 <ToggleSwitch
                   id={switchId}
@@ -180,7 +188,11 @@ export function SettingsGridCard({
                 />
               </>
             ) : null}
-            {moreItems.length > 0 ? <MoreMenu size="sm" items={moreItems} label={`Mais opções de ${title}`} /> : null}
+            {moreItems.length > 0 ? (
+              <span onClick={event => event.stopPropagation()}>
+                <MoreMenu size="sm" items={moreItems} label={`Mais opções de ${title}`} />
+              </span>
+            ) : null}
           </div>
         </div>
       ) : null}

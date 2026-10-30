@@ -96,5 +96,5 @@ export function notifySaveFeedback(
 export function getErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim()) return error.message;
   if (typeof error === 'string' && error.trim()) return error;
-  return 'Não foi possível salvar agora. Verifique sua conexão e tente novamente.';
+  return 'Não foi possível salvar agora. Verifique sua conexão e tente de novo.';
 }

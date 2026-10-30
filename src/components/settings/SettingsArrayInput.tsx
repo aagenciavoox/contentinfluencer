@@ -1,3 +1,4 @@
+import { Text } from '../ui/Text';
 import React, { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -32,7 +33,7 @@ export function SettingsArrayInput({
   return (
     <div className="stack-lg">
       <div className="stack-sm">
-        <p className="t-label text-[var(--text-tertiary)]">{label}</p>
+        <Text variant="label" as="p" className="text-[var(--text-tertiary)]">{label}</Text>
         <div className="flex items-center gap-2">
           <input
             type="text"
@@ -41,13 +42,13 @@ export function SettingsArrayInput({
             onKeyDown={e => e.key === 'Enter' && handleAdd()}
             placeholder={placeholder}
             aria-label={label}
-            className="flex-1 rounded-xl border-none bg-[var(--bg-hover)] px-4 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:ring-1 focus:ring-[var(--border-strong)]"
+            className="flex-1 rounded-[var(--radius-card)] border-none bg-[var(--bg-hover)] px-4 py-2.5 t-body text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:ring-1 focus:ring-[var(--border-strong)]"
           />
           <button
             type="button"
             onClick={handleAdd}
             aria-label="Adicionar item"
-            className="inline-flex h-10 w-10 min-h-10 min-w-10 items-center justify-center rounded-xl bg-[var(--bg-hover)] transition-colors hover:bg-[var(--bg-hover-strong)]"
+            className="inline-flex h-10 w-10 min-h-10 min-w-10 items-center justify-center rounded-[var(--radius-card)] bg-[var(--bg-hover)] transition-colors hover:bg-[var(--bg-hover-strong)]"
           >
             <Plus className="h-4 w-4 text-[var(--text-tertiary)]" />
           </button>
@@ -56,8 +57,8 @@ export function SettingsArrayInput({
 
       <ul className="stack-sm">
         {items.map((item, index) => (
-          <li key={index} className={cn("group flex items-start justify-between gap-3 rounded-xl border border-transparent p-1 transition-all hover:bg-[var(--bg-hover)]/30", itemClassName)}>
-            <div className="flex items-start gap-3 text-sm text-[var(--text-primary)]">
+          <li key={index} className={cn("group flex items-start justify-between gap-3 rounded-[var(--radius-card)] border border-transparent p-1 transition-all hover:bg-[var(--bg-hover)]/30", itemClassName)}>
+            <div className="flex items-start gap-3 t-body text-[var(--text-primary)]">
               <div
                 className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
                 style={{ backgroundColor: bulletColor }}
@@ -75,9 +76,9 @@ export function SettingsArrayInput({
           </li>
         ))}
         {items.length === 0 && (
-          <p className="py-2 text-center text-xs italic text-[var(--text-tertiary)]">
+          <Text variant="meta" as="p" className="py-2 text-center italic text-[var(--text-tertiary)]">
             Nenhum item adicionado.
-          </p>
+          </Text>
         )}
       </ul>
     </div>

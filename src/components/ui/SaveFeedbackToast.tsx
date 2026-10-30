@@ -1,3 +1,4 @@
+import { Text } from './Text';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
@@ -50,15 +51,15 @@ export function SaveFeedbackToast() {
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-[var(--danger)]" />
         )}
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold">{feedback.message}</p>
+          <Text variant="itemTitle" as="p" className="text-inherit">{feedback.message}</Text>
           {feedback.detail ? (
-            <p className="mt-1 text-xs font-semibold opacity-80">{feedback.detail}</p>
+            <Text variant="label" as="p" className="mt-1 opacity-80 text-inherit">{feedback.detail}</Text>
           ) : null}
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {feedback.href ? (
               <Link
                 to={feedback.href}
-                className="inline-block text-xs font-semibold underline underline-offset-2 opacity-90 hover:opacity-100"
+                className="inline-block t-label underline underline-offset-2 opacity-90 hover:opacity-100"
               >
                 {feedback.actionLabel ?? 'Abrir'}
               </Link>
