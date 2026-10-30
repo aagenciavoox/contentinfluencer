@@ -71,7 +71,8 @@ export function PlanejamentoWeekGrid({
           </div>
         ))}
       </div>
-      <div role="row" className="grid grid-cols-7 items-start">
+      {/* Sem items-start: as colunas esticam até o dia mais cheio e as linhas da grade vão até o fim. */}
+      <div role="row" className="grid grid-cols-7">
         {days.map(day => {
           const key = dateKey(day);
           const dayPostIts = byDate.get(key) ?? [];
@@ -81,7 +82,8 @@ export function PlanejamentoWeekGrid({
               key={key}
               role="gridcell"
               className={cn(
-                'min-h-[8rem] border-r border-[var(--border-color)] p-2 last:border-r-0',
+                // Altura da tela que sobra abaixo da barra: a semana vira um quadro, não uma faixa baixa.
+                '@container min-h-[max(16rem,calc(100vh-25rem))] min-w-0 border-r border-[var(--border-color)] p-1.5 last:border-r-0',
                 dragOverDay === key && 'bg-[color-mix(in_srgb,var(--accent-orange)_12%,transparent)]',
               )}
               onDragOver={event => {
@@ -100,11 +102,14 @@ export function PlanejamentoWeekGrid({
                 <AppButton
                   variant="ghost"
                   size="xs"
-                  className="mt-0.5 justify-start text-[var(--text-secondary)]"
+                  className="mt-0.5 justify-start px-2 text-[var(--text-secondary)]"
                   leftIcon={<Plus className="h-3.5 w-3.5" />}
+                  aria-label={`Adicionar pauta em ${weekdayLabel(day).toLowerCase()}, ${format(day, 'd')}`}
                   onClick={() => onAddPauta(key)}
                 >
-                  Adicionar pauta
+                  {/* Coluna estreita: "Adicionar pauta" virava "+ Adici…". */}
+                  <span className="@[9rem]:hidden">Pauta</span>
+                  <span className="hidden @[9rem]:inline">Adicionar pauta</span>
                 </AppButton>
               </div>
             </div>

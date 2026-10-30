@@ -2,7 +2,7 @@ import {useEffect, useMemo, useRef, useState, type DragEvent} from 'react';
 import {useNavigate, useSearchParams} from 'react-router-dom';
 import {format} from 'date-fns';
 import {ptBR} from 'date-fns/locale';
-import {CalendarDays, ChevronRight, LayoutGrid, Pencil, Plus, StickyNote, Trash2} from 'lucide-react';
+import {CalendarDays, ChevronDown, ChevronRight, LayoutGrid, Pencil, Plus, StickyNote, Trash2} from 'lucide-react';
 import {
   calendarEntryPillStyle,
   CalendarEventPill,
@@ -54,7 +54,7 @@ import {publicacoesPorDia, type PublicacaoNoDia} from '../lib/publicacoesDoMes';
 import {PeriodoPanel} from '../../editorial/components/plano/PeriodoPanel';
 import {periodoInicial, type PeriodoSelecionado} from '../../editorial/components/plano/PeriodoEditorialControl';
 import {lerPeriodoSalvo} from '../../editorial/lib/periodoEditorial';
-import {DisclosureButton} from '../../../components/ui/DisclosureButton';
+import {SelectField} from '../../../components/ui/SelectField';
 import {
   canPullContent,
   cancelPostItEdit,
@@ -297,11 +297,17 @@ export function PlanejamentoPage() {
     );
   };
 
-  const renderPublicacao = (publicacao: PublicacaoNoDia) => {
+  /**
+   * Semana: pílula aberta (título inteiro). Mês: compacta, com o título na segunda linha;
+   * numa linha só, ícones e hora tomavam a célula e o título sumia.
+   */
+  const renderPublicacao = (publicacao: PublicacaoNoDia, variant: 'compact' | 'expanded' = 'compact') => {
     const posted = publicacao.estado === 'postado';
     return (
       <CalendarEventPill
         key={publicacao.id}
+        variant={variant}
+        className={variant === 'compact' ? 'flex-wrap gap-y-0.5 [&>span:last-child]:basis-full' : undefined}
         label={publicacao.titulo}
         time={publicacao.time}
         secondary={posted ? CONTENT_STATUS.POSTADO : DISPLAY_STATUS.PROGRAMADO}
@@ -653,6 +659,10 @@ export function PlanejamentoPage() {
     .filter(serie => serie.ativa || serie.id === classeDraft.serieId)
     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
     .map(serie => ({value: serie.id, label: serie.name}));
+  const redeReferencia = rotuloDaRef(
+    state.editorial.preferencias?.redeReferenciaId ?? state.editorial.redeReferenciaId,
+    state.platforms,
+  );
   const opcoesDePilar = sortPilares(state.pilares)
     .filter(pilar => pilar.ativo || pilar.id === classeDraft.pilarId)
     .map(pilar => ({value: pilar.id, label: pilar.nome}));
@@ -752,8 +762,73 @@ export function PlanejamentoPage() {
             onAssuntoFiltroChange={setAssuntoFiltroId}
           />
       ) : (
-        <div className="stack-md p-3 md:p-4">
+        // Sem padding lateral próprio: o frame já dá a margem, e assim o conteúdo alinha com o título.
+        <div className="stack-md pt-4 pb-8">
+        {/* Uma linha só: navegação à esquerda, filtros e atalhos à direita. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="min-w-0 shrink-0">
+            <CalendarPeriodNav
+              anchorDate={month}
+              onAnchorDateChange={setMonth}
+              viewMode={vista}
+              onViewModeChange={mode => setVista(mode)}
+              weekViewId="semana"
+              views={[
+                {id: 'semana' as const, label: 'Semana'},
+                {id: 'mes' as const, label: 'Mês'},
+              ]}
+            />
+          </div>
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+            <AppButton
+              variant={direcaoAberta ? 'secondary' : 'ghost'}
+              size="sm"
+              aria-expanded={direcaoAberta}
+              aria-controls="direcao-periodo-planejamento"
+              rightIcon={<ChevronDown className={cn('h-4 w-4 transition-transform', direcaoAberta && 'rotate-180')} />}
+              onClick={() => setDirecaoAberta(atual => !atual)}
+            >
+              Prioridade e metas
+            </AppButton>
+            {assuntosDoPlanejamento.length > 0 ? (
+              <SelectField
+                ariaLabel="Destacar por assunto"
+                prefix="Assunto:"
+                value={assuntoFiltro?.id ?? 'todos'}
+                onChange={value => setAssuntoFiltroId(value === 'todos' ? null : value)}
+                selected={Boolean(assuntoFiltro)}
+                options={[
+                  {value: 'todos', label: 'Todos'},
+                  ...assuntosDoPlanejamento.map(tema => ({value: tema.id, label: tema.nome})),
+                ]}
+              />
+            ) : null}
+          </div>
+        </div>
+
+        {direcaoAberta ? (
+          <div id="direcao-periodo-planejamento" className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-4">
+            <PeriodoPanel
+              periodo={periodoEditorial}
+              onPeriodoChange={salvarPeriodoEditorial}
+              onAbrirAjustes={() => navigate('/editorial?aba=direcao')}
+            />
+          </div>
+        ) : null}
+
         <PlanejamentoResumo
+          layout="faixa"
+          redeReferencia={redeReferencia}
+          atalhos={(
+            <AppButton
+              variant="ghost"
+              size="sm"
+              leftIcon={<LayoutGrid className="h-4 w-4" />}
+              onClick={() => navigate('/editorial')}
+            >
+              Editorial
+            </AppButton>
+          )}
           counts={monthHealth.counts}
           entries={monthHealth.counts.entries}
           series={state.series}
@@ -770,81 +845,7 @@ export function PlanejamentoPage() {
           onLimparDestaque={limparDestaque}
         />
 
-        <div className="flex flex-wrap items-center gap-2">
-          <CalendarPeriodNav
-            anchorDate={month}
-            onAnchorDateChange={setMonth}
-            viewMode={vista}
-            onViewModeChange={mode => setVista(mode)}
-            weekViewId="semana"
-            views={[
-              {id: 'semana' as const, label: 'Semana'},
-              {id: 'mes' as const, label: 'Mês'},
-            ]}
-          />
-          <AppButton
-            variant="secondary"
-            size="sm"
-            leftIcon={<LayoutGrid className="h-4 w-4" />}
-            onClick={() => navigate('/editorial')}
-          >
-            Editorial
-          </AppButton>
-          {rotuloDaRef(state.editorial.preferencias?.redeReferenciaId ?? state.editorial.redeReferenciaId, state.platforms) ? (
-            <Badge variant="neutral">
-              {rotuloDaRef(state.editorial.preferencias?.redeReferenciaId ?? state.editorial.redeReferenciaId, state.platforms)}
-            </Badge>
-          ) : null}
-          <div className="w-full max-w-sm">
-            <DisclosureButton
-              open={direcaoAberta}
-              onToggle={() => setDirecaoAberta(atual => !atual)}
-              controls="direcao-periodo-planejamento"
-            >
-              <Text variant="label">Prioridade e metas do período</Text>
-            </DisclosureButton>
-          </div>
-        </div>
-
-        {direcaoAberta ? (
-          <div id="direcao-periodo-planejamento" className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-4">
-            <PeriodoPanel
-              periodo={periodoEditorial}
-              onPeriodoChange={salvarPeriodoEditorial}
-              onAbrirAjustes={() => navigate('/editorial?aba=direcao')}
-            />
-          </div>
-        ) : null}
-
-        {assuntosDoPlanejamento.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Destacar por assunto">
-            <Text variant="label" as="span">Assuntos</Text>
-            <AppButton
-              variant={assuntoFiltro ? 'ghost' : 'secondary'}
-              size="xs"
-              aria-pressed={!assuntoFiltro}
-              onClick={() => setAssuntoFiltroId(null)}
-            >
-              Todos
-            </AppButton>
-            {assuntosDoPlanejamento.map(tema => {
-              const ativo = assuntoFiltro?.id === tema.id;
-              return (
-                <AppButton
-                  key={tema.id}
-                  variant={ativo ? 'primary' : 'secondary'}
-                  size="xs"
-                  aria-pressed={ativo}
-                  onClick={() => setAssuntoFiltroId(ativo ? null : tema.id)}
-                >
-                  {tema.nome}
-                </AppButton>
-              );
-            })}
-          </div>
-        ) : null}
-
-        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_18rem] xl:items-start">
+        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_17rem] xl:items-start 2xl:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="stack-md min-w-0">
             {vista === 'semana' ? (
               <PlanejamentoWeekGrid
@@ -863,7 +864,7 @@ export function PlanejamentoPage() {
                   if (ids.length > 0) moveMany(ids, key);
                 }}
                 renderPostIt={(postIt, compact) => renderPostIt(postIt, compact)}
-                renderPublicacao={renderPublicacao}
+                renderPublicacao={publicacao => renderPublicacao(publicacao, 'expanded')}
                 onAddPauta={addEmpty}
               />
             ) : (
@@ -892,20 +893,22 @@ export function PlanejamentoPage() {
                 renderDayContent={day => {
                   const dayPostIts = byDate.get(day.dateKey) ?? [];
                   return (
-                    <div className="stack-sm">
-                      {(publicacoesDoDia.get(day.dateKey) ?? []).map(renderPublicacao)}
+                    <div className="@container stack-sm">
+                      {(publicacoesDoDia.get(day.dateKey) ?? []).map(publicacao => renderPublicacao(publicacao))}
                       {dayPostIts.map(postIt => renderPostIt(postIt, true))}
                       <AppButton
                         variant="ghost"
                         size="xs"
-                        className="justify-start text-[var(--text-secondary)] opacity-70 transition-opacity md:opacity-0 md:group-hover/day:opacity-100 md:focus-within:opacity-100 pointer-coarse:opacity-100"
+                        className="justify-start px-2 text-[var(--text-secondary)] opacity-70 transition-opacity md:opacity-0 md:group-hover/day:opacity-100 md:focus-within:opacity-100 pointer-coarse:opacity-100"
                         leftIcon={<Plus className="h-3.5 w-3.5" />}
+                        aria-label={`Adicionar pauta no dia ${format(day.day, 'd')}`}
                         onClick={event => {
                           event.stopPropagation();
                           addEmpty(day.dateKey);
                         }}
                       >
-                        Adicionar pauta
+                        <span className="@[9rem]:hidden">Pauta</span>
+                        <span className="hidden @[9rem]:inline">Adicionar pauta</span>
                       </AppButton>
                     </div>
                   );
@@ -920,7 +923,8 @@ export function PlanejamentoPage() {
             series={state.series}
             temas={state.temas}
             pileOver={pileOver}
-            className="xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto"
+            // top-32: abaixo do cabeçalho fixo da página (com top-4 o título e a busca ficavam por baixo dele).
+            className="xl:sticky xl:top-32 xl:max-h-[calc(100vh-9rem)] xl:overflow-y-auto"
             onDragOver={event => {
               event.preventDefault();
               setPileOver(true);
