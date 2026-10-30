@@ -119,7 +119,7 @@ export function MoreMenu({
               role="menuitem"
               disabled={item.disabled}
               className={cn(
-                'flex w-full px-3 py-2 text-left text-sm hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-45',
+                'flex w-full px-3 py-2 text-left t-body hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-45',
                 TONE_CLASS[item.tone ?? 'default'],
               )}
               onClick={event => {

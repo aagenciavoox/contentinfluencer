@@ -1,10 +1,13 @@
+import {createPortal} from 'react-dom';
+import {dia} from '../../lib/dates';
+import {FLOATING_MENU_HIDDEN_STYLE, FLOATING_MENU_Z_INDEX, useAnchoredPosition} from './anchoredPosition';
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {format, parseISO, startOfMonth} from 'date-fns';
-import {ptBR} from 'date-fns/locale';
 import {CalendarMiniMonth} from '../calendar/CalendarMiniMonth';
 import {cn} from '../../lib/utils';
 
 interface PropertyDatePickerProps {
+  ariaLabel?: string;
   value: string | null;
   onChange: (value: string | null) => void;
   placeholder?: string;
@@ -25,6 +28,7 @@ function parseDateValue(value: string | null): Date | null {
 }
 
 export function PropertyDatePicker({
+  ariaLabel,
   value,
   onChange,
   placeholder = 'Selecionar…',
@@ -38,7 +42,8 @@ export function PropertyDatePicker({
   const [monthDate, setMonthDate] = useState(() => startOfMonth(selectedDate ?? new Date()));
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const [popoverStyle, setPopoverStyle] = useState<React.CSSProperties>({});
+  const popoverRef=useRef<HTMLDivElement>(null);
+  const position=useAnchoredPosition(open,triggerRef,popoverRef,{align:'end',matchWidth:false});
 
   useEffect(() => {
     if (selectedDate) {
@@ -47,40 +52,10 @@ export function PropertyDatePicker({
   }, [selectedDate]);
 
   useEffect(() => {
-    if (!open || !triggerRef.current) return;
-
-    const updatePosition = () => {
-      const rect = triggerRef.current?.getBoundingClientRect();
-      if (!rect) return;
-
-      const panelWidth = 280;
-      const panelHeight = 320;
-      const left = Math.min(Math.max(16, rect.right - panelWidth), window.innerWidth - panelWidth - 16);
-      const top = Math.min(rect.bottom + 8, window.innerHeight - panelHeight - 16);
-
-      setPopoverStyle({
-        position: 'fixed',
-        top,
-        left,
-        width: panelWidth,
-        zIndex: 80,
-      });
-    };
-
-    updatePosition();
-    window.addEventListener('resize', updatePosition);
-    window.addEventListener('scroll', updatePosition, true);
-    return () => {
-      window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition, true);
-    };
-  }, [open]);
-
-  useEffect(() => {
     if (!open) return;
 
     const handlePointerDown = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node) && !popoverRef.current?.contains(event.target as Node)) {
         setOpen(false);
       }
     };
@@ -98,7 +73,7 @@ export function PropertyDatePicker({
   }, [open]);
 
   const label = selectedDate
-    ? format(selectedDate, "d 'de' MMM yyyy", {locale: ptBR})
+    ? dia(selectedDate)
     : placeholder;
 
   const handleSelectDate = (date: Date) => {
@@ -116,22 +91,25 @@ export function PropertyDatePicker({
         className={cn(
           variant === 'property' ? 'property-input text-left' : '',
           variant === 'field' &&
-            'w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-left text-sm text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--accent-blue)] disabled:opacity-60',
+            'w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-left t-body text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--accent-blue)] disabled:opacity-60',
           variant === 'property' && !selectedDate && 'property-row-value--empty',
           className,
         )}
+        aria-label={ariaLabel ? `${ariaLabel}: ${label}` : undefined}
         aria-expanded={open}
         aria-haspopup="dialog"
       >
         {label}
       </button>
 
-      {open ? (
+      {open ? createPortal(
         <div
+          ref={popoverRef}
+          onKeyDown={event=>{if(event.key==='Escape'){event.stopPropagation();setOpen(false);triggerRef.current?.focus();}}}
           role="dialog"
           aria-label="Selecionar data"
-          style={popoverStyle}
-          className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-3 shadow-[var(--shadow-dropdown)]"
+          style={{position:'fixed',width:280,...(position?.style ?? FLOATING_MENU_HIDDEN_STYLE)}}
+          className={cn(FLOATING_MENU_Z_INDEX,"overflow-auto rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-3 shadow-[var(--shadow-dropdown)]")}
         >
           <CalendarMiniMonth
             monthDate={monthDate}
@@ -147,12 +125,12 @@ export function PropertyDatePicker({
                 onChange(null);
                 setOpen(false);
               }}
-              className="mt-2 w-full rounded-[var(--radius-input)] px-2 py-1.5 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+              className="mt-2 w-full rounded-[var(--radius-input)] px-2 py-1.5 t-label text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
             >
               Limpar data
             </button>
           ) : null}
-        </div>
+        </div>, document.body
       ) : null}
     </div>
   );

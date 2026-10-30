@@ -1,8 +1,11 @@
+import { Text } from '../../../components/ui/Text';
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { BottomSheet } from '../../../components/overlays/BottomSheet';
 import { OverlayBody } from '../../../components/overlays/OverlayBody';
 import { AppButton } from '../../../components/ui/AppButton';
+import { PropertyDatePicker } from '../../../components/ui/PropertyDatePicker';
+import { TimeField } from '../../../components/ui/TimeField';
 import type { Content, ContentPlataforma, Serie } from '../../../lib/database';
 import {
   markPublished,
@@ -31,7 +34,9 @@ interface MarkPostedSheetProps {
 type RowState = {
   id: string;
   label: string;
-  realizadaLocal: string;
+  /** Dia e hora ficam separados no formulário; juntos voltam ao valor completo ao salvar. */
+  realizadaData: string;
+  realizadaHora: string;
   postUrl: string;
 };
 
@@ -55,6 +60,15 @@ function toDatetimeLocal(iso: string): string {
   ].join('');
 }
 
+function splitDatetimeLocal(value: string): {data: string; hora: string} {
+  const [data, hora = ''] = value.split('T');
+  return {data, hora};
+}
+
+function joinDatetimeLocal(data: string, hora: string): string {
+  return data && hora ? `${data}T${hora}` : '';
+}
+
 function fromDatetimeLocal(value: string): string | null {
   if (!value) return null;
   const date = new Date(value);
@@ -67,7 +81,7 @@ function seedRows(
   platformName: (platformId: string) => string,
   initialRealizadaEm: string | null | undefined,
 ): RowState[] {
-  const fallback = toDatetimeLocal(initialRealizadaEm || new Date().toISOString());
+  const fallback = splitDatetimeLocal(toDatetimeLocal(initialRealizadaEm || new Date().toISOString()));
   const destinos = content.plataformas.filter(
     plataforma => plataforma.status !== 'removida' && plataforma.status !== 'nao_publicada',
   );
@@ -76,18 +90,23 @@ function seedRows(
     return [{
       id: '',
       label: 'Este roteiro',
-      realizadaLocal: fallback,
+      realizadaData: fallback.data,
+      realizadaHora: fallback.hora,
       postUrl: content.link ?? '',
     }];
   }
-  return rows.map(plataforma => ({
-    id: plataforma.id,
-    label: platformName(plataforma.platformId),
-    realizadaLocal: plataforma.realizadaManualEm
-      ? toDatetimeLocal(plataforma.realizadaManualEm)
-      : fallback,
-    postUrl: plataforma.postUrl ?? '',
-  }));
+  return rows.map(plataforma => {
+    const quando = plataforma.realizadaManualEm
+      ? splitDatetimeLocal(toDatetimeLocal(plataforma.realizadaManualEm))
+      : fallback;
+    return {
+      id: plataforma.id,
+      label: platformName(plataforma.platformId),
+      realizadaData: quando.data,
+      realizadaHora: quando.hora,
+      postUrl: plataforma.postUrl ?? '',
+    };
+  });
 }
 
 export function MarkPostedSheet({
@@ -103,7 +122,7 @@ export function MarkPostedSheet({
 }: MarkPostedSheetProps) {
   const [rows, setRows] = useState<RowState[]>([]);
   const wasOpen = useRef(false);
-  const canConfirm = rows.length > 0 && rows.every(row => Boolean(fromDatetimeLocal(row.realizadaLocal)));
+  const canConfirm = rows.length > 0 && rows.every(row => Boolean(joinDatetimeLocal(row.realizadaData, row.realizadaHora)));
 
   useEffect(() => {
     if (!open) {
@@ -125,7 +144,7 @@ export function MarkPostedSheet({
     if (!canConfirm) return;
     const entradas: EntradaPublicacao[] = rows.map(row => ({
       id: row.id,
-      realizadaEm: fromDatetimeLocal(row.realizadaLocal) || new Date().toISOString(),
+      realizadaEm: fromDatetimeLocal(joinDatetimeLocal(row.realizadaData, row.realizadaHora)) || new Date().toISOString(),
       postUrl: row.postUrl,
     }));
     const marked = markPublished(content, content.plataformas, entradas, { serie, redeReferenciaId });
@@ -141,26 +160,26 @@ export function MarkPostedSheet({
     <div className="stack-lg p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-[var(--text-secondary)]">Marcar como postado</p>
-          <p className="mt-1 text-base font-semibold text-[var(--text-primary)]">
+          <Text variant="itemTitle" as="p" className="text-[var(--text-secondary)]">Marcar como postado</Text>
+          <Text variant="bodyStrong" as="p" className="mt-1 text-[var(--text-primary)]">
             {content.title.trim() || 'Roteiro sem título'}
-          </p>
+          </Text>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-md text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+          className="flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
           aria-label={embedded ? 'Voltar' : 'Fechar'}
         >
           <X className="h-4 w-4" />
         </button>
       </div>
 
-      <p className="text-sm text-[var(--text-tertiary)]">
+      <Text variant="secondary" as="p" className="text-[var(--text-tertiary)]">
         {rows.some(row => row.id === '' && rows.length === 1)
-          ? 'Ainda não há destino. A data fica no roteiro, e o link é opcional.'
-          : 'Para cada destino, confirme quando foi ao ar. O link é opcional.'}
-      </p>
+          ? 'Ainda não há conta marcada. A data fica no roteiro, e o link é opcional.'
+          : 'Para cada conta, confirme quando foi ao ar. O link é opcional.'}
+      </Text>
 
       <div className="stack-sm">
         {rows.map((row, index) => (
@@ -168,24 +187,34 @@ export function MarkPostedSheet({
             key={row.id || 'roteiro'}
             className="stack-sm rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-4"
           >
-            <p className="text-sm font-semibold text-[var(--text-primary)]">{row.label}</p>
+            <Text variant="itemTitle" as="p" className="text-[var(--text-primary)]">{row.label}</Text>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="block">
+                <Text variant="secondary" as="span" className="mb-2 block text-[var(--text-secondary)]">Data</Text>
+                <PropertyDatePicker
+                  variant="field"
+                  ariaLabel={`Data de ${row.label}`}
+                  value={row.realizadaData || null}
+                  onChange={value => updateRow(index, {realizadaData: value ?? ''})}
+                />
+              </div>
+              <div className="block">
+                <Text variant="secondary" as="span" className="mb-2 block text-[var(--text-secondary)]">Hora</Text>
+                <TimeField
+                  ariaLabel={`Hora de ${row.label}`}
+                  value={row.realizadaHora}
+                  onChange={value => updateRow(index, {realizadaHora: value})}
+                />
+              </div>
+            </div>
             <label className="block">
-              <span className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Data e hora</span>
-              <input
-                type="datetime-local"
-                value={row.realizadaLocal}
-                onChange={event => updateRow(index, { realizadaLocal: event.target.value })}
-                className="min-h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)] outline-none focus:border-[var(--accent-blue)]"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Link (opcional)</span>
+              <Text variant="secondary" as="span" className="mb-2 block text-[var(--text-secondary)]">Link (opcional)</Text>
               <input
                 type="url"
                 value={row.postUrl}
                 onChange={event => updateRow(index, { postUrl: event.target.value })}
                 placeholder="https://"
-                className="min-h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-3 py-2 text-sm font-medium text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent-blue)]"
+                className="min-h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-3 py-2 t-body text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent-blue)]"
               />
             </label>
           </article>

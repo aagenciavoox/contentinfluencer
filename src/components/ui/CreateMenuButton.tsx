@@ -73,7 +73,7 @@ export function CreateMenuButton({
           <button
             type="button"
             role="menuitem"
-            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+            className="flex w-full items-center gap-2 px-4 py-2.5 text-left t-body-strong text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
             onClick={() => {
               setOpen(false);
               onCreateIdea();
@@ -85,7 +85,7 @@ export function CreateMenuButton({
           <button
             type="button"
             role="menuitem"
-            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+            className="flex w-full items-center gap-2 px-4 py-2.5 text-left t-body-strong text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
             onClick={() => {
               setOpen(false);
               onCreateScript();

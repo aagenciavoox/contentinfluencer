@@ -1,4 +1,5 @@
 import type { Content, Pilar, Serie } from '../../../lib/database';
+import { relativo } from '../../../lib/dates';
 import { getDisplayStatusLabel } from './contentPipeline';
 import { htmlToReadableText } from '../../../lib/utils';
 import { contentReadableBody } from './carouselSlides.ts';
@@ -26,17 +27,7 @@ const MIN_EXCERPT_LENGTH = 40;
 export function formatLastEdit(iso: string) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '—';
-
-  const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const startOfEdit = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const dayDiff = Math.round((startOfToday.getTime() - startOfEdit.getTime()) / 86_400_000);
-
-  if (dayDiff === 0) return 'hoje';
-  if (dayDiff === 1) return 'ontem';
-  if (dayDiff < 7) return `${dayDiff}d atrás`;
-
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  return relativo(date);
 }
 
 export function getScriptWordCount(content: Content) {

@@ -1,4 +1,6 @@
+import { ValorVazio } from '../../../components/ui/ValorVazio';
 import { useState } from 'react';
+import { diaNumerico } from '../../../lib/dates';
 import {
   CalendarDays,
   ChevronRight,
@@ -47,9 +49,7 @@ function localTodayKey() {
 
 function formatDate(value: string | null) {
   if (!value) return '—';
-  const [year, month, day] = value.split('-');
-  if (year && month && day) return `${day}/${month}/${year}`;
-  return new Date(value).toLocaleDateString('pt-BR');
+  return diaNumerico(value);
 }
 
 function formatDayMonth(value: string) {
@@ -128,9 +128,9 @@ export function ProjectDetailMobileScreen({
   const statusLabel = PROJECT_STATUS_LABEL[projeto.status] ?? projeto.status;
   const evento = isProjetoEvento(projeto.tipo);
   const serieDe = (seriesId: string | null) => series.find(item => item.id === seriesId) ?? null;
-  const formattedValue = projeto.value
+  const formattedValue = projeto.value != null
     ? projeto.value.toLocaleString('pt-BR', { style: 'currency', currency: projeto.currency || 'BRL' })
-    : '—';
+    : <ValorVazio />;
 
   const tabAction = (() => {
     if (activeTab === 'eventos') {
@@ -337,7 +337,7 @@ export function ProjectDetailMobileScreen({
               value={editFields.driveUrl}
               onChange={event => onEditFieldChange('driveUrl', event.target.value)}
               type="url"
-              placeholder="https://..."
+              placeholder="https://…"
               className="w-full"
             />
           </FormField>

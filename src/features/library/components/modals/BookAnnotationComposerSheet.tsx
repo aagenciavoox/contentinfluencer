@@ -1,3 +1,4 @@
+import { TextCount } from '../../../../components/ui/TextCount';
 import { useId, useRef, useState, type ReactNode } from 'react';
 import { Plus, X } from 'lucide-react';
 import { useAppContext } from '../../../../context/AppContext';
@@ -35,7 +36,7 @@ const TIPOS: TipoAnotacao[] = ['Anotação', 'Trecho', 'Reação', 'Análise', '
 const fieldClass =
   'w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-elevated)] px-3 py-2.5 t-body text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] hover:border-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
-const labelClass = 't-secondary block font-semibold text-[var(--text-primary)]';
+const labelClass = 't-secondary block text-[var(--text-primary)]';
 
 export function BookAnnotationComposer({
   book,
@@ -142,9 +143,7 @@ export function BookAnnotationComposer({
         />
         <div className="flex items-baseline gap-3">
           {isMobile ? null : <Text variant="meta">{ENTER_HINT}</Text>}
-          <Text variant="meta" as="p" className="ml-auto tabular-nums">
-            <span id={`${fieldId}-contador`}>{novaAnotacao.length}/{ANNOTATION_MAX_LENGTH}</span>
-          </Text>
+          <TextCount id={`${fieldId}-contador`} value={novaAnotacao} limit={ANNOTATION_MAX_LENGTH} className="ml-auto" />
         </div>
       </div>
 
@@ -185,10 +184,10 @@ export function BookAnnotationComposerSheet({
       <div className="px-4 pb-4 pt-2">
         <div className="flex items-start justify-between gap-4 border-b border-[var(--border-color)] px-1 pb-4">
           <div>
-            <p className="text-sm font-bold text-[var(--text-primary)] opacity-45">{book.titulo}</p>
-            <span className="mt-1 block text-xs font-semibold text-[var(--text-tertiary)]">
+            <Text variant="itemTitle" as="p" className="text-[var(--text-primary)] opacity-45">{book.titulo}</Text>
+            <Text variant="label" as="span" className="mt-1 block text-[var(--text-tertiary)]">
               Anotações
-            </span>
+            </Text>
           </div>
           <button
             type="button"

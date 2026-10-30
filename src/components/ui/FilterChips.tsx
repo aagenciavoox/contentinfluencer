@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { useScrollEdgeFade } from '../../hooks/useScrollEdgeFade';
 import { cn } from '../../lib/utils';
 
@@ -6,6 +6,8 @@ export interface FilterChipOption<T extends string> {
   id: T;
   label: string;
   count?: number;
+  /** Ícone à esquerda do rótulo (ex.: rede do chip de plataformas). */
+  icon?: ReactNode;
 }
 
 interface FilterChipsProps<T extends string> {
@@ -108,6 +110,7 @@ export function FilterChips<T extends string>({
               active && 'filter-chip-active',
             )}
           >
+            {option.icon ? <span className="flex shrink-0" aria-hidden>{option.icon}</span> : null}
             <span>{option.label}</span>
             {option.count != null ? (
               <span

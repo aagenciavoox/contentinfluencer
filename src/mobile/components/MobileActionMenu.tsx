@@ -1,3 +1,4 @@
+import { Text } from '../../components/ui/Text';
 import { useEffect, useMemo, useState } from 'react';
 import { BookOpen, BookPlus, FileText, Lightbulb, Pin, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -198,18 +199,18 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
                       action.disabled ? 'cursor-not-allowed opacity-40' : 'hover:bg-[var(--bg-hover)]'
                     )}
                   >
-                    <div className={cn('rounded-xl p-2.5', action.accentClassName)}>
+                    <div className={cn('rounded-[var(--radius-card)] p-2.5', action.accentClassName)}>
                       {action.icon}
                     </div>
-                    <span className="text-sm font-medium text-[var(--text-primary)]">
+                    <Text variant="bodyStrong" as="span" className="text-[var(--text-primary)]">
                       {action.label.replace('Nova ', '').replace('Novo ', '')}
-                    </span>
+                    </Text>
                   </button>
                 ))}
               </div>
 
               {currentBook ? (
-                <p className="px-4 pb-2 text-center text-xs text-[var(--text-tertiary)]">
+                <Text variant="meta" as="p" className="px-4 pb-2 text-center text-[var(--text-tertiary)]">
                   {preferredBookId === currentBook.id ? (
                     <span className="inline-flex items-center gap-1">
                       <Pin className="h-3 w-3 text-[var(--accent-purple)]" />
@@ -218,7 +219,7 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
                   ) : (
                     <>Anotação em {currentBook.titulo}</>
                   )}
-                </p>
+                </Text>
               ) : null}
             </motion.section>
           </>

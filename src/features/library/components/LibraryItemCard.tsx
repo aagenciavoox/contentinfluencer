@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { MediaCard } from '../../../components/ui/MediaCard';
 import { OverflowTags } from '../../../components/ui/OverflowTags';
 import { Text } from '../../../components/ui/Text';
+import { ValorVazio } from '../../../components/ui/ValorVazio';
 import { useAuth } from '../../../context/AuthContext';
 import { BibliotecaItem, BibliotecaItemMeta } from '../../../lib/database';
 import { notifySaveFeedback } from '../../../lib/saveFeedback';
@@ -192,18 +193,18 @@ export function LibraryItemCard({
             {/* Etiquetas com fundo sólido: texto direto sobre a arte sumia em capas claras. */}
             <div className="pointer-events-none absolute bottom-2 left-2 flex flex-col items-start gap-1 transition-opacity duration-200 group-hover:opacity-0">
               {showTypeLabel ? (
-                <span className="rounded-full bg-[var(--bg-elevated)] px-2 py-0.5 text-xs font-semibold text-[var(--text-primary)]">
+                <Text variant="label" as="span" className="rounded-full bg-[var(--bg-elevated)] px-2 py-0.5 text-[var(--text-primary)]">
                   {typeConfig.label}
-                </span>
+                </Text>
               ) : null}
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-elevated)] px-2 py-0.5 text-xs font-semibold text-[var(--text-primary)]">
+              <Text variant="label" as="span" className="inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-elevated)] px-2 py-0.5 text-[var(--text-primary)]">
                 <span
                   aria-hidden
                   className="h-1.5 w-1.5 shrink-0 rounded-full"
                   style={{ backgroundColor: STATUS_DOT[item.status] ?? 'var(--text-tertiary)' }}
                 />
                 {item.status}
-              </span>
+              </Text>
             </div>
 
             <button
@@ -212,7 +213,7 @@ export function LibraryItemCard({
                 event.stopPropagation();
                 onTogglePrimary();
               }}
-              className={`absolute right-2 top-2 z-20 inline-flex items-center gap-1 rounded-full px-2 py-1 t-label t-label-uppercase font-semibold opacity-0 transition-all group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100 ${
+              className={`absolute right-2 top-2 z-20 inline-flex items-center gap-1 rounded-full px-2 py-1 t-label t-label-uppercase t-label opacity-0 transition-all group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100 ${
                 isPrimaryMobileBook
                   ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
                   : 'bg-[var(--backdrop-strong)] text-[var(--bg-elevated)] hover:bg-[color-mix(in_srgb,var(--text-primary)_80%,transparent)]'
@@ -224,9 +225,9 @@ export function LibraryItemCard({
 
             {contentsCount > 0 ? (
               <div
-                title={contentsCount === 1 ? '1 conteúdo usa esta obra' : `${contentsCount} conteúdos usam esta obra`}
-                aria-label={contentsCount === 1 ? '1 conteúdo usa esta obra' : `${contentsCount} conteúdos usam esta obra`}
-                className="absolute right-2 top-2 z-20 flex h-6 items-center gap-1 rounded-full bg-[var(--text-primary)] px-2 text-xs font-semibold text-[var(--bg-primary)] transition-all group-hover:top-10"
+                title={contentsCount === 1 ? '1 roteiro desta obra' : `${contentsCount} roteiros desta obra`}
+                aria-label={contentsCount === 1 ? '1 roteiro desta obra' : `${contentsCount} roteiros desta obra`}
+                className="absolute right-2 top-2 z-20 flex h-6 items-center gap-1 rounded-full bg-[var(--text-primary)] px-2 t-label text-[var(--bg-primary)] transition-all group-hover:top-10"
               >
                 <FileText className="h-3 w-3" aria-hidden />
                 {contentsCount}
@@ -250,7 +251,7 @@ export function LibraryItemCard({
           {item.titulo}
         </Text>
         <Text variant="meta" className="truncate">
-          {item.autorDiretor}
+          {item.autorDiretor?.trim() ? item.autorDiretor : <ValorVazio />}
         </Text>
         {item.avaliacao ? (
           <div className="mt-1 flex gap-0.5">
@@ -271,12 +272,12 @@ export function LibraryItemCard({
           <OverflowTags
             className="mt-1.5"
             items={metadata.tagsPersonalizadas.map(tag => (
-              <span
+              <Text variant="label" as="span"
                 key={tag}
-                className="rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-xs font-semibold text-[var(--text-secondary)]"
+                className="rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-[var(--text-secondary)]"
               >
                 {tag}
-              </span>
+              </Text>
             ))}
           />
         ) : null}

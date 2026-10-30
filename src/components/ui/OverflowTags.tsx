@@ -1,3 +1,4 @@
+import { Text } from './Text';
 import type { ReactNode } from 'react';
 import { cn } from '../../lib/utils';
 
@@ -18,9 +19,9 @@ export function OverflowTags({ items, max = 1, className }: OverflowTagsProps) {
     <div className={cn('flex min-w-0 flex-wrap items-center gap-1', className)}>
       {visible}
       {extra > 0 ? (
-        <span className="inline-flex items-center rounded-[var(--radius-pill)] bg-[var(--bg-hover)] px-1.5 py-0.5 text-xs font-semibold tabular-nums text-[var(--text-secondary)]">
+        <Text variant="label" as="span" className="inline-flex items-center rounded-[var(--radius-pill)] bg-[var(--bg-hover)] px-1.5 py-0.5 tabular-nums text-[var(--text-secondary)]">
           +{extra}
-        </span>
+        </Text>
       ) : null}
     </div>
   );

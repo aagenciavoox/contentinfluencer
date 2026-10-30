@@ -1,3 +1,4 @@
+import { Text } from '../ui/Text';
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, FileText, Sparkles, Handshake, ChevronRight, Command, X, Library, Settings } from 'lucide-react';
@@ -164,15 +165,15 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Buscar telas, roteiros, ideias, obras e projetos"
               placeholder={isMobile ? "Buscar…" : "Busque telas, roteiros, ideias e projetos…"}
-              className="input-plain flex-1 h-14 bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] text-base px-3"
+              className="input-plain flex-1 h-14 bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] px-3"
             />
             {!showKeyboardHints ? (
-              <button type="button" onClick={onClose} aria-label="Fechar busca" className="p-2 bg-[var(--bg-hover)] rounded-xl">
+              <button type="button" onClick={onClose} aria-label="Fechar busca" className="p-2 bg-[var(--bg-hover)] rounded-[var(--radius-card)]">
                 <X className="w-5 h-5" />
               </button>
             ) : (
-              <div className="flex items-center gap-1 px-1.5 py-0.5 bg-[var(--bg-hover)] border border-[var(--border-color)] rounded text-xs text-[var(--text-tertiary)] font-mono">
-                <span className="t-meta">ESC</span>
+              <div className="flex items-center gap-1 px-1.5 py-0.5 bg-[var(--bg-hover)] border border-[var(--border-color)] rounded-[var(--radius-input)] t-meta text-[var(--text-tertiary)] font-mono">
+                <Text variant="meta" as="span" className="text-inherit">ESC</Text>
               </div>
             )}
           </div>
@@ -194,18 +195,18 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                       index === selectedIndex ? 'bg-[var(--bg-hover)] shadow-sm' : ''
                     } ${isMobile ? 'active:bg-[var(--bg-hover)]' : ''}`}
                   >
-                    <div className={`p-3 rounded-xl ${
+                    <div className={`p-3 rounded-[var(--radius-card)] ${
                       index === selectedIndex ? 'bg-[var(--bg-secondary)] text-[var(--accent-blue)]' : 'bg-[var(--bg-hover)] text-[var(--text-tertiary)]'
                     }`}>
                       {item.icon}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-base font-medium text-[var(--text-primary)] truncate">{item.title}</span>
+                        <Text variant="bodyStrong" as="span" className="text-[var(--text-primary)] truncate">{item.title}</Text>
                       </div>
-                      <span className="text-xs text-[var(--text-tertiary)] t-label-uppercase font-semibold">
+                      <Text variant="label" as="span" className="text-[var(--text-tertiary)] t-label-uppercase ">
                         {item.category}
-                      </span>
+                      </Text>
                     </div>
                     {!isMobile && index === selectedIndex && (
                       <ChevronRight className="w-4 h-4 text-[var(--text-tertiary)]" />
@@ -216,14 +217,14 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
             ) : (
               <div className="py-20 text-center">
                 <Search className="mx-auto mb-4 h-12 w-12 text-[var(--text-tertiary)]" />
-                <p className="text-sm text-[var(--text-tertiary)]">Nenhum resultado para "{search}"</p>
+                <Text variant="secondary" as="p" className="text-[var(--text-tertiary)]">Nenhum resultado para "{search}"</Text>
               </div>
             )}
           </div>
 
           {/* Footer - only with a fine pointer (mouse/trackpad + keyboard) */}
           {showKeyboardHints && (
-            <div className="px-4 py-3 bg-[var(--bg-primary)] border-t border-[var(--border-color)] flex items-center justify-between text-xs text-[var(--text-tertiary)] font-bold ">
+            <div className="px-4 py-3 bg-[var(--bg-primary)] border-t border-[var(--border-color)] flex items-center justify-between t-label text-[var(--text-tertiary)] ">
               <div className="flex gap-4">
                 <span className="flex items-center gap-1"><Command className="w-3 h-3" /> + K para buscar</span>
                 <span className="flex items-center gap-1">↑↓ para navegar</span>

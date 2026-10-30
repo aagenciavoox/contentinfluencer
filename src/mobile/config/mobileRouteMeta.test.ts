@@ -52,7 +52,7 @@ assert.equal(editorial.titleVariant, 'compact-center');
 
 const editorialPilar = getMobileRouteMeta('/editorial/pilares/pilar-1');
 assert.equal(editorialPilar.title, 'Editar pilar');
-assert.equal(editorialPilar.backTo, '/editorial?aba=pilares');
+assert.equal(editorialPilar.backTo, '/editorial');
 
 const editorialSerie = getMobileRouteMeta('/editorial/series/nova');
 assert.equal(editorialSerie.title, 'Nova série');

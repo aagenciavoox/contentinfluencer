@@ -1,3 +1,5 @@
+import { Text } from '../ui/Text';
+import { ValorVazio } from '../ui/ValorVazio';
 interface DonutChartProps {
   value: number | null;
   size?: number;
@@ -39,10 +41,10 @@ export function DonutChart({value, size = 96, strokeWidth = 10, label}: DonutCha
         ) : null}
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center px-2 text-center">
-        <span className="text-xl font-bold text-[var(--text-primary)]">
-          {hasValue ? `${clamped}%` : '—'}
-        </span>
-        {label ? <span className="text-xs font-medium leading-tight text-[var(--text-tertiary)]">{label}</span> : null}
+        <Text variant="sectionTitle" as="span" className="text-[var(--text-primary)]">
+          {hasValue ? `${clamped}%` : <ValorVazio />}
+        </Text>
+        {label ? <Text variant="label" as="span" className="leading-tight text-[var(--text-tertiary)]">{label}</Text> : null}
       </div>
     </div>
   );

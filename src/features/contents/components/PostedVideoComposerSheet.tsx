@@ -1,3 +1,4 @@
+import { Text } from '../../../components/ui/Text';
 import {useMemo, useState} from 'react';
 import {format} from 'date-fns';
 import {ptBR} from 'date-fns/locale';
@@ -222,42 +223,42 @@ export function PostedVideoComposerSheet({
     <div className="stack-lg p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-[var(--text-secondary)]">
+          <Text variant="itemTitle" as="p" className="text-[var(--text-secondary)]">
             {isEditing ? 'Editar registro postado' : 'Vídeo já postado'}
-          </p>
+          </Text>
           {initialDate && !isEditing ? (
-            <p className="mt-1 text-base font-semibold capitalize text-[var(--text-primary)]">
+            <Text variant="bodyStrong" as="p" className="mt-1 capitalize text-[var(--text-primary)]">
               {format(new Date(`${initialDate}T12:00:00`), "EEEE, d 'de' MMMM", {locale: ptBR})}
-            </p>
+            </Text>
           ) : (
-            <p className="mt-1 text-base font-semibold text-[var(--text-primary)]">
+            <Text variant="bodyStrong" as="p" className="mt-1 text-[var(--text-primary)]">
               {isEditing ? initialContent?.title : 'Registro de publicação'}
-            </p>
+            </Text>
           )}
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-md text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+          className="flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
           aria-label="Fechar"
         >
           <X className="h-4 w-4" />
         </button>
       </div>
 
-      <p className="text-sm text-[var(--text-tertiary)]">
+      <Text variant="secondary" as="p" className="text-[var(--text-tertiary)]">
         Registre em uma ou mais redes e marque se foi postagem original ou repostagem.
-      </p>
+      </Text>
 
       <div>
-        <label className="text-sm font-medium text-[var(--text-secondary)]">Título do vídeo</label>
+        <label className="t-label text-[var(--text-secondary)]">Título do vídeo</label>
         <input
           autoFocus
           type="text"
           value={title}
           onChange={event => setTitle(event.target.value)}
           placeholder="Ex.: 3 sinais de que…"
-          className="mt-2 min-h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-elevated)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent-blue)]"
+          className="mt-2 min-h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-elevated)] px-3 py-2 t-body-strong text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent-blue)]"
           onKeyDown={event => {
             if (event.key === 'Enter' && canSave) void handleSave(false);
           }}
@@ -266,22 +267,22 @@ export function PostedVideoComposerSheet({
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <label className="text-sm font-medium text-[var(--text-secondary)]">Data postada</label>
+          <label className="t-label text-[var(--text-secondary)]">Data postada</label>
           <input
             type="date"
             value={date}
             onChange={event => setDate(event.target.value)}
-            className="mt-2 min-h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)] outline-none focus:border-[var(--accent-blue)]"
+            className="mt-2 min-h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 t-body-strong text-[var(--text-primary)] outline-none focus:border-[var(--accent-blue)]"
           />
         </div>
 
         <div>
-          <label className="text-sm font-medium text-[var(--text-secondary)]">Hora</label>
+          <label className="t-label text-[var(--text-secondary)]">Hora</label>
           <input
             type="time"
             value={time}
             onChange={event => setTime(event.target.value)}
-            className="mt-2 min-h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)] outline-none focus:border-[var(--accent-blue)]"
+            className="mt-2 min-h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 t-body-strong text-[var(--text-primary)] outline-none focus:border-[var(--accent-blue)]"
           />
           <PostingTimeSuggestions
             date={date}
@@ -294,9 +295,9 @@ export function PostedVideoComposerSheet({
       </div>
 
       <div>
-        <label className="text-sm font-medium text-[var(--text-secondary)]">Contas em que foi publicado</label>
+        <label className="t-label text-[var(--text-secondary)]">Contas em que foi publicado</label>
         {activePlatforms.length === 0 ? (
-          <p className="mt-2 text-sm text-[var(--text-tertiary)]">Cadastre uma conta em Contas e horários.</p>
+          <Text variant="secondary" as="p" className="mt-2 text-[var(--text-tertiary)]">Cadastre uma conta em Contas e horários.</Text>
         ) : (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {activePlatforms.map(platform => {
@@ -308,7 +309,7 @@ export function PostedVideoComposerSheet({
                   type="button"
                   onClick={() => togglePlatform(platform.id)}
                   className={cn(
-                    'inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors',
+                    'inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 t-label transition-colors',
                     selected ? color.chip : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--text-primary)]',
                   )}
                 >
@@ -323,15 +324,15 @@ export function PostedVideoComposerSheet({
 
       {platformEntries.length > 0 ? (
         <div className="stack-sm">
-          <p className="text-sm font-medium text-[var(--text-secondary)]">Tipo por rede</p>
+          <Text variant="secondary" as="p" className="text-[var(--text-secondary)]">Tipo por rede</Text>
           {platformEntries.map(entry => (
             <div
               key={entry.platformId}
               className="flex items-center justify-between gap-3 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2"
             >
-              <span className="text-sm font-semibold text-[var(--text-primary)]">
+              <Text variant="itemTitle" as="span" className="text-[var(--text-primary)]">
                 {platformLabel(entry.platformId, activePlatforms)}
-              </span>
+              </Text>
               <SelectField
                 ariaLabel={`Tipo da publicação em ${platformLabel(entry.platformId, activePlatforms)}`}
                 value={entry.publicationKind}
@@ -347,13 +348,13 @@ export function PostedVideoComposerSheet({
       ) : null}
 
       <div>
-        <label className="text-sm font-medium text-[var(--text-secondary)]">Legenda publicada (opcional)</label>
+        <label className="t-label text-[var(--text-secondary)]">Legenda publicada (opcional)</label>
         <textarea
           value={caption}
           onChange={event => setCaption(event.target.value)}
           rows={4}
           placeholder="Cole aqui a legenda que foi publicada…"
-          className="mt-2 w-full resize-none rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-elevated)] px-3 py-2 text-sm font-medium leading-relaxed text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent-blue)]"
+          className="mt-2 w-full resize-none rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-elevated)] px-3 py-2 t-body leading-relaxed text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent-blue)]"
         />
       </div>
 

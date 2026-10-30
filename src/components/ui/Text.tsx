@@ -1,4 +1,4 @@
-import { ElementType, ReactNode } from 'react';
+import { ElementType, ReactNode, HTMLAttributes } from 'react';
 import { cn } from '../../lib/utils';
 
 export type TextVariant =
@@ -45,7 +45,7 @@ const defaultElements: Record<TextVariant, ElementType> = {
   eyebrow: 'span',
 };
 
-interface TextProps {
+interface TextProps extends Omit<HTMLAttributes<HTMLElement>, 'children'> {
   variant?: TextVariant;
   as?: ElementType;
   children: ReactNode;
@@ -61,11 +61,13 @@ export function Text({
   className,
   truncate = false,
   uppercase = false,
+  ...props
 }: TextProps) {
   const Component = as ?? defaultElements[variant];
 
   return (
     <Component
+      {...props}
       className={cn(
         variantClasses[variant],
         truncate && 'truncate',

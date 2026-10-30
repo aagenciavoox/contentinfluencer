@@ -1,4 +1,5 @@
 import type { Anotacao } from '../../../lib/database.ts';
+import { dia } from '../../../lib/dates.ts';
 import { criteriosAvaliados, type AvaliacaoCriterios } from './avaliacaoCriterios.ts';
 
 export interface AnnotationsExportInput {
@@ -21,8 +22,8 @@ export interface AnnotationExportEntry {
 }
 
 function formatarData(iso: string): string {
-  const data = new Date(iso);
-  return Number.isNaN(data.getTime()) ? '' : data.toLocaleDateString('pt-BR');
+  if (Number.isNaN(new Date(iso).getTime())) return '';
+  return dia(iso);
 }
 
 /** Todas as anotações, da mais antiga para a mais nova, como foram escritas ao longo da leitura. */

@@ -9,6 +9,7 @@ import { Z_INDEX_DRAWER_BACKDROP, Z_INDEX_MODAL } from './overlayConstants';
 
 interface DrawerProps {
   open: boolean;
+  ariaLabel?: string;
   onClose: () => void;
   children: ReactNode;
   widthClassName?: string;
@@ -17,6 +18,7 @@ interface DrawerProps {
 
 export function Drawer({
   open,
+  ariaLabel,
   onClose,
   children,
   widthClassName = 'max-w-xl',
@@ -41,6 +43,7 @@ export function Drawer({
             ref={panelRef as React.RefObject<HTMLElement>}
             role="dialog"
             aria-modal="true"
+            aria-label={ariaLabel}
             tabIndex={-1}
             initial={{ x: '100%' }}
             animate={{ x: 0 }}

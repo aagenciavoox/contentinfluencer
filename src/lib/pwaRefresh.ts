@@ -42,5 +42,5 @@ export async function forceMobileRefresh(syncData: () => Promise<void>): Promise
   const reloaded = await checkForPwaUpdate();
   if (reloaded) return;
 
-  notifySaveFeedback({ status: 'success', message: 'Atualizado' });
+  notifySaveFeedback({ status: 'success', message: 'App atualizado' });
 }

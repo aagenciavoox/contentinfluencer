@@ -1,5 +1,7 @@
+import { Text } from '../../../components/ui/Text';
 import { useState, type KeyboardEvent } from 'react';
 import { Star } from 'lucide-react';
+import { ValorVazio } from '../../../components/ui/ValorVazio';
 import { cn } from '../../../lib/utils';
 import { formatarNota } from '../lib/avaliacaoCriterios';
 
@@ -85,9 +87,9 @@ export function HalfStarRating({ value, onChange, label, className }: HalfStarRa
           );
         })}
       </div>
-      <span className="w-7 text-right t-secondary tabular-nums text-[var(--text-secondary)]" aria-hidden>
-        {value === null ? '—' : formatarNota(value)}
-      </span>
+      <Text variant="secondary" as="span" className="w-7 text-right tabular-nums text-[var(--text-secondary)]" aria-hidden>
+        {value === null ? <ValorVazio /> : formatarNota(value)}
+      </Text>
     </div>
   );
 }

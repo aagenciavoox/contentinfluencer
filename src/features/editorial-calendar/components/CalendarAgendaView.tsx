@@ -148,7 +148,7 @@ export function CalendarAgendaView({
           <Surface key={mIdx} variant="outlined" padding="none" className="overflow-hidden animate-in zoom-in-95 duration-500">
             <div className="p-4 md:p-6 border-b border-[var(--border-color)] flex items-center justify-center bg-[var(--bg-primary)]">
                <CalendarIcon className="w-4 h-4 text-[var(--accent-blue)] mr-2" />
-               <Text variant="label" uppercase as="h2" className="font-semibold text-[var(--text-primary)]">
+               <Text variant="label" uppercase as="h2" className=" text-[var(--text-primary)]">
                  {format(month.date, 'MMMM yyyy', { locale: ptBR })}
                </Text>
             </div>
@@ -156,7 +156,7 @@ export function CalendarAgendaView({
             <div className="grid grid-cols-7 border-b border-[var(--border-color)] bg-[var(--bg-hover)]/30">
               {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
                 <div key={d} className="py-3 text-center">
-                  <Text variant="label" uppercase className="font-semibold text-[var(--text-tertiary)]">{d}</Text>
+                  <Text variant="label" uppercase className=" text-[var(--text-tertiary)]">{d}</Text>
                 </div>
               ))}
             </div>
@@ -179,12 +179,12 @@ export function CalendarAgendaView({
                     )}
                   >
                     <div className="w-full flex justify-center mb-1 mt-1">
-                      <span className={cn(
-                        "text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-[var(--radius-pill)] transition-all",
+                      <Text variant="label" as="span" className={cn(
+                        "w-6 h-6 flex items-center justify-center rounded-[var(--radius-pill)] transition-all",
                         activeToday ? "bg-[var(--accent-blue)] text-[var(--bg-secondary)] shadow-[var(--shadow-soft)]" : "text-[var(--text-primary)]"
                       )}>
                         {format(day, 'd')}
-                      </span>
+                      </Text>
                     </div>
 
                     <div className="flex flex-wrap gap-1 justify-center px-1">
@@ -201,7 +201,7 @@ export function CalendarAgendaView({
                         />
                       ))}
                       {items.length > 4 && (
-                        <span className="text-2xs w-full text-center font-semibold leading-none text-[var(--text-tertiary)]">+{items.length - 4}</span>
+                        <Text variant="label" as="span" className="w-full text-center leading-none text-[var(--text-tertiary)]">+{items.length - 4}</Text>
                       )}
                     </div>
                   </div>
@@ -227,10 +227,10 @@ export function CalendarAgendaView({
             <div className="flex justify-between items-center mb-6 px-2">
               <div>
                 <Text variant="itemTitle">{format(selectedDayItems.date, "dd 'de' MMMM", { locale: ptBR })}</Text>
-                <p className="text-xs font-semibold uppercase text-[var(--text-tertiary)] tracking-widest">{selectedDayItems.items.length} EVENTOS</p>
+                <Text variant="label" as="p" className="uppercase text-[var(--text-tertiary)] tracking-widest">{selectedDayItems.items.length} EVENTOS</Text>
               </div>
               <button onClick={() => setSelectedDayItems(null)} className="p-2 bg-[var(--bg-hover)] rounded-full">
-                 <span className="text-xl leading-none">×</span>
+                 <span className=" leading-none">×</span>
               </button>
             </div>
             <div className="overflow-y-auto stack-md p-2 custom-scrollbar flex-1 pb-10">
@@ -251,10 +251,10 @@ export function CalendarAgendaView({
                     {item.__type === 'partnership' && <Star className="w-5 h-5 text-[var(--warning)]" />}
                     {item.__type === 'external' && <CalendarIcon className="w-5 h-5 text-[var(--accent-purple)]" />}
                     <div>
-                      <p className="font-bold text-sm text-[var(--text-primary)] truncate text-left max-w-[200px]">{item.title || item.description || item.text}</p>
-                      <p className="text-xs font-semibold text-[var(--text-tertiary)] text-left mt-0.5">
+                      <Text variant="itemTitle" as="p" className="text-[var(--text-primary)] truncate text-left max-w-[200px]">{item.title || item.description || item.text}</Text>
+                      <Text variant="label" as="p" className="text-[var(--text-tertiary)] text-left mt-0.5">
                         {item.__type === 'recording' ? 'Gravação' : item.__type === 'post' ? 'Postagem' : item.__type === 'partnership' ? 'Publicidade' : 'Evento'}
-                      </p>
+                      </Text>
                     </div>
                   </div>
                   <ChevronRight className="w-4 h-4 opacity-40 shrink-0" />

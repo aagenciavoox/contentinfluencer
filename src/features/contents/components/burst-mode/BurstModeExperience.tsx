@@ -10,7 +10,7 @@ import { Content, RecordingBlock } from '../../../../lib/database';
 import { cn, hexContrastRatio, htmlToReadableText } from '../../../../lib/utils';
 import { isContentBodyLoaded } from '../../lib/contentBody';
 import { isCarouselContent } from '../../lib/carouselSlides';
-import { buildPrompterLines } from '../../lib/prompterLines';
+import { buildPrompterLines, EMPTY_SCRIPT_LINE } from '../../lib/prompterLines';
 import { isRecordingBlockTeleprompterEnabled } from '../../../recording/lib/recordingWorkflow';
 import { TeleprompterSettingsDialog } from './TeleprompterSettingsDialog';
 import {
@@ -208,14 +208,14 @@ export function BurstModeExperience({
 
   const currentContent = readyContents[currentIndex] ?? null;
   const scriptText = useMemo(() => {
-    if (!currentContent) return 'Este roteiro ainda não tem texto. Dá para gravar de improviso.';
+    if (!currentContent) return EMPTY_SCRIPT_LINE;
     if (!isContentBodyLoaded(currentContent)) {
       if (hasHydrationError(currentContent.id)) {
         return 'Não foi possível carregar o roteiro.';
       }
       return 'Carregando roteiro…';
     }
-    return getScriptLabel(currentContent.script, 'Este roteiro ainda não tem texto. Dá para gravar de improviso.');
+    return getScriptLabel(currentContent.script, EMPTY_SCRIPT_LINE);
   }, [currentContent, hasHydrationError]);
   const scriptLines = useMemo(() => buildPrompterLines(scriptText, PROMPTER_LINE_MAX_WORDS), [scriptText]);
   const lineWordCounts = useMemo(() => scriptLines.map(line => Math.max(1, countWords(line))), [scriptLines]);
@@ -562,18 +562,18 @@ export function BurstModeExperience({
         <CheckCircle2 className="mx-auto mb-8 h-24 w-24 animate-bounce text-[var(--accent-green)]" />
         <Text
           variant="display"
-          className="mb-4 text-4xl font-semibold uppercase tracking-tight text-[var(--text-primary)] md:text-5xl"
+          className="mb-4 uppercase tracking-tight text-[var(--text-primary)] "
         >
           {endTitle}
         </Text>
-        <p className="mb-12 max-w-xl text-lg font-bold text-[var(--text-tertiary)]">
+        <Text variant="sectionTitle" as="p" className="mb-12 max-w-xl text-[var(--text-tertiary)]">
           {endMessage}
-        </p>
+        </Text>
         <button
           type="button"
           aria-label="Fechar modo gravação"
           onClick={handleFinishBlock}
-          className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] px-12 py-5 text-sm font-semibold  text-[var(--bg-primary)] shadow-none transition-all hover:scale-105"
+          className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] px-12 py-5 t-body-strong text-[var(--bg-primary)] shadow-none transition-all hover:scale-105"
         >
           Fechar modo gravação
         </button>
@@ -672,18 +672,18 @@ export function BurstModeExperience({
           ) : (
             <div className="absolute inset-0 overflow-y-auto px-6 pb-64 pt-10 md:px-16 md:pt-16">
               <div className="mx-auto max-w-4xl">
-                <div className="rounded-xl border border-[var(--tp-border)] bg-[var(--tp-surface)] p-6 md:p-8">
+                <div className="rounded-[var(--radius-card)] border border-[var(--tp-border)] bg-[var(--tp-surface)] p-6 md:p-8">
                   <div className="mb-6 flex flex-wrap items-center gap-3">
-                    <span className="rounded-full border border-[var(--tp-border)] bg-[var(--tp-subtle)] px-3 py-1 t-label t-label-uppercase font-semibold">
+                    <Text variant="label" as="span" className="rounded-full border border-[var(--tp-border)] bg-[var(--tp-subtle)] px-3 py-1 t-label-uppercase text-inherit">
                       Teleprompter desativado
-                    </span>
-                    <span className="t-label t-label-uppercase font-semibold text-[var(--tp-muted)]">
+                    </Text>
+                    <Text variant="label" as="span" className="t-label-uppercase text-[var(--tp-muted)]">
                       Leitura livre no mobile e no desktop
-                    </span>
+                    </Text>
                   </div>
 
                   <article
-                    className="whitespace-pre-wrap break-words text-lg font-semibold leading-[1.8] md:text-[30px] md:leading-[1.75]"
+                    className="whitespace-pre-wrap break-words t-section-title leading-[1.8] md:text-[30px] md:leading-[1.75]"
                     style={{
                       color: getResolvedTextColor(settings.theme, settings.textColor),
                       textAlign: settings.textAlign,
@@ -698,10 +698,10 @@ export function BurstModeExperience({
 
           {teleprompterEnabled && countdownRemaining !== null && (
             <div className="absolute inset-0 z-30 flex items-center justify-center bg-[var(--tp-bg)]/70 backdrop-blur-sm">
-              <div className="rounded-xl border border-[var(--tp-border)] bg-[var(--tp-surface)] px-10 py-8 text-center shadow-[0_12px_40px_rgba(0,0,0,0.08)]">
+              <div className="rounded-[var(--radius-card)] border border-[var(--tp-border)] bg-[var(--tp-surface)] px-10 py-8 text-center shadow-[0_12px_40px_rgba(0,0,0,0.08)]">
                 <Text variant="label" uppercase className="text-[var(--tp-muted)]">Preparar</Text>
-                <p className="mt-3 text-6xl font-semibold tabular-nums">{countdownRemaining}</p>
-                <p className="mt-3 text-sm text-[var(--tp-muted)]">A leitura pode ser pausada a qualquer momento.</p>
+                <Text variant="display" as="p" className="mt-3 tabular-nums text-inherit">{countdownRemaining}</Text>
+                <Text variant="body" as="p" className="mt-3 text-[var(--tp-muted)]">A leitura pode ser pausada a qualquer momento.</Text>
               </div>
             </div>
           )}

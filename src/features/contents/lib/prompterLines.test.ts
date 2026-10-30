@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { buildPrompterLines, EMPTY_SCRIPT_LINE, splitSentenceIntoLines } from './prompterLines.ts';
+import { buildPrompterLines, splitSentenceIntoLines } from './prompterLines.ts';
 
 const wordCount = (line: string) => line.split(/\s+/).filter(Boolean).length;
 
@@ -58,8 +58,8 @@ describe('prompter lines', () => {
     ]);
   });
 
-  it('separates paragraphs with a single blank line, ends on text and falls back on empty scripts', () => {
+  it('separates paragraphs with a single blank line, ends on text and leaves an empty script empty', () => {
     assert.deepEqual(buildPrompterLines('Primeira frase.\n\n\nSegunda frase.\n\n', 11), ['Primeira frase.', '', 'Segunda frase.']);
-    assert.deepEqual(buildPrompterLines('   ', 11), [EMPTY_SCRIPT_LINE]);
+    assert.deepEqual(buildPrompterLines('   ', 11), []);
   });
 });

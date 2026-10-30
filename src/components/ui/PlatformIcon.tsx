@@ -1,3 +1,4 @@
+import { Text } from './Text';
 import { Instagram, Youtube } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { platformDisplayName, platformKey } from './platformName';
@@ -45,9 +46,9 @@ export function PlatformIcon({ platform, className, colored = false }: PlatformI
   if (rede === 'youtube') return <Youtube className={cn(cor, className)} aria-hidden />;
   if (rede === 'tiktok') return <TikTokIcon className={cn(cor, className)} />;
   return (
-    <span className={cn('text-xs font-semibold', className)} aria-hidden>
+    <Text variant="label" as="span" className={cn('', className)} aria-hidden>
       {platform.trim().slice(0, 2)}
-    </span>
+    </Text>
   );
 }
 

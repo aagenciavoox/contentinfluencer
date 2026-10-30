@@ -5,6 +5,7 @@ import {AppButton} from '../../../components/ui/AppButton';
 import {Badge} from '../../../components/ui/Badge';
 import {Surface} from '../../../components/ui/Surface';
 import {Text} from '../../../components/ui/Text';
+import {TextCount} from '../../../components/ui/TextCount';
 import {useBodyScrollLock} from '../../../hooks/useBodyScrollLock';
 import {readStoredJson, writeStoredJson} from '../../../lib/browserStorage';
 import type {Content} from '../../../lib/database';
@@ -62,7 +63,6 @@ export function RecordingScriptReader({
     () => htmlToReadableText(content.script),
     [content.script]
   );
-  const wordCount = useMemo(() => script.split(/\s+/).filter(Boolean).length, [script]);
 
   useEffect(() => {
     writeStoredJson(READER_SETTINGS_KEY, settings);
@@ -207,7 +207,7 @@ export function RecordingScriptReader({
           <Text
             as="div"
             variant="body"
-            className={cn('mx-auto whitespace-pre-wrap font-semibold', foregroundClass)}
+            className={cn('mx-auto whitespace-pre-wrap ', foregroundClass)}
           >
             <div
               style={{
@@ -237,7 +237,7 @@ export function RecordingScriptReader({
         style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))' }}
       >
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3">
-          <Text variant="meta" className={mutedClass}>{wordCount} palavras</Text>
+          <TextCount value={script} mode="words" />
           {onMarkRecorded ? (
             <AppButton
               variant="primary"

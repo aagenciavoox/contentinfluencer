@@ -1,3 +1,4 @@
+import { ValorVazio } from '../../../components/ui/ValorVazio';
 import {useCallback, useEffect, useMemo, useState, type DragEvent, type ReactNode} from 'react';
 import {useLocation, useNavigate, useSearchParams} from 'react-router-dom';
 import {
@@ -23,6 +24,8 @@ import {
 } from '../../../components/calendar';
 import {AppButton} from '../../../components/ui/AppButton';
 import {FilterBar} from '../../../components/ui/FilterBar';
+import {MultiFilterChips} from '../../../components/ui/MultiFilterChips';
+import {PageToolbar} from '../../../components/ui/PageToolbar';
 import {Text} from '../../../components/ui/Text';
 import {SelectField} from '../../../components/ui/SelectField';
 import {TagSelect} from '../../../components/ui/TagSelect';
@@ -453,7 +456,7 @@ export function EditorialCalendarPage() {
           <div className="absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-[var(--shadow-dropdown)]">
             <button
               type="button"
-              className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+              className="flex w-full items-center gap-2 px-3 py-2.5 text-left t-body-strong text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
               onClick={() => {
                 setCreateMenuOpen(false);
                 setQuickCreateDate(selectedDate);
@@ -464,7 +467,7 @@ export function EditorialCalendarPage() {
             </button>
             <button
               type="button"
-              className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+              className="flex w-full items-center gap-2 px-3 py-2.5 text-left t-body-strong text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
               onClick={() => {
                 setCreateMenuOpen(false);
                 setIsAddPostedVideoOpen(true);
@@ -497,7 +500,7 @@ export function EditorialCalendarPage() {
       <button
         type="button"
         onClick={() => navigate('/contas')}
-        className="flex w-full items-center gap-2 rounded-[var(--radius-sm)] px-1 py-1.5 text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+        className="flex w-full items-center gap-2 rounded-[var(--radius-sm)] px-1 py-1.5 t-body-strong text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
       >
         <Clock className="h-4 w-4" />
         Horários de postagem
@@ -542,7 +545,7 @@ export function EditorialCalendarPage() {
                   <div className="absolute right-0 top-full z-30 mt-1 min-w-52 overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-[var(--shadow-dropdown)]">
                     <button
                       type="button"
-                      className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+                      className="flex w-full items-center gap-2 px-3 py-2.5 text-left t-body-strong text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
                       onClick={() => {
                         setHeaderCreateMenuOpen(false);
                         setQuickCreateDate(selectedDate);
@@ -553,7 +556,7 @@ export function EditorialCalendarPage() {
                     </button>
                     <button
                       type="button"
-                      className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+                      className="flex w-full items-center gap-2 px-3 py-2.5 text-left t-body-strong text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
                       onClick={() => {
                         setHeaderCreateMenuOpen(false);
                         setIsAddPostedVideoOpen(true);
@@ -570,41 +573,44 @@ export function EditorialCalendarPage() {
         />
       }
       toolbar={
-        <div className="stack-sm">
-          <div className="flex flex-wrap items-center gap-2">
-            {isMonthView ? null : (
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(true)}
-                className="flex min-h-9 min-w-9 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] xl:hidden"
-                aria-label="Abrir painel lateral"
-              >
-                <PanelLeft className="h-4 w-4" />
-              </button>
-            )}
-            <div className="min-w-0 shrink-0">
-              <CalendarPeriodNav
-                anchorDate={currentMonth}
-                onAnchorDateChange={date => {
-                  setCurrentMonth(date);
-                  if (viewMode === 'week' || viewMode === 'timeline') {
-                    setSelectedDate(date);
-                  }
-                }}
-                viewMode={viewMode}
-                onViewModeChange={handleViewChange}
-                weekViewId={viewMode === 'week' || viewMode === 'timeline' ? viewMode : undefined}
-                views={[
-                  {id: 'month', label: 'Mês'},
-                  {id: 'week', label: 'Semana'},
-                  {id: 'agenda', label: 'Agenda'},
-                  {id: 'timeline', label: 'Linha do tempo'},
-                ]}
-              />
-            </div>
-            {/* As ações descem juntas para a linha de baixo quando não cabem; a navegação não se parte. */}
-            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-            <FilterBar
+        <PageToolbar
+          tabs={
+            <>
+              {isMonthView ? null : (
+                <button
+                  type="button"
+                  onClick={() => setSidebarOpen(true)}
+                  className="flex min-h-9 min-w-9 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] xl:hidden"
+                  aria-label="Abrir painel lateral"
+                >
+                  <PanelLeft className="h-4 w-4" />
+                </button>
+              )}
+              <div className="min-w-0 shrink-0">
+                <CalendarPeriodNav
+                  anchorDate={currentMonth}
+                  onAnchorDateChange={date => {
+                    setCurrentMonth(date);
+                    if (viewMode === 'week' || viewMode === 'timeline') {
+                      setSelectedDate(date);
+                    }
+                  }}
+                  viewMode={viewMode}
+                  onViewModeChange={handleViewChange}
+                  weekViewId={viewMode === 'week' || viewMode === 'timeline' ? viewMode : undefined}
+                  views={[
+                    {id: 'month', label: 'Mês'},
+                    {id: 'week', label: 'Semana'},
+                    {id: 'agenda', label: 'Agenda'},
+                    {id: 'timeline', label: 'Linha do tempo'},
+                  ]}
+                />
+              </div>
+            </>
+          }
+          view={
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <FilterBar
               className="filter-bar--inline"
               size="compact"
               searchValue={searchTerm}
@@ -672,9 +678,10 @@ export function EditorialCalendarPage() {
                 size="sm"
                 aria-pressed={undatedPileOpen}
                 onClick={() => setUndatedPileOpen(!undatedPileOpen)}
+                count={undatedRoteiros.length}
                 leftIcon={<FileText className="h-3.5 w-3.5" />}
               >
-                Sem data ({undatedRoteiros.length})
+                Sem data
               </AppButton>
             ) : null}
             {!showDayPanel && !dayPanelCrowdsEmptyDay ? (
@@ -682,15 +689,16 @@ export function EditorialCalendarPage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setDayPanelOpen(true)}
+                count={selectedEntries.length}
                 leftIcon={<PanelRight className="h-3.5 w-3.5" />}
                 className="hidden xl:inline-flex"
               >
-                Dia ({selectedEntries.length})
+                Dia
               </AppButton>
             ) : null}
             </div>
-          </div>
-        </div>
+          }
+        />
       }
     >
       <CalendarDesktopShell
@@ -796,7 +804,7 @@ export function EditorialCalendarPage() {
         <button
           type="button"
           onClick={() => setDayPanelOpen(true)}
-          className="fixed bottom-6 right-6 z-30 flex items-center gap-2 rounded-[var(--radius-pill)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-2.5 text-sm font-semibold text-[var(--text-primary)] shadow-[var(--shadow-soft)] hover:bg-[var(--bg-hover)] xl:hidden"
+          className="fixed bottom-6 right-6 z-30 flex items-center gap-2 rounded-[var(--radius-pill)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-2.5 t-body-strong text-[var(--text-primary)] shadow-[var(--shadow-soft)] hover:bg-[var(--bg-hover)] xl:hidden"
           aria-label="Abrir painel do dia"
         >
           <PanelRight className="h-4 w-4" />
@@ -877,28 +885,27 @@ function LayerFilterChips({
   activeLayers: string[];
   onToggle: (layerId: string) => void;
 }) {
+  const ativos = new Set(activeLayers);
   return (
-    <div className="flex flex-wrap gap-2">
-      {EDITORIAL_LAYER_ITEMS.map(item => {
-        const active = activeLayers.includes(item.id);
+    <MultiFilterChips
+      ariaLabel="Camadas do calendário"
+      value={activeLayers}
+      onChange={next => {
+        const proximos = new Set(next);
+        const mudou = next.length > activeLayers.length
+          ? next.find(id => !ativos.has(id))
+          : activeLayers.find(id => !proximos.has(id));
+        if (mudou) onToggle(mudou);
+      }}
+      options={EDITORIAL_LAYER_ITEMS.map(item => {
         const Icon = item.icon;
-        return (
-          <button
-            key={item.id}
-            type="button"
-            aria-pressed={active}
-            onClick={() => onToggle(item.id)}
-            className={cn('filter-chip min-h-9', active && 'filter-chip-active')}
-          >
-            <Icon
-              className="h-3.5 w-3.5 shrink-0"
-              style={active ? undefined : {color: item.color}}
-            />
-            {item.label}
-          </button>
-        );
+        return {
+          id: item.id,
+          label: item.label,
+          icon: <Icon className="h-3.5 w-3.5 shrink-0" style={{color: item.color}} aria-hidden />,
+        };
       })}
-    </div>
+    />
   );
 }
 
@@ -957,7 +964,7 @@ function CalendarWeekView({
   });
 
   return (
-    <section className="overflow-hidden rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-[var(--shadow-soft)]">
+    <section className="overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-[var(--shadow-soft)]">
       <div className="grid grid-cols-7 border-b border-[var(--border-color)] bg-[color-mix(in_srgb,var(--surface-subtle),transparent_10%)]">
         {days.map(day => {
           const active = isSameDay(day, selectedDate);
@@ -971,15 +978,15 @@ function CalendarWeekView({
                 active && 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_94%)]'
               )}
             >
-              <span className="text-xs font-semibold uppercase text-[var(--text-tertiary)]">
+              <Text variant="label" as="span" className="uppercase text-[var(--text-tertiary)]">
                 {format(day, 'EEE', {locale: ptBR})}
-              </span>
-              <span className={cn(
-                'flex h-9 w-9 items-center justify-center rounded-full text-base font-semibold text-[var(--text-primary)]',
+              </Text>
+              <Text variant="bodyStrong" as="span" className={cn(
+                'flex h-9 w-9 items-center justify-center rounded-full text-[var(--text-primary)]',
                 active && 'bg-[var(--accent-blue)] text-[var(--text-on-accent-color)]'
               )}>
                 {format(day, 'd')}
-              </span>
+              </Text>
             </button>
           );
         })}
@@ -1005,7 +1012,7 @@ function CalendarWeekView({
             >
               <div className="stack-sm">
                 {entries.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-[var(--border-color)] px-3 py-8 text-center t-meta text-[var(--text-tertiary)]">
+                  <div className="rounded-[var(--radius-input)] border border-dashed border-[var(--border-color)] px-3 py-8 text-center t-meta text-[var(--text-tertiary)]">
                     Livre
                   </div>
                 ) : (
@@ -1071,11 +1078,11 @@ function CalendarAgendaListView({
   const totalRows = groupedEntries.reduce((total, [, rows]) => total + rows.length, 0);
 
   return (
-    <section className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] p-3 shadow-[var(--shadow-soft)]">
+    <section className="rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-3 shadow-[var(--shadow-soft)]">
       <div className="mb-3 flex items-center justify-between gap-3 px-1">
         <div>
           <Text variant="sectionTitle">Agenda editorial</Text>
-          <p className="t-meta text-[var(--text-secondary)]">Tudo o que está marcado, em ordem de data.</p>
+          <Text variant="meta" as="p" className="text-[var(--text-secondary)]">Tudo o que está marcado, em ordem de data.</Text>
           {showPeriodMeta ? (
             <Text variant="meta" className="mt-1 block text-[var(--text-tertiary)]">
               Lista filtrada para {listPeriodLabel}
@@ -1088,7 +1095,7 @@ function CalendarAgendaListView({
 
       <div className="stack-md">
         {groupedEntries.length === 0 ? (
-          <div className="rounded-lg bg-[var(--surface-subtle)] px-4 py-10 text-center text-sm text-[var(--text-secondary)]">
+          <div className="rounded-[var(--radius-input)] bg-[var(--surface-subtle)] px-4 py-10 text-center t-secondary text-[var(--text-secondary)]">
             Nenhum evento encontrado no período atual.
           </div>
         ) : (
@@ -1096,17 +1103,17 @@ function CalendarAgendaListView({
             const date = new Date(`${dateKey}T12:00:00`);
             const active = isSameDay(date, selectedDate);
             return (
-              <div key={dateKey} className={cn('rounded-lg border p-3', active ? 'border-[color-mix(in_srgb,var(--accent-blue),transparent_62%)] bg-[color-mix(in_srgb,var(--accent-blue),transparent_96%)]' : 'border-[var(--border-color)]')}>
+              <div key={dateKey} className={cn('rounded-[var(--radius-input)] border p-3', active ? 'border-[color-mix(in_srgb,var(--accent-blue),transparent_62%)] bg-[color-mix(in_srgb,var(--accent-blue),transparent_96%)]' : 'border-[var(--border-color)]')}>
                 <button type="button" onClick={() => onSelectDate(date)} className="mb-3 flex w-full items-center justify-between text-left">
                   <div>
-                    <p className="text-sm font-semibold capitalize text-[var(--text-primary)]">
+                    <Text variant="itemTitle" as="p" className="capitalize text-[var(--text-primary)]">
                       {format(date, "d 'de' MMMM", {locale: ptBR})}
-                    </p>
-                    <p className="t-meta capitalize text-[var(--text-secondary)]">{format(date, 'EEEE', {locale: ptBR})}</p>
+                    </Text>
+                    <Text variant="meta" as="p" className="capitalize text-[var(--text-secondary)]">{format(date, 'EEEE', {locale: ptBR})}</Text>
                   </div>
-                  <span className="rounded-full bg-[var(--surface-subtle)] px-2 py-1 text-xs font-semibold text-[var(--text-secondary)]">
+                  <Text variant="label" as="span" className="rounded-full bg-[var(--surface-subtle)] px-2 py-1 text-[var(--text-secondary)]">
                     {rows.length}
-                  </span>
+                  </Text>
                 </button>
 
                 <div className="stack-sm">
@@ -1242,9 +1249,9 @@ function CalendarDayPanel({
           <Text variant="sectionTitle">
             {format(selectedDate, "d 'de' MMMM", {locale: ptBR})}
           </Text>
-          <p className="t-meta font-medium capitalize text-[var(--text-secondary)]">
+          <Text variant="meta" as="p" className="capitalize text-[var(--text-secondary)]">
             {format(selectedDate, 'EEEE', {locale: ptBR})}
-          </p>
+          </Text>
         </div>
         <button type="button" onClick={onClose} className="rounded-full p-2 text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)]">
           <X className="h-4 w-4" />
@@ -1255,13 +1262,13 @@ function CalendarDayPanel({
         <button
           type="button"
           onClick={() => onSelectEntry(primaryEntry)}
-          className="mb-4 w-full rounded-lg border border-[color-mix(in_srgb,var(--accent-blue),transparent_62%)] bg-[color-mix(in_srgb,var(--accent-blue),transparent_94%)] p-4 text-left"
+          className="mb-4 w-full rounded-[var(--radius-input)] border border-[color-mix(in_srgb,var(--accent-blue),transparent_62%)] bg-[color-mix(in_srgb,var(--accent-blue),transparent_94%)] p-4 text-left"
         >
           <span className="status-pill mb-3" style={calendarEntryPillStyle({type: primaryEntry.type, posted: primaryEntry.posted})}>
             {getEntryLabel(primaryEntry)}
           </span>
           <Text variant="itemTitle">{primaryEntry.label}</Text>
-          <p className="mt-1 t-meta text-[var(--text-secondary)]">{primaryEntry.secondary || 'Detalhe editorial'}</p>
+          <Text variant="meta" as="p" className="mt-1 text-[var(--text-secondary)]">{primaryEntry.secondary || 'Detalhe editorial'}</Text>
         </button>
       ) : null}
 
@@ -1270,7 +1277,7 @@ function CalendarDayPanel({
           open={eventsOpen}
           onToggle={() => setEventsOpen(prev => !prev)}
           className="rounded-[inherit] px-3"
-          trailing={<span className="text-xs tabular-nums text-[var(--text-tertiary)]">{entries.length}</span>}
+          trailing={<Text variant="meta" as="span" className="tabular-nums text-[var(--text-tertiary)]">{entries.length}</Text>}
         >
           <span className="ds-meta">Eventos do dia</span>
         </DisclosureButton>
@@ -1280,9 +1287,9 @@ function CalendarDayPanel({
               Adicionar evento
             </AppButton>
             {entries.length === 0 ? (
-              <p className="rounded-[var(--radius-input)] bg-[var(--surface-subtle)] px-3 py-3 text-xs text-[var(--text-secondary)]">
+              <Text variant="meta" as="p" className="rounded-[var(--radius-input)] bg-[var(--surface-subtle)] px-3 py-3 text-[var(--text-secondary)]">
                 Nada marcado para este dia.
-              </p>
+              </Text>
             ) : (
               entries.map(entry => (
                 <button
@@ -1294,10 +1301,10 @@ function CalendarDayPanel({
                   )}
                   style={calendarEntryPillStyle(entry)}
                 >
-                  <p className="text-xs font-semibold text-[var(--text-primary)]">{entry.label}</p>
-                  <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
+                  <Text variant="label" as="p" className="text-[var(--text-primary)]">{entry.label}</Text>
+                  <Text variant="meta" as="p" className="mt-0.5 text-[var(--text-secondary)]">
                     {[entry.time, entry.secondary].filter(Boolean).join(' - ') || 'Sem horário'}
-                  </p>
+                  </Text>
                 </button>
               ))
             )}
@@ -1312,18 +1319,18 @@ function CalendarDayPanel({
               type="button"
               onClick={() => setFocusOpen(prev => !prev)}
               aria-expanded={focusOpen}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-[var(--accent-purple)]"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left t-label text-[var(--accent-purple)]"
             >
               <Target className="h-3.5 w-3.5" />
               Talvez útil neste dia
             </button>
             {focusOpen ? (
               <div className="stack-sm border-t border-[var(--border-color)] p-3">
-                <p className="text-xs text-[var(--text-primary)]">{readyToRecordLabel}</p>
+                <Text variant="meta" as="p" className="text-[var(--text-primary)]">{readyToRecordLabel}</Text>
                 <button
                   type="button"
                   onClick={onOpenRecording}
-                  className="self-start text-xs font-semibold text-[var(--accent-blue)]"
+                  className="self-start t-label text-[var(--accent-blue)]"
                 >
                   Abrir gravação
                 </button>
@@ -1358,7 +1365,7 @@ function CalendarInsightCards({
         return (
           <div key={card.label} className="surface-info p-4">
             <div
-              className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg"
+              className="mb-3 flex h-9 w-9 items-center justify-center rounded-[var(--radius-input)]"
               style={{
                 backgroundColor: `color-mix(in srgb, ${card.color} 18%, transparent)`,
                 color: card.color,
@@ -1366,10 +1373,10 @@ function CalendarInsightCards({
             >
               <Icon className="h-4 w-4" />
             </div>
-            <p className="t-meta font-semibold text-[var(--text-secondary)]">{card.label}</p>
+            <Text variant="meta" as="p" className="text-[var(--text-secondary)]">{card.label}</Text>
             <div className="mt-2 flex items-end gap-2">
-              <span className="text-2xl font-semibold text-[var(--text-primary)]">{card.value}</span>
-              <span className="pb-1 t-meta text-[var(--text-secondary)]">{card.detail}</span>
+              <Text variant="pageTitle" as="span" className="text-[var(--text-primary)]">{card.value}</Text>
+              <Text variant="meta" as="span" className="pb-1 text-[var(--text-secondary)]">{card.detail}</Text>
             </div>
           </div>
         );
@@ -1378,15 +1385,15 @@ function CalendarInsightCards({
   );
 }
 
-function FieldRow({label, value}: {label: string; value: string}) {
+function FieldRow({label, value}: {label: string; value: string | null}) {
   return (
     <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)]/50 px-4 py-3">
-      <p className="text-xs font-semibold text-[var(--text-tertiary)]">
+      <Text variant="label" as="p" className="text-[var(--text-tertiary)]">
         {label}
-      </p>
-      <p className="mt-1 whitespace-pre-wrap text-sm font-bold text-[var(--text-primary)]">
-        {value || '-'}
-      </p>
+      </Text>
+      <Text variant="itemTitle" as="p" className="mt-1 whitespace-pre-wrap text-[var(--text-primary)]">
+        {value || <ValorVazio />}
+      </Text>
     </div>
   );
 }
@@ -1547,9 +1554,9 @@ function CalendarEntryDetailModal({
     <div className="flex max-h-[90vh] flex-col bg-[var(--bg-primary)]">
       <div className="flex items-start justify-between gap-4 border-b border-[var(--border-color)] px-6 py-6">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--text-tertiary)]">
+          <Text variant="label" as="p" className="uppercase tracking-[0.25em] text-[var(--text-tertiary)]">
             {subtitle}
-          </p>
+          </Text>
           <Text variant="sectionTitle" truncate className="mt-1">
             {isEditing ? 'Editar evento' : title}
           </Text>
@@ -1563,41 +1570,41 @@ function CalendarEntryDetailModal({
         {isEditing ? (
           <>
             <label className="block stack-sm">
-              <span className="text-xs font-semibold text-[var(--text-tertiary)]">
+              <Text variant="label" as="span" className="text-[var(--text-tertiary)]">
                 Título
-              </span>
+              </Text>
               <input
                 autoFocus
                 type="text"
                 value={title}
                 onChange={event => setTitle(event.target.value)}
-                className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-6 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
+                className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-6 py-3.5 t-body-strong text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
               />
             </label>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <label className="block stack-sm">
-                <span className="text-xs font-semibold text-[var(--text-tertiary)]">
+                <Text variant="label" as="span" className="text-[var(--text-tertiary)]">
                   Data
-                </span>
+                </Text>
                 <input
                   type="date"
                   value={date}
                   onChange={event => setDate(event.target.value)}
-                  className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-6 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
+                  className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-6 py-3.5 t-body-strong text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
                 />
               </label>
 
               {entry.type !== 'recording' ? (
                 <div className="block stack-sm">
-                  <span className="text-xs font-semibold text-[var(--text-tertiary)]">
+                  <Text variant="label" as="span" className="text-[var(--text-tertiary)]">
                     Hora
-                  </span>
+                  </Text>
                   <input
                     type="time"
                     value={time}
                     onChange={event => setTime(event.target.value)}
-                    className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-6 py-3.5 text-sm font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
+                    className="w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-6 py-3.5 t-body-strong text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
                   />
                   <PostingTimeSuggestions
                     date={date}
@@ -1618,7 +1625,7 @@ function CalendarEntryDetailModal({
                       key={type}
                       type="button"
                       onClick={() => setAgendaType(type)}
-                      className={`rounded-xl border px-3 py-2.5 text-xs font-semibold  transition-all ${
+                      className={`rounded-[var(--radius-card)] border px-3 py-2.5 t-label transition-all ${
                         agendaType === type
                           ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
                           : 'border-[var(--border-color)] text-[var(--text-tertiary)]'
@@ -1631,9 +1638,9 @@ function CalendarEntryDetailModal({
 
                 {/* div, não label: dentro de um <label> o clique no TagSelect abriria e fecharia a lista. */}
                 <div className="block stack-sm">
-                  <span className="text-xs font-semibold text-[var(--text-tertiary)]" aria-hidden>
+                  <Text variant="label" as="span" className="text-[var(--text-tertiary)]" aria-hidden>
                     Projeto vinculado
-                  </span>
+                  </Text>
                   <TagSelect
                     label="Projeto vinculado"
                     hideLabel
@@ -1653,9 +1660,9 @@ function CalendarEntryDetailModal({
             {content && entry.type === 'publish' ? (
               <>
                 <label className="block stack-sm">
-                  <span className="text-xs font-semibold text-[var(--text-tertiary)]">
+                  <Text variant="label" as="span" className="text-[var(--text-tertiary)]">
                     Conta
-                  </span>
+                  </Text>
                   <SelectField
                     block
                     ariaLabel="Conta"
@@ -1666,21 +1673,21 @@ function CalendarEntryDetailModal({
                 </label>
 
                 <label className="block stack-sm">
-                  <span className="text-xs font-semibold text-[var(--text-tertiary)]">
+                  <Text variant="label" as="span" className="text-[var(--text-tertiary)]">
                     Legenda desta publicação
                     {estadoDaLegenda ? ` · ${ESTADO_LEGENDA_ROTULO[estadoDaLegenda]}` : ''}
-                  </span>
+                  </Text>
                   {estadoDaLegenda === 'base' ? (
-                    <span className="block text-xs text-[var(--text-secondary)]">
+                    <Text variant="meta" as="span" className="block text-[var(--text-secondary)]">
                       Editar aqui cria uma versão própria só desta publicação.
-                    </span>
+                    </Text>
                   ) : null}
                   <textarea
                     value={caption}
                     readOnly={estadoDaLegenda === 'publicada'}
                     onChange={event => setCaption(event.target.value)}
                     rows={7}
-                    className="w-full resize-none rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-6 py-3.5 text-sm font-medium leading-relaxed text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
+                    className="w-full resize-none rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-6 py-3.5 t-body-strong leading-relaxed text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-blue)]"
                   />
                 </label>
               </>
@@ -1690,14 +1697,14 @@ function CalendarEntryDetailModal({
           <>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <FieldRow label="Data" value={date} />
-              <FieldRow label="Hora" value={time || '-'} />
+              <FieldRow label="Hora" value={time || null} />
               <FieldRow label="Tipo" value={subtitle} />
-              <FieldRow label="Status" value={content?.status || agendaItem?.tipo || entry.secondary || '-'} />
+              <FieldRow label="Status" value={content?.status || agendaItem?.tipo || entry.secondary || null} />
             </div>
 
             {entry.type === 'publish' ? (
               <>
-                <FieldRow label="Conta" value={platformName || entry.secondary || '-'} />
+                <FieldRow label="Conta" value={platformName || entry.secondary || null} />
                 <FieldRow
                   label={estadoDaLegenda ? `Legenda · ${ESTADO_LEGENDA_ROTULO[estadoDaLegenda]}` : 'Legenda'}
                   value={caption || 'Sem legenda registrada.'}
@@ -1708,7 +1715,7 @@ function CalendarEntryDetailModal({
             {agendaItem ? (
               <FieldRow
                 label="Projeto"
-                value={agendaItem.projetoId ? projetos.find(item => item.id === agendaItem.projetoId)?.nome || '-' : 'Sem projeto'}
+                value={agendaItem.projetoId ? projetos.find(item => item.id === agendaItem.projetoId)?.nome || null : 'Sem projeto'}
               />
             ) : null}
 
@@ -1725,7 +1732,7 @@ function CalendarEntryDetailModal({
             <button
               type="button"
               onClick={handleCancelEdit}
-              className="flex-1 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-primary)] transition-all hover:bg-[var(--bg-hover)]"
+              className="flex-1 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] py-3 t-label text-[var(--text-primary)] transition-all hover:bg-[var(--bg-hover)]"
             >
               Cancelar
             </button>
@@ -1733,7 +1740,7 @@ function CalendarEntryDetailModal({
               type="button"
               onClick={handleSave}
               disabled={!title.trim() || !date}
-              className="flex-1 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] py-3 text-xs font-semibold  text-[var(--bg-primary)] transition-all hover:scale-[1.01] disabled:pointer-events-none disabled:opacity-30"
+              className="flex-1 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] py-3 t-label text-[var(--bg-primary)] transition-all hover:scale-[1.01] disabled:pointer-events-none disabled:opacity-30"
             >
               Salvar
             </button>
@@ -1743,7 +1750,7 @@ function CalendarEntryDetailModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-primary)] transition-all hover:bg-[var(--bg-hover)]"
+              className="flex-1 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] py-3 t-label text-[var(--text-primary)] transition-all hover:bg-[var(--bg-hover)]"
             >
               Fechar
             </button>
@@ -1754,7 +1761,7 @@ function CalendarEntryDetailModal({
                   onClose();
                   navigate(buildContentDetailRoute(content.id, 'roteiro'), detailBackState);
                 }}
-                className="flex-1 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] py-3 text-xs font-semibold  text-[var(--text-primary)] transition-all hover:bg-[var(--bg-hover)]"
+                className="flex-1 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] py-3 t-label text-[var(--text-primary)] transition-all hover:bg-[var(--bg-hover)]"
               >
                 Abrir roteiro
               </button>
@@ -1766,7 +1773,7 @@ function CalendarEntryDetailModal({
                   onClose();
                   navigate(buildContentDetailRoute(content.id, 'publicacao'), detailBackState);
                 }}
-                className="flex-1 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] py-3 text-xs font-semibold  text-[var(--bg-primary)] transition-all hover:scale-[1.01]"
+                className="flex-1 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] py-3 t-label text-[var(--bg-primary)] transition-all hover:scale-[1.01]"
               >
                 Agendar postagem
               </button>
@@ -1774,7 +1781,7 @@ function CalendarEntryDetailModal({
               <button
                 type="button"
                 onClick={() => setIsEditing(true)}
-                className="flex-1 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] py-3 text-xs font-semibold  text-[var(--bg-primary)] transition-all hover:scale-[1.01]"
+                className="flex-1 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] py-3 t-label text-[var(--bg-primary)] transition-all hover:scale-[1.01]"
               >
                 Editar
               </button>

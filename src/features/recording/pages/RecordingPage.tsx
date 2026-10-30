@@ -22,6 +22,7 @@ import {RecordingQueueTab} from '../components/desktop/RecordingQueueTab';
 import {RecordingSelectionBar} from '../components/desktop/RecordingSelectionBar';
 import {RecordingScriptReader} from '../components/RecordingScriptReader';
 import {FilterBar} from '../../../components/ui/FilterBar';
+import {PageToolbar} from '../../../components/ui/PageToolbar';
 import {SegmentTabs} from '../../../components/ui/SegmentTabs';
 import {AppButton} from '../../../components/ui/AppButton';
 import {Text} from '../../../components/ui/Text';
@@ -400,7 +401,7 @@ export function RecordingPage() {
           meta={
             recordingReady
               ? activeTab === 'queue'
-                ? `${prontos.length} ${prontos.length === 1 ? 'roteiro' : 'roteiros'} sem bloco · selecione para montar um bloco e gravar`
+                ? 'Selecione roteiros para montar um bloco e gravar.'
                 : `${state.recordingBlocks.length} ${state.recordingBlocks.length === 1 ? 'bloco' : 'blocos'}`
               : undefined
           }
@@ -411,9 +412,10 @@ export function RecordingPage() {
                 leftIcon={<Plus className="h-4 w-4" />}
                 disabled={selectedIds.size === 0}
                 disabledReason="Selecione os roteiros que vão para o bloco."
+                count={selectedIds.size > 0 ? selectedIds.size : undefined}
                 onClick={() => setShowBlockForm(true)}
               >
-                {selectedIds.size > 0 ? `Criar bloco (${selectedIds.size})` : 'Criar bloco'}
+                Criar bloco
               </AppButton>
             ) : (
               <AppButton
@@ -428,16 +430,26 @@ export function RecordingPage() {
         />
       }
       toolbar={
-        <div className="desktop-subheader !mb-0">
-          <SegmentTabs<RecordingPageTab>
-            value={activeTab}
-            onChange={handleTabChange}
-            options={[
-              {id: 'queue', label: 'Sem bloco'},
-              {id: 'blocks', label: 'Blocos'},
-            ]}
-          />
-          {activeTab === 'queue' ? (
+        <PageToolbar
+          tabs={
+            <SegmentTabs<RecordingPageTab>
+              value={activeTab}
+              onChange={handleTabChange}
+              options={[
+                {
+                  id: 'queue',
+                  label: 'Sem bloco',
+                  count: recordingReady ? queueContents.length : undefined,
+                },
+                {
+                  id: 'blocks',
+                  label: 'Blocos',
+                  count: recordingReady ? state.recordingBlocks.length : undefined,
+                },
+              ]}
+            />
+          }
+          filters={activeTab === 'queue' ? (
             <FilterBar
               className="min-w-0 flex-1"
               searchValue={searchTerm}
@@ -497,7 +509,7 @@ export function RecordingPage() {
               ]}
             />
           ) : null}
-        </div>
+        />
       }
     >
         <div className="stack-lg">

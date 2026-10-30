@@ -1,7 +1,7 @@
-import { supabase } from '../../../lib/supabase';
-import { LIBRARY_COVERS_BUCKET, libraryCoverPathFromUrl } from './libraryCoverFile';
+import { supabase } from '../../../lib/supabase.ts';
+import { LIBRARY_COVERS_BUCKET, libraryCoverPathFromUrl } from './libraryCoverFile.ts';
 
-export { libraryCoverPathFromUrl, isLibraryCoverStorageUrl } from './libraryCoverFile';
+export { libraryCoverPathFromUrl, isLibraryCoverStorageUrl } from './libraryCoverFile.ts';
 
 /** Best-effort delete of a single cover object. Never throws. */
 export async function deleteLibraryCoverByUrl(url: string | null | undefined): Promise<void> {

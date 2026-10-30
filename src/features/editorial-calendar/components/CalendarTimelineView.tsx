@@ -64,7 +64,7 @@ export function CalendarTimelineView({
   }, [anchorDate, period, weekStartsOn]);
 
   return (
-    <section className="overflow-hidden rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-[var(--shadow-soft)]">
+    <section className="overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-[var(--shadow-soft)]">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-color)] px-3 py-2.5">
         <div>
           <Text variant="sectionTitle">Linha do tempo</Text>
@@ -100,12 +100,12 @@ export function CalendarTimelineView({
                     isSelected && !isToday && 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_96%)]',
                   )}
                 >
-                  <span className="text-2xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
+                  <Text variant="label" as="span" className="uppercase tracking-wide text-[var(--text-tertiary)]">
                     {format(day, 'EEE', {locale: ptBR})}
-                  </span>
-                  <span
+                  </Text>
+                  <Text variant="bodyStrong" as="span"
                     className={cn(
-                      'flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold',
+                      'flex h-8 w-8 items-center justify-center rounded-full ',
                       isToday
                         ? 'bg-[var(--accent-blue)] text-[var(--text-on-accent-color)]'
                         : isSelected
@@ -114,7 +114,7 @@ export function CalendarTimelineView({
                     )}
                   >
                     {format(day, 'd')}
-                  </span>
+                  </Text>
                 </button>
               );
             })}

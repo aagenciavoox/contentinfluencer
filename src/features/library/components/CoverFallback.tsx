@@ -1,3 +1,4 @@
+import { Text } from '../../../components/ui/Text';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { coverInitial } from '../lib/libraryCoverFile';
@@ -29,17 +30,17 @@ export function CoverFallback({
     >
       <span
         className={cn(
-          'inline-flex items-center justify-center rounded-full bg-[var(--bg-elevated)] font-semibold text-[var(--text-primary)]',
-          compact ? 'h-9 w-9 text-sm' : 'h-12 w-12 text-lg',
+          'inline-flex items-center justify-center rounded-full bg-[var(--bg-elevated)] text-[var(--text-primary)]',
+          compact ? 'h-9 w-9 t-body' : 'h-12 w-12 ',
         )}
         aria-hidden
       >
         {coverInitial(title)}
       </span>
       {typeLabel ? (
-        <span className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
+        <Text variant="label" as="span" className="uppercase tracking-wide text-[var(--text-tertiary)]">
           {typeLabel}
-        </span>
+        </Text>
       ) : Icon ? (
         <Icon className={cn('text-[var(--text-tertiary)]', compact ? 'h-4 w-4' : 'h-5 w-5')} />
       ) : null}

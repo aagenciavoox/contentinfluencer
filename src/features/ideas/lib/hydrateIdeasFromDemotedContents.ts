@@ -1,6 +1,6 @@
 import type {Content, Idea} from '../../../lib/database';
-import {buildIdeaFromContent} from '../../contents/lib/demoteContentToIdea';
-import {getIdeaNotes, normalizeIdea} from './ideaText';
+import {buildIdeaFromContent} from '../../contents/lib/demoteContentToIdea.ts';
+import {getIdeaNotes, normalizeIdea} from './ideaText.ts';
 
 export function hydrateIdeaFromDemotedContent(idea: Idea, content: Content): Idea {
   if (!idea.demotedFromContentId || idea.demotedFromContentId !== content.id) {

@@ -68,13 +68,13 @@ function DrawerNavItem({
               isActive ? 'text-[var(--brand-accent)]' : 'text-[var(--text-tertiary)]'
             )}
           />
-          <span className={cn('flex-1 truncate text-sm', isActive ? 'font-semibold' : 'font-medium')}>
+          <Text variant="body" as="span" className={cn('flex-1 truncate', isActive ? '' : '')}>
             {label}
-          </span>
+          </Text>
           {badge ? (
-            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--bg-primary)] px-1.5 text-xs font-semibold text-[var(--text-secondary)]">
+            <Text variant="label" as="span" className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--bg-primary)] px-1.5 text-[var(--text-secondary)]">
               {badge}
-            </span>
+            </Text>
           ) : (
             <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
           )}
@@ -139,7 +139,7 @@ export function MobileSidebarDrawer({ onClose }: MobileSidebarDrawerProps) {
           type="button"
           onClick={onClose}
           aria-label="Fechar menu"
-          className="flex min-h-11 min-w-11 items-center justify-center rounded-md text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+          className="flex min-h-11 min-w-11 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
         >
           <X className="h-5 w-5" />
         </button>
@@ -148,10 +148,10 @@ export function MobileSidebarDrawer({ onClose }: MobileSidebarDrawerProps) {
       <button
         type="button"
         onClick={openCommandPalette}
-        className="mb-4 flex min-h-11 w-full items-center gap-2 rounded-md border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 text-left text-[var(--text-tertiary)] transition-colors hover:border-[var(--border-strong)]"
+        className="mb-4 flex min-h-11 w-full items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 text-left text-[var(--text-tertiary)] transition-colors hover:border-[var(--border-strong)]"
       >
         <Search className="h-4 w-4 shrink-0" />
-        <span className="flex-1 text-sm">Buscar…</span>
+        <Text variant="body" as="span" className="flex-1 text-inherit">Buscar…</Text>
       </button>
 
       <nav className="flex-1" aria-label="Principal">
@@ -200,7 +200,7 @@ export function MobileSidebarDrawer({ onClose }: MobileSidebarDrawerProps) {
           aria-current={settingsNavCurrent ? 'page' : undefined}
           className={() =>
             cn(
-              'flex min-h-11 items-center gap-3 rounded-md px-3 transition-colors',
+              'flex min-h-11 items-center gap-3 rounded-[var(--radius-sm)] px-3 transition-colors',
               settingsNavCurrent
                 ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
                 : 'text-[var(--text-secondary)] active:bg-[var(--bg-hover)]'
@@ -215,14 +215,14 @@ export function MobileSidebarDrawer({ onClose }: MobileSidebarDrawerProps) {
                 : 'text-[var(--text-tertiary)]',
             )}
           />
-          <span className="flex-1 text-sm font-medium">Configurações</span>
+          <Text variant="bodyStrong" as="span" className="flex-1 text-inherit">Configurações</Text>
           <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
         </NavLink>
       </div>
 
       <div className="relative mt-3 shrink-0 border-t border-[var(--border-color)] pt-3">
         {userMenuOpen ? (
-          <div className="absolute bottom-full left-0 right-0 z-50 mb-1 overflow-hidden rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] py-1 shadow-lg">
+          <div className="absolute bottom-full left-0 right-0 z-50 mb-1 overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] py-1 shadow-lg">
             <button
               type="button"
               onClick={() => {
@@ -230,7 +230,7 @@ export function MobileSidebarDrawer({ onClose }: MobileSidebarDrawerProps) {
                 setUserMenuOpen(false);
                 onClose();
               }}
-              className="flex min-h-11 w-full items-center gap-2.5 px-3 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+              className="flex min-h-11 w-full items-center gap-2.5 px-3 t-secondary text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
             >
               <User className="h-4 w-4 shrink-0" />
               Meu perfil
@@ -241,7 +241,7 @@ export function MobileSidebarDrawer({ onClose }: MobileSidebarDrawerProps) {
                 toggleTheme();
                 setUserMenuOpen(false);
               }}
-              className="flex min-h-11 w-full items-center gap-2.5 px-3 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+              className="flex min-h-11 w-full items-center gap-2.5 px-3 t-secondary text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
             >
               {state.theme === 'light' ? <Moon className="h-4 w-4 shrink-0" /> : <Sun className="h-4 w-4 shrink-0" />}
               {state.theme === 'light' ? 'Modo escuro' : 'Modo claro'}
@@ -252,7 +252,7 @@ export function MobileSidebarDrawer({ onClose }: MobileSidebarDrawerProps) {
                 void signOut();
                 setUserMenuOpen(false);
               }}
-              className="flex min-h-11 w-full items-center gap-2.5 px-3 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+              className="flex min-h-11 w-full items-center gap-2.5 px-3 t-secondary text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
             >
               <LogOut className="h-4 w-4 shrink-0" />
               Sair
@@ -265,17 +265,17 @@ export function MobileSidebarDrawer({ onClose }: MobileSidebarDrawerProps) {
             event.stopPropagation();
             setUserMenuOpen(previous => !previous);
           }}
-          className="flex min-h-11 w-full items-center gap-3 rounded-md p-2 text-left transition-colors active:bg-[var(--bg-hover)]"
+          className="flex min-h-11 w-full items-center gap-3 rounded-[var(--radius-sm)] p-2 text-left transition-colors active:bg-[var(--bg-hover)]"
           aria-label="Abrir perfil"
           aria-haspopup="menu"
           aria-expanded={userMenuOpen}
         >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--bg-hover)] text-sm font-semibold text-[var(--text-secondary)]">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--bg-hover)] t-body-strong text-[var(--text-secondary)]">
             {userInitials}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{userName}</p>
-            <p className="truncate text-xs text-[var(--text-tertiary)]">{userEmail}</p>
+            <Text variant="itemTitle" as="p" className="truncate text-[var(--text-primary)]">{userName}</Text>
+            <Text variant="meta" as="p" className="truncate text-[var(--text-tertiary)]">{userEmail}</Text>
           </div>
           <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
         </button>

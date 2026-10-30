@@ -91,7 +91,7 @@ export function HistorySection({content, compact = false}: HistorySectionProps) 
           <li
             key={milestone.id}
             className={cn(
-              'flex items-start gap-3 text-sm',
+              'flex items-start gap-3 t-body',
               milestone.reached ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]',
             )}
           >
@@ -106,9 +106,9 @@ export function HistorySection({content, compact = false}: HistorySectionProps) 
               {milestone.icon}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="font-medium">{milestone.label}</p>
+              <Text variant="bodyStrong" as="p" className="text-inherit">{milestone.label}</Text>
               {milestone.date ? (
-                <p className="text-xs text-[var(--text-tertiary)]">{milestone.date}</p>
+                <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">{milestone.date}</Text>
               ) : null}
             </div>
           </li>

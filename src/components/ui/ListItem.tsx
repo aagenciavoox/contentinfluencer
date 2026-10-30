@@ -28,7 +28,7 @@ export function ListItem({
     <>
       {leading ? <div className="shrink-0">{leading}</div> : null}
       <div className="min-w-0 flex-1">
-        <Text variant="itemTitle" as="div" className="font-semibold" truncate>
+        <Text variant="itemTitle" as="div" className="" truncate>
           {title}
         </Text>
         {subtitle ? (

@@ -61,7 +61,7 @@ export function EditorialAgendaFilters({
               type="button"
               onClick={() => onToggleLayer(option.id)}
               className={cn(
-                'flex items-center gap-2 rounded-[var(--radius-md)] border px-3 py-2 text-xs font-bold transition-all select-none',
+                'flex items-center gap-2 rounded-[var(--radius-md)] border px-3 py-2 t-label transition-all select-none',
                 'cursor-pointer active:scale-[0.97]',
                 active
                   ? colors.active

@@ -1,3 +1,4 @@
+import { TextCount } from '../../../../components/ui/TextCount';
 import {useEffect, useMemo, useRef, useState, type ReactNode} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {getDay, parseISO} from 'date-fns';
@@ -48,7 +49,7 @@ const NOTES_MAX = 500;
 type AsideSectionId = 'properties' | 'schedule' | 'notes';
 
 const quietFieldClass =
-  'w-full rounded-[var(--radius-input)] border border-transparent bg-transparent px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition-colors hover:bg-[var(--bg-hover)] focus:border-[var(--border-color)] focus:bg-[var(--bg-elevated)]';
+  'w-full rounded-[var(--radius-input)] border border-transparent bg-transparent px-3 py-2 t-body text-[var(--text-primary)] outline-none transition-colors hover:bg-[var(--bg-hover)] focus:border-[var(--border-color)] focus:bg-[var(--bg-elevated)]';
 
 function toIsoDate(dateOnly: string | null) {
   return dateOnly ? `${dateOnly}T12:00:00.000Z` : null;
@@ -148,10 +149,10 @@ function RoteiroField({
 }) {
   return (
     <label className="block space-y-1.5">
-      <span className="inline-flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)]">
+      <Text variant="label" as="span" className="inline-flex items-center gap-2 text-[var(--text-secondary)]">
         {icon}
         {label}
-      </span>
+      </Text>
       {children}
     </label>
   );
@@ -301,16 +302,16 @@ export function ContentStatusField({
                   setOpen(false);
                 }}
                 className={cn(
-                  'w-full rounded-md px-3 py-2 text-left text-sm transition-colors disabled:cursor-not-allowed',
+                  'w-full rounded-[var(--radius-sm)] px-3 py-2 text-left t-body transition-colors disabled:cursor-not-allowed',
                   option.atual
-                    ? 'bg-[var(--bg-hover)] font-semibold text-[var(--text-primary)]'
+                    ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
                     : permitida
                       ? 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
                       : 'text-[var(--text-tertiary)]',
                 )}
               >
                 <span className="block">{option.status}{option.atual ? ' · atual' : ''}</span>
-                {option.motivo ? <span className="block text-xs">{option.motivo}</span> : null}
+                {option.motivo ? <Text variant="meta" as="span" className="block text-inherit">{option.motivo}</Text> : null}
               </button>
             );
           })}
@@ -391,7 +392,7 @@ export function FuncaoEditorialFields({
   const value = funcaoChoiceValue(draft);
   const handleFuncao = (next: string) => onChange(updatesFromFuncaoChoice(next));
   const grade = (
-    <label className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
+    <label className="flex items-center gap-2 t-label text-[var(--text-primary)]">
       <input
         type="checkbox"
         checked={draft.contaNaGrade !== false}
@@ -415,7 +416,7 @@ export function FuncaoEditorialFields({
     if (formPart === 'grade') return grade;
     const funcaoField = (
       <label className="flex flex-col gap-1">
-        {formLabel ?? <span className="text-xs font-medium text-[var(--text-secondary)]">Objetivo do conteúdo</span>}
+        {formLabel ?? <Text variant="label" as="span" className="text-[var(--text-secondary)]">Objetivo do conteúdo</Text>}
         <SelectField
           block
           ariaLabel="Objetivo do conteúdo"
@@ -571,7 +572,7 @@ export function ContentOperationalPanel({
   };
 
   const formInputClass =
-    'w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent-blue)] transition-colors';
+    'w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 t-body text-[var(--text-primary)] outline-none focus:border-[var(--accent-blue)] transition-colors';
 
   const propertiesSection = (
     <PropertySection label="Propriedades">
@@ -657,7 +658,7 @@ export function ContentOperationalPanel({
           onChange={event => onChange({energiaNecessaria: (event.target.value || null) as EnergiaNivel | null})}
           className={emptySelect(draft.energiaNecessaria)}
         >
-          <option value="">Sem energia</option>
+          <option value="">Não definida</option>
           <option value="baixa">Baixa</option>
           <option value="média">Média</option>
           <option value="alta">Alta</option>
@@ -737,11 +738,9 @@ export function ContentOperationalPanel({
           value={draft.notes ?? ''}
           onChange={event => onChange({notes: event.target.value.slice(0, NOTES_MAX)})}
           className="w-full"
-          placeholder="Observações editoriais, referências, links…"
+          placeholder="Ex.: link dos arquivos, instruções de edição, capa, cortes"
         />
-        <Text variant="meta" className="text-right">
-          {(draft.notes ?? '').length} / {NOTES_MAX}
-        </Text>
+        <TextCount value={draft.notes ?? ''} limit={NOTES_MAX} />
       </div>
     </PropertySection>
   );
@@ -763,7 +762,7 @@ export function ContentOperationalPanel({
       {avisoTrocaSerie}
       <aside className={cn('cms-panel flex flex-col gap-4 p-4', className)}>
         <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-[var(--text-secondary)]" aria-hidden>Pilar</span>
+          <Text variant="label" as="span" className="text-[var(--text-secondary)]" aria-hidden>Pilar</Text>
           <TagSelect
             label="Pilar"
             hideLabel
@@ -777,7 +776,7 @@ export function ContentOperationalPanel({
         </div>
 
         <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-[var(--text-secondary)]" aria-hidden>Série</span>
+          <Text variant="label" as="span" className="text-[var(--text-secondary)]" aria-hidden>Série</Text>
           <TagSelect
             label="Série"
             hideLabel
@@ -796,7 +795,7 @@ export function ContentOperationalPanel({
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-[var(--text-secondary)]" aria-hidden>Formato visual</span>
+            <Text variant="label" as="span" className="text-[var(--text-secondary)]" aria-hidden>Formato visual</Text>
             <SelectField
               block
               ariaLabel="Formato visual"
@@ -809,7 +808,7 @@ export function ContentOperationalPanel({
             />
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-[var(--text-secondary)]" aria-hidden>Energia</span>
+            <Text variant="label" as="span" className="text-[var(--text-secondary)]" aria-hidden>Energia</Text>
             <SelectField
               block
               ariaLabel="Energia"
@@ -835,7 +834,7 @@ export function ContentOperationalPanel({
 
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-[var(--text-secondary)]">Gravação</span>
+            <Text variant="label" as="span" className="text-[var(--text-secondary)]">Gravação</Text>
             <PropertyDatePicker
               variant="field"
               value={draft.recordingDate ? draft.recordingDate.slice(0, 10) : null}
@@ -843,7 +842,7 @@ export function ContentOperationalPanel({
             />
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-[var(--text-secondary)]">Postagem</span>
+            <Text variant="label" as="span" className="text-[var(--text-secondary)]">Postagem</Text>
             <PropertyDatePicker
               variant="field"
               value={publishDateOnly || null}
@@ -853,12 +852,12 @@ export function ContentOperationalPanel({
         </div>
 
         <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-[var(--text-secondary)]">Observações</span>
+          <Text variant="label" as="span" className="text-[var(--text-secondary)]">Observações</Text>
           <textarea
             value={draft.notes ?? ''}
             onChange={event => onChange({notes: event.target.value.slice(0, NOTES_MAX)})}
             className={cn(formInputClass, 'min-h-[88px] resize-none')}
-            placeholder="Observações editoriais"
+            placeholder="Ex.: link dos arquivos, instruções de edição, capa, cortes"
           />
         </div>
 
@@ -866,7 +865,7 @@ export function ContentOperationalPanel({
           <button
             type="button"
             onClick={() => navigate('/series/' + linkedSerie.id)}
-            className="flex items-center justify-between gap-2 rounded-[var(--radius-input)] border border-[var(--border-color)] px-3 py-2 text-left text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)]"
+            className="flex items-center justify-between gap-2 rounded-[var(--radius-input)] border border-[var(--border-color)] px-3 py-2 text-left t-secondary text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)]"
           >
             <span className="truncate">{linkedSerie.name}</span>
             <ExternalLink className="h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" />
@@ -1037,11 +1036,9 @@ export function ContentOperationalPanel({
             value={draft.notes ?? ''}
             onChange={event => onChange({notes: event.target.value.slice(0, NOTES_MAX)})}
             className={cn(quietFieldClass, 'min-h-[100px] resize-none bg-[var(--bg-hover)]')}
-            placeholder="Observações editoriais, referências, links…"
+            placeholder="Ex.: link dos arquivos, instruções de edição, capa, cortes"
           />
-          <Text variant="meta" className="text-right">
-            {(draft.notes ?? '').length} / {NOTES_MAX}
-          </Text>
+          <TextCount value={draft.notes ?? ''} limit={NOTES_MAX} />
         </AsideAccordion>
       </aside>
       </>

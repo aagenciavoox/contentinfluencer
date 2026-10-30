@@ -56,7 +56,7 @@ export async function applyAppUpdate(): Promise<void> {
     await flushUnsavedChanges();
     await applyHandler();
   } catch (error) {
-    console.warn('[PWA] Falha ao atualizar:', error);
+    console.warn('[PWA] Não atualizou:', error);
     applying = false;
     emit();
   }

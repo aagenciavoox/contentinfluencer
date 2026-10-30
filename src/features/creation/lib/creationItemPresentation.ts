@@ -1,4 +1,5 @@
 import type { Content } from '../../../lib/database.ts';
+import { dia } from '../../../lib/dates.ts';
 import { htmlToReadableText } from '../../../lib/utils.ts';
 import {
   CONTENT_STATUS,
@@ -81,8 +82,8 @@ export function getCreationNoteExcerpt(content: Content) {
 
 const DAY_MS = 86_400_000;
 
-function formatCreationCardDate(date: Date) {
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+function formatCreationCardDate(date: Date, now: Date) {
+  return dia(date, now);
 }
 
 function startOfLocalDay(date: Date) {
@@ -117,7 +118,7 @@ function formatUpcomingDay(day: Date, today: Date) {
   const diff = localDayDiff(today, day);
   if (diff === 0) return 'hoje';
   if (diff === 1) return 'amanhã';
-  return formatCreationCardDate(day);
+  return formatCreationCardDate(day, today);
 }
 
 /**
@@ -130,8 +131,8 @@ function formatCreationLastEdit(iso: string, now: Date) {
   const diff = localDayDiff(date, now);
   if (diff <= 0) return 'hoje';
   if (diff === 1) return 'ontem';
-  if (diff < 7) return `${diff}d atrás`;
-  return formatCreationCardDate(date);
+  if (diff < 7) return `há ${diff} dias`;
+  return formatCreationCardDate(date, now);
 }
 
 type CreationCardDateFields = Pick<

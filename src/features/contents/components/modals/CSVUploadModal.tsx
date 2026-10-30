@@ -143,7 +143,7 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
                 Importar roteiros
               </Text>
             </div>
-            <p className="t-label t-label-uppercase font-semibold text-[var(--text-tertiary)]">Adicione vários roteiros de uma vez</p>
+            <Text variant="label" as="p" className="t-label-uppercase text-[var(--text-tertiary)]">Adicione vários roteiros de uma vez</Text>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-[var(--bg-hover)] rounded-full transition-colors">
             <X className="w-5 h-5 text-[var(--text-tertiary)]" />
@@ -160,7 +160,7 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
               <Text variant="itemTitle" uppercase className="mb-2">
                 {importedLabel}
               </Text>
-              <p className="text-sm text-[var(--text-tertiary)] opacity-70">Roteiros adicionados à Criação.</p>
+              <Text variant="secondary" as="p" className="text-[var(--text-tertiary)] opacity-70">Roteiros adicionados à Criação.</Text>
             </motion.div>
           ) : (
             <div className="space-y-12">
@@ -168,25 +168,25 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
               <section>
                 <div className="flex items-center gap-2 mb-4">
                   <Info className="w-4 h-4 text-[var(--accent-blue)]" />
-                  <span className="text-xs font-semibold  text-[var(--text-secondary)]">Instruções do arquivo</span>
+                  <Text variant="label" as="span" className="text-[var(--text-secondary)]">Instruções do arquivo</Text>
                 </div>
                 <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] p-6">
-                  <p className="text-sm text-[var(--text-tertiary)] mb-6 leading-relaxed">
+                  <Text variant="secondary" as="p" className="text-[var(--text-tertiary)] mb-6 leading-relaxed">
                     Use um arquivo <strong>CSV</strong> (Comma Separated Values). A primeira linha funciona como cabeçalho das colunas.
-                  </p>
+                  </Text>
                   <div className="stack-lg">
-                    <div className="flex items-center justify-between text-xs font-bold py-2 border-b border-[var(--border-color)]">
+                    <div className="flex items-center justify-between t-label py-2 border-b border-[var(--border-color)]">
                       <span className="text-[var(--text-primary)]">titulo</span>
                       <span className="text-[var(--accent-pink)]">Necessário para importar</span>
                     </div>
-                    <div className="flex items-center justify-between text-xs font-bold py-2 border-b border-[var(--border-color)]">
+                    <div className="flex items-center justify-between t-label py-2 border-b border-[var(--border-color)]">
                       <span className="text-[var(--text-primary)]">roteiro</span>
                       <span className="text-[var(--accent-pink)]">Necessário para importar</span>
                     </div>
                   </div>
                   <div className="mt-6">
-                    <p className="text-xs font-semibold  text-[var(--text-tertiary)] mb-3">Exemplo de conteúdo</p>
-                    <pre className="bg-[var(--text-primary)]/5 dark:bg-[var(--bg-elevated)]/5 p-4 rounded-xl text-xs font-mono text-[var(--text-tertiary)] overflow-x-auto whitespace-pre">
+                    <Text variant="label" as="p" className="text-[var(--text-tertiary)] mb-3">Exemplo de conteúdo</Text>
+                    <pre className="bg-[var(--text-primary)]/5 dark:bg-[var(--bg-elevated)]/5 p-4 rounded-[var(--radius-card)] t-meta font-mono text-[var(--text-tertiary)] overflow-x-auto whitespace-pre">
                       titulo,roteiro{'\n'}
                       Como ler mais rápido,"Dica 1: Pare de subvocalizar..."{'\n'}
                       Minha estante secreta,"Neste vídeo mostro os livros que..."
@@ -198,26 +198,26 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
               {/* Área de Seleção */}
               <section>
                 {!file ? (
-                  <label className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-[var(--border-color)] rounded-[2.5rem] bg-[var(--bg-secondary)]/30 hover:bg-[var(--bg-hover)] transition-all cursor-pointer group">
+                  <label className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-[var(--border-color)] rounded-[var(--radius-card)] bg-[var(--bg-secondary)]/30 hover:bg-[var(--bg-hover)] transition-all cursor-pointer group">
                     <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
                     <div className="w-16 h-16 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] mb-6 flex items-center justify-center group-hover:scale-110 transition-transform">
                       <FileText className="w-8 h-8 text-[var(--text-tertiary)]" />
                     </div>
-                    <span className="text-sm font-semibold text-[var(--text-primary)]  mb-2">Clique para selecionar</span>
-                    <span className="text-xs uppercase font-bold text-[var(--text-tertiary)] tracking-widest">Apenas arquivos .csv são suportados</span>
+                    <Text variant="itemTitle" as="span" className="text-[var(--text-primary)] mb-2">Clique para selecionar</Text>
+                    <Text variant="label" as="span" className="uppercase text-[var(--text-tertiary)] tracking-widest">Apenas arquivos .csv são suportados</Text>
                   </label>
                 ) : (
                   <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] overflow-hidden">
                     <div className="p-4 bg-[var(--bg-hover)] flex items-center justify-between border-b border-[var(--border-color)]">
                       <div className="flex items-center gap-3">
                         <FileText className="w-4 h-4 text-[var(--accent-blue)]" />
-                        <span className="text-xs font-semibold text-[var(--text-primary)] truncate max-w-[200px]">{file.name}</span>
+                        <Text variant="label" as="span" className="text-[var(--text-primary)] truncate max-w-[200px]">{file.name}</Text>
                       </div>
-                      <button onClick={() => { setFile(null); setPreview([]); setError(null); }} className="text-xs font-bold text-[var(--accent-pink)] hover:underline ">Remover arquivo</button>
+                      <button onClick={() => { setFile(null); setPreview([]); setError(null); }} className="t-label text-[var(--accent-pink)] hover:underline ">Remover arquivo</button>
                     </div>
                     
                     {error && (
-                      <div className="p-4 flex items-center gap-3 text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_6%,transparent)] text-xs font-bold">
+                      <div className="p-4 flex items-center gap-3 text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_6%,transparent)] t-label ">
                         <AlertCircle className="w-4 h-4 shrink-0" />
                         {error}
                       </div>
@@ -227,12 +227,12 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
                       <div className="max-h-[300px] overflow-y-auto divide-y divide-[var(--border-color)]">
                         {preview.slice(0, 10).map((row, i) => (
                           <div key={i} className="p-4 flex flex-col gap-1">
-                            <span className="text-xs font-semibold text-[var(--text-primary)] line-clamp-1">{row.title}</span>
-                            <span className="text-xs text-[var(--text-tertiary)] line-clamp-1 italic">{row.script?.substring(0, 100)}…</span>
+                            <Text variant="label" as="span" className="text-[var(--text-primary)] line-clamp-1">{row.title}</Text>
+                            <Text variant="meta" as="span" className="text-[var(--text-tertiary)] line-clamp-1 italic">{row.script?.substring(0, 100)}…</Text>
                           </div>
                         ))}
                         {preview.length > 10 && (
-                          <div className="p-3 text-center bg-[var(--background-secondary)] text-xs font-bold text-[var(--text-tertiary)]">
+                          <div className="p-3 text-center bg-[var(--background-secondary)] t-label text-[var(--text-tertiary)]">
                             + {preview.length - 10} outros roteiros
                           </div>
                         )}
@@ -251,7 +251,7 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
             <button
               onClick={handleImport}
               disabled={preview.length === 0 || !!error}
-              className="flex items-center justify-center gap-3 bg-[var(--text-primary)] text-[var(--bg-primary)] px-10 py-4 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] text-xs font-semibold  hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl disabled:opacity-30 disabled:scale-100"
+              className="flex items-center justify-center gap-3 bg-[var(--text-primary)] text-[var(--bg-primary)] px-10 py-4 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] t-label hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl disabled:opacity-30 disabled:scale-100"
             >
               <Check className="w-4 h-4" /> {importButtonLabel}
             </button>

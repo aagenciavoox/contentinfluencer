@@ -57,19 +57,30 @@ export function getEntityTagStyle(color?: string | null): CSSProperties | undefi
   };
 }
 
+/** Entidades nomeadas depois de tirar as tags: `&lt;3` precisa continuar `<3`, não virar tag. */
+function decodeHtmlEntities(value: string) {
+  return value
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&quot;/gi, '"')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&amp;/gi, '&');
+}
+
 export function htmlToReadableText(content: string | null | undefined) {
   const normalized = content?.trim();
   if (!normalized) return '';
 
   if (typeof window === 'undefined' || typeof DOMParser === 'undefined') {
-    return normalized
-      .replace(/<li>/gi, '• ')
-      .replace(/<\/li>/gi, '\n')
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<\/p>/gi, '\n\n')
-      .replace(/<[^>]*>/g, '')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
+    return decodeHtmlEntities(
+      normalized
+        .replace(/<li>/gi, '• ')
+        .replace(/<\/li>/gi, '\n')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>/gi, '\n\n')
+        .replace(/<[^>]*>/g, '')
+        .replace(/\n{3,}/g, '\n\n'),
+    ).trim();
   }
 
   const parser = new DOMParser();

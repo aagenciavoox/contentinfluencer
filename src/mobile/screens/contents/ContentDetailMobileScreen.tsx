@@ -294,16 +294,16 @@ export function ContentDetailMobileScreen({
       <details className="group overflow-hidden rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)]">
         <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-3 py-1 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]">
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
+            <Text variant="itemTitle" as="p" className="truncate text-[var(--text-primary)]">
               {content.title || (isIdea ? 'Ideia sem título' : 'Roteiro sem título')}
-            </p>
-            <p className="text-xs text-[var(--text-tertiary)]">{stageLabel}</p>
+            </Text>
+            <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">{stageLabel}</Text>
           </div>
           <ChevronDown className="h-4 w-4 shrink-0 text-[var(--text-tertiary)] transition-transform group-open:rotate-180" aria-hidden />
         </summary>
 
         <div className="stack-sm border-t border-[var(--border-color)] p-3">
-          <p className="text-xs text-[var(--text-secondary)]">{blockLabel}</p>
+          <Text variant="meta" as="p" className="text-[var(--text-secondary)]">{blockLabel}</Text>
           {hasPrimaryAction ? (
             <AppButton
               variant="primary"

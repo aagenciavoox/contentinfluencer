@@ -45,6 +45,7 @@ import { TagSelect } from '../../../components/ui/TagSelect';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { livroIdsEfetivos } from '../../../lib/livroIds';
 import { BookDetailMobileScreen } from '../../../mobile/screens/library/BookDetailMobileScreen';
+import { Badge } from '../../../components/ui/Badge';
 import { Text } from '../../../components/ui/Text';
 import { Surface } from '../../../components/ui/Surface';
 import { AppButton } from '../../../components/ui/AppButton';
@@ -97,7 +98,7 @@ type Tab = 'info' | 'anotacoes' | 'conteudos';
 
 function SectionLabel({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <Text variant="label" className={cn('mb-4 block font-semibold text-[var(--text-secondary)]', className)}>
+    <Text variant="label" className={cn('mb-4 block text-[var(--text-secondary)]', className)}>
       {children}
     </Text>
   );
@@ -672,7 +673,7 @@ export function BookDetailPage() {
       {alertaEcossistema && (
         <div className="flex items-center gap-3 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-6 py-4 md:rounded-[var(--radius-card)]">
           <CheckCircle2 className="w-5 h-5 shrink-0 text-[var(--text-secondary)]" />
-          <p className="text-sm font-medium text-[var(--text-secondary)]">Concluído. Ainda pode render conteúdo quando fizer sentido.</p>
+          <Text variant="secondary" as="p" className="text-[var(--text-secondary)]">Concluído. Quando fizer sentido, esta obra pode virar novos roteiros.</Text>
         </div>
       )}
 
@@ -690,8 +691,8 @@ export function BookDetailPage() {
           >
             <StatIcon className="h-5 w-5 shrink-0 text-[var(--text-secondary)]" aria-hidden />
             <div>
-              <p className="text-lg font-semibold leading-tight tabular-nums text-[var(--text-primary)]">{value}</p>
-              <p className="t-meta">{label}</p>
+              <Text variant="sectionTitle" as="p" className="leading-tight tabular-nums text-[var(--text-primary)]">{value}</Text>
+              <Text variant="meta" as="p" className="text-inherit">{label}</Text>
             </div>
           </div>
         ))}
@@ -711,11 +712,11 @@ export function BookDetailPage() {
       {/* Brainstorm CTA */}
       {anotacoesDestaque.length > 0 && (
         <div className="rounded-[var(--radius-card-mobile)] border border-[var(--warning)]/25 bg-[var(--warning)]/10 px-6 py-4 md:rounded-[var(--radius-card)]">
-          <p className="mb-2 text-sm font-bold text-[var(--warning)]">
+          <Text variant="itemTitle" as="p" className="mb-2 text-[var(--warning)]">
             {anotacoesDestaque.length === 1
               ? '1 destaque pode virar roteiro.'
               : `${anotacoesDestaque.length} destaques podem virar roteiro.`}
-          </p>
+          </Text>
           <AppButton
             variant="secondary"
             size="sm"
@@ -747,9 +748,7 @@ export function BookDetailPage() {
             <section key={grupo} className="stack-sm">
               <div className="flex items-center gap-2">
                 <Text variant="sectionTitle" as="h3">{SLOT_ROTULO[grupo] ?? grupo}</Text>
-                <span className="rounded-[var(--radius-pill)] bg-[var(--bg-hover)] px-2.5 py-0.5 text-xs font-semibold tabular-nums text-[var(--text-secondary)]">
-                  {conteudos.length}
-                </span>
+                <Badge variant="neutral">{conteudos.length}</Badge>
               </div>
               <div className="stack-sm">
                 {conteudos.map(c => {
@@ -780,21 +779,24 @@ export function BookDetailPage() {
           <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--bg-hover)] text-[var(--text-secondary)]">
             <FileText className="h-5 w-5" aria-hidden />
           </span>
-          <p className="t-body-strong text-[var(--text-secondary)]">Nenhum roteiro criado a partir desta obra ainda</p>
+          <Text variant="bodyStrong" as="p" className="text-[var(--text-secondary)]">Nenhum roteiro criado a partir desta obra ainda</Text>
         </div>
       )}
 
       {/* ── Ideias deste livro ── */}
       {ideiasDeLivro.length > 0 && (
         <div className="bg-[var(--bg-primary)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] p-6">
-          <Text variant="itemTitle" className="mb-3 text-[var(--text-tertiary)]">
-            {`Ideias a partir desta obra (${ideiasDeLivro.length})`}
-          </Text>
+          <div className="mb-3 flex items-center gap-2">
+            <Text variant="itemTitle" className="text-[var(--text-tertiary)]">
+              Ideias a partir desta obra
+            </Text>
+            <Badge variant="neutral">{ideiasDeLivro.length}</Badge>
+          </div>
           <div className="stack-sm">
             {ideiasDeLivro.map(ideia => (
               <div key={ideia.id} className="flex items-center gap-3 py-2 border-b border-[var(--border-color)] last:border-0">
                 <Lightbulb className="w-3.5 h-3.5 shrink-0 text-[var(--warning)]" />
-                <p className="text-sm text-[var(--text-primary)] opacity-70 flex-1">{ideia.title || 'Ideia sem título'}</p>
+                <Text variant="body" as="p" className="text-[var(--text-primary)] opacity-70 flex-1">{ideia.title || 'Ideia sem título'}</Text>
                 <AppButton
                   variant="ghost"
                   size="xs"
@@ -814,7 +816,7 @@ export function BookDetailPage() {
       {/* ── Produção editorial ── */}
       <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-4 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <Text variant="bodyStrong" as="h3" className="font-semibold">Produção editorial</Text>
+          <Text variant="bodyStrong" as="h3" className="">Produção editorial</Text>
           <AppButton
             variant="secondary"
             size="sm"
@@ -827,27 +829,27 @@ export function BookDetailPage() {
         </div>
 
         {novaCampanhaAberta && (
-          <div className="mb-4 p-4 bg-[var(--bg-hover)] rounded-xl stack-md">
+          <div className="mb-4 p-4 bg-[var(--bg-hover)] rounded-[var(--radius-card)] stack-md">
             <input
               type="text"
               value={campForm.nome}
               onChange={e => setCampForm(p => ({ ...p, nome: e.target.value }))}
               placeholder="Nome da produção editorial"
-              className="w-full text-sm bg-[var(--bg-secondary)] border border-[var(--border-input)] rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
+              className="w-full t-body bg-[var(--bg-secondary)] border border-[var(--border-input)] rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
             />
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1">Início</label>
-                <input type="date" value={campForm.dataInicio} onChange={e => setCampForm(p => ({ ...p, dataInicio: e.target.value }))} className="w-full text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-primary)]" />
+                <label className="t-label text-[var(--text-tertiary)] block mb-1">Início</label>
+                <input type="date" value={campForm.dataInicio} onChange={e => setCampForm(p => ({ ...p, dataInicio: e.target.value }))} className="w-full t-body bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)]" />
               </div>
               <div>
-                <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1">Fim</label>
-                <input type="date" value={campForm.dataFim} onChange={e => setCampForm(p => ({ ...p, dataFim: e.target.value }))} className="w-full text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-primary)]" />
+                <label className="t-label text-[var(--text-tertiary)] block mb-1">Fim</label>
+                <input type="date" value={campForm.dataFim} onChange={e => setCampForm(p => ({ ...p, dataFim: e.target.value }))} className="w-full t-body bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)]" />
               </div>
             </div>
             <div>
-              <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1">Meta de peças</label>
-              <input type="number" min={1} value={campForm.metaConteudos} onChange={e => setCampForm(p => ({ ...p, metaConteudos: e.target.value }))} className="w-full text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-primary)]" />
+              <label className="t-label text-[var(--text-tertiary)] block mb-1">Meta de peças</label>
+              <input type="number" min={1} value={campForm.metaConteudos} onChange={e => setCampForm(p => ({ ...p, metaConteudos: e.target.value }))} className="w-full t-body bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)]" />
             </div>
             <div className="flex gap-2">
               <AppButton variant="primary" size="sm" fullWidth onClick={handleSalvarCampanha}>
@@ -866,10 +868,10 @@ export function BookDetailPage() {
               <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--bg-hover)] text-[var(--text-secondary)]">
                 <ItemIcon className="h-5 w-5" aria-hidden />
               </span>
-              <p className="t-body-strong text-[var(--text-secondary)]">Nenhuma produção editorial ainda</p>
-              <p className="mt-1 max-w-md t-secondary text-[var(--text-tertiary)]">
+              <Text variant="bodyStrong" as="p" className="text-[var(--text-secondary)]">Nenhuma produção editorial ainda</Text>
+              <Text variant="secondary" as="p" className="mt-1 max-w-md text-[var(--text-tertiary)]">
                 Crie uma produção editorial para planejar, com período e meta de peças, os roteiros desta obra.
-              </p>
+              </Text>
             </div>
           )
         ) : (
@@ -880,13 +882,13 @@ export function BookDetailPage() {
               return (
                 <div key={camp.id} className="stack-sm">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-[var(--text-primary)]">{camp.nome}</span>
-                    <span className="text-xs font-semibold text-[var(--text-tertiary)]">{criados}/{camp.metaConteudos} peças</span>
+                    <Text variant="itemTitle" as="span" className="text-[var(--text-primary)]">{camp.nome}</Text>
+                    <Text variant="label" as="span" className="text-[var(--text-tertiary)]">{criados}/{camp.metaConteudos} peças</Text>
                   </div>
                   <div className="h-2 w-full bg-[var(--bg-hover)] rounded-full overflow-hidden">
                     <div className="h-full bg-[var(--accent-blue)] rounded-full transition-all" style={{ width: `${progresso}%` }} />
                   </div>
-                  <p className="text-xs text-[var(--text-tertiary)]">{camp.status}</p>
+                  <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">{camp.status}</Text>
                 </div>
               );
             })}
@@ -896,7 +898,7 @@ export function BookDetailPage() {
 
       {/* ── Capítulos/Partes cobertos ── */}
       <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-4 sm:p-6">
-        <Text variant="bodyStrong" as="h3" className="mb-3 font-semibold">{coverageLabels.section}</Text>
+        <Text variant="bodyStrong" as="h3" className="mb-3 ">{coverageLabels.section}</Text>
         <div className="mb-3 flex gap-2">
           <input
             type="text"
@@ -905,7 +907,7 @@ export function BookDetailPage() {
             onKeyDown={e => { if (e.key === 'Enter') handleAdicionarCapitulo(); }}
             placeholder={coverageLabels.placeholder}
             aria-label={coverageLabels.section}
-            className="h-[var(--control-height)] min-w-0 flex-1 rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+            className="h-[var(--control-height)] min-w-0 flex-1 rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-primary)] px-3 t-body text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
           />
           <AppButton
             variant="primary"
@@ -917,11 +919,11 @@ export function BookDetailPage() {
           </AppButton>
         </div>
         {capitulosCobertos.length === 0 ? (
-          <p className="t-secondary text-[var(--text-tertiary)]">{coverageLabels.empty}</p>
+          <Text variant="secondary" as="p" className="text-[var(--text-tertiary)]">{coverageLabels.empty}</Text>
         ) : (
           <div className="flex flex-wrap gap-2">
             {capitulosCobertos.map((cap: string) => (
-              <div key={cap} className="flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-color)]">
+              <div key={cap} className="flex items-center gap-1 t-label px-2.5 py-1 rounded-full bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-color)]">
                 <span>{cap}</span>
                 <button
                   type="button"
@@ -940,7 +942,7 @@ export function BookDetailPage() {
       <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-3 sm:px-6 sm:py-4">
         <DisclosureButton open={hashtagsAberto} onToggle={() => setHashtagsAberto(v => !v)} className="-mx-2 w-[calc(100%+1rem)]">
           <Hash className="h-4 w-4 text-[var(--text-tertiary)]" />
-          <span className="text-sm font-semibold text-[var(--text-primary)]">Hashtags sugeridas</span>
+          <Text variant="itemTitle" as="span" className="text-[var(--text-primary)]">Hashtags sugeridas</Text>
         </DisclosureButton>
         {hashtagsAberto && (
           <div className="mt-4">
@@ -951,7 +953,7 @@ export function BookDetailPage() {
                   type="button"
                   onClick={() => setHashtagTab(plat)}
                   className={cn(
-                    'rounded-lg px-3 py-1.5 text-xs font-bold transition-all',
+                    'rounded-[var(--radius-input)] px-3 py-1.5 t-label transition-all',
                     FOCUS_INTERACTIVE,
                     hashtagTab === plat
                       ? 'bg-[var(--text-primary)] text-[var(--bg-secondary)]'
@@ -963,19 +965,19 @@ export function BookDetailPage() {
               ))}
             </div>
             {hashtagsUnicas[hashtagTab] ? (
-              <div className="bg-[var(--bg-hover)] rounded-xl p-3 relative">
-                <p className="pr-10 text-xs text-[var(--text-secondary)]">{hashtagsUnicas[hashtagTab]}</p>
+              <div className="bg-[var(--bg-hover)] rounded-[var(--radius-card)] p-3 relative">
+                <Text variant="meta" as="p" className="pr-10 text-[var(--text-secondary)]">{hashtagsUnicas[hashtagTab]}</Text>
                 <button
                   type="button"
                   onClick={() => handleCopiarHashtags(hashtagsUnicas[hashtagTab])}
-                  className={cn('absolute right-2 top-2 rounded-lg p-1.5 transition-colors hover:bg-[var(--bg-secondary)]', FOCUS_INTERACTIVE)}
+                  className={cn('absolute right-2 top-2 rounded-[var(--radius-input)] p-1.5 transition-colors hover:bg-[var(--bg-secondary)]', FOCUS_INTERACTIVE)}
                   title="Copiar hashtags"
                 >
                   {hashtagCopiado ? <Check className="w-4 h-4 text-[var(--accent-green)]" /> : <Copy className="w-4 h-4 text-[var(--text-tertiary)]" />}
                 </button>
               </div>
             ) : (
-              <p className="text-xs text-[var(--text-tertiary)]">Nenhuma hashtag configurada nos pilares dos roteiros desta obra.</p>
+              <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">Nenhuma hashtag configurada nos pilares dos roteiros desta obra.</Text>
             )}
           </div>
         )}
@@ -1036,9 +1038,9 @@ export function BookDetailPage() {
         >
           <div className="w-full max-w-lg rounded-[var(--radius-overlay)] bg-[var(--bg-primary)] p-8 shadow-none">
             <div className="mb-6 flex items-center justify-between">
-              <span className="text-xs font-semibold text-[var(--text-tertiary)]">
+              <Text variant="label" as="span" className="text-[var(--text-tertiary)]">
                 Gerar ideias — {brainstormIdx + 1}/{anotacoesDestaque.length}
-              </span>
+              </Text>
               <button
                 onClick={() => setBrainstormMode(false)}
                 className="rounded-full p-2 transition-colors hover:bg-[var(--bg-hover)]"
@@ -1046,25 +1048,25 @@ export function BookDetailPage() {
                 <X className="h-5 w-5 text-[var(--text-tertiary)]" />
               </button>
             </div>
-            <p className="mb-8 text-lg font-medium leading-relaxed text-[var(--text-primary)]">
+            <Text variant="sectionTitle" as="p" className="mb-8 leading-relaxed text-[var(--text-primary)]">
               &quot;{anotacoesDestaque[brainstormIdx]?.texto}&quot;
-            </p>
+            </Text>
             <div className="flex flex-col gap-3 sm:flex-row">
               <button
                 onClick={() => handleBrainstormConteudo(anotacoesDestaque[brainstormIdx])}
-                className="flex-1 rounded-[var(--radius-card-mobile)] bg-[var(--text-primary)] py-3 text-xs font-semibold text-[var(--bg-primary)] transition-all hover:scale-[1.02] md:rounded-[var(--radius-card)]"
+                className="flex-1 rounded-[var(--radius-card-mobile)] bg-[var(--text-primary)] py-3 t-label text-[var(--bg-primary)] transition-all hover:scale-[1.02] md:rounded-[var(--radius-card)]"
               >
                 Criar roteiro
               </button>
               <button
                 onClick={() => handleBrainstormIdeia(anotacoesDestaque[brainstormIdx])}
-                className="flex-1 rounded-[var(--radius-card-mobile)] border border-[var(--border-strong)] py-3 text-xs font-semibold text-[var(--text-primary)] transition-all hover:bg-[var(--bg-hover)] md:rounded-[var(--radius-card)]"
+                className="flex-1 rounded-[var(--radius-card-mobile)] border border-[var(--border-strong)] py-3 t-label text-[var(--text-primary)] transition-all hover:bg-[var(--bg-hover)] md:rounded-[var(--radius-card)]"
               >
                 Transformar em ideia
               </button>
               <button
                 onClick={handleBrainstormPular}
-                className="px-4 py-3 text-xs font-semibold text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-primary)]"
+                className="px-4 py-3 t-label text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-primary)]"
               >
                 Pular
               </button>
@@ -1155,7 +1157,7 @@ export function BookDetailPage() {
               {/* Livros avaliam por critério na aba Anotações. */}
               {!leituraNasAnotacoes && (
                 <div>
-                  <Text variant="label" className="mb-2 block font-bold">Avaliação</Text>
+                  <Text variant="label" className="mb-2 block ">Avaliação</Text>
                   <div className="flex gap-1">
                     {[1, 2, 3, 4, 5].map(n => (
                       <button
@@ -1180,18 +1182,18 @@ export function BookDetailPage() {
                 <SectionLabel>Identificação</SectionLabel>
                 <div className="grid-form">
                   <div>
-                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Título</label>
-                    <input type="text" value={infoLocal.titulo} onChange={e => setInfoLocal(prev => ({ ...prev, titulo: e.target.value }))} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)]" />
+                    <label className="t-label text-[var(--text-tertiary)] block mb-1.5">Título</label>
+                    <input type="text" value={infoLocal.titulo} onChange={e => setInfoLocal(prev => ({ ...prev, titulo: e.target.value }))} className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)]" />
                   </div>
                   <div>
-                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">{creatorLabel}</label>
-                    <input type="text" value={infoLocal.autor} onChange={e => setInfoLocal(prev => ({ ...prev, autor: e.target.value }))} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)]" />
+                    <label className="t-label text-[var(--text-tertiary)] block mb-1.5">{creatorLabel}</label>
+                    <input type="text" value={infoLocal.autor} onChange={e => setInfoLocal(prev => ({ ...prev, autor: e.target.value }))} className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)]" />
                   </div>
                 </div>
                 <div className="mt-4">
                   <TagSelect
                     label="Gêneros"
-                    hint="Selecione um ou mais gêneros para categorizar este item."
+                    hint="Selecione um ou mais gêneros para categorizar esta obra."
                     values={infoLocal.generos}
                     onChange={generos => setInfoLocal(prev => ({ ...prev, generos: generos as GeneroLivro[] }))}
                     options={GENEROS_SUGERIDOS.map(genero => ({ value: genero, label: genero }))}
@@ -1230,7 +1232,7 @@ export function BookDetailPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Início</label>
+                    <label className="t-label text-[var(--text-tertiary)] block mb-1.5">Início</label>
                     <PropertyDatePicker
                       value={infoLocal.dataInicio || null}
                       onChange={dataInicio => setInfoLocal(prev => ({ ...prev, dataInicio: dataInicio ?? '' }))}
@@ -1239,7 +1241,7 @@ export function BookDetailPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Fim</label>
+                    <label className="t-label text-[var(--text-tertiary)] block mb-1.5">Fim</label>
                     <PropertyDatePicker
                       value={infoLocal.dataFim || null}
                       onChange={dataFim => setInfoLocal(prev => ({ ...prev, dataFim: dataFim ?? '' }))}
@@ -1248,27 +1250,27 @@ export function BookDetailPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">{progressLabels.current}</label>
-                    <input type="number" min={0} value={infoLocal.paginasLidas} onChange={e => setInfoLocal(prev => ({ ...prev, paginasLidas: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder={livro.tipo === 'filme' ? 'Ex.: 95' : livro.tipo === 'série' || livro.tipo === 'anime' ? 'Ex.: 8' : livro.tipo === 'manga' ? 'Ex.: 12' : 'Ex.: 120'} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                    <label className="t-label text-[var(--text-tertiary)] block mb-1.5">{progressLabels.current}</label>
+                    <input type="number" min={0} value={infoLocal.paginasLidas} onChange={e => setInfoLocal(prev => ({ ...prev, paginasLidas: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder={livro.tipo === 'filme' ? 'Ex.: 95' : livro.tipo === 'série' || livro.tipo === 'anime' ? 'Ex.: 8' : livro.tipo === 'manga' ? 'Ex.: 12' : 'Ex.: 120'} className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
                   </div>
                   <div>
-                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">{progressLabels.total}</label>
-                    <input type="number" min={1} value={infoLocal.totalPaginas} onChange={e => setInfoLocal(prev => ({ ...prev, totalPaginas: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder={livro.tipo === 'filme' ? 'Ex.: 130' : livro.tipo === 'série' || livro.tipo === 'anime' ? 'Ex.: 10' : 'Ex.: 380'} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                    <label className="t-label text-[var(--text-tertiary)] block mb-1.5">{progressLabels.total}</label>
+                    <input type="number" min={1} value={infoLocal.totalPaginas} onChange={e => setInfoLocal(prev => ({ ...prev, totalPaginas: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder={livro.tipo === 'filme' ? 'Ex.: 130' : livro.tipo === 'série' || livro.tipo === 'anime' ? 'Ex.: 10' : 'Ex.: 380'} className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
                   </div>
                   {(livro.tipo === 'série' || livro.tipo === 'anime') && (
                     <div>
-                      <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Duração por episódio</label>
-                      <input type="text" value={infoLocal.duracaoPorEpisodio} onChange={e => setInfoLocal(prev => ({ ...prev, duracaoPorEpisodio: e.target.value }))} placeholder="Ex.: 45 min" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                      <label className="t-label text-[var(--text-tertiary)] block mb-1.5">Duração por episódio</label>
+                      <input type="text" value={infoLocal.duracaoPorEpisodio} onChange={e => setInfoLocal(prev => ({ ...prev, duracaoPorEpisodio: e.target.value }))} placeholder="Ex.: 45 min" className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
                     </div>
                   )}
                 </div>
                 {(infoLocal.totalPaginas as number) > 0 && (
                   <div className="mt-4">
                     <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-xs font-bold  text-[var(--text-tertiary)]">Progresso</label>
-                      <span className="text-xs font-semibold text-[var(--accent-purple)]">
+                      <label className="t-label text-[var(--text-tertiary)]">Progresso</label>
+                      <Text variant="label" as="span" className="text-[var(--accent-purple)]">
                         {(infoLocal.paginasLidas as number || 0)}/{infoLocal.totalPaginas} {progressLabels.unit} · {Math.min(100, Math.round(((infoLocal.paginasLidas as number || 0) / (infoLocal.totalPaginas as number)) * 100))}%
-                      </span>
+                      </Text>
                     </div>
                     <div className="h-2 w-full bg-[var(--bg-hover)] rounded-full overflow-hidden border border-[var(--border-color)]">
                       <div className="h-full bg-[var(--accent-purple)] rounded-full transition-all duration-500" style={{ width: `${Math.min(100, Math.round(((infoLocal.paginasLidas as number || 0) / (infoLocal.totalPaginas as number)) * 100))}%` }} />
@@ -1282,35 +1284,35 @@ export function BookDetailPage() {
                 <SectionLabel>Detalhes técnicos</SectionLabel>
                 <div className="grid-form">
                   <div>
-                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.publisher}</label>
-                    <input type="text" value={infoLocal.editora} onChange={e => setInfoLocal(prev => ({ ...prev, editora: e.target.value }))} placeholder={technicalLabels.publisherPlaceholder} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                    <label className="t-label text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.publisher}</label>
+                    <input type="text" value={infoLocal.editora} onChange={e => setInfoLocal(prev => ({ ...prev, editora: e.target.value }))} placeholder={technicalLabels.publisherPlaceholder} className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
                   </div>
                   <div>
-                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Ano de publicação</label>
-                    <input type="number" value={infoLocal.anoPublicacao} onChange={e => setInfoLocal(prev => ({ ...prev, anoPublicacao: e.target.value }))} placeholder="2024" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                    <label className="t-label text-[var(--text-tertiary)] block mb-1.5">Ano de publicação</label>
+                    <input type="number" value={infoLocal.anoPublicacao} onChange={e => setInfoLocal(prev => ({ ...prev, anoPublicacao: e.target.value }))} placeholder="2024" className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
                   </div>
                   {(livro.tipo === 'livro' || livro.tipo === 'manga' || livro.tipo === 'quadrinho') && (
                     <div>
-                      <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">ISBN</label>
-                      <input type="text" value={infoLocal.isbn} onChange={e => setInfoLocal(prev => ({ ...prev, isbn: e.target.value }))} placeholder="978-…" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                      <label className="t-label text-[var(--text-tertiary)] block mb-1.5">ISBN</label>
+                      <input type="text" value={infoLocal.isbn} onChange={e => setInfoLocal(prev => ({ ...prev, isbn: e.target.value }))} placeholder="978-…" className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
                     </div>
                   )}
                   <div>
-                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Idioma</label>
-                    <input type="text" value={infoLocal.idioma} onChange={e => setInfoLocal(prev => ({ ...prev, idioma: e.target.value }))} placeholder="Português" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                    <label className="t-label text-[var(--text-tertiary)] block mb-1.5">Idioma</label>
+                    <input type="text" value={infoLocal.idioma} onChange={e => setInfoLocal(prev => ({ ...prev, idioma: e.target.value }))} placeholder="Português" className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
                   </div>
                   <div>
-                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.translation}</label>
-                    <input type="text" value={infoLocal.traducao} onChange={e => setInfoLocal(prev => ({ ...prev, traducao: e.target.value }))} placeholder={technicalLabels.translationPlaceholder} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                    <label className="t-label text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.translation}</label>
+                    <input type="text" value={infoLocal.traducao} onChange={e => setInfoLocal(prev => ({ ...prev, traducao: e.target.value }))} placeholder={technicalLabels.translationPlaceholder} className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
                   </div>
                   <div>
-                    <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.collection}</label>
-                    <input type="text" value={infoLocal.serieColecao} onChange={e => setInfoLocal(prev => ({ ...prev, serieColecao: e.target.value }))} placeholder={technicalLabels.collectionPlaceholder} className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                    <label className="t-label text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.collection}</label>
+                    <input type="text" value={infoLocal.serieColecao} onChange={e => setInfoLocal(prev => ({ ...prev, serieColecao: e.target.value }))} placeholder={technicalLabels.collectionPlaceholder} className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
                   </div>
                   {(livro.tipo === 'livro' || livro.tipo === 'manga' || livro.tipo === 'quadrinho') && (
                     <>
                       <div>
-                        <label htmlFor="book-colecao-status" className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Série ou coleção?</label>
+                        <label htmlFor="book-colecao-status" className="t-label text-[var(--text-tertiary)] block mb-1.5">Série ou coleção?</label>
                         <SelectField
                           id="book-colecao-status"
                           block
@@ -1324,21 +1326,21 @@ export function BookDetailPage() {
                       </div>
                       {infoLocal.colecaoStatus === 'sim' && (
                         <div>
-                          <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Qual coleção?</label>
-                          <input type="text" value={infoLocal.colecaoNome} onChange={e => setInfoLocal(prev => ({ ...prev, colecaoNome: e.target.value, serieColecao: e.target.value }))} placeholder="Ex.: Trono de Vidro" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                          <label className="t-label text-[var(--text-tertiary)] block mb-1.5">Qual coleção?</label>
+                          <input type="text" value={infoLocal.colecaoNome} onChange={e => setInfoLocal(prev => ({ ...prev, colecaoNome: e.target.value, serieColecao: e.target.value }))} placeholder="Ex.: Trono de Vidro" className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
                         </div>
                       )}
                       <div>
-                        <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Gênero do autor</label>
-                        <input type="text" value={infoLocal.generoAutor} onChange={e => setInfoLocal(prev => ({ ...prev, generoAutor: e.target.value }))} placeholder="Ex.: mulher, homem, não binárie" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                        <label className="t-label text-[var(--text-tertiary)] block mb-1.5">Gênero do autor</label>
+                        <input type="text" value={infoLocal.generoAutor} onChange={e => setInfoLocal(prev => ({ ...prev, generoAutor: e.target.value }))} placeholder="Ex.: mulher, homem, não binárie" className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
                       </div>
                       <div>
-                        <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">País do autor</label>
-                        <input type="text" value={infoLocal.paisAutor} onChange={e => setInfoLocal(prev => ({ ...prev, paisAutor: e.target.value }))} placeholder="Ex.: Nigéria" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                        <label className="t-label text-[var(--text-tertiary)] block mb-1.5">País do autor</label>
+                        <input type="text" value={infoLocal.paisAutor} onChange={e => setInfoLocal(prev => ({ ...prev, paisAutor: e.target.value }))} placeholder="Ex.: Nigéria" className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
                       </div>
                       <div>
-                        <label className="text-xs font-bold  text-[var(--text-tertiary)] block mb-1.5">Raça do autor</label>
-                        <input type="text" value={infoLocal.racaAutor} onChange={e => setInfoLocal(prev => ({ ...prev, racaAutor: e.target.value }))} placeholder="Como você prefere catalogar" className="w-full text-sm bg-[var(--bg-hover)] border-none rounded-xl px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                        <label className="t-label text-[var(--text-tertiary)] block mb-1.5">Raça do autor</label>
+                        <input type="text" value={infoLocal.racaAutor} onChange={e => setInfoLocal(prev => ({ ...prev, racaAutor: e.target.value }))} placeholder="Como você prefere catalogar" className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
                       </div>
                     </>
                   )}
@@ -1407,7 +1409,7 @@ export function BookDetailPage() {
               {anotacoesFiltradas.length === 0 ? (
                 <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] px-6 py-16 text-center">
                   <Text variant="bodyStrong" className="text-[var(--text-secondary)]">
-                    {termoBusca || filtroTipo !== 'Todos' ? 'Nenhuma anotação encontrada' : 'Nenhuma anotação ainda'}
+                    {termoBusca || filtroTipo !== 'Todos' ? 'Nenhuma anotação nesse filtro' : 'Nenhuma anotação ainda'}
                   </Text>
                   <Text variant="meta" as="p" className="mt-1">
                     {termoBusca || filtroTipo !== 'Todos'
@@ -1467,9 +1469,9 @@ export function BookDetailPage() {
       >
         <div className="bg-[var(--bg-primary)] rounded-[var(--radius-overlay)] p-8 max-w-lg w-full shadow-none">
           <div className="flex items-center justify-between mb-6">
-            <span className="text-xs font-semibold  text-[var(--text-tertiary)]">
+            <Text variant="label" as="span" className="text-[var(--text-tertiary)]">
               Gerar ideias — {brainstormIdx + 1}/{anotacoesDestaque.length}
-            </span>
+            </Text>
             <button
               type="button"
               onClick={() => setBrainstormMode(false)}
@@ -1478,9 +1480,9 @@ export function BookDetailPage() {
               <X className="w-5 h-5 text-[var(--text-tertiary)]" />
             </button>
           </div>
-          <p className="text-lg font-medium text-[var(--text-primary)] leading-relaxed mb-8">
+          <Text variant="sectionTitle" as="p" className="text-[var(--text-primary)] leading-relaxed mb-8">
             "{anotacoesDestaque[brainstormIdx]?.texto}"
-          </p>
+          </Text>
           <div className="flex flex-col gap-3 sm:flex-row">
             <AppButton
               variant="primary"

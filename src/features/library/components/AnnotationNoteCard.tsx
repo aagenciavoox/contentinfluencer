@@ -1,3 +1,4 @@
+import { Text } from '../../../components/ui/Text';
 import type { ReactNode } from 'react';
 import { CheckCircle2, Film, Lightbulb, Star, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -43,7 +44,7 @@ export function AnnotationCardActions({
           title={anotacao.contentPotential ? 'Remover destaque' : 'Destacar'}
           aria-label={anotacao.contentPotential ? 'Remover destaque' : 'Destacar anotação'}
           className={cn(
-            'inline-flex min-h-9 min-w-9 pointer-coarse:min-h-11 pointer-coarse:min-w-11 items-center justify-center rounded-md transition-colors',
+            'inline-flex min-h-9 min-w-9 pointer-coarse:min-h-11 pointer-coarse:min-w-11 items-center justify-center rounded-[var(--radius-sm)] transition-colors',
             anotacao.contentPotential ? 'text-[var(--accent-orange)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
           )}
         >
@@ -56,7 +57,7 @@ export function AnnotationCardActions({
           onClick={onTransformIdea}
           title="Transformar em ideia"
           aria-label="Transformar em ideia"
-          className="inline-flex min-h-9 min-w-9 pointer-coarse:min-h-11 pointer-coarse:min-w-11 items-center justify-center rounded-md text-[var(--accent-green)] transition-colors hover:bg-[var(--accent-green)]/10"
+          className="inline-flex min-h-9 min-w-9 pointer-coarse:min-h-11 pointer-coarse:min-w-11 items-center justify-center rounded-[var(--radius-sm)] text-[var(--accent-green)] transition-colors hover:bg-[var(--accent-green)]/10"
         >
           <Lightbulb className="h-3.5 w-3.5" />
         </button>
@@ -67,7 +68,7 @@ export function AnnotationCardActions({
           onClick={onTransformContent}
           title="Criar roteiro"
           aria-label="Criar roteiro a partir da anotação"
-          className="inline-flex min-h-9 min-w-9 pointer-coarse:min-h-11 pointer-coarse:min-w-11 items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-hover)]"
+          className="inline-flex min-h-9 min-w-9 pointer-coarse:min-h-11 pointer-coarse:min-w-11 items-center justify-center rounded-[var(--radius-sm)] transition-colors hover:bg-[var(--bg-hover)]"
         >
           <Film className="h-3.5 w-3.5 text-[var(--text-secondary)]" aria-hidden />
         </button>
@@ -77,7 +78,7 @@ export function AnnotationCardActions({
         onClick={onDelete}
         title="Excluir"
         aria-label="Excluir anotação"
-        className="inline-flex min-h-9 min-w-9 pointer-coarse:min-h-11 pointer-coarse:min-w-11 items-center justify-center rounded-md transition-colors hover:bg-[var(--danger)]/10"
+        className="inline-flex min-h-9 min-w-9 pointer-coarse:min-h-11 pointer-coarse:min-w-11 items-center justify-center rounded-[var(--radius-sm)] transition-colors hover:bg-[var(--danger)]/10"
       >
         <Trash2 className="h-3.5 w-3.5 text-[var(--danger)]" aria-hidden />
       </button>
@@ -118,20 +119,20 @@ export function AnnotationNoteCard({
     <div className="p-3">
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-          <span className={cn('rounded-full px-2.5 py-1 t-label t-label-uppercase font-semibold', tipoClass)}>
+          <Text variant="label" as="span" className={cn('rounded-full px-2.5 py-1 t-label-uppercase', tipoClass)}>
             {anotacao.tipo}
-          </span>
+          </Text>
           {anotacao.capituloRef ? (
-            <span className="text-xs font-medium text-[var(--text-secondary)] opacity-70">{anotacao.capituloRef}</span>
+            <Text variant="label" as="span" className="text-[var(--text-secondary)] opacity-70">{anotacao.capituloRef}</Text>
           ) : null}
           {anotacao.contentPotential ? (
-            <span className="text-xs font-medium text-[var(--accent-orange)]">Destaque</span>
+            <Text variant="label" as="span" className="text-[var(--accent-orange)]">Destaque</Text>
           ) : null}
           {anotacao.destilada ? (
-            <span className="flex items-center gap-1 text-xs font-medium text-[var(--accent-green)]">
+            <Text variant="label" as="span" className="flex items-center gap-1 text-[var(--accent-green)]">
               <CheckCircle2 className="h-3 w-3" />
               Destilada
-            </span>
+            </Text>
           ) : null}
         </div>
         {(showHighlight || onTransformIdea || (showTransformContent && onTransformContent)) ? (
@@ -152,13 +153,13 @@ export function AnnotationNoteCard({
             onClick={onDelete}
             title="Excluir"
             aria-label="Excluir anotação"
-            className="card-actions inline-flex min-h-9 min-w-9 pointer-coarse:min-h-11 pointer-coarse:min-w-11 items-center justify-center rounded-md transition-colors hover:bg-[var(--danger)]/10"
+            className="card-actions inline-flex min-h-9 min-w-9 pointer-coarse:min-h-11 pointer-coarse:min-w-11 items-center justify-center rounded-[var(--radius-sm)] transition-colors hover:bg-[var(--danger)]/10"
           >
             <Trash2 className="h-3.5 w-3.5 text-[var(--danger)]" aria-hidden />
           </button>
         )}
       </div>
-      <p className="mt-2 w-full text-xs leading-relaxed text-[var(--text-primary)]">{anotacao.texto}</p>
+      <Text variant="meta" as="p" className="mt-2 w-full leading-relaxed text-[var(--text-primary)]">{anotacao.texto}</Text>
       {footer}
     </div>
   );

@@ -130,7 +130,7 @@ function AuthForm({
         >
           <div className={cn('stack-sm', compact ? 'mb-6' : 'mb-8')}>
             <Text variant="eyebrow" uppercase>
-              {isRegister ? 'Novo acesso' : 'Bem-vindo de volta'}
+              {isRegister ? 'Novo acesso' : 'Que bom te ver de novo'}
             </Text>
             <Text variant={compact ? 'pageTitle' : 'display'} as="h2">
               {isRegister ? 'Criar conta' : 'Entrar'}

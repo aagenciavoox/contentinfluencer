@@ -26,8 +26,8 @@ function EntityTag({
   return (
     <span
       className={cn(
-        'entity-tag-pill inline-flex max-w-full items-center gap-1.5 font-medium',
-        size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-xs'
+        'entity-tag-pill inline-flex max-w-full items-center gap-1.5 ',
+        size === 'sm' ? 'px-2 py-0.5 t-meta' : 'px-2.5 py-1 t-meta'
       )}
       style={getEntityTagStyle(color)}
     >

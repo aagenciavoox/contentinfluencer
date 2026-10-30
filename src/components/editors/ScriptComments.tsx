@@ -1,6 +1,9 @@
 import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { dia as diaVisivel } from '../../lib/dates';
+import { CountBadge } from '../ui/CountBadge';
 import { createPortal } from 'react-dom';
 import { Check, CornerDownRight, RotateCcw, Trash2, X } from 'lucide-react';
+import { Text } from '../ui/Text';
 import { cn } from '../../lib/utils';
 import { stackCommentCards, type ScriptComment } from './commentModel';
 
@@ -18,12 +21,12 @@ function shortDate(value?: string) {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  return diaVisivel(date);
 }
 
 function Avatar({ name }: { name: string }) {
   return (
-    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-pill)] border border-[var(--border-color)] bg-[var(--surface-subtle)] text-xs font-bold text-[var(--accent-blue)]">
+    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-pill)] border border-[var(--border-color)] bg-[var(--surface-subtle)] t-label text-[var(--accent-blue)]">
       {(name[0] ?? '?').toUpperCase()}
     </div>
   );
@@ -87,12 +90,12 @@ export function CommentCard({
       <div className="mb-2 flex items-center gap-2">
         <Avatar name={author} />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-semibold text-[var(--text-primary)]">{author}</p>
-          <p className="text-[11px] text-[var(--text-tertiary)]">
+          <Text variant="label" as="p" className="truncate text-[var(--text-primary)]">{author}</Text>
+          <Text variant="label" as="p">
             {shortDate(note.createdAt)}
             {resolved ? ' · Resolvido' : ''}
             {unanchored ? ' · Trecho não encontrado' : ''}
-          </p>
+          </Text>
         </div>
         {onToggleResolved ? (
           <button
@@ -125,14 +128,14 @@ export function CommentCard({
       </div>
 
       {showQuote || unanchored ? (
-        <p className="mb-2 line-clamp-2 border-l-2 border-[var(--border-strong)] pl-2 text-xs italic text-[var(--text-tertiary)]">
+        <Text variant="meta" as="p" className="mb-2 line-clamp-2 border-l-2 border-[var(--border-strong)] pl-2 italic text-[var(--text-tertiary)]">
           “{note.text}”
-        </p>
+        </Text>
       ) : null}
 
-      <p className={cn('whitespace-pre-wrap text-sm leading-relaxed text-[var(--text-secondary)]', !active && 'line-clamp-3')}>
+      <Text variant="secondary" as="p" className={cn('whitespace-pre-wrap leading-relaxed text-[var(--text-secondary)]', !active && 'line-clamp-3')}>
         {note.comment}
-      </p>
+      </Text>
 
       {replies.length > 0 ? (
         <div className="mt-2 space-y-2 border-t border-[var(--border-color)] pt-2">
@@ -140,16 +143,16 @@ export function CommentCard({
             <div key={item.id} className="flex gap-2">
               <CornerDownRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" />
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-[var(--text-primary)]">
+                <Text variant="label" as="p" className="text-[var(--text-primary)]">
                   {item.authorName || authorName}{' '}
                   <span className="font-normal text-[var(--text-tertiary)]">{shortDate(item.createdAt)}</span>
-                </p>
-                <p className={cn('whitespace-pre-wrap text-sm text-[var(--text-secondary)]', !active && 'line-clamp-2')}>{item.comment}</p>
+                </Text>
+                <Text variant="secondary" as="p" className={cn('whitespace-pre-wrap text-[var(--text-secondary)]', !active && 'line-clamp-2')}>{item.comment}</Text>
               </div>
             </div>
           ))}
           {!active && replies.length > 1 ? (
-            <p className="text-xs text-[var(--text-tertiary)]">+{replies.length - 1} {replies.length - 1 === 1 ? 'resposta' : 'respostas'}</p>
+            <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">+{replies.length - 1} {replies.length - 1 === 1 ? 'resposta' : 'respostas'}</Text>
           ) : null}
         </div>
       ) : null}
@@ -170,13 +173,13 @@ export function CommentCard({
                 rows={1}
                 placeholder="Responder"
                 aria-label="Responder"
-                className="min-h-[36px] flex-1 resize-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-base text-[var(--text-primary)] focus:border-[var(--accent-blue)] focus:outline-none md:text-sm"
+                className="min-h-[36px] flex-1 resize-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 t-body text-[var(--text-primary)] focus:border-[var(--accent-blue)] focus:outline-none "
               />
               <button
                 type="button"
                 onClick={sendReply}
                 disabled={!reply.trim()}
-                className="h-9 rounded-[var(--radius-pill)] bg-[var(--accent-blue)] px-4 text-xs font-semibold text-[var(--bg-secondary)] transition disabled:bg-[var(--bg-hover)] disabled:text-[var(--text-tertiary)]"
+                className="h-9 rounded-[var(--radius-pill)] bg-[var(--accent-blue)] px-4 t-label text-[var(--bg-secondary)] transition disabled:bg-[var(--bg-hover)] disabled:text-[var(--text-tertiary)]"
               >
                 Responder
               </button>
@@ -327,9 +330,9 @@ export function CommentsPanel({
       >
         {presentation === 'sheet' ? <div className="mx-auto mt-3 h-1 w-10 rounded-[var(--radius-pill)] bg-[var(--border-strong)]" /> : null}
         <div className="flex items-center gap-2 border-b border-[var(--border-color)] px-4 py-3">
-          <p className="flex-1 text-sm font-semibold text-[var(--text-primary)]">Comentários ({total})</p>
+          <Text variant="itemTitle" as="p" className="flex-1 text-[var(--text-primary)]"><span className="inline-flex items-center gap-1.5">Comentários <CountBadge count={total} /></span></Text>
           {resolvedCount > 0 ? (
-            <label className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
+            <label className="flex items-center gap-1.5 t-meta text-[var(--text-secondary)]">
               <input type="checkbox" checked={showResolved} onChange={event => onShowResolvedChange(event.target.checked)} />
               Resolvidos ({resolvedCount})
             </label>
@@ -345,9 +348,9 @@ export function CommentsPanel({
         </div>
         <div className="flex-1 space-y-2 overflow-y-auto p-3">
           {items.length === 0 ? (
-            <p className="px-2 py-8 text-center text-sm text-[var(--text-tertiary)]">
+            <Text variant="secondary" as="p" className="px-2 py-8 text-center text-[var(--text-tertiary)]">
               Nenhum comentário{resolvedCount > 0 && !showResolved ? ' aberto' : ''}. Selecione um trecho e toque em comentar.
-            </p>
+            </Text>
           ) : (
             items.map(note => <div key={note.id}>{renderCard(note)}</div>)
           )}

@@ -156,5 +156,5 @@ export function buildPrompterLines(script: string, maxWords: number): string[] {
   // Sem linha em branco no fim: a última posição da leitura é a última frase.
   while (compacted.at(-1) === '') compacted.pop();
 
-  return compacted.length > 0 ? compacted : [EMPTY_SCRIPT_LINE];
+  return compacted;
 }

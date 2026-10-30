@@ -1,3 +1,4 @@
+import { Text } from '../../../../components/ui/Text';
 import { useState } from 'react';
 import { X, Plus, MessageSquare } from 'lucide-react';
 import { AnnotationNoteCard } from '../AnnotationNoteCard';
@@ -8,7 +9,9 @@ import { buildIdeaFields, parseLegacyIdeaText } from '../../../ideas/lib/ideaTex
 import { createIdeaContent } from '../../../contents/lib/creationContent';
 import { cn } from '../../../../lib/utils';
 import { Dialog } from '../../../../components/overlays/Dialog';
+import { Badge } from '../../../../components/ui/Badge';
 import { SelectField } from '../../../../components/ui/SelectField';
+import { dia } from '../../../../lib/dates';
 
 type TipoAnotacao = Anotacao['tipo'];
 
@@ -20,11 +23,8 @@ interface BookNotesModalProps {
 const TIPOS: TipoAnotacao[] = ['Anotação', 'Trecho', 'Reação', 'Análise', 'Ideia de conteúdo', 'Pergunta'];
 
 function formatNoteDate(value: string) {
-  return new Intl.DateTimeFormat('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(new Date(value));
+  if (Number.isNaN(new Date(value).getTime())) return '';
+  return dia(value);
 }
 
 export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
@@ -89,12 +89,12 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
       <div className="shrink-0 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2 md:px-8 md:py-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="line-clamp-1 text-xs font-semibold text-[var(--text-secondary)]">
+            <Text variant="label" as="p" className="line-clamp-1 text-[var(--text-secondary)]">
               {book.titulo}
-            </p>
-            <p className="mt-0.5 text-xs font-semibold text-[var(--text-tertiary)]">
+            </Text>
+            <Text variant="label" as="p" className="mt-0.5 text-[var(--text-tertiary)]">
               Anotações
-            </p>
+            </Text>
           </div>
 
           <button
@@ -123,7 +123,7 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
               value={novoCapitulo}
               onChange={event => setNovoCapitulo(event.target.value)}
               placeholder="Cap. / página"
-              className="w-full rounded-xl border-none bg-[var(--bg-hover)] px-3 py-2.5 text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:ring-1 focus:ring-[var(--accent-purple)] sm:w-40"
+              className="w-full rounded-[var(--radius-card)] border-none bg-[var(--bg-hover)] px-3 py-2.5 t-label text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:ring-1 focus:ring-[var(--accent-purple)] sm:w-40"
             />
           </div>
 
@@ -132,18 +132,18 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
             onChange={event => setNovaAnotacao(event.target.value)}
             placeholder="Escreva uma nova anotação…"
             rows={4}
-            className="custom-scrollbar mt-4 w-full resize-none border-none bg-transparent p-0 text-sm leading-6 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:ring-0"
+            className="custom-scrollbar mt-4 w-full resize-none border-none bg-transparent p-0 t-body leading-6 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:ring-0"
           />
 
           <div className="mt-4 flex items-center justify-between gap-3 border-t border-[var(--border-color)] pt-3">
-            <span className="t-label t-label-uppercase font-semibold text-[var(--text-tertiary)]">
+            <Text variant="label" as="span" className="t-label-uppercase text-[var(--text-tertiary)]">
               Nova anotação
-            </span>
+            </Text>
 
             <button
               onClick={handleAddAnotacao}
               disabled={!novaAnotacao.trim()}
-              className="flex shrink-0 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-4 py-2.5 text-xs font-semibold  text-[var(--bg-primary)] transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-30"
+              className="flex shrink-0 items-center gap-1.5 rounded-[var(--radius-card)] bg-[var(--text-primary)] px-4 py-2.5 t-label text-[var(--bg-primary)] transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-30"
             >
               <Plus className="h-3 w-3" />
               Adicionar
@@ -154,12 +154,12 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
         <div className="mt-4 stack-lg">
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <span className="t-label t-label-uppercase font-semibold text-[var(--text-tertiary)]">
+              <Text variant="label" as="span" className="t-label-uppercase text-[var(--text-tertiary)]">
                 Filtros
-              </span>
-              <span className="t-label t-label-uppercase font-semibold text-[var(--text-tertiary)]">
-                {anotacoesFiltradas.length} {anotacoesFiltradas.length === 1 ? 'anotação' : 'anotações'}
-              </span>
+              </Text>
+              {anotacoesFiltradas.length > 0 ? (
+                <Badge variant="neutral">{anotacoesFiltradas.length}</Badge>
+              ) : null}
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -168,7 +168,7 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
                   key={tipo}
                   onClick={() => setFiltroTipo(tipo)}
                   className={cn(
-                    'shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 t-label t-label-uppercase font-semibold transition-all',
+                    'shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 t-label t-label-uppercase transition-all',
                     filtroTipo === tipo
                       ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-secondary)]'
                       : 'border-[var(--border-strong)] bg-transparent text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
@@ -183,9 +183,9 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
           {anotacoesFiltradas.length === 0 ? (
             <div className="rounded-[var(--radius-card-mobile)] border border-dashed border-[var(--border-color)] py-16 text-center md:rounded-[var(--radius-card)]">
               <MessageSquare className="mx-auto mb-3 h-10 w-10 text-[var(--text-tertiary)]" />
-              <p className="text-xs font-semibold text-[var(--text-tertiary)]">
-                Nenhuma anotação neste filtro
-              </p>
+              <Text variant="label" as="p" className="text-[var(--text-tertiary)]">
+                Nenhuma anotação nesse filtro
+              </Text>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -201,9 +201,9 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
                   onDelete={() => handleDeleteAnotacao(anotacao.id)}
                   footer={
                     <div className="mt-2 flex items-center justify-end border-t border-[var(--border-color)] pt-2">
-                      <span className="text-xs font-medium text-[var(--text-tertiary)]">
+                      <Text variant="label" as="span" className="text-[var(--text-tertiary)]">
                         {formatNoteDate(anotacao.createdAt)}
-                      </span>
+                      </Text>
                     </div>
                   }
                 />

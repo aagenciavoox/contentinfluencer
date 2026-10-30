@@ -1,7 +1,9 @@
-import { useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ChevronLeft, type LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { Text } from '../../../components/ui/Text';
+import { ValorVazio } from '../../../components/ui/ValorVazio';
 import { cn } from '../../../lib/utils';
 
 export interface BookDetailTab<T extends string> {
@@ -74,22 +76,6 @@ export function BookDetailHeader<T extends string>({
   onTabChange,
   actions,
 }: BookDetailHeaderProps<T>) {
-  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
-
-  // Setas, Home e End trocam a aba, como no SegmentTabs.
-  const handleTabKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    const current = tabs.findIndex(tab => tab.id === activeTab);
-    let next = -1;
-    if (event.key === 'ArrowRight') next = (current + 1) % tabs.length;
-    else if (event.key === 'ArrowLeft') next = (current - 1 + tabs.length) % tabs.length;
-    else if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = tabs.length - 1;
-    if (next < 0 || next === current) return;
-    event.preventDefault();
-    onTabChange(tabs[next].id);
-    tabRefs.current[next]?.focus();
-  };
-
   return (
     <header className="desktop-page-header">
       <Link
@@ -108,16 +94,16 @@ export function BookDetailHeader<T extends string>({
             <div className="min-w-0">
               <Text variant="display" className="truncate">{title}</Text>
               <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 t-body text-[var(--text-secondary)]">
-                {creator ? <span className="truncate">{creator}</span> : null}
-                {creator ? <span aria-hidden className="text-[var(--text-tertiary)]">•</span> : null}
+                <span className="truncate">{creator?.trim() ? creator : <ValorVazio />}</span>
+                <span aria-hidden className="text-[var(--text-tertiary)]">•</span>
                 <span>{typeLabel}</span>
                 {status ? (
                   <>
                     <span aria-hidden className="text-[var(--text-tertiary)]">•</span>
-                    <span className="inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] bg-[var(--bg-hover)] px-2.5 py-1 t-secondary font-medium text-[var(--text-primary)]">
+                    <Text variant="secondary" as="span" className="inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] bg-[var(--bg-hover)] px-2.5 py-1 text-[var(--text-primary)]">
                       <span aria-hidden className={cn('h-2 w-2 rounded-full', STATUS_DOT[status] ?? 'bg-[var(--text-tertiary)]')} />
                       {status}
-                    </span>
+                    </Text>
                   </>
                 ) : null}
               </div>
@@ -126,41 +112,17 @@ export function BookDetailHeader<T extends string>({
           </div>
 
           {/* A margem negativa leva as abas até a borda de baixo do cabeçalho (padding do .desktop-header-frame). */}
-          <div
-            role="tablist"
-            aria-label={`Seções de ${title}`}
-            onKeyDown={handleTabKeyDown}
-            className="mt-auto -mb-[var(--space-xl)] flex items-end gap-2 pt-4"
-          >
-            {tabs.map((tab, index) => {
-              const active = tab.id === activeTab;
-              return (
-                <button
-                  key={tab.id}
-                  ref={node => { tabRefs.current[index] = node; }}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  tabIndex={active ? 0 : -1}
-                  onClick={() => onTabChange(tab.id)}
-                  className={cn(
-                    'relative inline-flex min-h-11 items-center gap-2 px-3 pb-3 pt-2 t-body font-semibold transition-colors',
-                    'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-                    "after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:content-['']",
-                    active
-                      ? 'text-[var(--text-primary)] after:bg-[var(--brand-accent)]'
-                      : 'text-[var(--text-secondary)] after:bg-transparent hover:text-[var(--text-primary)]',
-                  )}
-                >
-                  {tab.label}
-                  {typeof tab.count === 'number' ? (
-                    <span className="inline-flex min-w-6 items-center justify-center rounded-[var(--radius-pill)] bg-[var(--bg-hover)] px-1.5 py-0.5 t-secondary font-semibold text-[var(--text-primary)]">
-                      {tab.count}
-                    </span>
-                  ) : null}
-                </button>
-              );
-            })}
+          <div className="mt-auto -mb-[var(--space-xl)] flex items-end gap-2 pt-4">
+            <SegmentTabs<T>
+              ariaLabel={`Seções de ${title}`}
+              value={activeTab}
+              onChange={onTabChange}
+              options={tabs.map(tab => ({
+                id: tab.id,
+                label: tab.label,
+                count: tab.count,
+              }))}
+            />
           </div>
         </div>
       </div>

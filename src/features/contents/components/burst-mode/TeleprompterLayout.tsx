@@ -1,3 +1,5 @@
+import { TextCount } from '../../../../components/ui/TextCount';
+import { Text } from '../../../../components/ui/Text';
 import { CSSProperties, ReactNode } from 'react';
 import {
   CheckCircle2,
@@ -108,12 +110,12 @@ export const TELEPROMPTER_COLUMN_CLASS = 'mx-auto w-full max-w-6xl px-6 md:px-16
 const FOCUS_RING = 'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
 const ACCENT_BUTTON = cn(
-  'inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-[var(--tp-accent)] text-sm font-semibold text-[var(--tp-on-accent)] transition-[filter] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50',
+  'inline-flex shrink-0 items-center justify-center gap-2 rounded-[var(--radius-input)] bg-[var(--tp-accent)] t-body-strong text-[var(--tp-on-accent)] transition-[filter] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50',
   FOCUS_RING
 );
 
 const OUTLINE_BUTTON = cn(
-  'inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-[var(--tp-border)] bg-[var(--tp-surface)] text-sm font-semibold transition-colors hover:bg-[var(--tp-subtle)]',
+  'inline-flex shrink-0 items-center justify-center gap-2 rounded-[var(--radius-input)] border border-[var(--tp-border)] bg-[var(--tp-surface)] t-body-strong transition-colors hover:bg-[var(--tp-subtle)]',
   FOCUS_RING
 );
 
@@ -122,7 +124,7 @@ function Kbd({ children, onAccent = false, className }: { children: ReactNode; o
     <kbd
       aria-hidden="true"
       className={cn(
-        'rounded-md px-1.5 py-1 font-sans text-xs font-medium leading-none',
+        'rounded-[var(--radius-sm)] px-1.5 py-1 font-sans t-label leading-none',
         className,
         onAccent
           ? 'bg-[var(--tp-accent-kbd)] text-[var(--tp-on-accent)]'
@@ -160,28 +162,27 @@ export function TeleprompterHeader({
   return (
     <header className="flex shrink-0 items-center gap-4 border-b border-[var(--tp-border)] bg-[var(--tp-surface)] px-4 py-3 md:gap-6 md:px-8 md:py-4">
       <div className="shrink-0">
-        <p className="text-sm font-semibold">Modo gravação</p>
-        <p className="mt-0.5 text-sm text-[var(--tp-muted)]">
+        <Text variant="itemTitle" as="p" className="text-inherit">Modo gravação</Text>
+        <Text variant="body" as="p" className="mt-0.5 text-[var(--tp-muted)]">
           Roteiro {position} de {total}
-        </p>
+        </Text>
       </div>
 
       <Divider className="hidden md:block" />
 
-      <p className="min-w-0 flex-1 truncate text-lg font-bold tracking-tight md:text-xl" title={title}>
+      <Text variant="sectionTitle" as="p" className="min-w-0 flex-1 truncate tracking-tight text-inherit" title={title}>
         {title}
-      </p>
+      </Text>
 
       <div className="hidden shrink-0 items-center gap-6 lg:flex">
         <Divider />
         <div>
-          <p className="text-sm text-[var(--tp-muted)]">Estimado</p>
-          <p className="text-lg font-bold tabular-nums">{estimatedLabel}</p>
+          <Text variant="body" as="p" className="text-[var(--tp-muted)]">Estimado</Text>
+          <Text variant="sectionTitle" as="p" className="tabular-nums text-inherit">{estimatedLabel}</Text>
         </div>
         <Divider />
         <div>
-          <p className="text-lg font-bold tabular-nums">{totalWords}</p>
-          <p className="text-sm text-[var(--tp-muted)]">{totalWords === 1 ? 'palavra' : 'palavras'}</p>
+          <TextCount count={totalWords} mode="words" style={{ color: 'var(--tp-muted)' }} />
         </div>
       </div>
 
@@ -251,16 +252,16 @@ function Stepper({ label, value, decreaseLabel, increaseLabel, onDecrease, onInc
 
   return (
     <div className="flex shrink-0 items-center gap-3">
-      <span className="hidden text-sm text-[var(--tp-muted)] xl:inline">{label}</span>
+      <Text variant="body" as="span" className="hidden text-[var(--tp-muted)] xl:inline">{label}</Text>
       <div
         role="group"
         aria-label={label}
-        className="flex h-12 items-center gap-1 rounded-lg border border-[var(--tp-border)] px-2.5"
+        className="flex h-12 items-center gap-1 rounded-[var(--radius-input)] border border-[var(--tp-border)] px-2.5"
       >
         <button type="button" onClick={onDecrease} disabled={disabled} aria-label={decreaseLabel} className={stepButton}>
           <Minus className="h-3.5 w-3.5" />
         </button>
-        <span className="min-w-[4rem] text-center xl:min-w-[4.75rem] text-sm font-semibold tabular-nums">{value}</span>
+        <Text variant="itemTitle" as="span" className="min-w-[4rem] text-center xl:min-w-[4.75rem] tabular-nums text-inherit">{value}</Text>
         <button type="button" onClick={onIncrease} disabled={disabled} aria-label={increaseLabel} className={stepButton}>
           <Plus className="h-3.5 w-3.5" />
         </button>
@@ -364,17 +365,17 @@ export function TeleprompterControls({
 }: TeleprompterControlsProps) {
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 px-4 pb-4 xl:px-8 xl:pb-6">
-      <div className="pointer-events-auto rounded-xl border border-[var(--tp-border)] bg-[var(--tp-surface)] shadow-[0_12px_40px_rgba(0,0,0,0.08)]">
+      <div className="pointer-events-auto rounded-[var(--radius-card)] border border-[var(--tp-border)] bg-[var(--tp-surface)] shadow-[0_12px_40px_rgba(0,0,0,0.08)]">
         {/* Abaixo de 1280px a primeira linha ainda cabe inteira: sem divisores, espaços menores e sem as dicas de tecla. */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-4 xl:gap-x-6 xl:px-6">
           {manualScroll && teleprompterEnabled ? (
-            <span
+            <Text variant="itemTitle" as="span"
               title="A rolagem assistida está desligada nas configurações: role o texto e a guia acompanha."
-              className="inline-flex h-12 shrink-0 items-center gap-2 rounded-lg border border-[var(--tp-border)] bg-[var(--tp-subtle)] px-4 text-sm font-semibold text-[var(--tp-muted)] xl:min-w-[11rem] xl:px-6"
+              className="inline-flex h-12 shrink-0 items-center gap-2 rounded-[var(--radius-input)] border border-[var(--tp-border)] bg-[var(--tp-subtle)] px-4 text-[var(--tp-muted)] xl:min-w-[11rem] xl:px-6"
             >
               <Hand className="h-4 w-4" />
               Rolagem manual
-            </span>
+            </Text>
           ) : (
             <button
               type="button"
@@ -392,9 +393,9 @@ export function TeleprompterControls({
           <Divider className="hidden xl:block" />
 
           <div className="flex min-w-[11rem] flex-1 items-center gap-3 xl:min-w-[14rem] xl:gap-4">
-            <span className="shrink-0 text-sm font-semibold tabular-nums">
+            <Text variant="itemTitle" as="span" className="shrink-0 tabular-nums text-inherit">
               {elapsedLabel} / {totalLabel}
-            </span>
+            </Text>
             <ProgressSeek
               value={playhead}
               max={maxPlayhead}
@@ -453,7 +454,7 @@ export function TeleprompterControls({
             disabled={!canGoPrevious}
             aria-keyshortcuts="ArrowLeft"
             className={cn(
-              'inline-flex h-10 shrink-0 items-center gap-2 rounded-lg bg-[var(--tp-subtle)] px-4 text-sm font-semibold transition-colors hover:bg-[var(--tp-border)] disabled:cursor-not-allowed disabled:text-[var(--tp-muted)] disabled:hover:bg-[var(--tp-subtle)]',
+              'inline-flex h-10 shrink-0 items-center gap-2 rounded-[var(--radius-input)] bg-[var(--tp-subtle)] px-4 t-body-strong transition-colors hover:bg-[var(--tp-border)] disabled:cursor-not-allowed disabled:text-[var(--tp-muted)] disabled:hover:bg-[var(--tp-subtle)]',
               FOCUS_RING
             )}
           >
@@ -461,9 +462,9 @@ export function TeleprompterControls({
             Roteiro anterior
           </button>
 
-          <span className="text-sm font-medium tabular-nums">
+          <Text variant="bodyStrong" as="span" className="tabular-nums text-inherit">
             {position} de {total}
-          </span>
+          </Text>
 
           <button
             type="button"

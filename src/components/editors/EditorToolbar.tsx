@@ -1,3 +1,4 @@
+import { Text } from '../ui/Text';
 import {
   useCallback, useEffect, useId, useLayoutEffect, useRef, useState,
   type CSSProperties, type KeyboardEvent as ReactKeyboardEvent,
@@ -106,7 +107,7 @@ export function ToolbarTextButton({
   return <button type="button" onMouseDown={event => event.preventDefault()}
     onClick={onClick} disabled={disabled} aria-pressed={active} title={title ?? label}
     className={cn(
-      'flex h-8 shrink-0 items-center gap-1 rounded-[var(--radius-input)] px-2 text-xs font-medium transition focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-40',
+      'flex h-8 shrink-0 items-center gap-1 rounded-[var(--radius-input)] px-2 t-label transition focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-40',
       controlClass(active, neutral),
     )}>
     {ButtonIcon ? <ButtonIcon className="h-4 w-4" aria-hidden="true" /> : null}
@@ -379,15 +380,15 @@ export function ToolbarDropdown({
             if (restore) triggerRef.current?.focus({ preventScroll: true });
             item.run();
           }}
-          className={cn('flex w-full items-center gap-3 rounded-[var(--radius-input)] px-3 py-2 text-left text-sm text-[var(--text-primary)] transition focus-visible:outline-none focus-visible:bg-[var(--bg-hover)] disabled:opacity-40',
-            item.active ? 'bg-[var(--bg-hover)] font-semibold' : 'hover:bg-[var(--bg-hover)]')}>
+          className={cn('flex w-full items-center gap-3 rounded-[var(--radius-input)] px-3 py-2 text-left t-body text-[var(--text-primary)] transition focus-visible:outline-none focus-visible:bg-[var(--bg-hover)] disabled:opacity-40',
+            item.active ? 'bg-[var(--bg-hover)] ' : 'hover:bg-[var(--bg-hover)]')}>
           {ItemIcon ? <ItemIcon className="h-4 w-4 shrink-0" aria-hidden="true" /> : null}
           <span className="min-w-0 flex-1 break-words" style={item.style}>{item.label}</span>
-          {item.shortcut ? <span className="shrink-0 text-xs font-normal text-[var(--text-secondary)]">{item.shortcut}</span> : null}
+          {item.shortcut ? <Text variant="meta" as="span" className="shrink-0 font-normal text-[var(--text-secondary)]">{item.shortcut}</Text> : null}
           {item.active ? <Check className="h-4 w-4 shrink-0" aria-hidden="true" /> : null}
         </button>;
       })}
-      {!items.length && !footer ? <p className="px-3 py-2 text-sm text-[var(--text-secondary)]">Nenhuma opção disponível</p> : null}
+      {!items.length && !footer ? <Text variant="secondary" as="p" className="px-3 py-2 text-[var(--text-secondary)]">Nenhuma opção disponível</Text> : null}
       {footer}
     </div>, document.body,
   ) : null;
@@ -401,7 +402,7 @@ export function ToolbarDropdown({
       }} onKeyDown={handleTriggerKeyDown}
       aria-label={label} title={label} aria-haspopup="menu" aria-expanded={open}
       aria-controls={open ? menuId : undefined}
-      className={cn('flex items-center gap-1 rounded-[var(--radius-input)] px-2 text-xs font-medium transition focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-40',
+      className={cn('flex items-center gap-1 rounded-[var(--radius-input)] px-2 t-label transition focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-40',
         compact ? 'h-8' : 'h-9', controlClass(open, neutral), triggerClassName)}>
       {TriggerIcon ? <TriggerIcon className="h-4 w-4" aria-hidden="true" /> : null}
       {triggerText ? <span className="max-w-[7rem] truncate" style={triggerStyle}>{triggerText}</span> : null}

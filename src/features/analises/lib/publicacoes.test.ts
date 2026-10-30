@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import type { Content, ContentMetric, ContentPlataforma } from '../../../lib/database.ts';
+import { intervalo } from '../../../lib/dates.ts';
 import {
   FORMULA_ENGAJAMENTO,
   filtrarPublicacoes,
   interacoesDaMetrica,
   taxaDeEngajamento,
-  textoDeMetrica,
 } from './publicacoes.ts';
 
 function pub(partial: Partial<ContentPlataforma> & Pick<ContentPlataforma, 'id' | 'platformId'>): ContentPlataforma {
@@ -100,9 +100,7 @@ assert.equal(linhas[0].publicacaoId, 'pub-b');
 assert.equal(linhas[1].link, 'https://ig.example/a');
 assert.notEqual(linhas[1].link, contents[0].link);
 assert.equal(linhas[1].views, 0);
-assert.equal(textoDeMetrica(linhas[1].views), '0');
 assert.equal(linhas[0].views, null);
-assert.equal(textoDeMetrica(linhas[0].views), 'Sem dados disponíveis');
 assert.equal(linhas[1].alcance, null);
 assert.equal(linhas[1].interacoes, 0);
 assert.equal(linhas[1].taxa, null);
@@ -121,7 +119,7 @@ const soUma = filtrarPublicacoes({
 assert.deepEqual(soUma.map(item => item.publicacaoId), ['pub-b']);
 assert.equal(soUma[0].serie, null);
 assert.equal(soUma[0].objetivo, 'Atrair alcance');
-assert.equal(soUma[0].periodoEditorial, '2026-10-18 a 2026-10-24');
+assert.equal(soUma[0].periodoEditorial, intervalo('2026-10-18', '2026-10-24'));
 
 const semDataEfetiva = filtrarPublicacoes({
   contents,

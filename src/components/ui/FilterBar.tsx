@@ -134,9 +134,9 @@ export function FilterBar({
               <Filter className="h-3.5 w-3.5" aria-hidden="true" />
               <span className="hidden sm:inline">Filtros</span>
               {activeFiltersCount > 0 ? (
-                <span aria-hidden="true" className="flex h-4 min-w-4 items-center justify-center rounded-[var(--radius-pill)] bg-[var(--bg-primary)] px-1 text-2xs font-semibold text-[var(--text-primary)]">
+                <Text variant="label" as="span" aria-hidden="true" className="flex h-4 min-w-4 items-center justify-center rounded-[var(--radius-pill)] bg-[var(--bg-primary)] px-1 text-[var(--text-primary)]">
                   {activeFiltersCount}
-                </span>
+                </Text>
               ) : null}
             </button>
           ) : null}

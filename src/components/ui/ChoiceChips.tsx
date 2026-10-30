@@ -1,5 +1,5 @@
-import { Text } from '../../../components/ui/Text';
-import { cn } from '../../../lib/utils';
+import { Text } from './Text';
+import { cn } from '../../lib/utils';
 
 export interface ChoiceChipOption<T extends string> {
   value: T;
@@ -45,7 +45,7 @@ export function ChoiceChips<T extends string>({
                 : 'border-[var(--border-color)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)]',
             )}
           >
-            <Text variant="meta" className="font-semibold text-[var(--text-primary)]">
+            <Text variant="meta" className=" text-[var(--text-primary)]">
               {option.label}
             </Text>
             {option.description ? (

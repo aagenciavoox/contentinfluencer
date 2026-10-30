@@ -1,3 +1,4 @@
+import { Text } from '../../../../components/ui/Text';
 import { Eye } from 'lucide-react';
 import { Content } from '../../../../lib/database';
 import { useAppContext } from '../../../../context/AppContext';
@@ -40,11 +41,11 @@ export function ContentKanban({
   if (contents.length === 0) {
     return (
       <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] py-16 text-center">
-        <p className="text-sm font-medium text-[var(--text-tertiary)]">
+        <Text variant="secondary" as="p" className="text-[var(--text-tertiary)]">
           {filterStatus === 'Todos'
             ? 'Nenhum roteiro nesta visão.'
             : `Nenhum roteiro em "${filterStatus}".`}
-        </p>
+        </Text>
       </div>
     );
   }
@@ -60,20 +61,20 @@ export function ContentKanban({
             className="flex w-[min(280px,80vw)] shrink-0 flex-col rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)]/20"
           >
             <header className="flex items-center justify-between gap-2 border-b border-[var(--border-color)] px-3 py-2.5">
-              <span
+              <Text variant="label" as="span"
                 className={cn(
-                  'rounded-full px-2 py-0.5 text-xs font-medium',
+                  'rounded-full px-2 py-0.5 ',
                   getStatusChipClass(status)
                 )}
               >
                 {status}
-              </span>
-              <span className="text-xs font-medium text-[var(--text-tertiary)]">{columnItems.length}</span>
+              </Text>
+              <Text variant="label" as="span" className="text-[var(--text-tertiary)]">{columnItems.length}</Text>
             </header>
 
             <div className="flex max-h-[min(70vh,640px)] flex-col gap-2 overflow-y-auto p-2">
               {columnItems.length === 0 ? (
-                <p className="px-1 py-6 text-center text-xs text-[var(--text-tertiary)]">Nenhum roteiro</p>
+                <Text variant="meta" as="p" className="px-1 py-6 text-center text-[var(--text-tertiary)]">Nenhum roteiro</Text>
               ) : (
                 columnItems.map(content => {
                   const { pillar, series: seriesEntity } = resolveContentEntities(
@@ -89,9 +90,9 @@ export function ContentKanban({
                       className="ds-card ds-card-interactive group relative bg-[var(--bg-elevated)] p-2.5"
                     >
                       <div className="mb-1.5 flex items-start justify-between gap-1">
-                        <span className="text-xs text-[var(--text-tertiary)]">
+                        <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">
                           {formatLastEdit(content.updatedAt)}
-                        </span>
+                        </Text>
                         <button
                           type="button"
                           onClick={event => {
@@ -110,14 +111,14 @@ export function ContentKanban({
                         onClick={() => onSelect(content)}
                         className="w-full text-left"
                       >
-                        <p
+                        <Text variant="label" as="p"
                           className={cn(
-                            'line-clamp-2 text-xs font-semibold leading-snug text-[var(--text-primary)]',
+                            'line-clamp-2 leading-snug text-[var(--text-primary)]',
                             isDraft && 'italic text-[var(--text-secondary)]'
                           )}
                         >
                           {getDisplayTitle(content.title)}
-                        </p>
+                        </Text>
 
                         <ContentEntityTags
                           pillar={pillar}
@@ -129,15 +130,15 @@ export function ContentKanban({
                         />
 
                         {!pillar && !seriesEntity && !content.pilarId && !content.seriesId ? (
-                          <p className="mt-1 line-clamp-1 text-xs text-[var(--text-tertiary)]">
+                          <Text variant="meta" as="p" className="mt-1 line-clamp-1 text-[var(--text-tertiary)]">
                             {buildContentMetaLine(content)}
-                          </p>
+                          </Text>
                         ) : null}
 
                         {lookAlerts[content.id] ? (
-                          <p className="mt-1 line-clamp-1 text-xs font-medium text-[var(--accent-orange)]">
+                          <Text variant="label" as="p" className="mt-1 line-clamp-1 text-[var(--accent-orange)]">
                             Revisar look
-                          </p>
+                          </Text>
                         ) : null}
                       </button>
                     </div>

@@ -175,25 +175,25 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
         <div className="flex items-center gap-3 md:gap-6 w-full md:w-auto">
            <div className="flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] flex-1 md:flex-none justify-center md:justify-start">
              <CalendarIcon className="w-4 h-4 md:w-5 md:h-5 text-[var(--accent-blue)]" />
-             <Text as="span" variant="label" uppercase className="md:text-sm font-semibold text-[var(--text-primary)]">
+             <Text as="span" variant="label" uppercase className="text-[var(--text-primary)]">
                {format(currentDate, 'MMMM yyyy', { locale: ptBR })}
              </Text>
            </div>
            
            <div className="flex gap-1 md:gap-2 p-1 bg-[var(--bg-hover)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)]">
-             <button onClick={prevMonth} className="p-1.5 md:p-2 hover:bg-[var(--border-color)] rounded-xl transition-colors"><ChevronLeft className="w-4 h-4 md:w-5 md:h-5" /></button>
-             <button onClick={() => setCurrentDate(new Date())} className="px-3 md:px-6 py-1.5 md:py-2 text-2xs md:text-xs font-semibold hover:bg-[var(--border-color)] rounded-[var(--radius-input)] transition-colors">Hoje</button>
-             <button onClick={nextMonth} className="p-1.5 md:p-2 hover:bg-[var(--border-color)] rounded-xl transition-colors"><ChevronRight className="w-4 h-4 md:w-5 md:h-5" /></button>
+             <button onClick={prevMonth} className="p-1.5 md:p-2 hover:bg-[var(--border-color)] rounded-[var(--radius-card)] transition-colors"><ChevronLeft className="w-4 h-4 md:w-5 md:h-5" /></button>
+             <button onClick={() => setCurrentDate(new Date())} className="px-3 md:px-6 py-1.5 md:py-2 t-label hover:bg-[var(--border-color)] rounded-[var(--radius-input)] transition-colors">Hoje</button>
+             <button onClick={nextMonth} className="p-1.5 md:p-2 hover:bg-[var(--border-color)] rounded-[var(--radius-card)] transition-colors"><ChevronRight className="w-4 h-4 md:w-5 md:h-5" /></button>
            </div>
         </div>
 
         <div className="flex md:hidden w-full overflow-x-auto gap-4 py-2 border-t border-[var(--border-color)] no-scrollbar">
-           <div className="flex items-center gap-2 shrink-0"><Video className="w-3 h-3 text-[var(--accent-orange)]" /><span className="text-2xs font-semibold uppercase tracking-normal opacity-60">Gravação</span></div>
-           <div className="flex items-center gap-2 shrink-0"><Send className="w-3 h-3 text-[var(--accent-blue)]" /><span className="text-2xs font-semibold uppercase tracking-normal opacity-60">Postagens</span></div>
-           <div className="flex items-center gap-2 shrink-0"><Star className="w-3.5 h-3.5 text-[var(--warning)]" /><span className="text-2xs font-semibold uppercase tracking-normal opacity-60">Publicidade</span></div>
+           <div className="flex items-center gap-2 shrink-0"><Video className="w-3 h-3 text-[var(--accent-orange)]" /><Text variant="label" as="span" className="uppercase tracking-normal opacity-60 text-inherit">Gravação</Text></div>
+           <div className="flex items-center gap-2 shrink-0"><Send className="w-3 h-3 text-[var(--accent-blue)]" /><Text variant="label" as="span" className="uppercase tracking-normal opacity-60 text-inherit">Postagens</Text></div>
+           <div className="flex items-center gap-2 shrink-0"><Star className="w-3.5 h-3.5 text-[var(--warning)]" /><Text variant="label" as="span" className="uppercase tracking-normal opacity-60 text-inherit">Publicidade</Text></div>
         </div>
 
-        <div className="hidden items-center gap-4 text-xs font-semibold text-[var(--text-tertiary)] md:flex">
+        <div className="hidden items-center gap-4 t-label text-[var(--text-tertiary)] md:flex">
            <div className="flex items-center gap-2"><Video className="w-3 h-3 text-[var(--accent-orange)]" /> Gravação</div>
            <div className="h-1 w-1 bg-[var(--text-tertiary)] rounded-[var(--radius-pill)]" />
            <div className="flex items-center gap-2"><Send className="w-3 h-3 text-[var(--accent-blue)]" /> Postagens</div>
@@ -214,8 +214,8 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
           {desktop: 'Sáb', mobile: 'S'},
         ].map(day => (
           <div key={day.desktop} className="py-2 md:py-4 text-center">
-            <Text variant="label" className="font-semibold text-[var(--text-tertiary)] md:hidden">{day.mobile}</Text>
-            <Text variant="label" className="hidden font-semibold text-[var(--text-tertiary)] md:inline">{day.desktop}</Text>
+            <Text variant="label" className=" text-[var(--text-tertiary)] md:hidden">{day.mobile}</Text>
+            <Text variant="label" className="hidden text-[var(--text-tertiary)] md:inline">{day.desktop}</Text>
           </div>
         ))}
       </div>
@@ -241,12 +241,12 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
             >
               {/* Day Header */}
               <div className="flex items-center justify-between p-2 mb-1">
-                <span className={cn(
-                  "text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full transition-all",
+                <Text variant="label" as="span" className={cn(
+                  "w-6 h-6 flex items-center justify-center rounded-full transition-all",
                   activeToday ? "bg-[var(--accent)] text-[var(--bg-primary)] shadow-[var(--shadow-soft)]" : "text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)]"
                 )}>
                   {format(day, 'd')}
-                </span>
+                </Text>
                 
                 {energy > 0 && (
                   <div className="flex gap-0.5" title={`Energia: ${energy}`}>
@@ -279,9 +279,9 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
                       }
                     >
                       <span className="shrink-0">{item.icon}</span>
-                      <span className="text-xs font-bold truncate leading-tight flex-1">
+                      <Text variant="label" as="span" className="truncate leading-tight flex-1 text-inherit">
                         {item.title || item.text}
-                      </span>
+                      </Text>
                     </button>
                     {/* Hover Preview Card */}
                     <CalendarHoverCard item={item} isVisible={hoveredItemId === item.id} />
@@ -294,7 +294,7 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
                 <div className="mt-auto pt-2" title="Muita coisa para a energia deste dia. Dá para mover algo, se fizer sentido.">
                    <div className="flex items-center gap-1.5 px-3 py-1 bg-[var(--warning-bg)] rounded-[var(--radius-pill)] border border-[var(--border-color)]">
                       <Layers className="w-3 h-3 text-[var(--accent-orange)]" />
-                      <span className="text-2xs font-semibold text-[var(--text-secondary)]">Dia cheio</span>
+                      <Text variant="label" as="span" className="text-[var(--text-secondary)]">Dia cheio</Text>
                    </div>
                 </div>
               )}

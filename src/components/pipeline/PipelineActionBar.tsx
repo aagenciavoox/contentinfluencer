@@ -37,11 +37,11 @@ export function PipelineActionBar({
     >
       <div className="min-w-0">
         {eyebrow ? <Text variant="eyebrow">{eyebrow}</Text> : null}
-        <p className={cn('text-sm font-semibold text-[var(--text-primary)]', eyebrow && 'mt-1')}>
+        <Text variant="bodyStrong" as="p" className={cn('text-[var(--text-primary)]', eyebrow && 'mt-1')}>
           {title}
-        </p>
-        {reason ? <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">{reason}</p> : null}
-        {description ? <p className="mt-0.5 text-xs text-[var(--text-secondary)]">{description}</p> : null}
+        </Text>
+        {reason ? <Text variant="meta" as="p" className="mt-0.5 text-[var(--text-tertiary)]">{reason}</Text> : null}
+        {description ? <Text variant="meta" as="p" className="mt-0.5 text-[var(--text-secondary)]">{description}</Text> : null}
       </div>
       <div className="flex shrink-0 flex-wrap gap-2">
         {secondaryLabel && onSecondary ? (

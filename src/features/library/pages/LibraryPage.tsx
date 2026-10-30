@@ -17,6 +17,7 @@ import { useIsMobile } from '../../../hooks/useIsMobile';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { AppButton } from '../../../components/ui/AppButton';
+import { PageToolbar } from '../../../components/ui/PageToolbar';
 import { PaginationBar } from '../../../components/ui/PaginationBar';
 import { QueryViewState, resolveQueryViewStatus } from '../../../components/ui/QueryViewState';
 import { EMPTY } from '../../../lib/uiCopy';
@@ -148,7 +149,7 @@ const TYPE_CONFIG: Record<BibliotecaTipo, BibliotecaTypeConfig> = {
     label: 'Outro',
     icon: BookOpen,
     creatorLabel: 'Responsável',
-    titlePlaceholder: 'Nome do item',
+    titlePlaceholder: 'Nome da obra',
     creatorPlaceholder: 'Responsável principal',
     isBookish: false,
     showCover: true,
@@ -470,7 +471,7 @@ export function LibraryPage() {
         disabled={!form.titulo.trim()}
         className="flex-1 md:ml-auto md:max-w-[240px]"
       >
-        Criar item
+        Criar obra
       </AppButton>
     </OverlayFooter>
   );
@@ -505,10 +506,10 @@ export function LibraryPage() {
           onClose={() => setModalAberto(false)}
           desktopMaxW="max-w-[760px]"
           zIndex="z-[110]"
-          ariaLabel="Novo item da biblioteca"
+          ariaLabel="Nova obra"
         >
           <OverlayHeader
-            title="Novo item da biblioteca"
+            title="Nova obra"
             subtitle="Só o essencial. Os detalhes podem vir depois."
             onClose={() => setModalAberto(false)}
           />
@@ -530,37 +531,41 @@ export function LibraryPage() {
         <DesktopPageHeader
           section="Criação"
           title="Biblioteca"
-          meta={libraryLoading && libraryItems.length === 0
-            ? undefined
-            : `${libraryTotal} ${libraryTotal === 1 ? 'item' : 'itens'}`}
+          meta={!libraryLoading && libraryTotal > 0
+            ? (libraryTotal === 1 ? '1 obra' : `${libraryTotal.toLocaleString('pt-BR')} obras`)
+            : undefined}
           actions={(
             <AppButton
               onClick={handleOpenModal}
               variant="primary"
               leftIcon={<Plus className="h-4 w-4" />}
             >
-              Novo item
+              Nova obra
             </AppButton>
           )}
         />
       )}
       toolbar={
-        <LibraryToolbar
+        <PageToolbar
           tabs={<LibrarySectionTabs />}
-          searchValue={searchTerm}
-          onSearchChange={setSearchTerm}
-          filtroTipo={filtroTipo}
-          onFiltroTipoChange={setFiltroTipo}
-          filtroStatus={filtroStatus}
-          onFiltroStatusChange={setFiltroStatus}
-          filtroGenero={filtroGenero}
-          onFiltroGeneroChange={setFiltroGenero}
-          filtroCapa={filtroCapa}
-          onFiltroCapaChange={setFiltroCapa}
-          sortValue={sortValue}
-          onSortChange={setSortValue}
-          statusOptions={STATUS_OPTIONS}
-          genreOptions={availableGenreFilters}
+          filters={
+            <LibraryToolbar
+              searchValue={searchTerm}
+              onSearchChange={setSearchTerm}
+              filtroTipo={filtroTipo}
+              onFiltroTipoChange={setFiltroTipo}
+              filtroStatus={filtroStatus}
+              onFiltroStatusChange={setFiltroStatus}
+              filtroGenero={filtroGenero}
+              onFiltroGeneroChange={setFiltroGenero}
+              filtroCapa={filtroCapa}
+              onFiltroCapaChange={setFiltroCapa}
+              sortValue={sortValue}
+              onSortChange={setSortValue}
+              statusOptions={STATUS_OPTIONS}
+              genreOptions={availableGenreFilters}
+            />
+          }
         />
       }
     >
@@ -603,7 +608,8 @@ export function LibraryPage() {
         </div>
         <PaginationBar
           variant="simple"
-          itemLabel="itens"
+          itemLabel="obras"
+          showSummary={false}
           currentPage={libraryPage}
           totalPages={totalLibraryPages}
           totalItems={libraryTotal}
@@ -620,7 +626,7 @@ export function LibraryPage() {
         desktopMaxW="max-w-[760px]"
       >
         <OverlayHeader
-          title="Novo item da biblioteca"
+          title="Nova obra"
           subtitle="Só o essencial. Os detalhes podem vir depois."
           onClose={() => setModalAberto(false)}
         />

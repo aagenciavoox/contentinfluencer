@@ -62,7 +62,7 @@ export function MobileListCard({
 
       <div className="min-w-0">
         {eyebrow && status ? <Text variant="label" className="mb-0.5">{eyebrow}</Text> : null}
-        <Text variant="itemTitle" as="p" className="line-clamp-2 font-semibold leading-snug">
+        <Text variant="itemTitle" as="p" className="line-clamp-2 leading-snug">
           {title}
         </Text>
         {description ? (

@@ -33,7 +33,7 @@ interface RecordingBlockEditorProps {
 
 type OrderedEntry = {item: RecordingBlockContent; content: Content};
 
-const fieldLabelClass = 'block text-sm font-semibold text-[var(--text-primary)]';
+const fieldLabelClass = 'block t-body-strong text-[var(--text-primary)]';
 
 // Mesmo vermelho de "Limpar toda a lixeira": ação que tira algo, sem confirmar.
 const removeButtonClass =
@@ -200,10 +200,10 @@ export function RecordingBlockEditor({
                   <FileText className="h-5 w-5" />
                 </span>
                 <span className="min-w-0">
-                  <span className="block t-body-strong text-[var(--text-primary)]">Teleprompter</span>
-                  <span className="block t-secondary text-[var(--text-secondary)]">
-                    {teleprompterEnabled ? 'Ativado' : 'Desativado'}
-                  </span>
+                  <Text variant="bodyStrong" as="span" className="block text-[var(--text-primary)]">Teleprompter</Text>
+                  <Text variant="secondary" as="span" className="block text-[var(--text-secondary)]">
+                    {teleprompterEnabled ? 'Ativado' : 'Rolagem automática desligada neste bloco'}
+                  </Text>
                 </span>
               </span>
             </ToggleRow>
@@ -228,20 +228,20 @@ export function RecordingBlockEditor({
           <div className="stack-xs">
             <div className="flex items-center gap-3">
               <Text variant="sectionTitle">Roteiros do bloco</Text>
-              <span
-                className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-[var(--bg-hover)] px-2 t-secondary font-semibold text-[var(--text-secondary)]"
+              <Text variant="secondary" as="span"
+                className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-[var(--bg-hover)] px-2 text-[var(--text-secondary)]"
                 aria-label={`${orderedEntries.length} ${orderedEntries.length === 1 ? 'roteiro' : 'roteiros'}`}
               >
                 {orderedEntries.length}
-              </span>
+              </Text>
             </div>
-            <p className="t-body text-[var(--text-secondary)]">Defina a ordem de gravação.</p>
+            <Text variant="body" as="p" className="text-[var(--text-secondary)]">Defina a ordem de gravação.</Text>
           </div>
 
           {visibleEntries.length === 0 ? (
             <div className="rounded-[var(--radius-input)] border border-dashed border-[var(--border-color)] px-4 py-8 text-center">
-              <p className="t-body-strong text-[var(--text-secondary)]">Nenhum roteiro neste bloco.</p>
-              <p className="mt-1 t-secondary text-[var(--text-tertiary)]">Adicione um roteiro pronto logo abaixo.</p>
+              <Text variant="bodyStrong" as="p" className="text-[var(--text-secondary)]">Nenhum roteiro neste bloco.</Text>
+              <Text variant="secondary" as="p" className="mt-1 text-[var(--text-tertiary)]">Adicione um roteiro pronto logo abaixo.</Text>
             </div>
           ) : (
             <Reorder.Group
@@ -273,11 +273,11 @@ export function RecordingBlockEditor({
               <label htmlFor={queueFieldId} className={fieldLabelClass}>
                 Adicionar roteiro
               </label>
-              <p className="t-body text-[var(--text-secondary)]">
+              <Text variant="body" as="p" className="text-[var(--text-secondary)]">
                 {addableQueueContents.length === 0
                   ? 'Nenhum roteiro pronto fora de um bloco no momento.'
                   : 'Roteiros prontos que ainda não estão em um bloco.'}
-              </p>
+              </Text>
             </div>
 
             {addableQueueContents.length > 0 ? (
@@ -360,16 +360,16 @@ function BlockScriptRow({
         <GripVertical className="h-5 w-5" aria-hidden />
       </button>
 
-      <span
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-elevated)] t-body-strong text-[var(--text-primary)]"
+      <Text variant="bodyStrong" as="span"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)]"
         aria-hidden
       >
         {position}
-      </span>
+      </Text>
 
       <div className="min-w-0 flex-1">
-        <p className="line-clamp-2 t-body-strong text-[var(--text-primary)] sm:line-clamp-1">{title}</p>
-        <p className="flex items-center gap-1.5 t-secondary text-[var(--text-secondary)]">
+        <Text variant="bodyStrong" as="p" className="line-clamp-2 text-[var(--text-primary)] sm:line-clamp-1">{title}</Text>
+        <Text variant="secondary" as="p" className="flex items-center gap-1.5 text-[var(--text-secondary)]">
           {completed ? (
             <>
               <CheckCircle2 className="h-3.5 w-3.5 text-[var(--success)]" aria-hidden />
@@ -378,7 +378,7 @@ function BlockScriptRow({
           ) : (
             'Pronto para câmera'
           )}
-        </p>
+        </Text>
       </div>
 
       <div className="flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto">

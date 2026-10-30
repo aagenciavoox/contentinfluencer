@@ -2,8 +2,8 @@ import { Captions } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { FilterBar } from '../../../components/ui/FilterBar';
+import { PageToolbar } from '../../../components/ui/PageToolbar';
 import { PaginationBar } from '../../../components/ui/PaginationBar';
-import { Badge } from '../../../components/ui/Badge';
 import { FilterChips } from '../../../components/ui/FilterChips';
 import { useAppContext } from '../../../context/AppContext';
 import type { Content } from '../../../lib/database';
@@ -74,20 +74,24 @@ export function CaptionsPage() {
 
   const hasQuery = search.trim().length > 0 || filter !== 'sem-legenda';
   const filtros = (
-    <FilterBar
-      size="compact"
-      searchValue={search}
-      onSearchChange={setSearch}
-      searchPlaceholder="Buscar roteiro, conta ou legenda"
-      leading={(
-        <FilterChips<CaptionListFilter>
-          ariaLabel="Filtrar legendas"
-          className="max-w-full"
-          options={FILTERS}
-          value={filter}
-          onChange={setFilter}
+    <PageToolbar
+      filters={
+        <FilterBar
+          size="compact"
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Buscar roteiro, conta ou legenda"
+          leading={(
+            <FilterChips<CaptionListFilter>
+              ariaLabel="Filtrar legendas"
+              className="max-w-full"
+              options={FILTERS}
+              value={filter}
+              onChange={setFilter}
+            />
+          )}
         />
-      )}
+      }
     />
   );
 
@@ -101,11 +105,7 @@ export function CaptionsPage() {
           title="Legendas"
           backLabel="Criação"
           backTo="/criacao"
-          titleAside={(
-            <Badge variant="neutral" className="px-3 py-1 text-sm">
-              {items.length === 1 ? '1 publicação' : `${items.length} publicações`}
-            </Badge>
-          )}
+          meta={items.length === 1 ? '1 publicação' : `${items.length} publicações`}
         />
       )}
       toolbar={filtros}

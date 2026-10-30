@@ -1,3 +1,4 @@
+import { Text } from './Text';
 import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { useScrollEdgeFade } from '../../hooks/useScrollEdgeFade';
 import { cn } from '../../lib/utils';
@@ -117,28 +118,28 @@ export function SegmentTabs<T extends string = string>({
             ) : null}
             {/* Na aba ativa a cor fica no texto: o `:hover` de `.segment-tabs-item` trocava
                 para --text-primary sobre o fundo --text-primary e o rótulo (com o contador) sumia. */}
-            <span
+            <Text variant="label" as="span"
               className={cn(
-                'text-xs font-semibold',
+                '',
                 fullWidth && 'truncate',
                 active && 'text-[var(--bg-primary)]',
                 iconOnlyOnMobile && option.icon && !active && 'sr-only sm:not-sr-only',
               )}
             >
               {option.label}
-            </span>
+            </Text>
             {typeof option.count === 'number' ? (
               // `leading-none` mantém a aba com contador na mesma altura das outras.
-              <span
+              <Text variant="meta" as="span"
                 className={cn(
-                  'rounded-[var(--radius-sm)] px-1.5 py-0.5 t-meta leading-none tabular-nums',
+                  'rounded-[var(--radius-sm)] px-1.5 py-0.5 leading-none tabular-nums',
                   active
                     ? 'bg-[color-mix(in_srgb,var(--bg-primary)_22%,transparent)] !text-[var(--bg-primary)]'
                     : 'bg-[var(--bg-secondary)] text-[var(--text-tertiary)]',
                 )}
               >
                 {option.count}
-              </span>
+              </Text>
             ) : null}
           </button>
         );

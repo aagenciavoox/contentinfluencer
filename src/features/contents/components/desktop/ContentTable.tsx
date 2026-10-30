@@ -1,4 +1,5 @@
 import React from 'react';
+import { CountBadge } from '../../../../components/ui/CountBadge';
 import {Text} from '../../../../components/ui/Text';
 import { Content } from '../../../../lib/database';
 import { useAppContext } from '../../../../context/AppContext';
@@ -53,7 +54,7 @@ export function ContentTable({
         type="button"
         onClick={() => onSelectionModeChange(!selectionMode)}
         className={cn(
-          'inline-flex h-7 items-center gap-1.5 rounded-[var(--radius-input)] border px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+          'inline-flex h-7 items-center gap-1.5 rounded-[var(--radius-input)] border px-2.5 t-label transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
           selectionMode
             ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
             : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]',
@@ -81,9 +82,9 @@ export function ContentTable({
               <span className="h-0.5 w-2.5 rounded-full bg-[var(--text-primary)]" />
             ) : null}
           </button>
-          <span className="text-xs text-[var(--text-tertiary)]">
-            Selecionar todos desta página ({contents.length})
-          </span>
+          <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">
+            Selecionar todos desta página <CountBadge count={contents.length} />
+          </Text>
         </>
       ) : null}
     </div>
@@ -127,9 +128,9 @@ export function ContentTable({
                     {content.title}
                   </Text>
                   <ContentEntityTags pillar={pillar} series={series} className="mt-2" size="sm" />
-                  <p className="mt-1.5 line-clamp-1 text-xs leading-relaxed text-[var(--text-tertiary)]">
+                  <Text variant="meta" as="p" className="mt-1.5 line-clamp-1 leading-relaxed text-[var(--text-tertiary)]">
                     {buildContentMetaLine(content)}
-                  </p>
+                  </Text>
                 </div>
 
                 {selectionActive ? (
@@ -137,7 +138,7 @@ export function ContentTable({
                     type="button"
                     onClick={(e) => { e.stopPropagation(); onToggleSelect(content.id); }}
                     className={cn(
-                      'mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-xl border-2 transition-all',
+                      'mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-[var(--radius-card)] border-2 transition-all',
                       isSelected ? 'border-[var(--text-primary)] bg-[var(--text-primary)]' : 'border-[var(--border-color)]'
                     )}
                   >
@@ -149,7 +150,7 @@ export function ContentTable({
               {lookAlerts[content.id] && (
                 <div className="absolute -right-1 -top-1.5 z-10 flex items-center gap-1 rounded-[var(--radius-pill)] bg-[var(--accent-orange)] px-2 py-0.5 text-[var(--bg-secondary)] shadow-[var(--shadow-soft)]">
                   <Zap className="h-2 w-2 fill-current animate-pulse" />
-                  <span className="text-2xs font-semibold uppercase">Refazer</span>
+                  <Text variant="label" as="span" className="uppercase text-inherit">Refazer</Text>
                 </div>
               )}
             </div>
@@ -163,17 +164,17 @@ export function ContentTable({
   return (
     <>
       {selectionToolbar}
-      <div className="editorial-surface w-full overflow-hidden rounded-lg transition-all duration-300">
+      <div className="editorial-surface w-full overflow-hidden rounded-[var(--radius-input)] transition-all duration-300">
       <table className="w-full border-separate border-spacing-0 text-left">
         <thead>
-          <tr className="text-xs font-medium tracking-normal text-[var(--text-tertiary)]">
+          <tr className="t-label tracking-normal text-[var(--text-tertiary)]">
             {selectionActive ? (
             <th className="w-12 border-b border-[var(--border-color)] py-3 pl-6 pr-2 text-center">
               <button
                 type="button"
                 onClick={onSelectAll}
                 className={cn(
-                  'mx-auto flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 transition-all',
+                  'mx-auto flex h-4 w-4 shrink-0 items-center justify-center rounded-[var(--radius-input)] border-2 transition-all',
                   allSelected
                     ? 'border-[var(--text-primary)] bg-[var(--text-primary)]'
                     : someSelected
@@ -231,7 +232,7 @@ export function ContentTable({
                 >
                   <div
                     className={cn(
-                      'mx-auto mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 transition-all',
+                      'mx-auto mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-[var(--radius-input)] border-2 transition-all',
                       isSelected
                         ? 'border-[var(--text-primary)] bg-[var(--text-primary)]'
                         : 'border-[var(--border-color)] group-hover:border-[var(--text-primary)]/30'
@@ -250,13 +251,13 @@ export function ContentTable({
                       </span>
                     ) : null}
                     <div className="min-w-0 flex-1">
-                      <p className="truncate t-body font-semibold leading-snug text-[var(--text-primary)] transition-colors group-hover:text-[var(--accent-blue)]">
+                      <Text variant="body" as="p" className="truncate leading-snug text-[var(--text-primary)] transition-colors group-hover:text-[var(--accent-blue)]">
                         {content.title}
-                      </p>
+                      </Text>
                       <div className="mt-1 flex flex-wrap items-center gap-2">
-                        <p className="truncate text-xs leading-relaxed text-[var(--text-tertiary)]">
+                        <Text variant="meta" as="p" className="truncate leading-relaxed text-[var(--text-tertiary)]">
                           {buildContentMetaLine(content)}
-                        </p>
+                        </Text>
                         <ContentEntityTags pillar={pillar} series={series} size="sm" />
                       </div>
                     </div>

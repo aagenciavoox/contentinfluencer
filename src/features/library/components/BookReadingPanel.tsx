@@ -43,7 +43,7 @@ export function BookReadingPanel({
   return (
     <Surface variant="outlined" padding="md" className={cn('stack-md', className)}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <label htmlFor={statusId} className="t-secondary font-semibold text-[var(--text-primary)]">
+        <label htmlFor={statusId} className="t-secondary text-[var(--text-primary)]">
           Status da leitura
         </label>
         <SelectField
@@ -66,7 +66,7 @@ export function BookReadingPanel({
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2">
             {CRITERIOS_AVALIACAO.map(id => (
               <div key={id} className="contents">
-                <span className="t-secondary text-[var(--text-secondary)]">{CRITERIO_ROTULO[id]}</span>
+                <Text variant="secondary" as="span" className="text-[var(--text-secondary)]">{CRITERIO_ROTULO[id]}</Text>
                 <HalfStarRating
                   label={CRITERIO_ROTULO[id]}
                   value={criterios?.[id] ?? null}

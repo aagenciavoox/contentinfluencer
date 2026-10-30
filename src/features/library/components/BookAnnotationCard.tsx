@@ -1,11 +1,11 @@
+import { Text } from '../../../components/ui/Text';
 import { useState } from 'react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { CheckCircle2, MoreVertical, Pencil, Star } from 'lucide-react';
 import { motion } from 'motion/react';
 import { AppButton } from '../../../components/ui/AppButton';
 import { MoreMenu, type MoreMenuItem } from '../../../components/ui/MoreMenu';
 import type { Anotacao } from '../../../lib/database';
+import { dia, hora } from '../../../lib/dates';
 import { cn } from '../../../lib/utils';
 
 export const ANNOTATION_MAX_LENGTH = 2000;
@@ -25,11 +25,9 @@ const TIPO_CORES: Record<string, string> = {
 const ICON_BUTTON =
   'inline-flex h-9 w-9 items-center justify-center rounded-[var(--radius-input)] transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:h-11 pointer-coarse:w-11';
 
-/** "12 de mai. de 2024 às 14:37" */
 function formatAnnotationDate(iso: string) {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return null;
-  return format(date, "d 'de' MMM'.' 'de' yyyy 'às' HH:mm", { locale: ptBR });
+  if (Number.isNaN(new Date(iso).getTime())) return null;
+  return `${dia(iso)} às ${hora(iso)}`;
 }
 
 interface BookAnnotationCardProps {
@@ -82,17 +80,17 @@ export function BookAnnotationCard({
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <span className={cn('rounded-[var(--radius-pill)] px-3 py-1 t-label t-label-uppercase font-semibold', tipoClass)}>
+          <Text variant="label" as="span" className={cn('rounded-[var(--radius-pill)] px-3 py-1 t-label-uppercase', tipoClass)}>
             {anotacao.tipo}
-          </span>
+          </Text>
           {anotacao.capituloRef ? (
-            <span className="t-secondary text-[var(--text-secondary)]">{anotacao.capituloRef}</span>
+            <Text variant="secondary" as="span" className="text-[var(--text-secondary)]">{anotacao.capituloRef}</Text>
           ) : null}
           {anotacao.destilada ? (
-            <span className="inline-flex items-center gap-1 t-secondary font-medium text-[var(--accent-green)]">
+            <Text variant="secondary" as="span" className="inline-flex items-center gap-1 text-[var(--accent-green)]">
               <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
               Destilada
-            </span>
+            </Text>
           ) : null}
         </div>
 
@@ -149,7 +147,7 @@ export function BookAnnotationCard({
             className="w-full resize-y rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-primary)] px-3 py-2.5 t-body leading-relaxed text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
           />
           <div className="flex flex-wrap items-center gap-2">
-            <span className="mr-auto t-secondary text-[var(--text-tertiary)]">{ENTER_HINT}</span>
+            <Text variant="secondary" as="span" className="mr-auto text-[var(--text-tertiary)]">{ENTER_HINT}</Text>
             <AppButton variant="secondary" size="sm" onClick={() => setEditing(false)}>
               Cancelar
             </AppButton>
@@ -159,15 +157,15 @@ export function BookAnnotationCard({
           </div>
         </div>
       ) : (
-        <p className="mt-3 max-w-[72ch] whitespace-pre-line t-body leading-relaxed text-[var(--text-primary)]">
+        <Text variant="body" as="p" className="mt-3 max-w-[72ch] whitespace-pre-line leading-relaxed text-[var(--text-primary)]">
           {anotacao.texto}
-        </p>
+        </Text>
       )}
 
       {dateLabel ? (
-        <p className="mt-3 t-secondary text-[var(--text-tertiary)]">
+        <Text variant="secondary" as="p" className="mt-3 text-[var(--text-tertiary)]">
           <time dateTime={anotacao.createdAt}>{dateLabel}</time>
-        </p>
+        </Text>
       ) : null}
     </motion.article>
   );

@@ -1,3 +1,4 @@
+import { Text } from '../../../../components/ui/Text';
 import {Check, Plus, X} from 'lucide-react';
 import {useState} from 'react';
 import {TagSelect} from '../../../../components/ui/TagSelect';
@@ -52,13 +53,13 @@ export function RecordingSelectionBar({
     return (
       <div className="pointer-events-none fixed inset-x-0 bottom-6 z-40 px-4 md:px-8">
         <div className="pointer-events-auto mx-auto flex max-w-3xl items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-3 shadow-[var(--shadow-dropdown)]">
-          <p className="text-sm font-medium text-[var(--text-secondary)]">
-            Selecione roteiros na grade para criar o bloco.
-          </p>
+          <Text variant="secondary" as="p" className="text-[var(--text-secondary)]">
+            Selecione os roteiros para criar o bloco.
+          </Text>
           <button
             type="button"
             onClick={handleHide}
-            className="rounded-[var(--radius-input)] border border-[var(--border-color)] px-4 py-2.5 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+            className="rounded-[var(--radius-input)] border border-[var(--border-color)] px-4 py-2.5 t-secondary text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
           >
             Cancelar
           </button>
@@ -74,9 +75,9 @@ export function RecordingSelectionBar({
           <div className="stack-md rounded-[var(--radius-md)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-4 shadow-[var(--shadow-dropdown)]">
 
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-[var(--text-primary)]">
+              <Text variant="itemTitle" as="p" className="text-[var(--text-primary)]">
                 {selectedCount} {selectedCount === 1 ? 'roteiro selecionado' : 'roteiros selecionados'}
-              </p>
+              </Text>
               <button
                 type="button"
                 onClick={handleHide}
@@ -88,14 +89,14 @@ export function RecordingSelectionBar({
             </div>
 
             {existingBlocks.length > 0 && (
-              <div className="flex rounded-xl border border-[var(--border-color)] bg-[var(--bg-hover)] p-0.5 w-fit">
+              <div className="flex rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] p-0.5 w-fit">
                 {(['novo', 'existente'] as const).map(mode => (
                   <button
                     key={mode}
                     type="button"
                     onClick={() => setBlockMode(mode)}
                     className={cn(
-                      'rounded-lg px-4 py-1.5 text-xs font-semibold transition-all',
+                      'rounded-[var(--radius-input)] px-4 py-1.5 t-label transition-all',
                       blockMode === mode
                         ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)]'
                         : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -115,7 +116,7 @@ export function RecordingSelectionBar({
                   onChange={event => onBlockNameChange(event.target.value)}
                   onKeyDown={event => event.key === 'Enter' && canCreate && onCreate()}
                   placeholder="Nome do bloco"
-                  className="w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-medium text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)]"
+                  className="w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 t-body-strong text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)]"
                 />
 
                 <TagSelect
@@ -133,7 +134,7 @@ export function RecordingSelectionBar({
                     type="button"
                     onClick={onCreate}
                     disabled={!canCreate}
-                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-[var(--radius-input)] bg-[var(--text-primary)] px-6 py-3 text-sm font-semibold text-[var(--bg-primary)] disabled:opacity-30 sm:flex-none"
+                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-[var(--radius-input)] bg-[var(--text-primary)] px-6 py-3 t-body-strong text-[var(--bg-primary)] disabled:opacity-30 sm:flex-none"
                   >
                     <Plus className="h-4 w-4" />
                     Criar bloco
@@ -141,7 +142,7 @@ export function RecordingSelectionBar({
                   <button
                     type="button"
                     onClick={handleHide}
-                    className="rounded-[var(--radius-input)] border border-[var(--border-color)] px-4 py-3 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+                    className="rounded-[var(--radius-input)] border border-[var(--border-color)] px-4 py-3 t-secondary text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
                   >
                     Cancelar
                   </button>
@@ -150,7 +151,7 @@ export function RecordingSelectionBar({
             ) : (
               <div className="stack-md">
                 <div className="space-y-1.5">
-                  <p className="text-xs font-medium text-[var(--text-secondary)]">Escolher bloco existente</p>
+                  <Text variant="label" as="p" className="text-[var(--text-secondary)]">Escolher bloco existente</Text>
                   <div className="grid gap-2 max-h-48 overflow-y-auto">
                     {existingBlocks.map(block => (
                       <button
@@ -158,16 +159,16 @@ export function RecordingSelectionBar({
                         type="button"
                         onClick={() => setTargetBlockId(block.id)}
                         className={cn(
-                          'flex items-center justify-between rounded-[var(--radius-input)] border px-4 py-3 text-left text-sm transition-colors',
+                          'flex items-center justify-between rounded-[var(--radius-input)] border px-4 py-3 text-left t-body transition-colors',
                           targetBlockId === block.id
-                            ? 'border-[var(--text-primary)] bg-[var(--text-primary)]/5 font-semibold text-[var(--text-primary)]'
+                            ? 'border-[var(--text-primary)] bg-[var(--text-primary)]/5 text-[var(--text-primary)]'
                             : 'border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
                         )}
                       >
                         <span className="truncate">{block.name}</span>
-                        <span className="ml-2 shrink-0 text-xs text-[var(--text-tertiary)]">
+                        <Text variant="meta" as="span" className="ml-2 shrink-0 text-[var(--text-tertiary)]">
                           {block.contents.length} roteiro{block.contents.length !== 1 ? 's' : ''}
-                        </span>
+                        </Text>
                         {targetBlockId === block.id && <Check className="ml-2 h-4 w-4 shrink-0" />}
                       </button>
                     ))}
@@ -179,7 +180,7 @@ export function RecordingSelectionBar({
                     type="button"
                     onClick={() => { onAddToBlock(targetBlockId); setTargetBlockId(''); }}
                     disabled={!targetBlockId}
-                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-[var(--radius-input)] bg-[var(--text-primary)] px-6 py-3 text-sm font-semibold text-[var(--bg-primary)] disabled:opacity-30 sm:flex-none"
+                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-[var(--radius-input)] bg-[var(--text-primary)] px-6 py-3 t-body-strong text-[var(--bg-primary)] disabled:opacity-30 sm:flex-none"
                   >
                     <Check className="h-4 w-4" />
                     Adicionar ao bloco
@@ -187,7 +188,7 @@ export function RecordingSelectionBar({
                   <button
                     type="button"
                     onClick={handleHide}
-                    className="rounded-[var(--radius-input)] border border-[var(--border-color)] px-4 py-3 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+                    className="rounded-[var(--radius-input)] border border-[var(--border-color)] px-4 py-3 t-secondary text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
                   >
                     Cancelar
                   </button>
@@ -197,21 +198,21 @@ export function RecordingSelectionBar({
           </div>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-3 shadow-[var(--shadow-dropdown)]">
-            <p className="text-sm font-semibold text-[var(--text-primary)]">
+            <Text variant="itemTitle" as="p" className="text-[var(--text-primary)]">
               {selectedCount} {selectedCount === 1 ? 'roteiro selecionado' : 'roteiros selecionados'}
-            </p>
+            </Text>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={onClearSelection}
-                className="rounded-[var(--radius-input)] border border-[var(--border-color)] px-4 py-2.5 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+                className="rounded-[var(--radius-input)] border border-[var(--border-color)] px-4 py-2.5 t-secondary text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
               >
                 Limpar seleção
               </button>
               <button
                 type="button"
                 onClick={onShowForm}
-                className="inline-flex items-center gap-2 rounded-[var(--radius-input)] bg-[var(--text-primary)] px-6 py-2.5 text-sm font-semibold text-[var(--bg-primary)]"
+                className="inline-flex items-center gap-2 rounded-[var(--radius-input)] bg-[var(--text-primary)] px-6 py-2.5 t-body-strong text-[var(--bg-primary)]"
               >
                 <Plus className="h-4 w-4" />
                 {existingBlocks.length > 0 ? 'Criar / adicionar ao bloco' : 'Criar bloco'}

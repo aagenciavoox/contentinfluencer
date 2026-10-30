@@ -72,7 +72,7 @@ export function DraftSplitDivider({onDrag, onDragEnd, className}: DraftSplitDivi
       />
       <span
         aria-hidden
-        className="my-auto grid grid-cols-2 gap-0.5 rounded-sm bg-[var(--bg-elevated)] p-0.5 opacity-70 transition group-hover:opacity-100"
+        className="my-auto grid grid-cols-2 gap-0.5 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] p-0.5 opacity-70 transition group-hover:opacity-100"
       >
         {Array.from({length: 4}, (_, index) => (
           <span key={index} className="h-0.5 w-0.5 rounded-full bg-[var(--text-tertiary)] group-hover:bg-[var(--brand-accent)]" />

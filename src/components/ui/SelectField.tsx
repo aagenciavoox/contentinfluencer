@@ -1,3 +1,4 @@
+import { Text } from './Text';
 import type { ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -68,16 +69,16 @@ export function SelectField({
       )}
     >
       {leadingIcon ? <span className="flex shrink-0" aria-hidden>{leadingIcon}</span> : null}
-      {prefix ? <span className="shrink-0 t-body text-[var(--text-secondary)]" aria-hidden>{prefix}</span> : null}
-      <span
+      {prefix ? <Text variant="body" as="span" className="shrink-0 text-[var(--text-secondary)]" aria-hidden>{prefix}</Text> : null}
+      <Text variant="body" as="span"
         className={cn(
-          'truncate t-body text-[var(--text-primary)]',
-          prefix && 'font-semibold',
+          'truncate text-[var(--text-primary)]',
+          prefix && '',
           block ? 'min-w-0 flex-1' : 'min-w-0',
         )}
       >
         {current?.label ?? value}
-      </span>
+      </Text>
       <ChevronDown className="pointer-events-none absolute right-3 h-4 w-4 text-[var(--text-secondary)]" aria-hidden />
     </SelectMenu>
   );

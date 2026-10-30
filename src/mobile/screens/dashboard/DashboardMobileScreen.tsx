@@ -44,7 +44,7 @@ export function DashboardMobileScreen({
               type="button"
               onClick={onOpenMenu}
               aria-label="Abrir menu"
-              className={cn(MOBILE_HEADER_ACTION_CLASS, 'text-sm font-semibold')}
+              className={cn(MOBILE_HEADER_ACTION_CLASS, 't-body-strong ')}
             >
               <span aria-hidden>{initial}</span>
             </button>

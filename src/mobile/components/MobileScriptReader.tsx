@@ -1,3 +1,5 @@
+import { Text } from '../../components/ui/Text';
+import { TextCount } from '../../components/ui/TextCount';
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Maximize2, Pencil, X } from 'lucide-react';
@@ -12,16 +14,12 @@ interface MobileScriptReaderProps {
   compact?: boolean;
 }
 
-function countWords(text: string) {
-  return text.trim().split(/\s+/).filter(Boolean).length;
-}
-
 function ScriptBody({ text, large }: { text: string; large?: boolean }) {
   const paragraphs = text.split(/\n\n+/).filter(Boolean);
 
   if (paragraphs.length === 0) {
     return (
-      <p className={cn('text-[var(--text-tertiary)]', large ? 'text-base' : 'text-sm')}>
+      <p className={cn('text-[var(--text-tertiary)]', large ? '' : 't-body')}>
         Nenhum texto no roteiro ainda.
       </p>
     );
@@ -34,7 +32,7 @@ function ScriptBody({ text, large }: { text: string; large?: boolean }) {
           key={index}
           className={cn(
             'whitespace-pre-wrap text-[var(--text-primary)]',
-            large ? 'text-base font-medium leading-[1.65]' : 't-body font-medium leading-[1.55]'
+            large ? 't-body-strong leading-[1.65]' : 't-body leading-[1.55]'
           )}
         >
           {paragraph}
@@ -53,7 +51,6 @@ export function MobileScriptReader({
 }: MobileScriptReaderProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const plainText = useMemo(() => htmlToReadableText(content), [content]);
-  const words = useMemo(() => countWords(plainText), [plainText]);
   const isEmpty = plainText.trim().length === 0;
 
   useBodyScrollLock(isFullscreen);
@@ -69,15 +66,13 @@ export function MobileScriptReader({
               type="button"
               onClick={() => setIsFullscreen(false)}
               aria-label="Fechar leitura"
-              className="flex min-h-11 min-w-11 items-center justify-center rounded-lg"
+              className="flex min-h-11 min-w-11 items-center justify-center rounded-[var(--radius-input)]"
             >
               <X className="h-5 w-5" />
             </button>
             <div className="min-w-0 flex-1 text-center">
-              <p className="truncate text-sm font-semibold">{title}</p>
-              <p className="text-xs font-semibold text-[var(--text-tertiary)]">
-                {words > 0 ? `${words} palavras` : 'Vazio'}
-              </p>
+              <Text variant="itemTitle" as="p" className="truncate text-inherit">{title}</Text>
+              <TextCount value={plainText} mode="words" />
             </div>
             {onEdit ? (
               <button
@@ -86,7 +81,7 @@ export function MobileScriptReader({
                   setIsFullscreen(false);
                   onEdit();
                 }}
-                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-[var(--border-color)]"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)]"
                 aria-label="Editar roteiro"
               >
                 <Pencil className="h-4 w-4" />
@@ -107,22 +102,20 @@ export function MobileScriptReader({
     <>
       <article
         className={cn(
-          'rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)]',
+          'rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)]',
           compact ? 'p-3' : 'p-4',
           className
         )}
       >
         <div className="mb-3 flex items-center justify-between gap-2">
-          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
-            {words === 0 ? 'Roteiro vazio' : words === 1 ? '1 palavra' : `${words} palavras`}
-          </span>
+          <TextCount value={plainText} mode="words" className="ml-auto" />
           <div className="flex items-center gap-1">
             {!isEmpty ? (
               <button
                 type="button"
                 onClick={() => setIsFullscreen(true)}
                 aria-label="Ler em tela cheia"
-                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)]"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)]"
               >
                 <Maximize2 className="h-4 w-4 text-[var(--text-tertiary)]" />
               </button>
@@ -131,7 +124,7 @@ export function MobileScriptReader({
               <button
                 type="button"
                 onClick={onEdit}
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 t-label t-label-uppercase font-semibold text-[var(--text-primary)]"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 t-label t-label-uppercase text-[var(--text-primary)]"
               >
                 <Pencil className="h-3.5 w-3.5" />
                 Editar

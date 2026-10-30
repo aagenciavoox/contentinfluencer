@@ -14,7 +14,9 @@ import { LEGACY_TAGS_PARAM, TEMA_FILTER_PARAM, dedupeTemasPorNome, migrateLegacy
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { AppButton } from '../../../components/ui/AppButton';
 import { FilterBar } from '../../../components/ui/FilterBar';
+import { PageToolbar } from '../../../components/ui/PageToolbar';
 import { SegmentTabs } from '../../../components/ui/SegmentTabs';
+import { SelectField } from '../../../components/ui/SelectField';
 import { Text } from '../../../components/ui/Text';
 import { QueryViewState, resolveQueryViewStatus } from '../../../components/ui/QueryViewState';
 import { ViewModeToggle } from '../../../components/ui/ViewModeToggle';
@@ -146,6 +148,7 @@ export function CreationHubPage() {
   const [assignField, setAssignField] = useState<'seriesId' | 'pilarId' | null>(null);
   const [assignValue, setAssignValue] = useState('');
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [unpublishTarget, setUnpublishTarget] = useState<{content: Content; tab: CreationKanbanTab} | null>(null);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [persistingIds, setPersistingIds] = useState<Set<string>>(new Set());
   const handledComposeRef = useRef<string | null>(null);
@@ -383,7 +386,7 @@ export function CreationHubPage() {
     } catch (error) {
       notifySaveFeedback({
         status: 'error',
-        message: 'Não foi possível exportar os itens selecionados.',
+        message: 'Não foi possível exportar os itens selecionados. Tente de novo.',
         detail: getErrorMessage(error),
       });
     } finally {
@@ -650,7 +653,7 @@ export function CreationHubPage() {
     } catch (error) {
       notifySaveFeedback({
         status: 'error',
-        message: 'Não foi possível restaurar o roteiro.',
+        message: 'Não foi possível restaurar o roteiro. Tente de novo.',
         detail: getErrorMessage(error),
       });
     }
@@ -669,7 +672,7 @@ export function CreationHubPage() {
     } catch (error) {
       notifySaveFeedback({
         status: 'error',
-        message: 'Não foi possível excluir o roteiro.',
+        message: 'Não foi possível excluir o roteiro. Tente de novo.',
         detail: getErrorMessage(error),
       });
     } finally {
@@ -693,7 +696,7 @@ export function CreationHubPage() {
     } catch (error) {
       notifySaveFeedback({
         status: 'error',
-        message: 'Não foi possível limpar a lixeira.',
+        message: 'Não foi possível limpar a lixeira. Tente de novo.',
         detail: getErrorMessage(error),
       });
     } finally {
@@ -727,10 +730,8 @@ export function CreationHubPage() {
       || previous.status === 'Publicado'
       || previous.status === 'Postado';
     if (saindoDePublicado) {
-      const ok = window.confirm(
-        'Desfazer publicação?\n\nA data de publicação registrada neste conteúdo será apagada.',
-      );
-      if (!ok) return;
+      setUnpublishTarget({content, tab});
+      return;
     }
 
     setPersistingIds(current => new Set(current).add(content.id));
@@ -744,7 +745,7 @@ export function CreationHubPage() {
       }
       notifySaveFeedback({
         status: 'error',
-        message: 'Não foi possível mover o item.',
+        message: 'Não foi possível mover o item. Tente de novo.',
         detail: getErrorMessage(error),
       });
     } finally {
@@ -755,6 +756,36 @@ export function CreationHubPage() {
       });
     }
   }, [location, navigate, updateContent]);
+
+  const confirmUnpublishMove = useCallback(async () => {
+    const alvo = unpublishTarget;
+    if (!alvo) return;
+    const {content, tab} = alvo;
+    const previous = content;
+    const next = moveCreationToKanbanTab(content, tab);
+    setUnpublishTarget(null);
+    setPersistingIds(current => new Set(current).add(content.id));
+    try {
+      await updateContent(next);
+    } catch (error) {
+      try {
+        await updateContent(previous, { silent: true });
+      } catch {
+        // keep UI on previous via failed update rollback below
+      }
+      notifySaveFeedback({
+        status: 'error',
+        message: 'Não foi possível mover o item. Tente de novo.',
+        detail: getErrorMessage(error),
+      });
+    } finally {
+      setPersistingIds(current => {
+        const nextSet = new Set(current);
+        nextSet.delete(content.id);
+        return nextSet;
+      });
+    }
+  }, [unpublishTarget, updateContent]);
 
   const itemActions: CreationItemActionHandlers = useMemo(() => ({
     onPromote: content => {
@@ -788,10 +819,21 @@ export function CreationHubPage() {
     [resolveItem, visibleContents],
   );
 
-  const tabOptions = CREATION_TABS.map(tab => ({
+  // No kanban, as colunas já são as etapas: as abas de etapa saem da fileira.
+  const tabOptions = (viewMode === 'kanban'
+    ? CREATION_TABS.filter(tab => !isCreationKanbanTab(tab))
+    : CREATION_TABS
+  ).map(tab => ({
     id: tab,
-    label: `${tab} ${tabCounts[tab]}`,
+    label: tab,
+    count: tabCounts[tab],
   }));
+
+  useEffect(() => {
+    if (viewMode === 'kanban' && isCreationKanbanTab(activeTab)) {
+      updateSearchParam('tab', TAB_QUERY.Todos, '');
+    }
+  }, [activeTab, updateSearchParam, viewMode]);
 
   const creationActions = (
     <>
@@ -839,10 +881,10 @@ export function CreationHubPage() {
   const mobileTabs = (
     <MobileSegmentTabs
       rounded="tight"
-      tabs={CREATION_TABS.map(tab => ({
-        value: tab,
-        label: tab,
-        count: tabCounts[tab],
+      tabs={tabOptions.map(tab => ({
+        value: tab.id,
+        label: tab.label,
+        count: tab.count,
       }))}
       value={activeTab}
       onChange={tab => updateSearchParam('tab', TAB_QUERY[tab], 'roteiros')}
@@ -929,7 +971,7 @@ export function CreationHubPage() {
     },
     {
       id: 'funcao',
-      label: 'Função',
+      label: 'Objetivo',
       value: funcaoId,
       onChange: (value: string) => updateSearchParam('funcao', value),
       options: [
@@ -986,30 +1028,31 @@ export function CreationHubPage() {
   );
 
   const filters = (
-    <div className="desktop-subheader !mb-0">
-      <FilterBar
-        className="min-w-0 flex-1"
-        searchValue={search}
-        onSearchChange={value => updateSearchParam('q', value)}
-        searchPlaceholder="Buscar por título, nota ou tema…"
-        filters={filterDefinitions}
-        panelExtra={temaFilterField}
-        extraActiveCount={temaFilter.length > 0 ? 1 : 0}
-        onClearExtra={() => setTemaFilter([])}
+    <FilterBar
+      className="min-w-0 flex-1"
+      searchValue={search}
+      onSearchChange={value => updateSearchParam('q', value)}
+      searchPlaceholder="Buscar por título, nota ou tema…"
+      filters={filterDefinitions}
+      panelExtra={temaFilterField}
+      extraActiveCount={temaFilter.length > 0 ? 1 : 0}
+      onClearExtra={() => setTemaFilter([])}
+    />
+  );
+
+  const toolbarView = (
+    <div className="inline-stack-sm shrink-0">
+      <CreationDisplayMenu
+        sort={sort as CreationSortValue}
+        onSortChange={value => updateSearchParam('sort', value, 'recent')}
       />
-      <div className="inline-stack-sm shrink-0">
-        <CreationDisplayMenu
-          sort={sort as CreationSortValue}
-          onSortChange={value => updateSearchParam('sort', value, 'recent')}
-        />
-        <ViewModeToggle
-          value={viewMode}
-          options={VIEW_OPTIONS}
-          onChange={value => setViewMode(value)}
-          showLabels
-        />
-        {selectionMenu}
-      </div>
+      <ViewModeToggle
+        value={viewMode}
+        options={VIEW_OPTIONS}
+        onChange={value => setViewMode(value)}
+        showLabels
+      />
+      {selectionMenu}
     </div>
   );
 
@@ -1033,17 +1076,13 @@ export function CreationHubPage() {
       {filterDefinitions.map(filter => (
         <label key={filter.id} className="block stack-sm">
           <Text variant="label" as="span">{filter.label}</Text>
-          <select
+          <SelectField
+            ariaLabel={filter.label}
             value={filter.value}
-            onChange={event => filter.onChange(event.target.value)}
-            className="min-h-11 w-full rounded-[var(--radius-input)]"
-          >
-            {filter.options.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            onChange={filter.onChange}
+            options={filter.options.map(option => ({value: option.value, label: option.label}))}
+            block
+          />
         </label>
       ))}
 
@@ -1051,32 +1090,24 @@ export function CreationHubPage() {
 
       <label className="block stack-sm">
         <Text variant="label" as="span">Ordenar</Text>
-        <select
+        <SelectField
+          ariaLabel="Ordenar"
           value={sort}
-          onChange={event => updateSearchParam('sort', event.target.value, 'recent')}
-          className="min-h-11 w-full rounded-[var(--radius-input)]"
-        >
-          {CREATION_SORT_OPTIONS.map(option => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          onChange={value => updateSearchParam('sort', value, 'recent')}
+          options={CREATION_SORT_OPTIONS.map(option => ({value: option.value, label: option.label}))}
+          block
+        />
       </label>
 
       <label className="block stack-sm">
         <Text variant="label" as="span">Visualização</Text>
-        <select
+        <SelectField
+          ariaLabel="Visualização"
           value={requestedView}
-          onChange={event => setViewMode(event.target.value as CreationViewMode)}
-          className="min-h-11 w-full rounded-[var(--radius-input)]"
-        >
-          {CREATION_VIEW_MODE_VALUES.map(value => (
-            <option key={value} value={value}>
-              {CREATION_VIEW_MODE_LABELS[value]}
-            </option>
-          ))}
-        </select>
+          onChange={value => setViewMode(value as CreationViewMode)}
+          options={CREATION_VIEW_MODE_VALUES.map(value => ({value, label: CREATION_VIEW_MODE_LABELS[value]}))}
+          block
+        />
       </label>
 
       <AppButton variant="primary" size="lg" fullWidth onClick={clearMobileFilters}>
@@ -1129,10 +1160,11 @@ export function CreationHubPage() {
           />
         )}
         toolbar={(
-          <div className="stack-md">
-            {desktopTabs}
-            {filters}
-          </div>
+          <PageToolbar
+            tabs={desktopTabs}
+            filters={filters}
+            view={toolbarView}
+          />
         )}
         mobileHeader={(
           <div className="stack-sm pb-1 pt-1">
@@ -1156,7 +1188,7 @@ export function CreationHubPage() {
             hasFilters
               ? 'Ajuste a busca ou limpe os filtros para encontrar outros itens.'
               : activeTab === 'Lixeira'
-                ? 'Roteiros excluídos aparecem aqui para que você possa restaurá-los.'
+                ? 'Roteiros movidos para a lixeira aparecem aqui.'
                 : isMobile
                   ? 'Use o botão + da barra inferior para criar uma ideia ou um roteiro.'
                   : 'Crie uma ideia ou um roteiro para começar a preencher esta etapa.'
@@ -1244,28 +1276,24 @@ export function CreationHubPage() {
           <Text variant="secondary">
             A mudança vale para a seleção atual.
           </Text>
-          <select
-            value={assignValue}
-            onChange={event => setAssignValue(event.target.value)}
-            className="min-h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 text-sm text-[var(--text-primary)]"
-            aria-label={assignField === 'seriesId' ? 'Série' : 'Pilar'}
-          >
-            <option value="">Escolha</option>
-            <option value="__none__">
-              {assignField === 'seriesId' ? 'Sem série' : 'Sem pilar'}
-            </option>
-            {assignField === 'seriesId'
-              ? [...state.series]
-                .sort((left, right) => left.name.localeCompare(right.name, 'pt-BR'))
-                .map(series => (
-                  <option key={series.id} value={series.id}>{series.name}</option>
-                ))
-              : [...state.pilares]
-                .sort((left, right) => left.nome.localeCompare(right.nome, 'pt-BR'))
-                .map(pilar => (
-                  <option key={pilar.id} value={pilar.id}>{pilar.nome}</option>
-                ))}
-          </select>
+          <TagSelect
+            label={assignField === 'seriesId' ? 'Série' : 'Pilar'}
+            hideLabel
+            maxSelections={1}
+            placeholder="Escolha"
+            values={assignValue ? [assignValue] : []}
+            onChange={values => setAssignValue(values[0] ?? '')}
+            options={[
+              {value: '__none__', label: assignField === 'seriesId' ? 'Sem série' : 'Sem pilar'},
+              ...(assignField === 'seriesId'
+                ? [...state.series]
+                  .sort((left, right) => left.name.localeCompare(right.name, 'pt-BR'))
+                  .map(series => ({value: series.id, label: series.name}))
+                : [...state.pilares]
+                  .sort((left, right) => left.nome.localeCompare(right.nome, 'pt-BR'))
+                  .map(pilar => ({value: pilar.id, label: pilar.nome}))),
+            ]}
+          />
           <div className="flex justify-end gap-2">
             <AppButton
               variant="secondary"
@@ -1285,6 +1313,15 @@ export function CreationHubPage() {
           </div>
         </div>
       </Dialog>
+
+      <ConfirmModal
+        open={unpublishTarget !== null}
+        message="Desfazer publicação? A data de publicação registrada neste conteúdo será apagada."
+        confirmLabel="Desfazer publicação"
+        cancelLabel="Manter publicada"
+        onConfirm={() => void confirmUnpublishMove()}
+        onCancel={() => setUnpublishTarget(null)}
+      />
 
       <ConfirmModal
         open={bulkDeleteOpen}

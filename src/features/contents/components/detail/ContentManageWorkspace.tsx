@@ -1,3 +1,4 @@
+import { TextCount } from '../../../../components/ui/TextCount';
 import {useEffect, useState, type ReactNode} from 'react';
 import {Calendar, ChevronDown, Clock, FileText, Flag, Layers, Library, Search, Tag, Target} from 'lucide-react';
 import {PropertyDatePicker} from '../../../../components/ui/PropertyDatePicker';
@@ -20,10 +21,10 @@ import type {ScriptDraft} from './sections/RoteiroSection';
 const NOTES_MAX = 500;
 
 const fieldClass =
-  'h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60';
+  'h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 t-body text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60';
 
 const selectClass =
-  'h-11 w-full appearance-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 pr-9 text-sm text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60';
+  'h-11 w-full appearance-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 pr-9 t-body text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60';
 
 interface ContentManageWorkspaceProps {
   contentId: string;
@@ -45,10 +46,10 @@ function clockInputValue(value: string | null | undefined) {
 
 function FieldLabel({icon, children}: {icon?: ReactNode; children: string}) {
   return (
-    <span className="mb-1.5 flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+    <Text variant="secondary" as="span" className="mb-1.5 flex items-center gap-2 text-[var(--text-secondary)]">
       {icon}
       {children}
-    </span>
+    </Text>
   );
 }
 
@@ -201,7 +202,7 @@ export function ContentManageWorkspace({
                   id="content-manage-serie"
                   disabled={disabled}
                   maxSelections={1}
-                  placeholder="Selecionar série..."
+                  placeholder="Selecionar série…"
                   values={draft.seriesId ? [draft.seriesId] : []}
                   onChange={values => onChange(aplicarEscolhasDaSerie(
                     draft,
@@ -221,7 +222,7 @@ export function ContentManageWorkspace({
                     id="content-manage-pilar"
                     disabled={disabled}
                     maxSelections={1}
-                    placeholder="Selecionar pilar..."
+                    placeholder="Selecionar pilar…"
                     values={draft.pilarId ? [draft.pilarId] : []}
                     onChange={values => onChange(marcarEscolhaManual(draft, 'pilar', values[0] ?? null))}
                     options={pilares
@@ -336,7 +337,7 @@ export function ContentManageWorkspace({
           <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3 gap-y-0.5">
             <Text variant="sectionTitle" as="span">Observações</Text>
             <Text variant="meta" className="text-[var(--text-secondary)]">
-              {(draft.notes ?? '').trim() ? `${(draft.notes ?? '').length} / ${NOTES_MAX}` : 'Adicione observações, referências e links.'}
+              {!(draft.notes ?? '').trim() ? 'Adicione observações, referências e links.' : null}
             </Text>
           </span>
           <ChevronDown
@@ -351,12 +352,10 @@ export function ContentManageWorkspace({
               disabled={disabled}
               aria-label="Observações"
               onChange={event => onChange({notes: event.target.value.slice(0, NOTES_MAX)})}
-              placeholder="Observações editoriais, referências e links..."
-              className="block min-h-36 w-full resize-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 pb-8 pt-3 text-sm leading-6 text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60"
+              placeholder="Ex.: link dos arquivos, instruções de edição, capa, cortes"
+              className="block min-h-36 w-full resize-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-3 t-body leading-6 text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60"
             />
-            <span className="pointer-events-none absolute bottom-8 right-9 text-xs text-[var(--text-tertiary)]">
-              {(draft.notes ?? '').length} / {NOTES_MAX}
-            </span>
+            <TextCount value={draft.notes ?? ''} limit={NOTES_MAX} />
           </div>
         ) : null}
       </Surface>

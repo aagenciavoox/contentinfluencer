@@ -1,3 +1,4 @@
+import { TextCount } from '../../../../components/ui/TextCount';
 import {useState} from 'react';
 import {Check, Eye, Flag, MessageSquare, MoreHorizontal, Sparkles} from 'lucide-react';
 import {Badge} from '../../../../components/ui/Badge';
@@ -75,7 +76,7 @@ export function PipelineContentCard({
               onToggleSelect();
             }}
             className={cn(
-              'absolute left-0 top-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+              'absolute left-0 top-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-[var(--radius-input)] border transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
               isSelected
                 ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
                 : 'border-[var(--border-color)] hover:border-[var(--border-strong)]',
@@ -142,7 +143,7 @@ export function PipelineContentCard({
               setMenuOpen(open => !open);
             }}
             className={cn(
-              'card-actions inline-flex h-6 w-6 items-center justify-center rounded-md text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:opacity-100 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+              'card-actions inline-flex h-6 w-6 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:opacity-100 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
               (menuOpen || isSelected) && 'opacity-100',
             )}
             data-open={menuOpen ? 'true' : undefined}
@@ -161,7 +162,7 @@ export function PipelineContentCard({
               <div className="absolute right-0 top-full z-20 mt-0.5 min-w-[132px] rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-1 shadow-[var(--shadow-dropdown)]">
                 <button
                   type="button"
-                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+                  className="flex w-full items-center gap-2 rounded-[var(--radius-sm)] px-2 py-1.5 text-left t-label text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
                   onClick={event => {
                     event.stopPropagation();
                     setMenuOpen(false);
@@ -184,7 +185,7 @@ export function PipelineContentCard({
           {wordCount > 0 ? (
             <>
               <span aria-hidden>·</span>
-              <span>{wordCount} palavras</span>
+              <TextCount as="span" count={wordCount} mode="words" />
             </>
           ) : null}
         </Text>

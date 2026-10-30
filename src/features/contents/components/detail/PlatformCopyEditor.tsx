@@ -1,4 +1,5 @@
-import {useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent} from 'react';
+import {useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
+import { dia as diaVisivel } from '../../../../lib/dates';
 import {Check, Copy, CopyPlus, Lock} from 'lucide-react';
 import {DEFAULT_PLATFORMS} from '../../../../constants';
 import {useAppContext} from '../../../../context/AppContext';
@@ -8,8 +9,10 @@ import {cn} from '../../../../lib/utils';
 import {ConfirmModal} from '../../../../components/feedback/modals/ConfirmModal';
 import {AppButton} from '../../../../components/ui/AppButton';
 import {PlatformIcon} from '../../../../components/ui/PlatformIcon';
+import {SegmentTabs} from '../../../../components/ui/SegmentTabs';
 import {Surface} from '../../../../components/ui/Surface';
 import {Text} from '../../../../components/ui/Text';
+import {TextCount} from '../../../../components/ui/TextCount';
 import {
   complementoDoRotulo,
   contaDaRef,
@@ -70,13 +73,7 @@ export function ensurePlatformRecord(
 }
 
 const contaButtonClass =
-  'inline-flex h-10 max-w-full items-center gap-2 rounded-[var(--radius-input)] border bg-[var(--bg-primary)] px-3 text-sm transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50 pointer-coarse:h-11';
-
-const abaClass = cn(
-  'relative inline-flex h-10 shrink-0 items-center gap-2 px-3 text-sm transition-colors pointer-coarse:h-11',
-  'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-  "after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:rounded-full after:content-['']",
-);
+  'inline-flex h-10 max-w-full items-center gap-2 rounded-[var(--radius-input)] border bg-[var(--bg-primary)] px-3 t-body transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50 pointer-coarse:h-11';
 
 /** "Não foi ao ar" e "Removida" deixam de ser destino: a conta aparece desmarcada e sem aba. */
 function emDestino(publicacao: Pick<ContentPlataforma, 'status'>): boolean {
@@ -87,7 +84,7 @@ function dataCurta(value: string | null | undefined): string | null {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric'});
+  return diaVisivel(date);
 }
 
 /** "A", "A e B", "A, B e C". */
@@ -175,7 +172,6 @@ export function PlatformCopyEditor({
   const [confirmarCopia, setConfirmarCopia] = useState(false);
   const [copiaFeita, setCopiaFeita] = useState(false);
   const [copiado, setCopiado] = useState(false);
-  const abaRefs = useRef(new Map<string, HTMLButtonElement>());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const contaAtiva = ativa ? contaDaRef(ativa.platformId, contas) : null;
@@ -186,7 +182,6 @@ export function PlatformCopyEditor({
   const texto = ativa ? legendaComHashtags(legendaBase, ativa) : '';
   const publicada = ativa ? publicacaoJaPostada(ativa, conteudo) : false;
   const limite = limiteDeCaracteres(chaveDaRede);
-  const acimaDoLimite = limite != null && texto.length > limite;
   const mostraTitulo = Boolean(ativa) && platformShowsField(redeAtiva ?? '', 'titulo');
   const mostraHashtags = Boolean(ativa) && platformShowsField(chaveDaRede, 'hashtags');
   const destinosDaLegenda = ativa ? destinosDaCopia(abas, ativa.id, conteudo) : [];
@@ -241,21 +236,6 @@ export function PlatformCopyEditor({
     const conta = contaDaRef(item.platformId, contas);
     const rotulo = conta ? rotuloCurtoConta(conta) : item.platformId;
     return item.publicationKind === 'repost' ? `${rotulo} · repost` : rotulo;
-  };
-
-  const moverAba = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (!ativa || abas.length < 2) return;
-    const atual = abas.findIndex(item => item.id === ativa.id);
-    let proxima = -1;
-    if (event.key === 'ArrowRight') proxima = (atual + 1) % abas.length;
-    else if (event.key === 'ArrowLeft') proxima = (atual - 1 + abas.length) % abas.length;
-    else if (event.key === 'Home') proxima = 0;
-    else if (event.key === 'End') proxima = abas.length - 1;
-    if (proxima < 0) return;
-    event.preventDefault();
-    const alvo = abas[proxima];
-    setAtivaId(alvo.id);
-    abaRefs.current.get(alvo.id)?.focus();
   };
 
   const usarEmTodas = () => {
@@ -325,7 +305,7 @@ export function PlatformCopyEditor({
                     <span
                       aria-hidden
                       className={cn(
-                        'flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border',
+                        'flex h-4 w-4 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border',
                         marcada
                           ? 'border-[var(--brand-accent-strong)] bg-[var(--brand-accent-strong)] text-[var(--brand-on-accent)]'
                           : 'border-[var(--border-input)]',
@@ -348,60 +328,41 @@ export function PlatformCopyEditor({
 
           {ativa ? (
             <>
-              <div
-                role="tablist"
-                aria-label="Legenda em edição"
-                onKeyDown={moverAba}
-                className="flex max-w-full overflow-x-auto shadow-[inset_0_-1px_0_var(--border-color)]"
-              >
-                {abas.map(item => {
-                  const selecionada = item.id === ativa.id;
+              <SegmentTabs
+                ariaLabel="Legenda em edição"
+                value={ativa.id}
+                onChange={setAtivaId}
+                options={abas.map(item => {
                   const conta = contaDaRef(item.platformId, contas);
-                  return (
-                    <button
-                      key={item.id}
-                      ref={node => {
-                        if (node) abaRefs.current.set(item.id, node);
-                        else abaRefs.current.delete(item.id);
-                      }}
-                      type="button"
-                      role="tab"
-                      id={`legenda-aba-${item.id}`}
-                      aria-selected={selecionada}
-                      aria-label={conta ? `${rotuloConta(conta)}${item.publicationKind === 'repost' ? ', repost' : ''}` : undefined}
-                      aria-controls={`legenda-painel-${contentId || 'novo'}`}
-                      tabIndex={selecionada ? 0 : -1}
-                      onClick={() => setAtivaId(item.id)}
-                      className={cn(
-                        abaClass,
-                        selecionada
-                          ? 'font-semibold text-[var(--text-primary)] after:bg-[var(--brand-accent-strong)]'
-                          : 'text-[var(--text-secondary)] after:bg-transparent hover:text-[var(--text-primary)]',
-                      )}
-                    >
-                      <PlatformIcon platform={conta ? iconeDaConta(conta) : item.platformId} className="h-4 w-4 shrink-0" />
-                      {rotuloDaAba(item)}
-                    </button>
-                  );
+                  return {
+                    id: item.id,
+                    label: rotuloDaAba(item),
+                    icon: (
+                      <PlatformIcon
+                        platform={conta ? iconeDaConta(conta) : item.platformId}
+                        className="h-4 w-4 shrink-0"
+                      />
+                    ),
+                  };
                 })}
-              </div>
+              />
 
               <div
                 role="tabpanel"
                 id={`legenda-painel-${contentId || 'novo'}`}
-                aria-labelledby={`legenda-aba-${ativa.id}`}
+                aria-label={`Legenda de ${rotuloAtiva}`}
                 className="stack-md pt-2"
               >
                 {mostraTitulo ? (
                   <label className="block">
-                    <span className="mb-1.5 block text-sm text-[var(--text-secondary)]">
+                    <Text variant="secondary" as="span" className="mb-1.5 block text-[var(--text-secondary)]">
                       {`Título no ${rotuloAtiva}`}
-                    </span>
+                    </Text>
                     <input
                       value={titulo}
                       disabled={disabled}
                       onChange={event => onTituloChange?.(event.target.value)}
-                      className="h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60"
+                      className="h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 t-body text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60"
                     />
                   </label>
                 ) : null}
@@ -417,7 +378,7 @@ export function PlatformCopyEditor({
                     placeholder={`Legenda para ${rotuloAtiva}…`}
                     onChange={event => onChange(editarLegendaDaConta(plataformas, ativa.id, event.target.value, conteudo))}
                     className={cn(
-                      'block min-h-28 w-full resize-none overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-2.5 text-sm leading-6 outline-none placeholder:text-[var(--text-tertiary)] focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60',
+                      'block min-h-28 w-full resize-none overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-2.5 t-body leading-6 outline-none placeholder:text-[var(--text-tertiary)] focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60',
                       publicada ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)]',
                     )}
                   />
@@ -428,9 +389,7 @@ export function PlatformCopyEditor({
                         {publicadaEm ? `Publicada em ${publicadaEm}. O texto fica preservado.` : 'Publicada. O texto fica preservado.'}
                       </Text>
                     ) : <span />}
-                    <Text variant="meta" className={cn('tabular-nums', acimaDoLimite && 'text-[var(--danger)]')}>
-                      {limite != null ? `${texto.length} / ${limite}` : `${texto.length} caracteres`}
-                    </Text>
+                    {publicada ? null : <TextCount value={texto} limit={limite} />}
                   </div>
                 </div>
 

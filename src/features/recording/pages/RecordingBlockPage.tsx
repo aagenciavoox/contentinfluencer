@@ -201,11 +201,11 @@ export function RecordingBlockPage() {
       <>
         <div className="stack-lg">
           <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
-            <p className="text-xs font-semibold text-[var(--text-tertiary)]">Bloco de gravação</p>
+            <Text variant="label" as="p" className="text-[var(--text-tertiary)]">Bloco de gravação</Text>
             <Text variant="pageTitle" className="mt-2">{block.name}</Text>
-            <p className="mt-2 text-sm text-[var(--text-secondary)]">
-              Edite o bloco, revise os roteiros e inicie o modo gravação quando estiver pronto.
-            </p>
+            <Text variant="secondary" as="p" className="mt-2 text-[var(--text-secondary)]">
+              Edite o bloco, revise os roteiros e inicie o Modo gravação quando estiver pronto.
+            </Text>
 
             <div className="mt-4 grid grid-cols-3 gap-2">
               <Metric label="Fila" value={String(mobileEntries.length)} />
@@ -226,9 +226,9 @@ export function RecordingBlockPage() {
           <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
             <div className="mb-4 flex items-center justify-between gap-3">
               <Text variant="sectionTitle">Ordem de execução</Text>
-              <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)]">
+              <Text variant="label" as="span" className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-[var(--text-secondary)]">
                 {resolveRecordingContextSummary({block, content: mobileEntries[0]?.content ?? null})}
-              </span>
+              </Text>
             </div>
 
             <div className="stack-md">
@@ -236,21 +236,21 @@ export function RecordingBlockPage() {
                 <div
                   key={entry.content.id}
                   className={cn(
-                    'rounded-[1.4rem] border px-4 py-4',
+                    'rounded-[var(--radius-card)] border px-4 py-4',
                     entry.gravado || recordedIds.has(entry.content.id)
                       ? 'border-[color-mix(in_srgb,var(--success)_20%,transparent)] bg-[color-mix(in_srgb,var(--success)_8%,transparent)]'
                       : 'border-[var(--border-color)] bg-[var(--bg-primary)]'
                   )}
                 >
                   <div className="flex items-start gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-hover)] text-xs font-semibold text-[var(--text-primary)]">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-hover)] t-label text-[var(--text-primary)]">
                       {index + 1}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-[var(--text-primary)]">
+                      <Text variant="itemTitle" as="p" className="text-[var(--text-primary)]">
                         {entry.content.title || 'Roteiro sem título'}
-                      </p>
-                      <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                      </Text>
+                      <Text variant="secondary" as="p" className="mt-1 text-[var(--text-secondary)]">
                         {!isContentBodyLoaded(entry.content)
                           ? hasHydrationError(entry.content.id)
                             ? 'Não foi possível carregar o roteiro.'
@@ -258,13 +258,13 @@ export function RecordingBlockPage() {
                           : htmlToReadableText(entry.content.script)
                             ? 'Roteiro pronto para leitura.'
                             : 'Sem roteiro escrito.'}
-                      </p>
+                      </Text>
                     </div>
                     {entry.gravado || recordedIds.has(entry.content.id) ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--success)_10%,transparent)] px-3 py-1 text-xs font-semibold text-[var(--success)]">
+                      <Text variant="label" as="span" className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--success)_10%,transparent)] px-3 py-1 text-[var(--success)]">
                         <CheckCircle2 className="h-3 w-3" />
                         Gravado
-                      </span>
+                      </Text>
                     ) : null}
                   </div>
                 </div>
@@ -279,7 +279,7 @@ export function RecordingBlockPage() {
             disabled={readyCount === 0}
             leftIcon={<Video className="h-4 w-4" />}
           >
-            Iniciar modo gravação
+            Iniciar Modo gravação
           </AppButton>
         </div>
 
@@ -313,7 +313,7 @@ export function RecordingBlockPage() {
             <>
               <Text variant="pageTitle" className="truncate">{block.name}</Text>
               <div className="mt-1.5 flex items-center gap-4">
-                <p className="shrink-0 t-body text-[var(--text-secondary)]">{progressLabel}</p>
+                <Text variant="body" as="p" className="shrink-0 text-[var(--text-secondary)]">{progressLabel}</Text>
                 <div
                   role="progressbar"
                   aria-label="Roteiros gravados"
@@ -340,7 +340,7 @@ export function RecordingBlockPage() {
               disabled={(progress?.readyCount ?? 0) === 0}
               leftIcon={<Video className="h-4 w-4" />}
             >
-              Iniciar modo gravação
+              Iniciar Modo gravação
             </AppButton>
           )}
         />
@@ -360,9 +360,9 @@ export function RecordingBlockPage() {
 
 function Metric({label, value}: {label: string; value: string}) {
   return (
-    <div className="rounded-[1.15rem] bg-[var(--bg-hover)] px-3 py-3">
-      <p className="text-xs font-semibold text-[var(--text-tertiary)]">{label}</p>
-      <p className="mt-1 text-base font-semibold text-[var(--text-primary)]">{value}</p>
+    <div className="rounded-[var(--radius-card)] bg-[var(--bg-hover)] px-3 py-3">
+      <Text variant="label" as="p" className="text-[var(--text-tertiary)]">{label}</Text>
+      <Text variant="bodyStrong" as="p" className="mt-1 text-[var(--text-primary)]">{value}</Text>
     </div>
   );
 }

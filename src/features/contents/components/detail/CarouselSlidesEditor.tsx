@@ -328,7 +328,7 @@ function SlideImages({
                   }}
                   aria-label={fieldLabel}
                   placeholder="Cole um link ou descreva a imagem"
-                  className="min-h-[var(--control-height-mobile)] min-w-0 flex-1 rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-elevated)] px-3 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus-visible:shadow-[var(--focus-ring)] md:min-h-[var(--control-height)]"
+                  className="min-h-[var(--control-height-mobile)] min-w-0 flex-1 rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-elevated)] px-3 t-body text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus-visible:shadow-[var(--focus-ring)] md:min-h-[var(--control-height)]"
                 />
                 {href ? (
                   <a

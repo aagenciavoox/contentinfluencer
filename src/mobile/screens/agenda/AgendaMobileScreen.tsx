@@ -1,4 +1,5 @@
 import {useCallback, useMemo, useState} from 'react';
+import { CountBadge } from '../../../components/ui/CountBadge';
 import {
   addDays,
   addMonths,
@@ -35,6 +36,7 @@ import {cn, getEntityTagStyle, tintedTextColor} from '../../../lib/utils';
 import {AppButton} from '../../../components/ui/AppButton';
 import {Text} from '../../../components/ui/Text';
 import {FilterBar} from '../../../components/ui/FilterBar';
+import {MultiFilterChips} from '../../../components/ui/MultiFilterChips';
 import {EmptyState} from '../../../components/ui/EmptyState';
 import {MobileListCard} from '../../components/MobileListCard';
 import {MobileSearchBar} from '../../components/MobileSearchBar';
@@ -131,33 +133,32 @@ function MobileLayerChips({
   onToggle: (kind: AgendaTimelineKind) => void;
   className?: string;
 }) {
+  const ativos = new Set(activeKinds);
   return (
     // Quebra linha em vez de rolar de lado: a última camada não fica cortada sem aviso.
-    <div role="group" aria-label="Camadas da agenda" className={cn('flex flex-wrap gap-2', className)}>
-      {ALL_KINDS.map(kind => {
-        const active = activeKinds.includes(kind);
-        return (
-          <button
-            key={kind}
-            type="button"
-            aria-pressed={active}
-            onClick={() => onToggle(kind)}
-            className={cn(
-              'filter-chip min-h-11 shrink-0 whitespace-nowrap',
-              // Camadas começam todas ligadas: preenchimento preto em todas virava ruído.
-              active ? 'border-[var(--border-strong)] text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]',
-            )}
-          >
-            <span
-              aria-hidden
-              className="h-1.5 w-1.5 shrink-0 rounded-full"
-              style={{backgroundColor: active ? KIND_ACCENTS[kind] : 'currentColor'}}
-            />
-            {KIND_LABELS[kind]}
-          </button>
-        );
-      })}
-    </div>
+    <MultiFilterChips
+      ariaLabel="Camadas da agenda"
+      className={className}
+      value={activeKinds}
+      onChange={next => {
+        const proximos = new Set(next);
+        const mudou = next.length > activeKinds.length
+          ? next.find(kind => !ativos.has(kind))
+          : activeKinds.find(kind => !proximos.has(kind));
+        if (mudou) onToggle(mudou);
+      }}
+      options={ALL_KINDS.map(kind => ({
+        id: kind,
+        label: KIND_LABELS[kind],
+        icon: (
+          <span
+            aria-hidden
+            className="h-1.5 w-1.5 shrink-0 rounded-full"
+            style={{backgroundColor: KIND_ACCENTS[kind]}}
+          />
+        ),
+      }))}
+    />
   );
 }
 
@@ -432,9 +433,9 @@ export function AgendaMobileScreen({
             >
               <ChevronLeft className="h-4 w-4 text-[var(--text-tertiary)]" />
             </button>
-            <span className="min-w-[120px] text-center text-sm font-semibold first-letter:uppercase text-[var(--text-primary)]">
+            <Text variant="itemTitle" as="span" className="min-w-[120px] text-center first-letter:uppercase text-[var(--text-primary)]">
               {format(calendarMonth, "MMMM 'de' yyyy", {locale: ptBR})}
-            </span>
+            </Text>
             <button
               type="button"
               onClick={() => setCalendarMonth(m => addMonths(m, 1))}
@@ -464,7 +465,7 @@ export function AgendaMobileScreen({
         {/* Day-of-week labels */}
         <div className="grid grid-cols-7 border-t border-[var(--border-color)] bg-[var(--bg-hover)]/30">
           {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((label, i) => (
-            <div key={i} className="py-1.5 text-center text-xs font-semibold text-[var(--text-tertiary)]">
+            <div key={i} className="py-1.5 text-center t-label text-[var(--text-tertiary)]">
               {label}
             </div>
           ))}
@@ -497,7 +498,7 @@ export function AgendaMobileScreen({
               >
                 <div
                   className={cn(
-                    'flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold',
+                    'flex h-6 w-6 items-center justify-center rounded-full t-label ',
                     isToday && 'bg-[var(--accent)] text-[var(--bg-primary)]',
                     isSelected && !isToday && 'ring-1 ring-[var(--text-primary)] text-[var(--text-primary)]',
                     // Dia de outro mês: texto terciário em vez de opacidade 20% (que derrubava o contraste).
@@ -572,23 +573,23 @@ export function AgendaMobileScreen({
         <div className="flex items-center justify-between px-1">
           {selectedDate ? (
             <>
-              <p className="text-xs font-semibold text-[var(--text-primary)]">
+              <Text variant="label" as="p" className="text-[var(--text-primary)]">
                 {format(selectedDate, "EEEE, dd 'de' MMMM", {locale: ptBR})}
-                <span className="ml-2 font-bold text-[var(--text-tertiary)]">
+                <Text variant="bodyStrong" as="span" className="ml-2 text-[var(--text-tertiary)]">
                   · {filteredEntries.length}
-                </span>
-              </p>
+                </Text>
+              </Text>
               <AppButton variant="secondary" size="xs" onClick={() => setSelectedDate(null)}>
                 Ver todos
               </AppButton>
             </>
           ) : (
-            <p className="text-xs font-semibold text-[var(--text-tertiary)]">
+            <Text variant="label" as="p" className="text-[var(--text-tertiary)]">
               {isTimeline
                 ? `${format(rangeStart, 'd MMM', {locale: ptBR})} – ${format(rangeEnd, 'd MMM', {locale: ptBR})}`
                 : 'Próximos 60 dias'}
               <span className="ml-2 text-[var(--text-primary)]">· {filteredEntries.length}</span>
-            </p>
+            </Text>
           )}
         </div>
 
@@ -621,7 +622,7 @@ export function AgendaMobileScreen({
           <div className="stack-lg">
             {groupedEntries.map(group => (
               <div key={group.label} className="stack-sm">
-                <p className="px-1 t-label text-[var(--text-tertiary)]">{group.label}</p>
+                <Text variant="label" as="p" className="px-1 text-[var(--text-tertiary)]">{group.label}</Text>
 
                 <div className="stack-sm">
                   {group.items.map(entry => {
@@ -667,13 +668,13 @@ export function AgendaMobileScreen({
                           })
                         }
                         meta={
-                          <span
-                            className="rounded-full px-2.5 py-1 text-xs font-semibold"
+                          <Text variant="label" as="span"
+                            className="rounded-full px-2.5 py-1 text-inherit"
                             style={getEntityTagStyle(accentColor)}
                           >
                             {entry.time ? `${entry.time} · ` : ''}
                             {format(parseISO(entry.date), 'dd/MM')}
-                          </span>
+                          </Text>
                         }
                         trailing={
                           entry.kind === 'publish' && entry.platformNames && entry.platformNames.length > 0 ? (
@@ -712,7 +713,7 @@ export function AgendaMobileScreen({
             onClick={() => setUndatedOpen(!undatedOpen)}
             className="flex min-h-11 w-full items-center justify-between gap-3 text-left focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
           >
-            <Text variant="sectionTitle">Roteiros sem data ({undatedRoteiros.length})</Text>
+            <Text variant="sectionTitle"><span className="inline-flex items-center gap-1.5">Roteiros sem data <CountBadge count={undatedRoteiros.length} /></span></Text>
             <ChevronDown
               className={cn('h-4 w-4 shrink-0 text-[var(--text-secondary)] transition-transform', undatedOpen && 'rotate-180')}
               aria-hidden
@@ -725,9 +726,9 @@ export function AgendaMobileScreen({
           ) : null}
           {undatedOpen ? undatedRoteiros.map(content => (
             <div key={content.id} className="flex items-center justify-between gap-3 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2">
-              <p className="min-w-0 truncate text-sm font-semibold text-[var(--text-primary)]">
+              <Text variant="itemTitle" as="p" className="min-w-0 truncate text-[var(--text-primary)]">
                 {content.title || 'Roteiro sem título'}
-              </p>
+              </Text>
               <AppButton
                 variant="secondary"
                 size="xs"
