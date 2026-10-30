@@ -353,19 +353,19 @@ export function TemplatesSettingsPage({
             <div className="border-b border-[var(--border-color)] px-6 py-6 md:px-8 md:py-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
+                  <Text variant="label" as="p" className="text-[var(--text-tertiary)]">
                     Template
-                  </p>
+                  </Text>
                   <Text variant="sectionTitle" className="mt-2">
                     {selectedTemplate.nome}
                   </Text>
-                  <p className="mt-2 text-sm text-[var(--text-secondary)]">
+                  <Text variant="secondary" as="p" className="mt-2 text-[var(--text-secondary)]">
                     Defina onde o template vale e monte os blocos do roteiro.
-                  </p>
+                  </Text>
                 </div>
                 <button
                   onClick={() => deleteTemplate(selectedTemplate.id)}
-                  className="rounded-xl border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] px-4 py-3 text-xs font-semibold  text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]"
+                  className="rounded-[var(--radius-card)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] px-4 py-3 t-label text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]"
                 >
                   Excluir template
                 </button>
@@ -376,20 +376,20 @@ export function TemplatesSettingsPage({
               <aside className="border-r border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:p-6">
                 <div className="stack-lg">
                   <div className="stack-sm">
-                    <label className="text-xs font-semibold  text-[var(--text-tertiary)]">
+                    <label className="t-label text-[var(--text-tertiary)]">
                       Nome
                     </label>
                     <input
                       value={templateEditor.nome}
                       onChange={event => setTemplateEditor(previous => ({...previous, nome: event.target.value}))}
-                      className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] focus:outline-none"
+                      className="w-full rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 t-body-strong text-[var(--text-primary)] focus:outline-none"
                     />
                   </div>
 
                   {lockedSeriesId ? null : (
                     <>
                       <div className="stack-sm">
-                        <label htmlFor="template-editor-tipo" className="text-xs font-semibold  text-[var(--text-tertiary)]">
+                        <label htmlFor="template-editor-tipo" className="t-label text-[var(--text-tertiary)]">
                           Tipo
                         </label>
                         <SelectField
@@ -402,7 +402,7 @@ export function TemplatesSettingsPage({
                       </div>
 
                       <div className="stack-sm">
-                        <label className="text-xs font-semibold  text-[var(--text-tertiary)]">
+                        <label className="t-label text-[var(--text-tertiary)]">
                           Série
                         </label>
                         <TagSelect
@@ -420,7 +420,7 @@ export function TemplatesSettingsPage({
                   )}
 
                   <div className="stack-sm">
-                    <label className="text-xs font-semibold  text-[var(--text-tertiary)]">
+                    <label className="t-label text-[var(--text-tertiary)]">
                       Plataforma
                     </label>
                     <TagSelect
@@ -438,7 +438,7 @@ export function TemplatesSettingsPage({
                   <button
                     onClick={saveTemplateMeta}
                     disabled={!templateEditor.nome.trim() || !isTemplateMetaDirty}
-                    className="w-full rounded-xl bg-[var(--text-primary)] px-4 py-3 text-xs font-semibold  text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-30"
+                    className="w-full rounded-[var(--radius-card)] bg-[var(--text-primary)] px-4 py-3 t-label text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-30"
                   >
                     Salvar contexto
                   </button>
@@ -446,12 +446,12 @@ export function TemplatesSettingsPage({
 
                 <div className="mt-6 border-t border-[var(--border-color)] pt-6">
                   <div className="mb-3 flex items-center justify-between gap-3">
-                    <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
+                    <Text variant="label" as="p" className="text-[var(--text-tertiary)]">
                       Blocos
-                    </p>
-                    <span className="text-xs font-bold text-[var(--text-secondary)]">
+                    </Text>
+                    <Text variant="label" as="span" className="text-[var(--text-secondary)]">
                       {selectedTemplate.estrutura.length === 1 ? '1 bloco' : `${selectedTemplate.estrutura.length} blocos`}
-                    </span>
+                    </Text>
                   </div>
 
                   <div className="stack-sm">
@@ -489,23 +489,23 @@ export function TemplatesSettingsPage({
 
                           <button type="button" onClick={() => selectBloco(bloco)} className="min-w-0 flex-1 text-left">
                             <div className="flex flex-wrap items-center gap-2">
-                              <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{bloco.label}</p>
-                              <span
+                              <Text variant="itemTitle" as="p" className="truncate text-[var(--text-primary)]">{bloco.label}</Text>
+                              <Text variant="label" as="span"
                                 className={cn(
-                                  'rounded-full px-2 py-1 text-xs font-semibold ',
+                                  'rounded-full px-2 py-1 ',
                                   bloco.tipo === 'fixo'
                                     ? 'bg-[color-mix(in_srgb,var(--info)_10%,transparent)] text-[var(--info)]'
                                     : 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)]'
                                 )}
                               >
                                 {bloco.tipo === 'fixo' ? 'Fixo' : 'Variável'}
-                              </span>
+                              </Text>
                             </div>
-                            <p className="mt-2 line-clamp-2 whitespace-pre-wrap text-xs leading-relaxed text-[var(--text-secondary)]">
+                            <Text variant="meta" as="p" className="mt-2 line-clamp-2 whitespace-pre-wrap leading-relaxed text-[var(--text-secondary)]">
                               {bloco.tipo === 'fixo'
                                 ? bloco.conteudo || 'Sem conteúdo fixo ainda.'
                                 : bloco.placeholder || 'Sem placeholder definido ainda.'}
-                            </p>
+                            </Text>
                           </button>
                         </div>
                       </div>
@@ -518,7 +518,7 @@ export function TemplatesSettingsPage({
                       onChange={event => setNovoBlocoLabel(event.target.value)}
                       onKeyDown={event => event.key === 'Enter' && addBloco()}
                       placeholder="Novo bloco"
-                      className="flex-1 rounded-lg border border-[var(--border-input)] bg-[var(--bg-primary)] px-3 py-2 text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
+                      className="flex-1 rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-primary)] px-3 py-2 t-body-strong text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                     />
                     <SelectField
                       ariaLabel="Tipo do novo bloco"
@@ -533,7 +533,7 @@ export function TemplatesSettingsPage({
                       onClick={addBloco}
                       disabled={!novoBlocoLabel.trim()}
                       aria-label="Adicionar bloco"
-                      className="rounded-lg bg-[var(--text-primary)] p-2 text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-30"
+                      className="rounded-[var(--radius-input)] bg-[var(--text-primary)] p-2 text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-30"
                     >
                       <Plus className="h-4 w-4" />
                     </button>
@@ -545,25 +545,25 @@ export function TemplatesSettingsPage({
                 {editingBloco ? (
                   <div className="mx-auto max-w-3xl stack-xl">
                     <div className="stack-sm">
-                      <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
+                      <Text variant="label" as="p" className="text-[var(--text-tertiary)]">
                         Edição do bloco
-                      </p>
+                      </Text>
                       <Text variant="itemTitle">{editingBloco.label}</Text>
                     </div>
 
                     <div className="stack-sm">
-                      <label className="text-xs font-semibold  text-[var(--text-tertiary)]">
+                      <label className="t-label text-[var(--text-tertiary)]">
                         Nome do bloco
                       </label>
                       <input
                         value={blocoEditor.label}
                         onChange={event => setBlocoEditor(previous => ({...previous, label: event.target.value}))}
-                        className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] focus:outline-none"
+                        className="w-full rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 t-body-strong text-[var(--text-primary)] focus:outline-none"
                       />
                     </div>
 
                     <div className="stack-sm">
-                      <label className="text-xs font-semibold  text-[var(--text-tertiary)]">
+                      <label className="t-label text-[var(--text-tertiary)]">
                         {editingBloco.tipo === 'fixo' ? 'Conteúdo fixo' : 'Placeholder da variável'}
                       </label>
                       <textarea
@@ -579,7 +579,7 @@ export function TemplatesSettingsPage({
                             : 'Explique o que entra neste bloco…'
                         }
                         rows={editingBloco.tipo === 'fixo' ? 16 : 12}
-                        className="min-h-[340px] w-full resize-y rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-4 py-4 text-sm leading-7 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
+                        className="min-h-[340px] w-full resize-y rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-4 py-4 t-body leading-7 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                       />
                     </div>
 
@@ -587,14 +587,14 @@ export function TemplatesSettingsPage({
                       <button
                         onClick={saveBloco}
                         disabled={!blocoEditor.label.trim() || !isBlocoDirty}
-                        className="inline-flex items-center gap-2 rounded-xl bg-[var(--text-primary)] px-6 py-3 text-xs font-semibold  text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-30"
+                        className="inline-flex items-center gap-2 rounded-[var(--radius-card)] bg-[var(--text-primary)] px-6 py-3 t-label text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-30"
                       >
                         <Check className="h-4 w-4" />
                         Salvar bloco
                       </button>
                       <button
                         onClick={() => deleteBloco(editingBloco.id)}
-                        className="rounded-xl border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] px-6 py-3 text-xs font-semibold  text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]"
+                        className="rounded-[var(--radius-card)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] px-6 py-3 t-label text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]"
                       >
                         Excluir bloco
                       </button>
@@ -607,9 +607,9 @@ export function TemplatesSettingsPage({
                       <Text variant="bodyStrong">
                         Selecione um bloco
                       </Text>
-                      <p className="text-sm text-[var(--text-secondary)]">
+                      <Text variant="secondary" as="p" className="text-[var(--text-secondary)]">
                         Escolha um bloco à esquerda para editar.
-                      </p>
+                      </Text>
                     </div>
                   </div>
                 )}
@@ -643,7 +643,7 @@ export function TemplatesSettingsPage({
               value={novoNome}
               onChange={event => setNovoNome(event.target.value)}
               placeholder="Nome do template"
-              className="w-full rounded-xl border border-[var(--border-input)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
+              className="w-full rounded-[var(--radius-card)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-4 py-3 t-body-strong text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
             />
             <div className="flex flex-wrap gap-3">
               {lockedSeriesId ? null : (
@@ -735,26 +735,26 @@ export function TemplatesSettingsPage({
                   />
                   <div className="pointer-events-none relative z-[1] min-w-0 flex-1 stack-md">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold  text-[var(--text-primary)]">
+                      <Text variant="label" as="span" className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-[var(--text-primary)]">
                         {template.type || 'roteiro'}
-                      </span>
+                      </Text>
                       {serie ? (
-                        <span className="rounded-full bg-[var(--accent-purple)]/10 px-3 py-1 text-xs font-semibold  text-[var(--accent-purple)]">
+                        <Text variant="label" as="span" className="rounded-full bg-[var(--accent-purple)]/10 px-3 py-1 text-[var(--accent-purple)]">
                           {serie.name}
-                        </span>
+                        </Text>
                       ) : null}
                       {platform ? (
-                        <span className="rounded-full bg-[var(--accent-green)]/10 px-3 py-1 text-xs font-semibold  text-[var(--accent-green)]">
+                        <Text variant="label" as="span" className="rounded-full bg-[var(--accent-green)]/10 px-3 py-1 text-[var(--accent-green)]">
                           {platform.nome}
-                        </span>
+                        </Text>
                       ) : null}
                     </div>
 
                     <div>
-                      <p className="text-base font-semibold text-[var(--text-primary)]">{template.nome}</p>
-                      <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                      <Text variant="bodyStrong" as="p" className="text-[var(--text-primary)]">{template.nome}</Text>
+                      <Text variant="secondary" as="p" className="mt-1 text-[var(--text-secondary)]">
                         {template.estrutura.length === 1 ? '1 bloco' : `${template.estrutura.length} blocos`}
-                      </p>
+                      </Text>
                     </div>
                   </div>
 
@@ -806,7 +806,6 @@ export function TemplatesSettingsPage({
           <DesktopPageHeader
             section="Configurações"
             title="Templates"
-            icon={Layout}
             backLabel="Configurações"
             backTo="/configuracoes"
             actions={

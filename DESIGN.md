@@ -22,8 +22,13 @@ Content OS uses a token-based design system. Pages compose with shared UI primit
 | **PaginationBar** | `src/components/ui/PaginationBar.tsx` | Paginação — `variant="full"` (numerada) ou `simple` (mobile) |
 | **ToolbarSearchInput** | `src/components/ui/ToolbarSearchInput.tsx` | Campo de busca em toolbars e `FilterBar` |
 | **SegmentTabs** | `src/components/ui/SegmentTabs.tsx` | O único seletor de aba e de vista (abas da página, Grade/Lista/Kanban, Mês/Semana, redes). Aceita `icon` e `count`; setas trocam a aba. Uma fileira por tela |
+| **ChoiceChips** | `src/components/ui/ChoiceChips.tsx` | Escolha única de um valor (Roteiro/Ideia, modo do período). Clicar de novo limpa. Nunca para aba nem filtro |
 | **FilterChips** | `src/components/ui/FilterChips.tsx` | Filtro de uma escolha só (Todas/Ativas/Inativas). Chips `.filter-chip` com contagem; nunca `SegmentTabs` |
 | **SelectField** | `src/components/ui/SelectField.tsx` | Escolha única que não fica vazia (etapa, rede de referência, conta dos horários). Aceita ícone e prefixo ("Etapa: Roteiro"). Valor que pode ficar vazio ou ser vários usa `TagSelect` |
+| **TimeField** | `src/components/ui/TimeField.tsx` | Campo de hora nativo estilizado, com foco e tema claro/escuro |
+| **ValorVazio** | `src/components/ui/ValorVazio.tsx` | Valor ausente em células: “—” visual e “sem valor” para leitor de tela, uma vez só |
+| **TextCount** | `src/components/ui/TextCount.tsx` | Contagem de caracteres ou palavras alinhada à direita; perto do limite fica mais forte e acima dele vira aviso |
+| **PageToolbar** | `src/components/ui/PageToolbar.tsx` | Barra padrão de página, na ordem: abas → busca → chips → filtros → ordenar → vista à direita; cada slot é opcional |
 | **PlatformIcon / PlatformTile** | `src/components/ui/PlatformIcon.tsx` | Ícone da rede; `colored` usa a cor da marca (`--platform-*`). `PlatformTile` é o quadrado colorido das listas de contas. Sempre com o nome da conta ao lado |
 | **MediaCard** | `src/components/ui/MediaCard.tsx` | Capa/thumbnail para grids de catálogo |
 | **MobileSectionHeader** | `src/mobile/components/MobileSectionHeader.tsx` | Cabeçalho in-card em telas mobile |
@@ -121,7 +126,7 @@ O que clica tem que parecer clicável, e o que não clica não pode parecer. Aud
 3. **Card clicável abre em qualquer ponto.** Um `<button class="absolute inset-0">` cobre o card; título e textos ficam com `pointer-events-none`; a chave e o "⋯" ficam por cima (`relative z-[2]`). Referências: `CreationGridCard`, `SettingsGridCard`, card de template.
 4. **Card que só informa não parece botão.** `Surface variant="info"`: sem borda, fundo rebaixado, sem hover.
 5. **Selo não é chip.** `Badge` informa: fundo suave, sem borda. Pílula com borda (`.filter-chip`) só para filtrar; etiqueta com "×" (`TagPill`) só para remover.
-6. **Escolher uma opção tem três componentes.** `SegmentTabs` para aba e vista; `FilterChips` para filtrar uma lista; `ChoiceChips` (ou o grupo de rádio segmentado) para valor. Seleção sempre em `--text-primary` (preto/branco), nunca no rosa da marca.
+6. **Escolher uma opção tem três componentes.** `SegmentTabs` para aba e vista; `FilterChips` para filtrar uma lista; `ChoiceChips` (`src/components/ui/ChoiceChips.tsx`) para valor. Seleção sempre em `--text-primary` (preto/branco), nunca no rosa da marca.
 7. **Uma chave só** (`ToggleSwitch`), e o texto da opção também liga (`ToggleRow` ou `<label htmlFor>`).
 8. **Ação não fica escondida.** O "⋯" fica sempre visível. O que aparece no hover aparece também no foco do teclado e no toque. Exceção: as ações de cada dia em grades de calendário, que aparecem no hover e quando o dia recebe foco.
 9. **Nada de `div` com clique.** Se clica, é `button` ou `a`. Quando não pode ser (um dia de calendário com botões dentro), use `role="gridcell"` com `tabIndex` ou `keyboardActivation()` (`src/lib/a11y/keyboardActivation.ts`), com Enter e Espaço.
@@ -219,11 +224,6 @@ Regras tiradas da auditoria de 15/10/2026 (`AUDIT-UX-2026-10-15.md`). Cada uma c
 - `--user-tint-text-share` — same for colors the person picks (pillar, series, project) (36% light, 50% dark)
 - `tintedTextColor(color)` in `src/lib/utils.ts` picks the right share (`var(--…)` → system, hex → user)
 
-## Lint
-
-```bash
-npm run lint:design
-```
 ## Glossário
 
 Use sempre o mesmo termo para a mesma coisa. Trocar o nome é só apresentação: IDs e valores salvos não mudam.
@@ -261,8 +261,19 @@ Contagens vão num selo (`CountBadge` ou `count` do `AppButton`), nunca entre pa
 - **Tipografia**: prefira `Text` com variantes por função. Controles, labels nativos e elementos com ref usam as classes semânticas correspondentes. Texto principal e campos em body/15; apoio em secondary/13; metadados e labels em meta/label. Não há variante de 14px.
 - **DesktopPageHeader**: as props `subtitle`, `icon` e `hideSearch` saíram (não eram desenhadas). Use `meta`/`metaNote`.
 
+## Lint
+
+```bash
+npm run lint:design
+```
 
 Checks for banned patterns: `font-black`, arbitrary `text-[Npx]`, `button-primary`, hard-coded gray/white surfaces, legacy tracking, `notion-title`, and raw `t-section-title` / `t-page-title` on non-input elements. Exceptions: `Text.tsx`, editable title inputs in `ContentDetailHeader.tsx` / `ContentOperationalPanel.tsx` / `RoteiroSection.tsx`.
+
+Lint gradual: chamadas reais de `toLocaleDateString` são erro em todo o `src`, inclusive em helpers `.ts`, com espaços, acesso por colchetes ou encadeamento opcional. A análise sintática ignora comentários e strings. As únicas implementações autorizadas por caminho completo são `lib/dates.ts`, `components/ui/PropertyDatePicker.tsx`, `components/ui/TimeField.tsx` e `components/calendar/CalendarMiniMonth.tsx`; testes e chamadas diretas de diagnóstico em `console` também são permitidos. Uso técnico de persistência, integração, input ou cálculo pode justificar uma única declaração com `// design-lint-allow-date: integration — motivo concreto` (ou `persistence`, `input`, `calculation`). Isso não autoriza formatação de apresentação em outros componentes. Nas pastas já migradas (`creation`, `library`, `recording`, `projects`, `captions`, `planejamento`, `editorial`, `settings`), também são erro: `<select>` nativo, `window.confirm`/`window.prompt` e contagem entre parênteses. No restante, esses padrões continuam como aviso.
+
+Tipografia crua (`text-xs`/`text-sm` e pesos isolados) e raios fixos são erro somente em `features/contents`, `components`, `features/library`, `features/settings`, `mobile`, `features/editorial-calendar` e `features/recording`. Nas outras pastas permanecem avisos. As regras de tokens examinam literais de classes, sem confundir comentários, exemplos em texto ou cálculos. `rounded-full` e `rounded-none`, inclusive bordas parciais de eventos de calendário, são legítimos. Outras regras mantêm seus escopos e severidades anteriores.
+
+`ContentTemaChips` apresenta temas com `Badge`; não é seletor nem filtro. `Text` preserva atributos HTML de acessibilidade e tooltip. `TextCount` aceita `id` para descrição de campo e `as="span"` para metadados, além de uma quantidade já calculada para palavras.
 
 Run before finishing UI work. Full check: `npm run check`.
 

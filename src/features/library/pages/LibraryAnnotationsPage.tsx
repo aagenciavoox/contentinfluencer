@@ -7,12 +7,13 @@ import { PageLayout } from '../../../layouts/page/PageLayout';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
+import { dia } from '../../../lib/dates';
 import type { LibraryFormatFilter } from '../../analytics/lib/libraryPeriodAnalysis';
 import { CARD_CLASS, FormatIcon, FormatTag, IconTile, LibraryFormatChips } from '../../analytics/components/LibraryAnalysisSections';
 
 function formatDate(value: string) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+  if (Number.isNaN(new Date(value).getTime())) return '';
+  return dia(value);
 }
 
 /** Todas as anotações da Biblioteca, com o item de origem, das mais recentes para as mais antigas. */
@@ -29,6 +30,9 @@ export function LibraryAnnotationsPage() {
     .sort((a, b) => b.note.createdAt.localeCompare(a.note.createdAt)), [state.bibliotecaItems, format]);
 
   const itemCount = new Set(notes.map(entry => entry.item.id)).size;
+  const meta = notes.length === 0
+    ? undefined
+    : `${notes.length.toLocaleString('pt-BR')} ${notes.length === 1 ? 'nota' : 'notas'} em ${itemCount.toLocaleString('pt-BR')} ${itemCount === 1 ? 'obra' : 'obras'}`;
 
   return (
     <PageLayout
@@ -37,11 +41,16 @@ export function LibraryAnnotationsPage() {
         <DesktopPageHeader
           section="Criação"
           title="Anotações"
-          subtitle="Suas reflexões, destaques e registros, de todos os itens."
+          meta={meta}
           backLabel="Biblioteca"
           backTo="/biblioteca/analise"
         />
       )}
+      mobileHeader={meta ? (
+        <div className="px-4 pt-3">
+          <Text variant="meta">{meta}</Text>
+        </div>
+      ) : undefined}
     >
       <div className="stack-lg">
         <LibraryFormatChips value={format} onChange={setFormat} />
@@ -52,31 +61,26 @@ export function LibraryAnnotationsPage() {
         ) : notes.length === 0 ? (
           <Surface variant="outlined" padding="lg" className={CARD_CLASS}>
             <Text variant="bodyStrong">Nenhuma anotação por aqui ainda.</Text>
-            <Text variant="meta" className="mt-1 block">As notas que você registra nos itens aparecem nesta lista.</Text>
+            <Text variant="meta" className="mt-1 block">As notas que você registra nas obras aparecem nesta lista.</Text>
           </Surface>
         ) : (
-          <>
-            <Text variant="meta">
-              {notes.length.toLocaleString('pt-BR')} {notes.length === 1 ? 'nota' : 'notas'} em {itemCount} {itemCount === 1 ? 'item' : 'itens'}
-            </Text>
-            <ul className="stack-md">
+          <ul className="stack-md">
               {notes.map(({ note, item }) => (
                 <li key={note.id}>
                   <Surface variant="outlined" padding="md" className={CARD_CLASS}>
                     <Link to={`/biblioteca/${item.id}`} className="flex items-center gap-3 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]">
                       <IconTile><FormatIcon tipo={item.tipo} /></IconTile>
-                      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--text-primary)] hover:underline">{item.titulo}</span>
+                      <Text variant="itemTitle" as="span" className="min-w-0 flex-1 truncate text-[var(--text-primary)] hover:underline">{item.titulo}</Text>
                       <FormatTag tipo={item.tipo} />
                     </Link>
-                    <p className="mt-3 whitespace-pre-line text-sm text-[var(--text-primary)]">{note.texto}</p>
-                    <p className="mt-2 text-xs text-[var(--text-tertiary)]">
+                    <Text variant="body" as="p" className="mt-3 whitespace-pre-line text-[var(--text-primary)]">{note.texto}</Text>
+                    <Text variant="meta" as="p" className="mt-2 text-[var(--text-tertiary)]">
                       {[note.tipo, note.capituloRef, formatDate(note.createdAt)].filter(Boolean).join(' · ')}
-                    </p>
+                    </Text>
                   </Surface>
                 </li>
               ))}
-            </ul>
-          </>
+          </ul>
         )}
       </div>
     </PageLayout>

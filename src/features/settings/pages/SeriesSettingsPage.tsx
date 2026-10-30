@@ -10,12 +10,12 @@ import { SettingsPageScaffold } from '../../../components/settings/SettingsPageS
 import { SettingsGridCard, SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/SettingsGridCard';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Badge } from '../../../components/ui/Badge';
+import { EmptyState } from '../../../components/ui/EmptyState';
 import { FilterChips } from '../../../components/ui/FilterChips';
+import { PageToolbar } from '../../../components/ui/PageToolbar';
 import { QueryViewState, resolveQueryViewStatus } from '../../../components/ui/QueryViewState';
 import { SegmentTabs } from '../../../components/ui/SegmentTabs';
-import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
-import { ToggleRow } from '../../../components/ui/ToggleSwitch';
 import { ToolbarSearchInput } from '../../../components/ui/ToolbarSearchInput';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -24,13 +24,11 @@ import type { Serie } from '../../../lib/database';
 import { CONFIRM, type ConfirmState } from '../../../lib/uiCopy';
 import { SeriesMobileScreen } from '../../../mobile/screens/settings/SeriesMobileScreen';
 import { generateUUID } from '../../../utils/uuid';
-import { atualizarPreferencias } from '../../editorial/lib/editorialSettings';
 import { rotuloFuncaoPadrao } from '../../editorial/lib/funcoes';
 import { formatOpenItems, getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
 import { caminhoDaSerie } from '../../editorial/lib/serieArvore';
 import { exibirSeriesVisiveis, type SerieListaModo } from '../../editorial/lib/serieLista';
-import { CONTENT_STATUS, normalizeContentStatus } from '../../contents/lib/contentPipeline';
-import { isActiveCreation } from '../../contents/lib/contentWorkflow';
+import { contarEpisodios, rotuloEpisodios } from '../../editorial/lib/contarEpisodios';
 import { PILAR_PRESET_CORES } from '../lib/pilarConstants';
 import { isSerieColorTaken, nextFreeSerieColor, serieColorKey, takenSerieColorKeys } from '../lib/serieColors';
 
@@ -49,28 +47,7 @@ export function SeriesSettingsPage() {
   const [quickName, setQuickName] = useState('');
   const [quickColor, setQuickColor] = useState(() => nextFreeSerieColor([]));
   const editorialSettings = state.editorial;
-  const preferenciasSeries = [
-    {
-      key: 'quickSeriesCreate',
-      title: 'Criação rápida de séries',
-      description: 'Crie com nome e cor e complete os detalhes depois.',
-      enabled: editorialSettings.quickSeriesCreate,
-      toggle: () => dispatch({
-        type: 'SET_EDITORIAL',
-        payload: atualizarPreferencias({ ...editorialSettings, quickSeriesCreate: !editorialSettings.quickSeriesCreate }, {}),
-      }),
-    },
-    {
-      key: 'openInfoNotices',
-      title: 'Avisar sobre informações em aberto',
-      description: 'Sinaliza séries sem pilar, função, recorrência, formato ou esforço.',
-      enabled: editorialSettings.openInfoNotices,
-      toggle: () => dispatch({
-        type: 'SET_EDITORIAL',
-        payload: atualizarPreferencias({ ...editorialSettings, openInfoNotices: !editorialSettings.openInfoNotices }, {}),
-      }),
-    },
-  ];
+  const avisosLigados = editorialSettings.openInfoNotices;
 
   const openCreatePage = () => {
     if (editorialSettings.quickSeriesCreate) {
@@ -112,15 +89,13 @@ export function SeriesSettingsPage() {
     navigate(`/series/${serie.id}`);
   };
 
-  const roteiroCountBySerie = useMemo(() => {
+  const episodioCountBySerie = useMemo(() => {
     const map = new Map<string, number>();
-    for (const content of state.contents) {
-      if (!content.seriesId || !isActiveCreation(content)) continue;
-      if (normalizeContentStatus(content.status) === CONTENT_STATUS.IDEIA) continue;
-      map.set(content.seriesId, (map.get(content.seriesId) || 0) + 1);
+    for (const serie of state.series) {
+      map.set(serie.id, contarEpisodios(serie.id, state.series, state.contents));
     }
     return map;
-  }, [state.contents]);
+  }, [state.contents, state.series]);
 
   const openItems = useMemo(
     () => new Map(state.series.map(serie => [
@@ -129,7 +104,6 @@ export function SeriesSettingsPage() {
     ])),
     [state.contents, state.series],
   );
-  const avisosLigados = editorialSettings.openInfoNotices;
   const filtroAtivo: SeriesFilter = !avisosLigados && filter === 'abertas' ? 'todas' : filter;
 
   const filtradas = useMemo(() => {
@@ -197,12 +171,15 @@ export function SeriesSettingsPage() {
           <SeriesMobileScreen
             series={state.series}
             contents={state.contents}
-            roteiroCountBySerie={roteiroCountBySerie}
+            roteiroCountBySerie={episodioCountBySerie}
             onOpen={serieId => navigate(`/series/${serieId}`)}
             onCreate={openCreatePage}
             onConfigure={serieId => navigate(`/series/${serieId}/editar`)}
+            onToggle={serie => dispatch({
+              type: 'UPDATE_SERIE',
+              payload: { ...serie, ativa: !serie.ativa, updatedAt: new Date().toISOString() },
+            })}
             showOpenBadges={avisosLigados}
-            preferencias={preferenciasSeries}
           />
         </div>
         {quickSheet}
@@ -214,30 +191,44 @@ export function SeriesSettingsPage() {
     <SettingsPageScaffold
       section="Criação"
       title="Séries"
-      icon={Layers}
       showBack={false}
       variant="default"
+      meta="Séries e quadros. Abrir um item mostra os episódios."
       toolbar={
         state.series.length > 0 ? (
-          <div className="desktop-subheader !mb-0">
-            <ToolbarSearchInput
-              value={search}
-              onChange={setSearch}
-              placeholder="Buscar série ou quadro…"
-              className="desktop-subheader-search"
-            />
-            <FilterChips<SeriesFilter>
-              value={filtroAtivo}
-              onChange={setFilter}
-              ariaLabel="Filtrar séries"
-              options={[
-                { id: 'todas', label: 'Todas', count: filterCounts.todas },
-                { id: 'ativas', label: 'Ativas', count: filterCounts.ativas },
-                { id: 'inativas', label: 'Inativas', count: filterCounts.inativas },
-                ...(avisosLigados ? [{ id: 'abertas' as const, label: 'Em aberto', count: filterCounts.abertas }] : []),
-              ]}
-            />
-          </div>
+          <PageToolbar
+            search={
+              <ToolbarSearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder="Buscar série ou quadro…"
+              />
+            }
+            chips={
+              <FilterChips<SeriesFilter>
+                value={filtroAtivo}
+                onChange={setFilter}
+                ariaLabel="Filtrar séries"
+                options={[
+                  { id: 'todas', label: 'Todas', count: filterCounts.todas },
+                  { id: 'ativas', label: 'Ativas', count: filterCounts.ativas },
+                  { id: 'inativas', label: 'Inativas', count: filterCounts.inativas },
+                  ...(avisosLigados ? [{ id: 'abertas' as const, label: 'Em aberto', count: filterCounts.abertas }] : []),
+                ]}
+              />
+            }
+            view={
+              <SegmentTabs<SerieListaModo>
+                value={modoLista}
+                onChange={setModoLista}
+                ariaLabel="Visualização das séries"
+                options={[
+                  { id: 'agrupada', label: 'Agrupada' },
+                  { id: 'lista', label: 'Lista' },
+                ]}
+              />
+            }
+          />
         ) : undefined
       }
       actions={
@@ -250,39 +241,6 @@ export function SeriesSettingsPage() {
         </AppButton>
       }
     >
-      <Text variant="secondary" className="mb-4">
-        Séries e quadros. Abrir um item mostra os episódios.
-      </Text>
-      <Surface padding="sm" className="mb-4 grid gap-x-6 gap-y-2 md:grid-cols-2">
-        {preferenciasSeries.map(row => (
-          <ToggleRow
-            key={row.key}
-            id={`series-${row.key}`}
-            enabled={row.enabled}
-            onToggle={row.toggle}
-            title={row.title}
-            className="gap-4 py-1"
-          >
-            <span className="stack-xs">
-              <Text variant="body" as="span">{row.title}</Text>
-              <Text variant="secondary" as="span">{row.description}</Text>
-            </span>
-          </ToggleRow>
-        ))}
-      </Surface>
-      {state.series.length > 0 ? (
-        <div className="mb-4">
-          <SegmentTabs<SerieListaModo>
-            value={modoLista}
-            onChange={setModoLista}
-            ariaLabel="Visualização das séries"
-            options={[
-              { id: 'agrupada', label: 'Agrupada' },
-              { id: 'lista', label: 'Lista' },
-            ]}
-          />
-        </div>
-      ) : null}
       <QueryViewState
         status={seriesStatus}
         skeletonCount={6}
@@ -297,9 +255,22 @@ export function SeriesSettingsPage() {
         }
       >
         {exibicao.length === 0 ? (
-          <div className="py-10 text-center">
-            <Text variant="body" className="text-[var(--text-tertiary)]">Nenhuma série encontrada</Text>
-          </div>
+          <EmptyState
+            icon={<Layers className="h-8 w-8" />}
+            title="Nenhuma série encontrada"
+            description={search.trim() ? `Nada encontrado para “${search.trim()}”.` : 'Nenhuma série corresponde a este filtro.'}
+            action={
+              <AppButton
+                variant="secondary"
+                onClick={() => {
+                  setSearch('');
+                  setFilter('todas');
+                }}
+              >
+                Limpar busca e filtro
+              </AppButton>
+            }
+          />
         ) : (
           <div className={SETTINGS_ENTITY_GRID_CLASS}>
             {exibicao.map(({ serie, profundidade }) => {
@@ -308,7 +279,6 @@ export function SeriesSettingsPage() {
               const caminho = profundidade > 0
                 ? caminhoDaSerie(serie.id, state.series).slice(0, -1).map(item => item.name).filter(Boolean).join(' · ')
                 : null;
-              const roteiros = roteiroCountBySerie.get(serie.id) || 0;
               return (
                 <SettingsGridCard
                   key={serie.id}
@@ -318,7 +288,10 @@ export function SeriesSettingsPage() {
                   imageUrl={serie.capaUrl}
                   active={serie.ativa}
                   dimmed={!serie.ativa}
+                  inactiveLabel="Inativa"
                   onOpen={() => navigate(`/series/${serie.id}`)}
+                  onEdit={() => navigate(`/series/${serie.id}/editar`)}
+                  editLabel="Editar definições"
                   onToggle={() => dispatch({
                     type: 'UPDATE_SERIE',
                     payload: { ...serie, ativa: !serie.ativa, updatedAt: new Date().toISOString() },
@@ -326,15 +299,10 @@ export function SeriesSettingsPage() {
                   onDelete={() => remover(serie)}
                   meta={[
                     caminho ? `Quadro de ${caminho}` : null,
-                    serie.frequenciaRecomendada || 'Sob demanda',
+                    serie.frequenciaRecomendada || 'Frequência não definida',
                     rotuloFuncaoPadrao(serie.funcaoPadrao),
-                    `${roteiros} ${roteiros === 1 ? 'roteiro' : 'roteiros'}`,
+                    rotuloEpisodios(episodioCountBySerie.get(serie.id) || 0),
                   ].filter(Boolean).join(' · ')}
-                  footer={(
-                    <AppButton variant="secondary" size="sm" onClick={() => navigate(`/series/${serie.id}/editar`)}>
-                      Editar definições
-                    </AppButton>
-                  )}
                 >
                   {aberta ? (
                     <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -398,7 +366,7 @@ function QuickCreateSheet({
             value={name}
             onChange={event => onNameChange(event.target.value)}
             placeholder="Nome da série"
-            className="ds-input w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2 text-sm"
+            className="ds-input w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2 t-body"
           />
         </label>
         <div>

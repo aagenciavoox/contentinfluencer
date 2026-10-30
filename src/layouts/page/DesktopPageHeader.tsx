@@ -12,22 +12,17 @@ interface DesktopPageHeaderProps {
   titleContent?: ReactNode;
   /** Larger sans display weight for hero page titles (e.g. Dashboard). */
   titleVariant?: 'default' | 'display';
-  /** @deprecated Use meta or inline hints in page content instead. */
-  subtitle?: string;
   meta?: string;
   /** Observação curta depois do meta, num tom mais leve (ex.: onde fica outra coisa). */
   metaNote?: string;
   /** Ao lado do título: contagem ou selo (ex.: "69 publicações"). */
   titleAside?: ReactNode;
-  icon?: unknown;
   actions?: ReactNode;
   children?: ReactNode;
   className?: string;
   backLabel?: string;
   backTo?: string;
   onBack?: () => void;
-  /** @deprecated Global search lives in the sidebar (Ctrl K). */
-  hideSearch?: boolean;
   /** Vertically center the title and the header actions. */
   rowAlign?: 'start' | 'center';
 }

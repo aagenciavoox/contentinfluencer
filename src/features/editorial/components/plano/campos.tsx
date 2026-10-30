@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Minus, Plus } from 'lucide-react';
-import { Surface } from '../../../../components/ui/Surface';
+import { SettingsSectionCard } from '../../../../components/settings/SettingsSectionCard';
 import { Text } from '../../../../components/ui/Text';
 import { cn } from '../../../../lib/utils';
 
@@ -8,7 +8,7 @@ import { cn } from '../../../../lib/utils';
 
 /** Sem largura: quem usa decide (`CAMPO` ocupa a linha toda). */
 export const CAMPO_BASE =
-  'ds-input rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
+  'ds-input rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-3 py-2 t-body text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
 export const CAMPO = `${CAMPO_BASE} w-full`;
 
@@ -92,16 +92,7 @@ export function CampoTexto({
     if (draftRef.current !== savedRef.current) onSaveRef.current(draftRef.current);
   }, []);
 
-  const timerRef = useRef<number | null>(null);
-  useEffect(() => () => {
-    if (timerRef.current != null) window.clearTimeout(timerRef.current);
-  }, []);
-
   const commit = () => {
-    if (timerRef.current != null) {
-      window.clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
     if (draftRef.current === savedRef.current) return;
     savedRef.current = draftRef.current;
     onSaveRef.current(draftRef.current);
@@ -117,9 +108,6 @@ export function CampoTexto({
       onChange={event => {
         draftRef.current = event.target.value;
         setDraft(event.target.value);
-        // Salva apos uma pausa curta na digitacao, sem esperar sair do campo.
-        if (timerRef.current != null) window.clearTimeout(timerRef.current);
-        timerRef.current = window.setTimeout(commit, 900);
       }}
       onBlur={commit}
       className={`${CAMPO} min-h-24 resize-y`}
@@ -230,22 +218,14 @@ export function CardConfiguracao({
   className?: string;
 }) {
   return (
-    <Surface padding="none" className={cn('stack-lg p-4 md:p-6', className)}>
-      {/* No celular a ação desce para baixo do texto: ao lado, ela espremia a descrição numa coluna estreita. */}
-      <div className="flex flex-wrap items-start gap-3 md:flex-nowrap">
-        <span
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border-color)] text-[var(--text-primary)]"
-          aria-hidden
-        >
-          {icone}
-        </span>
-        <div className="min-w-0 flex-1 basis-[calc(100%-3.25rem)] pt-0.5 md:basis-auto">
-          <Text variant="sectionTitle" as="h2">{titulo}</Text>
-          {descricao ? <Text variant="secondary" className="mt-0.5">{descricao}</Text> : null}
-        </div>
-        {acao ? <div className="w-full pl-[3.25rem] md:w-auto md:shrink-0 md:pl-0">{acao}</div> : null}
-      </div>
+    <SettingsSectionCard
+      title={titulo}
+      icon={icone}
+      description={descricao}
+      actions={acao}
+      className={className}
+    >
       {children}
-    </Surface>
+    </SettingsSectionCard>
   );
 }

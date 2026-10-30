@@ -8,6 +8,7 @@
 //   <select> and window.prompt( / window.confirm(.
 // Exceptions for these rules: visualWarnExceptions (BurstMode teleprompter, see DESIGN.md › Exceptions).
 // The older exception sets below are unchanged.
+import { dateFormattingViolations, tokenViolations, isTokenMigrated } from './design-lint-rules.mjs';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join, extname, basename, relative, sep } from 'path';
 
@@ -28,6 +29,7 @@ const tsxErrorPatterns = [
 ];
 
 const tsxWarnPatterns = [
+  { name: 'count in parentheses (use CountBadge or AppButton count)', regex: /\(\{[\w.]+\.(?:length|size)\}\)/g },
   { name: 'raw heading tag (use Text component)', regex: /<(h1|h2|h3)\b/g },
   { name: 'notion-title class (use Text variant="spotlightTitle")', regex: /\bnotion-title\b/g },
   { name: 'raw t-section-title (use Text variant="sectionTitle")', regex: /className="[^"]*\bt-section-title\b/g },
@@ -79,6 +81,14 @@ const visualWarnExceptions = new Set([
 
 const nativeControlDirs = ['features', 'mobile'];
 
+// Pastas já migradas: as regras de warn viram erro (lint gradual).
+const migratedErrorDirs = new Set(['creation', 'library', 'recording', 'projects', 'captions', 'planejamento', 'editorial', 'settings']);
+const migratedErrorPatterns = [
+  { name: 'native <select> in migrated scope (use TagSelect/SelectField)', regex: /<select\b/g },
+  { name: 'window.prompt/window.confirm in migrated scope (use ConfirmModal)', regex: /\bwindow\.(?:prompt|confirm)\s*\(/g },
+  { name: 'count in parentheses in migrated scope (use CountBadge or AppButton count)', regex: /\(\{[\w.]+\.(?:length|size)\}\)/g },
+];
+
 const stringLiteralRegex = /"[^"\n]*"|'[^'\n]*'|`[^`]*`/g;
 const textColorTokenRegex = /text-\[var\(--text-/;
 const opacityClassRegex = /^(?:(.+):)?opacity-(?:10|20|30|40|50|60)$/;
@@ -109,6 +119,11 @@ function isNativeControlScope(file) {
   return nativeControlDirs.includes(relative(root, file).split(sep)[0]);
 }
 
+function isMigratedScope(file) {
+  const parts = relative(root, file).split(sep);
+  return parts[0] === 'features' && migratedErrorDirs.has(parts[1]);
+}
+
 function walk(dir) {
   const files = [];
   for (const entry of readdirSync(dir)) {
@@ -129,6 +144,21 @@ let warned = false;
 for (const file of walk(root)) {
   const content = readFileSync(file, 'utf8');
   const isTsx = extname(file) === '.tsx';
+  if (['.ts', '.tsx'].includes(extname(file))) {
+    for (const { line } of dateFormattingViolations(file, content)) {
+      console.error(`${file}:${line}: visible date formatting outside lib/dates`);
+      failed = true;
+    }
+    for (const { name, line } of tokenViolations(file, content)) {
+      if (isTokenMigrated(file)) {
+        console.error(`${file}:${line}: ${name}`);
+        failed = true;
+      } else {
+        console.warn(`${file}:${line}: ${name}`);
+        warned = true;
+      }
+    }
+  }
 
   for (const { name, regex } of patterns) {
     const matches = content.match(regex);
@@ -147,48 +177,32 @@ for (const file of walk(root)) {
       }
     }
 
-    if (!isHeadingException(file)) {
-      const { name, regex } = tsxWarnPatterns[0];
+    for (const { name, regex } of tsxWarnPatterns) {
+      if (name.startsWith('raw heading') && isHeadingException(file)) continue;
+      if (name.startsWith('notion-title') && notionTitleExceptions.has(basename(file))) continue;
+      if (name.startsWith('raw t-') && typographyClassExceptions.has(basename(file))) continue;
+      if (/spacing|space-y|gap-10/.test(name) && spacingExceptions.has(basename(file))) continue;
+      if (name.startsWith('count in parentheses') && isMigratedScope(file)) continue;
       const matches = content.match(regex);
       if (matches?.length) {
         console.warn(`${file}: found ${matches.length} × ${name}`);
         warned = true;
-      }
-    }
-
-    if (!notionTitleExceptions.has(basename(file))) {
-      const { name, regex } = tsxWarnPatterns[1];
-      const matches = content.match(regex);
-      if (matches?.length) {
-        console.warn(`${file}: found ${matches.length} × ${name}`);
-        warned = true;
-      }
-    }
-
-    if (!typographyClassExceptions.has(basename(file))) {
-      for (const { name, regex } of tsxWarnPatterns.slice(2, 4)) {
-        const matches = content.match(regex);
-        if (matches?.length) {
-          console.warn(`${file}: found ${matches.length} × ${name}`);
-          warned = true;
-        }
-      }
-    }
-
-    if (!spacingExceptions.has(basename(file))) {
-      for (const { name, regex } of tsxWarnPatterns.slice(4)) {
-        const matches = content.match(regex);
-        if (matches?.length) {
-          console.warn(`${file}: found ${matches.length} × ${name}`);
-          warned = true;
-        }
       }
     }
   }
 
   if ((isTsx || extname(file) === '.ts') && !visualWarnExceptions.has(basename(file))) {
+    if (isMigratedScope(file)) {
+      for (const rule of migratedErrorPatterns) {
+        const count = countMatches(rule, content);
+        if (count) {
+          console.error(`${file}: found ${count} × ${rule.name}`);
+          failed = true;
+        }
+      }
+    }
     const warnRules = isNativeControlScope(file)
-      ? [...classWarnPatterns, ...nativeControlWarnPatterns]
+      ? [...classWarnPatterns, ...(isMigratedScope(file) ? [] : nativeControlWarnPatterns)]
       : classWarnPatterns;
     for (const rule of warnRules) {
       const count = countMatches(rule, content);

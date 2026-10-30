@@ -1,27 +1,29 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ChartColumn } from 'lucide-react';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { SegmentTabs } from '../../../components/ui/SegmentTabs';
+import { SelectField } from '../../../components/ui/SelectField';
 import { TagSelect } from '../../../components/ui/TagSelect';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
+import { ValorVazio } from '../../../components/ui/ValorVazio';
 import { useAppContext } from '../../../context/AppContext';
 import { useDomainsReady } from '../../../hooks/useDomainsReady';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
+import { dia, intervalo } from '../../../lib/dates';
 import { contasAtivas, REDE_ROTULO, REDES_PRINCIPAIS, redeDaConta, rotuloConta } from '../../contas/lib/contas';
 import { intervaloDoModo, hojeIso, type ModoPeriodo } from '../../editorial/components/plano/PeriodoEditorialControl';
 import {
   FORMULA_ENGAJAMENTO,
   filtrarPublicacoes,
-  textoDeMetrica,
   type BaseDoPeriodo,
 } from '../lib/publicacoes';
 
 type ModoVista = ModoPeriodo | 'tudo';
 
-function Campo({ rotulo, valor }: { rotulo: string; valor: string }) {
+function Campo({ rotulo, valor }: { rotulo: string; valor: ReactNode }) {
   return (
     <div className="min-w-0">
       <Text variant="meta" as="p">{rotulo}</Text>
@@ -38,7 +40,7 @@ export function AnalisesPage() {
   const [rede, setRede] = useState('');
   const [contaId, setContaId] = useState('');
   const hoje = hojeIso();
-  const intervalo = modo === 'tudo' || modo === 'intervalo' ? null : intervaloDoModo(modo, hoje);
+  const recorte = modo === 'tudo' || modo === 'intervalo' ? null : intervaloDoModo(modo, hoje);
 
   const contas = useMemo(
     () => contasAtivas(state.platforms).filter(conta => !rede || redeDaConta(conta) === rede),
@@ -52,30 +54,27 @@ export function AnalisesPage() {
     pilares: state.pilares,
     metricas: state.contentMetrics,
     filtro: {
-      inicio: intervalo?.inicio ?? null,
-      fim: intervalo?.fim ?? null,
+      inicio: recorte?.inicio ?? null,
+      fim: recorte?.fim ?? null,
       base,
       rede: rede || null,
       contaId: contaId || null,
     },
-  }), [base, contaId, intervalo?.fim, intervalo?.inicio, rede, state.contentMetrics, state.contents, state.pilares, state.platforms, state.series]);
+  }), [base, contaId, recorte?.fim, recorte?.inicio, rede, state.contentMetrics, state.contents, state.pilares, state.platforms, state.series]);
 
   const filtros = (
     <div className="stack-sm">
       <div className="flex flex-col gap-1">
-        <Text variant="label" as="span">Filtrar o período pela</Text>
-        <div className="max-w-full overflow-x-auto">
-          <SegmentTabs<BaseDoPeriodo>
-            ariaLabel="Filtrar o período pela data planejada ou pela data efetiva"
-            className="w-max"
-            value={base}
-            onChange={setBase}
-            options={[
-              { id: 'planejada', label: 'Data planejada' },
-              { id: 'efetiva', label: 'Data efetiva' },
-            ]}
-          />
-        </div>
+        <Text variant="label" as="span">Contar pela</Text>
+        <SelectField
+          ariaLabel="Contar pela data planejada ou pela data efetiva"
+          value={base}
+          onChange={value => setBase(value as BaseDoPeriodo)}
+          options={[
+            {value: 'planejada', label: 'Data planejada'},
+            {value: 'efetiva', label: 'Data efetiva'},
+          ]}
+        />
       </div>
       <div className="flex flex-wrap items-end gap-3">
         <div className="max-w-full overflow-x-auto">
@@ -116,10 +115,13 @@ export function AnalisesPage() {
         />
       </div>
       <Text variant="meta">
-        {intervalo
-          ? `${base === 'planejada' ? 'Data planejada' : 'Data efetiva'} de ${intervalo.inicio.split('-').reverse().join('/')} a ${intervalo.fim.split('-').reverse().join('/')}.`
+        {recorte
+          ? `${base === 'planejada' ? 'Data planejada' : 'Data efetiva'}: ${intervalo(recorte.inicio, recorte.fim)}.`
           : 'Sem recorte de data.'}
         {' '}Cada linha é uma publicação. O alcance de uma conta não se soma ao de outra como se fossem as mesmas pessoas.
+      </Text>
+      <Text variant="meta">
+        A taxa usa {FORMULA_ENGAJAMENTO}. Sem visualizações no denominador, ela não é calculada.
       </Text>
     </div>
   );
@@ -132,7 +134,6 @@ export function AnalisesPage() {
         <DesktopPageHeader
           section="Criação"
           title="Análises"
-          icon={ChartColumn}
           meta={pronto ? (linhas.length === 1 ? '1 publicação' : `${linhas.length} publicações`) : 'Carregando'}
         />
       )}
@@ -161,29 +162,27 @@ export function AnalisesPage() {
                 <Text variant="meta">{linha.contaRotulo}</Text>
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
-                <Campo rotulo="Pilar" valor={linha.pilar ?? 'Sem pilar'} />
-                <Campo rotulo="Série" valor={linha.serie ?? 'Sem série'} />
-                <Campo rotulo="Objetivo" valor={linha.objetivo ?? 'Sem objetivo'} />
-                <Campo rotulo="Data planejada" valor={linha.dataPlanejada ?? 'Sem data'} />
-                <Campo rotulo="Data efetiva" valor={linha.dataEfetiva ?? 'Sem data'} />
-                <Campo rotulo="Período editorial" valor={linha.periodoEditorial ?? 'Sem data planejada'} />
-                <Campo rotulo="Link" valor={linha.link ?? 'Sem link nesta publicação'} />
-                <Campo rotulo="Id externo" valor={linha.externoId ?? 'Ainda não há identificador da integração'} />
-                <Campo rotulo="Origem dos dados" valor={linha.origem ?? 'Sem dados disponíveis'} />
-                <Campo rotulo="Visualizações" valor={textoDeMetrica(linha.views)} />
-                <Campo rotulo="Alcance" valor={textoDeMetrica(linha.alcance)} />
-                <Campo rotulo="Interações" valor={textoDeMetrica(linha.interacoes)} />
+                <Campo rotulo="Pilar" valor={linha.pilar ?? <ValorVazio />} />
+                <Campo rotulo="Série" valor={linha.serie ?? <ValorVazio />} />
+                <Campo rotulo="Objetivo" valor={linha.objetivo ?? <ValorVazio />} />
+                <Campo rotulo="Data planejada" valor={linha.dataPlanejada ? dia(linha.dataPlanejada) : <ValorVazio />} />
+                <Campo rotulo="Data efetiva" valor={linha.dataEfetiva ? dia(linha.dataEfetiva) : <ValorVazio />} />
+                <Campo rotulo="Período editorial" valor={linha.periodoEditorial ?? <ValorVazio />} />
+                <Campo rotulo="Link" valor={linha.link ?? <ValorVazio />} />
+                <Campo rotulo="Origem dos dados" valor={linha.origem ?? <ValorVazio />} />
+                <Campo rotulo="Visualizações" valor={linha.views == null ? <ValorVazio /> : String(linha.views)} />
+                <Campo rotulo="Alcance" valor={linha.alcance == null ? <ValorVazio /> : String(linha.alcance)} />
+                <Campo rotulo="Interações" valor={linha.interacoes == null ? <ValorVazio /> : String(linha.interacoes)} />
                 <Campo
                   rotulo="Taxa de engajamento"
-                  valor={linha.taxa == null ? 'Sem dados disponíveis' : `${(linha.taxa * 100).toFixed(1)}%`}
+                  valor={linha.taxa == null ? <ValorVazio /> : `${(linha.taxa * 100).toFixed(1)}%`}
                 />
               </div>
-              <Text variant="meta">
-                {linha.taxa == null
-                  ? `A taxa usa ${FORMULA_ENGAJAMENTO}. Sem visualizações no denominador, ela não é calculada — nem como zero.`
-                  : `Fórmula: ${FORMULA_ENGAJAMENTO}.`}
-                {linha.atualizadoEm ? ` Atualizado em ${linha.atualizadoEm.slice(0, 10)}.` : ''}
-              </Text>
+              {linha.atualizadoEm ? (
+                <Text variant="meta">
+                  Atualizado em {dia(linha.atualizadoEm)}.
+                </Text>
+              ) : null}
             </Surface>
           ))}
         </div>

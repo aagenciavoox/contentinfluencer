@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import { ConfirmModal } from '../../../../components/feedback/modals/ConfirmModal';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { Surface } from '../../../../components/ui/Surface';
-import { ChoiceChips } from '../ChoiceChips';
+import { ChoiceChips } from '../../../../components/ui/ChoiceChips';
 import { Text } from '../../../../components/ui/Text';
 import { useAppContext } from '../../../../context/AppContext';
 import { buildGradeEntries } from '../../lib/gradeEntries';
@@ -17,7 +17,7 @@ export type { ModoPeriodo, PeriodoSelecionado };
 const DATA = /^\d{4}-\d{2}-\d{2}$/;
 
 const CAMPO_DATA =
-  'ds-input min-h-11 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 text-sm text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
+  'ds-input min-h-11 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 t-body text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
 export function hojeIso(agora = new Date()): string {
   return format(agora, 'yyyy-MM-dd');
@@ -97,6 +97,7 @@ export function useContagemDoPeriodo(inicio: string, fim: string): GradeCounts {
       postIts: state.postIts,
       settings: {
         preferencias: settings.preferencias,
+        proporcaoFuncoes: settings.proporcaoFuncoes,
         periodos: settings.periodos,
       },
       periodo: { inicio, fim },

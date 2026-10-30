@@ -1,3 +1,6 @@
+import {AppButton} from '../../../components/ui/AppButton';
+import {SegmentTabs} from '../../../components/ui/SegmentTabs';
+import {EmptyState} from '../../../components/ui/EmptyState';
 import {useMemo, useState, type ReactNode} from 'react';
 import {Search} from 'lucide-react';
 import {SelectField} from '../../../components/ui/SelectField';
@@ -7,6 +10,7 @@ import {cn} from '../../../lib/utils';
 import type {Content, Serie, Tema} from '../../../lib/database';
 import {postItKind, postItTitle, type PlanejamentoPostIt, type PostItKind} from '../lib/postIt';
 import {KIND_LABEL} from './PostItNote';
+import {normalizeContentStatus} from '../../contents/lib/contentPipeline';
 
 const ETAPA_OPCOES: {value: PostItKind | 'todas'; label: string}[] = [
   {value: 'todas', label: 'Etapa'},
@@ -20,6 +24,9 @@ const ETAPA_OPCOES: {value: PostItKind | 'todas'; label: string}[] = [
 
 export function SemDataPanel({
   undated,
+  candidatos = [],
+  onPuxar,
+  onMoverContent,
   contents,
   series,
   temas = [],
@@ -28,9 +35,12 @@ export function SemDataPanel({
   onDragLeave,
   onDrop,
   renderPostIt,
+  renderContent,
   className,
-  compactHint = false,
 }: {
+  candidatos?: readonly Content[];
+  onPuxar?: (content: Content) => void;
+  onMoverContent?: (content: Content) => void;
   undated: readonly PlanejamentoPostIt[];
   contents: readonly Content[];
   series: readonly Serie[];
@@ -40,11 +50,11 @@ export function SemDataPanel({
   onDragLeave?: (event: React.DragEvent) => void;
   onDrop?: (event: React.DragEvent) => void;
   renderPostIt: (postIt: PlanejamentoPostIt) => ReactNode;
+  renderContent: (content:Content) => ReactNode;
   className?: string;
-  /** Celular: texto sem “arraste”. */
-  compactHint?: boolean;
 }) {
   const [busca, setBusca] = useState('');
+  const [aba,setAba] = useState<'pautas'|'conteudos'>('pautas');
   const [quadroId, setQuadroId] = useState('todos');
   const [assuntoId, setAssuntoId] = useState('todos');
   const [etapa, setEtapa] = useState<PostItKind | 'todas'>('todas');
@@ -61,13 +71,14 @@ export function SemDataPanel({
       const serieId = content?.seriesId ?? postIt.serieId;
       if (serieId) ids.add(serieId);
     }
+    candidatos.forEach(content => {if (content.seriesId) ids.add(content.seriesId);});
     return [
       {value: 'todos', label: 'Quadro'},
       ...series
         .filter(serie => ids.has(serie.id))
         .map(serie => ({value: serie.id, label: serie.name.trim() || 'Sem nome'})),
     ];
-  }, [undated, series, contentById]);
+  }, [undated, candidatos, series, contentById]);
 
   const assuntoOptions = useMemo(() => {
     const usados = new Set<string>();
@@ -75,13 +86,14 @@ export function SemDataPanel({
       const content = postIt.contentId ? contentById.get(postIt.contentId) : null;
       for (const id of content?.temaIds ?? []) usados.add(id);
     }
+    candidatos.forEach(content => (content.temaIds ?? []).forEach(id => usados.add(id)));
     return [
       {value: 'todos', label: 'Assunto'},
       ...temas
         .filter(tema => usados.has(tema.id))
         .map(tema => ({value: tema.id, label: tema.nome.trim() || 'Assunto'})),
     ];
-  }, [undated, contentById, temas]);
+  }, [undated, candidatos, contentById, temas]);
 
   const filtrados = useMemo(() => {
     const q = busca.trim().toLocaleLowerCase('pt-BR');
@@ -98,6 +110,15 @@ export function SemDataPanel({
     });
   }, [undated, contentById, busca, quadroId, assuntoId, etapa]);
 
+  const pautas = undated.filter(postIt => !postIt.contentId);
+  const conteudosLigados = undated.filter(postIt => Boolean(postIt.contentId));
+  const etapaSelecionada = ETAPA_OPCOES.find(option => option.value === etapa)?.label;
+  const roteiros = candidatos.filter(content => {
+    if (etapa !== 'todas' && normalizeContentStatus(content.status) !== etapaSelecionada) return false;
+    if (quadroId !== 'todos' && content.seriesId !== quadroId) return false;
+    if (assuntoId !== 'todos' && !(content.temaIds ?? []).includes(assuntoId)) return false;
+    return !busca.trim() || content.title.toLocaleLowerCase('pt-BR').includes(busca.trim().toLocaleLowerCase('pt-BR'));
+  });
   return (
     <Surface
       variant="outlined"
@@ -114,21 +135,20 @@ export function SemDataPanel({
       <div>
         <Text variant="sectionTitle">Sem data</Text>
         <Text variant="meta" className="mt-1 block text-[var(--text-secondary)]">
-          {compactHint
-            ? 'Use ⋯ no card para colocar no período.'
-            : 'Arraste uma pauta para o período.'}
+          Pautas e conteúdos para encaixar no calendário.
         </Text>
       </div>
 
+      <SegmentTabs<'pautas'|'conteudos'> value={aba} onChange={setAba} ariaLabel="Itens sem data" options={[{id:'pautas',label:'Pautas',count:pautas.length},{id:'conteudos',label:'Conteúdos',count:conteudosLigados.length+candidatos.length}]} />
       <label className="relative block">
-        <span className="sr-only">Buscar conteúdo</span>
+        <span className="sr-only">Buscar itens sem data</span>
         <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary)]" aria-hidden />
         <input
           type="search"
           value={busca}
           onChange={event => setBusca(event.target.value)}
-          placeholder="Buscar conteúdo..."
-          className="w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] py-2 pl-8 pr-3 text-sm text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+          placeholder={aba === 'pautas' ? 'Buscar pautas…' : 'Buscar conteúdos…'}
+          className="w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] py-2 pl-8 pr-3 t-body text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
         />
       </label>
 
@@ -138,39 +158,41 @@ export function SemDataPanel({
           value={quadroId}
           onChange={setQuadroId}
           options={quadroOptions}
-          className="min-h-8 text-xs"
+          className="min-h-8 t-meta"
         />
         <SelectField
           ariaLabel="Filtrar por assunto"
           value={assuntoId}
           onChange={setAssuntoId}
           options={assuntoOptions.length > 1 ? assuntoOptions : [{value: 'todos', label: 'Assunto'}]}
-          className="min-h-8 text-xs"
+          className="min-h-8 t-meta"
         />
         <SelectField
           ariaLabel="Filtrar por etapa"
           value={etapa}
           onChange={value => setEtapa(value as PostItKind | 'todas')}
           options={ETAPA_OPCOES}
-          className="min-h-8 text-xs"
+          className="min-h-8 t-meta"
         />
       </div>
 
-      {filtrados.length === 0 ? (
-        <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-8 text-center">
-          <Text variant="meta" className="text-[var(--text-secondary)]">
-            {undated.length === 0
-              ? (compactHint ? 'Nenhuma pauta sem data.' : 'Solte aqui para deixar a pauta sem data.')
-              : 'Nada combina com a busca ou os filtros.'}
-          </Text>
-        </div>
-      ) : (
-        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-1">
-          {filtrados.map(postIt => (
+      <div className="stack-sm">
+        <ul className="stack-sm">
+          {filtrados.filter(postIt => aba === 'pautas' ? !postIt.contentId : Boolean(postIt.contentId)).map(postIt => (
             <li key={postIt.id}>{renderPostIt(postIt)}</li>
           ))}
         </ul>
-      )}
+        {aba === 'conteudos' ? roteiros.map(content => <div key={content.id} className="stack-sm">
+          {renderContent(content)}
+          <div className="flex flex-wrap gap-2">
+            <AppButton variant="secondary" size="sm" onClick={() => onMoverContent?.(content)}>Mover para data</AppButton>
+            <AppButton variant="secondary" size="xs" onClick={() => onPuxar?.(content)}>Incluir sem data</AppButton>
+          </div>
+        </div>) : null}
+        {!filtrados.some(postIt => aba === 'pautas' ? !postIt.contentId : Boolean(postIt.contentId)) && (aba === 'pautas' || !roteiros.length) ?
+          <EmptyState compact title={aba === 'pautas' ? 'Nenhuma pauta encontrada' : 'Nenhum conteúdo encontrado'} description="Altere a busca ou os filtros para ver outros itens." /> : null}
+      </div>
+
     </Surface>
   );
 }

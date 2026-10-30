@@ -29,10 +29,12 @@ import {roteirosQueSeguemASerie, type AlteracaoDeRoteiro} from '../../editorial/
 
 function SerieEditHeaderActions({
   isCreate,
+  serieId,
   onDelete,
   chrome,
 }: {
   isCreate: boolean;
+  serieId?: string;
   onDelete?: () => void;
   chrome: SerieEditChromeState | null;
 }) {
@@ -43,9 +45,13 @@ function SerieEditHeaderActions({
       {!isCreate && onDelete ? (
         <MoreMenu
           items={[
+            ...(!isCreate && serieId ? [{
+              label: 'Copiar ID',
+              onClick: () => { void navigator.clipboard.writeText(serieId); },
+            }] : []),
             {
               label: CONFIRM.excluirSerie.confirmLabel,
-              tone: 'danger',
+              tone: 'danger' as const,
               onClick: onDelete,
             },
           ]}
@@ -304,10 +310,10 @@ export function SeriesEditPage() {
             backTo={isCreate || !serieId ? '/series' : `/series/${serieId}`}
             title={pageTitle}
             meta={pageMeta}
-            hideSearch
             actions={
               <SerieEditHeaderActions
                 isCreate={isCreate}
+                serieId={serieId}
                 onDelete={() => setConfirmDelete(true)}
                 chrome={chrome}
               />

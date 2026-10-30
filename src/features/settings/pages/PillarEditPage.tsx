@@ -26,10 +26,12 @@ import {
 
 function PilarEditHeaderActions({
   isCreate,
+  pilarId,
   onDelete,
   chrome,
 }: {
   isCreate: boolean;
+  pilarId?: string;
   onDelete?: () => void;
   chrome: PilarEditChromeState | null;
 }) {
@@ -40,9 +42,13 @@ function PilarEditHeaderActions({
       {!isCreate && onDelete ? (
         <MoreMenu
           items={[
+            ...(!isCreate && pilarId ? [{
+              label: 'Copiar ID',
+              onClick: () => { void navigator.clipboard.writeText(pilarId); },
+            }] : []),
             {
               label: CONFIRM.excluirPilar.confirmLabel,
-              tone: 'danger',
+              tone: 'danger' as const,
               onClick: onDelete,
             },
           ]}
@@ -91,7 +97,7 @@ export function PillarEditPage() {
       .map(serie => serie.id);
   }, [editingPilar, isCreate, state.series]);
 
-  const backToList = () => navigate('/editorial?aba=pilares');
+  const backToList = () => navigate('/editorial');
 
   const syncSeriesLinks = useCallback(
     (pilarIdToLink: string, linkedSerieIds: string[]) => {
@@ -240,13 +246,13 @@ export function PillarEditPage() {
           <DesktopPageHeader
             section="Criação"
             backLabel="Pilares"
-            backTo="/editorial?aba=pilares"
+            backTo="/editorial"
             title={pageTitle}
             meta={pageMeta}
-            hideSearch
             actions={
               <PilarEditHeaderActions
                 isCreate={isCreate}
+                pilarId={isCreate ? undefined : pilarId}
                 onDelete={() => setConfirmDelete(true)}
                 chrome={chrome}
               />

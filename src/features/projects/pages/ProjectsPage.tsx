@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Handshake, DollarSign, CalendarDays, AlertTriangle } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { format } from 'date-fns';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import { EMPTY } from '../../../lib/uiCopy';
 import { type Projeto } from '../../../lib/database';
+import { dia } from '../../../lib/dates';
 import { cn, tintedTextColor } from '../../../lib/utils';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
@@ -16,6 +16,7 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
 import { FilterBar } from '../../../components/ui/FilterBar';
+import { PageToolbar } from '../../../components/ui/PageToolbar';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { Dialog } from '../../../components/overlays/Dialog';
 import { OverlayBody } from '../../../components/overlays/OverlayBody';
@@ -188,7 +189,7 @@ export function ProjectsPage() {
               value={driveUrl}
               onChange={e => setDriveUrl(e.target.value)}
               type="url"
-              placeholder="Link da pasta no Drive (https://...)"
+              placeholder="Link da pasta no Drive (https://…)"
               className="w-full"
             />
             <textarea
@@ -239,7 +240,13 @@ export function ProjectsPage() {
         <DesktopPageHeader
           section="Produção"
           title="Projetos"
-          icon={Handshake}
+          meta={
+            state.projetos.length === 0
+              ? undefined
+              : projetos.length === state.projetos.length
+                ? `${state.projetos.length} ${state.projetos.length === 1 ? 'projeto' : 'projetos'}`
+                : `Mostrando ${projetos.length} de ${state.projetos.length}`
+          }
           actions={(
             <AppButton
               onClick={() => setShowForm(true)}
@@ -254,30 +261,34 @@ export function ProjectsPage() {
         />
       }
       toolbar={(
-        <FilterBar
-          searchValue={searchTerm}
-          onSearchChange={setSearchTerm}
-          searchPlaceholder="Buscar projeto ou marca"
-          filters={[
-            {
-              id: 'status',
-              label: 'Status',
-              value: statusFilter,
-              options: [
-                { label: 'Todos', value: 'todos' },
-                { label: 'Com eventos', value: 'com_eventos' },
-                { label: 'Sem eventos', value: 'sem_eventos' },
-              ],
-              onChange: value => setStatusFilter(value as StatusFilter),
-            },
-          ]}
-          sortValue={sortValue}
-          sortOptions={[
-            { label: 'Atualizados', value: 'updatedAt:desc' },
-            { label: 'Nome A–Z', value: 'name:asc' },
-            { label: 'Maior valor', value: 'value:desc' },
-          ]}
-          onSortChange={setSortValue}
+        <PageToolbar
+          filters={
+            <FilterBar
+              searchValue={searchTerm}
+              onSearchChange={setSearchTerm}
+              searchPlaceholder="Buscar projeto ou marca"
+              filters={[
+                {
+                  id: 'status',
+                  label: 'Status',
+                  value: statusFilter,
+                  options: [
+                    { label: 'Todos', value: 'todos' },
+                    { label: 'Com eventos', value: 'com_eventos' },
+                    { label: 'Sem eventos', value: 'sem_eventos' },
+                  ],
+                  onChange: value => setStatusFilter(value as StatusFilter),
+                },
+              ]}
+              sortValue={sortValue}
+              sortOptions={[
+                { label: 'Atualizados', value: 'updatedAt:desc' },
+                { label: 'Nome A–Z', value: 'name:asc' },
+                { label: 'Maior valor', value: 'value:desc' },
+              ]}
+              onSortChange={setSortValue}
+            />
+          }
         />
       )}
     >
@@ -353,7 +364,14 @@ export function ProjectsPage() {
                       </span>
                     )}
                     <div className="min-w-0 flex-1">
-                      <Text variant="itemTitle" className="line-clamp-2">{projeto.nome}</Text>
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span
+                          aria-hidden
+                          className="entity-color-dot h-2.5 w-2.5 shrink-0 rounded-full"
+                          style={{backgroundColor: projeto.color || '#78716c'}}
+                        />
+                        <Text variant="itemTitle" className="line-clamp-2">{projeto.nome}</Text>
+                      </span>
                       {projeto.brand ? (
                         <Text variant="meta" className="mt-0.5 block truncate">{projeto.brand}</Text>
                       ) : null}
@@ -378,7 +396,7 @@ export function ProjectsPage() {
                         : <CalendarDays className="h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" aria-hidden />}
                       <span className="truncate">
                         {entrega.tipo === 'passou' ? 'Data combinada passou: ' : 'Próxima: '}
-                        {format(parseISO(entrega.data), "d 'de' MMM", { locale: ptBR })} · {entrega.titulo}
+                        {dia(entrega.data)} · {entrega.titulo}
                       </span>
                     </Text>
                   ) : null}

@@ -1,5 +1,4 @@
 import React from 'react';
-import { LucideIcon } from 'lucide-react';
 import { DesktopPageHeader } from '../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../layouts/page/PageLayout';
 import { cn } from '../../lib/utils';
@@ -7,13 +6,13 @@ import { cn } from '../../lib/utils';
 interface SettingsPageScaffoldProps {
   section?: string;
   title: string;
-  icon: LucideIcon;
   backTo?: string;
   backLabel?: string;
   actions?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
   toolbar?: React.ReactNode;
+  meta?: string;
   variant?: 'default' | 'settings';
   showBack?: boolean;
 }
@@ -22,13 +21,13 @@ interface SettingsPageScaffoldProps {
 export function SettingsPageScaffold({
   section = 'Configurações',
   title,
-  icon,
   backTo = '/configuracoes',
   backLabel = 'Configurações',
   actions,
   children,
   className,
   toolbar,
+  meta,
   variant = 'settings',
   showBack = true,
 }: SettingsPageScaffoldProps) {
@@ -42,9 +41,9 @@ export function SettingsPageScaffold({
         <DesktopPageHeader
           section={section}
           title={title}
-          icon={icon}
           {...(showBack ? { backLabel, backTo } : {})}
           actions={actions}
+          meta={meta}
         />
       }
     >

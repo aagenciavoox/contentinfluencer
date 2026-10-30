@@ -74,7 +74,6 @@ export function AnalyticsPage() {
         <DesktopPageHeader
           section="Criação"
           title="Análise"
-          subtitle="Seu consumo de livros, filmes, séries e outras histórias."
           backLabel="Biblioteca"
           backTo="/biblioteca"
           actions={(
