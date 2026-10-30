@@ -703,7 +703,7 @@ export function PlanejamentoPage() {
         >
           {!isMobile && selectedIds.size > 0 ? (
             <Text variant="meta" className="text-[var(--text-secondary)]">
-              {selectedIds.size === 1 ? '1 post-it selecionado.' : `${selectedIds.size} post-its selecionados.`} Arraste um deles para mover todos. Apagar remove todos.
+              {selectedIds.size === 1 ? '1 post-it selecionado.' : `${selectedIds.size} post-its selecionados.`} Arraste um para mover todos.
             </Text>
           ) : null}
         </DesktopPageHeader>

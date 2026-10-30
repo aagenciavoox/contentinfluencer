@@ -224,6 +224,43 @@ Regras tiradas da auditoria de 15/10/2026 (`AUDIT-UX-2026-10-15.md`). Cada uma c
 ```bash
 npm run lint:design
 ```
+## Glossário
+
+Use sempre o mesmo termo para a mesma coisa. Trocar o nome é só apresentação: IDs e valores salvos não mudam.
+
+| Termo na tela | O que é | Evite |
+| --- | --- | --- |
+| Post-it | Espaço no Planejamento, vazio ou ligado a um conteúdo | pauta, card |
+| Roteiro | Conteúdo na etapa de roteiro (ou além, quando puxado) | script |
+| Sem data | Post-its e roteiros que ainda não têm dia | pilha, backlog |
+| Puxar roteiro | Colocar um conteúdo existente num post-it, sem mudar etapa nem data | importar |
+| Previstos / Publicados | Conteúdos com dia no período / já postados | agendados |
+| Limite do período | Quantos conteúdos cabem na semana ou no período | capacidade |
+| Proporção | Percentual salvo por objetivo; a meta é proporção × limite | divisão (exceto "Usar divisão igual") |
+| Reserva desejada / Reserva pronta | Quantos prontos você quer ter / quantos estão prontos agora | estoque |
+| Meta do pilar | Quantos conteúdos prontos para postar o pilar pede | meta do ciclo |
+| Repost | Nova rodada de publicação do mesmo conteúdo | ciclo |
+| Conta de referência | Conta que põe a publicação na grade | rede base |
+
+Contagens vão num selo (`CountBadge` ou `count` do `AppButton`), nunca entre parênteses.
+
+## Salvamento
+
+- Campo independente salva ao sair e confirma com “Salvo”, sem ponto final.
+- Valores que dependem uns dos outros usam um editor com Salvar, como Ritmo e Proporção.
+- `CampoTexto` grava ao sair e usa o aviso do AppContext (`notifySaveFeedback`).
+- Erro técnico fica no log. A tela mostra uma frase compreensível e uma ação possível.
+- Repetir a tentativa se chama “Tentar de novo”. O editor diz “Não salvou”. Contas, sem rede, diz “Sem conexão”.
+- Restaurar, excluir, limpar a lixeira, mover e baixar também orientam a tentar de novo.
+- Confirmação curta não leva ponto. “Salvo” vale para gravar. Restaurar, excluir e ações parecidas mantêm o verbo da ação. Recarregar o app confirma “App atualizado”.
+
+## Datas, contagens e cabeçalho
+
+- **Datas visíveis**: use `lib/dates` (`dia`, `diaComSemana`, `intervalo`, `hora`). Não use `toLocaleDateString` direto.
+- **Contagens**: `CountBadge` ou a prop `count` do `AppButton`. Nada de "Rótulo (3)".
+- **Tipografia**: prefira `Text` com variantes por função. Controles, labels nativos e elementos com ref usam as classes semânticas correspondentes. Texto principal e campos em body/15; apoio em secondary/13; metadados e labels em meta/label. Não há variante de 14px.
+- **DesktopPageHeader**: as props `subtitle`, `icon` e `hideSearch` saíram (não eram desenhadas). Use `meta`/`metaNote`.
+
 
 Checks for banned patterns: `font-black`, arbitrary `text-[Npx]`, `button-primary`, hard-coded gray/white surfaces, legacy tracking, `notion-title`, and raw `t-section-title` / `t-page-title` on non-input elements. Exceptions: `Text.tsx`, editable title inputs in `ContentDetailHeader.tsx` / `ContentOperationalPanel.tsx` / `RoteiroSection.tsx`.
 
