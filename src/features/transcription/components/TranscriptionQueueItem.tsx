@@ -81,7 +81,7 @@ export function TranscriptionQueueItem({
               ) : null}
               {item.status === 'error' ? (
                 <AppButton size="sm" leftIcon={<RotateCcw className="h-4 w-4" />} onClick={onRetry}>
-                  Tentar de novo
+                  Tentar novamente
                 </AppButton>
               ) : null}
               {active ? <AppButton size="sm" onClick={onRemove}>Cancelar</AppButton> : null}

@@ -88,7 +88,7 @@ export function PublishingSection({
       ) : null}
       {!materialPronto && !isPosted ? (
         <Text variant="secondary">
-          Dá para preparar legenda, capa, contas e datas desde já. Confirmar Programado fica para quando o material estiver em Edição · Pronto. Registrar uma publicação que já saiu continua liberado.
+          Prepare legenda, capa, contas e datas desde já. Programado pede o material pronto na Edição; uma publicação que já saiu pode ser registrada a qualquer momento.
         </Text>
       ) : null}
       <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:rounded-[var(--radius-card)] md:p-7">
@@ -133,7 +133,7 @@ export function PublishingSection({
               })}
             </p>
             <p className="mt-2 text-sm text-[var(--text-secondary)]">
-              Datas ficam guardadas para lembrar, reagendar ou registrar a publicação. Nada se confirma sozinho.
+              A data fica guardada até você registrar a publicação.
             </p>
           </div>
         </div>
@@ -297,7 +297,7 @@ export function PublishingSection({
           disabled={isPosted}
           onChange={event => onChange({notes: event.target.value})}
           className="mt-4 min-h-[140px] w-full rounded-[24px] border border-[var(--border-color)] bg-[var(--bg-primary)] px-6 py-4 text-sm leading-7 text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--text-primary)]/30 disabled:opacity-60"
-          placeholder="Links de assets, instruções de edição, thumb, cortes e observações"
+          placeholder="Ex.: link dos arquivos, instruções de edição, capa, cortes"
         />
       </section>
 
@@ -306,10 +306,10 @@ export function PublishingSection({
         <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:rounded-[var(--radius-card)] md:p-7">
           <p className="text-sm font-semibold text-[var(--text-primary)]">Repostar</p>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            Abre um ciclo novo no mesmo conteúdo, sem desfazer a publicação anterior nem as métricas.
+            Abre um ciclo novo no mesmo roteiro, sem desfazer a publicação anterior nem as métricas.
             {referencia
-              ? ` Entra na grade pela conta base (${rotuloConta(referencia)}).`
-              : ' Escolha a conta base nos Ajustes do Editorial para o ciclo entrar na grade.'}
+              ? ` Entra na grade pela conta de referência (${rotuloConta(referencia)}).`
+              : ' Escolha a conta de referência no Editorial para o ciclo entrar na grade.'}
           </p>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
             <label className="block sm:min-w-[220px]">

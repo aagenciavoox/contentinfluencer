@@ -91,7 +91,7 @@ export function SettingsMobileScreen({
           >
             <Text variant="bodyStrong" as="span" className="block">Modo de escrita</Text>
             <Text variant="meta" as="span" className="mt-1 block">
-              Separa o roteiro da gestão. Status, agendamento e legendas ficam em outra aba, e você pode abrir uma área de notas ao lado do texto.
+              Separa o roteiro da gestão. Status, agendamento e legendas ficam em outra aba, e você pode abrir o rascunho ao lado do texto.
             </Text>
           </ToggleRow>
           {writingEnabled ? (
@@ -104,7 +104,7 @@ export function SettingsMobileScreen({
             >
               <Text variant="bodyStrong" as="span" className="block">Abrir rascunho ao entrar</Text>
               <Text variant="meta" as="span" className="mt-1 block">
-                Mostra o painel de rascunho ao abrir um roteiro. Fechar durante a edição é só temporário.
+                Mostra o painel de rascunho ao abrir um roteiro.
               </Text>
             </ToggleRow>
           ) : null}

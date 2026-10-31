@@ -107,7 +107,7 @@ function MobileCoverThumb({
       });
       onCoverChange(publicUrl);
       setBroken(false);
-      notifySaveFeedback({ status: 'success', message: 'Capa atualizada.' });
+      notifySaveFeedback({ status: 'success', message: 'Capa atualizada' });
     } catch {
       notifySaveFeedback({ status: 'error', message: LIBRARY_COVER_UPLOAD_ERROR });
     } finally {
@@ -264,9 +264,9 @@ export function LibraryMobileScreen({
           ariaLabel="Filtrar por momento"
           size="sm"
           options={[
-            { id: 'current', label: 'Agora', count: tabCounts.current },
-            { id: 'wishlist', label: 'Fila', count: tabCounts.wishlist },
-            { id: 'done', label: 'Feitos', count: tabCounts.done },
+            { id: 'current', label: 'Em andamento', count: tabCounts.current },
+            { id: 'wishlist', label: 'Próximos', count: tabCounts.wishlist },
+            { id: 'done', label: 'Concluídos', count: tabCounts.done },
           ]}
           value={activeTab}
           onChange={setActiveTab}
@@ -356,7 +356,7 @@ export function LibraryMobileScreen({
                         <Badge variant="neutral">{TYPE_LABELS[item.tipo]}</Badge>
                         {relatedContents > 0 ? (
                           <Badge variant="neutral">
-                            {relatedContents} roteiro{relatedContents === 1 ? '' : 's'}
+                            {relatedContents} {relatedContents === 1 ? 'roteiro' : 'roteiros'}
                           </Badge>
                         ) : null}
                         {metadata.tagsPersonalizadas?.[0] ? (
@@ -372,12 +372,12 @@ export function LibraryMobileScreen({
                       size="xs"
                       fullWidth
                       aria-pressed={isPrimary}
-                      aria-label={isPrimary ? `${item.titulo} é o item principal` : `Fixar ${item.titulo} como principal`}
+                      aria-label={isPrimary ? `${item.titulo} é o livro atual` : `Definir ${item.titulo} como livro atual`}
                       onClick={() => onTogglePrimary(item.id)}
                       leftIcon={<Pin className={cn('h-3.5 w-3.5', isPrimary && 'fill-current')} aria-hidden />}
                       className={cn(isPrimary && 'border-[var(--text-primary)]')}
                     >
-                      {isPrimary ? 'Principal' : 'Fixar'}
+                      {isPrimary ? 'Livro atual' : 'Fixar'}
                     </AppButton>
                   </div>
                 </article>

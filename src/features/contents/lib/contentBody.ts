@@ -44,7 +44,7 @@ export function scriptBodyStatusLabel(status: ScriptBodyStatus, wordCount = 0): 
     case 'error':
       return 'Não foi possível carregar o roteiro';
     case 'empty':
-      return 'Sem roteiro escrito';
+      return 'Sem texto ainda';
     case 'ready':
       return wordCount > 0 ? `${wordCount} palavras no roteiro` : 'Roteiro pronto';
   }

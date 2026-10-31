@@ -414,7 +414,7 @@ export function RecordingMobileScreen({
                             >
                               <span className="truncate">{block.name}</span>
                               <span className="ml-2 flex shrink-0 items-center gap-2 text-xs text-[var(--text-tertiary)]">
-                                {block.contents.length} roteiro{block.contents.length !== 1 ? 's' : ''}
+                                {block.contents.length} {block.contents.length === 1 ? 'roteiro' : 'roteiros'}
                                 {targetBlockId === block.id ? <Check className="h-4 w-4 text-[var(--text-primary)]" /> : null}
                               </span>
                             </button>
@@ -461,7 +461,7 @@ export function RecordingMobileScreen({
                     key={block.id}
                     onClick={() => onOpenBlock(block.id)}
                     status={
-                      <Badge variant="neutral">{total === 0 ? 'Vazio' : ready === 0 ? 'Finalizado' : 'Bloco'}</Badge>
+                      <Badge variant="neutral">{total === 0 ? 'Vazio' : ready === 0 ? 'Gravado' : 'Bloco'}</Badge>
                     }
                     title={block.name}
                     description={first?.title || 'Sem roteiro inicial'}

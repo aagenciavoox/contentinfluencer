@@ -94,7 +94,7 @@ export function LibraryItemCard({
         previousUrl: item.capaUrl,
       });
       onCoverChange(publicUrl);
-      notifySaveFeedback({ status: 'success', message: 'Capa atualizada.' });
+      notifySaveFeedback({ status: 'success', message: 'Capa atualizada' });
     } catch {
       notifySaveFeedback({ status: 'error', message: LIBRARY_COVER_UPLOAD_ERROR });
     } finally {
@@ -217,15 +217,15 @@ export function LibraryItemCard({
                   ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
                   : 'bg-[var(--backdrop-strong)] text-[var(--bg-elevated)] hover:bg-[color-mix(in_srgb,var(--text-primary)_80%,transparent)]'
               }`}
-              aria-label={isPrimaryMobileBook ? 'Remover como principal no mobile' : 'Definir como principal no mobile'}
+              aria-label={isPrimaryMobileBook ? 'Deixar de ser o livro atual' : 'Definir como livro atual'}
             >
               <Pin className="h-3 w-3" />
             </button>
 
             {contentsCount > 0 ? (
               <div
-                title={contentsCount === 1 ? '1 conteúdo usa esta obra' : `${contentsCount} conteúdos usam esta obra`}
-                aria-label={contentsCount === 1 ? '1 conteúdo usa esta obra' : `${contentsCount} conteúdos usam esta obra`}
+                title={contentsCount === 1 ? '1 roteiro usa esta obra' : `${contentsCount} roteiros usam esta obra`}
+                aria-label={contentsCount === 1 ? '1 roteiro usa esta obra' : `${contentsCount} roteiros usam esta obra`}
                 className="absolute right-2 top-2 z-20 flex h-6 items-center gap-1 rounded-full bg-[var(--text-primary)] px-2 text-xs font-semibold text-[var(--bg-primary)] transition-all group-hover:top-10"
               >
                 <FileText className="h-3 w-3" aria-hidden />

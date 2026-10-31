@@ -51,9 +51,9 @@ export const CONFIRM = {
   },
   excluirPlataforma: {
     message:
-      'Excluir plataforma? Leituras históricas podem ficar sem este canal; roteiros vinculados preservam o nome já salvo.',
-    confirmLabel: 'Excluir plataforma',
-    cancelLabel: 'Manter plataforma',
+      'Excluir conta? Os roteiros que já usam esta conta continuam salvos.',
+    confirmLabel: 'Excluir conta',
+    cancelLabel: 'Manter conta',
   },
   excluirProjeto: (nome: string) => ({
     message: `Excluir o projeto "${nome}"? Etapas, eventos e roteiros vinculados deixam de aparecer neste projeto.`,
@@ -94,8 +94,8 @@ export const CONFIRM = {
     cancelLabel: 'Manter como ideia',
   },
   excluirBiblioteca: (titulo: string) => ({
-    message: `Remover "${titulo}" da biblioteca? As anotações deste livro serão apagadas junto, sem volta. Os roteiros vinculados continuam salvos.`,
-    confirmLabel: 'Remover da biblioteca',
+    message: `Excluir "${titulo}" da biblioteca? As anotações deste livro são excluídas junto, sem volta. Os roteiros vinculados continuam salvos.`,
+    confirmLabel: 'Excluir da biblioteca',
     cancelLabel: 'Manter na biblioteca',
   }),
   excluirRegra: {
@@ -157,7 +157,7 @@ export const EMPTY = {
   },
   roteirosPublicados: {
     title: 'Nenhum roteiro publicado',
-    description: 'Roteiros marcados como postados aparecem aqui.',
+    description: 'Roteiros marcados como publicados aparecem aqui.',
   },
   ideias: {
     title: 'Nenhuma ideia na caixa de entrada',

@@ -94,7 +94,7 @@ export function CreationComposer({
     >
       <OverlayHeader
         title="Nova ideia"
-        subtitle="Capture agora; organize e transforme em roteiro quando fizer sentido."
+        subtitle="Capture agora e transforme em roteiro depois."
         onClose={close}
       />
       <OverlayBody className="bg-[var(--bg-hover)]/30">

@@ -11,7 +11,7 @@ import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
 import {SidePanel} from '../../../components/layout/SidePanel';
 import {cn, tintedTextColor} from '../../../lib/utils';
-import {getErrorMessage, notifySaveFeedback} from '../../../lib/saveFeedback';
+import {getErrorDetail, notifySaveFeedback} from '../../../lib/saveFeedback';
 import {broadcastDataSync} from '../../../lib/syncBroadcast';
 import {REDE_ROTULO, exibirHandle, iconeDaConta, ordenarContas, redeDaConta, rotuloConta} from '../../contas/lib/contas';
 import {MAX_TIMES_PER_DAY, WEEKDAY_FULL, WEEKDAYS_ORDERED, type Weekday} from '../lib/postingTimes';
@@ -97,7 +97,7 @@ export function PostingTimesOverview() {
         return true;
       } catch (err) {
         soltar();
-        notifySaveFeedback({status: 'error', message: 'Não foi possível salvar os horários. Verifique sua conexão e tente novamente.', detail: getErrorMessage(err)});
+        notifySaveFeedback({status: 'error', message: 'Não foi possível salvar os horários. Verifique sua conexão e tente novamente.', detail: getErrorDetail(err)});
         return false;
       }
     })();
@@ -144,9 +144,6 @@ export function PostingTimesOverview() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <Text variant="sectionTitle" as="h2"><span id="horarios-titulo">Horários de postagem</span></Text>
-          <Text variant="secondary" className="mt-0.5 text-[var(--text-secondary)]">
-            Compare o padrão geral e os horários de cada conta.
-          </Text>
         </div>
         <AppButton variant="secondary" leftIcon={<Pencil className="h-4 w-4" />} onClick={() => setEditorAberto(true)}>
           Editar horários
@@ -347,9 +344,10 @@ function CelulaDaConta({
     <div className="flex min-h-11 items-center gap-2">
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1.5">
         {proprios.length === 0 ? (
-          <span className="inline-flex items-center gap-2 t-secondary text-[var(--text-secondary)]">
+          // Só o ícone: a legenda acima da tabela já diz o que ele significa.
+          <span className="inline-flex items-center text-[var(--text-tertiary)]" title="Usa o padrão geral">
             <Globe className="h-4 w-4 shrink-0" aria-hidden />
-            Usa o padrão
+            <span className="sr-only">Usa o padrão geral</span>
           </span>
         ) : (
           <>

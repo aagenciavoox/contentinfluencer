@@ -13,7 +13,7 @@ import {
 } from '../lib/postingTimes';
 import {replacePostingTimesForPlatform} from '../../../lib/database';
 import type {PostingTimeEntry} from '../../../lib/database';
-import {notifySaveFeedback, getErrorMessage} from '../../../lib/saveFeedback';
+import {notifySaveFeedback, getErrorDetail} from '../../../lib/saveFeedback';
 import {broadcastDataSync} from '../../../lib/syncBroadcast';
 import {rotuloConta} from '../../contas/lib/contas';
 
@@ -237,7 +237,7 @@ export function PostingTimesEditor({
         aoSalvar?.();
       } catch (err) {
         if (saveEpoch.current !== epoch) return;
-        notifySaveFeedback({status: 'error', message: 'Não foi possível salvar os horários. Verifique sua conexão e tente novamente.', detail: getErrorMessage(err)});
+        notifySaveFeedback({status: 'error', message: 'Não foi possível salvar os horários. Verifique sua conexão e tente novamente.', detail: getErrorDetail(err)});
         setDraft(pronto);
         setTouched(true);
         setEditando(true);

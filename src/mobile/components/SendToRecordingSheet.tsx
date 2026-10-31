@@ -170,7 +170,7 @@ export function SendToRecordingSheet({
                     Adicionado a {attachedBlockName}
                   </p>
                   <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                    Já está na fila do bloco. Pode gravar agora ou revisar a ordem depois.
+                    Já está no bloco. Pode gravar agora ou revisar a ordem depois.
                   </p>
                 </div>
               </div>

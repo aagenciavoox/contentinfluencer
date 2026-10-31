@@ -102,7 +102,7 @@ export function CaptionFilaCard({
           trailing={(
             <span className="flex shrink-0 flex-wrap items-center justify-end gap-2">
               <Badge variant="status" status={status}>{status}</Badge>
-              {!open && baseVazia ? <Badge variant="neutral">Legenda-base vazia</Badge> : null}
+              {!open && baseVazia ? <Badge variant="neutral">Sem legenda</Badge> : null}
               <span className="flex items-center gap-2 pl-1" aria-label={visiveis.map(rotuloDa).join(', ')}>
                 {visiveis.map(publicacao => (
                   <PlatformIcon key={publicacao.id} platform={iconeDa(publicacao)} colored className="h-5 w-5" />
@@ -123,7 +123,7 @@ export function CaptionFilaCard({
                 id={`fila-base-${content.id}`}
                 value={draft.legendaBase ?? ''}
                 minRows={10}
-                placeholder="Escreva a legenda-base deste conteúdo…"
+                placeholder="Escreva a legenda-base deste roteiro…"
                 descricao="Atualiza as publicações que usam a base. Versões próprias e textos já publicados são preservados."
                 onChange={texto => {
                   const resultado = definirLegendaCompartilhada({

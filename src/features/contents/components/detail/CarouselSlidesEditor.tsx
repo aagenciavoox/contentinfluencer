@@ -200,7 +200,7 @@ export function CarouselSlidesEditor({
                       size="xs"
                       iconOnly
                       aria-label={`Apagar ${label}`}
-                      title="Apagar tela"
+                      title="Excluir tela"
                       onClick={() => requestDelete(slide.id)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -283,8 +283,8 @@ export function CarouselSlidesEditor({
 
       <ConfirmModal
         open={pendingDeleteId !== null && pendingDeleteIndex >= 0}
-        message={`Apagar a ${pendingDeleteLabel.toLowerCase()}? O texto e as imagens desta tela saem do carrossel.`}
-        confirmLabel="Apagar tela"
+        message={`Excluir a ${pendingDeleteLabel.toLowerCase()}? O texto e as imagens desta tela saem do carrossel.`}
+        confirmLabel="Excluir tela"
         cancelLabel="Manter tela"
         onConfirm={() => {
           if (pendingDeleteId !== null && slidesRef.current.some(slide => slide.id === pendingDeleteId)) {

@@ -80,9 +80,13 @@ Full review with before/after examples: `UX_COPY_REVIEW.md`.
 - **Ideia**: before it becomes a script.
 - **Roteiro**: any editorial item after the idea, at any stage (writing, recording, publishing).
 - **Criação**: only the area name (Ideias + Roteiros), never an item ("Mover este roteiro para a lixeira", not "esta criação").
-- **Vídeo**: only what was already published ("Vídeo postado"). Never an item in the queue, block or grid.
-- **Conteúdo**: only in the abstract sense ("Potencial de conteúdo"). Never an item ("Novo conteúdo", "Conteúdos vinculados").
-- **Anotação**: a note on a library work. Do not call the same thing "nota".
+- **Vídeo**: only what was already published ("Vídeo publicado"). Never an item in the queue, block or grid.
+- **Publicado**: the final stage (since 28/10/2026). Use "publicado / publicação / registrar publicação", not "postado / postagem / já postei". "Horários de postagem" stays.
+- **Conteúdo**: only in the abstract sense ("Potencial de conteúdo"). Never an item ("Novo conteúdo", "Objetivo do conteúdo", "Puxar conteúdo").
+- **Anotação**: a note on a library work. Do not call the same thing "nota". **Nota** is only the rating ("meia nota").
+- **Rascunho**: only the side panel next to the script. The planning card is always **post-it**.
+- **Conta de referência**: the account whose date counts in the grade. Not "rede de referência", "conta base" or "destino".
+- **Grade**: only the editorial grade. Do not use it for a layout of cards.
 - **Template**: use "template" throughout; do not switch to "modelo" in the same screen or sentence.
 
 **R2. One label per action.**
@@ -94,7 +98,14 @@ Full review with before/after examples: `UX_COPY_REVIEW.md`.
 | Obra ou anotação → roteiro | Criar roteiro | Criar conteúdo, Virar conteúdo |
 | Marcar gravação | Marcar como gravado | Marcar gravado, Gravado |
 | Abrir teleprompter | Iniciar modo gravação | Abrir modo gravação |
+| Começar a gravar a partir de Hoje | Gravar agora | Iniciar sessão |
+| Criar bloco de gravação | Criar bloco | Montar bloco |
 | Pôr roteiro num bloco | Adicionar ao bloco | Guardar em um bloco, Salvar no bloco |
+| Marcar que saiu | Marcar como publicado / Registrar publicação | Marcar como postado, Registrar postagem, Já postei |
+| Trazer ideia ou roteiro para o Planejamento | Puxar da Criação | Puxar conteúdo |
+| Baixar documento | Baixar em Word | Exportar DOCX |
+| Livro em destaque em Hoje | Definir como livro atual | Definir como principal no mobile, Fixar como principal |
+| Repetir após erro | Tentar novamente | Tentar de novo |
 | Busca | Buscar | Procurar |
 | Recuperável | Mover para a lixeira | — |
 | Apagar de vez | Excluir / Excluir definitivamente | Remover (para exclusão) |
@@ -104,7 +115,11 @@ Full review with before/after examples: `UX_COPY_REVIEW.md`.
 
 **R4. Sentence case.** Only the first letter is uppercase in code ("Novo evento", "Detalhes técnicos", "Looks e cenários"). Use "e", not "&", in labels. If the design wants caps, use CSS `uppercase`.
 
-**R5. Describe the benefit, not the implementation.** Say what the person gets, not how the screen is built. Avoid "modal", "composer", "camada mobile", "catálogo único com tags". Errors never mention the backend vendor ("Supabase"); say what happened and what to do.
+**R5. Describe the benefit, not the implementation.** Say what the person gets, not how the screen is built. Avoid "modal", "composer", "camada mobile", "catálogo único com tags", IDs, "\n", "entidades", "assets", "thumb". Errors never mention the backend vendor ("Supabase"); say what happened and what to do ("… Tente novamente.").
+
+Raw error text (database, network) never reaches the screen. `getErrorDetail` in `src/lib/saveFeedback.ts` only passes on a `UserFacingError`; throw one when the message was written for the person to read.
+
+**R6. Say it once.** A screen does not repeat what its title, its active tab or a filter already says. No subtitle that restates the title, no count that the tab already shows, no label repeated on every row when the value is empty or the same for all (show "—", hide the field, or say it once above the list). Gentle phrases ("quando fizer sentido") lose their effect when they appear everywhere; keep them to Hoje and the pause mode.
 
 **Typography.** Ellipsis is one character (`…`). Sort labels use an en dash ("Título A–Z"). Example placeholders start with "Ex.:". Plurals are two full strings (singular and plural), not ternaries inside a word.
 
@@ -119,7 +134,9 @@ Prefer these terms in user-facing copy. Shared constants live in `src/lib/uiCopy
 | Referências | Biblioteca | Acervo (nav primária) |
 | Nota de obra | Anotação | Nota |
 | Sessão em lote | Bloco de gravação | — |
-| Modo teleprompter | Modo gravação | Modo Explosão |
+| Modo teleprompter | Modo gravação | Modo Explosão, Teleprompter (rótulo) |
+| Texto que rola sozinho | Rolagem automática | Teleprompter, leitura estática, rolagem assistida |
+| Seções de Configurações | Tom do app | Ritmo (é a capacidade semanal do Editorial) |
 | Ideia → roteiro | Transformar em roteiro | Promover para roteiro, Virar roteiro |
 | Busca | Buscar | Procurar |
 | Primeira tela do dia | Hoje | Home |

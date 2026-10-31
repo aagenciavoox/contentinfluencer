@@ -149,7 +149,7 @@ export function ContentManageWorkspace({
 
   return (
     <div className="stack-lg">
-      <Text variant="sectionTitle" as="h2" className="sr-only">Gestão do conteúdo</Text>
+      <Text variant="sectionTitle" as="h2" className="sr-only">Gestão do roteiro</Text>
 
       <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.85fr)]">
         <PlatformCopyEditor
@@ -237,7 +237,7 @@ export function ContentManageWorkspace({
                     onChange={onChange}
                     variant="form"
                     formPart="funcao"
-                    formLabel={<FieldLabel icon={<Flag className="h-4 w-4" />}>Objetivo do conteúdo</FieldLabel>}
+                    formLabel={<FieldLabel icon={<Flag className="h-4 w-4" />}>Objetivo</FieldLabel>}
                     formInputClass={selectClass}
                   />
                 </div>
@@ -300,9 +300,6 @@ export function ContentManageWorkspace({
 
       <Surface variant="outlined" padding="lg" className="bg-[var(--bg-elevated)]">
         <Text variant="sectionTitle" as="h3">Gravação e publicação</Text>
-        <Text variant="secondary" className="mt-1">
-          Dia e horário de cada etapa.
-        </Text>
         <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-6">
           <ScheduleMoment
             label="Gravação"

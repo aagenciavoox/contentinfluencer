@@ -266,7 +266,7 @@ function CaptionGridRow({
   const scriptButtonLabel = copiedScript
     ? 'Copiado'
     : hasHydrationError
-      ? 'Tentar de novo'
+      ? 'Tentar novamente'
       : scriptLoading
         ? 'Carregando…'
         : 'Copiar roteiro';
@@ -374,7 +374,7 @@ function CaptionGridRow({
                     className="text-[var(--danger)]"
                     onClick={() => void persist(plataformas)}
                   >
-                    Não salvou. Tentar de novo
+                    Não salvou. Tentar novamente
                   </AppButton>
                 ) : null}
               </div>

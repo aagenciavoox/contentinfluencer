@@ -675,7 +675,7 @@ export function BurstModeExperience({
                 <div className="rounded-xl border border-[var(--tp-border)] bg-[var(--tp-surface)] p-6 md:p-8">
                   <div className="mb-6 flex flex-wrap items-center gap-3">
                     <span className="rounded-full border border-[var(--tp-border)] bg-[var(--tp-subtle)] px-3 py-1 t-label t-label-uppercase font-semibold">
-                      Teleprompter desativado
+                      Rolagem automática desligada
                     </span>
                     <span className="t-label t-label-uppercase font-semibold text-[var(--tp-muted)]">
                       Leitura livre no mobile e no desktop

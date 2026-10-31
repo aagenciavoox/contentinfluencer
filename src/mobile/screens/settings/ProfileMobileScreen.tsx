@@ -169,7 +169,7 @@ export function ProfileMobileScreen({
               type="password"
               value={password}
               onChange={(event) => onPasswordChange(event.target.value)}
-              placeholder="Mínimo de 6 caracteres"
+              placeholder="Digite a nova senha"
               disabled={!backendReady || passwordLoading}
               className="input"
               autoComplete="new-password"
@@ -192,7 +192,7 @@ export function ProfileMobileScreen({
         <div className="mt-3 rounded-[var(--radius-input)] bg-[var(--bg-primary)] px-4 py-3 text-xs text-[var(--text-secondary)]">
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-[var(--text-tertiary)]" aria-hidden />
-            <span>Use pelo menos 6 caracteres para manter o acesso seguro.</span>
+            <span>Mínimo de 6 caracteres.</span>
           </div>
         </div>
         <AppButton

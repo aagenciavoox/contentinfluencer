@@ -20,7 +20,6 @@ export function EditorialPage() {
           section="Criação"
           title="Editorial"
           icon={Compass}
-          meta="Público, pilares e ritmo. Prioridade e metas do intervalo ficam no Planejamento."
           actions={(
             <AppButton variant="primary" leftIcon={<Plus className="h-4 w-4" />} onClick={() => navigate('/editorial/pilares/nova')}>
               Novo pilar

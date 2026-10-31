@@ -1,5 +1,6 @@
 import type {Content, Platform} from '../../../lib/database.ts';
 import {htmlToReadableText} from '../../../lib/utils.ts';
+import {UserFacingError} from '../../../lib/saveFeedback.ts';
 import {
   carouselExportSlides,
   carouselPlainText,
@@ -158,7 +159,7 @@ export async function createCreationsDocxBlob(
 ): Promise<Blob> {
   const sections = buildCreationExportSections(contents, platforms);
   if (sections.length === 0) {
-    throw new Error('Nenhum item disponível para exportação.');
+    throw new UserFacingError('Nenhum roteiro disponível para exportar.');
   }
   const exportCopy = getCreationExportCopy(contents);
 

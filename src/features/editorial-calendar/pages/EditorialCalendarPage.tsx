@@ -471,7 +471,7 @@ export function EditorialCalendarPage() {
               }}
             >
               <Radio className="h-4 w-4" />
-              Vídeo postado
+              Vídeo publicado
             </button>
           </div>
         ) : null}
@@ -524,8 +524,6 @@ export function EditorialCalendarPage() {
         <DesktopPageHeader
           section="Produção"
           title="Calendário"
-          meta="Publicações, gravações, eventos e projetos com data."
-          metaNote="Rascunhos ficam no Planejamento."
           actions={(
             <>
               <div className="relative">
@@ -560,7 +558,7 @@ export function EditorialCalendarPage() {
                       }}
                     >
                       <Radio className="h-4 w-4" />
-                      Vídeo postado
+                      Vídeo publicado
                     </button>
                   </div>
                 ) : null}
@@ -1768,7 +1766,7 @@ function CalendarEntryDetailModal({
                 }}
                 className="flex-1 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] py-3 text-xs font-semibold  text-[var(--bg-primary)] transition-all hover:scale-[1.01]"
               >
-                Agendar postagem
+                Agendar publicação
               </button>
             ) : canEdit ? (
               <button

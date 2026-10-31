@@ -130,7 +130,7 @@ function AuthForm({
         >
           <div className={cn('stack-sm', compact ? 'mb-6' : 'mb-8')}>
             <Text variant="eyebrow" uppercase>
-              {isRegister ? 'Novo acesso' : 'Bem-vindo de volta'}
+              {isRegister ? 'Novo acesso' : 'Que bom te ver de novo'}
             </Text>
             <Text variant={compact ? 'pageTitle' : 'display'} as="h2">
               {isRegister ? 'Criar conta' : 'Entrar'}
@@ -138,7 +138,7 @@ function AuthForm({
             <Text variant="secondary">
               {isRegister
                 ? 'Monte seu estúdio e comece a organizar ideias e roteiros.'
-                : 'Continue de onde parou no seu estúdio de criação.'}
+                : 'Continue de onde parou.'}
             </Text>
           </div>
 
@@ -434,7 +434,7 @@ export function LoginPage() {
               Seu estúdio de criação
             </Text>
             <Text variant="body" className="text-[var(--brand-on-accent)]/80">
-              Ideias, roteiros, gravação e biblioteca — organizados para você produzir no ritmo certo.
+              Ideias, roteiros, gravação e biblioteca — no seu ritmo.
             </Text>
           </div>
         </div>
@@ -447,7 +447,7 @@ export function LoginPage() {
             aria-hidden
           />
           <Text variant="meta" className="text-[var(--brand-on-accent)]/70">
-            Produção com clareza, do briefing ao post.
+            Criaki
           </Text>
         </div>
       </motion.aside>

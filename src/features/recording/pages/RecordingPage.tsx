@@ -400,7 +400,7 @@ export function RecordingPage() {
           meta={
             recordingReady
               ? activeTab === 'queue'
-                ? `${prontos.length} ${prontos.length === 1 ? 'roteiro' : 'roteiros'} sem bloco · selecione para montar um bloco e gravar`
+                ? `${prontos.length} ${prontos.length === 1 ? 'roteiro' : 'roteiros'} sem bloco`
                 : `${state.recordingBlocks.length} ${state.recordingBlocks.length === 1 ? 'bloco' : 'blocos'}`
               : undefined
           }
@@ -421,7 +421,7 @@ export function RecordingPage() {
                 leftIcon={<Plus className="h-4 w-4" />}
                 onClick={() => handleTabChange('queue')}
               >
-                Montar bloco
+                Criar bloco
               </AppButton>
             )
           }

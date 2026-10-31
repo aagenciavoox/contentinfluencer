@@ -87,7 +87,7 @@ export function taxaDeEngajamento(metrica: ContentMetric | null): number | null 
 }
 
 export function textoDeMetrica(valor: number | null): string {
-  return valor == null ? 'Sem dados disponíveis' : String(valor);
+  return valor == null ? '—' : String(valor);
 }
 
 function noIntervalo(data: string | null, inicio: string | null, fim: string | null): boolean {

@@ -93,8 +93,24 @@ export function notifySaveFeedback(
   }
 }
 
+/** Erro com texto escrito para a pessoa ler. Os outros (banco, rede) ficam só no console. */
+export class UserFacingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'UserFacingError';
+  }
+}
+
+function userFacingText(error: unknown): string | undefined {
+  if (error instanceof UserFacingError && error.message.trim()) return error.message;
+  return undefined;
+}
+
 export function getErrorMessage(error: unknown): string {
-  if (error instanceof Error && error.message.trim()) return error.message;
-  if (typeof error === 'string' && error.trim()) return error;
-  return 'Não foi possível salvar agora. Verifique sua conexão e tente novamente.';
+  return userFacingText(error) ?? 'Não foi possível salvar agora. Verifique sua conexão e tente novamente.';
+}
+
+/** Detalhe do aviso de erro: só aparece quando há algo útil a dizer além da mensagem principal. */
+export function getErrorDetail(error: unknown): string | undefined {
+  return userFacingText(error);
 }

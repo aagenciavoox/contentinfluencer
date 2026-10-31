@@ -35,7 +35,7 @@ export function OpenInfoNotice({
           <Text variant="bodyStrong">{title ?? `Em aberto: ${formatOpenItems(items)}`}</Text>
           {description !== null ? (
             <Text variant="meta" className="text-[var(--text-secondary)]">
-              {description ?? `Quando fizer sentido, complete estas informações para os roteiros já nascerem configurados.`}
+              {description ?? `Complete estas informações para os próximos roteiros já nascerem configurados.`}
             </Text>
           ) : null}
         </div>

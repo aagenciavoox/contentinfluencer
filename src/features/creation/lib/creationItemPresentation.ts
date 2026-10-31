@@ -172,11 +172,9 @@ export function getCreationCardDateMeta(content: CreationCardDateFields, now: Da
 
   const created = formatCreationLastEdit(content.createdAt, now);
   const edited = formatCreationLastEdit(content.updatedAt, now);
-  const parts = [
-    created ? `Criado ${created}` : null,
-    edited && edited !== created ? `Editado ${edited}` : null,
-  ].filter(Boolean);
-  return parts.length ? parts.join(' · ') : null;
+  // Só a data mais recente: "Criado X · Editado Y" em todo cartão vira ruído.
+  if (edited && edited !== created) return `Editado ${edited}`;
+  return created ? `Criado ${created}` : null;
 }
 
 export function getCreationCardFooterMeta(content: Content, now: Date = new Date()) {

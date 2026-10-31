@@ -100,7 +100,6 @@ export function ProjectsMobileScreen({
     <div className="stack-lg">
       {/* O cabeçalho já diz "Projetos". Os números ficam nos chips de filtro e a tela tem uma ação principal só. */}
       <section className="stack-md">
-        <Text variant="secondary" className="px-1">Datas combinadas, valores e contexto de cada projeto.</Text>
         <AppButton variant="primary" fullWidth onClick={onCreateProject} leftIcon={<Plus className="h-4 w-4" />}>
           Novo projeto
         </AppButton>

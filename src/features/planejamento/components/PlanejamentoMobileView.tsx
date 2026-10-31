@@ -262,7 +262,7 @@ export function PlanejamentoMobileView({
           leftIcon={<Plus className="h-4 w-4" />}
           onClick={() => onPuxar(null)}
         >
-          Puxar conteúdo
+          Puxar da Criação
         </AppButton>
       </div>
 
@@ -345,7 +345,7 @@ export function PlanejamentoMobileView({
                     trigger={<Plus className="h-4 w-4" />}
                     items={[
                       {id: 'post-it', label: 'Novo post-it', onClick: () => onNovoPostIt(dateKey(week.days[0]))},
-                      {id: 'puxar', label: 'Puxar conteúdo', onClick: () => onPuxar(dateKey(week.days[0]))},
+                      {id: 'puxar', label: 'Puxar da Criação', onClick: () => onPuxar(dateKey(week.days[0]))},
                     ]}
                   />
                 </div>

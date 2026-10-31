@@ -201,7 +201,6 @@ export function PlatformsSettingsPage() {
         <DesktopPageHeader
           section="Criação"
           title="Contas e horários"
-          meta="Gerencie seus perfis e os horários de postagem."
           icon={AtSign}
           backLabel="Criação"
           backTo="/criacao"
@@ -393,7 +392,7 @@ export function PlatformsSettingsPage() {
               <div className={`${LINHA_CONTA} hidden border-b border-[var(--border-color)] bg-[var(--surface-subtle)] py-2.5 md:grid`} aria-hidden>
                 <Text variant="label" as="span" className="text-[var(--text-secondary)]">Conta</Text>
                 <Text variant="label" as="span" className="text-[var(--text-secondary)]">Integração</Text>
-                <Text variant="label" as="span" className="text-[var(--text-secondary)]">Na criação</Text>
+                <Text variant="label" as="span" className="text-[var(--text-secondary)]">Usar ao criar</Text>
                 <span />
               </div>
               <ul>
@@ -440,7 +439,7 @@ export function PlatformsSettingsPage() {
                           id={`conta-${platform.id}`}
                           enabled={platform.ativo}
                           onToggle={() => { void toggleAtivo(platform); }}
-                          label={`${rotulo} na criação`}
+                          label={`Usar ${rotulo} ao criar`}
                           disabled={compartilhada}
                         />
                         <label htmlFor={`conta-${platform.id}`}>
@@ -470,7 +469,7 @@ export function PlatformsSettingsPage() {
             </Surface>
           )}
           <Text variant="secondary" className="text-[var(--text-secondary)]">
-            Desativar uma conta preserva seu histórico. Conta em uso por publicações, séries, pilares ou horários não pode ser excluída.
+            Conta em uso não pode ser excluída. Desative para tirar da criação sem perder o histórico.
           </Text>
         </section>
 

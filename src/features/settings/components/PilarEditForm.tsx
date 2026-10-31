@@ -418,7 +418,6 @@ export function PilarEditForm({
           <Surface variant="outlined" padding="md">
             <CardHeading
               title="Identidade"
-              description="Como este pilar aparece na sua central."
             />
             <div className="stack-lg">
               <div className="stack-sm">
@@ -580,9 +579,6 @@ export function PilarEditForm({
                   </div>
                 </div>
 
-                <Text variant="meta" className="text-[var(--text-tertiary)]">
-                  As preferências são salvas separadamente para cada plataforma.
-                </Text>
               </div>
             )}
           </Surface>
@@ -592,7 +588,6 @@ export function PilarEditForm({
           <Surface variant="outlined" padding="md">
             <CardHeading
               title="Séries vinculadas"
-              description="O vínculo grava o pilar principal da série."
             />
             <div className="stack-md">
               {linkedSeries.map(item => (

@@ -353,7 +353,7 @@ export function getPostingAlerts(content: Pick<Content, 'publishDate' | 'status'
       {
         id: 'scheduled',
         tone: 'info',
-        message: 'Data prevista guardada. Programado só aparece quando a conta estiver programada e o material pronto.',
+        message: 'Data prevista guardada. Vira Programado quando a conta for agendada e o material estiver pronto.',
       },
     ] satisfies PostingAlert[];
   }

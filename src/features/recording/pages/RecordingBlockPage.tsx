@@ -208,9 +208,9 @@ export function RecordingBlockPage() {
             </p>
 
             <div className="mt-4 grid grid-cols-3 gap-2">
-              <Metric label="Fila" value={String(mobileEntries.length)} />
+              <Metric label="Roteiros" value={String(mobileEntries.length)} />
               <Metric label="Prontos" value={String(readyCount)} />
-              <Metric label="Feitos" value={String(progress?.completedCount ?? 0)} />
+              <Metric label="Gravados" value={String(progress?.completedCount ?? 0)} />
             </div>
           </section>
 
@@ -257,7 +257,7 @@ export function RecordingBlockPage() {
                             : 'Carregando roteiro…'
                           : htmlToReadableText(entry.content.script)
                             ? 'Roteiro pronto para leitura.'
-                            : 'Sem roteiro escrito.'}
+                            : 'Sem texto ainda.'}
                       </p>
                     </div>
                     {entry.gravado || recordedIds.has(entry.content.id) ? (

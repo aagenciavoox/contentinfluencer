@@ -21,6 +21,20 @@ import {
 
 type ModoVista = ModoPeriodo | 'tudo';
 
+const MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+/** "2026-10-28" → "28 out"; o ano só aparece quando não é o atual. */
+function dataCurta(iso: string): string {
+  const [ano, mes, dia] = iso.slice(0, 10).split('-').map(Number);
+  if (!ano || !mes || !dia) return iso;
+  const sufixo = ano === new Date().getFullYear() ? '' : ` ${ano}`;
+  return `${dia} ${MESES_CURTOS[mes - 1]}${sufixo}`;
+}
+
+function semMetricas(linha: { views: number | null; alcance: number | null; interacoes: number | null }): boolean {
+  return linha.views == null && linha.alcance == null && linha.interacoes == null;
+}
+
 function Campo({ rotulo, valor }: { rotulo: string; valor: string }) {
   return (
     <div className="min-w-0">
@@ -59,6 +73,7 @@ export function AnalisesPage() {
       contaId: contaId || null,
     },
   }), [base, contaId, intervalo?.fim, intervalo?.inicio, rede, state.contentMetrics, state.contents, state.pilares, state.platforms, state.series]);
+  const nenhumaComMetricas = linhas.length > 0 && linhas.every(semMetricas);
 
   const filtros = (
     <div className="stack-sm">
@@ -119,7 +134,7 @@ export function AnalisesPage() {
         {intervalo
           ? `${base === 'planejada' ? 'Data planejada' : 'Data efetiva'} de ${intervalo.inicio.split('-').reverse().join('/')} a ${intervalo.fim.split('-').reverse().join('/')}.`
           : 'Sem recorte de data.'}
-        {' '}Cada linha é uma publicação. O alcance de uma conta não se soma ao de outra como se fossem as mesmas pessoas.
+        {' '}O alcance de cada conta é contado à parte. Taxa de engajamento: {FORMULA_ENGAJAMENTO}.
       </Text>
     </div>
   );
@@ -145,10 +160,13 @@ export function AnalisesPage() {
         <EmptyState
           icon={<ChartColumn className="h-6 w-6" />}
           title="Nenhuma publicação neste filtro"
-          description="Cadastrar um @ ou informar um link não traz métricas nem marca a conta como conectada. A integração com o Instagram ainda não está ligada."
+          description="Troque o período, a plataforma ou a conta para ver outras publicações."
         />
       ) : (
         <div className="stack-sm">
+          {nenhumaComMetricas ? (
+            <Text variant="secondary">Nenhuma destas publicações tem métricas ainda.</Text>
+          ) : null}
           {linhas.map(linha => (
             <Surface key={linha.publicacaoId} padding="sm" className="stack-sm">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -160,30 +178,31 @@ export function AnalisesPage() {
                 </Link>
                 <Text variant="meta">{linha.contaRotulo}</Text>
               </div>
+              {/* Campo vazio não aparece: uma linha só com "Sem…" repetido não diz nada. */}
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
-                <Campo rotulo="Pilar" valor={linha.pilar ?? 'Sem pilar'} />
-                <Campo rotulo="Série" valor={linha.serie ?? 'Sem série'} />
-                <Campo rotulo="Objetivo" valor={linha.objetivo ?? 'Sem objetivo'} />
-                <Campo rotulo="Data planejada" valor={linha.dataPlanejada ?? 'Sem data'} />
-                <Campo rotulo="Data efetiva" valor={linha.dataEfetiva ?? 'Sem data'} />
-                <Campo rotulo="Período editorial" valor={linha.periodoEditorial ?? 'Sem data planejada'} />
-                <Campo rotulo="Link" valor={linha.link ?? 'Sem link nesta publicação'} />
-                <Campo rotulo="Id externo" valor={linha.externoId ?? 'Ainda não há identificador da integração'} />
-                <Campo rotulo="Origem dos dados" valor={linha.origem ?? 'Sem dados disponíveis'} />
-                <Campo rotulo="Visualizações" valor={textoDeMetrica(linha.views)} />
-                <Campo rotulo="Alcance" valor={textoDeMetrica(linha.alcance)} />
-                <Campo rotulo="Interações" valor={textoDeMetrica(linha.interacoes)} />
-                <Campo
-                  rotulo="Taxa de engajamento"
-                  valor={linha.taxa == null ? 'Sem dados disponíveis' : `${(linha.taxa * 100).toFixed(1)}%`}
-                />
+                {linha.pilar ? <Campo rotulo="Pilar" valor={linha.pilar} /> : null}
+                {linha.serie ? <Campo rotulo="Série" valor={linha.serie} /> : null}
+                {linha.objetivo ? <Campo rotulo="Objetivo" valor={linha.objetivo} /> : null}
+                {linha.dataPlanejada ? <Campo rotulo="Data planejada" valor={dataCurta(linha.dataPlanejada)} /> : null}
+                {linha.dataEfetiva ? <Campo rotulo="Data efetiva" valor={dataCurta(linha.dataEfetiva)} /> : null}
+                {linha.link ? <Campo rotulo="Link" valor={linha.link} /> : null}
+                {semMetricas(linha) ? null : (
+                  <>
+                    <Campo rotulo="Visualizações" valor={textoDeMetrica(linha.views)} />
+                    <Campo rotulo="Alcance" valor={textoDeMetrica(linha.alcance)} />
+                    <Campo rotulo="Interações" valor={textoDeMetrica(linha.interacoes)} />
+                    <Campo
+                      rotulo="Taxa de engajamento"
+                      valor={linha.taxa == null ? textoDeMetrica(null) : `${(linha.taxa * 100).toFixed(1)}%`}
+                    />
+                  </>
+                )}
               </div>
-              <Text variant="meta">
-                {linha.taxa == null
-                  ? `A taxa usa ${FORMULA_ENGAJAMENTO}. Sem visualizações no denominador, ela não é calculada — nem como zero.`
-                  : `Fórmula: ${FORMULA_ENGAJAMENTO}.`}
-                {linha.atualizadoEm ? ` Atualizado em ${linha.atualizadoEm.slice(0, 10)}.` : ''}
-              </Text>
+              {(semMetricas(linha) && !nenhumaComMetricas) || linha.atualizadoEm ? (
+                <Text variant="meta">
+                  {semMetricas(linha) ? 'Sem métricas ainda.' : `Atualizado em ${dataCurta(linha.atualizadoEm!)}.`}
+                </Text>
+              ) : null}
             </Surface>
           ))}
         </div>

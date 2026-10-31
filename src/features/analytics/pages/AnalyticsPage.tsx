@@ -19,7 +19,6 @@ import {
 } from '../lib/libraryPeriodAnalysis';
 import {
   LibraryActiveCard,
-  LibraryAnalysisFooter,
   LibraryConsumptionTable,
   LibraryFormatChips,
   LibraryGenresCard,
@@ -27,8 +26,6 @@ import {
   LibraryNotesCard,
   LibraryRatingsCard,
 } from '../components/LibraryAnalysisSections';
-
-const GROUP_LABELS = { ano: 'Ano', semestre: 'Semestre', trimestre: 'Trimestre' } as const;
 
 export function AnalyticsPage() {
   const { state, ensureDataDomains } = useAppContext();
@@ -52,9 +49,11 @@ export function AnalyticsPage() {
 
   const selectOptions = periodOptions.map(option => ({
     value: option.id,
-    label: `${GROUP_LABELS[option.grouping]} · ${currentPeriodLabel(option)}`,
+    label: option.current
+      ? currentPeriodLabel(option)
+      : option.grouping === 'ano' ? `Ano de ${option.label}` : option.label,
   }));
-  const formatLabel = format === 'todos' ? 'Todos os formatos' : LIBRARY_FORMATS.find(entry => entry.id === format)?.label ?? '';
+  const formatLabel = format === 'todos' ? '' : LIBRARY_FORMATS.find(entry => entry.id === format)?.label ?? '';
 
   const periodSelect = (
     <SelectField
@@ -103,14 +102,13 @@ export function AnalyticsPage() {
       <div className="stack-lg">
         <LibraryFormatChips value={format} onChange={setFormat} />
         <LibraryKpis analysis={analysis} formatLabel={formatLabel} rangeText={periodRangeText(period)} loading={loading} />
-        <LibraryConsumptionTable analysis={analysis} periodLabel={period.label} loading={loading} showAllFormats={format === 'todos'} />
+        <LibraryConsumptionTable analysis={analysis} loading={loading} showAllFormats={format === 'todos'} />
         <div className="grid gap-4 lg:grid-cols-2">
           <LibraryActiveCard analysis={analysis} loading={loading} />
           <LibraryNotesCard analysis={analysis} loading={loading} />
           <LibraryGenresCard analysis={analysis} loading={loading} />
           <LibraryRatingsCard analysis={analysis} loading={loading} onRate={() => navigate('/biblioteca?status=concluidos')} />
         </div>
-        <LibraryAnalysisFooter />
       </div>
     </PageLayout>
   );

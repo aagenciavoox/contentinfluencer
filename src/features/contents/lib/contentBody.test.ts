@@ -66,7 +66,7 @@ describe('resolveScriptBodyStatus', () => {
   it('exposes stable labels', () => {
     assert.equal(scriptBodyStatusLabel('loading'), 'Carregando roteiro…');
     assert.equal(scriptBodyStatusLabel('error'), 'Não foi possível carregar o roteiro');
-    assert.equal(scriptBodyStatusLabel('empty'), 'Sem roteiro escrito');
+    assert.equal(scriptBodyStatusLabel('empty'), 'Sem texto ainda');
     assert.equal(scriptBodyStatusLabel('ready', 42), '42 palavras no roteiro');
   });
 });

@@ -220,7 +220,7 @@ export function CreationSelectionBar({
             ) : (
               <>
                 <span className="md:hidden">Exportar</span>
-                <span className="hidden md:inline">Exportar DOCX ({selectedCount})</span>
+                <span className="hidden md:inline">Baixar em Word ({selectedCount})</span>
               </>
             )}
           </AppButton>

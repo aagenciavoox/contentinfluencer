@@ -26,7 +26,7 @@ export function UndatedRoteiroPile({
         <div className="min-w-0">
           <Text variant="sectionTitle">Roteiros sem data</Text>
           <Text variant="meta" className="mt-1 block text-[var(--text-secondary)]">
-            Arraste para um dia do calendário. Isso marca a publicação, sem virar nota de planejamento.
+            Arraste para um dia para marcar a publicação.
           </Text>
         </div>
         {onClose ? (

@@ -173,7 +173,7 @@ export function buildLibraryAnalytics(
   const statusCounts = [
     { id: 'active', label: 'Em andamento', value: activeItems.length },
     { id: 'completed', label: 'Concluídos', value: completedItems.length },
-    { id: 'wishlist', label: 'Na fila', value: items.filter(item => WISHLIST_STATUSES.has(item.status)).length },
+    { id: 'wishlist', label: 'Próximos', value: items.filter(item => WISHLIST_STATUSES.has(item.status)).length },
     { id: 'paused', label: 'Pausados ou abandonados', value: items.filter(item => PAUSED_STATUSES.has(item.status)).length },
   ].filter(entry => entry.value > 0);
 

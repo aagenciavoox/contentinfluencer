@@ -191,7 +191,7 @@ export const CONEXAO_ROTULO: Record<ConexaoStatus, string> = {
   nao_conectada: 'Não conectada',
   conectada: 'Conectada',
   expirada: 'Conexão expirada',
-  erro: 'Erro na conexão',
+  erro: 'Conexão interrompida',
 };
 
 /** Só a integração muda a conexão. Cadastro, @ ou link não contam como conectada. */

@@ -58,8 +58,8 @@ describe('dailySession', () => {
   it('suggests every candidate when the list is already short', () => {
     const candidates = [content({ id: '1' }), content({ id: '2' })];
     assert.deepEqual(suggestSessionIds(candidates), ['1', '2']);
-    assert.equal(suggestionSummary(candidates, []), '2 prontos para gravar.');
-    assert.equal(suggestionSummary([candidates[0]!], []), '1 pronto para gravar.');
+    assert.equal(suggestionSummary(candidates, []), '');
+    assert.equal(suggestionSummary([candidates[0]!], []), '');
   });
 
   it('suggests the largest series, capped at four', () => {

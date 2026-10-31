@@ -55,7 +55,7 @@ import { CoverUploadField } from '../components/CoverUploadField';
 import { CoverFallback } from '../components/CoverFallback';
 import { REDE_ROTULO, redeDaRef, rotuloDaRef } from '../../contas/lib/contas';
 import { SelectField } from '../../../components/ui/SelectField';
-import { getErrorMessage, notifySaveFeedback } from '../../../lib/saveFeedback';
+import { getErrorDetail, notifySaveFeedback } from '../../../lib/saveFeedback';
 import { BookReadingPanel, STATUS_AVALIAVEL } from '../components/BookReadingPanel';
 import { avaliacaoGeralDosCriterios, type AvaliacaoCriterios, type CriterioAvaliacao } from '../lib/avaliacaoCriterios';
 import { downloadAnnotationsDocx } from '../lib/exportAnnotationsDocx';
@@ -521,8 +521,8 @@ export function BookDetailPage() {
     } catch (error) {
       notifySaveFeedback({
         status: 'error',
-        message: 'Não foi possível baixar as anotações.',
-        detail: getErrorMessage(error),
+        message: 'Não foi possível baixar as anotações. Tente novamente.',
+        detail: getErrorDetail(error),
       });
     } finally {
       setBaixandoWord(false);
@@ -672,7 +672,7 @@ export function BookDetailPage() {
       {alertaEcossistema && (
         <div className="flex items-center gap-3 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-6 py-4 md:rounded-[var(--radius-card)]">
           <CheckCircle2 className="w-5 h-5 shrink-0 text-[var(--text-secondary)]" />
-          <p className="text-sm font-medium text-[var(--text-secondary)]">Concluído. Ainda pode render conteúdo quando fizer sentido.</p>
+          <p className="text-sm font-medium text-[var(--text-secondary)]">Concluído. Ainda pode render roteiros.</p>
         </div>
       )}
 
@@ -713,8 +713,8 @@ export function BookDetailPage() {
         <div className="rounded-[var(--radius-card-mobile)] border border-[var(--warning)]/25 bg-[var(--warning)]/10 px-6 py-4 md:rounded-[var(--radius-card)]">
           <p className="mb-2 text-sm font-bold text-[var(--warning)]">
             {anotacoesDestaque.length === 1
-              ? '1 destaque pode virar roteiro.'
-              : `${anotacoesDestaque.length} destaques podem virar roteiro.`}
+              ? '1 destaque pode render um roteiro.'
+              : `${anotacoesDestaque.length} destaques podem render roteiros.`}
           </p>
           <AppButton
             variant="secondary"
@@ -1357,7 +1357,7 @@ export function BookDetailPage() {
                   })}
                   className="text-[var(--danger)]"
                 >
-                  Remover da biblioteca
+                  Excluir da biblioteca
                 </AppButton>
                 <AppButton
                   variant="primary"

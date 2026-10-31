@@ -369,7 +369,7 @@ export function TeleprompterControls({
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-4 xl:gap-x-6 xl:px-6">
           {manualScroll && teleprompterEnabled ? (
             <span
-              title="A rolagem assistida está desligada nas configurações: role o texto e a guia acompanha."
+              title="Rolagem automática desligada nos ajustes: role o texto e a guia acompanha."
               className="inline-flex h-12 shrink-0 items-center gap-2 rounded-lg border border-[var(--tp-border)] bg-[var(--tp-subtle)] px-4 text-sm font-semibold text-[var(--tp-muted)] xl:min-w-[11rem] xl:px-6"
             >
               <Hand className="h-4 w-4" />

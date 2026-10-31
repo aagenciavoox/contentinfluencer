@@ -201,7 +201,7 @@ export function IdeaDetailSection({
           variant="workspace"
           content={draft.notes ?? ''}
           onChange={html => onChange({notes: html})}
-          placeholder="Escreva livremente. Este texto irá junto quando a ideia virar roteiro."
+          placeholder="Escreva livremente. Este texto vai junto quando a ideia for transformada em roteiro."
           documentTitle={draft.title?.trim() || 'Nova ideia'}
           authorName={authorName}
           annotations={draft.scriptNotes || []}

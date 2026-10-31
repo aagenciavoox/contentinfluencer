@@ -29,6 +29,8 @@ export function LibraryAnnotationsPage() {
     .sort((a, b) => b.note.createdAt.localeCompare(a.note.createdAt)), [state.bibliotecaItems, format]);
 
   const itemCount = new Set(notes.map(entry => entry.item.id)).size;
+  // O formato só ajuda a distinguir quando a lista mistura livros, filmes, séries…
+  const variosFormatos = new Set(notes.map(entry => entry.item.tipo)).size > 1;
 
   return (
     <PageLayout
@@ -37,7 +39,6 @@ export function LibraryAnnotationsPage() {
         <DesktopPageHeader
           section="Criação"
           title="Anotações"
-          subtitle="Suas reflexões, destaques e registros, de todos os itens."
           backLabel="Biblioteca"
           backTo="/biblioteca/analise"
         />
@@ -52,12 +53,12 @@ export function LibraryAnnotationsPage() {
         ) : notes.length === 0 ? (
           <Surface variant="outlined" padding="lg" className={CARD_CLASS}>
             <Text variant="bodyStrong">Nenhuma anotação por aqui ainda.</Text>
-            <Text variant="meta" className="mt-1 block">As notas que você registra nos itens aparecem nesta lista.</Text>
+            <Text variant="meta" className="mt-1 block">As anotações que você registra aparecem aqui.</Text>
           </Surface>
         ) : (
           <>
             <Text variant="meta">
-              {notes.length.toLocaleString('pt-BR')} {notes.length === 1 ? 'nota' : 'notas'} em {itemCount} {itemCount === 1 ? 'item' : 'itens'}
+              {notes.length.toLocaleString('pt-BR')} {notes.length === 1 ? 'anotação' : 'anotações'} em {itemCount} {itemCount === 1 ? 'item' : 'itens'}
             </Text>
             <ul className="stack-md">
               {notes.map(({ note, item }) => (
@@ -66,11 +67,11 @@ export function LibraryAnnotationsPage() {
                     <Link to={`/biblioteca/${item.id}`} className="flex items-center gap-3 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]">
                       <IconTile><FormatIcon tipo={item.tipo} /></IconTile>
                       <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--text-primary)] hover:underline">{item.titulo}</span>
-                      <FormatTag tipo={item.tipo} />
+                      {variosFormatos ? <FormatTag tipo={item.tipo} /> : null}
                     </Link>
                     <p className="mt-3 whitespace-pre-line text-sm text-[var(--text-primary)]">{note.texto}</p>
                     <p className="mt-2 text-xs text-[var(--text-tertiary)]">
-                      {[note.tipo, note.capituloRef, formatDate(note.createdAt)].filter(Boolean).join(' · ')}
+                      {[note.tipo === 'Anotação' ? null : note.tipo, note.capituloRef, formatDate(note.createdAt)].filter(Boolean).join(' · ')}
                     </p>
                   </Surface>
                 </li>

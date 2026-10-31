@@ -102,7 +102,7 @@ assert.notEqual(linhas[1].link, contents[0].link);
 assert.equal(linhas[1].views, 0);
 assert.equal(textoDeMetrica(linhas[1].views), '0');
 assert.equal(linhas[0].views, null);
-assert.equal(textoDeMetrica(linhas[0].views), 'Sem dados disponíveis');
+assert.equal(textoDeMetrica(linhas[0].views), '—');
 assert.equal(linhas[1].alcance, null);
 assert.equal(linhas[1].interacoes, 0);
 assert.equal(linhas[1].taxa, null);

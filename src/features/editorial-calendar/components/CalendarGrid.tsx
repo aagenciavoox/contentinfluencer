@@ -291,7 +291,7 @@ export function CalendarGrid({ activeLayers, searchTerm, sortValue, onItemClick 
 
               {/* Day Warnings */}
               {loadWarn && (
-                <div className="mt-auto pt-2" title="Muita coisa para a energia deste dia. Dá para mover algo, se fizer sentido.">
+                <div className="mt-auto pt-2" title="Muita coisa para a energia deste dia.">
                    <div className="flex items-center gap-1.5 px-3 py-1 bg-[var(--warning-bg)] rounded-[var(--radius-pill)] border border-[var(--border-color)]">
                       <Layers className="w-3 h-3 text-[var(--accent-orange)]" />
                       <span className="text-2xs font-semibold text-[var(--text-secondary)]">Dia cheio</span>

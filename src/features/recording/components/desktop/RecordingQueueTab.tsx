@@ -179,7 +179,7 @@ function RecordingBlockCard({block, contents, onOpen, onRecord, onDelete}: Recor
                 : 'border-[var(--accent-blue)]/20 bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]'
             )}
           >
-            {isEmpty ? 'Vazio' : isCompleted ? 'Finalizado' : 'Aguardando câmera'}
+            {isEmpty ? 'Vazio' : isCompleted ? 'Gravado' : 'Para gravar'}
           </span>
 
           <button

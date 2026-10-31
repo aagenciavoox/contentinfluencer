@@ -119,8 +119,8 @@ export function CaptionsPage() {
             : 'Tudo legendado'}
           description={
             hasQuery
-              ? 'A busca vale junto com o filtro. Tente outro termo ou mostre todas as publicações pendentes.'
-              : 'Nenhuma publicação pendente está sem legenda. As já postadas saem desta fila; outra conta do mesmo roteiro continua aqui se ainda faltar texto.'
+              ? 'A busca vale junto com o filtro. Tente outro termo ou mostre todas as publicações.'
+              : 'Todas as publicações têm legenda. As já publicadas saem desta lista.'
           }
         />
       ) : (

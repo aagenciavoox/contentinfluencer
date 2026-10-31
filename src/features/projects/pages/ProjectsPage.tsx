@@ -397,7 +397,7 @@ export function ProjectsPage() {
                     {eventoCount > 0 ? (
                       <span className="flex items-center gap-1 text-xs text-[var(--text-tertiary)]">
                         <CalendarDays className="h-3.5 w-3.5" />
-                        {eventoCount} evento{eventoCount !== 1 ? 's' : ''}
+                        {eventoCount} {eventoCount === 1 ? 'evento' : 'eventos'}
                       </span>
                     ) : null}
                   </div>

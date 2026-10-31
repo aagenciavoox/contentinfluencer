@@ -121,10 +121,9 @@ export function TeleprompterSettingsDialog({
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-5">
           {!teleprompterEnabled && (
             <div className="mb-4 rounded-[var(--radius-card)] border border-[color-mix(in_srgb,var(--warning),transparent_60%)] bg-[var(--warning-bg)] px-4 py-3 md:mb-5">
-              <p className="text-sm font-semibold">Leitura estática ativa</p>
+              <p className="text-sm font-semibold">Rolagem automática desligada</p>
               <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
-                Os ajustes visuais continuam funcionando aqui. Rolagem, velocidade e contagem regressiva
-                ficam salvas para quando o teleprompter do bloco for reativado.
+                Os ajustes de texto continuam valendo. Velocidade e contagem regressiva voltam quando a rolagem for ligada no bloco.
               </p>
             </div>
           )}

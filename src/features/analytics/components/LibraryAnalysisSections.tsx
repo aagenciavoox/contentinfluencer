@@ -7,7 +7,6 @@ import {
   Check,
   Clapperboard,
   Clock3,
-  Info,
   LayoutGrid,
   Library,
   NotebookPen,
@@ -67,24 +66,15 @@ export function FormatTag({ tipo }: { tipo: BibliotecaItem['tipo'] }) {
   );
 }
 
-function CardHeader({ title, subtitle, aside }: { title: string; subtitle: string; aside?: ReactNode }) {
+function CardHeader({ title, subtitle, aside }: { title: string; subtitle?: string; aside?: ReactNode }) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
         <Text variant="sectionTitle">{title}</Text>
-        <Text variant="meta" className="mt-1 block">{subtitle}</Text>
+        {subtitle ? <Text variant="meta" className="mt-1 block">{subtitle}</Text> : null}
       </div>
       {aside}
     </div>
-  );
-}
-
-function FooterNote({ children }: { children: ReactNode }) {
-  return (
-    <p className="mt-4 flex items-center gap-2 text-xs text-[var(--text-tertiary)]">
-      <Info className="h-3.5 w-3.5 shrink-0" aria-hidden />
-      {children}
-    </p>
   );
 }
 
@@ -132,7 +122,7 @@ export function LibraryFormatChips({ value, onChange }: { value: LibraryFormatFi
   );
 }
 
-function KpiCard({ icon: Icon, label, value, caption, loading }: { icon: LucideIcon; label: string; value: number; caption: string; loading: boolean }) {
+function KpiCard({ icon: Icon, label, value, caption, loading }: { icon: LucideIcon; label: string; value: number; caption?: string; loading: boolean }) {
   return (
     <Surface variant="outlined" padding="md" className={cn(CARD_CLASS, 'flex items-start gap-3')}>
       <span className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-input)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent-text)] sm:inline-flex">
@@ -143,7 +133,7 @@ function KpiCard({ icon: Icon, label, value, caption, loading }: { icon: LucideI
         {loading
           ? <Skeleton className="mt-1 h-8 w-14" />
           : <p className="mt-1 text-3xl font-bold leading-none tabular-nums text-[var(--text-primary)]">{value.toLocaleString('pt-BR')}</p>}
-        <Text variant="meta" className="mt-1.5 block text-[var(--text-tertiary)]">{caption}</Text>
+        {caption ? <Text variant="meta" className="mt-1.5 block text-[var(--text-tertiary)]">{caption}</Text> : null}
       </div>
     </Surface>
   );
@@ -154,13 +144,13 @@ export function LibraryKpis({ analysis, formatLabel, rangeText, loading }: { ana
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <KpiCard icon={Library} label="Itens no acervo" value={analysis.inCollection} caption={formatLabel} loading={loading} />
       <KpiCard icon={Check} label="Concluídos no período" value={analysis.completed} caption={analysis.completedUndated > 0 ? `${rangeText} · ${analysis.completedUndated} sem data de conclusão` : rangeText} loading={loading} />
-      <KpiCard icon={Clock3} label="Em andamento" value={analysis.active} caption="Situação atual" loading={loading} />
-      <KpiCard icon={NotebookPen} label="Anotações" value={analysis.notes} caption="Registradas no período" loading={loading} />
+      <KpiCard icon={Clock3} label="Em andamento" value={analysis.active} loading={loading} />
+      <KpiCard icon={NotebookPen} label="Anotações" value={analysis.notes} loading={loading} />
     </div>
   );
 }
 
-export function LibraryConsumptionTable({ analysis, periodLabel, loading, showAllFormats }: { analysis: LibraryPeriodAnalysis; periodLabel: string; loading: boolean; showAllFormats: boolean }) {
+export function LibraryConsumptionTable({ analysis, loading, showAllFormats }: { analysis: LibraryPeriodAnalysis; loading: boolean; showAllFormats: boolean }) {
   const [showEmpty, setShowEmpty] = useState(false);
   const emptyRows = analysis.formats.filter(row => row.inCollection === 0);
   // Em "Todos", formatos sem itens ficam recolhidos; com um formato escolhido, a linha sempre aparece.
@@ -171,8 +161,6 @@ export function LibraryConsumptionTable({ analysis, periodLabel, loading, showAl
     <Surface variant="outlined" padding="lg" className={CARD_CLASS}>
       <CardHeader
         title="Consumo por formato"
-        subtitle="Cada formato com sua própria medida de progresso."
-        aside={<Text variant="meta">Período: {periodLabel}</Text>}
       />
       <div className="mt-5 overflow-x-auto">
         {loading ? (
@@ -228,7 +216,6 @@ export function LibraryConsumptionTable({ analysis, periodLabel, loading, showAl
           {showEmpty ? 'Ocultar formatos sem itens' : `Mostrar formatos sem itens (${emptyRows.length})`}
         </button>
       ) : null}
-      <FooterNote>O consumo considera os registros feitos no período selecionado.</FooterNote>
     </Surface>
   );
 }
@@ -257,7 +244,6 @@ export function LibraryActiveCard({ analysis, loading }: { analysis: LibraryPeri
     <Surface variant="outlined" padding="lg" className={cn(CARD_CLASS, 'flex flex-col')}>
       <CardHeader
         title="Em andamento"
-        subtitle="Itens que você está consumindo no momento."
         aside={analysis.activeItems.length > 0 ? <AccentLink to="/biblioteca?status=andamento">Ver todos</AccentLink> : undefined}
       />
       <div className="mt-4 flex-1">
@@ -300,11 +286,6 @@ export function LibraryActiveCard({ analysis, loading }: { analysis: LibraryPeri
           </ul>
         )}
       </div>
-      {!loading && analysis.activeItems.length > 0 ? (
-        <Text variant="meta" className="mt-3 block text-[var(--text-tertiary)]">
-          Exibindo {visible.length} de {analysis.activeItems.length} {analysis.activeItems.length === 1 ? 'item' : 'itens'} em andamento.
-        </Text>
-      ) : null}
     </Surface>
   );
 }
@@ -318,12 +299,11 @@ export function LibraryNotesCard({ analysis, loading }: { analysis: LibraryPerio
     <Surface variant="outlined" padding="lg" className={cn(CARD_CLASS, 'flex flex-col')}>
       <CardHeader
         title="Anotações"
-        subtitle="Suas reflexões, destaques e registros."
         aside={(
           <div className="flex items-center gap-4 text-center">
             <div>
               <p className="text-xl font-semibold tabular-nums text-[var(--text-primary)]">{analysis.notes}</p>
-              <Text variant="meta">{analysis.notes === 1 ? 'nota' : 'notas'}</Text>
+              <Text variant="meta">{analysis.notes === 1 ? 'anotação' : 'anotações'}</Text>
             </div>
             <span className="h-8 w-px bg-[var(--border-color)]" aria-hidden />
             <div>
@@ -334,7 +314,7 @@ export function LibraryNotesCard({ analysis, loading }: { analysis: LibraryPerio
         )}
       />
       <div className="mt-4 flex-1 border-t border-[var(--border-color)] pt-4">
-        <Text variant="bodyStrong" className="text-sm">Itens com mais notas</Text>
+        <Text variant="bodyStrong" className="text-sm">Itens com mais anotações</Text>
         {loading ? (
           <Skeleton className="mt-3 h-9 w-full" />
         ) : analysis.topAnnotated.length === 0 ? (
@@ -347,7 +327,7 @@ export function LibraryNotesCard({ analysis, loading }: { analysis: LibraryPerio
                   <IconTile><FormatIcon tipo={entry.tipo} /></IconTile>
                   <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--text-primary)]">{entry.title}</span>
                   <span className="hidden sm:inline-flex"><FormatTag tipo={entry.tipo} /></span>
-                  <span className="shrink-0 text-sm tabular-nums text-[var(--text-secondary)]">{plural(entry.notes, 'nota', 'notas')}</span>
+                  <span className="shrink-0 text-sm tabular-nums text-[var(--text-secondary)]">{plural(entry.notes, 'anotação', 'anotações')}</span>
                 </Link>
               </li>
             ))}
@@ -364,7 +344,7 @@ export function LibraryNotesCard({ analysis, loading }: { analysis: LibraryPerio
 export function LibraryGenresCard({ analysis, loading }: { analysis: LibraryPeriodAnalysis; loading: boolean }) {
   return (
     <Surface variant="outlined" padding="lg" className={CARD_CLASS}>
-      <CardHeader title="Gêneros no acervo" subtitle="Presença entre os itens cadastrados." />
+      <CardHeader title="Gêneros no acervo" />
       <div className="mt-4">
         {loading ? (
           <Skeleton className="h-9 w-full" />
@@ -391,14 +371,13 @@ export function LibraryRatingsCard({ analysis, loading, onRate }: { analysis: Li
   const max = Math.max(1, ...ratings.distribution.map(entry => entry.count));
   return (
     <Surface variant="outlined" padding="lg" className={cn(CARD_CLASS, 'flex flex-col')}>
-      <CardHeader title="Avaliações" subtitle="Suas notas para livros, filmes, séries e outros." />
+      <CardHeader title="Avaliações" />
       {loading ? (
         <Skeleton className="mt-4 h-24 w-full" />
       ) : ratings.count === 0 || ratings.average === null ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-1 py-4 text-center">
           <Star className="h-6 w-6 text-[var(--text-secondary)]" aria-hidden />
           <Text variant="bodyStrong" className="mt-2 text-sm">Nenhum item avaliado neste período.</Text>
-          <Text variant="meta">As avaliações aparecem aqui conforme você registra suas notas.</Text>
           <AppButton variant="secondary" size="sm" className="mt-3 border-[var(--brand-accent-text)] text-[var(--brand-accent-text)]" onClick={onRate}>
             Avaliar itens concluídos
           </AppButton>
@@ -428,6 +407,4 @@ export function LibraryRatingsCard({ analysis, loading, onRate }: { analysis: Li
   );
 }
 
-export function LibraryAnalysisFooter() {
-  return <FooterNote>Os resultados acompanham o período e o formato selecionados.</FooterNote>;
-}
+

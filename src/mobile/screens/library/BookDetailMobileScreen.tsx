@@ -283,7 +283,7 @@ export function BookDetailMobileScreen({
           {/* Ação destrutiva com moldura (antes era texto rosa a 70% de opacidade, quase invisível).
               A confirmação continua no ConfirmModal. */}
           <AppButton variant="secondary" fullWidth onClick={onRequestDelete} className="text-[var(--danger)]">
-            Remover da biblioteca
+            Excluir da biblioteca
           </AppButton>
         </div>
       ) : null}
@@ -325,7 +325,7 @@ export function BookDetailMobileScreen({
           ) : anotacoesFiltradas.length === 0 ? (
             <EmptyState compact
               title="Nenhuma anotação ainda"
-              description="Registre trechos, reações ou ideias de conteúdo."
+              description="Registre trechos, reações ou ideias."
               action={
                 <AppButton variant="primary" fullWidth onClick={onOpenAnnotationComposer} leftIcon={<Plus className="h-4 w-4" />}>
                   Nova anotação

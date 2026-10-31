@@ -508,7 +508,7 @@ export function BurstModeMobileScreen({
               type="button"
               onClick={onClose}
               className={cn('flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border', theme.border)}
-              aria-label="Fechar teleprompter"
+              aria-label="Fechar modo gravação"
             >
               <X className="h-5 w-5" />
             </button>

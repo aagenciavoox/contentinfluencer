@@ -446,8 +446,8 @@ export function AgendaMobileScreen({
           </div>
 
           <div className="flex items-center justify-end gap-2">
-            <AppButton variant="secondary" onClick={onAddPostedVideo} aria-label="Registrar vídeo postado" leftIcon={<Radio className="h-4 w-4" aria-hidden />}>
-              Já postei
+            <AppButton variant="secondary" onClick={onAddPostedVideo} aria-label="Registrar vídeo publicado" leftIcon={<Radio className="h-4 w-4" aria-hidden />}>
+              Já publiquei
             </AppButton>
             <AppButton variant="primary" onClick={onAddAgenda} leftIcon={<Plus className="h-4 w-4" aria-hidden />}>
               Novo evento
@@ -523,8 +523,8 @@ export function AgendaMobileScreen({
       </section>
       ) : (
         <div className="flex items-center justify-end gap-2">
-          <AppButton variant="secondary" onClick={onAddPostedVideo} aria-label="Registrar vídeo postado" leftIcon={<Radio className="h-4 w-4" aria-hidden />}>
-            Já postei
+          <AppButton variant="secondary" onClick={onAddPostedVideo} aria-label="Registrar vídeo publicado" leftIcon={<Radio className="h-4 w-4" aria-hidden />}>
+            Já publiquei
           </AppButton>
           <AppButton variant="primary" onClick={onAddAgenda} leftIcon={<Plus className="h-4 w-4" aria-hidden />}>
             Novo evento
@@ -720,7 +720,7 @@ export function AgendaMobileScreen({
           </button>
           {undatedOpen ? (
             <Text variant="meta" className="text-[var(--text-secondary)]">
-              Marque a publicação no dia escolhido. Não é uma nota de planejamento.
+              Escolha o dia da publicação.
             </Text>
           ) : null}
           {undatedOpen ? undatedRoteiros.map(content => (

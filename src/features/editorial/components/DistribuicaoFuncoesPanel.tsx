@@ -171,9 +171,9 @@ export function DistribuicaoFuncoesPanel({
       <Surface>
         <div className="grid gap-4 md:grid-cols-3">
           <div>
-            <Text variant="label" as="span" className="mb-1.5 block">Rede de referência</Text>
+            <Text variant="label" as="span" className="mb-1.5 block">Conta de referência</Text>
             <MoreMenu
-              label="Rede de referência"
+              label="Conta de referência"
               align="left"
               className="w-full"
               triggerClassName="h-11 w-full justify-between px-3 text-sm font-normal text-[var(--text-primary)]"

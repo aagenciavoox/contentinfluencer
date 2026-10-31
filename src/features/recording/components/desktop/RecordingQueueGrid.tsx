@@ -94,7 +94,7 @@ export function RecordingQueueGrid({
             Limpar seleção ({selectedIds.size})
           </button>
         ) : (
-          <span className="text-xs text-[var(--text-tertiary)]">{contents.length} {contents.length === 1 ? 'roteiro' : 'roteiros'} na grade</span>
+          <span className="text-xs text-[var(--text-tertiary)]">Selecione roteiros para criar um bloco</span>
         )}
       </div>
 

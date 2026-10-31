@@ -1043,7 +1043,7 @@ function RichTextEditorInstance({
   );
 
   const durationLabel = meter === 'spoken' ? formatSpokenDuration(wordCount) : formatReadingDuration(wordCount, isWorkspace);
-  const status = saveState === 'error' ? 'Falha ao salvar'
+  const status = saveState === 'error' ? 'Não salvou'
     : saveState === 'saving' ? 'Salvando…'
       : localDirty || saveState === 'dirty' ? 'Alterações não salvas'
         : saveState === 'saved' ? 'Salvo' : null;
@@ -1357,7 +1357,7 @@ function RichTextEditorInstance({
 
     <ConfirmModal
       open={repairConfirmOpen}
-      message="Reparar quebras de linha literais neste roteiro? Só interpreta \\n e entidades já salvas — não inventa parágrafos a partir de espaços. Você pode desfazer com Ctrl+Z."
+      message="Arrumar as quebras de linha que vieram coladas como texto? Você pode desfazer com Ctrl+Z."
       confirmLabel="Reparar"
       cancelLabel="Cancelar"
       onConfirm={applyRepairLineBreaks}

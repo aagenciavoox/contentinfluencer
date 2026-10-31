@@ -53,7 +53,7 @@ export function RecordingSelectionBar({
       <div className="pointer-events-none fixed inset-x-0 bottom-6 z-40 px-4 md:px-8">
         <div className="pointer-events-auto mx-auto flex max-w-3xl items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-3 shadow-[var(--shadow-dropdown)]">
           <p className="text-sm font-medium text-[var(--text-secondary)]">
-            Selecione roteiros na grade para criar o bloco.
+            Selecione roteiros para criar o bloco.
           </p>
           <button
             type="button"
@@ -166,7 +166,7 @@ export function RecordingSelectionBar({
                       >
                         <span className="truncate">{block.name}</span>
                         <span className="ml-2 shrink-0 text-xs text-[var(--text-tertiary)]">
-                          {block.contents.length} roteiro{block.contents.length !== 1 ? 's' : ''}
+                          {block.contents.length} {block.contents.length === 1 ? 'roteiro' : 'roteiros'}
                         </span>
                         {targetBlockId === block.id && <Check className="ml-2 h-4 w-4 shrink-0" />}
                       </button>

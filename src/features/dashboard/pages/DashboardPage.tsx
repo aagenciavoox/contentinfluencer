@@ -151,7 +151,7 @@ export function DashboardPage() {
     setIdeaOriginId('');
     notifySaveFeedback({ status: 'saving', message: 'Salvando ideia…' });
     void dispatch({ type: 'ADD_CONTENT', payload: content }, { silent: true })
-      .then(() => notifySaveFeedback({ status: 'success', message: 'Ideia guardada.' }))
+      .then(() => notifySaveFeedback({ status: 'success', message: 'Ideia salva' }))
       .catch(error => notifySaveFeedback({ status: 'error', message: getErrorMessage(error) }));
   };
 

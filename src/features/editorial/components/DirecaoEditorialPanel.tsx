@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Palette, Plus, Settings2 } from 'lucide-react';
+import { Palette, Plus } from 'lucide-react';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { SettingsGridCard, SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/SettingsGridCard';
-import { SidePanel } from '../../../components/layout/SidePanel';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Badge } from '../../../components/ui/Badge';
 import { EmptyState } from '../../../components/ui/EmptyState';
@@ -18,12 +17,11 @@ function nomeChave(nome: string): string {
   return nome.trim().toLocaleLowerCase('pt-BR');
 }
 
-/** Direção editorial: pilares com séries ligadas e ritmo. Configurações abre conta/horários/hashtags. */
+/** Direção editorial: pilares com séries ligadas e, logo abaixo, ritmo, conta, horários e hashtags. */
 export function DirecaoEditorialPanel() {
   const { state, dispatch } = useAppContext();
   const navigate = useNavigate();
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
-  const [configAberta, setConfigAberta] = useState(false);
   const pilares = useMemo(() => sortPilares(state.pilares), [state.pilares]);
 
   const nomesRepetidos = useMemo(() => {
@@ -57,15 +55,7 @@ export function DirecaoEditorialPanel() {
   return (
     <div className="stack-lg">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="stack-xs min-w-0">
-          <Text variant="sectionTitle" as="h2">Pilares</Text>
-          <Text variant="secondary" as="p">
-            Os assuntos do perfil. Cada um mostra as séries ligadas.
-          </Text>
-        </div>
-        <AppButton variant="secondary" size="sm" leftIcon={<Settings2 className="h-4 w-4" />} onClick={() => setConfigAberta(true)}>
-          Configurações
-        </AppButton>
+        <Text variant="sectionTitle" as="h2">Pilares</Text>
       </div>
 
       {(state.dnaVoz?.publico?.trim() || state.editorial.preferencias.publicoLinguagem?.trim()) ? (
@@ -122,17 +112,6 @@ export function DirecaoEditorialPanel() {
       )}
 
       <AjustesEditorialPanel />
-
-      <SidePanel open={configAberta} onClose={() => setConfigAberta(false)} title="Configurações" widthClassName="max-w-lg">
-        <div className="stack-sm p-4">
-          <Text variant="secondary" as="p">
-            Conta de referência, horários e hashtags fora das séries ficam nos cartões abaixo. Role até eles no painel principal ou feche e use a seção Ritmo.
-          </Text>
-          <AppButton variant="secondary" size="sm" onClick={() => setConfigAberta(false)}>
-            Fechar e ver ritmo
-          </AppButton>
-        </div>
-      </SidePanel>
 
       <ConfirmModal
         open={Boolean(confirm)}

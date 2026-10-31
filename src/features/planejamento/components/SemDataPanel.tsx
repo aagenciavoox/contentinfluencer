@@ -121,13 +121,13 @@ export function SemDataPanel({
       </div>
 
       <label className="relative block">
-        <span className="sr-only">Buscar conteúdo</span>
+        <span className="sr-only">Buscar ideia ou roteiro</span>
         <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary)]" aria-hidden />
         <input
           type="search"
           value={busca}
           onChange={event => setBusca(event.target.value)}
-          placeholder="Buscar conteúdo..."
+          placeholder="Buscar ideia ou roteiro…"
           className="w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] py-2 pl-8 pr-3 text-sm text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
         />
       </label>

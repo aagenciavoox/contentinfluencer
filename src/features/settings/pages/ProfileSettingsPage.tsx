@@ -29,30 +29,20 @@ function Feedback({
 
 function SectionCard({
   icon: Icon,
-  eyebrow,
   title,
-  description,
   children,
 }: {
   icon: typeof UserCircle2;
-  eyebrow: string;
   title: string;
-  description: string;
   children: React.ReactNode;
 }) {
   return (
     <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-6">
-      <div className="mb-5 flex items-start gap-4">
+      <div className="mb-5 flex items-center gap-4">
         <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--bg-hover)] p-3 text-[var(--text-primary)]">
           <Icon className="h-5 w-5" />
         </div>
-        <div className="min-w-0">
-          <p className="text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">
-            {eyebrow}
-          </p>
-          <Text variant="sectionTitle" className="mt-2 tracking-tight">{title}</Text>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">{description}</p>
-        </div>
+        <Text variant="sectionTitle" className="min-w-0 tracking-tight">{title}</Text>
       </div>
       {children}
     </section>
@@ -285,9 +275,7 @@ export function ProfileSettingsPage() {
         <div className="grid gap-6 xl:grid-cols-3">
           <SectionCard
             icon={UserCircle2}
-            eyebrow="Perfil"
             title="Nome público"
-            description="Ajuste o nome usado no cadastro e em experiências futuras do sistema."
           >
             <div className="stack-lg">
               <div>
@@ -322,9 +310,7 @@ export function ProfileSettingsPage() {
 
           <SectionCard
             icon={Mail}
-            eyebrow="Acesso"
             title="E-mail da conta"
-            description="Troque o endereço principal usado no login."
           >
             <div className="stack-lg">
               <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--bg-hover)] px-4 py-3">
@@ -368,9 +354,7 @@ export function ProfileSettingsPage() {
 
           <SectionCard
             icon={KeyRound}
-            eyebrow="Segurança"
             title="Senha"
-            description="Defina uma nova senha para manter o acesso seguro no desktop e no mobile."
           >
             <div className="stack-lg">
               <div>
@@ -412,7 +396,7 @@ export function ProfileSettingsPage() {
               <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--bg-hover)] px-4 py-3 text-xs text-[var(--text-secondary)]">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="h-4 w-4 text-[var(--accent-green)]" />
-                  <span>Use pelo menos 6 caracteres e prefira uma combinação exclusiva.</span>
+                  <span>Mínimo de 6 caracteres.</span>
                 </div>
               </div>
               <AppButton

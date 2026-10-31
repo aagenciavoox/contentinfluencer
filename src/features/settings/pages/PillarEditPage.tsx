@@ -141,10 +141,6 @@ export function PillarEditPage() {
     : null;
 
   const pageTitle = isCreate ? 'Novo pilar' : 'Editar pilar';
-  const pageMeta = isCreate
-    ? 'Cadastre a identidade e as preferências deste pilar.'
-    : 'Atualize a identidade e as preferências deste pilar.';
-
   const handleChromeChange = useCallback((next: PilarEditChromeState) => {
     setChrome(next);
   }, []);
@@ -212,9 +208,6 @@ export function PillarEditPage() {
           <Text variant="sectionTitle" className="mb-1">
             {pageTitle}
           </Text>
-          <Text variant="meta" className="mb-5 text-[var(--text-secondary)]">
-            {pageMeta}
-          </Text>
           {formElement}
         </div>
         <ConfirmModal
@@ -242,7 +235,6 @@ export function PillarEditPage() {
             backLabel="Pilares"
             backTo="/editorial?aba=pilares"
             title={pageTitle}
-            meta={pageMeta}
             hideSearch
             actions={
               <PilarEditHeaderActions

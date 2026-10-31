@@ -138,7 +138,7 @@ export function LegendaVersaoField({
             : estado === 'publicada'
               ? 'Publicada sem legenda registrada.'
               : baseVazia
-                ? `A ${nomeDaBase} está vazia.`
+                ? 'Vazia.'
                 : 'Sem legenda.'}
         </p>
       )}
@@ -147,7 +147,8 @@ export function LegendaVersaoField({
         <Text variant="meta" className={cn('tabular-nums', acima && 'text-[var(--danger)]')}>
           {estado === 'publicada'
             ? (quando ? `Publicada em ${quando}. O texto usado fica preservado.` : 'O texto usado fica preservado.')
-            : limite != null ? `${texto.length} / ${limite}` : `${texto.length} caracteres`}
+            : estado === 'base' && !texto.trim() ? null
+              : limite != null ? `${texto.length} / ${limite}` : `${texto.length} caracteres`}
         </Text>
         <div className="flex flex-wrap items-center gap-2">
           {acoes}

@@ -100,13 +100,13 @@ export function RecordingSection({
         ) : isCarousel ? (
           <div className="mt-4 stack-lg">
             <p className="text-sm text-[var(--text-secondary)]">
-              Carrossel não passa pela gravação nem pelo teleprompter. Quando as telas estiverem prontas, siga para a publicação.
+              Carrossel não passa pela gravação. Quando as telas estiverem prontas, siga para a publicação.
             </p>
           </div>
         ) : (
           <div className="mt-4 stack-lg">
             <p className="text-sm text-[var(--text-secondary)]">
-              Guarde este roteiro em um bloco para montar a sessão de gravação.
+              Adicione este roteiro a um bloco para gravar.
             </p>
             <div className="flex flex-wrap gap-3">
               {onOpenBlockSheet ? (

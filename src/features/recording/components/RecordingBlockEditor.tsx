@@ -189,7 +189,7 @@ export function RecordingBlockEditor({
               id={`recording-block-teleprompter-${block.id}`}
               enabled={teleprompterEnabled}
               onToggle={handleTeleprompterToggle}
-              title="Teleprompter"
+              title="Rolagem automática"
               className="rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] py-2 pl-3 pr-2 transition-colors hover:border-[var(--border-strong)]"
             >
               <span className="flex items-center gap-3">
@@ -200,9 +200,9 @@ export function RecordingBlockEditor({
                   <FileText className="h-5 w-5" />
                 </span>
                 <span className="min-w-0">
-                  <span className="block t-body-strong text-[var(--text-primary)]">Teleprompter</span>
+                  <span className="block t-body-strong text-[var(--text-primary)]">Rolagem automática</span>
                   <span className="block t-secondary text-[var(--text-secondary)]">
-                    {teleprompterEnabled ? 'Ativado' : 'Desativado'}
+                    {teleprompterEnabled ? 'Ativada' : 'Desativada'}
                   </span>
                 </span>
               </span>
@@ -376,7 +376,7 @@ function BlockScriptRow({
               Gravado
             </>
           ) : (
-            'Pronto para câmera'
+            'Pronto para gravar'
           )}
         </p>
       </div>

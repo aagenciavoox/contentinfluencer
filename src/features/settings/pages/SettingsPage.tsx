@@ -66,7 +66,7 @@ export function SettingsPage() {
       key: 'perfil',
       to: '/configuracoes/perfil',
       icon: UserCircle2,
-      title: 'Perfil e segurança',
+      title: 'Perfil',
       desc: 'Nome, e-mail de acesso e senha',
     },
     {
@@ -85,8 +85,8 @@ export function SettingsPage() {
     icon: React.ElementType;
   }> = [
     {key: 'library', title: 'Biblioteca', desc: 'Obras e anotações', icon: BookOpen},
-    {key: 'recording', title: 'Gravação', desc: 'Fila, blocos e modo gravação', icon: Camera},
-    {key: 'calendar', title: 'Calendário', desc: 'Agenda e visão mensal editorial', icon: Calendar},
+    {key: 'recording', title: 'Gravação', desc: 'Blocos e modo gravação', icon: Camera},
+    {key: 'calendar', title: 'Calendário', desc: 'Calendário e Planejamento', icon: Calendar},
     {key: 'projects', title: 'Projetos', desc: 'Campanhas, publis e produções', icon: FolderKanban},
   ];
 
@@ -153,7 +153,7 @@ export function SettingsPage() {
       key: 'pauseMode',
       icon: PauseCircle,
       title: 'Modo pausa',
-      desc: 'Guarda tudo sem sugerir próximos passos no dashboard',
+      desc: 'Guarda tudo sem sugerir próximos passos em Hoje',
       enabled: gentleExperience.pauseMode,
       onToggle: () => updateGentleExperience({pauseMode: !gentleExperience.pauseMode}),
     },
@@ -168,8 +168,8 @@ export function SettingsPage() {
     {
       key: 'dashboardCounts',
       icon: Hash,
-      title: 'Números no dashboard',
-      desc: 'Permite ocultar contadores quando você quiser uma leitura mais leve',
+      title: 'Contagens em Hoje',
+      desc: 'Desligue para uma tela Hoje sem números',
       enabled: gentleExperience.dashboardCounts,
       onToggle: () => updateGentleExperience({dashboardCounts: !gentleExperience.dashboardCounts}),
     },
@@ -239,12 +239,7 @@ export function SettingsPage() {
         </section>
 
         <section className="stack-md">
-          <div>
-            <Text variant="eyebrow">Ritmo</Text>
-            <Text variant="sectionTitle" className="mt-1 tracking-tight">
-              Ajuste como o sistema conversa com você
-            </Text>
-          </div>
+          <Text variant="eyebrow">Tom do app</Text>
 
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
             {gentleCards.map(({key, icon: CardIcon, title, desc, enabled, onToggle}) => (
@@ -271,12 +266,7 @@ export function SettingsPage() {
         </section>
 
         <section className="stack-md">
-          <div>
-            <Text variant="eyebrow">Escrita</Text>
-            <Text variant="sectionTitle" className="mt-1 tracking-tight">
-              Escolha como o roteiro ocupa a tela
-            </Text>
-          </div>
+          <Text variant="eyebrow">Escrita</Text>
 
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
             <ToggleRow
@@ -293,7 +283,7 @@ export function SettingsPage() {
                 <span className="min-w-0">
                   <Text variant="bodyStrong" as="span" truncate className="block leading-snug">Modo de escrita</Text>
                   <Text variant="secondary" as="span" className="mt-0.5 block leading-relaxed">
-                    Separa o roteiro da gestão. Status, agendamento e legendas ficam em outra aba, e você pode abrir uma área de notas ao lado do texto.
+                    Separa o roteiro da gestão. Status, agendamento e legendas ficam em outra aba, e você pode abrir o rascunho ao lado do texto.
                   </Text>
                 </span>
               </span>
@@ -313,7 +303,7 @@ export function SettingsPage() {
                   <span className="min-w-0">
                     <Text variant="bodyStrong" as="span" truncate className="block leading-snug">Abrir rascunho ao entrar</Text>
                     <Text variant="secondary" as="span" className="mt-0.5 block leading-relaxed">
-                      Mostra o painel de rascunho ao abrir um roteiro. Fechar durante a edição é só temporário e não muda esta opção.
+                      Mostra o painel de rascunho ao abrir um roteiro.
                     </Text>
                   </span>
                 </span>
@@ -323,12 +313,7 @@ export function SettingsPage() {
         </section>
 
         <section className="stack-md">
-          <div>
-            <Text variant="eyebrow">Módulos</Text>
-            <Text variant="sectionTitle" className="mt-1 tracking-tight">
-              Ligue ou desligue áreas do app
-            </Text>
-          </div>
+          <Text variant="eyebrow">Módulos</Text>
 
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
             {moduleCards.map(({key, icon: CardIcon, title, desc}) => (
@@ -355,12 +340,7 @@ export function SettingsPage() {
         </section>
 
         <section className="stack-md">
-          <div>
-            <Text variant="eyebrow">Diretrizes e grade</Text>
-            <Text variant="sectionTitle" className="mt-1 tracking-tight">
-              Gerencie a base e os parâmetros da sua criação
-            </Text>
-          </div>
+          <Text variant="eyebrow">Perfil e contas</Text>
 
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
             {items.map((item) => {

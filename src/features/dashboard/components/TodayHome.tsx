@@ -207,7 +207,7 @@ export function TodayHome({
         <Surface variant="outlined" padding="lg" className="flex h-full flex-col stack-md">
           <div className="stack-xs">
             <Text variant="eyebrow">Para gravar</Text>
-            {recordingEnabled && scripts.length > 0 && !scriptsLoading ? (
+            {recordingEnabled && scripts.length > 0 && !scriptsLoading && suggestionText ? (
               <Text variant="secondary">{suggestionText}</Text>
             ) : null}
           </div>
@@ -261,10 +261,10 @@ export function TodayHome({
                   leftIcon={<Video className="h-4 w-4" />}
                   onClick={onStartSession}
                 >
-                  {isBusy ? 'Montando…' : 'Iniciar sessão'}
+                  {isBusy ? 'Preparando…' : 'Gravar agora'}
                 </AppButton>
                 <AppButton variant="ghost" fullWidth onClick={onOpenQueue}>
-                  Ver fila de roteiros
+                  Ver roteiros prontos
                 </AppButton>
               </div>
             </>

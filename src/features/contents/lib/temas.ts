@@ -1,4 +1,5 @@
 import type { Tema } from '../../../lib/database.ts';
+import { UserFacingError } from '../../../lib/saveFeedback.ts';
 
 /** Campos que só uma série tem. Um tema não carrega nenhum deles. */
 const CAMPOS_DE_SERIE = ['name', 'template', 'funcaoPadrao', 'pilarIds', 'slotPadrao', 'plataformas'] as const;
@@ -64,7 +65,7 @@ export function sincronizarTemasDoRoteiro(
       createdAt: criar.now,
     };
     if (!temaNaoESerie(tema)) {
-      throw new Error('Tema não pode ser uma série.');
+      throw new UserFacingError('Tema não pode ser uma série.');
     }
     proximo.push(tema);
     criados.push(tema);

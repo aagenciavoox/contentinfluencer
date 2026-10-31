@@ -346,15 +346,15 @@ export function ProjectDetailPage() {
   const summaryCards = [
     {
       label: entrega?.tipo === 'passou' ? 'Data combinada passou' : 'Próxima entrega',
-      value: entrega ? formatDayMonth(entrega.data) : '--',
-      helper: entrega ? entrega.titulo : 'Sem datas no projeto',
+      value: entrega ? formatDayMonth(entrega.data) : '—',
+      helper: entrega ? entrega.titulo : 'Nenhuma data combinada',
       alert: entrega?.tipo === 'passou' && destacarPrazos,
     },
     { label: 'Eventos', value: `${agendaItems.length}`, helper: eventHighlightLabel(agendaItems), alert: false },
     {
       label: 'Roteiros',
       value: `${projetoContents.length}`,
-      helper: disponiveisParaVincular.length > 0 ? `${disponiveisParaVincular.length} disponíveis` : 'Todos vinculados',
+      helper: projetoContents.length === 0 ? 'Nenhum vinculado' : disponiveisParaVincular.length > 0 ? `${disponiveisParaVincular.length} para vincular` : 'Todos vinculados',
       alert: false,
     },
   ];

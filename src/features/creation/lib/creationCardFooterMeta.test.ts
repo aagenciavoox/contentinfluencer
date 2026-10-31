@@ -28,7 +28,7 @@ function plataforma(overrides: Partial<ContentPlataforma>): ContentPlataforma {
   };
 }
 
-const CREATED_AND_EDITED_TODAY = 'Criado 23 de set. · Editado hoje';
+const CREATED_AND_EDITED_TODAY = 'Editado hoje';
 
 // Publicação futura vem antes da gravação futura.
 assert.equal(
@@ -97,11 +97,11 @@ assert.equal(
 // Sem datas futuras: criação e última edição.
 assert.equal(
   getCreationCardDateMeta(draft({ updatedAt: new Date(2026, 9, 2, 22, 0).toISOString() }), NOW),
-  'Criado 23 de set. · Editado ontem',
+  'Editado ontem',
 );
 assert.equal(
   getCreationCardDateMeta(draft({ updatedAt: new Date(2026, 8, 30, 9, 0).toISOString() }), NOW),
-  'Criado 23 de set. · Editado 3d atrás',
+  'Editado 3d atrás',
 );
 // Editado no mesmo dia da criação: só a criação.
 assert.equal(

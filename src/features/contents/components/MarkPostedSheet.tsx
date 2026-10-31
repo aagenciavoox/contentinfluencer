@@ -141,7 +141,7 @@ export function MarkPostedSheet({
     <div className="stack-lg p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-[var(--text-secondary)]">Marcar como postado</p>
+          <p className="text-sm font-semibold text-[var(--text-secondary)]">Marcar como publicado</p>
           <p className="mt-1 text-base font-semibold text-[var(--text-primary)]">
             {content.title.trim() || 'Roteiro sem título'}
           </p>
@@ -158,8 +158,8 @@ export function MarkPostedSheet({
 
       <p className="text-sm text-[var(--text-tertiary)]">
         {rows.some(row => row.id === '' && rows.length === 1)
-          ? 'Ainda não há destino. A data fica no roteiro, e o link é opcional.'
-          : 'Para cada destino, confirme quando foi ao ar. O link é opcional.'}
+          ? 'Nenhuma conta escolhida. A data fica no roteiro, e o link é opcional.'
+          : 'Para cada conta, confirme quando foi ao ar. O link é opcional.'}
       </p>
 
       <div className="stack-sm">
@@ -197,7 +197,7 @@ export function MarkPostedSheet({
           {embedded ? 'Voltar' : 'Agora não'}
         </AppButton>
         <AppButton variant="primary" fullWidth disabled={!canConfirm} onClick={confirm}>
-          Marcar como postado
+          Marcar como publicado
         </AppButton>
       </div>
     </div>
@@ -206,7 +206,7 @@ export function MarkPostedSheet({
   if (embedded) return body;
 
   return (
-    <BottomSheet open={open} onClose={onClose} desktopMaxW="max-w-lg" zIndex="z-[130]" ariaLabel="Marcar como postado">
+    <BottomSheet open={open} onClose={onClose} desktopMaxW="max-w-lg" zIndex="z-[130]" ariaLabel="Marcar como publicado">
       <OverlayBody>{body}</OverlayBody>
     </BottomSheet>
   );

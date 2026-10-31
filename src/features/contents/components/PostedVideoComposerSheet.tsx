@@ -223,7 +223,7 @@ export function PostedVideoComposerSheet({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-[var(--text-secondary)]">
-            {isEditing ? 'Editar registro postado' : 'Vídeo já postado'}
+            {isEditing ? 'Editar publicação' : 'Vídeo já publicado'}
           </p>
           {initialDate && !isEditing ? (
             <p className="mt-1 text-base font-semibold capitalize text-[var(--text-primary)]">
@@ -246,7 +246,7 @@ export function PostedVideoComposerSheet({
       </div>
 
       <p className="text-sm text-[var(--text-tertiary)]">
-        Registre em uma ou mais redes e marque se foi postagem original ou repostagem.
+        Registre em uma ou mais redes e marque se foi publicação original ou repost.
       </p>
 
       <div>
@@ -266,7 +266,7 @@ export function PostedVideoComposerSheet({
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <label className="text-sm font-medium text-[var(--text-secondary)]">Data postada</label>
+          <label className="text-sm font-medium text-[var(--text-secondary)]">Data da publicação</label>
           <input
             type="date"
             value={date}
@@ -338,7 +338,7 @@ export function PostedVideoComposerSheet({
                 onChange={value => setPublicationKind(entry.platformId, value as PublicationKind)}
                 options={[
                   {value: 'post', label: 'Original'},
-                  {value: 'repost', label: 'Repostagem'},
+                  {value: 'repost', label: 'Repost'},
                 ]}
               />
             </div>
@@ -365,7 +365,7 @@ export function PostedVideoComposerSheet({
           leftIcon={<Send className="h-4 w-4" />}
           onClick={() => void handleSave(false)}
         >
-          {isEditing ? 'Salvar alterações' : 'Registrar postagem'}
+          {isEditing ? 'Salvar alterações' : 'Registrar publicação'}
         </AppButton>
         {!isEditing ? (
           <AppButton

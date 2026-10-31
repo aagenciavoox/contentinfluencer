@@ -101,7 +101,7 @@ export function PuxarConteudoDialog({
         />
         <div className="overlay-body stack-sm shrink-0 border-b border-[var(--border-color)]">
           <Text variant="meta" className="text-[var(--text-secondary)]">
-            A ideia, o roteiro ou o conteúdo em produção entra no planejamento sem mudar de status.
+            A ideia ou o roteiro entra no planejamento sem mudar de etapa.
           </Text>
           <ToolbarSearchInput value={busca} onChange={setBusca} placeholder="Buscar pelo título" size="compact" />
           <div className="grid gap-3 sm:grid-cols-3">

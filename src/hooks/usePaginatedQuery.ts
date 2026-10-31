@@ -84,7 +84,7 @@ export function usePaginatedQuery<T, Q extends { page: number; pageSize: number 
       setError(null);
     } catch (err) {
       console.error(`[usePaginatedQuery:${namespace}] fetch failed:`, err);
-      setError(err instanceof Error ? err.message : ERRORS.carregarDados);
+      setError(ERRORS.carregarDados);
       if (!cached && !persisted) {
         setItems([]);
         setTotal(0);
