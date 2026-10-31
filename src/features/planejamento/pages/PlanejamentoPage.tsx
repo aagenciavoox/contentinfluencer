@@ -46,6 +46,8 @@ import {RedeChips} from '../components/RedeChips';
 import {redesDoCartao} from '../lib/redesDoCartao';
 import {REDE_ROTULO, rotuloDaRef} from '../../contas/lib/contas';
 import {saudeDoMes} from '../lib/monthHealth';
+import {usePostItsNaData} from '../hooks/usePostItsNaData';
+import {levarRoteiroAoDia, roteiroPublicado} from '../lib/postItsNaData';
 import {POST_IT_MIME, PostItAssuntosObras, PostItIdentity, PostItNote, type PostItMark} from '../components/PostItNote';
 import {assuntosEmUso, conteudoTemAssunto, nomesDasObras, nomesDosAssuntos} from '../lib/assuntosObras';
 import {avisosDeOrientacao, type AvisoOrientacao} from '../lib/orientacaoEditorial';
@@ -187,7 +189,8 @@ export function PlanejamentoPage() {
   const [moveDate, setMoveDate] = useState<string | null>(null);
 
   const contents = state.contents;
-  const postIts = state.postIts ?? [];
+  // Post-it ligado fica no dia do roteiro: a mesma data do Calendário e do próprio roteiro.
+  const postIts = usePostItsNaData();
   const openPostIt = postIts.find(postIt => postIt.id === openId) ?? null;
   const openContent = contentById(contents, openPostIt?.contentId ?? null);
 
@@ -336,7 +339,7 @@ export function PlanejamentoPage() {
         onClick={() =>
           navigate(buildContentDetailRoute(publicacao.contentId, 'publicacao'), buildDetailBackState('/planejamento'))
         }
-        aria-label={`${publicacao.titulo}, ${status}${publicacao.time ? ` às ${publicacao.time}` : ''}. Abrir conteúdo`}
+        aria-label={`${publicacao.titulo}, ${status}${publicacao.time ? ` às ${publicacao.time}` : ''}. Abrir roteiro`}
         className="flex min-h-11 w-full min-w-0 flex-col gap-1 rounded-[var(--radius-sm)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-2.5 py-2 text-left transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
       >
         <span className="flex min-w-0 items-center gap-2">
@@ -438,8 +441,9 @@ export function PlanejamentoPage() {
       temas: state.temas,
       obras: state.bibliotecaItems,
       periodo,
+      limiteGravacoesDia: state.editorial.preferencias.limiteGravacoesDia,
     }),
-    [postIts, contents, state.series, state.temas, state.bibliotecaItems, periodo],
+    [postIts, contents, state.series, state.temas, state.bibliotecaItems, periodo, state.editorial.preferencias.limiteGravacoesDia],
   );
 
   const verPautasDoAviso = (aviso: AvisoOrientacao) => {
@@ -493,12 +497,22 @@ export function PlanejamentoPage() {
     commit();
   };
 
+  /** O roteiro ligado vai junto: Calendário e roteiro passam a mostrar o mesmo dia. */
+  const levarRoteiroDoPostIt = (contentId: string | null, date: string | null) => {
+    const content = contentById(contents, contentId);
+    const movido = content ? levarRoteiroAoDia(content, date) : null;
+    if (movido) void dispatch({type: 'UPDATE_CONTENT', payload: movido});
+  };
+
   const moveMany = (ids: readonly string[], date: string | null) => {
     const targets: PlanejamentoPostIt[] = [];
     for (const id of ids) {
       if (targets.some(item => item.id === id)) continue;
       const postIt = postIts.find(item => item.id === id);
       if (!postIt || postIt.date === date) continue;
+      // Publicado fica no dia em que saiu.
+      const content = contentById(contents, postIt.contentId);
+      if (content && roteiroPublicado(content)) continue;
       targets.push(postIt);
     }
     if (targets.length === 0) return;
@@ -506,6 +520,7 @@ export function PlanejamentoPage() {
       type: 'UPDATE_POST_ITS',
       payload: targets.map(postIt => movePostIt(postIt, date)),
     });
+    targets.forEach(postIt => levarRoteiroDoPostIt(postIt.contentId, date));
   };
 
   const readDragIds = (event: DragEvent) => {
@@ -522,6 +537,8 @@ export function PlanejamentoPage() {
     if (!result.pulled) return;
     confirmarSeCouber(content, date, () => {
       applyList(result.postIts);
+      // Puxado para a pilha, o roteiro mantém a data que já tinha.
+      if (date) levarRoteiroDoPostIt(content.id, date);
       setPullOpen(false);
     });
   };
@@ -559,6 +576,7 @@ export function PlanejamentoPage() {
       if (postItMudou(openPostIt, saved)) {
         dispatch({type: 'UPDATE_POST_IT', payload: saved});
       }
+      if (saved.date !== openPostIt.date) levarRoteiroDoPostIt(openPostIt.contentId, saved.date);
       setNoteDraft(saved.texto);
       setDateDraft(saved.date);
       setEditing(false);
@@ -677,7 +695,6 @@ export function PlanejamentoPage() {
         <DesktopPageHeader
           section="Produção"
           title="Planejamento"
-          meta="Distribua suas pautas e encontre espaço para novas ideias."
           actions={(
             <>
               {!isMobile && selectedIds.size > 0 ? (
@@ -706,7 +723,7 @@ export function PlanejamentoPage() {
                   setPullOpen(true);
                 }}
               >
-                Puxar conteúdo
+                Puxar da Criação
               </AppButton>
             </>
           )}
@@ -1014,7 +1031,7 @@ export function PlanejamentoPage() {
                 ) : null}
                 {openPostIt.contentId && !openContent ? (
                   <Text variant="secondary" className="text-[var(--text-secondary)]">
-                    O conteúdo puxado não está mais aqui. Apague o post-it se ele não servir.
+                    O roteiro puxado não está mais aqui. Exclua o post-it se ele não servir.
                   </Text>
                 ) : null}
                 {openContent ? (
@@ -1072,7 +1089,7 @@ export function PlanejamentoPage() {
                 {editing ? (
                   openContent ? (
                     <Text variant="secondary" className="text-[var(--text-secondary)]">
-                      Objetivo, série e pilar vêm do conteúdo ligado.
+                      Objetivo, série e pilar vêm do roteiro ligado.
                     </Text>
                   ) : (
                     <section className="stack-sm" aria-labelledby="postit-espaco">
@@ -1112,8 +1129,7 @@ export function PlanejamentoPage() {
                         onChange={values => setClasseDraft(atual => ({...atual, pilarId: values[0] ?? null}))}
                       />
                       <Text variant="meta" className="text-[var(--text-secondary)]">
-                        Escolher a série preenche pilar e objetivo vazios. Quando um conteúdo ocupar este espaço,
-                        valem os dele.
+                        Escolher a série preenche pilar e objetivo vazios.
                       </Text>
                     </section>
                   )
@@ -1131,10 +1147,10 @@ export function PlanejamentoPage() {
                   <section className="stack-md border-t border-[var(--border-color)] pt-6" aria-labelledby="postit-encaixar">
                     <div className="stack-xs">
                       <Text variant="itemTitle" as="h3" className="font-semibold">
-                        <span id="postit-encaixar">Usar um conteúdo que já existe</span>
+                        <span id="postit-encaixar">Usar uma ideia ou roteiro que já existe</span>
                       </Text>
                       <Text variant="secondary" className="text-[var(--text-secondary)]">
-                        Veja as ideias, os roteiros e os conteúdos em produção ainda sem data que podem ocupar este espaço.
+                        Veja as ideias e os roteiros sem data que podem ocupar este espaço.
                       </Text>
                     </div>
                     <AppButton variant="secondary" fullWidth onClick={() => setEncaixeId(openPostIt.id)}>
@@ -1150,14 +1166,14 @@ export function PlanejamentoPage() {
                       </Text>
                       <Text variant="secondary" className="text-[var(--text-secondary)]">
                         {openKind === 'ideia'
-                          ? 'Ao virar roteiro, a data do post-it será usada na publicação.'
-                          : 'Ao virar ideia ou roteiro, a data do post-it será usada na publicação e o conteúdo aparecerá no Calendário.'}
+                          ? 'Ao transformar em roteiro, a data do post-it vai para a publicação.'
+                          : 'Ao transformar em ideia ou roteiro, a data do post-it vai para a publicação e aparece no Calendário.'}
                       </Text>
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                       {openKind === 'vazio' && options.ideia ? (
                         <AppButton variant="secondary" fullWidth onClick={() => commitTransform('ideia')}>
-                          Virar ideia
+                          Transformar em ideia
                         </AppButton>
                       ) : null}
                       {options.roteiro ? (
@@ -1167,7 +1183,7 @@ export function PlanejamentoPage() {
                           className={openKind === 'vazio' && options.ideia ? undefined : 'sm:col-span-2'}
                           onClick={() => commitTransform('roteiro')}
                         >
-                          Virar roteiro
+                          Transformar em roteiro
                         </AppButton>
                       ) : null}
                     </div>

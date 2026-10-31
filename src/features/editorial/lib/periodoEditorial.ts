@@ -57,7 +57,7 @@ interface TrechoSemana {
 }
 
 /** Corta o intervalo nas semanas domingo–sábado que ele atravessa. */
-function semanasNoIntervalo(inicio: string, fim: string): TrechoSemana[] {
+export function semanasNoIntervalo(inicio: string, fim: string): TrechoSemana[] {
   const semanas: TrechoSemana[] = [];
   let cursor = inicio;
 
@@ -93,12 +93,14 @@ function ajusteDaSemana(
  * Se a semana tem ajuste, o número do ajuste substitui o proporcional.
  * Sem limite semanal, só há conta quando cada semana do intervalo tem ajuste.
  * Senão devolve null: ausência não vira zero.
+ * Com `limiteDaSemana`, cada semana usa o limite que valia nela (vigência).
  */
 export function limiteDoIntervalo(input: {
   limiteSemanal: number | null;
   inicio: string;
   fim: string;
   ajustesSemana?: readonly AjusteSemana[];
+  limiteDaSemana?: (inicioSemana: string) => number | null;
 }): number | null {
   const { limiteSemanal, inicio, fim } = input;
   if (!diaIso(inicio) || !diaIso(fim) || fim < inicio) return null;
@@ -112,8 +114,9 @@ export function limiteDoIntervalo(input: {
       soma += ajuste.limite;
       continue;
     }
-    if (limiteSemanal == null) return null;
-    soma += semana.dias === 7 ? limiteSemanal : limiteProporcional(limiteSemanal, semana.dias);
+    const limite = input.limiteDaSemana ? input.limiteDaSemana(semana.inicio) : limiteSemanal;
+    if (limite == null) return null;
+    soma += semana.dias === 7 ? limite : limiteProporcional(limite, semana.dias);
   }
 
   return soma;

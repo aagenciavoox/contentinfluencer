@@ -1,13 +1,14 @@
 import type { FuncaoEditorial } from '../../../lib/database.ts';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
-import type { AjusteSemana, DecisaoPeriodo, PreferenciasGerais } from './editorialSettings.ts';
+import type { AjusteSemana, DecisaoPeriodo, PreferenciasGerais, VigenciaEditorial } from './editorialSettings.ts';
 import type { GradeEntry } from './gradeEntries.ts';
 import { percentuaisFechamEm100, percentuaisNaOrdem } from './distribuirEspacos.ts';
 import { contagemPorEtapaVazia, type ContagemPorEtapa, type Etapa } from './etapas.ts';
 import { FUNCAO_LABELS, FUNCOES, isFuncaoEditorial } from './funcoes.ts';
 import { postItTemPauta } from './pautaConteudo.ts';
-import { decisaoDoPeriodo, limiteDoIntervalo } from './periodoEditorial.ts';
+import { decisaoDoPeriodo, limiteDoIntervalo, semanasNoIntervalo } from './periodoEditorial.ts';
 import { metasDoPeriodo, type ProporcaoFuncoes } from './proporcaoObjetivos.ts';
+import { limiteSemanalNaSemana, proporcaoDoIntervalo } from './vigencias.ts';
 
 export type PeriodoGrade = {
   /** Inclusivo, `aaaa-mm-dd`. */
@@ -44,6 +45,8 @@ export type GradeCountSettings = {
     'limiteSemanal' | 'reservaForaSeriesSemanal' | 'redeReferenciaId' | 'reservaProntos'
   > | null;
   periodos?: readonly DecisaoPeriodo[];
+  /** Limite e proporção por semana. Sem linhas, valem os de hoje. */
+  vigencias?: readonly VigenciaEditorial[] | null;
   limiteSemanal?: number | null;
   reservaForaSeriesSemanal?: number | null;
   ajustesSemana?: readonly AjusteSemana[];
@@ -352,11 +355,27 @@ export function contarPeriodo({
 }): GradeCounts {
   const limiteSemanal = limiteSemanalDe(settings);
   const ajustesSemana = ajustesDe(settings);
+  // Cada semana com o limite que valia nela: mudar a estratégia hoje não reescreve outubro.
+  const temVigencias = (settings.vigencias?.length ?? 0) > 0;
+  const limiteDaSemana = temVigencias
+    ? (inicioSemana: string) => limiteSemanalNaSemana({ limiteSemanal, vigencias: settings.vigencias }, inicioSemana)
+    : undefined;
   const limite = limiteDoIntervalo({
     limiteSemanal,
     inicio: periodo.inicio,
     fim: periodo.fim,
     ajustesSemana,
+    limiteDaSemana,
+  });
+  const proporcao = proporcaoDoIntervalo({
+    semanas: temVigencias
+      ? semanasNoIntervalo(periodo.inicio, periodo.fim).map(semana => ({
+        inicio: semana.inicio,
+        limite: limiteDaSemana?.(semana.inicio) ?? null,
+      }))
+      : [],
+    proporcaoAtual: settings.proporcaoFuncoes ?? null,
+    vigencias: settings.vigencias,
   });
   const decisao = decisaoDoPeriodo(settings.periodos ?? [], periodo.inicio, periodo.fim);
   const itens = montarItens(entries, postIts, periodo);
@@ -387,7 +406,7 @@ export function contarPeriodo({
 
   const metasDoIntervalo = metasDoPeriodo({
     limite,
-    proporcao: settings.proporcaoFuncoes,
+    proporcao,
     ajustes: decisao?.metas,
   });
   const objetivos: ContagemObjetivo[] = FUNCOES.map(funcao => {

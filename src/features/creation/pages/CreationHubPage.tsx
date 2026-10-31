@@ -37,7 +37,7 @@ import {
   type Content,
 } from '../../../lib/database';
 import { buildDetailBackState } from '../../../lib/navigation/detailBack';
-import { getErrorMessage, notifySaveFeedback } from '../../../lib/saveFeedback';
+import { getErrorDetail, notifySaveFeedback, UserFacingError } from '../../../lib/saveFeedback';
 import { CONFIRM, ERRORS } from '../../../lib/uiCopy';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import { aplicarEscolhasDaSerie, marcarEscolhaManual } from '../../editorial/lib/escolhasSerie';
@@ -86,6 +86,7 @@ import {
   CREATION_VIEW_MODE_VALUES,
   type CreationSortValue,
 } from '../lib/creationFilterOptions';
+import { usePostItsNaData } from '../../planejamento/hooks/usePostItsNaData';
 import type { CreationItemActionHandlers } from '../lib/creationItemActions';
 import {
   REDE_FILTER_PARAM,
@@ -130,6 +131,7 @@ function parseViewMode(value: string | null): CreationViewMode | null {
 
 export function CreationHubPage() {
   const { state, dispatch, updateContent, ensureDataDomains } = useAppContext();
+  const postItsNaData = usePostItsNaData();
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -221,10 +223,10 @@ export function CreationHubPage() {
   const datas = useMemo(() => datasNaGrade({
     contents: state.contents,
     series: state.series,
-    postIts: state.postIts ?? [],
+    postIts: postItsNaData,
     redeReferenciaId: state.editorial.preferencias.redeReferenciaId,
     platforms: state.platforms,
-  }), [state.contents, state.series, state.postIts, state.preferences, state.platforms]);
+  }), [state.contents, state.series, postItsNaData, state.preferences, state.platforms]);
 
   // As redes anotadas nos post-its só são carregadas quando o filtro de rede é usado.
   useEffect(() => {
@@ -383,8 +385,8 @@ export function CreationHubPage() {
     } catch (error) {
       notifySaveFeedback({
         status: 'error',
-        message: 'Não foi possível exportar os itens selecionados.',
-        detail: getErrorMessage(error),
+        message: 'Não foi possível exportar os itens selecionados. Tente novamente.',
+        detail: getErrorDetail(error),
       });
     } finally {
       setIsExporting(false);
@@ -439,7 +441,7 @@ export function CreationHubPage() {
         const ids = selected.map(content => content.id);
         const fetched = user?.id ? await fetchContentsByIds(user.id, ids) : selected;
         if (user?.id && fetched.length !== ids.length) {
-          throw new Error('Nem todos os itens selecionados puderam ser carregados.');
+          throw new UserFacingError('Nem todos os itens selecionados puderam ser carregados.');
         }
 
         const now = new Date().toISOString();
@@ -468,7 +470,7 @@ export function CreationHubPage() {
         notifySaveFeedback({
           status: 'error',
           message: ERRORS.aplicarAlteracoesMassa,
-          detail: getErrorMessage(error),
+          detail: getErrorDetail(error),
         });
       }
     })();
@@ -510,7 +512,7 @@ export function CreationHubPage() {
         notifySaveFeedback({
           status: 'error',
           message: ERRORS.salvarGenerico,
-          detail: getErrorMessage(error),
+          detail: getErrorDetail(error),
         });
       });
   }, [archivedContents, dispatch, selectedContents, selectedCopy]);
@@ -650,8 +652,8 @@ export function CreationHubPage() {
     } catch (error) {
       notifySaveFeedback({
         status: 'error',
-        message: 'Não foi possível restaurar o roteiro.',
-        detail: getErrorMessage(error),
+        message: 'Não foi possível restaurar o roteiro. Tente novamente.',
+        detail: getErrorDetail(error),
       });
     }
   }, [updateContent, user?.id]);
@@ -669,8 +671,8 @@ export function CreationHubPage() {
     } catch (error) {
       notifySaveFeedback({
         status: 'error',
-        message: 'Não foi possível excluir o roteiro.',
-        detail: getErrorMessage(error),
+        message: 'Não foi possível excluir o roteiro. Tente novamente.',
+        detail: getErrorDetail(error),
       });
     } finally {
       setIsPermanentDeleting(false);
@@ -693,8 +695,8 @@ export function CreationHubPage() {
     } catch (error) {
       notifySaveFeedback({
         status: 'error',
-        message: 'Não foi possível limpar a lixeira.',
-        detail: getErrorMessage(error),
+        message: 'Não foi possível limpar a lixeira. Tente novamente.',
+        detail: getErrorDetail(error),
       });
     } finally {
       setIsClearingTrash(false);
@@ -728,7 +730,7 @@ export function CreationHubPage() {
       || previous.status === 'Postado';
     if (saindoDePublicado) {
       const ok = window.confirm(
-        'Desfazer publicação?\n\nA data de publicação registrada neste conteúdo será apagada.',
+        'Desfazer publicação?\n\nA data de publicação registrada neste roteiro será apagada.',
       );
       if (!ok) return;
     }
@@ -744,8 +746,8 @@ export function CreationHubPage() {
       }
       notifySaveFeedback({
         status: 'error',
-        message: 'Não foi possível mover o item.',
-        detail: getErrorMessage(error),
+        message: 'Não foi possível mudar a etapa. Tente novamente.',
+        detail: getErrorDetail(error),
       });
     } finally {
       setPersistingIds(current => {
@@ -1106,9 +1108,8 @@ export function CreationHubPage() {
   const shownCount = viewMode === 'kanban' ? kanbanContents.length : pageData.items.length;
   const totalCount = viewMode === 'kanban' ? kanbanContents.length : filteredContents.length;
   const hiddenCount = totalCount - shownCount;
-  const countMeta = hiddenCount > 0
-    ? `Mostrando ${shownCount} de ${totalCount}`
-    : `${totalCount} ${totalCount === 1 ? 'item' : 'itens'}`;
+  // Sem filtro escondendo nada, o número já está na aba ativa.
+  const countMeta = hiddenCount > 0 ? `Mostrando ${shownCount} de ${totalCount}` : undefined;
 
   return (
     <>
@@ -1156,7 +1157,7 @@ export function CreationHubPage() {
             hasFilters
               ? 'Ajuste a busca ou limpe os filtros para encontrar outros itens.'
               : activeTab === 'Lixeira'
-                ? 'Roteiros excluídos aparecem aqui para que você possa restaurá-los.'
+                ? 'Roteiros movidos para a lixeira ficam aqui até você restaurar ou excluir.'
                 : isMobile
                   ? 'Use o botão + da barra inferior para criar uma ideia ou um roteiro.'
                   : 'Crie uma ideia ou um roteiro para começar a preencher esta etapa.'

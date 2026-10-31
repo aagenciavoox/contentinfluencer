@@ -21,7 +21,7 @@ function noPeriodo(data: string | null, periodo: PeriodoGrade): boolean {
 }
 
 type AjustesDoMes = Pick<EditorialSettings, 'redeReferenciaId'> & Partial<
-  Pick<EditorialSettings, 'proporcaoFuncoes' | 'preferencias' | 'periodos'>
+  Pick<EditorialSettings, 'proporcaoFuncoes' | 'preferencias' | 'periodos' | 'vigencias'>
 >;
 
 function postItsParaContagem(
@@ -35,11 +35,16 @@ function postItsParaContagem(
       const content = contentById.get(postIt.contentId);
       if (!content || content.deletedAt || content.archivedAt) continue;
     }
+    // A classificação do post-it vale enquanto ele é só reserva; sem ela, a reserva contava como sem objetivo.
     notas.push({
       id: postIt.id,
       date: postIt.date,
       texto: postIt.texto,
       contentId: postIt.contentId,
+      serieId: postIt.serieId ?? null,
+      pilarId: postIt.pilarId ?? null,
+      objetivo: postIt.objetivo ?? null,
+      pautaDefinida: postIt.pautaDefinida ?? null,
     });
   }
   return notas;
@@ -110,7 +115,7 @@ export function textoForaDaConta(fora: ForaDaConta): string | null {
   const partes: string[] = [];
   if (fora.semPilar > 0) partes.push(`${fora.semPilar} sem pilar`);
   if (fora.pilarSemEspaco > 0) partes.push(`${fora.pilarSemEspaco} em pilar sem espaço por semana`);
-  if (fora.foraDaGrade > 0) partes.push(`${fora.foraDaGrade} marcados fora da grade`);
+  if (fora.foraDaGrade > 0) partes.push(`${fora.foraDaGrade} marcados fora das metas`);
   if (fora.outrasRedes > 0) partes.push(`${fora.outrasRedes} só em redes fora da rede de referência`);
   const total = fora.semPilar + fora.pilarSemEspaco + fora.foraDaGrade + fora.outrasRedes;
   if (total === 0) return null;
@@ -118,9 +123,47 @@ export function textoForaDaConta(fora: ForaDaConta): string | null {
   return `${sujeito} na conta: ${partes.join(', ')}.`;
 }
 
+/**
+ * Preparo do período: das publicações previstas, quantas já saíram, quantas estão prontas
+ * e quantas ainda dependem de escrita, gravação ou edição. É diferente do preenchimento:
+ * 12 de 12 espaços preenchidos podem ter só 7 prontas ou publicadas.
+ */
+export type PreparoDoPeriodo = {
+  total: number;
+  publicadas: number;
+  /** Edição concluída ou dispensada, ainda sem publicar. */
+  prontas: number;
+  /** Post-it sem roteiro, ideia ou roteiro. */
+  escrita: number;
+  /** Em Produção: falta gravar. */
+  gravacao: number;
+  /** Em Edição, ainda sem concluir. */
+  edicao: number;
+};
+
+export function preparoDoPeriodo(
+  itens: readonly Pick<GradeEntry, 'contentId' | 'etapa' | 'postItId'>[],
+  contents: readonly Pick<Content, 'id' | 'edicaoConcluidaEm'>[],
+): PreparoDoPeriodo {
+  const porId = new Map(contents.map(content => [content.id, content]));
+  const preparo: PreparoDoPeriodo = {total: 0, publicadas: 0, prontas: 0, escrita: 0, gravacao: 0, edicao: 0};
+  for (const item of itens) {
+    preparo.total += 1;
+    const etapa = item.etapa ?? 'roteiro';
+    if (etapa === 'postado') preparo.publicadas += 1;
+    else if (etapa === 'producao') preparo.gravacao += 1;
+    else if (etapa === 'edicao') {
+      if (porId.get(item.contentId)?.edicaoConcluidaEm) preparo.prontas += 1;
+      else preparo.edicao += 1;
+    } else preparo.escrita += 1;
+  }
+  return preparo;
+}
+
 export type SaudeDoMes = GradeCounts & {
   entries: readonly GradeEntry[];
   outrasRedes: number;
+  preparo: PreparoDoPeriodo;
 };
 
 export type SerieNoPilar = {
@@ -280,5 +323,6 @@ export function saudeDoMes({
     ...contagem,
     entries: contagem.itens,
     outrasRedes: 0,
+    preparo: preparoDoPeriodo(contagem.itens, contents),
   };
 }

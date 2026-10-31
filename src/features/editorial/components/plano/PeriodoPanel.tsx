@@ -19,7 +19,7 @@ import type { MetasPeriodo } from '../../lib/editorialSettings';
 import { ETAPA_LABEL, ETAPAS, ETAPAS_DE_CONTEUDO, contagemPorEtapaVazia, somaDasEtapas, type ContagemPorEtapa, type Etapa } from '../../lib/etapas';
 import { contarSerieAgrupada, textoDaContagemSerie } from '../../lib/frequenciaAgrupada';
 import { FUNCAO_CURTA, FUNCOES } from '../../lib/funcoes';
-import { decisaoDoPeriodo } from '../../lib/periodoEditorial';
+import { decisaoDoPeriodo, semanaDe } from '../../lib/periodoEditorial';
 import {
   frasesDoResumo,
   metasDoPeriodo,
@@ -39,6 +39,18 @@ import {
   type PeriodoSelecionado,
 } from './PeriodoEditorialControl';
 import { useEditorialPlano } from './useEditorialPlano';
+import { usePostItsNaData } from '../../../planejamento/hooks/usePostItsNaData';
+import { limiteSemanalNaSemana } from '../../lib/vigencias';
+
+/** "3 roteiros e 2 post-its estão sem objetivo; a distribuição está incompleta." */
+function textoSemObjetivo(roteiros: number, reservas: number): string {
+  const partes = [
+    ...(roteiros === 1 ? ['1 roteiro'] : roteiros > 1 ? [`${roteiros} roteiros`] : []),
+    ...(reservas === 1 ? ['1 post-it'] : reservas > 1 ? [`${reservas} post-its`] : []),
+  ];
+  const verbo = roteiros + reservas === 1 ? 'está' : 'estão';
+  return `${partes.join(' e ')} ${verbo} sem objetivo; a distribuição está incompleta.`;
+}
 
 function celula(valor: number | null): string {
   return valor == null ? '—' : String(valor);
@@ -439,9 +451,14 @@ export function PeriodoPanel({
   const [editandoProporcao, setEditandoProporcao] = useState(false);
   const [semanasAbertas, setSemanasAbertas] = useState(false);
   const contagem = useContagemDoPeriodo(periodo.inicio, periodo.fim);
+  const postIts = usePostItsNaData();
   const decisao = decisaoDoPeriodo(settings.periodos, periodo.inicio, periodo.fim);
   const parciais = semanasParciais(periodo.inicio, periodo.fim);
-  const limiteSemanal = settings.preferencias.limiteSemanal;
+  // O limite que valia no começo do período. Mudar hoje não reescreve meses passados.
+  const limiteSemanal = limiteSemanalNaSemana(
+    { limiteSemanal: settings.preferencias.limiteSemanal, vigencias: settings.vigencias },
+    semanaDe(periodo.inicio).inicio,
+  );
   const semLimite = limiteSemanal == null;
   const estoque = reservaPronta(state.contents, {
     redeReferenciaId: settings.preferencias.redeReferenciaId,
@@ -476,25 +493,31 @@ export function PeriodoPanel({
       acao: { rotulo: 'Abrir o planejamento', onClick: () => navigate('/planejamento') },
     });
   }
-  if (contagem.semObjetivo > 0) {
-    const n = contagem.semObjetivo;
+  // Reserva sem objetivo também deixa a distribuição incompleta.
+  const reservasSemObjetivo = contagem.semObjetivoPorEtapa.planejamento;
+  if (contagem.semObjetivo > 0 || reservasSemObjetivo > 0) {
     avisos.push({
       id: 'sem-objetivo',
-      texto: n === 1 ? '1 conteúdo sem objetivo definido.' : `${n} conteúdos sem objetivo definido.`,
+      texto: textoSemObjetivo(contagem.semObjetivo, reservasSemObjetivo),
       acao: {
         rotulo: 'Ver quais',
-        onClick: () => setFiltroItens({ titulo: 'Sem objetivo', objetivo: null, etapas: ETAPAS_DE_CONTEUDO }),
+        onClick: () => setFiltroItens({
+          titulo: 'Sem objetivo',
+          objetivo: null,
+          etapas: reservasSemObjetivo > 0 ? ETAPAS : ETAPAS_DE_CONTEUDO,
+        }),
       },
     });
   }
   // Mesma leitura do Planejamento: avisos nunca bloqueiam.
   for (const aviso of avisosDeOrientacao({
-    postIts: state.postIts,
+    postIts,
     contents: state.contents,
     series: state.series,
     temas: state.temas,
     obras: state.bibliotecaItems,
     periodo: { inicio: periodo.inicio, fim: periodo.fim },
+    limiteGravacoesDia: settings.preferencias.limiteGravacoesDia,
   })) {
     avisos.push({
       id: aviso.id,
@@ -622,7 +645,7 @@ export function PeriodoPanel({
           Cada ciclo conta uma vez na grade.
         </Text>
         <Text variant="meta" as="p">
-          Reserva: {estoque.ineditos} inédito{estoque.ineditos === 1 ? '' : 's'}
+          Reserva: {estoque.ineditos} {estoque.ineditos === 1 ? 'inédito' : 'inéditos'}
           {' · '}
           {estoque.reaproveitar} para reaproveitar
           {soEmOutras.length > 0
@@ -732,7 +755,7 @@ export function PeriodoPanel({
           onAbrir={setFiltroItens}
         />
         <Text variant="secondary">
-          Planejamento é o post-it com data e sem conteúdo. As outras colunas seguem o status de cada conteúdo.
+          Planejamento conta os post-its com data. As outras colunas seguem a etapa de cada roteiro.
         </Text>
       </CardConfiguracao>
 

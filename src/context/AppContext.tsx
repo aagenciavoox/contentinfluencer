@@ -31,9 +31,10 @@ import {
 } from './realtimeDomainMap';
 import { useAuth } from './AuthContext';
 import { broadcastDataSync, subscribeDataSync } from '../lib/syncBroadcast';
-import { getErrorMessage, notifySaveFeedback } from '../lib/saveFeedback';
+import { getErrorDetail, notifySaveFeedback } from '../lib/saveFeedback';
 import { ERRORS, LOADING } from '../lib/uiCopy';
 import { generateUUID, isUUID } from '../utils/uuid';
+import { registrarVigencia } from '../features/editorial/lib/vigencias';
 import { buildDomainCacheKey, dataCache } from '../lib/dataCache';
 import {
   canDomainPayloadSatisfyRequest,
@@ -121,6 +122,9 @@ function normalizeContentId(content: db.Content): db.Content {
 
 function normalizeAction(action: AppAction): AppAction {
   switch (action.type) {
+    // Limite ou proporção mudou: guarda a partir desta semana, para não reescrever os períodos passados.
+    case 'SET_EDITORIAL':
+      return { ...action, payload: registrarVigencia(action.payload) };
     case 'ADD_CONTENT':
     case 'UPDATE_CONTENT':
       return {
@@ -456,7 +460,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         notifySaveFeedback({
           status: 'error',
           message: ERRORS.sincronizar,
-          detail: getErrorMessage(err),
+          detail: getErrorDetail(err),
         });
       }
     }
@@ -719,7 +723,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       notifySaveFeedback({
         status: 'error',
         message: ERRORS.criarRoteiro,
-        detail: getErrorMessage(err),
+        detail: getErrorDetail(err),
       });
       await refreshFromServer({ silent: true, force: true });
       throw err;
@@ -755,7 +759,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       notifySaveFeedback({
         status: 'error',
         message: ERRORS.salvarRoteiro,
-        detail: getErrorMessage(err),
+        detail: getErrorDetail(err),
       });
       await refreshFromServer({ silent: true, force: true });
       throw err;
@@ -804,7 +808,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       notifySaveFeedback({
         status: 'error',
         message: ERRORS.salvarGenerico,
-        detail: getErrorMessage(err),
+        detail: getErrorDetail(err),
       });
       try {
         await refreshFromServer({ silent: true, force: true });

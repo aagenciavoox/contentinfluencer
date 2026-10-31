@@ -19,6 +19,7 @@ import type { PlanejamentoPostIt } from '../../../planejamento/lib/postIt';
 import { ETAPA_LABEL, ETAPAS, type Etapa } from '../../lib/etapas';
 import { etapaDoItem } from '../../lib/gradeCounts';
 import type { GradeEntry } from '../../lib/gradeEntries';
+import { usePostItsNaData } from '../../../planejamento/hooks/usePostItsNaData';
 
 /** Qual célula da tabela foi aberta. `objetivo` null é a linha "Sem objetivo". */
 export type FiltroDosItens = {
@@ -81,7 +82,7 @@ export function ItensDoPeriodoDialog({
   const navigate = useNavigate();
   const { state } = useAppContext();
   const [encaixe, setEncaixe] = useState<PlanejamentoPostIt | null>(null);
-  const postIts = state.postIts ?? [];
+  const postIts = usePostItsNaData();
 
   const doFiltro = filtro
     ? itens

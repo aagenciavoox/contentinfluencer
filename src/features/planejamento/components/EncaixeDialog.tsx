@@ -14,6 +14,8 @@ import {datasNaGrade} from '../../editorial/lib/datasNaGrade';
 import {FUNCAO_CURTA} from '../../editorial/lib/funcoes';
 import {candidatosDoEncaixe, descricaoDoCandidato, type CandidatoEncaixe} from '../lib/encaixe';
 import {encaixarConteudo, type PlanejamentoPostIt} from '../lib/postIt';
+import {levarRoteiroAoDia} from '../lib/postItsNaData';
+import {usePostItsNaData} from '../hooks/usePostItsNaData';
 
 function criterioDoPostIt(
   postIt: PlanejamentoPostIt,
@@ -87,7 +89,7 @@ export function EncaixeDialog({
 }) {
   const {state, dispatch} = useAppContext();
   const [busca, setBusca] = useState('');
-  const postIts = state.postIts ?? [];
+  const postIts = usePostItsNaData();
 
   const datas = useMemo(() => datasNaGrade({
     contents: state.contents,
@@ -120,6 +122,9 @@ export function EncaixeDialog({
     const resultado = encaixarConteudo({postIts, postItId: postIt.id, content: candidato.content});
     if (!resultado.ok) return;
     void dispatch({type: 'UPDATE_POST_IT', payload: resultado.postIt});
+    // O roteiro ocupa o espaço: ganha o dia do post-it, que passa a valer também no Calendário.
+    const noDia = resultado.postIt.date ? levarRoteiroAoDia(candidato.content, resultado.postIt.date) : null;
+    if (noDia) void dispatch({type: 'UPDATE_CONTENT', payload: noDia});
     onEncaixado?.(resultado.postIt);
     fechar();
   };
@@ -138,18 +143,17 @@ export function EncaixeDialog({
         <OverlayBody>
           <div className="stack-md">
             <Text variant="meta" className="text-[var(--text-secondary)]">
-              Ideias, roteiros e conteúdos em produção ainda sem data. Ao escolher, o conteúdo ocupa este espaço e
-              continua com o mesmo status.
+              Ideias e roteiros ainda sem data. O escolhido ocupa este espaço e continua na mesma etapa.
             </Text>
             {criterio ? (
               <Text variant="meta" className="text-[var(--text-secondary)]">
-                Este espaço é de {criterio}. O que combina aparece primeiro. Cada conteúdo conta com o objetivo dele.
+                Este espaço é de {criterio}. O que combina aparece primeiro. Cada roteiro conta com o objetivo dele.
               </Text>
             ) : null}
             <ToolbarSearchInput value={busca} onChange={setBusca} placeholder="Buscar pelo título" size="compact" />
             {vazio ? (
               <Text variant="meta" className="text-[var(--text-secondary)]">
-                {busca.trim() ? 'Nada com esse título.' : 'Nenhum conteúdo sem data para encaixar.'}
+                {busca.trim() ? 'Nada com esse título.' : 'Nenhuma ideia ou roteiro sem data para encaixar.'}
               </Text>
             ) : (
               <>

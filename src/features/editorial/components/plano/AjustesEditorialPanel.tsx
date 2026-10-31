@@ -17,20 +17,21 @@ function resumoHorarios(entries: readonly PostingTimeEntry[], platforms: readonl
   const ids = new Set(entries.flatMap(entry => (entry.platformId ? [entry.platformId] : [])));
   const nomes = platforms.filter(platform => ids.has(platform.id)).map(platform => rotuloConta(platform));
   const global = entries.some(entry => !entry.platformId);
-  if (nomes.length === 0 && !global) return 'Nenhuma rede tem horário de postagem definido.';
-  if (nomes.length === 0) return 'Há um horário geral, sem rede específica.';
+  if (nomes.length === 0 && !global) return '';
+  if (nomes.length === 0) return 'Todas as contas usam o padrão geral.';
   const amostra = nomes.slice(0, 3).join(', ');
   const resto = nomes.length > 3 ? ` e mais ${nomes.length - 3}` : '';
   const frase = nomes.length === 1
-    ? `${amostra} tem horário definido`
-    : `${amostra}${resto} têm horário definido`;
-  return global ? `${frase}. Há também um horário geral.` : `${frase}.`;
+    ? `${amostra} tem horários próprios`
+    : `${amostra}${resto} têm horários próprios`;
+  return global ? `${frase}. As outras usam o padrão geral.` : `${frase}.`;
 }
 
 type RitmoDraft = {
   limite: string;
   reserva: string;
   prontos: string;
+  gravacoes: string;
 };
 
 function textoNumero(valor: number | null): string {
@@ -41,11 +42,13 @@ function ritmoSalvo(preferencias: {
   limiteSemanal: number | null;
   reservaForaSeriesSemanal: number | null;
   reservaProntos: number | null;
+  limiteGravacoesDia: number | null;
 }): RitmoDraft {
   return {
     limite: textoNumero(preferencias.limiteSemanal),
     reserva: textoNumero(preferencias.reservaForaSeriesSemanal),
     prontos: textoNumero(preferencias.reservaProntos),
+    gravacoes: textoNumero(preferencias.limiteGravacoesDia),
   };
 }
 
@@ -101,12 +104,17 @@ export function AjustesEditorialPanel() {
   const salvarRitmo = () => {
     if (reservaInvalida) return;
     const salvo = ritmoSalvo(preferencias);
-    const mudou = ritmo.limite !== salvo.limite || ritmo.reserva !== salvo.reserva || ritmo.prontos !== salvo.prontos;
+    const mudou = ritmo.limite !== salvo.limite
+      || ritmo.reserva !== salvo.reserva
+      || ritmo.prontos !== salvo.prontos
+      || ritmo.gravacoes !== salvo.gravacoes;
     if (mudou) {
       salvarPreferencias({
         limiteSemanal: inteiroOuNull(ritmo.limite),
         reservaForaSeriesSemanal: inteiroOuNull(ritmo.reserva),
         reservaProntos: inteiroOuNull(ritmo.prontos),
+        // Zero é "sem limite": não há aviso de gravação.
+        limiteGravacoesDia: inteiroOuNull(ritmo.gravacoes) || null,
       });
     }
     setEditandoRitmo(false);
@@ -123,7 +131,7 @@ export function AjustesEditorialPanel() {
   return (
     <div className="stack-lg">
       <Text variant="secondary" as="p">
-        Estas configurações valem para todos os períodos. Prioridade, metas e ajustes semanais ficam no Planejamento.
+        Prioridade e metas de cada semana ficam no Planejamento.
       </Text>
 
       <CardConfiguracao
@@ -131,7 +139,7 @@ export function AjustesEditorialPanel() {
         titulo="Ritmo de criação"
         descricao={editandoRitmo
           ? 'Ajuste os números e salve. Nada é gravado a cada clique.'
-          : 'Capacidade semanal e reserva de conteúdos.'}
+          : undefined}
         acao={editandoRitmo ? (
           <div className="flex flex-wrap justify-end gap-2">
             <AppButton variant="secondary" size="sm" onClick={cancelarRitmo}>
@@ -154,12 +162,12 @@ export function AjustesEditorialPanel() {
         )}
       >
         {editandoRitmo ? (
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
             <CampoStepper
               id="limite-semanal"
               label="Publicações por semana"
               unidade="roteiros"
-              hint="Cada roteiro conta uma vez, na publicação original da grade. Reposts e roteiros fora da grade não entram."
+              hint="Cada roteiro conta uma vez, na publicação original. Reposts e roteiros fora das metas não entram. Mudar vale a partir desta semana."
               value={ritmo.limite}
               onChange={limite => setRitmo(atual => ({ ...atual, limite }))}
             />
@@ -177,16 +185,26 @@ export function AjustesEditorialPanel() {
             <div>
               <CampoStepper
                 id="reserva-prontos"
-                label="Conteúdos prontos de reserva"
+                label="Roteiros prontos de reserva"
                 unidade="roteiros"
                 hint="Finalizados e sem data de publicação. Exclui os que ainda precisam de edição e os já agendados."
                 value={ritmo.prontos}
                 onChange={prontos => setRitmo(atual => ({ ...atual, prontos }))}
               />
             </div>
+            <div>
+              <CampoStepper
+                id="limite-gravacoes-dia"
+                label="Gravações por dia"
+                unidade="no máximo"
+                hint="O Planejamento avisa quando um dia passa disso. Vazio, não há aviso."
+                value={ritmo.gravacoes}
+                onChange={gravacoes => setRitmo(atual => ({ ...atual, gravacoes }))}
+              />
+            </div>
           </div>
         ) : (
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
             <ValorDoRitmo
               rotulo="Publicações por semana"
               valor={preferencias.limiteSemanal}
@@ -201,9 +219,16 @@ export function AjustesEditorialPanel() {
             </div>
             <div>
               <ValorDoRitmo
-                rotulo="Conteúdos prontos de reserva"
+                rotulo="Roteiros prontos de reserva"
                 valor={preferencias.reservaProntos}
                 unidade="roteiros"
+              />
+            </div>
+            <div>
+              <ValorDoRitmo
+                rotulo="Gravações por dia"
+                valor={preferencias.limiteGravacoesDia}
+                unidade="no máximo"
               />
             </div>
           </div>
@@ -213,7 +238,7 @@ export function AjustesEditorialPanel() {
       <CardConfiguracao
         icone={<Target className="h-5 w-5" />}
         titulo="Proporção por objetivo"
-        descricao="Quanto do limite vai para cada objetivo, em %. A meta de cada período sai daqui."
+        descricao="Quanto do limite vai para cada objetivo, em %. A meta de cada período sai daqui. Mudar vale a partir desta semana; os períodos passados mantêm a proporção que tinham."
         acao={editandoProporcao ? undefined : (
           <AppButton variant="secondary" size="sm" leftIcon={<Pencil className="h-4 w-4" />} onClick={() => setEditandoProporcao(true)}>
             {settings.proporcaoFuncoes ? 'Editar proporção' : 'Definir proporção'}
@@ -239,7 +264,7 @@ export function AjustesEditorialPanel() {
         <div className="grid-form">
           <div className="stack-sm">
             <label htmlFor="rede-referencia">
-              <Text variant="bodyStrong" as="span">Rede de referência</Text>
+              <Text variant="bodyStrong" as="span">Conta de referência</Text>
             </label>
             <SelectField
               id="rede-referencia"
@@ -264,11 +289,11 @@ export function AjustesEditorialPanel() {
               <Text variant="bodyStrong" as="h3">Horários de postagem</Text>
               <Badge variant="neutral">{horarios.length === 0 ? 'Não definidos' : 'Definidos'}</Badge>
             </div>
-            <Text variant="secondary">
-              {horarios.length === 0
-                ? 'Compartilhados com Contas e horários.'
-                : `${resumoHorarios(horarios, state.platforms)} Compartilhados com Contas e horários.`}
-            </Text>
+            {horarios.length > 0 ? (
+              <Text variant="secondary">
+                {resumoHorarios(horarios, state.platforms)}
+              </Text>
+            ) : null}
             <AppButton
               variant="secondary"
               className="mt-1 self-start"
@@ -296,7 +321,7 @@ export function AjustesEditorialPanel() {
               }}
             />
             <Text variant="secondary">
-              Preenche hashtags vazias de conteúdos sem série. Nunca sobrescreve o que já está escrito.
+              Preenche hashtags vazias de roteiros sem série. Não sobrescreve o que já está escrito.
             </Text>
           </div>
         </CardConfiguracao>

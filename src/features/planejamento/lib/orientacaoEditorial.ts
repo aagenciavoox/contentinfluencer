@@ -1,5 +1,7 @@
 import {addDays, differenceInCalendarDays, format, parseISO} from 'date-fns';
+import {ptBR} from 'date-fns/locale';
 import type {BibliotecaItem, Content, Serie, Tema} from '../../../lib/database.ts';
+import {CONTENT_STATUS, isReadyToPublish, normalizeContentStatus} from '../../contents/lib/contentPipeline.ts';
 import type {PeriodoGrade} from '../../editorial/lib/gradeCounts.ts';
 import {contarSerieAgrupada} from '../../editorial/lib/frequenciaAgrupada.ts';
 import {expectativaNoIntervalo, lerFrequencia} from '../../editorial/lib/frequenciaSerie.ts';
@@ -24,7 +26,9 @@ export type TipoAvisoOrientacao =
   | 'tema-concentrado'
   | 'quadro-seguido'
   | 'serie-acima'
-  | 'serie-abaixo';
+  | 'serie-abaixo'
+  | 'vespera-sem-pronto'
+  | 'gravacoes-no-dia';
 
 export type AvisoOrientacao = {
   id: string;
@@ -274,10 +278,13 @@ function avisosDeFrequenciaSerie(
         severidade: 'revisar',
       });
     } else if (total < expectativa) {
+      const faltam = expectativa - total;
       avisos.push({
         id: `serie-abaixo:${serie.id}`,
         tipo: 'serie-abaixo',
-        texto: `${nome} tem ${total} de ${expectativa} pela frequência.`,
+        texto: faltam === 1
+          ? `Falta reservar 1 episódio de ${nome} neste período.`
+          : `Faltam reservar ${faltam} episódios de ${nome} neste período.`,
         postItIds: lista.flatMap(item => item.postItId ? [item.postItId] : []),
         contentIds: lista.flatMap(item => item.contentId ? [item.contentId] : []),
         severidade: 'info',
@@ -297,6 +304,90 @@ function avisosDeFrequenciaSerie(
   return avisos;
 }
 
+/** O que falta para a publicação ficar pronta, pela etapa. Pronta ou publicada devolve null. */
+function faltaParaPublicar(content: Content | null): string | null {
+  if (!content) return 'ainda é só um post-it';
+  if (content.postedAt || isReadyToPublish(content)) return null;
+  const etapa = normalizeContentStatus(content.status);
+  if (etapa === CONTENT_STATUS.POSTADO) return null;
+  if (etapa === CONTENT_STATUS.IDEIA) return 'ainda é ideia';
+  if (etapa === CONTENT_STATUS.ROTEIRO) return 'ainda está em roteiro';
+  if (etapa === CONTENT_STATUS.PRODUCAO) return 'ainda não foi gravada';
+  if (etapa === CONTENT_STATUS.EDICAO) return 'ainda está em edição';
+  return null;
+}
+
+/** Publicação de hoje ou de amanhã que ainda não está pronta. */
+function avisosDeVespera(
+  postIts: readonly PlanejamentoPostIt[],
+  contents: readonly Content[],
+  periodo: PeriodoGrade,
+  hoje: Date,
+): AvisoOrientacao[] {
+  const diaDeHoje = format(hoje, 'yyyy-MM-dd');
+  const amanha = format(addDays(hoje, 1), 'yyyy-MM-dd');
+  const porId = new Map(contents.map(content => [content.id, content]));
+  const avisos: AvisoOrientacao[] = [];
+  for (const postIt of postIts) {
+    if (postIt.date !== diaDeHoje && postIt.date !== amanha) continue;
+    if (!noPeriodo(postIt.date, periodo)) continue;
+    const content = postIt.contentId ? porId.get(postIt.contentId) ?? null : null;
+    if (content && (content.deletedAt || content.archivedAt)) continue;
+    const falta = faltaParaPublicar(content);
+    if (!falta) continue;
+    const quando = postIt.date === diaDeHoje ? 'de hoje' : 'de amanhã';
+    const titulo = (content?.title || postIt.texto).trim();
+    avisos.push({
+      id: `vespera:${postIt.id}`,
+      tipo: 'vespera-sem-pronto',
+      texto: titulo
+        ? `A publicação ${quando} (${titulo}) ${falta}.`
+        : `A publicação ${quando} ${falta}.`,
+      postItIds: [postIt.id],
+      contentIds: content ? [content.id] : [],
+      severidade: 'revisar',
+    });
+  }
+  return avisos;
+}
+
+/** Dia com mais gravações previstas do que cabem. Gravação já feita não conta. */
+function avisosDeGravacao(
+  postIts: readonly PlanejamentoPostIt[],
+  contents: readonly Content[],
+  periodo: PeriodoGrade,
+  limite: number | null | undefined,
+): AvisoOrientacao[] {
+  if (limite == null || limite <= 0) return [];
+  const porDia = new Map<string, Content[]>();
+  for (const content of contents) {
+    if (content.deletedAt || content.archivedAt || content.recordedAt) continue;
+    const etapa = normalizeContentStatus(content.status);
+    if (etapa !== CONTENT_STATUS.IDEIA && etapa !== CONTENT_STATUS.ROTEIRO && etapa !== CONTENT_STATUS.PRODUCAO) continue;
+    const dia = content.recordingDate?.slice(0, 10) ?? null;
+    if (!dia || !noPeriodo(dia, periodo)) continue;
+    const lista = porDia.get(dia) ?? [];
+    lista.push(content);
+    porDia.set(dia, lista);
+  }
+  const avisos: AvisoOrientacao[] = [];
+  for (const [dia, lista] of [...porDia].sort(([a], [b]) => a.localeCompare(b))) {
+    if (lista.length <= limite) continue;
+    const ids = new Set(lista.map(content => content.id));
+    const quando = format(parseISO(dia), "d 'de' MMMM", {locale: ptBR});
+    avisos.push({
+      id: `gravacoes:${dia}`,
+      tipo: 'gravacoes-no-dia',
+      // Só passa do limite com 2 ou mais: o plural é sempre o mesmo.
+      texto: `Há ${lista.length} gravações previstas para ${quando}, um dia com limite de ${limite}.`,
+      postItIds: postIts.flatMap(postIt => postIt.contentId && ids.has(postIt.contentId) ? [postIt.id] : []),
+      contentIds: [...ids],
+      severidade: 'revisar',
+    });
+  }
+  return avisos;
+}
+
 export function avisosDeOrientacao({
   postIts,
   contents,
@@ -305,6 +396,8 @@ export function avisosDeOrientacao({
   obras,
   periodo,
   sequenciaPorConteudo = {},
+  limiteGravacoesDia = null,
+  hoje = new Date(),
 }: {
   postIts: readonly PlanejamentoPostIt[];
   contents: readonly Content[];
@@ -314,6 +407,9 @@ export function avisosDeOrientacao({
   periodo: PeriodoGrade;
   /** Id de sequência intencional por contentId. Sem campo no banco, fica vazio. */
   sequenciaPorConteudo?: Readonly<Record<string, string>>;
+  /** Editorial › Ajustes. Sem número, não há aviso de gravação. */
+  limiteGravacoesDia?: number | null;
+  hoje?: Date;
 }): AvisoOrientacao[] {
   // Período + 14 dias anteriores (obra em 7 dias) + margem à frente nas bordas.
   const margemInicio = format(addDays(parseISO(periodo.inicio), -14), 'yyyy-MM-dd');
@@ -326,6 +422,8 @@ export function avisosDeOrientacao({
   });
 
   return [
+    ...avisosDeVespera(postIts, contents, periodo, hoje),
+    ...avisosDeGravacao(postIts, contents, periodo, limiteGravacoesDia),
     ...avisosDeObra(pautas, periodo, obras),
     ...avisosDeTema(pautas, periodo, temas),
     ...avisosDeQuadroSeguido(pautas, periodo, series),

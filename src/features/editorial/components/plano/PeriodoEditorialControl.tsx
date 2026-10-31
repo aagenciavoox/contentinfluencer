@@ -10,6 +10,7 @@ import { Text } from '../../../../components/ui/Text';
 import { useAppContext } from '../../../../context/AppContext';
 import { buildGradeEntries } from '../../lib/gradeEntries';
 import { contarPeriodo, type GradeCounts } from '../../lib/gradeCounts';
+import { usePostItsNaData } from '../../../planejamento/hooks/usePostItsNaData';
 import { semanaDe, type ModoPeriodo, type PeriodoSelecionado } from '../../lib/periodoEditorial';
 
 export type { ModoPeriodo, PeriodoSelecionado };
@@ -82,6 +83,7 @@ export function rotuloDoPeriodo(periodo: PeriodoSelecionado): string {
 
 export function useContagemDoPeriodo(inicio: string, fim: string): GradeCounts {
   const { state } = useAppContext();
+  const postIts = usePostItsNaData();
 
   return useMemo(() => {
     const settings = state.editorial;
@@ -94,10 +96,11 @@ export function useContagemDoPeriodo(inicio: string, fim: string): GradeCounts {
     return contarPeriodo({
       entries,
       pilares: state.pilares,
-      postIts: state.postIts,
+      postIts,
       settings: {
         preferencias: settings.preferencias,
         periodos: settings.periodos,
+        vigencias: settings.vigencias,
       },
       periodo: { inicio, fim },
     });
@@ -108,7 +111,7 @@ export function useContagemDoPeriodo(inicio: string, fim: string): GradeCounts {
     state.series,
     state.pilares,
     state.platforms,
-    state.postIts,
+    postIts,
     state.editorial,
   ]);
 }

@@ -15,7 +15,7 @@ export interface PlanejamentoPostIt {
   texto: string;
   /** yyyy-MM-dd. Null fica na pilha ao lado do mês. */
   date: string | null;
-  /** Ideia, roteiro ou conteúdo em Produção puxado. Puxar não altera o conteúdo. */
+  /** Ideia ou roteiro ligado. Com data no roteiro, o post-it fica no dia dele (`postItsNaDataDoRoteiro`). */
   contentId: string | null;
   /**
    * Série, pilar e objetivo do espaço, anotados antes de ter conteúdo.
@@ -95,7 +95,8 @@ export function canPullContent(content: Content): boolean {
 
 /**
  * Liga um conteúdo que já existe a um post-it que já existe: o espaço planejado ganha conteúdo.
- * Como puxar, não muda status nem data do conteúdo. Recusa conteúdo já ligado a outro post-it.
+ * Não muda o status. A tela leva o roteiro ao dia do post-it (`levarRoteiroAoDia`).
+ * Recusa conteúdo já ligado a outro post-it.
  */
 export function encaixarConteudo(input: {
   postIts: readonly PlanejamentoPostIt[];
@@ -113,7 +114,7 @@ export function encaixarConteudo(input: {
 
 /**
  * Puxa uma ideia, um roteiro ou um conteúdo em Produção para o dia (ou para a pilha).
- * O Content devolvido é o mesmo objeto: status e data de publicação não mudam.
+ * O Content devolvido é o mesmo objeto. A tela leva o roteiro ao dia (`levarRoteiroAoDia`).
  */
 export function pullExistingContent(input: {
   postIts: readonly PlanejamentoPostIt[];

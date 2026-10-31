@@ -240,6 +240,7 @@ function testFrequenciaDoPilarNaoFechaOMes() {
         publicoLinguagem: '',
         disponibilidade: '',
         hashtagsForaSeries: '',
+        limiteGravacoesDia: null,
       },
     },
   });
@@ -293,7 +294,7 @@ function testForaDaContaExplicaOQueNaoEntrou() {
   assert.deepEqual(fora, {semPilar: 0, foraDaGrade: 1, pilarSemEspaco: 0, outrasRedes: 0});
   assert.equal(
     textoForaDaConta(fora),
-    '1 item com data neste mês não entra na conta: 1 marcados fora da grade.',
+    '1 item com data neste mês não entra na conta: 1 marcados fora das metas.',
   );
   assert.equal(textoForaDaConta({semPilar: 0, foraDaGrade: 0, pilarSemEspaco: 0, outrasRedes: 0}), null);
 
@@ -397,6 +398,7 @@ function testProporcaoDefineMetaDosObjetivos() {
         publicoLinguagem: '',
         disponibilidade: '',
         hashtagsForaSeries: '',
+        limiteGravacoesDia: null,
       },
     },
     periodo: {inicio: '2026-10-04', fim: '2026-10-10'},

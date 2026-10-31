@@ -25,6 +25,8 @@ export interface PreferenciasGerais {
   disponibilidade: string;
   /** Hashtags do que não vem de série. */
   hashtagsForaSeries: string;
+  /** Gravações que cabem em um dia. Null é "sem limite" — não é zero. */
+  limiteGravacoesDia: number | null;
 }
 
 /** Exceção de uma semana fechada, domingo a sábado. */
@@ -42,6 +44,16 @@ export interface MetasPeriodo {
   comunidade?: number;
   acao?: number;
   reter?: number;
+}
+
+/**
+ * Limite semanal e proporção que valem a partir de um domingo, até a próxima linha.
+ * Mudar a estratégia em novembro não muda a referência de outubro.
+ */
+export interface VigenciaEditorial {
+  vigenteDesde: string;
+  limiteSemanal: number | null;
+  proporcaoFuncoes: ProporcaoFuncoes | null;
 }
 
 /** Decisão de um intervalo fechado. Outubro e novembro são registros diferentes. */
@@ -79,6 +91,8 @@ export interface EditorialSettings {
   limitesHashtags: Record<string, number>;
   preferencias: PreferenciasGerais;
   periodos: DecisaoPeriodo[];
+  /** Histórico do limite e da proporção, do mais antigo ao mais novo. Vazio usa os valores de hoje. */
+  vigencias?: VigenciaEditorial[];
 }
 
 const PREFERENCIAS_PADRAO: PreferenciasGerais = {
@@ -89,6 +103,7 @@ const PREFERENCIAS_PADRAO: PreferenciasGerais = {
   publicoLinguagem: '',
   disponibilidade: '',
   hashtagsForaSeries: '',
+  limiteGravacoesDia: null,
 };
 
 export const DEFAULT_EDITORIAL_SETTINGS: EditorialSettings = {
@@ -103,6 +118,7 @@ export const DEFAULT_EDITORIAL_SETTINGS: EditorialSettings = {
   limitesHashtags: {},
   preferencias: PREFERENCIAS_PADRAO,
   periodos: [],
+  vigencias: [],
 };
 
 const DATA_ISO = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -184,6 +200,7 @@ function preferenciasVersao2(saved: Record<string, unknown>): PreferenciasGerais
     publicoLinguagem: readTexto(fonte.publicoLinguagem),
     disponibilidade: readTexto(fonte.disponibilidade),
     hashtagsForaSeries: readTexto(fonte.hashtagsForaSeries),
+    limiteGravacoesDia: readInteiroNaoNegativo(fonte.limiteGravacoesDia) || null,
   });
 }
 
@@ -255,7 +272,7 @@ function versaoNova(value: unknown): boolean {
 
 function montar(
   base: Pick<EditorialSettings, 'quickSeriesCreate' | 'openInfoNotices' | 'destinosPadrao' | 'limitesHashtags'>
-    & Partial<Pick<EditorialSettings, 'proporcaoFuncoes'>>,
+    & Partial<Pick<EditorialSettings, 'proporcaoFuncoes' | 'vigencias'>>,
   preferencias: PreferenciasGerais,
   periodos: DecisaoPeriodo[],
 ): EditorialSettings {
@@ -271,6 +288,7 @@ function montar(
     limitesHashtags: base.limitesHashtags,
     preferencias,
     periodos,
+    vigencias: base.vigencias ?? [],
   };
 }
 

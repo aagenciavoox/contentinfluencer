@@ -8,7 +8,14 @@ import type {BibliotecaItem, Pilar, Serie, Tema} from '../../../lib/database';
 import type {GradeEntry} from '../../editorial/lib/gradeEntries';
 import type {GradeCounts, LinhaContagem} from '../../editorial/lib/gradeCounts';
 import {FUNCAO_CURTA, FUNIL_DA_FUNCAO, isFuncaoEditorial} from '../../editorial/lib/funcoes';
-import {foraDaContaDoMes, seriesDoPilarNoMes, textoForaDaConta, tomDaSaude, type TomDaSaude} from '../lib/monthHealth';
+import {
+  foraDaContaDoMes,
+  seriesDoPilarNoMes,
+  textoForaDaConta,
+  tomDaSaude,
+  type PreparoDoPeriodo,
+  type TomDaSaude,
+} from '../lib/monthHealth';
 import {idsDeObras} from '../lib/assuntosObras';
 
 const FUNIL_COLOR = {
@@ -88,6 +95,55 @@ function HealthCard({
   );
 }
 
+function plural(n: number, um: string, varios: string): string {
+  return n === 1 ? `1 ${um}` : `${n} ${varios}`;
+}
+
+/** Uma leitura do período: título, número principal e o detalhe que explica. */
+function Leitura({titulo, principal, detalhe}: {titulo: string; principal: string; detalhe: string | null}) {
+  return (
+    <div className="min-w-0 flex-1 basis-[12rem] stack-xs rounded-[var(--radius-card)] border border-[var(--border-color)] px-3 py-2.5">
+      <Text variant="label" as="h3">{titulo}</Text>
+      <Text variant="bodyStrong" as="p" className="tabular-nums">{principal}</Text>
+      {detalhe ? (
+        <Text variant="meta" as="p" className="text-[var(--text-secondary)]">{detalhe}</Text>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Volume e preparo são leituras diferentes: o período pode estar todo preenchido
+ * e ainda ter publicações dependendo de escrita, gravação ou edição.
+ */
+function LeiturasDoPeriodo({counts, preparo}: {counts: GradeCounts; preparo: PreparoDoPeriodo | undefined}) {
+  const meta = counts.totalMeta != null && counts.totalMeta > 0 ? counts.totalMeta : null;
+  const volume = meta != null
+    ? `${counts.previsto} de ${meta} previstas`
+    : plural(counts.previsto, 'prevista', 'previstas');
+  const publicadas = plural(counts.publicado, 'publicada', 'publicadas');
+  const prontasOuPublicadas = preparo ? preparo.prontas + preparo.publicadas : null;
+  const dependem = preparo
+    ? [
+      preparo.escrita > 0 ? `${preparo.escrita} de escrita` : null,
+      preparo.gravacao > 0 ? `${preparo.gravacao} de gravação` : null,
+      preparo.edicao > 0 ? `${preparo.edicao} de edição` : null,
+    ].filter((parte): parte is string => Boolean(parte))
+    : [];
+  return (
+    <div className="flex flex-wrap gap-2">
+      <Leitura titulo="Volume" principal={volume} detalhe={publicadas} />
+      {preparo && prontasOuPublicadas != null ? (
+        <Leitura
+          titulo="Preparo"
+          principal={`${prontasOuPublicadas} de ${preparo.total} prontas ou publicadas`}
+          detalhe={dependem.length > 0 ? `Dependem ${dependem.join(', ')}.` : 'Nada depende de escrita, gravação ou edição.'}
+        />
+      ) : null}
+    </div>
+  );
+}
+
 function ContagemSimples({
   titulo,
   linhas,
@@ -156,7 +212,8 @@ export function DistribuicaoPanel({
 }: {
   open: boolean;
   onClose: () => void;
-  counts: GradeCounts;
+  /** Com `preparo` (vem de `saudeDoMes`), mostra também a leitura de preparo. */
+  counts: GradeCounts & {preparo?: PreparoDoPeriodo};
   entries: readonly GradeEntry[];
   series: readonly Serie[];
   pilares: readonly Pilar[];
@@ -213,21 +270,20 @@ export function DistribuicaoPanel({
           <OverlayBody>
             <div className="stack-md">
               <Text variant="secondary" className="text-[var(--text-secondary)]">
-                Rascunhos e conteúdos com data, comparados ao Editorial.
+                Post-its e roteiros com data, comparados ao Editorial.
               </Text>
 
-              {counts.totalMeta != null && counts.totalMeta > 0 ? (
-                <Text variant="meta" className="text-[var(--text-secondary)]">
-                  <span className="font-semibold text-[var(--text-primary)]">{counts.somaPlanejado}</span>
-                  {' '}de {counts.totalMeta} espaços
-                </Text>
-              ) : null}
+              <LeiturasDoPeriodo counts={counts} preparo={counts.preparo} />
+
+              <Text variant="itemTitle" as="h2" className="border-t border-[var(--border-color)] pt-3">
+                Distribuição
+              </Text>
 
               <section className="stack-sm">
                 <Text variant="label" as="h3">Pilares</Text>
                 {semMeta ? (
                   <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-                    Defina o limite semanal em Editorial › Ajustes para comparar o período.
+                    Defina as publicações por semana no Editorial para comparar o período.
                   </Text>
                 ) : (
                   <div className={CARD_GRID}>

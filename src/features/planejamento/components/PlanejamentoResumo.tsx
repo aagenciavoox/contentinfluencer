@@ -69,7 +69,9 @@ export function PlanejamentoResumo({
   } else if (acima > 0) {
     resumoEspacos = `${usados} de ${meta} espaços ${periodoLabel} · ${acima} acima do previsto`;
   } else {
-    resumoEspacos = `${usados} de ${meta} espaços ${periodoLabel} · ${livres} ${livres === 1 ? 'livre' : 'livres'}`;
+    resumoEspacos = livres === 0
+      ? `${meta} de ${meta} espaços ocupados ${periodoLabel}`
+      : `${livres} de ${meta} espaços livres ${periodoLabel}`;
   }
 
   const faixa = layout === 'faixa';

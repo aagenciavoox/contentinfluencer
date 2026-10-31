@@ -390,14 +390,18 @@ export function FuncaoEditorialFields({
   const daSerieLabel = rotuloDaSerie(daSerieFuncao);
   const value = funcaoChoiceValue(draft);
   const handleFuncao = (next: string) => onChange(updatesFromFuncaoChoice(next));
+  // Só decide a conta das metas. Desmarcado, continua no Planejamento e no Calendário.
   const grade = (
-    <label className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
+    <label
+      className="flex items-center gap-2 text-sm text-[var(--text-primary)]"
+      title="Desmarcado, fica fora do limite e da distribuição, mas continua no Planejamento e no Calendário."
+    >
       <input
         type="checkbox"
         checked={draft.contaNaGrade !== false}
         onChange={event => onChange({contaNaGrade: event.target.checked, contaNaGradeOrigem: 'manual'})}
       />
-      Conta na grade
+      Conta nas metas
     </label>
   );
   const options = (
@@ -415,10 +419,10 @@ export function FuncaoEditorialFields({
     if (formPart === 'grade') return grade;
     const funcaoField = (
       <label className="flex flex-col gap-1">
-        {formLabel ?? <span className="text-xs font-medium text-[var(--text-secondary)]">Objetivo do conteúdo</span>}
+        {formLabel ?? <span className="text-xs font-medium text-[var(--text-secondary)]">Objetivo</span>}
         <SelectField
           block
-          ariaLabel="Objetivo do conteúdo"
+          ariaLabel="Objetivo"
           value={value}
           onChange={handleFuncao}
           options={selectOptionsFromChildren(options)}
@@ -437,12 +441,12 @@ export function FuncaoEditorialFields({
   if (variant === 'cards') {
     return (
       <>
-        <RoteiroField label="Objetivo do conteúdo" icon={<ListChecks className="h-3.5 w-3.5" />}>
+        <RoteiroField label="Objetivo" icon={<ListChecks className="h-3.5 w-3.5" />}>
           <RoteiroSelect value={value} onChange={event => handleFuncao(event.target.value)}>
             {options}
           </RoteiroSelect>
         </RoteiroField>
-        <RoteiroField label="Grade" icon={<ListChecks className="h-3.5 w-3.5" />}>
+        <RoteiroField label="Metas" icon={<ListChecks className="h-3.5 w-3.5" />}>
           {grade}
         </RoteiroField>
       </>
@@ -451,7 +455,7 @@ export function FuncaoEditorialFields({
 
   return (
     <>
-      <PropertyRow label="Objetivo do conteúdo" icon={<ListChecks />}>
+      <PropertyRow label="Objetivo" icon={<ListChecks />}>
         <PropertySelect
           value={value}
           onChange={event => handleFuncao(event.target.value)}
@@ -460,7 +464,7 @@ export function FuncaoEditorialFields({
           {options}
         </PropertySelect>
       </PropertyRow>
-      <PropertyRow label="Grade" icon={<ListChecks />}>
+      <PropertyRow label="Metas" icon={<ListChecks />}>
         {grade}
       </PropertyRow>
     </>
@@ -657,7 +661,7 @@ export function ContentOperationalPanel({
           onChange={event => onChange({energiaNecessaria: (event.target.value || null) as EnergiaNivel | null})}
           className={emptySelect(draft.energiaNecessaria)}
         >
-          <option value="">Sem energia</option>
+          <option value="">Não definida</option>
           <option value="baixa">Baixa</option>
           <option value="média">Média</option>
           <option value="alta">Alta</option>
@@ -816,7 +820,7 @@ export function ContentOperationalPanel({
               value={draft.energiaNecessaria ?? ''}
               onChange={value => onChange({energiaNecessaria: (value || null) as EnergiaNivel | null})}
               options={[
-                {value: '', label: 'Sem energia'},
+                {value: '', label: 'Não definida'},
                 {value: 'baixa', label: 'Baixa'},
                 {value: 'média', label: 'Média'},
                 {value: 'alta', label: 'Alta'},
@@ -843,7 +847,7 @@ export function ContentOperationalPanel({
             />
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-[var(--text-secondary)]">Postagem</span>
+            <span className="text-xs font-medium text-[var(--text-secondary)]">Publicação</span>
             <PropertyDatePicker
               variant="field"
               value={publishDateOnly || null}
@@ -957,7 +961,7 @@ export function ContentOperationalPanel({
               value={draft.energiaNecessaria ?? ''}
               onChange={event => onChange({energiaNecessaria: (event.target.value || null) as EnergiaNivel | null})}
             >
-              <option value="">Sem energia</option>
+              <option value="">Não definida</option>
               <option value="baixa">Baixa</option>
               <option value="média">Média</option>
               <option value="alta">Alta</option>

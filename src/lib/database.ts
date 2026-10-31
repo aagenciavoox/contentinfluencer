@@ -104,6 +104,9 @@ export type FuncaoEditorial = 'atrair' | 'converter' | 'aprofundar' | 'comunidad
 /** Objetivo padrão da série. `varia` deixa a escolha para cada roteiro. */
 export type FuncaoPadraoSerie = FuncaoEditorial | 'varia';
 
+/** Nível do agrupamento: família → série → quadro. Todos opcionais. */
+export type SerieTipoAgrupamento = 'familia' | 'serie' | 'quadro';
+
 /** De onde veio a função do roteiro. Vazio = ainda não escolhida. */
 export type FuncaoOrigem = 'herdada' | 'escolhida' | 'nenhuma' | 'aplicada' | 'migrada';
 
@@ -187,6 +190,10 @@ export interface Serie {
   parentId?: string | null;
   /** Este registro é o escopo das temporadas. Ausente no banco antigo. */
   usaTemporadas?: boolean;
+  /** Família, série ou quadro. Null = deduzido pela posição na árvore. */
+  tipoAgrupamento?: SerieTipoAgrupamento | null;
+  /** Sem pilar de propósito: não herda o pilar do agrupamento superior. */
+  semPilar?: boolean;
   createdAt: string;
   updatedAt: string;
   pilarIds: string[];
@@ -908,7 +915,12 @@ const SERIE_OPTIONAL_COLUMNS = [
   'legenda_base',
   'parent_id',
   'usa_temporadas',
+  'tipo_agrupamento',
+  'sem_pilar',
 ] as const;
+
+/** Migração do tipo de agrupamento e do "sem pilar" das séries. */
+export const MIGRACAO_SERIE_TIPO = '20261030120000_serie_tipo_agrupamento';
 
 const CONTENT_AGRUPAMENTO_COLUMNS = ['origem_conteudo_id', 'temporada_id'] as const;
 
@@ -1100,6 +1112,10 @@ function readFuncaoPadrao(value: unknown): FuncaoPadraoSerie | null {
   return readFuncaoEditorial(value);
 }
 
+function readTipoAgrupamento(value: unknown): SerieTipoAgrupamento | null {
+  return value === 'familia' || value === 'serie' || value === 'quadro' ? value : null;
+}
+
 function readFuncaoOrigem(value: unknown): FuncaoOrigem | null {
   return value === 'herdada' || value === 'escolhida' || value === 'nenhuma'
     || value === 'aplicada' || value === 'migrada'
@@ -1257,6 +1273,8 @@ const mp = {
     legendaBase: typeof r.legenda_base === 'string' ? r.legenda_base : null,
     parentId: typeof r.parent_id === 'string' && r.parent_id ? r.parent_id : null,
     usaTemporadas: r.usa_temporadas === true,
+    tipoAgrupamento: readTipoAgrupamento(r.tipo_agrupamento),
+    semPilar: r.sem_pilar === true,
     createdAt: r.created_at, updatedAt: r.updated_at,
     pilarIds: (r.serie_pilares || []).map((sp: Row) => sp.pilar_id),
     plataformas: (r.serie_plataformas || []).map((sp: Row) => ({
@@ -2171,7 +2189,7 @@ export async function fetchDataDomains(
 
   if (requested.has('bootstrap')) {
     tasks.push((async () => {
-      const [platformsResult, prefsResult, contaResult, visaoResult, destinosResult, limitesResult, decisoesResult, ajustesResult] = await Promise.all([
+      const [platformsResult, prefsResult, contaResult, visaoResult, destinosResult, limitesResult, decisoesResult, ajustesResult, vigenciasResult] = await Promise.all([
         platformsPromise!,
         supabase.from('user_preferences').select('*').eq('user_id', uid),
         supabase.from('editorial_conta').select('*').eq('user_id', uid).maybeSingle(),
@@ -2180,6 +2198,7 @@ export async function fetchDataDomains(
         supabase.from('editorial_limite_hashtag').select('platform_id, limite').eq('user_id', uid),
         supabase.from('decisao_periodo').select('*').eq('user_id', uid),
         supabase.from('ajuste_semana').select('decisao_id, inicio, fim, limite').eq('user_id', uid),
+        supabase.from('editorial_vigencia').select('vigente_desde, limite_semanal, proporcao_funcoes').eq('user_id', uid),
       ]);
       const platforms = assertQuerySuccess('platforms fetch', platformsResult) || [];
       const prefs = assertQuerySuccess('preferences fetch', prefsResult) || [];
@@ -2194,6 +2213,8 @@ export async function fetchDataDomains(
         assertQuerySuccess('editorial_limite_hashtag fetch', limitesResult) || [],
         assertQuerySuccess('decisao_periodo fetch', decisoesResult) || [],
         assertQuerySuccess('ajuste_semana fetch', ajustesResult) || [],
+        // Sem a migração 20261030130000 a tabela não existe: conta com os valores de hoje.
+        vigenciasResult.error ? [] : (vigenciasResult.data || []),
       );
       payload.editorialVisao = visaoDaLinha(assertQuerySuccess('editorial_visao fetch', visaoResult));
     })());
@@ -2480,6 +2501,7 @@ function editorialDasLinhas(
   limites: Row[],
   decisoes: Row[],
   ajustes: Row[],
+  vigenciasRows: Row[] = [],
 ): EditorialSettings {
   const limitesHashtags: Record<string, number> = {};
   for (const limite of limites) {
@@ -2526,12 +2548,23 @@ function editorialDasLinhas(
     }];
   });
 
+  const vigencias = vigenciasRows.flatMap(row => {
+    const vigenteDesde = diaDaLinha(row.vigente_desde);
+    if (!vigenteDesde) return [];
+    return [{
+      vigenteDesde,
+      limiteSemanal: inteiroOpcional(row.limite_semanal) ?? null,
+      proporcaoFuncoes: readProporcao(row.proporcao_funcoes),
+    }];
+  }).sort((a, b) => a.vigenteDesde.localeCompare(b.vigenteDesde));
+
   if (!conta) {
     return {
       ...DEFAULT_EDITORIAL_SETTINGS,
       destinosPadrao: destinos.map(destino => String(destino.platform_id)),
       limitesHashtags,
       periodos,
+      vigencias,
     };
   }
 
@@ -2555,8 +2588,10 @@ function editorialDasLinhas(
       publicoLinguagem: typeof conta.publico_linguagem === 'string' ? conta.publico_linguagem : '',
       disponibilidade: typeof conta.disponibilidade === 'string' ? conta.disponibilidade : '',
       hashtagsForaSeries: typeof conta.hashtags_fora_series === 'string' ? conta.hashtags_fora_series : '',
+      limiteGravacoesDia: inteiroOpcional(conta.limite_gravacoes_dia) || null,
     },
     periodos,
+    vigencias,
   };
 }
 
@@ -2586,15 +2621,36 @@ export async function saveEditorial(settings: EditorialSettings): Promise<void> 
     quick_series_create: settings.quickSeriesCreate,
     open_info_notices: settings.openInfoNotices,
     proporcao_funcoes: settings.proporcaoFuncoes,
+    limite_gravacoes_dia: preferencias.limiteGravacoesDia ?? null,
     updated_at: new Date().toISOString(),
   };
-  let { error: contaError } = await supabase.from('editorial_conta').upsert(contaRow, { onConflict: 'user_id' });
-  // Sem a migração 20261016220000 a coluna não existe: o resto grava, a proporção fica só nesta sessão.
-  if (contaError && /proporcao_funcoes/.test(contaError.message)) {
-    const { proporcao_funcoes: _proporcao, ...semProporcao } = contaRow;
-    ({ error: contaError } = await supabase.from('editorial_conta').upsert(semProporcao, { onConflict: 'user_id' }));
+  // Sem a migração da coluna, o resto grava e o valor fica só nesta sessão
+  // (proporção: 20261016220000; gravações por dia: 20261030130000).
+  let linhaConta = contaRow;
+  let { error: contaError } = await supabase.from('editorial_conta').upsert(linhaConta, { onConflict: 'user_id' });
+  for (const coluna of ['proporcao_funcoes', 'limite_gravacoes_dia']) {
+    if (!contaError || !contaError.message.includes(coluna)) continue;
+    const { [coluna]: _removida, ...semColuna } = linhaConta;
+    linhaConta = semColuna;
+    ({ error: contaError } = await supabase.from('editorial_conta').upsert(linhaConta, { onConflict: 'user_id' }));
   }
   if (contaError) throw new Error(`editorial_conta: ${contaError.message}`);
+
+  // Vigência do limite e da proporção. Sem a tabela, a conta usa os valores de hoje.
+  if (settings.vigencias && settings.vigencias.length > 0) {
+    const { error: vigenciaError } = await supabase.from('editorial_vigencia').upsert(
+      settings.vigencias.map(vigencia => ({
+        user_id: uid,
+        vigente_desde: vigencia.vigenteDesde,
+        limite_semanal: vigencia.limiteSemanal,
+        proporcao_funcoes: vigencia.proporcaoFuncoes,
+      })),
+      { onConflict: 'user_id,vigente_desde' },
+    );
+    if (vigenciaError && !vigenciaError.message.includes('editorial_vigencia')) {
+      throw new Error(`editorial_vigencia: ${vigenciaError.message}`);
+    }
+  }
 
   const { error: destinosDeleteError } = await supabase.from('editorial_destino_padrao').delete().eq('user_id', uid);
   if (destinosDeleteError) throw new Error(`editorial_destino_padrao: ${destinosDeleteError.message}`);
@@ -2837,8 +2893,10 @@ export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 
   if ('legendaBase' in serie) row.legenda_base = serie.legendaBase?.trim() ? serie.legendaBase : null;
   if ('parentId' in serie) row.parent_id = serie.parentId?.trim() || null;
   if ('usaTemporadas' in serie) row.usa_temporadas = serie.usaTemporadas === true;
+  if ('tipoAgrupamento' in serie) row.tipo_agrupamento = serie.tipoAgrupamento ?? null;
+  if ('semPilar' in serie) row.sem_pilar = serie.semPilar === true;
 
-  for (let attempt = 0; attempt < 12; attempt += 1) {
+  for (let attempt = 0; attempt < 16; attempt += 1) {
     const { error } = await supabase.from('series').upsert(row);
     if (!error) return;
 
@@ -2849,6 +2907,11 @@ export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 
       // A legenda da série não pode sumir calada quando a coluna ainda não existe.
       if (missing === 'legenda_base' && row.legenda_base != null) {
         throw new Error(`Para guardar a legenda da série, aplique a migração ${MIGRACAO_CONTAS}.`);
+      }
+      // Tipo escolhido e "sem pilar" também não somem calados.
+      if ((missing === 'tipo_agrupamento' && row.tipo_agrupamento != null)
+        || (missing === 'sem_pilar' && row.sem_pilar === true)) {
+        throw new Error(`Para guardar o tipo e o pilar da série, aplique a migração ${MIGRACAO_SERIE_TIPO}.`);
       }
       const {[missing]: _removed, ...rest} = row;
       row = rest;
