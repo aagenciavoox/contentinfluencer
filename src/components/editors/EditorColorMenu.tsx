@@ -1,3 +1,4 @@
+import { Text } from '../ui/Text';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useEditorState, type Editor } from '@tiptap/react';
@@ -44,9 +45,9 @@ export function ColorSwatches({
         aria-pressed={!selected}
         title={LABELS[kind].none}
         className={cn(
-          'flex w-full items-center gap-2 whitespace-nowrap rounded-[var(--radius-input)] px-2 text-left text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+          'flex w-full items-center gap-2 whitespace-nowrap rounded-[var(--radius-input)] px-2 text-left t-body text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
           large ? 'min-h-11' : 'min-h-8',
-          !selected && 'bg-[var(--bg-hover)] font-semibold',
+          !selected && 'bg-[var(--bg-hover)] ',
         )}
       >
         <span
@@ -77,7 +78,7 @@ export function ColorSwatches({
               title={color.name}
               className={cn(
                 large ? 'h-11 w-11' : 'h-7 w-7',
-                'flex shrink-0 items-center justify-center rounded-[var(--radius-pill)] border text-xs font-semibold transition-shadow focus-visible:outline-none',
+                'flex shrink-0 items-center justify-center rounded-[var(--radius-pill)] border t-label transition-shadow focus-visible:outline-none',
                 kind === 'highlight'
                   ? 'border-[color-mix(in_srgb,var(--text-primary),transparent_82%)]'
                   : 'border-[var(--border-color)]',
@@ -188,7 +189,7 @@ export function EditorColorMenu({
           // Largura do conteúdo (w-max): o popover não encolhe dentro da barra e nada se sobrepõe.
           className="absolute left-0 top-full z-[140] mt-1 w-max min-w-[15rem] rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-3 shadow-[var(--shadow-dropdown)] md:rounded-[var(--radius-card)]"
         >
-          <p className="mb-2 whitespace-nowrap text-xs font-semibold leading-5 text-[var(--text-secondary)]">{LABELS[kind].title}</p>
+          <Text variant="label" as="p" className="mb-2 whitespace-nowrap leading-5 text-[var(--text-secondary)]">{LABELS[kind].title}</Text>
           <ColorSwatches kind={kind} current={current} onPick={pick} />
         </div>
       ) : null}
@@ -206,7 +207,7 @@ export function EditorColorMenu({
                 className="w-full rounded-t-[var(--radius-overlay)] border-t border-[var(--border-color)] bg-[var(--bg-elevated)] p-5 pb-safe"
               >
                 <div className="mx-auto mb-4 h-1 w-10 rounded-[var(--radius-pill)] bg-[var(--border-strong)]" />
-                <p className="mb-3 text-sm font-semibold text-[var(--text-primary)]">{LABELS[kind].title}</p>
+                <Text variant="itemTitle" as="p" className="mb-3 text-[var(--text-primary)]">{LABELS[kind].title}</Text>
                 <ColorSwatches kind={kind} current={current} onPick={pick} large />
               </div>
             </div>,

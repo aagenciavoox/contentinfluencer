@@ -22,6 +22,8 @@ interface DialogProps {
   zIndex?: string;
   desktopPanelClassName?: string;
   ariaLabel?: string;
+  /** Keep a mobile form within the visible area above the software keyboard. */
+  fitVisualViewport?: boolean;
 }
 
 export function Dialog({
@@ -32,6 +34,7 @@ export function Dialog({
   zIndex = 'z-[100]',
   desktopPanelClassName,
   ariaLabel,
+  fitVisualViewport = false,
 }: DialogProps) {
   const isMobile = useIsMobile();
 
@@ -42,6 +45,7 @@ export function Dialog({
       placement="center"
       zIndex={zIndex}
       mobileEdgePadding={isMobile}
+      fitVisualViewport={isMobile && fitVisualViewport}
       showMobileHandle={isMobile}
       ariaLabel={ariaLabel}
       panelInitial={isMobile ? MOBILE_PANEL_INITIAL : DESKTOP_DIALOG_INITIAL}

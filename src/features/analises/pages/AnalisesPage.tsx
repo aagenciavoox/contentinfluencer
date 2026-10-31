@@ -1,15 +1,18 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ChartColumn } from 'lucide-react';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { SegmentTabs } from '../../../components/ui/SegmentTabs';
+import { SelectField } from '../../../components/ui/SelectField';
 import { TagSelect } from '../../../components/ui/TagSelect';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
+import { ValorVazio } from '../../../components/ui/ValorVazio';
 import { useAppContext } from '../../../context/AppContext';
 import { useDomainsReady } from '../../../hooks/useDomainsReady';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
+import { dia, intervalo } from '../../../lib/dates';
 import { contasAtivas, REDE_ROTULO, REDES_PRINCIPAIS, redeDaConta, rotuloConta } from '../../contas/lib/contas';
 import { intervaloDoModo, hojeIso, type ModoPeriodo } from '../../editorial/components/plano/PeriodoEditorialControl';
 import {
@@ -52,7 +55,7 @@ export function AnalisesPage() {
   const [rede, setRede] = useState('');
   const [contaId, setContaId] = useState('');
   const hoje = hojeIso();
-  const intervalo = modo === 'tudo' || modo === 'intervalo' ? null : intervaloDoModo(modo, hoje);
+  const recorte = modo === 'tudo' || modo === 'intervalo' ? null : intervaloDoModo(modo, hoje);
 
   const contas = useMemo(
     () => contasAtivas(state.platforms).filter(conta => !rede || redeDaConta(conta) === rede),
@@ -66,31 +69,28 @@ export function AnalisesPage() {
     pilares: state.pilares,
     metricas: state.contentMetrics,
     filtro: {
-      inicio: intervalo?.inicio ?? null,
-      fim: intervalo?.fim ?? null,
+      inicio: recorte?.inicio ?? null,
+      fim: recorte?.fim ?? null,
       base,
       rede: rede || null,
       contaId: contaId || null,
     },
-  }), [base, contaId, intervalo?.fim, intervalo?.inicio, rede, state.contentMetrics, state.contents, state.pilares, state.platforms, state.series]);
+  }), [base, contaId, recorte?.fim, recorte?.inicio, rede, state.contentMetrics, state.contents, state.pilares, state.platforms, state.series]);
   const nenhumaComMetricas = linhas.length > 0 && linhas.every(semMetricas);
 
   const filtros = (
     <div className="stack-sm">
       <div className="flex flex-col gap-1">
-        <Text variant="label" as="span">Filtrar o período pela</Text>
-        <div className="max-w-full overflow-x-auto">
-          <SegmentTabs<BaseDoPeriodo>
-            ariaLabel="Filtrar o período pela data planejada ou pela data efetiva"
-            className="w-max"
-            value={base}
-            onChange={setBase}
-            options={[
-              { id: 'planejada', label: 'Data planejada' },
-              { id: 'efetiva', label: 'Data efetiva' },
-            ]}
-          />
-        </div>
+        <Text variant="label" as="span">Contar pela</Text>
+        <SelectField
+          ariaLabel="Contar pela data planejada ou pela data efetiva"
+          value={base}
+          onChange={value => setBase(value as BaseDoPeriodo)}
+          options={[
+            {value: 'planejada', label: 'Data planejada'},
+            {value: 'efetiva', label: 'Data efetiva'},
+          ]}
+        />
       </div>
       <div className="flex flex-wrap items-end gap-3">
         <div className="max-w-full overflow-x-auto">
@@ -131,10 +131,13 @@ export function AnalisesPage() {
         />
       </div>
       <Text variant="meta">
-        {intervalo
-          ? `${base === 'planejada' ? 'Data planejada' : 'Data efetiva'} de ${intervalo.inicio.split('-').reverse().join('/')} a ${intervalo.fim.split('-').reverse().join('/')}.`
+        {recorte
+          ? `${base === 'planejada' ? 'Data planejada' : 'Data efetiva'}: ${intervalo(recorte.inicio, recorte.fim)}.`
           : 'Sem recorte de data.'}
         {' '}O alcance de cada conta é contado à parte. Taxa de engajamento: {FORMULA_ENGAJAMENTO}.
+      </Text>
+      <Text variant="meta">
+        A taxa usa {FORMULA_ENGAJAMENTO}. Sem visualizações no denominador, ela não é calculada.
       </Text>
     </div>
   );
@@ -147,7 +150,6 @@ export function AnalisesPage() {
         <DesktopPageHeader
           section="Criação"
           title="Análises"
-          icon={ChartColumn}
           meta={pronto ? (linhas.length === 1 ? '1 publicação' : `${linhas.length} publicações`) : 'Carregando'}
         />
       )}

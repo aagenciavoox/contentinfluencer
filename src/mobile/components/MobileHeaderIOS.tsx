@@ -86,7 +86,7 @@ export function MobileHeaderIOS({
               <Text
                 variant="pageTitle"
                 truncate
-                className="w-full font-bold tracking-tight text-[var(--text-primary)]"
+                className="w-full tracking-tight text-[var(--text-primary)]"
               >
                 {title}
               </Text>

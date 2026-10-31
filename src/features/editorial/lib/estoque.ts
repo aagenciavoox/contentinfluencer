@@ -83,7 +83,7 @@ export function contarEstoque(
 
 /** Sem desejado, só a contagem. Um campo vazio não vira alvo. */
 export function textoEstoque(contagem: number, desejado: number | null): string {
-  if (desejado == null) return `${contagem} no estoque`;
+  if (desejado == null) return contagem === 1 ? '1 pronto' : `${contagem} prontos`;
   return `${contagem} de ${desejado}`;
 }
 

@@ -1,3 +1,4 @@
+import { ValorVazio } from '../../../../../components/ui/ValorVazio';
 import {CheckCircle2, Clapperboard, ExternalLink, Layers3, Video} from 'lucide-react';
 import {useNavigate} from 'react-router-dom';
 import {AppButton} from '../../../../../components/ui/AppButton';
@@ -56,19 +57,19 @@ export function RecordingSection({
   return (
     <div className="grid gap-[var(--space-xl)]">
       <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:p-6">
-        <p className="t-label t-label-uppercase font-semibold text-[var(--text-tertiary)]">Bloco</p>
+        <Text variant="label" as="p" className="t-label-uppercase text-[var(--text-tertiary)]">Bloco</Text>
         <Text variant="sectionTitle" className="mt-2">
           {blockSummary ? blockSummary.block.name : 'Sem bloco atribuído'}
         </Text>
 
         {blockSummary ? (
           <div className="mt-4 stack-lg">
-            <p className="text-sm text-[var(--text-secondary)]">
-              Ordem {blockSummary.order ?? '-'} de {blockSummary.total} · {blockSummary.progressPercentage}% concluído
-            </p>
-            <p className="text-sm font-semibold text-[var(--text-primary)]">
+            <Text variant="secondary" as="p" className="text-[var(--text-secondary)]">
+              Ordem {blockSummary.order ?? <ValorVazio />} de {blockSummary.total} · {blockSummary.progressPercentage}% concluído
+            </Text>
+            <Text variant="itemTitle" as="p" className="text-[var(--text-primary)]">
               Status: {isRecorded ? 'Gravado' : 'Em execução'}
-            </p>
+            </Text>
             <div className="flex flex-wrap gap-3">
               <AppButton
                 variant="primary"
@@ -99,15 +100,15 @@ export function RecordingSection({
           </div>
         ) : isCarousel ? (
           <div className="mt-4 stack-lg">
-            <p className="text-sm text-[var(--text-secondary)]">
+            <Text variant="secondary" as="p" className="text-[var(--text-secondary)]">
               Carrossel não passa pela gravação. Quando as telas estiverem prontas, siga para a publicação.
-            </p>
+            </Text>
           </div>
         ) : (
           <div className="mt-4 stack-lg">
-            <p className="text-sm text-[var(--text-secondary)]">
+            <Text variant="secondary" as="p" className="text-[var(--text-secondary)]">
               Adicione este roteiro a um bloco para gravar.
-            </p>
+            </Text>
             <div className="flex flex-wrap gap-3">
               {onOpenBlockSheet ? (
                 <AppButton

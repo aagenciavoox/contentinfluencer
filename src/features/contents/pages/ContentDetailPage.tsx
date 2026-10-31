@@ -1,3 +1,4 @@
+import { Text } from '../../../components/ui/Text';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { AppButton } from '../../../components/ui/AppButton';
@@ -36,9 +37,9 @@ function ContentDetailBootLoading() {
         <Skeleton className="h-4 w-4/6" />
         <Skeleton className="mt-4 h-40 w-full" />
       </div>
-      <p className="text-center text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">
+      <Text variant="label" as="p" className="text-center t-label-uppercase text-[var(--text-tertiary)]">
         Carregando roteiro…
-      </p>
+      </Text>
     </div>
   );
 }

@@ -174,9 +174,11 @@ export function DestinationChips({
                     {contas.length > 1 && marcadas.length > 0 ? (
                       <span
                         aria-hidden
-                        className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-[var(--bg-primary)] bg-[var(--text-primary)] px-1 text-[10px] font-semibold text-[var(--bg-primary)]"
+                        className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-[var(--bg-primary)] bg-[var(--text-primary)] px-1 text-[var(--bg-primary)]"
                       >
-                        {marcadas.length}
+                        <Text variant="label" as="span" className="font-semibold text-[var(--bg-primary)]">
+                          {marcadas.length}
+                        </Text>
                       </span>
                     ) : null}
                   </button>

@@ -270,7 +270,7 @@ export function WritingNotesPane({
         {insertUi && onInsertIntoScript ? (
           <button
             type="button"
-            className="absolute z-20 -translate-x-1/2 rounded-full border border-[var(--border-color)] bg-[var(--bg-elevated)] px-2.5 py-1 text-xs font-medium text-[var(--brand-accent-text)] shadow-[var(--shadow-card)] transition hover:bg-[var(--bg-hover)]"
+            className="absolute z-20 -translate-x-1/2 rounded-full border border-[var(--border-color)] bg-[var(--bg-elevated)] px-2.5 py-1 t-label text-[var(--brand-accent-text)] shadow-[var(--shadow-card)] transition hover:bg-[var(--bg-hover)]"
             style={{top: insertUi.top, left: insertUi.left}}
             onMouseDown={event => event.preventDefault()}
             onClick={() => {

@@ -7,12 +7,13 @@ import { PageLayout } from '../../../layouts/page/PageLayout';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
+import { dia } from '../../../lib/dates';
 import type { LibraryFormatFilter } from '../../analytics/lib/libraryPeriodAnalysis';
 import { CARD_CLASS, FormatIcon, FormatTag, IconTile, LibraryFormatChips } from '../../analytics/components/LibraryAnalysisSections';
 
 function formatDate(value: string) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+  if (Number.isNaN(new Date(value).getTime())) return '';
+  return dia(value);
 }
 
 /** Todas as anotações da Biblioteca, com o item de origem, das mais recentes para as mais antigas. */
@@ -66,13 +67,13 @@ export function LibraryAnnotationsPage() {
                   <Surface variant="outlined" padding="md" className={CARD_CLASS}>
                     <Link to={`/biblioteca/${item.id}`} className="flex items-center gap-3 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]">
                       <IconTile><FormatIcon tipo={item.tipo} /></IconTile>
-                      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--text-primary)] hover:underline">{item.titulo}</span>
+                      <Text variant="itemTitle" as="span" className="min-w-0 flex-1 truncate text-[var(--text-primary)] hover:underline">{item.titulo}</Text>
                       {variosFormatos ? <FormatTag tipo={item.tipo} /> : null}
                     </Link>
-                    <p className="mt-3 whitespace-pre-line text-sm text-[var(--text-primary)]">{note.texto}</p>
-                    <p className="mt-2 text-xs text-[var(--text-tertiary)]">
+                    <Text variant="body" as="p" className="mt-3 whitespace-pre-line text-[var(--text-primary)]">{note.texto}</Text>
+                    <Text variant="meta" as="p" className="mt-2 text-[var(--text-tertiary)]">
                       {[note.tipo === 'Anotação' ? null : note.tipo, note.capituloRef, formatDate(note.createdAt)].filter(Boolean).join(' · ')}
-                    </p>
+                    </Text>
                   </Surface>
                 </li>
               ))}

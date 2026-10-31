@@ -1,3 +1,4 @@
+import { Text } from '../../../components/ui/Text';
 import type { ReactNode } from 'react';
 import { Ban, BookOpen, BookOpenText, Check, Clapperboard, Clock, Film, LucideIcon, MessageSquare, Tv } from 'lucide-react';
 import type { BibliotecaItem } from '../../../lib/database';
@@ -57,9 +58,9 @@ interface LibraryCreateFormProps {
 
 function FieldLabel({ children, optional, htmlFor }: { children: ReactNode; optional?: boolean; htmlFor?: string }) {
   return (
-    <label htmlFor={htmlFor} className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">
+    <label htmlFor={htmlFor} className="mb-2 block t-label text-[var(--text-primary)]">
       {children}
-      {optional ? <span className="ml-1.5 text-xs font-normal text-[var(--text-tertiary)]">(opcional)</span> : null}
+      {optional ? <Text variant="meta" as="span" className="ml-1.5 font-normal text-[var(--text-tertiary)]">(opcional)</Text> : null}
     </label>
   );
 }
@@ -92,7 +93,7 @@ export function LibraryCreateForm({
                 aria-checked={active}
                 onClick={() => onTipoChange(tipo)}
                 className={cn(
-                  'relative flex flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border px-2 py-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                  'relative flex flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border px-2 py-4 t-body-strong transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
                   active ? SELECTED : IDLE,
                 )}
               >
@@ -157,7 +158,7 @@ export function LibraryCreateForm({
                 aria-checked={active}
                 onClick={() => onPatch({ statusLeitura: status })}
                 className={cn(
-                  'inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                  'inline-flex items-center gap-2 rounded-full border px-4 py-2 t-body-strong transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
                   active ? SELECTED : IDLE,
                 )}
               >
@@ -171,7 +172,7 @@ export function LibraryCreateForm({
 
       <div>
         <FieldLabel optional>Gêneros</FieldLabel>
-        <p className="mb-2 text-xs text-[var(--text-secondary)]">Selecione um ou mais gêneros.</p>
+        <Text variant="meta" as="p" className="mb-2 text-[var(--text-secondary)]">Selecione um ou mais gêneros.</Text>
         <TagSelect
           label="Gêneros"
           hideLabel
@@ -186,14 +187,14 @@ export function LibraryCreateForm({
 
       <div>
         <FieldLabel optional>Tags personalizadas</FieldLabel>
-        <p className="mb-2 text-xs text-[var(--text-secondary)]">Organize o acervo com tags próprias.</p>
+        <Text variant="meta" as="p" className="mb-2 text-[var(--text-secondary)]">Organize o acervo com tags próprias.</Text>
         <TagSelect
           label="Tags personalizadas"
           hideLabel
           values={value.tagsPersonalizadas}
           onChange={tagsPersonalizadas => onPatch({ tagsPersonalizadas })}
           creatable
-          placeholder="Ex.: comfort read, favorito de infância..."
+          placeholder="Ex.: comfort read, favorito de infância…"
         />
       </div>
     </div>

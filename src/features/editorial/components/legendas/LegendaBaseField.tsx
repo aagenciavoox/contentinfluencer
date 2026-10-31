@@ -1,3 +1,4 @@
+import { TextCount } from '../../../../components/ui/TextCount';
 import { useEffect, useRef } from 'react';
 import { Text } from '../../../../components/ui/Text';
 import { cn } from '../../../../lib/utils';
@@ -35,7 +36,6 @@ export function LegendaBaseField({
   compact?: boolean;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
-  const acima = limite != null && value.length > limite;
 
   useEffect(() => {
     const node = ref.current;
@@ -47,7 +47,7 @@ export function LegendaBaseField({
   return (
     <div className="stack-xs">
       <label htmlFor={id} className="block">
-        <Text variant="bodyStrong" as="span" className={cn(compact && 'text-sm')}>{label}</Text>
+        <Text variant="bodyStrong" as="span">{label}</Text>
       </label>
       {descricao ? (
         <p id={`${id}-descricao`} className="t-meta text-[var(--text-secondary)]">
@@ -67,18 +67,11 @@ export function LegendaBaseField({
           onFocus={onFocus}
           onBlur={onBlur}
           className={cn(
-            'block w-full resize-none overflow-hidden rounded-[var(--radius-input)] border border-dashed border-[var(--border-strong)] bg-[var(--bg-primary)] px-3 pt-2.5 pb-7 text-sm leading-6 text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus-visible:border-solid focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60',
+            'block w-full resize-none overflow-hidden rounded-[var(--radius-input)] border border-dashed border-[var(--border-strong)] bg-[var(--bg-primary)] px-3 py-2.5 t-body leading-6 text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus-visible:border-solid focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60',
             compact && 'leading-5',
           )}
         />
-        <span
-          className={cn(
-            'pointer-events-none absolute bottom-1.5 right-3 text-xs font-semibold tabular-nums',
-            acima ? 'text-[var(--danger)]' : 'text-[var(--text-tertiary)]',
-          )}
-        >
-          {limite != null ? `${value.length} / ${limite}` : value.length}
-        </span>
+        <TextCount value={value} limit={limite} />
       </div>
     </div>
   );

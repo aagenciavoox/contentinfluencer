@@ -1,3 +1,4 @@
+import { Text } from '../ui/Text';
 import { useEffect, useRef, useState } from 'react';
 import { useEditorState, type Editor } from '@tiptap/react';
 import { CaseSensitive, ChevronDown, ChevronUp, Replace, X } from 'lucide-react';
@@ -5,11 +6,11 @@ import { cn } from '../../lib/utils';
 import { clearFind, getFindState, replaceAll, replaceCurrent, setFindQuery, stepFind } from './findReplace';
 
 const inputClass =
-  'h-8 min-w-0 flex-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent-blue)] focus:outline-none';
+  'h-8 min-w-0 flex-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-2.5 t-body text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent-blue)] focus:outline-none';
 const iconClass =
   'flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-secondary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-40';
 const textButtonClass =
-  'h-8 shrink-0 rounded-[var(--radius-input)] border border-[var(--border-color)] px-2.5 text-xs font-medium text-[var(--text-primary)] transition hover:bg-[var(--bg-hover)] disabled:opacity-40';
+  'h-8 shrink-0 rounded-[var(--radius-input)] border border-[var(--border-color)] px-2.5 t-label text-[var(--text-primary)] transition hover:bg-[var(--bg-hover)] disabled:opacity-40';
 
 /** Buscar (Ctrl+F) e substituir (Ctrl+H) dentro do roteiro. */
 export function FindReplaceBar({
@@ -92,9 +93,9 @@ export function FindReplaceBar({
           aria-label="Buscar"
           className={inputClass}
         />
-        <span className="w-24 shrink-0 text-right text-xs tabular-nums text-[var(--text-tertiary)]" aria-live="polite">
+        <Text variant="meta" as="span" className="w-24 shrink-0 text-right tabular-nums text-[var(--text-tertiary)]" aria-live="polite">
           {counter}
-        </span>
+        </Text>
         <button
           type="button"
           onClick={() => setCaseSensitive(value => !value)}

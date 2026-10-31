@@ -1,3 +1,4 @@
+import { Text } from '../ui/Text';
 import type {ReactNode} from 'react';
 import {
   eachDayOfInterval,
@@ -27,6 +28,7 @@ interface CalendarMonthGridProps {
   weekStartsOn?: 0 | 1;
   minCellHeight?: number;
   expandContent?: boolean;
+  stickyHeader?: boolean;
   className?: string;
   tone?: 'flat' | 'elevated';
   renderDayContent: (props: CalendarMonthGridDayProps) => ReactNode;
@@ -59,6 +61,7 @@ export function CalendarMonthGrid({
   weekStartsOn = 0,
   minCellHeight = 120,
   expandContent = false,
+  stickyHeader = false,
   className,
   tone = 'flat',
   renderDayContent,
@@ -88,13 +91,14 @@ export function CalendarMonthGrid({
     : 'grid grid-cols-7';
 
   const elevated = tone === 'elevated';
-  const headerLabelClass = 'text-xs font-medium uppercase tracking-wide text-[var(--text-secondary)]';
+  const headerLabelClass = 't-label uppercase tracking-wide text-[var(--text-secondary)]';
 
   return (
     <div
       role="grid"
       className={cn(
-        'w-full min-w-0 overflow-hidden rounded-[var(--radius-card)] border bg-[var(--bg-elevated)] [&>[role=row]:last-child>*]:border-b-0',
+        stickyHeader ? 'overflow-visible' : 'overflow-hidden',
+        'w-full min-w-0 rounded-[var(--radius-card)] border bg-[var(--bg-elevated)] [&>[role=row]:last-child>*]:border-b-0',
         elevated
           ? 'border-[var(--border-strong)] shadow-[var(--shadow-raised)]'
           : 'border-[var(--border-color)]',
@@ -105,6 +109,7 @@ export function CalendarMonthGrid({
         role="row"
         className={cn(
           columnClass,
+          stickyHeader && 'sticky top-0 z-10 bg-[var(--bg-elevated)]',
           'border-b',
           'border-[var(--border-color)]',
           elevated && 'bg-[var(--surface-subtle)]',
@@ -158,6 +163,7 @@ export function CalendarMonthGrid({
               <div
                 key={dateKey}
                 role="gridcell"
+                data-date={dateKey}
                 tabIndex={interactive ? 0 : undefined}
                 aria-selected={interactive ? isSelected : undefined}
                 style={{minHeight: minCellHeight}}
@@ -187,9 +193,9 @@ export function CalendarMonthGrid({
                 )}
               >
                 <div className="mb-1 flex shrink-0 justify-end">
-                  <span
+                  <Text variant="bodyStrong" as="span"
                     className={cn(
-                      'flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold',
+                      'flex h-7 w-7 items-center justify-center rounded-full ',
                       isToday
                         ? 'bg-[var(--accent)] text-[var(--bg-primary)]'
                         : isSelected
@@ -200,7 +206,7 @@ export function CalendarMonthGrid({
                     )}
                   >
                     {format(day, 'd')}
-                  </span>
+                  </Text>
                 </div>
                 <div
                   className={

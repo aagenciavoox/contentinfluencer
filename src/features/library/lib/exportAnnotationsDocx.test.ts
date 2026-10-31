@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import type { Anotacao } from '../../../lib/database.ts';
+import { dia } from '../../../lib/dates.ts';
 import {
   avaliacaoGeralDosCriterios,
   formatarNota,
@@ -81,7 +82,7 @@ const entries = buildAnnotationExportEntries([
 assert.deepEqual(entries.map(entry => entry.id), ['antiga', 'nova']);
 assert.equal(entries[0]?.rotulo, 'Trecho · Destaque · Cap. 3');
 assert.equal(entries[0]?.texto, 'Primeira linha\nSegunda linha');
-assert.equal(entries[0]?.data, '01/10/2026');
+assert.equal(entries[0]?.data, dia('2026-10-01T12:00:00.000Z'));
 assert.equal(entries[1]?.rotulo, 'Anotação');
 
 assert.equal(annotationsExportFilename('A Biblioteca da Meia-Noite'), 'anotacoes-a-biblioteca-da-meia-noite.docx');

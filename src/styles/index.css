@@ -2717,3 +2717,19 @@ html.mobile-app-shell .segment-tabs--full .segment-tabs-item-active {
     scroll-behavior: auto !important;
   }
 }
+
+/* Criação: pesquisa ocupa o espaço disponível e filtros abrem sobre o conteúdo. */
+.filter-bar--fluid-search .filter-bar-search {
+  flex: 1 1 0;
+  width: 100%;
+  max-width: none;
+}
+
+.filter-bar--fluid-search .filter-bar-controls > .inline-stack-sm {
+  flex-shrink: 0;
+}
+
+.filter-bar-panel.filter-bar-panel--dropdown {
+  width: min(40rem, calc(100vw - 2rem));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}

@@ -275,10 +275,10 @@ export function SelectMenu({
 
   const optionClass = (index: number, selected: boolean, optionDisabled?: boolean) =>
     cn(
-      'flex w-full items-center justify-between gap-3 px-3 text-left text-sm text-[var(--text-primary)] transition-colors',
+      'flex w-full items-center justify-between gap-3 px-3 text-left t-body text-[var(--text-primary)] transition-colors',
       asSheet ? 'min-h-11 rounded-[var(--radius-input)] py-2' : 'min-h-9 py-2',
       index === activeIndex && !asSheet && 'bg-[var(--bg-hover)]',
-      selected && 'font-semibold',
+      selected && '',
       optionDisabled ? 'cursor-not-allowed text-[var(--text-tertiary)]' : 'cursor-pointer hover:bg-[var(--bg-hover)]',
     );
 

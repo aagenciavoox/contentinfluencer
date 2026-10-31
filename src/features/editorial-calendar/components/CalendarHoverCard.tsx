@@ -1,3 +1,4 @@
+import { Text } from '../../../components/ui/Text';
 import React from 'react';
 import { motion } from 'motion/react';
 import { Content, Projeto } from '../../../lib/database';
@@ -30,17 +31,17 @@ export function CalendarHoverCard({ item, isVisible }: HoverCardProps) {
         <div className="relative stack-md">
           <div className="flex items-center gap-2">
             <Layers className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
-            <span className="text-xs font-semibold  text-[var(--text-tertiary)]">Pilar / Origem</span>
+            <Text variant="label" as="span" className="text-[var(--text-tertiary)]">Pilar / Origem</Text>
           </div>
-          <span className="text-sm font-bold text-[var(--text-primary)] block line-clamp-1">{targetLabel}</span>
+          <Text variant="itemTitle" as="span" className="text-[var(--text-primary)] block line-clamp-1">{targetLabel}</Text>
           
           <div className="h-px bg-[var(--bg-elevated)]/10" />
           
           <div className="flex items-center gap-2 pt-1">
              <Film className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
-             <span className="text-xs font-semibold  text-[var(--text-tertiary)]">Formato</span>
+             <Text variant="label" as="span" className="text-[var(--text-tertiary)]">Formato</Text>
           </div>
-          <span className="text-sm font-bold text-[var(--text-primary)] opacity-80">{formatLabel}</span>
+          <Text variant="itemTitle" as="span" className="text-[var(--text-primary)] opacity-80">{formatLabel}</Text>
         </div>
       </div>
     </motion.div>

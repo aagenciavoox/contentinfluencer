@@ -1,6 +1,9 @@
+import { TextCount } from '../../../../components/ui/TextCount';
 import {useEffect, useState, type ReactNode} from 'react';
+import {useNavigate} from 'react-router-dom';
 import {Calendar, ChevronDown, Clock, FileText, Flag, Layers, Library, Search, Tag, Target} from 'lucide-react';
 import {PropertyDatePicker} from '../../../../components/ui/PropertyDatePicker';
+import {AppButton} from '../../../../components/ui/AppButton';
 import {SelectField} from '../../../../components/ui/SelectField';
 import {selectOptionsFromChildren} from '../../../../components/ui/SelectMenu';
 import {TagSelect} from '../../../../components/ui/TagSelect';
@@ -11,7 +14,10 @@ import type {Pilar, Serie} from '../../../../lib/database';
 import {cn} from '../../../../lib/utils';
 import {CONTENT_STATUS, getStatusOptions, normalizeContentStatus} from '../../lib/contentPipeline';
 import {aplicarEscolhasDaSerie, marcarEscolhaManual} from '../../../editorial/lib/escolhasSerie';
+import {caminhoDaSerie} from '../../../editorial/lib/serieArvore';
+import {escopoTemporadas, temporadaNoEscopo, temporadasDoEscopo} from '../../../editorial/lib/temporadas';
 import {FuncaoEditorialFields} from './ContentOperationalPanel';
+import {AvisoTrocaSerieModal} from './DerivarConteudoDialog';
 import {LivroMultiSelect} from './LivroMultiSelect';
 import {PlatformCopyEditor} from './PlatformCopyEditor';
 import {TemaField} from './TemaField';
@@ -20,10 +26,10 @@ import type {ScriptDraft} from './sections/RoteiroSection';
 const NOTES_MAX = 500;
 
 const fieldClass =
-  'h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60';
+  'h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 t-body text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60';
 
 const selectClass =
-  'h-11 w-full appearance-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 pr-9 text-sm text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60';
+  'h-11 w-full appearance-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 pr-9 t-body text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60';
 
 interface ContentManageWorkspaceProps {
   contentId: string;
@@ -45,10 +51,10 @@ function clockInputValue(value: string | null | undefined) {
 
 function FieldLabel({icon, children}: {icon?: ReactNode; children: string}) {
   return (
-    <span className="mb-1.5 flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+    <Text variant="secondary" as="span" className="mb-1.5 flex items-center gap-2 text-[var(--text-secondary)]">
       {icon}
       {children}
-    </span>
+    </Text>
   );
 }
 
@@ -135,16 +141,44 @@ export function ContentManageWorkspace({
   onChange,
 }: ContentManageWorkspaceProps) {
   const {state, ensureDataDomains} = useAppContext();
+  const navigate = useNavigate();
   const linkedPilar = draft.pilarId ? pilares.find(item => item.id === draft.pilarId) ?? null : null;
   const linkedSerie = draft.seriesId ? series.find(item => item.id === draft.seriesId) ?? null : null;
+  const temporadas = state.temporadas ?? [];
+  const escopo = draft.seriesId ? escopoTemporadas(draft.seriesId, series) : null;
+  const temporadasDisponiveis = escopo ? temporadasDoEscopo(escopo.id, temporadas) : [];
+  const temporadaFora = Boolean(draft.temporadaId && (
+    !draft.seriesId || !temporadaNoEscopo(draft.temporadaId, draft.seriesId, series, temporadas)
+  ));
+  const caminhoSerie = draft.seriesId
+    ? caminhoDaSerie(draft.seriesId, series).map(item => item.name).join(' · ')
+    : '';
   const publishDateOnly = draft.publishDate ? draft.publishDate.slice(0, 10) : '';
   const currentStatus = normalizeContentStatus(draft.status);
   const etapas = getStatusOptions(draft.status);
   // Observações começam recolhidas; abertas quando já há texto.
   const [notesOpen, setNotesOpen] = useState(() => Boolean(draft.notes?.trim()));
+  const [seriePendenteId, setSeriePendenteId] = useState<string | null | undefined>(undefined);
+
+  const aplicarSerie = (serieId: string | null) => {
+    onChange({
+      ...aplicarEscolhasDaSerie(draft, series.find(item => item.id === serieId) ?? null, series),
+      seriesId: serieId,
+      temporadaId: null,
+    });
+  };
+
+  const pedirTrocaSerie = (serieId: string | null) => {
+    if (disabled || serieId === (draft.seriesId ?? null)) return;
+    if (draft.seriesId) {
+      setSeriePendenteId(serieId);
+      return;
+    }
+    aplicarSerie(serieId);
+  };
 
   useEffect(() => {
-    void ensureDataDomains(['library']);
+    void ensureDataDomains(['library', 'production']);
   }, [ensureDataDomains]);
 
   return (
@@ -201,15 +235,59 @@ export function ContentManageWorkspace({
                   id="content-manage-serie"
                   disabled={disabled}
                   maxSelections={1}
-                  placeholder="Selecionar série..."
+                  placeholder="Selecionar série…"
                   values={draft.seriesId ? [draft.seriesId] : []}
-                  onChange={values => onChange(aplicarEscolhasDaSerie(
-                    draft,
-                    series.find(item => item.id === values[0]) ?? null,
-                  ))}
-                  options={series.map(item => ({value: item.id, label: item.name}))}
+                  onChange={values => pedirTrocaSerie(values[0] ?? null)}
+                  options={series.map(item => ({
+                    value: item.id,
+                    label: caminhoDaSerie(item.id, series).map(node => node.name).join(' · '),
+                  }))}
                   controlClassName="min-h-11"
                 />
+                {linkedSerie?.parentId ? (
+                  <Text variant="meta" as="p" className="mt-1.5 text-[var(--text-secondary)]">
+                    {caminhoSerie}
+                  </Text>
+                ) : null}
+              </div>
+
+              <div className="block">
+                  <FieldLabel icon={<Layers className="h-4 w-4" />}>Temporada</FieldLabel>
+                  <ManageSelect
+                    ariaLabel="Temporada"
+                    disabled={disabled || (!escopo && !draft.temporadaId)}
+                    value={draft.temporadaId ?? ''}
+                    onChange={temporadaId => onChange({temporadaId: temporadaId || null})}
+                  >
+                    <option value="">Sem temporada</option>
+                    {temporadasDisponiveis.map(temporada => (
+                      <option key={temporada.id} value={temporada.id}>{temporada.nome}</option>
+                    ))}
+                    {temporadaFora && draft.temporadaId ? (
+                      <option value={draft.temporadaId}>
+                        {temporadas.find(item => item.id === draft.temporadaId)?.nome ?? 'Temporada anterior'} (reorganizar)
+                      </option>
+                    ) : null}
+                  </ManageSelect>
+                  {!draft.seriesId || !escopo || temporadasDisponiveis.length === 0 ? (
+                    <Text variant="meta" as="p" className="mt-1.5 text-[var(--text-secondary)]">
+                      {!draft.seriesId
+                        ? 'Selecione uma série para escolher a temporada.'
+                        : !escopo
+                          ? 'Esta série ainda não usa temporadas.'
+                          : 'Esta série ainda não tem temporadas cadastradas.'}
+                    </Text>
+                  ) : null}
+                  {linkedSerie && (!escopo || temporadasDisponiveis.length === 0) && !disabled ? (
+                    <AppButton
+                      variant="ghost"
+                      size="sm"
+                      className="mt-1"
+                      onClick={() => navigate(`/series/${escopo?.id ?? linkedSerie.id}/editar`)}
+                    >
+                      Configurar temporadas
+                    </AppButton>
+                  ) : null}
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
@@ -221,7 +299,7 @@ export function ContentManageWorkspace({
                     id="content-manage-pilar"
                     disabled={disabled}
                     maxSelections={1}
-                    placeholder="Selecionar pilar..."
+                    placeholder="Selecionar pilar…"
                     values={draft.pilarId ? [draft.pilarId] : []}
                     onChange={values => onChange(marcarEscolhaManual(draft, 'pilar', values[0] ?? null))}
                     options={pilares
@@ -333,7 +411,7 @@ export function ContentManageWorkspace({
           <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3 gap-y-0.5">
             <Text variant="sectionTitle" as="span">Observações</Text>
             <Text variant="meta" className="text-[var(--text-secondary)]">
-              {(draft.notes ?? '').trim() ? `${(draft.notes ?? '').length} / ${NOTES_MAX}` : 'Adicione observações, referências e links.'}
+              {!(draft.notes ?? '').trim() ? 'Adicione observações, referências e links.' : null}
             </Text>
           </span>
           <ChevronDown
@@ -348,12 +426,10 @@ export function ContentManageWorkspace({
               disabled={disabled}
               aria-label="Observações"
               onChange={event => onChange({notes: event.target.value.slice(0, NOTES_MAX)})}
-              placeholder="Observações editoriais, referências e links..."
-              className="block min-h-36 w-full resize-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 pb-8 pt-3 text-sm leading-6 text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60"
+              placeholder="Ex.: link dos arquivos, instruções de edição, capa, cortes"
+              className="block min-h-36 w-full resize-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-3 t-body leading-6 text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60"
             />
-            <span className="pointer-events-none absolute bottom-8 right-9 text-xs text-[var(--text-tertiary)]">
-              {(draft.notes ?? '').length} / {NOTES_MAX}
-            </span>
+            <TextCount value={draft.notes ?? ''} limit={NOTES_MAX} />
           </div>
         ) : null}
       </Surface>

@@ -1,3 +1,4 @@
+import { TextCount } from '../../../components/ui/TextCount';
 import { Check, Copy } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -13,6 +14,7 @@ import {
   parseHashtags,
   suggestHashtags,
 } from '../../contents/lib/captionHashtags';
+import { limiteDoCampo } from '../../editorial/lib/platformFields';
 import { limiteHashtagsDaRede } from '../../editorial/lib/editorialSettings';
 import { useAppContext } from '../../../context/AppContext';
 import { isContentBodyLoaded } from '../../contents/lib/contentBody';
@@ -22,13 +24,6 @@ import type { Content, ContentPlataforma, Pilar, Serie } from '../../../lib/data
 import { getVisualFormatLabel } from '../../../constants';
 import { cn, htmlToReadableText } from '../../../lib/utils';
 import { captionClipboardText, formatCaptionBlock } from '../lib/captionQueue';
-
-const CHAR_LIMITS: Record<string, number> = {
-  instagram: 2200,
-  tiktok: 2200,
-  youtube: 5000,
-  blog: 10000,
-};
 
 function captionSnapshot(items: ContentPlataforma[]) {
   return items
@@ -312,8 +307,7 @@ function CaptionGridRow({
         const hashtagCount = parseHashtags(hashtags).length;
         const hashtagLimit = limiteHashtagsDaRede(editorial, platform, platform);
         const hashtagsOver = hashtagCount > hashtagLimit;
-        const limit = CHAR_LIMITS[platformKey(platform)];
-        const overLimit = Boolean(limit && legenda.length > limit);
+        const limit = limiteDoCampo(platform, 'legenda');
         const canCopy = Boolean(record && formatCaptionBlock(record));
 
         return (
@@ -328,6 +322,7 @@ function CaptionGridRow({
               onBlur={() => finish(plataformas)}
               onChange={event => updatePlatform(platform, { legenda: event.target.value })}
             />
+            <TextCount value={legenda} limit={limit} />
             <input
               type="text"
               value={hashtags}
@@ -362,9 +357,6 @@ function CaptionGridRow({
             </div>
             <div className="mt-2 flex items-center justify-between gap-2">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <Text variant="meta" className={overLimit ? 'text-[var(--danger)]' : undefined}>
-                  {limit ? `${legenda.length} / ${limit}` : `${legenda.length}`}
-                </Text>
                 {saving ? (
                   <Text variant="meta" as="span">Salvando…</Text>
                 ) : failed ? (

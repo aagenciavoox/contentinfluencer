@@ -1,6 +1,7 @@
 import { CSSProperties, ReactNode, useId } from 'react';
 import { FileText, Gauge, Keyboard, type LucideIcon, Minus, Palette, Plus, Settings, X } from 'lucide-react';
 import { Dialog } from '../../../../components/overlays/Dialog';
+import { Text } from '../../../../components/ui/Text';
 import { ToggleRow } from '../../../../components/ui/ToggleSwitch';
 import { cn } from '../../../../lib/utils';
 import { getSpeedStep } from './TeleprompterLayout';
@@ -92,8 +93,8 @@ export function TeleprompterSettingsDialog({
       <section className="flex min-h-0 flex-1 flex-col bg-[var(--bg-elevated)] text-[var(--text-primary)]">
         <header className="flex items-start justify-between gap-4 border-b border-[var(--border-color)] px-5 pb-4 pt-1 md:px-8 md:py-5">
           <div className="min-w-0">
-            <p className="text-[13px] text-[var(--text-tertiary)]">Modo gravação</p>
-            <h2 className="mt-1 text-xl font-semibold tracking-[-0.02em] md:text-[26px]">Configurações</h2>
+            <Text variant="secondary" as="p" className="text-[var(--text-tertiary)]">Modo gravação</Text>
+            <Text variant="sectionTitle" as="h2" className="mt-1">Configurações</Text>
           </div>
 
           <div className="flex shrink-0 items-center gap-2 md:gap-4">
@@ -109,7 +110,7 @@ export function TeleprompterSettingsDialog({
               aria-label="Fechar configurações"
               onClick={onClose}
               className={cn(
-                'inline-flex h-10 w-10 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
+                'inline-flex h-10 w-10 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
                 FOCUS_RING
               )}
             >
@@ -121,10 +122,10 @@ export function TeleprompterSettingsDialog({
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-5">
           {!teleprompterEnabled && (
             <div className="mb-4 rounded-[var(--radius-card)] border border-[color-mix(in_srgb,var(--warning),transparent_60%)] bg-[var(--warning-bg)] px-4 py-3 md:mb-5">
-              <p className="text-sm font-semibold">Rolagem automática desligada</p>
-              <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
+              <Text variant="itemTitle" as="p" className="text-inherit">Rolagem automática desligada</Text>
+              <Text variant="secondary" as="p" className="mt-1 leading-relaxed text-[var(--text-secondary)]">
                 Os ajustes de texto continuam valendo. Velocidade e contagem regressiva voltam quando a rolagem for ligada no bloco.
-              </p>
+              </Text>
             </div>
           )}
 
@@ -279,11 +280,11 @@ export function TeleprompterSettingsDialog({
               >
                 {SHORTCUTS.map(shortcut => (
                   <li key={shortcut.label} className="flex flex-col items-center gap-2.5 px-2 text-center lg:flex-auto lg:px-3">
-                    <kbd className="inline-flex h-10 min-w-10 items-center justify-center rounded-lg border border-[var(--border-strong)] bg-[var(--bg-elevated)] px-3 font-sans text-sm font-semibold text-[var(--text-primary)] shadow-[var(--shadow-input)]">
+                    <kbd className="inline-flex h-10 min-w-10 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-strong)] bg-[var(--bg-elevated)] px-3 font-sans t-body-strong text-[var(--text-primary)] shadow-[var(--shadow-input)]">
                       <span aria-hidden={shortcut.spokenKey ? true : undefined}>{shortcut.key}</span>
                       {shortcut.spokenKey && <span className="sr-only">{shortcut.spokenKey}</span>}
                     </kbd>
-                    <span className="text-sm text-[var(--text-secondary)] md:text-[15px] lg:whitespace-nowrap">{shortcut.label}</span>
+                    <Text variant="secondary" as="span" className="lg:whitespace-nowrap">{shortcut.label}</Text>
                   </li>
                 ))}
               </ul>
@@ -295,7 +296,7 @@ export function TeleprompterSettingsDialog({
   );
 }
 
-const ROW_LABEL = 'text-[15px] text-[var(--text-primary)] @[30rem]:min-w-[12rem] @[30rem]:shrink-0';
+const ROW_LABEL = 't-body text-[var(--text-primary)] @[30rem]:min-w-[12rem] @[30rem]:shrink-0';
 
 const CHOICE_ACTIVE =
   'border-[var(--brand-accent-strong)] bg-[var(--brand-accent-soft)] text-[color-mix(in_srgb,var(--brand-accent-strong),black_15%)] dark:text-[color-mix(in_srgb,var(--brand-accent),white_20%)]';
@@ -316,7 +317,7 @@ function SettingsHeaderButton({
       type="button"
       onClick={onClick}
       className={cn(
-        'inline-flex h-10 items-center rounded-lg border border-[var(--border-strong)] bg-[var(--bg-elevated)] px-3 text-sm font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] md:px-4',
+        'inline-flex h-10 items-center rounded-[var(--radius-input)] border border-[var(--border-strong)] bg-[var(--bg-elevated)] px-3 t-body-strong text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] md:px-4',
         FOCUS_RING,
         className
       )}
@@ -356,13 +357,13 @@ function SettingsCard({
     >
       <div className="mb-4 flex items-center gap-3 md:mb-5">
         <Icon aria-hidden className="h-6 w-6 shrink-0" strokeWidth={1.75} />
-        <h3 id={titleId} className="text-[17px] font-semibold leading-tight">
-          {title}
+        <h3 id={titleId}>
+          <Text variant="itemTitle" as="span" className="leading-tight">{title}</Text>
         </h3>
         {badge && (
-          <span className="rounded-full border border-[var(--border-color)] px-2 py-0.5 text-xs text-[var(--text-tertiary)]">
+          <Text variant="meta" as="span" className="rounded-full border border-[var(--border-color)] px-2 py-0.5 text-[var(--text-tertiary)]">
             {badge}
-          </span>
+          </Text>
         )}
       </div>
       <div className="space-y-5">{children}</div>
@@ -377,7 +378,7 @@ function CardDivider() {
 function SettingRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2">
-      <span className="text-[15px] text-[var(--text-primary)]">{label}</span>
+      <Text variant="body" as="span">{label}</Text>
       {children}
     </div>
   );
@@ -395,7 +396,7 @@ function FontSizeStepper({
   onChange: (value: number) => void;
 }) {
   const buttonClass = cn(
-    'inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border-strong)] bg-[var(--bg-elevated)] text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-40 disabled:hover:bg-[var(--bg-elevated)]',
+    'inline-flex h-10 w-10 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-strong)] bg-[var(--bg-elevated)] text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-40 disabled:hover:bg-[var(--bg-elevated)]',
     FOCUS_RING
   );
 
@@ -410,8 +411,8 @@ function FontSizeStepper({
       >
         <Minus className="h-4 w-4" />
       </button>
-      <span aria-live="polite" className="min-w-[4.5rem] text-center text-[15px] font-semibold tabular-nums">
-        {value} px
+      <span aria-live="polite" className="min-w-[4.5rem] text-center tabular-nums">
+        <Text variant="bodyStrong" as="span">{value} px</Text>
       </span>
       <button
         type="button"
@@ -464,8 +465,8 @@ function SliderRow({
           className="range-brand input-plain min-w-0 flex-1"
           style={{ '--range-fill': `${fill}%` } as CSSProperties}
         />
-        <span aria-hidden className="w-[4.75rem] shrink-0 whitespace-nowrap text-right text-[15px] tabular-nums text-[var(--text-secondary)]">
-          {display}
+        <span aria-hidden className="w-[4.75rem] shrink-0 whitespace-nowrap text-right tabular-nums">
+          <Text variant="body" as="span" className="text-[var(--text-secondary)]">{display}</Text>
         </span>
       </div>
     </div>
@@ -508,7 +509,7 @@ function ChoiceRow<T extends string>({
               aria-pressed={active}
               onClick={() => onChange(option.value)}
               className={cn(
-                'inline-flex h-10 min-w-0 items-center justify-center rounded-lg border px-2 text-sm font-medium transition-colors',
+                'inline-flex h-10 min-w-0 items-center justify-center rounded-[var(--radius-input)] border px-2 t-body-strong transition-colors',
                 FOCUS_RING,
                 active ? CHOICE_ACTIVE : CHOICE_IDLE
               )}
@@ -537,8 +538,8 @@ function SwitchRow({
 
   return (
     <ToggleRow id={id} enabled={checked} onToggle={onChange} title={label} tone="brand" className="gap-4">
-      <span className="block text-[15px] font-semibold">{label}</span>
-      <span className="mt-0.5 block text-[13px] text-[var(--text-tertiary)]">{description}</span>
+      <Text variant="bodyStrong" as="span" className="block">{label}</Text>
+      <Text variant="secondary" as="span" className="mt-0.5 block text-[var(--text-tertiary)]">{description}</Text>
     </ToggleRow>
   );
 }

@@ -98,7 +98,7 @@ export function ItensDoPeriodoDialog({
 
   const abrirConteudo = (contentId: string) => {
     onClose();
-    navigate(buildContentDetailRoute(contentId, 'roteiro'), buildDetailBackState('/editorial?aba=periodo'));
+    navigate(buildContentDetailRoute(contentId, 'roteiro'), buildDetailBackState('/planejamento?direcao=1'));
   };
 
   const renderItem = (item: GradeEntry) => {

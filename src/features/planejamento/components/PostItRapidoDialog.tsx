@@ -1,19 +1,14 @@
 import {useEffect, useState} from 'react';
-import {format} from 'date-fns';
-import {ptBR} from 'date-fns/locale';
 import {StickyNote} from 'lucide-react';
 import {AppButton} from '../../../components/ui/AppButton';
-import {RedeChips} from './RedeChips';
-import {TagSelect} from '../../../components/ui/TagSelect';
 import {Text} from '../../../components/ui/Text';
 import {Dialog} from '../../../components/overlays/Dialog';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
 import {OverlayFooter} from '../../../components/overlays/OverlayFooter';
 import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
+import {dia} from '../../../lib/dates';
 import type {Pilar, Serie} from '../../../lib/database';
-import {FUNCAO_LABELS, FUNCOES, isFuncaoEditorial} from '../../editorial/lib/funcoes';
-import {sortPilares} from '../../settings/lib/activePilares';
-import {escolherSerieNoPostIt, type PostItEdit} from '../lib/postIt';
+import {type PostItEdit} from '../lib/postIt';
 import {postItRapidoPodeSalvar} from '../lib/redesPostIt';
 
 function rascunhoVazio(date: string | null): PostItEdit {
@@ -49,14 +44,6 @@ export function PostItRapidoDialog({
   }, [open, date]);
 
   const podeSalvar = postItRapidoPodeSalvar(draft);
-  const opcoesDeSerie = [...series]
-    .filter(serie => serie.ativa || serie.id === draft.serieId)
-    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
-    .map(serie => ({value: serie.id, label: serie.name}));
-  const opcoesDePilar = sortPilares([...pilares])
-    .filter(pilar => pilar.ativo || pilar.id === draft.pilarId)
-    .map(pilar => ({value: pilar.id, label: pilar.nome}));
-
   const salvar = () => {
     if (!podeSalvar) return;
     onSalvar({...draft, texto: draft.texto.trim()});
@@ -67,7 +54,7 @@ export function PostItRapidoDialog({
       <div className="flex h-full min-h-0 flex-col bg-[var(--bg-elevated)]">
         <OverlayHeader
           title="Novo post-it"
-          subtitle={date ? format(new Date(`${date}T12:00:00`), "d 'de' MMMM", {locale: ptBR}) : 'Sem data'}
+          subtitle={date ? dia(date) : 'Sem data'}
           icon={<StickyNote className="h-6 w-6 text-[var(--brand-accent-text)]" />}
           onClose={onClose}
         />
@@ -81,8 +68,9 @@ export function PostItRapidoDialog({
             }}
           >
             <label className="stack-sm">
-              <Text variant="label" as="span">Nota</Text>
-              <textarea
+              <Text variant="label" as="span">Título</Text>
+              <input
+                type="text"
                 value={draft.texto}
                 onChange={event => setDraft(atual => ({...atual, texto: event.target.value}))}
                 onKeyDown={event => {
@@ -91,51 +79,12 @@ export function PostItRapidoDialog({
                     salvar();
                   }
                 }}
-                rows={3}
                 autoFocus
                 required
                 placeholder="O que vai entrar aqui?"
-                className="w-full resize-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-2 text-sm text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                className="w-full resize-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-2 t-body text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
               />
             </label>
-            <TagSelect
-              id="postit-rapido-objetivo"
-              label="Objetivo"
-              placeholder="Sem objetivo"
-              maxSelections={1}
-              values={draft.objetivo ? [draft.objetivo] : []}
-              options={FUNCOES.map(funcao => ({value: funcao, label: FUNCAO_LABELS[funcao]}))}
-              onChange={values => setDraft(atual => ({
-                ...atual,
-                objetivo: isFuncaoEditorial(values[0]) ? values[0] : null,
-              }))}
-            />
-            <TagSelect
-              id="postit-rapido-serie"
-              label="Série"
-              placeholder="Sem série"
-              searchable
-              maxSelections={1}
-              values={draft.serieId ? [draft.serieId] : []}
-              options={opcoesDeSerie}
-              onChange={values => setDraft(atual => escolherSerieNoPostIt(
-                atual,
-                series.find(serie => serie.id === values[0]) ?? null,
-              ))}
-            />
-            <TagSelect
-              id="postit-rapido-pilar"
-              label="Pilar"
-              placeholder="Sem pilar"
-              maxSelections={1}
-              values={draft.pilarId ? [draft.pilarId] : []}
-              options={opcoesDePilar}
-              onChange={values => setDraft(atual => ({...atual, pilarId: values[0] ?? null}))}
-            />
-            <div className="stack-sm">
-              <Text variant="label" as="span">Rede</Text>
-              <RedeChips value={draft.redes ?? []} onChange={redes => setDraft(atual => ({...atual, redes}))} />
-            </div>
           </form>
         </OverlayBody>
         <OverlayFooter className="justify-between">

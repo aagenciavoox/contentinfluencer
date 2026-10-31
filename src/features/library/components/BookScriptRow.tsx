@@ -1,8 +1,8 @@
-import { format, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { Text } from '../../../components/ui/Text';
 import { CalendarDays, FileText, Lightbulb, Mic, MoreVertical, Play, Settings, type LucideIcon } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
 import { MoreMenu, type MoreMenuItem } from '../../../components/ui/MoreMenu';
+import { dia } from '../../../lib/dates';
 import { cn } from '../../../lib/utils';
 
 // Mesmos ícones dos contadores do topo da aba: postado, ideia e o resto "em produção".
@@ -11,11 +11,11 @@ const ETAPA_ICONE: Record<string, LucideIcon> = {
   Publicado: Play,
 };
 
-/** "30 de out." */
+/** Data visível. Valor só com dia fica no calendário local, sem pular de fuso. */
 function formatShortDate(value: string) {
-  const date = parseISO(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return format(date, "d 'de' MMM", { locale: ptBR });
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return dia(value);
+  if (Number.isNaN(new Date(value).getTime())) return null;
+  return dia(value);
 }
 
 interface BookScriptRowProps {
@@ -63,30 +63,30 @@ export function BookScriptRow({
             onClick={onOpen}
             className="block max-w-full rounded-[var(--radius-sm)] text-left focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
           >
-            <span className="line-clamp-2 t-body-strong font-semibold leading-snug text-[var(--text-primary)] hover:underline hover:underline-offset-2">
+            <Text variant="bodyStrong" as="span" className="line-clamp-2 leading-snug text-[var(--text-primary)] hover:underline hover:underline-offset-2">
               {title || 'Roteiro sem título'}
-            </span>
+            </Text>
           </button>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
             <span className="inline-flex items-center gap-2">
               <EtapaIcone className="h-4 w-4 text-[var(--text-tertiary)]" aria-hidden />
-              <span className={cn('inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] px-2.5 py-0.5 text-xs font-medium', statusClass)}>
+              <Text variant="label" as="span" className={cn('inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] px-2.5 py-0.5 ', statusClass)}>
                 <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden />
                 {status}
-              </span>
+              </Text>
             </span>
-            {pilarName ? <span className="t-secondary text-[var(--text-tertiary)]">{pilarName}</span> : null}
+            {pilarName ? <Text variant="secondary" as="span" className="text-[var(--text-tertiary)]">{pilarName}</Text> : null}
             {publishLabel ? (
-              <span className="inline-flex items-center gap-1 t-secondary text-[var(--text-tertiary)]" title="Publicação">
+              <Text variant="secondary" as="span" className="inline-flex items-center gap-1 text-[var(--text-tertiary)]" title="Publicação">
                 <CalendarDays className="h-3.5 w-3.5" aria-hidden />
                 {publishLabel}
-              </span>
+              </Text>
             ) : null}
             {recordingLabel ? (
-              <span className="inline-flex items-center gap-1 t-secondary text-[var(--text-tertiary)]" title="Gravação">
+              <Text variant="secondary" as="span" className="inline-flex items-center gap-1 text-[var(--text-tertiary)]" title="Gravação">
                 <Mic className="h-3.5 w-3.5" aria-hidden />
                 {recordingLabel}
-              </span>
+              </Text>
             ) : null}
           </div>
         </div>

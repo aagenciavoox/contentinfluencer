@@ -33,13 +33,13 @@ const CREATED_AND_EDITED_TODAY = 'Editado hoje';
 // Publicação futura vem antes da gravação futura.
 assert.equal(
   getCreationCardDateMeta(draft({ publishDate: '2026-10-12', recordingDate: '2026-10-08' }), NOW),
-  'Publica 12 de out.',
+  'Publica 12 de out',
 );
 
 // Sem publicação futura, mostra a próxima gravação.
 assert.equal(
   getCreationCardDateMeta(draft({ publishDate: '2026-09-30', recordingDate: '2026-10-08' }), NOW),
-  'Grava 08 de out.',
+  'Grava 8 de out',
 );
 
 // Hoje e amanhã aparecem por extenso.
@@ -49,7 +49,7 @@ assert.equal(getCreationCardDateMeta(draft({ recordingDate: '2026-10-04' }), NOW
 // Datas salvas ao meio-dia UTC continuam no mesmo dia do calendário.
 assert.equal(
   getCreationCardDateMeta(draft({ publishDate: '2026-10-12T12:00:00.000Z' }), NOW),
-  'Publica 12 de out.',
+  'Publica 12 de out',
 );
 
 // Data desligada não conta.
@@ -72,7 +72,7 @@ assert.equal(
       plataforma({ id: 'cp-3', platformId: 'youtube', publishDate: '2026-10-05', publishDateEnabled: false }),
     ],
   }), NOW),
-  'Publica 10 de out.',
+  'Publica 10 de out',
 );
 
 // Já gravado: a data de gravação não aparece.
@@ -91,7 +91,7 @@ assert.equal(
     postedAt: '2026-10-01T15:00:00.000Z',
     plataformas: [plataforma({ publishDate: '2026-10-15', publicationKind: 'repost' })],
   }), NOW),
-  'Publica 15 de out.',
+  'Publica 15 de out',
 );
 
 // Sem datas futuras: criação e última edição.
@@ -101,12 +101,12 @@ assert.equal(
 );
 assert.equal(
   getCreationCardDateMeta(draft({ updatedAt: new Date(2026, 8, 30, 9, 0).toISOString() }), NOW),
-  'Editado 3d atrás',
+  'Editado há 3 dias',
 );
 // Editado no mesmo dia da criação: só a criação.
 assert.equal(
   getCreationCardDateMeta(draft({ updatedAt: new Date(2026, 8, 23, 15, 0).toISOString() }), NOW),
-  'Criado 23 de set.',
+  'Criado 23 de set',
 );
 assert.equal(
   getCreationCardDateMeta(draft({ createdAt: 'inválido', updatedAt: 'inválido' }), NOW),
@@ -116,7 +116,7 @@ assert.equal(
 // O formato visual continua antes da data.
 assert.equal(
   getCreationCardFooterMeta(draft({ formatoVisual: 'Reacao', recordingDate: '2026-10-08' }), NOW),
-  'Reação / Grava 08 de out.',
+  'Reação / Grava 8 de out',
 );
 assert.equal(getCreationCardFooterMeta(draft(), NOW), CREATED_AND_EDITED_TODAY);
 

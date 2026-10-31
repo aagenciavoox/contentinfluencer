@@ -38,3 +38,12 @@ export function formatSpokenDuration(wordCount: number) {
 
   return `${parts.join(' e ')} de fala`;
 }
+
+/** Forma curta para o rodapé do modo sem distrações: "2 min e 48 s". */
+export function formatSpokenClock(wordCount: number) {
+  const totalSeconds = spokenDurationSeconds(wordCount);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (!minutes) return `${seconds} s`;
+  return seconds ? `${minutes} min e ${seconds} s` : `${minutes} min`;
+}

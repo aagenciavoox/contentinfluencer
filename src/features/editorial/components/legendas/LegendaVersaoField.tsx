@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { diaNumerico } from '../../../../lib/dates';
 import { Link2, Lock, PenLine, Undo2 } from 'lucide-react';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { Badge } from '../../../../components/ui/Badge';
 import { PlatformIcon } from '../../../../components/ui/PlatformIcon';
 import { Text } from '../../../../components/ui/Text';
+import { TextCount } from '../../../../components/ui/TextCount';
 import { ConfirmModal } from '../../../../components/feedback/modals/ConfirmModal';
 import { cn } from '../../../../lib/utils';
 import type { EstadoLegenda } from '../../lib/captions';
@@ -18,7 +20,7 @@ function dataCurta(value: string | null | undefined): string | null {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return diaNumerico(date);
 }
 
 /**
@@ -74,7 +76,6 @@ export function LegendaVersaoField({
 }) {
   const [confirmarVolta, setConfirmarVolta] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
-  const acima = limite != null && texto.length > limite;
 
   useEffect(() => {
     const node = ref.current;
@@ -144,12 +145,14 @@ export function LegendaVersaoField({
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <Text variant="meta" className={cn('tabular-nums', acima && 'text-[var(--danger)]')}>
-          {estado === 'publicada'
-            ? (quando ? `Publicada em ${quando}. O texto usado fica preservado.` : 'O texto usado fica preservado.')
-            : estado === 'base' && !texto.trim() ? null
-              : limite != null ? `${texto.length} / ${limite}` : `${texto.length} caracteres`}
-        </Text>
+        {estado === 'publicada'
+          ? (
+            <Text variant="meta">
+              {quando ? `Publicada em ${quando}. O texto usado fica preservado.` : 'O texto usado fica preservado.'}
+            </Text>
+          )
+          : estado === 'base' && !texto.trim() ? null
+            : <TextCount value={texto} limit={limite} />}
         <div className="flex flex-wrap items-center gap-2">
           {acoes}
           {estado === 'base' ? (

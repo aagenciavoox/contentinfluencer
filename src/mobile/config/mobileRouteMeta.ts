@@ -97,7 +97,7 @@ export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMe
     return {
       title: 'Novo pilar',
       mode: 'back',
-      backTo: '/editorial?aba=pilares',
+      backTo: '/editorial',
       titleVariant: 'compact-center',
     };
   }
@@ -106,7 +106,7 @@ export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMe
     return {
       title: 'Editar pilar',
       mode: 'back',
-      backTo: '/editorial?aba=pilares',
+      backTo: '/editorial',
       titleVariant: 'compact-center',
     };
   }

@@ -1,3 +1,4 @@
+import { Text } from '../../../../components/ui/Text';
 import { useEffect, useRef, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { Drawer } from '../../../../components/overlays/Drawer';
@@ -93,7 +94,7 @@ export function ContentPreviewSheet({
         <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-2">
           <span
-            className={`inline-flex w-fit rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusChipClass(content.status)}`}
+            className={`inline-flex w-fit rounded-full px-2.5 py-0.5 t-label ${getStatusChipClass(content.status)}`}
           >
             {content.status}
           </span>
@@ -102,24 +103,24 @@ export function ContentPreviewSheet({
 
         {excerpt ? (
           <div>
-            <p className="mb-1.5 text-xs font-medium text-[var(--text-tertiary)]">Resumo</p>
-            <p className="text-sm leading-relaxed text-[var(--text-secondary)] line-clamp-4">{excerpt}</p>
+            <Text variant="label" as="p" className="mb-1.5 text-[var(--text-tertiary)]">Resumo</Text>
+            <Text variant="secondary" as="p" className="leading-relaxed text-[var(--text-secondary)] line-clamp-4">{excerpt}</Text>
           </div>
         ) : null}
 
         {loadingBody ? (
-          <p className="text-sm text-[var(--text-tertiary)]">Carregando roteiro…</p>
+          <Text variant="secondary" as="p" className="text-[var(--text-tertiary)]">Carregando roteiro…</Text>
         ) : scriptPreview ? (
           <div>
-            <p className="mb-1.5 text-xs font-medium text-[var(--text-tertiary)]">Roteiro</p>
+            <Text variant="label" as="p" className="mb-1.5 text-[var(--text-tertiary)]">Roteiro</Text>
             <div className="max-h-[min(50vh,360px)] overflow-y-auto rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)]/40 p-3">
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--text-primary)]">
+              <Text variant="body" as="p" className="whitespace-pre-wrap leading-relaxed text-[var(--text-primary)]">
                 {scriptPreview}
-              </p>
+              </Text>
             </div>
           </div>
         ) : (
-          <p className="text-sm text-[var(--text-tertiary)]">Roteiro ainda vazio.</p>
+          <Text variant="secondary" as="p" className="text-[var(--text-tertiary)]">Roteiro ainda vazio.</Text>
         )}
 
         <AppButton

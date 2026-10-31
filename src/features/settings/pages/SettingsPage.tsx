@@ -1,41 +1,24 @@
+import type {ReactNode} from 'react';
+import {ChevronRight} from 'lucide-react';
 import {useNavigate} from 'react-router-dom';
-import {
-  BookOpen,
-  Calendar,
-  Camera,
-  Check,
-  ChevronRight,
-  Columns2,
-  Flag,
-  FolderKanban,
-  Hash,
-  HeartHandshake,
-  Leaf,
-  MonitorSpeaker,
-  NotebookPen,
-  PauseCircle,
-  Settings as SettingsIcon,
-  UserCircle2,
-} from 'lucide-react';
-import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
-import {PageLayout} from '../../../layouts/page/PageLayout';
 import {SegmentTabs} from '../../../components/ui/SegmentTabs';
 import {Text} from '../../../components/ui/Text';
+import {ToggleRow} from '../../../components/ui/ToggleSwitch';
 import {useAppContext} from '../../../context/AppContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
-import {ToggleRow} from '../../../components/ui/ToggleSwitch';
-import {SettingsMobileScreen} from '../../../mobile/screens/settings/SettingsMobileScreen';
+import {PageLayout} from '../../../layouts/page/PageLayout';
+import {atualizarPreferencias} from '../../editorial/lib/editorialSettings';
 import {
   DEFAULT_MODULE_FLAGS,
   getModuleFlags,
   MODULE_FLAGS_PREFERENCE_KEY,
-  ModuleFlagKey,
+  type ModuleFlagKey,
 } from '../lib/moduleFlags';
 import {
   DEFAULT_GENTLE_EXPERIENCE,
   GENTLE_EXPERIENCE_PREFERENCE_KEY,
-  GentleExperienceSettings,
   getGentleExperienceSettings,
+  type GentleExperienceSettings,
 } from '../lib/gentleExperience';
 import {
   DEFAULT_WRITING_WORKSPACE,
@@ -43,7 +26,7 @@ import {
   getWritingWorkspaceSettings,
 } from '../lib/writingWorkspace';
 
-type ItemStatus = 'complete' | 'partial' | 'empty' | undefined;
+const ROW_RULE = 'border-b border-[var(--border-color)] py-4';
 
 export function SettingsPage() {
   const navigate = useNavigate();
@@ -52,57 +35,6 @@ export function SettingsPage() {
   const moduleFlags = getModuleFlags(state.preferences);
   const gentleExperience = getGentleExperienceSettings(state.preferences);
   const writingWorkspace = getWritingWorkspaceSettings(state.preferences);
-
-  const getItemStatus = (key: string): ItemStatus => {
-    switch (key) {
-      case 'perfil': return 'complete';
-      case 'plataformas': return (state.platforms?.filter((p: {ativo: boolean}) => p.ativo).length ?? 0) > 0 ? 'complete' : 'empty';
-      default: return undefined;
-    }
-  };
-
-  const items = [
-    {
-      key: 'perfil',
-      to: '/configuracoes/perfil',
-      icon: UserCircle2,
-      title: 'Perfil',
-      desc: 'Nome, e-mail de acesso e senha',
-    },
-    {
-      key: 'plataformas',
-      to: '/contas',
-      icon: MonitorSpeaker,
-      title: 'Contas e horários',
-      desc: 'Contas de cada rede e horários de postagem',
-    },
-  ].map(item => ({...item, status: getItemStatus(item.key)}));
-
-  const moduleCards: Array<{
-    key: ModuleFlagKey;
-    title: string;
-    desc: string;
-    icon: React.ElementType;
-  }> = [
-    {key: 'library', title: 'Biblioteca', desc: 'Obras e anotações', icon: BookOpen},
-    {key: 'recording', title: 'Gravação', desc: 'Blocos e modo gravação', icon: Camera},
-    {key: 'calendar', title: 'Calendário', desc: 'Calendário e Planejamento', icon: Calendar},
-    {key: 'projects', title: 'Projetos', desc: 'Campanhas, publis e produções', icon: FolderKanban},
-  ];
-
-  const toggleModuleFlag = (key: ModuleFlagKey) => {
-    dispatch({
-      type: 'SET_PREFERENCE',
-      payload: {
-        key: MODULE_FLAGS_PREFERENCE_KEY,
-        value: {
-          ...DEFAULT_MODULE_FLAGS,
-          ...moduleFlags,
-          [key]: !moduleFlags[key],
-        },
-      },
-    });
-  };
 
   const updateGentleExperience = (patch: Partial<GentleExperienceSettings>) => {
     dispatch({
@@ -132,254 +64,246 @@ export function SettingsPage() {
     });
   };
 
-  const toggleWritingWorkspace = () => {
-    updateWritingWorkspace({enabled: !writingWorkspace.enabled});
+  const toggleModuleFlag = (key: ModuleFlagKey) => {
+    dispatch({
+      type: 'SET_PREFERENCE',
+      payload: {
+        key: MODULE_FLAGS_PREFERENCE_KEY,
+        value: {
+          ...DEFAULT_MODULE_FLAGS,
+          ...moduleFlags,
+          [key]: !moduleFlags[key],
+        },
+      },
+    });
   };
 
-  const toggleOpenDraftByDefault = () => {
-    updateWritingWorkspace({openDraftByDefault: !writingWorkspace.openDraftByDefault});
-  };
-
-  const gentleCards = [
+  const experienceRows = [
     {
-      key: 'enabled',
-      icon: HeartHandshake,
+      id: 'opcao-enabled',
       title: 'Experiência gentil',
-      desc: 'Troca cobranças por linguagem de apoio e escolhas sem pressa',
+      description: 'Preferência salva. O texto das telas não muda com esta chave.',
       enabled: gentleExperience.enabled,
       onToggle: () => updateGentleExperience({enabled: !gentleExperience.enabled}),
     },
     {
-      key: 'pauseMode',
-      icon: PauseCircle,
-      title: 'Modo pausa',
-      desc: 'Guarda tudo sem sugerir próximos passos em Hoje',
+      id: 'opcao-pauseMode',
+      title: 'Pausar sugestões',
+      description: 'Oculta as leituras de próximos passos no Hoje. A gravação continua disponível.',
       enabled: gentleExperience.pauseMode,
       onToggle: () => updateGentleExperience({pauseMode: !gentleExperience.pauseMode}),
     },
     {
-      key: 'calmSuggestions',
-      icon: Leaf,
+      id: 'opcao-calmSuggestions',
       title: 'Sugestões calmas',
-      desc: 'Mostra caminhos possíveis em vez de destaques fortes',
+      description: 'Mostra no calendário um aviso de roteiros prontos para gravar.',
       enabled: gentleExperience.calmSuggestions,
       onToggle: () => updateGentleExperience({calmSuggestions: !gentleExperience.calmSuggestions}),
     },
     {
-      key: 'dashboardCounts',
-      icon: Hash,
-      title: 'Contagens em Hoje',
-      desc: 'Desligue para uma tela Hoje sem números',
+      id: 'opcao-dashboardCounts',
+      title: 'Mostrar contadores',
+      description: 'Exibe quantidades no Hoje, no calendário e nas leituras.',
       enabled: gentleExperience.dashboardCounts,
       onToggle: () => updateGentleExperience({dashboardCounts: !gentleExperience.dashboardCounts}),
     },
     {
-      key: 'realDeadlineHighlights',
-      icon: Flag,
-      title: 'Destacar prazos reais',
-      desc: 'Reserva destaque forte apenas para compromissos externos e entregas combinadas',
+      id: 'opcao-realDeadlineHighlights',
+      title: 'Destacar compromissos externos',
+      description: 'Destaca no início e em Projetos os prazos de entregas combinadas.',
       enabled: gentleExperience.realDeadlineHighlights,
       onToggle: () => updateGentleExperience({realDeadlineHighlights: !gentleExperience.realDeadlineHighlights}),
     },
   ];
 
-  if (isMobile) {
-    return (
-      <div className="min-h-full bg-[var(--bg-primary)]">
-        <SettingsMobileScreen
-          gentleCards={gentleCards}
-          writingEnabled={writingWorkspace.enabled}
-          onToggleWriting={toggleWritingWorkspace}
-          openDraftByDefault={writingWorkspace.openDraftByDefault}
-          onToggleOpenDraft={toggleOpenDraftByDefault}
-          moduleCards={moduleCards.map(({key, title, desc}) => ({
-            key,
-            title,
-            desc,
-            enabled: moduleFlags[key],
-            onToggle: () => toggleModuleFlag(key),
-          }))}
-          items={items.map((item) => ({
-            ...item,
-            onOpen: () => navigate(item.to),
-          }))}
-        />
-      </div>
-    );
-  }
+  const writingRows = [
+    {
+      id: 'opcao-modo-escrita',
+      title: 'Separar escrita e gestão',
+      description: 'No computador, separa o roteiro da gestão e permite notas ao lado do texto.',
+      enabled: writingWorkspace.enabled,
+      onToggle: () => updateWritingWorkspace({enabled: !writingWorkspace.enabled}),
+    },
+    ...(writingWorkspace.enabled
+      ? [{
+          id: 'opcao-abrir-rascunho',
+          title: 'Abrir rascunho ao entrar',
+          description: 'Abre o rascunho de apoio ao entrar num roteiro. Fechar na edição não muda esta opção.',
+          enabled: writingWorkspace.openDraftByDefault,
+          onToggle: () => updateWritingWorkspace({openDraftByDefault: !writingWorkspace.openDraftByDefault}),
+        }]
+      : []),
+  ];
+
+  const moduleRows: Array<{
+    id: string;
+    key: ModuleFlagKey;
+    title: string;
+    description: string;
+  }> = [
+    {id: 'modulo-library', key: 'library', title: 'Biblioteca', description: 'Obras e anotações'},
+    {id: 'modulo-recording', key: 'recording', title: 'Gravação', description: 'Blocos e modo gravação'},
+    {id: 'modulo-calendar', key: 'calendar', title: 'Calendário', description: 'Calendário e Planejamento'},
+    {id: 'modulo-projects', key: 'projects', title: 'Projetos', description: 'Campanhas, publis e produções'},
+  ];
+
+  const accountLinks = [
+    {
+      to: '/configuracoes/perfil',
+      title: 'Perfil',
+      description: 'Nome, e-mail e senha',
+    },
+    {
+      to: '/contas',
+      title: 'Contas e horários',
+      description: 'Contas de cada rede e horários de postagem',
+    },
+  ];
 
   return (
-    <PageLayout
-      variant="settings"
-      header={
-        <DesktopPageHeader
-          section="Configurações"
-          title="Configurações"
-          icon={SettingsIcon}
-        />
-      }
-    >
-        {/* O tema só existia no menu do avatar; /configuracoes/aparencia caía aqui sem a opção. */}
-        <section className="stack-md">
-          <div>
-            <Text variant="eyebrow">Aparência</Text>
-            <Text variant="sectionTitle" className="mt-1 tracking-tight">
-              Tema do app
-            </Text>
+    <PageLayout variant="settings" contentStack="none">
+      <div className="mx-auto w-full min-w-0 max-w-xl stack-2xl">
+        {isMobile ? null : (
+          <Text variant="pageTitle">Configurações</Text>
+        )}
+
+        <SettingsSection label="Aparência">
+          <div className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-3 ${ROW_RULE}`}>
+            <Text variant="bodyStrong" className="min-w-0">Tema do app</Text>
+            <SegmentTabs<'light' | 'dark'>
+              className="ml-auto max-w-full shrink-0"
+              ariaLabel="Tema do app"
+              options={[
+                {id: 'light', label: 'Claro'},
+                {id: 'dark', label: 'Escuro'},
+              ]}
+              value={state.theme === 'dark' ? 'dark' : 'light'}
+              onChange={theme => dispatch({type: 'SET_THEME', payload: theme})}
+            />
           </div>
-          <SegmentTabs<'light' | 'dark'>
-            className="self-start"
-            options={[
-              {id: 'light', label: 'Claro'},
-              {id: 'dark', label: 'Escuro'},
-            ]}
-            value={state.theme === 'dark' ? 'dark' : 'light'}
-            onChange={theme => dispatch({type: 'SET_THEME', payload: theme})}
-          />
-        </section>
+        </SettingsSection>
 
-        <section className="stack-md">
-          <Text variant="eyebrow">Tom do app</Text>
+        <SettingsSection label="Experiência">
+          {experienceRows.map(row => (
+            <SettingsToggle key={row.id} {...row} />
+          ))}
+        </SettingsSection>
 
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-            {gentleCards.map(({key, icon: CardIcon, title, desc, enabled, onToggle}) => (
-              <ToggleRow
-                key={key}
-                id={`opcao-${key}`}
-                enabled={enabled}
-                onToggle={onToggle}
-                title={title}
-                className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 transition-[box-shadow] hover:shadow-[var(--shadow-card-hover)]"
-              >
-                <span className="flex min-w-0 items-start gap-2.5">
-                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-hover)] text-[var(--text-primary)]">
-                    <CardIcon className="h-4 w-4 opacity-50" />
-                  </span>
-                  <span className="min-w-0">
-                    <Text variant="bodyStrong" as="span" truncate className="block leading-snug">{title}</Text>
-                    <Text variant="secondary" as="span" className="mt-0.5 block leading-relaxed">{desc}</Text>
-                  </span>
-                </span>
-              </ToggleRow>
-            ))}
-          </div>
-        </section>
+        <SettingsSection label="Escrita">
+          {writingRows.map(row => (
+            <SettingsToggle key={row.id} {...row} />
+          ))}
+        </SettingsSection>
 
-        <section className="stack-md">
-          <Text variant="eyebrow">Escrita</Text>
+        <SettingsSection
+          label="Áreas do app"
+          note="Desligar esconde a área no menu. Os dados continuam salvos."
+        >
+          {moduleRows.map(row => (
+            <SettingsToggle
+              key={row.id}
+              id={row.id}
+              title={row.title}
+              description={row.description}
+              enabled={moduleFlags[row.key]}
+              onToggle={() => toggleModuleFlag(row.key)}
+            />
+          ))}
+        </SettingsSection>
 
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-            <ToggleRow
-              id="opcao-modo-escrita"
-              enabled={writingWorkspace.enabled}
-              onToggle={toggleWritingWorkspace}
-              title="Modo de escrita"
-              className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 transition-[box-shadow] hover:shadow-[var(--shadow-card-hover)]"
-            >
-              <span className="flex min-w-0 items-start gap-2.5">
-                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-hover)] text-[var(--text-primary)]">
-                  <Columns2 className="h-4 w-4 opacity-50" />
-                </span>
-                <span className="min-w-0">
-                  <Text variant="bodyStrong" as="span" truncate className="block leading-snug">Modo de escrita</Text>
-                  <Text variant="secondary" as="span" className="mt-0.5 block leading-relaxed">
-                    Separa o roteiro da gestão. Status, agendamento e legendas ficam em outra aba, e você pode abrir o rascunho ao lado do texto.
-                  </Text>
-                </span>
-              </span>
-            </ToggleRow>
-            {writingWorkspace.enabled ? (
-              <ToggleRow
-                id="opcao-abrir-rascunho"
-                enabled={writingWorkspace.openDraftByDefault}
-                onToggle={toggleOpenDraftByDefault}
-                title="Abrir rascunho ao entrar"
-                className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 transition-[box-shadow] hover:shadow-[var(--shadow-card-hover)]"
-              >
-                <span className="flex min-w-0 items-start gap-2.5">
-                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-hover)] text-[var(--text-primary)]">
-                    <NotebookPen className="h-4 w-4 opacity-50" />
-                  </span>
-                  <span className="min-w-0">
-                    <Text variant="bodyStrong" as="span" truncate className="block leading-snug">Abrir rascunho ao entrar</Text>
-                    <Text variant="secondary" as="span" className="mt-0.5 block leading-relaxed">
-                      Mostra o painel de rascunho ao abrir um roteiro.
-                    </Text>
-                  </span>
-                </span>
-              </ToggleRow>
-            ) : null}
-          </div>
-        </section>
-
-        <section className="stack-md">
-          <Text variant="eyebrow">Módulos</Text>
-
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-            {moduleCards.map(({key, icon: CardIcon, title, desc}) => (
-              <ToggleRow
-                key={key}
-                id={`modulo-${key}`}
-                enabled={moduleFlags[key]}
-                onToggle={() => toggleModuleFlag(key)}
-                title={`Módulo ${title}`}
-                className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 transition-[box-shadow] hover:shadow-[var(--shadow-card-hover)]"
-              >
-                <span className="flex min-w-0 items-start gap-2.5">
-                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-hover)] text-[var(--text-primary)]">
-                    <CardIcon className="h-4 w-4 opacity-50" />
-                  </span>
-                  <span className="min-w-0">
-                    <Text variant="bodyStrong" as="span" truncate className="block leading-snug">{title}</Text>
-                    <Text variant="secondary" as="span" className="mt-0.5 block leading-relaxed">{desc}</Text>
-                  </span>
-                </span>
-              </ToggleRow>
-            ))}
-          </div>
-        </section>
-
-        <section className="stack-md">
-          <Text variant="eyebrow">Perfil e contas</Text>
-
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
-            {items.map((item) => {
-              const {to, icon: Icon, title, desc, status} = item;
-              return (
-                <button
-                  key={to}
-                  onClick={() => navigate(to)}
-                  className="group flex flex-col justify-between rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-4 text-left transition-all duration-300 hover:shadow-[var(--shadow-card-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-blue)] cursor-pointer min-h-[130px]"
-                >
-                  <div className="flex flex-col h-full w-full justify-between gap-3">
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-hover)] text-[var(--text-primary)] transition-all duration-300 group-hover:bg-[var(--text-primary)] group-hover:text-[var(--bg-primary)]">
-                          <Icon className="h-4.5 w-4.5 opacity-60 transition-opacity group-hover:opacity-100" />
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          {(() => {
-                            if (status === 'complete') return <Check className="h-3.5 w-3.5 text-[var(--accent-green)]" />;
-                            if (status === 'empty') return <span className="rounded px-1.5 py-0.5 text-xs font-semibold bg-[var(--accent-pink)]/10 text-[var(--accent-pink)]">Em aberto</span>;
-                            if (status === 'partial') return <span className="rounded px-1.5 py-0.5 text-xs font-semibold bg-[var(--accent-orange)]/10 text-[var(--accent-orange)]">Parcial</span>;
-                            return null;
-                          })()}
-                          <ChevronRight className="h-3.5 w-3.5 text-[var(--text-tertiary)] transition-all duration-300 group-hover:translate-x-1 group-hover:text-[var(--text-primary)]" />
-                        </div>
-                      </div>
-                      <Text variant="itemTitle" truncate className="tracking-tight leading-snug">
-                        {title}
-                      </Text>
-                      <Text variant="secondary" className="mt-1 leading-relaxed">
-                        {desc}
-                      </Text>
-                    </div>
-                  </div>
-                </button>
-              );
+        <SettingsSection label="Séries">
+          <SettingsToggle
+            id="opcao-criacao-rapida"
+            title="Criação rápida de séries"
+            description="Crie com nome e cor e complete os detalhes depois."
+            enabled={state.editorial.quickSeriesCreate}
+            onToggle={() => dispatch({
+              type: 'SET_EDITORIAL',
+              payload: atualizarPreferencias({
+                ...state.editorial,
+                quickSeriesCreate: !state.editorial.quickSeriesCreate,
+              }, {}),
             })}
-          </div>
-        </section>
+          />
+          <SettingsToggle
+            id="opcao-avisos-abertos"
+            title="Avisar sobre informações em aberto"
+            description="Sinaliza séries sem pilar, função, recorrência, formato ou esforço."
+            enabled={state.editorial.openInfoNotices}
+            onToggle={() => dispatch({
+              type: 'SET_EDITORIAL',
+              payload: atualizarPreferencias({
+                ...state.editorial,
+                openInfoNotices: !state.editorial.openInfoNotices,
+              }, {}),
+            })}
+          />
+        </SettingsSection>
+
+        <SettingsSection label="Conta">
+          {accountLinks.map(link => (
+            <button
+              key={link.to}
+              type="button"
+              onClick={() => navigate(link.to)}
+              className={`flex w-full cursor-pointer items-center justify-between gap-4 text-left focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] ${ROW_RULE}`}
+            >
+              <span className="min-w-0">
+                <Text variant="bodyStrong" as="span" className="block">{link.title}</Text>
+                <Text variant="secondary" as="span" className="mt-0.5 block">{link.description}</Text>
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
+            </button>
+          ))}
+        </SettingsSection>
+      </div>
     </PageLayout>
+  );
+}
+
+function SettingsSection({
+  label,
+  note,
+  children,
+}: {
+  label: string;
+  note?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="stack-md">
+      <div className="stack-xs">
+        <Text variant="eyebrow">{label}</Text>
+        {note ? <Text variant="secondary">{note}</Text> : null}
+      </div>
+      <div>{children}</div>
+    </section>
+  );
+}
+
+function SettingsToggle({
+  id,
+  title,
+  description,
+  enabled,
+  onToggle,
+}: {
+  id: string;
+  title: string;
+  description: string;
+  enabled: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <ToggleRow
+      id={id}
+      enabled={enabled}
+      onToggle={onToggle}
+      title={title}
+      className={`gap-4 ${ROW_RULE}`}
+    >
+      <Text variant="bodyStrong" as="span" className="block">{title}</Text>
+      <Text variant="secondary" as="span" className="mt-0.5 block">{description}</Text>
+    </ToggleRow>
   );
 }

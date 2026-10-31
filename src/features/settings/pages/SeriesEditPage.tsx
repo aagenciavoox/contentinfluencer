@@ -353,7 +353,6 @@ export function SeriesEditPage() {
             backTo={destinoDeVolta}
             title={pageTitle}
             meta={pageMeta}
-            hideSearch
             actions={
               <SerieEditHeaderActions
                 isCreate={isCreate}

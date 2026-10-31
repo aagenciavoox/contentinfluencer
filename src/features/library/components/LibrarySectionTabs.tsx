@@ -10,7 +10,7 @@ interface LibrarySectionTabsProps {
 
 const OPTIONS = [
   { id: 'collection', label: 'Acervo' },
-  { id: 'analysis', label: 'Análise' },
+  { id: 'analysis', label: 'Panorama' },
 ] satisfies Array<{ id: LibrarySection; label: string }>;
 
 export function LibrarySectionTabs({ className }: LibrarySectionTabsProps) {

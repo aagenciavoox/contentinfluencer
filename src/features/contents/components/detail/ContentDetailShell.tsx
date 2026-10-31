@@ -846,7 +846,7 @@ export function ContentDetailShell({
           onClick={() => setWritingMode(option.id)}
           className={cn(
             'justify-start',
-            writingMode === option.id && 'bg-[var(--bg-hover)] font-semibold',
+            writingMode === option.id && 'bg-[var(--bg-hover)] ',
           )}
         >
           {option.label}

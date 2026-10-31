@@ -147,17 +147,17 @@ export function SendToRecordingSheet({
       ariaLabel={attachedBlockId ? 'Roteiro adicionado ao bloco' : 'Escolha o bloco'}
     >
       <OverlayHeader onClose={handleClose}>
-        <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
+        <Text variant="label" as="p" className="text-[var(--text-tertiary)]">
           Adicionar ao bloco
-        </p>
+        </Text>
         <Text variant="itemTitle" className="mt-2">
           {attachedBlockId ? 'Roteiro adicionado' : 'Escolha o bloco'}
         </Text>
-        <p className="mt-2 text-sm text-[var(--text-secondary)]">
+        <Text variant="secondary" as="p" className="mt-2 text-[var(--text-secondary)]">
           {attachedBlockId
             ? `Este roteiro entrou no bloco “${attachedBlockName}”.`
             : 'Crie um bloco novo ou adicione este roteiro a um bloco existente.'}
-        </p>
+        </Text>
       </OverlayHeader>
 
       <OverlayBody className="stack-lg">
@@ -166,12 +166,12 @@ export function SendToRecordingSheet({
               <div className="flex items-start gap-3 rounded-[var(--radius-card-mobile)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] bg-[color-mix(in_srgb,var(--success)_8%,transparent)] px-4 py-4">
                 <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[var(--success)]" />
                 <div>
-                  <p className="text-sm font-semibold text-[var(--text-primary)]">
+                  <Text variant="itemTitle" as="p" className="text-[var(--text-primary)]">
                     Adicionado a {attachedBlockName}
-                  </p>
-                  <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                  </Text>
+                  <Text variant="secondary" as="p" className="mt-1 text-[var(--text-secondary)]">
                     Já está no bloco. Pode gravar agora ou revisar a ordem depois.
-                  </p>
+                  </Text>
                 </div>
               </div>
               <AppButton
@@ -194,9 +194,9 @@ export function SendToRecordingSheet({
           ) : (
             <>
               <article className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
-                <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
+                <Text variant="label" as="p" className="text-[var(--text-tertiary)]">
                   Criar bloco novo
-                </p>
+                </Text>
                 <input
                   value={blockName}
                   onChange={event => {
@@ -205,14 +205,14 @@ export function SendToRecordingSheet({
                   }}
                   placeholder="Nome do bloco"
                   disabled={isBusy}
-                  className="mt-3 min-h-11 w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 text-sm font-semibold text-[var(--text-primary)] outline-none"
+                  className="mt-3 min-h-11 w-full rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 t-body-strong text-[var(--text-primary)] outline-none"
                 />
               </article>
 
               <article className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">
-                <p className="text-xs font-semibold  text-[var(--text-tertiary)]" aria-hidden>
+                <Text variant="label" as="p" className="text-[var(--text-tertiary)]" aria-hidden>
                   Bloco existente
-                </p>
+                </Text>
                 <TagSelect
                   label="Bloco existente"
                   hideLabel
@@ -231,18 +231,18 @@ export function SendToRecordingSheet({
                   options={availableBlocks.map(block => ({ value: block.id, label: block.name }))}
                 />
                 {blocksLoading && availableBlocks.length === 0 ? (
-                  <p className="mt-3 text-xs font-semibold text-[var(--text-secondary)]">
+                  <Text variant="label" as="p" className="mt-3 text-[var(--text-secondary)]">
                     Buscando blocos salvos…
-                  </p>
+                  </Text>
                 ) : availableBlocks.length === 0 ? (
-                  <p className="mt-3 text-xs font-semibold text-[var(--text-secondary)]">
+                  <Text variant="label" as="p" className="mt-3 text-[var(--text-secondary)]">
                     Nenhum bloco disponível sem este roteiro.
-                  </p>
+                  </Text>
                 ) : null}
               </article>
 
               {errorMessage ? (
-                <p className="text-sm font-semibold text-[var(--danger)]">{errorMessage}</p>
+                <Text variant="itemTitle" as="p" className="text-[var(--danger)]">{errorMessage}</Text>
               ) : null}
             </>
           )}

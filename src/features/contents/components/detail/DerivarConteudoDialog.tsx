@@ -87,7 +87,7 @@ export function DerivarConteudoDialog({ open, content, onConfirm, onCancel }: Pr
             return (
               <label
                 key={campo.key}
-                className="flex items-start gap-2 text-sm text-[var(--text-primary)]"
+                className="flex items-start gap-2 t-label text-[var(--text-primary)]"
               >
                 <input
                   type="checkbox"
@@ -99,7 +99,7 @@ export function DerivarConteudoDialog({ open, content, onConfirm, onCancel }: Pr
                   }))}
                 />
                 <span>
-                  <span className="font-medium">{campo.label}</span>
+                  <Text variant="bodyStrong" as="span" className="text-inherit">{campo.label}</Text>
                   {campo.hint ? (
                     <span className="block text-[var(--text-secondary)]">{campo.hint}</span>
                   ) : null}

@@ -238,7 +238,6 @@ function testFrequenciaDoPilarNaoFechaOMes() {
         redeReferenciaId: null,
         reservaProntos: null,
         publicoLinguagem: '',
-        disponibilidade: '',
         hashtagsForaSeries: '',
         limiteGravacoesDia: null,
       },
@@ -396,7 +395,6 @@ function testProporcaoDefineMetaDosObjetivos() {
         redeReferenciaId: null,
         reservaProntos: null,
         publicoLinguagem: '',
-        disponibilidade: '',
         hashtagsForaSeries: '',
         limiteGravacoesDia: null,
       },
@@ -409,3 +407,13 @@ function testProporcaoDefineMetaDosObjetivos() {
 }
 
 testProporcaoDefineMetaDosObjetivos();
+
+// A classificação do post-it precisa chegar à contagem do mês, antes de virar roteiro.
+{
+  const counts=saude({postIts:[postIt({id:'classificado',texto:'Título',serieId:serie.id,pilarId:pilar.id,objetivo:'atrair',pautaDefinida:false})]});
+  assert.equal(counts.previsto,1);
+  assert.equal(counts.pilares.find(l=>l.id===pilar.id)?.planejado,1);
+  assert.equal(counts.funcoes.find(l=>l.id==='atrair')?.planejado,1);
+  assert.equal(counts.comPauta,0);
+  assert.equal(counts.semSerie,0);
+}

@@ -1,3 +1,4 @@
+import {canPullContent, type PlanejamentoPostIt} from './postIt.ts';
 import type {Content} from '../../../lib/database.ts';
 import type {GradeSerie} from '../../editorial/lib/gradeEntries.ts';
 import {
@@ -11,11 +12,11 @@ export type PublicacaoNoDia = {
   titulo: string;
   time: string | null;
   platformNames: string[];
-  estado: 'postado' | 'programado';
+  estado: 'postado' | 'programado' | 'previsto';
 };
 
 /**
- * O que já foi ao ar e o que está programado, por dia, como no calendário.
+ * Publicações e previsões datadas. Uma data prevista mantém a etapa real.
  * Só leitura: os post-its continuam sendo o plano.
  */
 export function publicacoesPorDia(input: {
@@ -24,6 +25,7 @@ export function publicacoesPorDia(input: {
   series: readonly GradeSerie[];
   redeReferenciaId: string | null;
   hoje?: string;
+  postIts?: readonly PlanejamentoPostIt[];
 }): Map<string, PublicacaoNoDia[]> {
   const titulos = new Map(input.contents.map(content => [content.id, content.title?.trim() || 'Sem título']));
   const porId = new Map(input.contents.map(content => [content.id, content]));
@@ -32,9 +34,11 @@ export function publicacoesPorDia(input: {
   for (const item of buildPublishCalendarItems({...input, platformFilter: 'todas'})) {
     if (!item.date) continue;
     const content = porId.get(item.contentId);
-    const estado = item.posted ? 'postado' : isScheduledItem(item, content) ? 'programado' : null;
+    const estado = item.posted ? 'postado' : isScheduledItem(item, content) ? 'programado' : content && canPullContent(content) ? 'previsto' : null;
     if (!estado) continue;
     const dia = item.date.slice(0, 10);
+    // O vínculo é o cartão do original. Ciclos de repost permanecem independentes.
+    if (item.id.endsWith(':original') && input.postIts?.some(postIt => postIt.contentId === item.contentId && postIt.date === dia)) continue;
     const lista = map.get(dia) ?? [];
     lista.push({
       id: item.id,

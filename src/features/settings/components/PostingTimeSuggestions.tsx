@@ -64,14 +64,14 @@ export function PostingTimeSuggestions({
 
   return (
     <div className={cn('flex flex-wrap items-center gap-1.5', className)}>
-      <Clock className="h-3 w-3 shrink-0 text-[var(--text-tertiary)] opacity-40" />
+      <Clock className="h-3 w-3 shrink-0 text-[var(--text-tertiary)]" />
       {times.map((t) => (
         <button
           key={t}
           type="button"
           onClick={() => onSelect(t)}
           className={cn(
-            'rounded-lg border px-2.5 py-1 text-xs font-semibold tracking-wide transition-all',
+            'rounded-[var(--radius-input)] border px-2.5 py-1 t-label tracking-wide transition-all',
             selectedTime === t
               ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
               : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--text-primary)] hover:text-[var(--text-primary)]',

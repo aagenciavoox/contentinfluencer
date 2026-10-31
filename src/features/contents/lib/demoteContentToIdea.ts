@@ -1,7 +1,7 @@
 import type {Content, Idea} from '../../../lib/database';
-import {htmlToReadableText} from '../../../lib/utils';
-import {generateUUID} from '../../../utils/uuid';
-import {buildIdeaFields, composeIdeaText} from '../../ideas/lib/ideaText';
+import {htmlToReadableText} from '../../../lib/utils.ts';
+import {generateUUID} from '../../../utils/uuid.ts';
+import {buildIdeaFields, composeIdeaText} from '../../ideas/lib/ideaText.ts';
 
 export function buildIdeaBodyFromContent(
   content: Pick<Content, 'notes' | 'script'>,

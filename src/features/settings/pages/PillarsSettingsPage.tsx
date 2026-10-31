@@ -83,7 +83,6 @@ export function PillarsSettingsPage() {
     <SettingsPageScaffold
       section="Criação"
       title="Pilares"
-      icon={Palette}
       showBack={false}
       variant="default"
       actions={

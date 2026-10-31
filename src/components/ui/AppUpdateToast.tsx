@@ -1,3 +1,4 @@
+import { Text } from './Text';
 import { useEffect, useState } from 'react';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { AppButton } from './AppButton';
@@ -24,7 +25,7 @@ export function AppUpdateToast() {
     >
       <div className="pointer-events-auto flex max-w-md items-center gap-3 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-2.5 text-[var(--text-primary)] shadow-none backdrop-blur-md">
         <RefreshCw className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
-        <p className="text-sm font-semibold">Nova versão disponível</p>
+        <Text variant="itemTitle" as="p" className="text-inherit">Nova versão disponível</Text>
         <AppButton
           type="button"
           variant="ghost"

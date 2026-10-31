@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
+import { CountBadge } from './CountBadge';
 
 type ButtonVariant =
   | 'primary'
@@ -22,6 +23,8 @@ interface AppButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
    * layout passadas em `className` continuam no botão.
    */
   disabledReason?: string;
+  /** Selo numérico, no mesmo desenho da contagem das abas. */
+  count?: number;
 }
 
 /**
@@ -70,6 +73,7 @@ export const AppButton = React.forwardRef<HTMLButtonElement, AppButtonProps>(
       type = 'button',
       disabled,
       disabledReason,
+      count,
       'aria-describedby': ariaDescribedBy,
       ...props
     },
@@ -91,7 +95,7 @@ export const AppButton = React.forwardRef<HTMLButtonElement, AppButtonProps>(
         disabled={disabled}
         aria-describedby={describedBy}
         className={cn(
-          'inline-flex shrink-0 items-center justify-center gap-2 rounded-[var(--radius-input)] text-[length:var(--font-size-button)] font-semibold tracking-normal transition-[background-color,border-color,color,box-shadow,transform,opacity,filter] duration-150',
+          't-button inline-flex shrink-0 items-center justify-center gap-2 rounded-[var(--radius-input)] text-[length:var(--font-size-button)] tracking-normal transition-[background-color,border-color,color,box-shadow,transform,opacity,filter] duration-150',
           resolvedVariant === 'primary'
             ? 'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring-brand)]'
             : 'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
@@ -106,6 +110,7 @@ export const AppButton = React.forwardRef<HTMLButtonElement, AppButtonProps>(
         {leftIcon ? <span className="flex items-center justify-center">{leftIcon}</span> : null}
         {!iconOnly ? <span className="truncate">{children}</span> : null}
         {rightIcon ? <span className="flex items-center justify-center">{rightIcon}</span> : null}
+        {typeof count === 'number' ? <CountBadge count={count} tone={resolvedVariant === 'primary' ? 'onPrimary' : 'neutral'} /> : null}
         {iconOnly && !leftIcon && !rightIcon ? children : null}
       </button>
     );

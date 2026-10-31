@@ -56,8 +56,8 @@ export function useNavCounts(libraryCountFallback = 0) {
         libraryCount: stats.libraryCount || fallbackRef.current,
       });
     }).catch(err => {
-      // Contador do menu: falhou, fica o último valor até a próxima carga.
-      console.warn('[useNavCounts] contagem falhou', err);
+      // Contador do menu: se a carga não vier, fica o último valor.
+      console.warn('[useNavCounts] contagem não veio', err);
     });
 
     return () => {

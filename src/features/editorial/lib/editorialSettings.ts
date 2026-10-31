@@ -22,7 +22,6 @@ export interface PreferenciasGerais {
   /** Reserva de prontos. Vazio não inventa um alvo. */
   reservaProntos: number | null;
   publicoLinguagem: string;
-  disponibilidade: string;
   /** Hashtags do que não vem de série. */
   hashtagsForaSeries: string;
   /** Gravações que cabem em um dia. Null é "sem limite" — não é zero. */
@@ -101,7 +100,6 @@ const PREFERENCIAS_PADRAO: PreferenciasGerais = {
   redeReferenciaId: null,
   reservaProntos: null,
   publicoLinguagem: '',
-  disponibilidade: '',
   hashtagsForaSeries: '',
   limiteGravacoesDia: null,
 };
@@ -198,7 +196,6 @@ function preferenciasVersao2(saved: Record<string, unknown>): PreferenciasGerais
       ? readInteiroNaoNegativo(fonte.reservaProntos)
       : readInteiroNaoNegativo(saved.estoqueDesejado),
     publicoLinguagem: readTexto(fonte.publicoLinguagem),
-    disponibilidade: readTexto(fonte.disponibilidade),
     hashtagsForaSeries: readTexto(fonte.hashtagsForaSeries),
     limiteGravacoesDia: readInteiroNaoNegativo(fonte.limiteGravacoesDia) || null,
   });

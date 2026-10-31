@@ -346,7 +346,7 @@ export function MonthlyCalendarView({
                       onSelectDate?.(dayProps.day);
                       onShowMore?.(dayProps.day);
                     }}
-                    className="w-full px-1 py-0.5 text-left text-xs font-semibold text-[var(--text-secondary)] hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                    className="w-full px-1 py-0.5 text-left t-label text-[var(--text-secondary)] hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                   >
                     +{overflow} mais
                   </button>

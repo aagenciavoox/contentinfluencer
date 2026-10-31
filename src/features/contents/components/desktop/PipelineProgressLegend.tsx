@@ -23,24 +23,24 @@ export function PipelineProgressLegend() {
         </Text>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           {LEGEND_ITEMS.map(item => (
-            <span key={item.label} className="inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
+            <Text variant="meta" as="span" key={item.label} className="inline-flex items-center gap-1.5 text-[var(--text-secondary)]">
               <span className="h-2 w-2 rounded-full" style={{backgroundColor: item.color}} />
               {item.label}
-            </span>
+            </Text>
           ))}
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         {STATUS_HINTS.map(item => (
-          <span key={item.label} className="inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
+          <Text variant="meta" as="span" key={item.label} className="inline-flex items-center gap-1.5 text-[var(--text-secondary)]">
             <span className="h-2 w-2 rounded-full ring-2 ring-[var(--bg-primary)]" style={{backgroundColor: item.color}} />
             {item.label}
-          </span>
+          </Text>
         ))}
-        <span className="inline-flex items-center gap-1.5 text-xs text-[var(--text-tertiary)]">
+        <Text variant="meta" as="span" className="inline-flex items-center gap-1.5 text-[var(--text-tertiary)]">
           <span className="h-2 w-2 rounded-full bg-[var(--status-idea)]" />
           Ideia
-        </span>
+        </Text>
       </div>
     </div>
   );

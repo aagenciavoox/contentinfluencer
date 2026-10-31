@@ -109,28 +109,27 @@ export const CONFIRM = {
 
 export const ERRORS = {
   salvar:
-    'Não foi possível salvar agora. Verifique sua conexão e tente novamente.',
+    'Não foi possível salvar agora. Verifique sua conexão e tente de novo.',
   criarRoteiro:
-    'Não foi possível criar o roteiro. Tente novamente em alguns segundos.',
+    'Não foi possível criar o roteiro. Tente de novo em alguns segundos.',
   salvarRoteiro:
-    'Não foi possível salvar o roteiro. Verifique sua conexão e tente novamente.',
+    'Não foi possível salvar o roteiro. Verifique sua conexão e tente de novo.',
   salvarGenerico:
-    'Não foi possível salvar agora. Verifique sua conexão e tente novamente.',
+    'Não foi possível salvar agora. Verifique sua conexão e tente de novo.',
   sincronizar:
-    'Não foi possível sincronizar agora. Verifique sua conexão e tente novamente.',
-  carregarDados: 'Não foi possível carregar os dados. Tente novamente.',
+    'Não foi possível sincronizar agora. Verifique sua conexão e tente de novo.',
+  carregarDados: 'Não foi possível carregar os dados. Tente de novo.',
   atualizarStatusMassa:
-    'Não foi possível atualizar o status em massa. Tente novamente.',
+    'Não foi possível atualizar o status em massa. Tente de novo.',
   aplicarAlteracoesMassa:
-    'Não foi possível aplicar as alterações em massa. Tente novamente.',
+    'Não foi possível aplicar as alterações em massa. Tente de novo.',
   moverParaIdeiasMassa:
-    'Não foi possível mover os roteiros para Ideias. Tente novamente.',
+    'Não foi possível mover os roteiros para Ideias. Tente de novo.',
   importarRoteiros:
-    'Não foi possível importar todos os roteiros. Tente novamente.',
+    'Não foi possível importar todos os roteiros. Tente de novo.',
   autenticacao:
-    'Não foi possível entrar. Confira e-mail e senha ou tente novamente.',
-  supabaseDesconectado:
-    'Sem conexão com o servidor. Recarregue a página para alterar dados da conta.',
+    'Não foi possível entrar. Confira e-mail e senha ou tente de novo.',
+  supabaseDesconectado: 'Sem conexão',
 } as const;
 
 // ─── Loading / saving ─────────────────────────────────────────────────────────

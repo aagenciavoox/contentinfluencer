@@ -1,3 +1,4 @@
+import { ValorVazio } from '../../../../components/ui/ValorVazio';
 import { useState } from 'react';
 import { CalendarDays, Clock, Hash, Pencil, Share2, Target, UserRound } from 'lucide-react';
 import { AppButton } from '../../../../components/ui/AppButton';
@@ -70,7 +71,7 @@ function ValorDoRitmo({
   return (
     <div className="min-w-0 stack-xs">
       <Text variant="bodyStrong" as="p">{rotulo}</Text>
-      <Text variant="itemTitle" as="p" className="tabular-nums">{valor == null ? '—' : String(valor)}</Text>
+      <Text variant="itemTitle" as="p" className="tabular-nums">{valor == null ? <ValorVazio /> : String(valor)}</Text>
       <Text variant="secondary" as="p">
         {valor == null ? 'Não definido' : unidade}
       </Text>

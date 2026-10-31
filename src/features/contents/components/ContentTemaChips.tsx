@@ -1,4 +1,5 @@
-import { TagPill } from '../../../components/ui/TagSelect';
+import { Text } from '../../../components/ui/Text';
+import { Badge } from '../../../components/ui/Badge';
 import { useAppContext } from '../../../context/AppContext';
 import { cn } from '../../../lib/utils';
 
@@ -20,14 +21,15 @@ export function ContentTemaChips({ temaIds, max = 4, className }: ContentTemaChi
   const shown = nomes.slice(0, max);
   const rest = nomes.length - shown.length;
   return (
-    <div className={cn('flex min-w-0 flex-wrap items-center gap-1', className)} aria-label={`Temas: ${nomes.join(', ')}`}>
-      {shown.map(nome => (
-        <TagPill key={nome} label={nome} className="!px-1.5 !py-0.5" />
+    <div className={cn('flex min-w-0 flex-wrap items-center gap-1', className)} role="group" aria-label="Temas">
+      {shown.map((nome, index) => (
+        <Badge key={`${index}-${nome}`} variant="tag" className="px-1.5">{nome}</Badge>
       ))}
       {rest > 0 ? (
-        <span className="text-xs text-[var(--text-tertiary)]" title={nomes.slice(max).join(', ')}>
-          +{rest}
-        </span>
+        <Text variant="meta" as="span" className="text-[var(--text-tertiary)]" title={nomes.slice(max).join(', ')}>
+          <span aria-hidden>+{rest}</span>
+          <span className="sr-only">{nomes.slice(max).join(', ')}</span>
+        </Text>
       ) : null}
     </div>
   );

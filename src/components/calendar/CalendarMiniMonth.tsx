@@ -87,7 +87,7 @@ export function CalendarMiniMonth({
         {labels.map((label, index) => (
           <div
             key={`${label}-${index}`}
-            className="py-1 text-center text-2xs font-semibold text-[var(--text-tertiary)]"
+            className="py-1 text-center t-label text-[var(--text-tertiary)]"
           >
             {label}
           </div>
@@ -104,7 +104,7 @@ export function CalendarMiniMonth({
               type="button"
               onClick={() => handleDayClick(day)}
               className={cn(
-                'flex h-7 w-full items-center justify-center rounded-full text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                'flex h-7 w-full items-center justify-center rounded-full t-label transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
                 !inMonth && 'text-[var(--text-tertiary)] opacity-45',
                 inMonth && !isToday && !isSelected && 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]',
                 isSelected && !isToday && 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_82%)] text-[var(--accent-blue)]',

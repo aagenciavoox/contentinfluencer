@@ -1,10 +1,10 @@
 import { dataCache } from './dataCache.ts';
 import { getCachedUserId, supabase } from './supabase.ts';
-import { CONTENT_STATUS, normalizeContentStatus } from '../features/contents/lib/contentPipeline';
-import { hydrateIdeasFromDemotedContents } from '../features/ideas/lib/hydrateIdeasFromDemotedContents';
-import { getIdeaNotes, normalizeIdea } from '../features/ideas/lib/ideaText';
+import { CONTENT_STATUS, normalizeContentStatus } from '../features/contents/lib/contentPipeline.ts';
+import { hydrateIdeasFromDemotedContents } from '../features/ideas/lib/hydrateIdeasFromDemotedContents.ts';
+import { getIdeaNotes, normalizeIdea } from '../features/ideas/lib/ideaText.ts';
 import { aplicarLivros, livroIdsEfetivos } from './livroIds.ts';
-import { generateUUID } from '../utils/uuid';
+import { generateUUID } from '../utils/uuid.ts';
 import { normalizarRedesPostIt } from '../features/planejamento/lib/redesPostIt.ts';
 import { normalizeWritingMode, readCarouselSlides, slidesHaveContent } from '../features/contents/lib/carouselSlides.ts';
 import { nomeIndicaBlog } from '../features/contas/lib/contas.ts';
@@ -2586,7 +2586,6 @@ function editorialDasLinhas(
       redeReferenciaId: rede,
       reservaProntos,
       publicoLinguagem: typeof conta.publico_linguagem === 'string' ? conta.publico_linguagem : '',
-      disponibilidade: typeof conta.disponibilidade === 'string' ? conta.disponibilidade : '',
       hashtagsForaSeries: typeof conta.hashtags_fora_series === 'string' ? conta.hashtags_fora_series : '',
       limiteGravacoesDia: inteiroOpcional(conta.limite_gravacoes_dia) || null,
     },
@@ -2616,7 +2615,6 @@ export async function saveEditorial(settings: EditorialSettings): Promise<void> 
     rede_referencia_id: preferencias.redeReferenciaId,
     reserva_prontos: preferencias.reservaProntos,
     publico_linguagem: preferencias.publicoLinguagem,
-    disponibilidade: preferencias.disponibilidade,
     hashtags_fora_series: preferencias.hashtagsForaSeries,
     quick_series_create: settings.quickSeriesCreate,
     open_info_notices: settings.openInfoNotices,
@@ -3259,7 +3257,7 @@ export async function deleteBibliotecaItem(id: string): Promise<void> {
   }
 
   if (existing?.user_id) {
-    const { deleteLibraryItemCovers } = await import('../features/library/lib/libraryCoverStorage');
+    const { deleteLibraryItemCovers } = await import('../features/library/lib/libraryCoverStorage.ts');
     void deleteLibraryItemCovers({
       userId: existing.user_id,
       itemId: id,

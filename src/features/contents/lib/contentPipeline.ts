@@ -309,7 +309,7 @@ export function canSchedulePosting(content: Pick<Content, 'publishDate' | 'plata
 }
 
 export function getDisplayStatus(
-  content: Pick<Content, 'publishDate' | 'status' | 'postedAt' | 'edicaoConcluidaEm' | 'plataformas'>,
+  content: Pick<Content, 'publishDate' | 'status' | 'postedAt' | 'edicaoConcluidaEm'> & Partial<Pick<Content, 'plataformas'>>,
 ): string {
   const status = normalizeContentStatus(content.status);
 

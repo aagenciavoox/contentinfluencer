@@ -1,3 +1,4 @@
+import { Text } from '../ui/Text';
 import {useId, useRef} from 'react';
 import {
   addMonths,
@@ -8,9 +9,9 @@ import {
   subMonths,
   subWeeks,
 } from 'date-fns';
-import {ptBR} from 'date-fns/locale';
 import {CalendarDays, ChevronLeft, ChevronRight} from 'lucide-react';
 import {cn} from '../../lib/utils';
+import {intervalo, mes} from '../../lib/dates';
 import {SegmentTabs} from '../ui/SegmentTabs';
 
 export interface CalendarPeriodViewOption<T extends string = string> {
@@ -30,10 +31,6 @@ interface CalendarPeriodNavProps<T extends string = string> {
   weekViewId?: T;
 }
 
-function capitalizeFirst(value: string): string {
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
 function applyMonthYear(anchorDate: Date, year: number, month: number): Date {
   const lastDay = new Date(year, month, 0).getDate();
   const day = Math.min(anchorDate.getDate(), lastDay);
@@ -44,7 +41,7 @@ const navButtonClass =
   'flex min-h-9 min-w-9 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] pointer-coarse:min-h-11 pointer-coarse:min-w-11 transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
 const todayButtonClass =
-  'min-h-9 rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--bg-elevated)] px-3 py-1.5 pointer-coarse:min-h-11 text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
+  'min-h-9 rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--bg-elevated)] px-3 py-1.5 pointer-coarse:min-h-11 t-body-strong text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
 export function CalendarPeriodNav<T extends string = string>({
   anchorDate,
@@ -64,8 +61,8 @@ export function CalendarPeriodNav<T extends string = string>({
   const weekEndDate = endOfWeek(anchorDate, {weekStartsOn});
 
   const periodLabel = isWeekMode
-    ? `${format(weekStartDate, "d 'de' MMM", {locale: ptBR})} – ${format(weekEndDate, "d 'de' MMM 'de' yyyy", {locale: ptBR})}`
-    : capitalizeFirst(format(anchorDate, "MMMM 'de' yyyy", {locale: ptBR}));
+    ? intervalo(weekStartDate, weekEndDate)
+    : mes(anchorDate);
 
   const monthValue = format(anchorDate, 'yyyy-MM');
 
@@ -129,7 +126,7 @@ export function CalendarPeriodNav<T extends string = string>({
             title="Escolher mês"
           >
             <CalendarDays className="h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" />
-            <span className="truncate text-sm font-semibold text-[var(--text-primary)]">{periodLabel}</span>
+            <Text variant="itemTitle" as="span" className="truncate text-[var(--text-primary)]">{periodLabel}</Text>
           </button>
         </div>
 

@@ -1,40 +1,45 @@
-import React from 'react';
-import { LucideIcon } from 'lucide-react';
-import { Section } from '../ui/Section';
+import type { ReactNode } from 'react';
 import { Surface } from '../ui/Surface';
+import { Text } from '../ui/Text';
 
 interface SettingsSectionCardProps {
   title: string;
-  icon?: LucideIcon;
+  padding?: 'md' | 'lg';
+  icon?: ReactNode;
   description?: string;
-  children: React.ReactNode;
-  actions?: React.ReactNode;
+  children?: ReactNode;
+  actions?: ReactNode;
   className?: string;
-  badge?: React.ReactNode;
+  badge?: ReactNode;
 }
 
+/** Cabeçalho de formulário e de card de configuração: título, ícone e descrição opcionais. */
 export function SettingsSectionCard({
   title,
-  icon: Icon,
+  padding = 'lg',
+  icon,
   description,
   children,
   actions,
   className,
   badge,
 }: SettingsSectionCardProps) {
-  const titleNode = (
-    <span className="flex items-center gap-2">
-      {Icon ? <Icon className="h-4 w-4 text-[var(--text-tertiary)]" /> : null}
-      <span>{title}</span>
-      {badge}
-    </span>
-  );
-
   return (
-    <Surface variant="outlined" padding="lg" className={className}>
-      <Section title={titleNode} description={description} action={actions}>
+    <Surface variant="outlined" padding={padding} className={className}>
+      <div className="stack-lg">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 stack-xs">
+            <div className="flex min-w-0 items-center gap-2">
+              {icon ? <span className="shrink-0 text-[var(--text-tertiary)]" aria-hidden>{icon}</span> : null}
+              <Text variant="itemTitle" as="h3" className="min-w-0">{title}</Text>
+              {badge}
+            </div>
+            {description ? <Text variant="secondary">{description}</Text> : null}
+          </div>
+          {actions ? <div className="shrink-0">{actions}</div> : null}
+        </div>
         {children}
-      </Section>
+      </div>
     </Surface>
   );
 }

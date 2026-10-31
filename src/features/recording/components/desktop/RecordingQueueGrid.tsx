@@ -1,10 +1,13 @@
 import {BookOpenText, Check, Clapperboard, ExternalLink, Zap} from 'lucide-react';
+import { CountBadge } from '../../../../components/ui/CountBadge';
 import {Text} from '../../../../components/ui/Text';
 import {AppButton} from '../../../../components/ui/AppButton';
 import type {Content} from '../../../../lib/database';
 import {useAppContext} from '../../../../context/AppContext';
 import {EMPTY} from '../../../../lib/uiCopy';
-import {cn} from '../../../../lib/utils';
+import {TextCount} from '../../../../components/ui/TextCount';
+import {cn, htmlToReadableText} from '../../../../lib/utils';
+import {contentReadableBody} from '../../../contents/lib/carouselSlides';
 import {ContentEntityTags} from '../../../contents/components/ContentEntityTags';
 import {
   getDisplayTitle,
@@ -50,11 +53,11 @@ export function RecordingQueueGrid({
   if (contents.length === 0) {
     return (
       <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] bg-[var(--bg-secondary)] px-6 py-16 text-center">
-        <Clapperboard className="mx-auto mb-4 h-10 w-10 text-[var(--text-tertiary)] opacity-40" />
-        <p className="text-sm font-semibold text-[var(--text-primary)]">{EMPTY.roteirosSemBloco.title}</p>
-        <p className="mx-auto mt-2 max-w-sm text-sm text-[var(--text-secondary)]">
+        <Clapperboard className="mx-auto mb-4 h-10 w-10 text-[var(--text-tertiary)]" />
+        <Text variant="itemTitle" as="p" className="text-[var(--text-primary)]">{EMPTY.roteirosSemBloco.title}</Text>
+        <Text variant="secondary" as="p" className="mx-auto mt-2 max-w-sm text-[var(--text-secondary)]">
           {EMPTY.roteirosSemBloco.description}
-        </p>
+        </Text>
       </div>
     );
   }
@@ -65,11 +68,11 @@ export function RecordingQueueGrid({
         <button
           type="button"
           onClick={onSelectAll}
-          className="inline-flex items-center gap-2 rounded-full border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
+          className="inline-flex items-center gap-2 rounded-full border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-1.5 t-label text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
         >
           <span
             className={cn(
-              'inline-flex h-4 w-4 items-center justify-center rounded border transition-colors',
+              'inline-flex h-4 w-4 items-center justify-center rounded-[var(--radius-input)] border transition-colors',
               allSelected
                 ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
                 : someSelected
@@ -89,12 +92,12 @@ export function RecordingQueueGrid({
           <button
             type="button"
             onClick={onClearSelection}
-            className="text-xs font-semibold text-[var(--text-tertiary)] underline-offset-2 hover:text-[var(--text-secondary)] hover:underline"
+            className="t-label text-[var(--text-tertiary)] underline-offset-2 hover:text-[var(--text-secondary)] hover:underline"
           >
-            Limpar seleção ({selectedIds.size})
+            Limpar seleção <CountBadge count={selectedIds.size} />
           </button>
         ) : (
-          <span className="text-xs text-[var(--text-tertiary)]">Selecione roteiros para criar um bloco</span>
+          <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">Selecione roteiros para criar um bloco</Text>
         )}
       </div>
 
@@ -147,7 +150,7 @@ export function RecordingQueueGrid({
                   <button
                     type="button"
                     onClick={() => onOpen(content.id)}
-                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] text-[var(--text-secondary)] opacity-70 transition-all hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] group-hover:opacity-100"
+                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] text-[var(--text-tertiary)] transition-all hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] group-hover:opacity-100"
                     aria-label="Abrir detalhes do roteiro"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
@@ -174,33 +177,40 @@ export function RecordingQueueGrid({
                 />
 
                 {excerpt ? (
-                  <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-[var(--text-secondary)]">{excerpt}</p>
+                  <Text variant="meta" as="p" className="mt-2 line-clamp-3 leading-relaxed text-[var(--text-secondary)]">{excerpt}</Text>
+                ) : bodyStatus === 'ready' && wordCount > 0 ? (
+                  <div className="mt-2">
+                    <TextCount
+                      value={contentReadableBody(content) || htmlToReadableText(content.notes || '')}
+                      mode="words"
+                    />
+                  </div>
                 ) : (
-                  <p className="mt-2 text-xs text-[var(--text-tertiary)]">{statusLabel}</p>
+                  <Text variant="meta" as="p" className="mt-2 text-[var(--text-tertiary)]">{statusLabel}</Text>
                 )}
 
                 <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">
                   {content.energiaNecessaria ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-xs font-semibold capitalize text-[var(--text-secondary)]">
+                    <Text variant="label" as="span" className="inline-flex items-center gap-1 rounded-full bg-[var(--bg-hover)] px-2 py-0.5 capitalize text-[var(--text-secondary)]">
                       <Zap className="h-3 w-3" />
                       {content.energiaNecessaria}
-                    </span>
+                    </Text>
                   ) : null}
                   {recordingTags.slice(0, 2).map(tag => (
-                    <span
+                    <Text variant="label" as="span"
                       key={`${content.id}-${tag}`}
-                      className="rounded-full px-2 py-0.5 text-xs font-semibold"
+                      className="rounded-full px-2 py-0.5 text-inherit"
                       style={recordingTagChipStyle}
                     >
                       {tag}
-                    </span>
+                    </Text>
                   ))}
                 </div>
               </button>
               {bodyStatus === 'error' && onRetryHydration ? (
                 <button
                   type="button"
-                  className="mt-2 self-start rounded-sm text-xs font-semibold text-[var(--text-secondary)] underline underline-offset-2 hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                  className="mt-2 self-start rounded-[var(--radius-sm)] t-label text-[var(--text-secondary)] underline underline-offset-2 hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                   onClick={() => onRetryHydration(content.id)}
                 >
                   Tentar novamente

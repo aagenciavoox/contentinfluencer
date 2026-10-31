@@ -63,7 +63,7 @@ export function ScriptBlockToolbar({
           aria-haspopup="menu"
           aria-expanded={open}
           className={cn(
-            'inline-flex items-center gap-1 rounded-[var(--radius-input)] px-2 text-xs font-medium text-[var(--text-primary)] transition-colors',
+            'inline-flex items-center gap-1 rounded-[var(--radius-input)] px-2 t-label text-[var(--text-primary)] transition-colors',
             'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
             neutral ? 'h-8 hover:bg-[var(--bg-secondary)]' : 'h-9 hover:bg-[var(--bg-hover)]',
           )}
@@ -86,9 +86,9 @@ export function ScriptBlockToolbar({
               menuPlacement === 'top' ? 'bottom-full mb-1' : 'top-full mt-1',
             )}
           >
-            <p className="px-2.5 py-1 text-[length:var(--font-size-caption)] font-medium text-[var(--text-tertiary)]">
+            <Text variant="bodyStrong" as="p" className="px-2.5 py-1 text-[length:var(--font-size-caption)] text-[var(--text-tertiary)]">
               Blocos
-            </p>
+            </Text>
             {SCRIPT_BLOCKS.map(label => (
               <button
                 key={label}
@@ -100,7 +100,7 @@ export function ScriptBlockToolbar({
                   onInsertBlock(label);
                   setOpen(false);
                 }}
-                className="script-block-option w-full rounded-md px-2.5 py-2 text-left text-xs text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
+                className="script-block-option w-full rounded-[var(--radius-sm)] px-2.5 py-2 text-left t-meta text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
               >
                 [{label}]
               </button>
@@ -114,7 +114,7 @@ export function ScriptBlockToolbar({
                 setOpen(false);
                 setTemplatesOpen(true);
               }}
-              className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
+              className="flex w-full items-center gap-2 rounded-[var(--radius-sm)] px-2.5 py-2 text-left t-meta text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
             >
               <Layout className="h-3.5 w-3.5 text-[var(--text-secondary)]" aria-hidden />
               Template…

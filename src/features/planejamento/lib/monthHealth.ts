@@ -4,6 +4,7 @@ import {buildGradeEntries, type GradeEntry} from '../../editorial/lib/gradeEntri
 import {contaNaGradeEfetiva} from '../../editorial/lib/contaNaGradeOrigem.ts';
 import {countGrade, type GradeCounts, type PeriodoGrade, type PostItContagem} from '../../editorial/lib/gradeCounts.ts';
 import type {EditorialSettings} from '../../editorial/lib/editorialSettings.ts';
+import {contarSerieAgrupada} from '../../editorial/lib/frequenciaAgrupada.ts';
 import {resolveFuncao} from '../../editorial/lib/funcoes.ts';
 import {pilarPrincipalDaSerie} from '../../editorial/lib/pilarDaSerie.ts';
 import type {DestinoPlataforma} from '../../editorial/lib/destinations.ts';
@@ -324,5 +325,23 @@ export function saudeDoMes({
     entries: contagem.itens,
     outrasRedes: 0,
     preparo: preparoDoPeriodo(contagem.itens, contents),
+  };
+}
+
+/** Usa os mesmos espaços conciliados da ocupação, inclusive a árvore de séries. */
+export function frequenciasDoMes(counts: GradeCounts, series: readonly Serie[]) {
+  const itens = counts.itens.map(item => ({serieId: item.serieId, espacoId: item.id, contentId: item.contentId}));
+  return series.filter(serie => serie.ativa !== false).map(serie => contarSerieAgrupada({
+    serie, series, itens, inicio: counts.periodo.inicio, fim: counts.periodo.fim,
+  })).filter(item => item.expectativa != null && item.expectativa > 0);
+}
+
+export function ocupacaoDoMes(counts: Pick<GradeCounts, 'previsto' | 'limite'>) {
+  return {
+    preenchidos: counts.previsto,
+    capacidade: counts.limite,
+    livres: counts.limite == null ? null : Math.max(0, counts.limite - counts.previsto),
+    excesso: counts.limite == null ? 0 : Math.max(0, counts.previsto - counts.limite),
+    percentual: counts.limite == null || counts.limite <= 0 ? 0 : Math.min(100, counts.previsto / counts.limite * 100),
   };
 }

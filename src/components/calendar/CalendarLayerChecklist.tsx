@@ -49,7 +49,7 @@ export function CalendarLayerChecklist({
               >
                 <span
                   className={cn(
-                    'flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px] border transition-colors',
+                    'flex h-4 w-4 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border transition-colors',
                     active ? 'border-transparent' : 'border-[var(--border-strong)] bg-[var(--bg-primary)]',
                   )}
                   style={active ? {backgroundColor: item.color} : undefined}
@@ -60,14 +60,14 @@ export function CalendarLayerChecklist({
                   ) : null}
                 </span>
                 {Icon ? <Icon className="h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" /> : null}
-                <span
+                <Text variant="body" as="span"
                   className={cn(
-                    'min-w-0 flex-1 truncate text-sm',
-                    active ? 'font-semibold text-[var(--text-primary)]' : 'text-[var(--text-secondary)]',
+                    'min-w-0 flex-1 truncate',
+                    active ? ' text-[var(--text-primary)]' : 'text-[var(--text-secondary)]',
                   )}
                 >
                   {item.label}
-                </span>
+                </Text>
               </button>
             </li>
           );
@@ -77,7 +77,7 @@ export function CalendarLayerChecklist({
         <button
           type="button"
           onClick={() => onToggle('all')}
-          className="text-xs font-semibold text-[var(--accent-blue)] hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+          className="t-label text-[var(--accent-blue)] hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
         >
           Mostrar todas
         </button>

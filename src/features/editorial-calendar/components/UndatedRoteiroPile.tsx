@@ -59,9 +59,9 @@ export function UndatedRoteiroPile({
               >
                 <GripVertical className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
                 <div className="min-w-0 flex-1 stack-sm">
-                  <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
+                  <Text variant="itemTitle" as="p" className="truncate text-[var(--text-primary)]">
                     {content.title || 'Sem título'}
-                  </p>
+                  </Text>
                   <Badge variant="status" status={content.status}>{content.status}</Badge>
                   {onPlace ? (
                     <AppButton variant="ghost" size="xs" onClick={() => onPlace(content)}>

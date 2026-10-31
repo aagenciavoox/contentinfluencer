@@ -235,7 +235,7 @@ function validateScriptCoverage(contents: Content[], deficits: DeficitTarget[], 
         : backlog.count === 1
           ? 'há 1 roteiro pronto'
           : `há ${backlog.count} roteiros prontos`;
-    const cover = needScripts === 1 ? 'Mais 1 cobriria o ciclo' : `Mais ${needScripts} cobririam o ciclo`;
+    const cover = needScripts === 1 ? 'Mais 1 cobriria a meta' : `Mais ${needScripts} cobririam a meta`;
     violations.push({
       ruleId: `${scope}-${deficit.id}-needs-scripts`,
       type: 'deficit',

@@ -1,5 +1,6 @@
+import { Text } from './Text';
 import {useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode} from 'react';
-import {ChevronsUpDown, X} from 'lucide-react';
+import {ChevronDown, ChevronsUpDown, X} from 'lucide-react';
 import {createPortal} from 'react-dom';
 import {cn} from '../../lib/utils';
 import {FLOATING_MENU_HIDDEN_STYLE, FLOATING_MENU_Z_INDEX, useAnchoredPosition} from './anchoredPosition';
@@ -56,9 +57,9 @@ export function TagPill({
   className?: string;
 }) {
   return (
-    <span
+    <Text variant="label" as="span"
       className={cn(
-        'tag-pill inline-flex max-w-full items-center gap-1 rounded-md px-2 py-1 text-xs font-medium',
+        'tag-pill inline-flex max-w-full items-center gap-1 rounded-[var(--radius-sm)] px-2 py-1 ',
         className
       )}
     >
@@ -70,13 +71,13 @@ export function TagPill({
             event.stopPropagation();
             onRemove();
           }}
-          className="relative rounded p-0.5 text-[var(--tag-text)]/70 transition before:absolute before:-inset-2 before:content-[''] hover:bg-[var(--tag-bg-hover)] hover:text-[var(--tag-text)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:before:-inset-3"
+          className="relative rounded-[var(--radius-input)] p-0.5 text-[var(--tag-text)]/70 transition before:absolute before:-inset-2 before:content-[''] hover:bg-[var(--tag-bg-hover)] hover:text-[var(--tag-text)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:before:-inset-3"
           aria-label={`Remover ${label}`}
         >
           <X className="h-3 w-3" />
         </button>
       ) : null}
-    </span>
+    </Text>
   );
 }
 
@@ -219,11 +220,11 @@ export function TagSelect({
     <div className={cn('space-y-1.5', className)} ref={containerRef}>
       <label
         htmlFor={fieldId}
-        className={hideLabel ? 'sr-only' : 'block text-sm font-semibold text-[var(--text-primary)]'}
+        className={hideLabel ? 'sr-only' : 'block t-body-strong text-[var(--text-primary)]'}
       >
         {label}
       </label>
-      {hint && !hideLabel ? <p className="text-sm text-[var(--text-tertiary)]">{hint}</p> : null}
+      {hint && !hideLabel ? <Text variant="secondary" as="p" className="text-[var(--text-tertiary)]">{hint}</Text> : null}
 
       <div className="relative">
         {/* Sem busca não há campo de texto: o próprio controle recebe foco e abre com o teclado. */}
@@ -247,7 +248,10 @@ export function TagSelect({
             }
           }}
           className={cn(
-            'tag-select-control flex min-h-10 w-full items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-elevated)] px-3 py-2 transition-colors hover:border-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+            'tag-select-control flex w-full items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-elevated)] px-3 transition-colors hover:border-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+            maxSelections === 1
+              ? 'min-h-[var(--control-height-mobile)] py-0 pr-10 md:min-h-[var(--control-height)]'
+              : 'min-h-10 py-2',
             showInput ? 'cursor-text' : 'cursor-pointer',
             open && 'border-[var(--border-strong)] ring-2 ring-[var(--shadow-focus)]',
             disabled && 'cursor-not-allowed opacity-60',
@@ -287,10 +291,10 @@ export function TagSelect({
                   addValue(query);
                 }}
                 placeholder={values.length === 0 ? placeholder : ''}
-                className="input-plain min-w-[120px] flex-1 bg-transparent px-0 py-0.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
+                className="input-plain min-w-[120px] flex-1 bg-transparent px-0 py-0.5 t-body text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
               />
             ) : values.length === 0 ? (
-              <span className="text-sm text-[var(--text-tertiary)]">{placeholder}</span>
+              <Text variant="secondary" as="span" className="text-[var(--text-tertiary)]">{placeholder}</Text>
             ) : null}
           </div>
 
@@ -301,10 +305,10 @@ export function TagSelect({
               event.stopPropagation();
               setOpen(previous => !previous);
             }}
-            className="shrink-0 rounded p-1 text-[var(--text-tertiary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+            className="shrink-0 rounded-[var(--radius-input)] p-1 text-[var(--text-tertiary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
             aria-label={open ? 'Fechar opções' : 'Abrir opções'}
           >
-            <ChevronsUpDown className="h-4 w-4" />
+            {maxSelections === 1 ? <ChevronDown className="h-4 w-4" /> : <ChevronsUpDown className="h-4 w-4" />}
           </button>
         </div>
 
@@ -327,7 +331,7 @@ export function TagSelect({
                   type="button"
                   role="option"
                   onClick={() => toggleOption(option.value)}
-                  className="flex w-full items-center px-3 py-2 text-left text-sm text-[var(--text-primary)] transition hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                  className="flex w-full items-center px-3 py-2 text-left t-body text-[var(--text-primary)] transition hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                 >
                   {option.label ?? option.value}
                 </button>
@@ -338,14 +342,14 @@ export function TagSelect({
               <button
                 type="button"
                 onClick={() => addValue(query)}
-                className="flex w-full items-center px-3 py-2 text-left text-sm text-[var(--text-primary)] transition hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                className="flex w-full items-center px-3 py-2 text-left t-body text-[var(--text-primary)] transition hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
               >
                 Adicionar &quot;{query.trim()}&quot;
               </button>
             ) : null}
 
             {availableOptions.length === 0 && !(creatable && creatableMatch) ? (
-              <p className="px-3 py-2 text-sm text-[var(--text-tertiary)]">Nenhuma opção disponível</p>
+              <Text variant="secondary" as="p" className="px-3 py-2 text-[var(--text-tertiary)]">Nenhuma opção disponível</Text>
             ) : null}
           </div>,
           document.body,

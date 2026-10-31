@@ -1,3 +1,4 @@
+import { Text } from '../../../../components/ui/Text';
 import {ChevronDown, History} from 'lucide-react';
 import {HistorySection} from './sections/HistorySection';
 import type {Content} from '../../../../lib/database';
@@ -14,10 +15,10 @@ export function ContentHistoryPanel({content, defaultOpen = false}: ContentHisto
       open={defaultOpen}
     >
       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3">
-        <span className="inline-flex items-center gap-2 text-xs font-semibold  text-[var(--text-tertiary)]">
+        <Text variant="label" as="span" className="inline-flex items-center gap-2 text-[var(--text-tertiary)]">
           <History className="h-4 w-4" />
           Histórico
-        </span>
+        </Text>
         <ChevronDown className="h-4 w-4 text-[var(--text-tertiary)]" />
       </summary>
       <div className="border-t border-[var(--border-color)] p-2">

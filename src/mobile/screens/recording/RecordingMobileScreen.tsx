@@ -14,7 +14,9 @@ import {getRecordingBlockProgress, normalizeRecordingTags, recordingTagChipStyle
 import { TagSelect } from '../../../components/ui/TagSelect';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Text } from '../../../components/ui/Text';
-import { cn, getEntityTagStyle } from '../../../lib/utils';
+import { TextCount } from '../../../components/ui/TextCount';
+import { cn, getEntityTagStyle, htmlToReadableText } from '../../../lib/utils';
+import { contentReadableBody } from '../../../features/contents/lib/carouselSlides';
 import { getScriptWordCount } from '../../../features/contents/lib/contentCardMeta';
 import {
   resolveScriptBodyStatus,
@@ -265,6 +267,7 @@ export function RecordingMobileScreen({
                     error: hasHydrationError(content.id),
                   });
                   const statusLabel = scriptBodyStatusLabel(bodyStatus, scriptWordCount);
+                  const showWordCount = bodyStatus === 'ready' && scriptWordCount > 0;
 
                   return (
                     <div key={content.id} className="stack-sm">
@@ -275,7 +278,7 @@ export function RecordingMobileScreen({
                       className={selected ? 'ring-1 ring-[var(--text-primary)]' : undefined}
                       status={<Badge variant="neutral">{selected ? 'Selecionado' : 'Roteiro'}</Badge>}
                       title={content.title || 'Roteiro sem título'}
-                      description={statusLabel}
+                      description={showWordCount ? undefined : statusLabel}
                       trailing={
                         <div className="flex items-center gap-1">
                           <AppButton
@@ -306,31 +309,39 @@ export function RecordingMobileScreen({
                       }
                       meta={
                         <>
+                          {showWordCount ? (
+                            <div className="basis-full">
+                              <TextCount
+                                value={contentReadableBody(content) || htmlToReadableText(content.notes || '')}
+                                mode="words"
+                              />
+                            </div>
+                          ) : null}
                           {pilarName ? (
-                            <span
-                              className="rounded-md border px-1.5 py-0.5 text-xs font-semibold"
+                            <Text variant="label" as="span"
+                              className="rounded-[var(--radius-sm)] border px-1.5 py-0.5 text-inherit"
                               style={getEntityTagStyle(pilar?.cor)}
                             >
                               {pilarName}
-                            </span>
+                            </Text>
                           ) : null}
                           {seriesName ? (
-                            <span
-                              className="rounded-md border px-1.5 py-0.5 text-xs font-semibold"
+                            <Text variant="label" as="span"
+                              className="rounded-[var(--radius-sm)] border px-1.5 py-0.5 text-inherit"
                               style={getEntityTagStyle(serie?.cor)}
                             >
                               {seriesName}
-                            </span>
+                            </Text>
                           ) : null}
                           {recordingTags.slice(0, 2).map((tag) => (
-                            <span
+                            <Text variant="label" as="span"
                               key={`${content.id}-${tag}`}
-                              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold"
+                              className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] px-1.5 py-0.5 text-inherit"
                               style={recordingTagChipStyle}
                             >
                               <Tags className="h-3 w-3" />
                               {tag}
-                            </span>
+                            </Text>
                           ))}
                         </>
                       }
@@ -397,7 +408,7 @@ export function RecordingMobileScreen({
                       </>
                     ) : (
                       <>
-                        <p id="recording-existing-block-label" className="t-label text-[var(--text-tertiary)]">Escolher bloco existente</p>
+                        <Text variant="label" as="p" id="recording-existing-block-label" className="text-[var(--text-tertiary)]">Escolher bloco existente</Text>
                         <div className="grid max-h-48 gap-2 overflow-y-auto" role="group" aria-labelledby="recording-existing-block-label">
                           {recordingBlocks.map(block => (
                             <button
@@ -406,17 +417,17 @@ export function RecordingMobileScreen({
                               onClick={() => setTargetBlockId(block.id)}
                               aria-pressed={targetBlockId === block.id}
                               className={cn(
-                                'flex min-h-11 items-center justify-between rounded-[var(--radius-input)] border px-4 py-3 text-left text-sm focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                                'flex min-h-11 items-center justify-between rounded-[var(--radius-input)] border px-4 py-3 text-left t-body focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
                                 targetBlockId === block.id
-                                  ? 'border-[var(--text-primary)] bg-[var(--text-primary)]/5 font-semibold text-[var(--text-primary)]'
+                                  ? 'border-[var(--text-primary)] bg-[var(--text-primary)]/5 text-[var(--text-primary)]'
                                   : 'border-[var(--border-color)] text-[var(--text-primary)]'
                               )}
                             >
                               <span className="truncate">{block.name}</span>
-                              <span className="ml-2 flex shrink-0 items-center gap-2 text-xs text-[var(--text-tertiary)]">
+                              <Text variant="meta" as="span" className="ml-2 flex shrink-0 items-center gap-2 text-[var(--text-tertiary)]">
                                 {block.contents.length} {block.contents.length === 1 ? 'roteiro' : 'roteiros'}
                                 {targetBlockId === block.id ? <Check className="h-4 w-4 text-[var(--text-primary)]" /> : null}
-                              </span>
+                              </Text>
                             </button>
                           ))}
                         </div>

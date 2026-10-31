@@ -24,7 +24,7 @@ function Feedback({
       ? 'border-[var(--accent-green)]/20 bg-[var(--accent-green)]/8 text-[var(--accent-green)]'
       : 'border-[var(--accent-pink)]/20 bg-[var(--accent-pink)]/8 text-[var(--accent-pink)]';
 
-  return <p className={`rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-3 text-sm ${classes}`}>{message}</p>;
+  return <p className={`rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-3 t-body ${classes}`}>{message}</p>;
 }
 
 function SectionCard({
@@ -259,7 +259,6 @@ export function ProfileSettingsPage() {
         <DesktopPageHeader
           section="Configurações"
           title="Perfil"
-          icon={UserCircle2}
           backLabel="Configurações"
           backTo="/configuracoes"
         />
@@ -279,7 +278,7 @@ export function ProfileSettingsPage() {
           >
             <div className="stack-lg">
               <div>
-                <label htmlFor="profile-full-name" className="mb-2 block text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">
+                <label htmlFor="profile-full-name" className="mb-2 block t-label t-label-uppercase text-[var(--text-tertiary)]">
                   Nome
                 </label>
                 <input
@@ -314,13 +313,13 @@ export function ProfileSettingsPage() {
           >
             <div className="stack-lg">
               <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--bg-hover)] px-4 py-3">
-                <p className="t-label t-label-uppercase font-semibold text-[var(--text-tertiary)]">
+                <Text variant="label" as="p" className="t-label-uppercase text-[var(--text-tertiary)]">
                   E-mail atual
-                </p>
-                <p className="mt-1 text-sm font-semibold text-[var(--text-primary)]">{initialEmail || 'Sem e-mail identificado'}</p>
+                </Text>
+                <Text variant="itemTitle" as="p" className="mt-1 text-[var(--text-primary)]">{initialEmail || 'Sem e-mail identificado'}</Text>
               </div>
               <div>
-                <label htmlFor="profile-email" className="mb-2 block text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">
+                <label htmlFor="profile-email" className="mb-2 block t-label t-label-uppercase text-[var(--text-tertiary)]">
                   Novo e-mail
                 </label>
                 <input
@@ -337,9 +336,9 @@ export function ProfileSettingsPage() {
                   className="input"
                 />
               </div>
-              <p className="text-xs text-[var(--text-secondary)]">
+              <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
                 Enviaremos um link de confirmação para o novo endereço. A troca só termina depois que você validar esse e-mail.
-              </p>
+              </Text>
               <AppButton
                 onClick={handleSaveEmail}
                 variant={primaryCard === 'email' ? 'primary' : 'secondary'}
@@ -358,7 +357,7 @@ export function ProfileSettingsPage() {
           >
             <div className="stack-lg">
               <div>
-                <label htmlFor="profile-password" className="mb-2 block text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">
+                <label htmlFor="profile-password" className="mb-2 block t-label t-label-uppercase text-[var(--text-tertiary)]">
                   Nova senha
                 </label>
                 <input
@@ -376,7 +375,7 @@ export function ProfileSettingsPage() {
                 />
               </div>
               <div>
-                <label htmlFor="profile-password-confirm" className="mb-2 block text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">
+                <label htmlFor="profile-password-confirm" className="mb-2 block t-label t-label-uppercase text-[var(--text-tertiary)]">
                   Confirmar senha
                 </label>
                 <input
@@ -393,7 +392,7 @@ export function ProfileSettingsPage() {
                   className="input"
                 />
               </div>
-              <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--bg-hover)] px-4 py-3 text-xs text-[var(--text-secondary)]">
+              <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--bg-hover)] px-4 py-3 t-meta text-[var(--text-secondary)]">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="h-4 w-4 text-[var(--accent-green)]" />
                   <span>Mínimo de 6 caracteres.</span>

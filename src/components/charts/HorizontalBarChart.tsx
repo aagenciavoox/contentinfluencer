@@ -1,3 +1,4 @@
+import { Text } from '../ui/Text';
 export interface BarChartItem {
   id: string;
   label: string;
@@ -13,7 +14,7 @@ interface HorizontalBarChartProps {
 
 export function HorizontalBarChart({items, valueSuffix = ''}: HorizontalBarChartProps) {
   if (items.length === 0) {
-    return <p className="py-4 text-center text-sm text-[var(--text-tertiary)]">Sem dados no período</p>;
+    return <Text variant="secondary" as="p" className="py-4 text-center text-[var(--text-tertiary)]">Sem dados no período</Text>;
   }
 
   return (
@@ -25,12 +26,12 @@ export function HorizontalBarChart({items, valueSuffix = ''}: HorizontalBarChart
               {item.color ? (
                 <span className="h-2 w-2 shrink-0 rounded-full" style={{backgroundColor: item.color}} />
               ) : null}
-              <span className="truncate text-sm font-medium text-[var(--text-primary)]">{item.label}</span>
+              <Text variant="bodyStrong" as="span" className="truncate text-[var(--text-primary)]">{item.label}</Text>
             </div>
-            <span className="shrink-0 text-xs font-medium text-[var(--text-secondary)]">
+            <Text variant="label" as="span" className="shrink-0 text-[var(--text-secondary)]">
               {item.value}
               {valueSuffix} · {item.percent}%
-            </span>
+            </Text>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-[var(--bg-hover)]">
             <div

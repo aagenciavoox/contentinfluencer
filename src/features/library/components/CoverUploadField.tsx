@@ -119,7 +119,7 @@ export function CoverUploadField({
   if (appearance === 'create') {
     return (
       <div className={cn('stack-sm', className)}>
-        <Text variant="label" className="text-sm font-semibold text-[var(--text-primary)]">
+        <Text variant="label" className="text-[var(--text-primary)]">
           Capa
         </Text>
         <div className="flex items-stretch gap-4 rounded-[var(--radius-md)] border border-[var(--border-color)] bg-[var(--bg-hover)] p-4">
@@ -129,7 +129,7 @@ export function CoverUploadField({
             ) : (
               <>
                 <BookOpen className="h-7 w-7" />
-                <span className="text-xs">Sem capa</span>
+                <Text variant="meta" as="span" className="text-inherit">Sem capa</Text>
               </>
             )}
           </div>
@@ -157,7 +157,7 @@ export function CoverUploadField({
                 </AppButton>
               ) : null}
             </div>
-            <div className="text-xs text-[var(--text-tertiary)]">
+            <div className="t-meta text-[var(--text-tertiary)]">
               <p>JPG, PNG, WEBP ou GIF · até 5 MB</p>
               <p>Compactamos automaticamente.</p>
             </div>
@@ -165,7 +165,7 @@ export function CoverUploadField({
               <button
                 type="button"
                 onClick={() => setShowUrl(current => !current)}
-                className="self-start text-xs font-semibold text-[var(--text-primary)] underline underline-offset-2 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                className="self-start t-label text-[var(--text-primary)] underline underline-offset-2 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
               >
                 {showUrl ? 'Ocultar URL' : 'Ou colar URL'}
               </button>
@@ -179,7 +179,7 @@ export function CoverUploadField({
             inputMode="url"
             value={value}
             onChange={event => onChange(event.target.value)}
-            placeholder="https://..."
+            placeholder="https://…"
             aria-label="URL da capa"
             className="w-full"
             disabled={uploading}
@@ -207,9 +207,9 @@ export function CoverUploadField({
                 onError={() => setBroken(true)}
               />
             ) : (
-              <span className="text-lg font-semibold text-[var(--text-primary)]" aria-hidden>
+              <Text variant="sectionTitle" as="span" className="text-[var(--text-primary)]" aria-hidden>
                 {coverInitial(title)}
-              </span>
+              </Text>
             )}
           </div>
           <div className="min-w-0 flex-1 stack-sm">
@@ -242,7 +242,7 @@ export function CoverUploadField({
                 <button
                   type="button"
                   onClick={() => setShowUrl(current => !current)}
-                  className="inline-flex min-h-8 items-center text-sm font-medium text-[var(--text-primary)] underline decoration-[var(--border-strong)] underline-offset-2 hover:decoration-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-11"
+                  className="inline-flex min-h-8 items-center t-body-strong text-[var(--text-primary)] underline decoration-[var(--border-strong)] underline-offset-2 hover:decoration-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-11"
                 >
                   {showUrl ? 'Ocultar link' : 'Usar link da imagem'}
                 </button>
@@ -271,7 +271,7 @@ export function CoverUploadField({
               inputMode="url"
               value={value}
               onChange={event => onChange(event.target.value)}
-              placeholder="https://..."
+              placeholder="https://…"
               className="w-full"
               disabled={uploading}
             />
@@ -361,7 +361,7 @@ export function CoverUploadField({
             <button
               type="button"
               onClick={() => setShowUrl(current => !current)}
-              className="inline-flex min-h-8 items-center self-start text-left text-xs font-medium text-[var(--text-primary)] underline decoration-[var(--border-strong)] underline-offset-2 hover:decoration-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-11"
+              className="inline-flex min-h-8 items-center self-start text-left t-label text-[var(--text-primary)] underline decoration-[var(--border-strong)] underline-offset-2 hover:decoration-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-11"
             >
               {showUrl ? 'Ocultar URL' : 'Ou colar URL'}
             </button>
@@ -388,7 +388,7 @@ export function CoverUploadField({
             inputMode="url"
             value={value}
             onChange={event => onChange(event.target.value)}
-            placeholder="https://..."
+            placeholder="https://…"
             className="w-full"
             disabled={uploading}
           />

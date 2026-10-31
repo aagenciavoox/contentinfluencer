@@ -81,7 +81,8 @@ function testSeparaIneditosEReaproveitar() {
 }
 
 function testTextoNaoInventaAlvo() {
-  assert.equal(textoEstoque(3, null), '3 no estoque');
+  assert.equal(textoEstoque(3, null), '3 prontos');
+  assert.equal(textoEstoque(1, null), '1 pronto');
   assert.equal(textoEstoque(3, 9), '3 de 9');
   assert.equal(textoEstoque(0, null).includes('de'), false);
 }

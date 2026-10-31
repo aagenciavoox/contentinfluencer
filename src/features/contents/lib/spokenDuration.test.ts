@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   countScriptWords,
+  formatSpokenClock,
   formatSpokenDuration,
   spokenDurationSeconds,
   SPOKEN_WORDS_PER_MINUTE,
@@ -42,5 +43,12 @@ describe('spoken duration', () => {
     assert.equal(formatSpokenDuration(240), '2 minutos de fala');
     assert.equal(formatSpokenDuration(150), '1 minuto e 15 segundos de fala');
     assert.doesNotMatch(formatSpokenDuration(120), /leitura/);
+  });
+
+  it('shortens the time for the distraction-free footer', () => {
+    assert.equal(formatSpokenClock(0), '0 s');
+    assert.equal(formatSpokenClock(40), '20 s');
+    assert.equal(formatSpokenClock(240), '2 min');
+    assert.equal(formatSpokenClock(336), '2 min e 48 s');
   });
 });

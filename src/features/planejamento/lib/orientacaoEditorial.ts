@@ -3,6 +3,7 @@ import {ptBR} from 'date-fns/locale';
 import type {BibliotecaItem, Content, Serie, Tema} from '../../../lib/database.ts';
 import {CONTENT_STATUS, isReadyToPublish, normalizeContentStatus} from '../../contents/lib/contentPipeline.ts';
 import type {PeriodoGrade} from '../../editorial/lib/gradeCounts.ts';
+import type {GradeEntry} from '../../editorial/lib/gradeEntries.ts';
 import {contarSerieAgrupada} from '../../editorial/lib/frequenciaAgrupada.ts';
 import {expectativaNoIntervalo, lerFrequencia} from '../../editorial/lib/frequenciaSerie.ts';
 import {idsDaSubarvore} from '../../editorial/lib/serieArvore.ts';
@@ -39,6 +40,7 @@ export type AvisoOrientacao = {
   postItIds: string[];
   /** Conteúdos envolvidos (quando não há post-it). */
   contentIds: string[];
+  intervalo?: PeriodoGrade;
   /** Abaixo da frequência só informa; os demais pedem revisão. */
   severidade: 'revisar' | 'info';
 };
@@ -73,7 +75,9 @@ function pautasDoPeriodo({
   postIts,
   contents,
   sequenciaPorConteudo = {},
+  entries,
 }: {
+  entries?: readonly GradeEntry[];
   postIts: readonly PlanejamentoPostIt[];
   contents: readonly Content[];
   sequenciaPorConteudo?: Readonly<Record<string, string>>;
@@ -81,6 +85,17 @@ function pautasDoPeriodo({
 }): PautaNoDia[] {
   const porId = new Map(contents.map(content => [content.id, content]));
   const pautas: PautaNoDia[] = [];
+  if (entries) {
+    return entries.filter(entry => entry.data && entry.contaNaGrade).map(entry => {
+      const content = porId.get(entry.contentId);
+      return {
+        date: entry.data!, postItId: entry.postItId ?? postIts.find(item => item.contentId === entry.contentId)?.id ?? null,
+        contentId: content?.id ?? null, serieId: entry.serieId,
+        temaIds: [...(content?.temaIds ?? [])], obraIds: idsDeObras(content),
+        sequenciaId: content?.id ? sequenciaPorConteudo[content.id] ?? null : null,
+      };
+    });
+  }
 
   for (const postIt of postIts) {
     if (!postIt.date || !diaValido(postIt.date)) continue;
@@ -138,10 +153,11 @@ function avisosDeObra(
       avisos.push({
         id: chave,
         tipo: 'obra-repetida',
-        texto: `${nome} aparece em ${grupo.length} pautas nesta semana.`,
+        texto: `${grupo.length} pautas da mesma obra: ${nome}.`,
+        intervalo: {inicio: base.date, fim: janelaFim},
         postItIds: envolvidos.flatMap(item => item.postItId ? [item.postItId] : []),
         contentIds: envolvidos.flatMap(item => item.contentId ? [item.contentId] : []),
-        severidade: 'revisar',
+        severidade: 'info',
       });
       break;
     }
@@ -176,7 +192,8 @@ function avisosDeTema(
     avisos.push({
       id: `tema:${temaId}`,
       tipo: 'tema-concentrado',
-      texto: `${nome} concentra ${lista.length} de ${noRecorte.length} pautas do período.`,
+      texto: `${nome} concentra ${lista.length} de ${noRecorte.length} pautas do intervalo.`,
+      intervalo: periodo,
       postItIds: lista.flatMap(item => item.postItId ? [item.postItId] : []),
       contentIds: lista.flatMap(item => item.contentId ? [item.contentId] : []),
       severidade: 'revisar',
@@ -395,6 +412,7 @@ export function avisosDeOrientacao({
   temas,
   obras,
   periodo,
+  entries,
   sequenciaPorConteudo = {},
   limiteGravacoesDia = null,
   hoje = new Date(),
@@ -405,6 +423,7 @@ export function avisosDeOrientacao({
   temas: readonly Tema[];
   obras: readonly Pick<BibliotecaItem, 'id' | 'titulo'>[];
   periodo: PeriodoGrade;
+  entries?: readonly GradeEntry[];
   /** Id de sequência intencional por contentId. Sem campo no banco, fica vazio. */
   sequenciaPorConteudo?: Readonly<Record<string, string>>;
   /** Editorial › Ajustes. Sem número, não há aviso de gravação. */
@@ -417,6 +436,7 @@ export function avisosDeOrientacao({
   const pautas = pautasDoPeriodo({
     postIts,
     contents,
+    entries,
     sequenciaPorConteudo,
     periodo: {inicio: margemInicio, fim: margemFim},
   });

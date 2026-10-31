@@ -1,3 +1,4 @@
+import { Text } from './Text';
 import type { LucideIcon } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { cn } from '../../lib/utils';
@@ -59,16 +60,16 @@ export function MediaCard({
         />
       ) : (
         <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[var(--bg-hover)] p-3 text-center">
-          <span
-            className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-lg font-semibold text-[var(--text-primary)]"
+          <Text variant="sectionTitle" as="span"
+            className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-[var(--text-primary)]"
             aria-hidden
           >
             {coverInitial(alt)}
-          </span>
+          </Text>
           {placeholderLabel ? (
-            <span className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
+            <Text variant="label" as="span" className="uppercase tracking-wide text-[var(--text-tertiary)]">
               {placeholderLabel}
-            </span>
+            </Text>
           ) : PlaceholderIcon ? (
             <PlaceholderIcon className="h-5 w-5 text-[var(--text-tertiary)]" />
           ) : null}

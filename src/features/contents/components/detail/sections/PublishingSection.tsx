@@ -81,7 +81,7 @@ export function PublishingSection({
           </Badge>
           {!progresso.completo && materialPronto ? (
             <Text variant="meta" as="span" className="text-[var(--text-secondary)]">
-              O ciclo fecha quando todas as contas previstas forem publicadas.
+              O repost fecha quando todas as contas previstas forem publicadas.
             </Text>
           ) : null}
         </div>
@@ -92,16 +92,16 @@ export function PublishingSection({
         </Text>
       ) : null}
       <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:rounded-[var(--radius-card)] md:p-7">
-        <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text-tertiary)]">
+        <div className="flex items-center gap-2 t-label text-[var(--text-tertiary)]">
           <CalendarDays className="h-4 w-4" />
           Agendamento
         </div>
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           <label className="block">
-            <span className="mb-2 block text-xs font-semibold text-[var(--text-tertiary)]">
+            <Text variant="label" as="span" className="mb-2 block text-[var(--text-tertiary)]">
               Data principal
-            </span>
+            </Text>
             <input
               ref={dataPrincipalRef}
               type="date"
@@ -117,13 +117,13 @@ export function PublishingSection({
                   })),
                 })
               }
-              className="w-full rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 text-sm font-semibold text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--text-primary)]/30 md:rounded-[var(--radius-card)]"
+              className="w-full rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 t-body-strong text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--text-primary)]/30 md:rounded-[var(--radius-card)]"
             />
           </label>
 
-          <div className="rounded-[24px] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-4">
-            <p className="text-xs font-semibold text-[var(--text-tertiary)]">Status atual</p>
-            <p className="mt-3 text-xl font-semibold text-[var(--text-primary)]">
+          <div className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-4">
+            <Text variant="label" as="p" className="text-[var(--text-tertiary)]">Status atual</Text>
+            <Text variant="sectionTitle" as="p" className="mt-3 text-[var(--text-primary)]">
               {getDisplayStatus({
                 status: draft.status,
                 publishDate: draft.publishDate,
@@ -131,10 +131,10 @@ export function PublishingSection({
                 edicaoConcluidaEm: draft.edicaoConcluidaEm ?? null,
                 plataformas: draft.plataformas,
               })}
-            </p>
-            <p className="mt-2 text-sm text-[var(--text-secondary)]">
+            </Text>
+            <Text variant="secondary" as="p" className="mt-2 text-[var(--text-secondary)]">
               A data fica guardada até você registrar a publicação.
-            </p>
+            </Text>
           </div>
         </div>
       </section>
@@ -144,7 +144,7 @@ export function PublishingSection({
           {alerts.map(alert => (
             <article
               key={alert.id}
-              className="stack-sm rounded-[22px] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4"
+              className="stack-sm rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4"
             >
               <div className="flex items-start gap-3">
                 {alert.tone === 'warning' ? (
@@ -152,7 +152,7 @@ export function PublishingSection({
                 ) : (
                   <CalendarDays className="mt-0.5 h-5 w-5 shrink-0 text-[var(--info)]" />
                 )}
-                <p className="text-sm font-semibold text-[var(--text-primary)]">{alert.message}</p>
+                <Text variant="itemTitle" as="p" className="text-[var(--text-primary)]">{alert.message}</Text>
               </div>
               {alert.id === 'overdue' ? (
                 <div className="flex flex-wrap gap-2 pl-8">
@@ -197,7 +197,7 @@ export function PublishingSection({
 
       {activePlatformIds.length > 0 ? (
         <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:rounded-[var(--radius-card)] md:p-7">
-          <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text-tertiary)]">
+          <div className="flex items-center gap-2 t-label text-[var(--text-tertiary)]">
             <Send className="h-4 w-4" />
             Datas por plataforma
           </div>
@@ -205,13 +205,13 @@ export function PublishingSection({
             {draft.plataformas.map(plataforma => (
               <article
                 key={plataforma.id || plataforma.platformId}
-                className="rounded-[24px] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4"
+                className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4"
               >
                 <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                  <p className="text-sm font-semibold text-[var(--text-primary)]">{rotuloDaRef(plataforma.platformId, state.platforms)}</p>
+                  <Text variant="itemTitle" as="p" className="text-[var(--text-primary)]">{rotuloDaRef(plataforma.platformId, state.platforms)}</Text>
                   <div className="grid gap-3 sm:grid-cols-2 md:min-w-[28rem]">
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[var(--text-tertiary)]">Data</span>
+                      <Text variant="label" as="span" className="mb-2 block text-[var(--text-tertiary)]">Data</Text>
                       <input
                         type="date"
                         value={plataforma.publishDate ? plataforma.publishDate.slice(0, 10) : ''}
@@ -224,11 +224,11 @@ export function PublishingSection({
                             ),
                           })
                         }
-                        className="w-full rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-semibold text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--text-primary)]/30 md:rounded-[var(--radius-card)]"
+                        className="w-full rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 t-body-strong text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--text-primary)]/30 md:rounded-[var(--radius-card)]"
                       />
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[var(--text-tertiary)]">Link</span>
+                      <Text variant="label" as="span" className="mb-2 block text-[var(--text-tertiary)]">Link</Text>
                       <input
                         type="url"
                         value={plataforma.postUrl ?? ''}
@@ -242,17 +242,17 @@ export function PublishingSection({
                             ),
                           })
                         }
-                        className="w-full rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-semibold text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--text-primary)]/30 md:rounded-[var(--radius-card)]"
+                        className="w-full rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 t-body-strong text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--text-primary)]/30 md:rounded-[var(--radius-card)]"
                       />
                     </label>
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <p className="text-xs font-semibold text-[var(--text-tertiary)]">
+                  <Text variant="label" as="p" className="text-[var(--text-tertiary)]">
                     {rotuloStatusPublicacao(plataforma.status)}
-                  </p>
+                  </Text>
                   {plataforma.postCodigo ? (
-                    <p className="text-xs text-[var(--text-tertiary)]">Código {plataforma.postCodigo}</p>
+                    <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">Código {plataforma.postCodigo}</Text>
                   ) : null}
                   {!isPosted || plataforma.status !== 'publicada' ? (
                     <>
@@ -288,7 +288,7 @@ export function PublishingSection({
       ) : null}
 
       <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:rounded-[var(--radius-card)] md:p-7">
-        <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text-tertiary)]">
+        <div className="flex items-center gap-2 t-label text-[var(--text-tertiary)]">
           <Image className="h-4 w-4" />
           Assets e observações
         </div>
@@ -296,7 +296,7 @@ export function PublishingSection({
           value={draft.notes ?? ''}
           disabled={isPosted}
           onChange={event => onChange({notes: event.target.value})}
-          className="mt-4 min-h-[140px] w-full rounded-[24px] border border-[var(--border-color)] bg-[var(--bg-primary)] px-6 py-4 text-sm leading-7 text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--text-primary)]/30 disabled:opacity-60"
+          className="mt-4 min-h-[140px] w-full rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-6 py-4 t-body leading-7 text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--text-primary)]/30 disabled:opacity-60"
           placeholder="Ex.: link dos arquivos, instruções de edição, capa, cortes"
         />
       </section>
@@ -304,21 +304,21 @@ export function PublishingSection({
 
       {isPosted ? (
         <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:rounded-[var(--radius-card)] md:p-7">
-          <p className="text-sm font-semibold text-[var(--text-primary)]">Repostar</p>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">
+          <Text variant="itemTitle" as="p" className="text-[var(--text-primary)]">Repostar</Text>
+          <Text variant="secondary" as="p" className="mt-1 text-[var(--text-secondary)]">
             Abre um ciclo novo no mesmo roteiro, sem desfazer a publicação anterior nem as métricas.
             {referencia
               ? ` Entra na grade pela conta de referência (${rotuloConta(referencia)}).`
               : ' Escolha a conta de referência no Editorial para o ciclo entrar na grade.'}
-          </p>
+          </Text>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
             <label className="block sm:min-w-[220px]">
-              <span className="mb-2 block text-xs font-semibold text-[var(--text-tertiary)]">Data do repost</span>
+              <Text variant="label" as="span" className="mb-2 block text-[var(--text-tertiary)]">Data do repost</Text>
               <input
                 type="date"
                 value={repostDate}
                 onChange={event => setRepostDate(event.target.value)}
-                className="min-h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)]"
+                className="min-h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 t-body text-[var(--text-primary)]"
               />
             </label>
             <AppButton

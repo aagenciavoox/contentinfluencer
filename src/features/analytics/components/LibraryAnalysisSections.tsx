@@ -1,3 +1,4 @@
+import { ValorVazio } from '../../../components/ui/ValorVazio';
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -16,6 +17,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
+import { FilterChips } from '../../../components/ui/FilterChips';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
@@ -99,25 +101,16 @@ export function LibraryFormatChips({ value, onChange }: { value: LibraryFormatFi
   return (
     <div className="flex items-center gap-3">
       <Text variant="bodyStrong" as="span" className="hidden shrink-0 md:inline">Formato</Text>
-      <div role="group" aria-label="Formato" className="mobile-h-scroll flex gap-2 md:flex-wrap">
-        {FORMAT_OPTIONS.map(option => {
-          const active = option.id === value;
-          return (
-            <button
-              key={option.id}
-              type="button"
-              aria-pressed={active}
-              onClick={() => onChange(option.id)}
-              className="filter-chip min-h-9 shrink-0 pointer-coarse:min-h-11"
-              // .filter-chip é CSS fora das camadas do Tailwind: utilitário não sobrescreve, estilo inline sim.
-              style={active ? { background: 'var(--brand-accent-soft)', borderColor: 'var(--brand-accent-soft)', color: 'var(--brand-accent-text)' } : undefined}
-            >
-              <FormatIcon tipo={option.id} />
-              {option.label}
-            </button>
-          );
-        })}
-      </div>
+      <FilterChips<LibraryFormatFilter>
+        ariaLabel="Formato"
+        value={value}
+        onChange={onChange}
+        options={FORMAT_OPTIONS.map(option => ({
+          id: option.id,
+          label: option.label,
+          icon: <FormatIcon tipo={option.id} />,
+        }))}
+      />
     </div>
   );
 }
@@ -198,7 +191,7 @@ export function LibraryConsumptionTable({ analysis, loading, showAllFormats }: {
                     <td className={cn(numCell, !empty && 'font-semibold')}>{row.inCollection}</td>
                     <td className={numCell}>{row.completed}</td>
                     <td className={numCell}>{row.active}</td>
-                    <td className={numCell}>{formatConsumption(row)}</td>
+                    <td className={numCell}>{row.amount > 0 ? formatConsumption(row) : <ValorVazio />}</td>
                   </tr>
                 );
               })}

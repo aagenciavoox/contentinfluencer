@@ -1,18 +1,22 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { TextCount } from '../../../components/ui/TextCount';
+import { SettingsSectionCard } from '../../../components/settings/SettingsSectionCard';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Clock,
   Copy,
   Layers,
+  Palette,
   Plus,
-  Smile,
   X,
 } from 'lucide-react';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { AppButton } from '../../../components/ui/AppButton';
+import { DisclosureButton } from '../../../components/ui/DisclosureButton';
+import { PlatformIcon } from '../../../components/ui/PlatformIcon';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
+import { TimeField } from '../../../components/ui/TimeField';
 import type { Pilar, PilarPlataforma, Platform, PostingTimeEntry, Serie } from '../../../lib/database';
-import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { cn } from '../../../lib/utils';
 import { generateUUID } from '../../../utils/uuid';
 import { pilarPrincipalDaSerie } from '../../editorial/lib/pilarDaSerie';
@@ -27,8 +31,11 @@ import {
   shouldPersistPilarPlataforma,
 } from '../lib/pilarPostingSchedule';
 import { PILAR_DEFAULT_COR, PILAR_DESCRICAO_MAX } from '../lib/pilarConstants';
+import { EntityIdentity } from '../../../components/settings/EntityIdentity';
 import { EntityColorPicker, entitySwatchInk } from './EntityColorPicker';
-import { rotuloDaRef } from '../../contas/lib/contas';
+import { complementoDoRotulo, iconeDaConta, rotuloConta, rotuloDaRef } from '../../contas/lib/contas';
+import { useAppContext } from '../../../context/AppContext';
+import { useUnsavedChangesRegistration } from '../../../hooks/useUnsavedChangesRegistration';
 
 const PILAR_QUICK_COLORS = ['#F5C543', '#FB923C', '#EF4444', '#9065B0', '#4A90D9', '#4ADE80'];
 
@@ -54,70 +61,9 @@ export type PilarEditChromeState = {
   handleCancel: () => void;
 };
 
-function PlatformBrand({ platform }: { platform: string }) {
-  const gradientId = useId().replace(/:/g, '');
-  const normalized = platform.toLowerCase();
-  if (normalized.includes('instagram')) {
-    return (
-      <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" aria-hidden>
-        <defs>
-          <linearGradient id={gradientId} x1="0" y1="1" x2="1" y2="0">
-            <stop offset="0" stopColor="#FEDA75" />
-            <stop offset="0.5" stopColor="#D62976" />
-            <stop offset="1" stopColor="#4F5BD5" />
-          </linearGradient>
-        </defs>
-        <rect width="24" height="24" rx="6" fill={`url(#${gradientId})`} />
-        <rect x="7" y="7" width="10" height="10" rx="3" fill="none" stroke="#fff" strokeWidth="1.6" />
-        <circle cx="12" cy="12" r="2.2" fill="none" stroke="#fff" strokeWidth="1.6" />
-        <circle cx="16.2" cy="7.9" r="0.9" fill="#fff" />
-      </svg>
-    );
-  }
-  if (normalized.includes('tiktok')) {
-    return (
-      <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" aria-hidden>
-        <rect width="24" height="24" rx="6" fill="#111111" />
-        <path
-          fill="#fff"
-          d="M14.2 6.2c.4 1.7 1.5 2.8 3.2 3.1v2.1c-1.1.1-2.1-.2-3.2-.9v4.4c0 2.6-2 4.6-4.7 4.6S4.8 17.5 4.8 14.9s2.1-4.6 4.7-4.6c.3 0 .6 0 .9.1v2.2c-.3-.1-.6-.2-.9-.2-1.4 0-2.5 1.1-2.5 2.5s1.1 2.5 2.5 2.5 2.5-1.1 2.5-2.5V6.2h2.2z"
-        />
-      </svg>
-    );
-  }
-  if (normalized.includes('youtube')) {
-    return (
-      <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" aria-hidden>
-        <rect width="24" height="24" rx="6" fill="#FF0000" />
-        <path fill="#fff" d="M10 8.5v7l6-3.5-6-3.5z" />
-      </svg>
-    );
-  }
-  return (
-    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--bg-hover)]">
-      <Text variant="label" className="font-bold text-[var(--text-secondary)]">
-        {platform.slice(0, 2).toUpperCase()}
-      </Text>
-    </span>
-  );
-}
-
-function CardHeading({ title, description }: { title: string; description?: string }) {
-  return (
-    <div className="mb-4">
-      <Text variant="itemTitle">{title}</Text>
-      {description ? (
-        <Text variant="meta" className="mt-1 block text-[var(--text-secondary)]">
-          {description}
-        </Text>
-      ) : null}
-    </div>
-  );
-}
-
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
-    <Text variant="label" className="font-medium text-[var(--text-primary)]">
+    <Text variant="label" className=" text-[var(--text-primary)]">
       {children}
       {required ? <span className="text-[var(--brand-accent-text)]"> *</span> : null}
     </Text>
@@ -125,7 +71,7 @@ function FieldLabel({ children, required }: { children: React.ReactNode; require
 }
 
 const inputClass =
-  'ds-input w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
+  'ds-input w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-3 py-2 t-body text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
 type PilarFormState = Pick<
   Pilar,
@@ -190,6 +136,9 @@ export function PilarEditForm({
   onChromeChange?: (state: PilarEditChromeState) => void;
   lastEditLabel?: string | null;
 }) {
+  const { state } = useAppContext();
+  const referenciaId = state.editorial.redeReferenciaId;
+  const seriePickerRef = useRef<HTMLDivElement>(null);
   const normalizePlataformas = (items: PilarPlataforma[] = []) =>
     items.map(item => ({
       ...createEmptyPilarPlataforma(item.pilarId, item.platformId),
@@ -223,9 +172,9 @@ export function PilarEditForm({
     de: string;
     para: string;
   } | null>(null);
-  const [activePlatform, setActivePlatform] = useState(platformNames[0] ?? '');
-  const seriePickerRef = useRef<HTMLDivElement>(null);
-  const selectedPlatform = platformNames.includes(activePlatform) ? activePlatform : platformNames[0] ?? '';
+  const [contaAberta, setContaAberta] = useState<string | null>(
+    platformNames.includes(referenciaId ?? '') ? referenciaId : platformNames[0] ?? null,
+  );
 
   const nomeDoPilar = useCallback(
     (pilarId: string | null | undefined) => {
@@ -376,6 +325,10 @@ export function PilarEditForm({
     });
   }, [isDirty, canSave]);
 
+  useUnsavedChangesRegistration(isDirty, () => {
+    if (canSave) handleSaveRef.current();
+  });
+
   const copyHashtags = async (value: string) => {
     if (!value.trim()) return;
     try {
@@ -385,45 +338,35 @@ export function PilarEditForm({
     }
   };
 
-  const activePlataforma = selectedPlatform ? getPilarPlataforma(selectedPlatform) : null;
-  const activePlatformUuid = selectedPlatform ? resolvePlatformUuid(platforms, selectedPlatform) : null;
-  const hasWindow = Boolean(activePlataforma?.janelaHorarioInicio || activePlataforma?.janelaHorarioFim);
-  const scheduleHint = activePlataforma && hasWindow
-    ? formatCrossedPostingSummary(
-        activePlataforma,
-        postingTimeEntries,
-        activePlatformUuid,
-        activePlataforma.melhoresDias.length > 0 ? activePlataforma.melhoresDias : WEEKDAYS_ORDERED,
-      )
-    : 'Defina uma janela para consultar os horários disponíveis.';
-
   return (
     <div className="relative w-full">
       <Surface variant="info" padding="md" className="mb-3 w-full">
-        <div className="flex w-full items-center gap-3">
-          <span
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
-            style={{backgroundColor: form.cor}}
-          >
-            <Smile className="h-5 w-5" strokeWidth={1.75} style={{color: entitySwatchInk(form.cor)}} />
-          </span>
-          <Text variant="itemTitle" className="min-w-0 break-words">
-            {form.nome.trim() || 'Novo pilar'}
-          </Text>
-        </div>
+        <EntityIdentity
+          name={form.nome.trim() || 'Novo pilar'}
+          active={form.ativo}
+          inactiveLabel="Inativo"
+          icon={(
+            <span
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+              style={{ backgroundColor: form.cor }}
+            >
+              <Palette className="h-4 w-4" strokeWidth={1.75} style={{ color: entitySwatchInk(form.cor) }} />
+            </span>
+          )}
+        />
       </Surface>
 
       <div className="grid w-full grid-cols-1 items-start gap-3 lg:grid-cols-[minmax(0,1.7fr)_minmax(280px,0.95fr)]">
         <div className="flex min-w-0 flex-col gap-3">
-          <Surface variant="outlined" padding="md">
-            <CardHeading
+          <SettingsSectionCard padding="md" 
               title="Identidade"
-            />
+            >
             <div className="stack-lg">
               <div className="stack-sm">
                 <FieldLabel required>Nome</FieldLabel>
                 <input
                   type="text"
+                  aria-label="Nome do pilar"
                   value={form.nome}
                   onChange={event => setForm(previous => ({...previous, nome: event.target.value}))}
                   placeholder="Ex.: Humor"
@@ -433,15 +376,14 @@ export function PilarEditForm({
               <div className="stack-sm">
                 <FieldLabel>Descrição</FieldLabel>
                 <textarea
+                  aria-label="Descrição do pilar"
                   value={form.descricao}
                   onChange={event => setForm(previous => ({...previous, descricao: event.target.value}))}
                   maxLength={PILAR_DESCRICAO_MAX}
                   rows={3}
                   className={cn(inputClass, 'min-h-[88px] resize-y leading-relaxed')}
                 />
-                <Text variant="meta" className="text-[var(--text-tertiary)]">
-                  Diz quais pautas pertencem ao assunto.
-                </Text>
+                <TextCount value={form.descricao} limit={PILAR_DESCRICAO_MAX} />
               </div>
               <div className="stack-sm">
                 <FieldLabel>Cor do pilar</FieldLabel>
@@ -454,141 +396,131 @@ export function PilarEditForm({
                 />
               </div>
             </div>
-          </Surface>
+          </SettingsSectionCard>
 
-          <Surface variant="outlined" padding="md">
-            <CardHeading
+          <SettingsSectionCard padding="md" 
               title="Plataformas"
               description="Hashtags, dias e janela de publicação por conta."
-            />
-            {platformNames.length === 0 || !activePlataforma || !selectedPlatform ? (
+            >
+            {platformNames.length === 0 ? (
               <Text variant="meta" className="text-[var(--text-tertiary)]">
-                Nenhuma plataforma ativa configurada.
+                Nenhuma conta ativa configurada.
               </Text>
             ) : (
-              <div className="stack-lg">
-                {/* Mesmo seletor de abas do resto do app (antes era a única aba sublinhada). */}
-                <SegmentTabs<string>
-                  ariaLabel="Plataformas"
-                  className="self-start"
-                  value={selectedPlatform}
-                  onChange={setActivePlatform}
-                  options={platformNames.map(platform => ({
-                    id: platform,
-                    label: rotuloDaRef(platform, platforms),
-                    icon: <PlatformBrand platform={rotuloDaRef(platform, platforms)} />,
-                  }))}
-                />
-
-                <div className="stack-sm">
-                  <div className="flex items-center justify-between gap-2">
-                    <FieldLabel>Hashtags</FieldLabel>
-                    <AppButton
-                      variant="secondary"
-                      size="xs"
-                      onClick={() => void copyHashtags(activePlataforma.hashtags)}
-                      disabled={!activePlataforma.hashtags.trim()}
-                      leftIcon={<Copy className="h-3.5 w-3.5" />}
-                      className="pointer-coarse:h-11"
-                      aria-label={`Copiar hashtags de ${rotuloDaRef(selectedPlatform, platforms)}`}
-                    >
-                      Copiar
-                    </AppButton>
-                  </div>
-                  <input
-                    type="text"
-                    value={activePlataforma.hashtags}
-                    onChange={event => updatePlatformHashtags(selectedPlatform, event.target.value)}
-                    placeholder="#hashtag1 #hashtag2"
-                    className={inputClass}
-                  />
-                  <Text variant="meta" className="text-[var(--text-tertiary)]">
-                    Separe as hashtags com espaço.
-                  </Text>
-                </div>
-
-                <div className="stack-sm">
-                  <FieldLabel>Melhores dias</FieldLabel>
-                  <div className="flex flex-wrap gap-2">
-                    {WEEKDAYS_ORDERED.map(weekday => {
-                      const selected = activePlataforma.melhoresDias.includes(weekday);
-                      return (
-                        <button
-                          key={weekday}
-                          type="button"
-                          aria-pressed={selected}
-                          onClick={() => toggleMelhorDia(selectedPlatform, weekday)}
-                          className={cn(
-                            'inline-flex h-9 min-w-9 items-center justify-center rounded-full border px-2.5 text-xs font-medium focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-                            selected
-                              ? 'border-[var(--text-primary)] bg-[var(--bg-hover)] text-[var(--text-primary)]'
-                              : 'border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]',
-                          )}
-                        >
-                          {DAY_LABEL[weekday]}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <Text variant="meta" className="text-[var(--text-tertiary)]">
-                    Sem seleção: todos os dias com horário configurado.
-                  </Text>
-                </div>
-
-                <div className="stack-sm">
-                  <FieldLabel>Janela de publicação</FieldLabel>
-                  <div className="grid-form">
-                    <div className="stack-sm">
-                      <Text variant="meta" className="text-[var(--text-secondary)]">Início</Text>
-                      <input
-                        type="time"
-                        aria-label="Início da janela de publicação"
-                        value={activePlataforma.janelaHorarioInicio ?? ''}
-                        onChange={event =>
-                          updatePilarPlataforma(selectedPlatform, {
-                            janelaHorarioInicio: event.target.value || null,
-                          })
-                        }
-                        className={inputClass}
-                      />
+              <div className="stack-sm">
+                {platformNames.map(platformId => {
+                  const conta = platforms.find(item => item.id === platformId);
+                  const plataforma = getPilarPlataforma(platformId);
+                  const aberta = contaAberta === platformId;
+                  const painelId = `conta-pilar-${platformId}`;
+                  const uuid = resolvePlatformUuid(platforms, platformId);
+                  const temJanela = Boolean(plataforma.janelaHorarioInicio || plataforma.janelaHorarioFim);
+                  const horarios = temJanela
+                    ? formatCrossedPostingSummary(
+                      plataforma,
+                      postingTimeEntries,
+                      uuid,
+                      plataforma.melhoresDias.length > 0 ? plataforma.melhoresDias : WEEKDAYS_ORDERED,
+                    )
+                    : 'Defina uma janela para consultar os horários disponíveis.';
+                  return (
+                    <div key={platformId} className="rounded-[var(--radius-input)] border border-[var(--border-color)]">
+                      <DisclosureButton
+                        open={aberta}
+                        onToggle={() => setContaAberta(atual => atual === platformId ? null : platformId)}
+                        controls={painelId}
+                      >
+                        <PlatformIcon platform={conta ? iconeDaConta(conta) : platformId} className="h-4 w-4 shrink-0" />
+                        <Text variant="body" as="span" className="min-w-0 truncate">
+                          {conta ? rotuloConta(conta) : rotuloDaRef(platformId, platforms)}
+                          {conta && complementoDoRotulo(conta) ? (
+                            <span className="text-[var(--text-secondary)]">{` ${complementoDoRotulo(conta)}`}</span>
+                          ) : null}
+                        </Text>
+                      </DisclosureButton>
+                      {aberta ? (
+                        <div id={painelId} className="stack-lg px-2 pb-3">
+                          <div className="stack-sm">
+                            <div className="flex items-center justify-between gap-2">
+                              <FieldLabel>Hashtags</FieldLabel>
+                              <AppButton
+                                variant="secondary"
+                                size="xs"
+                                onClick={() => void copyHashtags(plataforma.hashtags)}
+                                disabled={!plataforma.hashtags.trim()}
+                                leftIcon={<Copy className="h-3.5 w-3.5" />}
+                                aria-label={`Copiar hashtags de ${conta ? rotuloConta(conta) : platformId}`}
+                              >
+                                Copiar
+                              </AppButton>
+                            </div>
+                            <input
+                              type="text"
+                              aria-label="Hashtags desta conta"
+                              value={plataforma.hashtags}
+                              onChange={event => updatePlatformHashtags(platformId, event.target.value)}
+                              placeholder="#hashtag1 #hashtag2"
+                              className={inputClass}
+                            />
+                          </div>
+                          <div className="stack-sm">
+                            <FieldLabel>Melhores dias</FieldLabel>
+                            <div className="flex flex-wrap gap-2">
+                              {WEEKDAYS_ORDERED.map(weekday => {
+                                const selected = plataforma.melhoresDias.includes(weekday);
+                                return (
+                                  <button
+                                    key={weekday}
+                                    type="button"
+                                    aria-pressed={selected}
+                                    onClick={() => toggleMelhorDia(platformId, weekday)}
+                                    className={cn(
+                                      'inline-flex h-9 min-w-9 items-center justify-center rounded-full border px-2.5 t-label focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                                      selected
+                                        ? 'border-[var(--text-primary)] bg-[var(--bg-hover)] text-[var(--text-primary)]'
+                                        : 'border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]',
+                                    )}
+                                  >
+                                    {DAY_LABEL[weekday]}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          <div className="stack-sm">
+                            <FieldLabel>Janela de publicação</FieldLabel>
+                            <div className="grid-form">
+                              <TimeField
+                                ariaLabel="Início da janela de publicação"
+                                value={plataforma.janelaHorarioInicio ?? ''}
+                                onChange={value => updatePilarPlataforma(platformId, { janelaHorarioInicio: value || null })}
+                              />
+                              <TimeField
+                                ariaLabel="Fim da janela de publicação"
+                                value={plataforma.janelaHorarioFim ?? ''}
+                                onChange={value => updatePilarPlataforma(platformId, { janelaHorarioFim: value || null })}
+                              />
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-2.5 rounded-[var(--radius-input)] bg-[var(--bg-hover)] px-3 py-3">
+                            <Clock className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
+                            <Text variant="meta" className="text-[var(--text-secondary)]">{horarios}</Text>
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
-                    <div className="stack-sm">
-                      <Text variant="meta" className="text-[var(--text-secondary)]">Fim</Text>
-                      <input
-                        type="time"
-                        aria-label="Fim da janela de publicação"
-                        value={activePlataforma.janelaHorarioFim ?? ''}
-                        onChange={event =>
-                          updatePilarPlataforma(selectedPlatform, {
-                            janelaHorarioFim: event.target.value || null,
-                          })
-                        }
-                        className={inputClass}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-2.5 rounded-[var(--radius-input)] bg-[var(--bg-hover)] px-3 py-3">
-                  <Clock className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
-                  <div className="min-w-0">
-                    <Text variant="bodyStrong">Horários disponíveis</Text>
-                    <Text variant="meta" className="mt-1 block text-[var(--text-secondary)]">
-                      {scheduleHint}
-                    </Text>
-                  </div>
-                </div>
-
+                  );
+                })}
               </div>
             )}
-          </Surface>
+          </SettingsSectionCard>
         </div>
 
         <aside className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-24 lg:self-start">
-          <Surface variant="outlined" padding="md">
-            <CardHeading
+          <SettingsSectionCard padding="md" 
               title="Séries vinculadas"
-            />
+              description="Vincular aqui muda o pilar principal da série."
+            >
             <div className="stack-md">
               {linkedSeries.map(item => (
                 <div
@@ -616,7 +548,7 @@ export function PilarEditForm({
                   <button
                     type="button"
                     onClick={() => setShowSeriePicker(previous => !previous)}
-                    className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                    className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 t-body-strong text-[var(--text-primary)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                   >
                     <Plus className="h-4 w-4" />
                     Vincular série
@@ -640,14 +572,14 @@ export function PilarEditForm({
                 </div>
               ) : null}
             </div>
-          </Surface>
+          </SettingsSectionCard>
         </aside>
       </div>
       <ConfirmModal
         open={Boolean(trocaPilarPendente)}
         message={
           trocaPilarPendente
-            ? `Vai trocar ${trocaPilarPendente.de} por ${trocaPilarPendente.para}.`
+            ? `A série “${series.find(item => item.id === trocaPilarPendente.serieId)?.name ?? 'esta série'}” tem ${trocaPilarPendente.de} como pilar principal. Trocar para ${trocaPilarPendente.para}?`
             : ''
         }
         confirmLabel="Trocar pilar"

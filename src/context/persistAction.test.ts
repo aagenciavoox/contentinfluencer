@@ -419,3 +419,24 @@ for (const [name, fn] of tests) {
   await fn();
   console.log(`ok - ${name}`);
 }
+
+// Conteúdo e vínculo mudam em uma única ação; a gravação respeita a dependência.
+{
+  const {createEmptyPostIt, transformPostIt} = await import('../features/planejamento/lib/postIt.ts');
+  const original = createEmptyPostIt({id:'pauta-conversao', texto:'Pauta real', date:'2026-10-31'});
+  const result = transformPostIt({postIt:original, contents:[], target:'ideia'});
+  assert.ok(result.ok);
+  if (result.ok) {
+    const {api,calls} = createMockApi();
+    await persistAction({action:{type:'CONVERT_POST_IT',payload:{content:result.content,postIt:result.postIt}},userId:'user-1',state:createState({postIts:[original]}),api});
+    const names = calls.map(call => call.name);
+    assert.equal(names[names.length-1], 'savePlanejamentoPostIt');
+    assert.ok(names.indexOf('saveContent') < names.indexOf('savePlanejamentoPostIt'));
+    assert.equal((calls[calls.length-1].args[0] as typeof result.postIt).contentId,result.content.id);
+    const failing = createMockApi();
+    failing.api.saveContent = async () => {throw new Error('falha de conteúdo');};
+    await assert.rejects(persistAction({action:{type:'CONVERT_POST_IT',payload:{content:result.content,postIt:result.postIt}},userId:'user-1',state:createState({postIts:[original]}),api:failing.api}), /falha de conteúdo/);
+    assert.equal(failing.calls.some(call => call.name === 'savePlanejamentoPostIt'), false, 'não grava vínculo com conteúdo ausente');
+  }
+  console.log('ok - conversão persiste conteúdo antes do vínculo e interrompe em falha');
+}

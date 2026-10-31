@@ -1,4 +1,5 @@
 import type { Content, ContentMetric, ContentPlataforma, Pilar, Serie } from '../../../lib/database.ts';
+import { intervalo } from '../../../lib/dates.ts';
 import { contaDaRef, redeDaConta, rotuloConta, type ContaRef } from '../../contas/lib/contas.ts';
 import { contentPassaFiltroSerie } from '../../editorial/lib/filtroSubarvore.ts';
 import { FUNCAO_LABELS, isFuncaoEditorial } from '../../editorial/lib/funcoes.ts';
@@ -147,7 +148,7 @@ export function filtrarPublicacoes({
         dataEfetiva,
         link: publicacao.postUrl?.trim() || null,
         externoId: publicacao.externoId?.trim() || null,
-        periodoEditorial: semana ? `${semana.inicio} a ${semana.fim}` : null,
+        periodoEditorial: semana ? intervalo(semana.inicio, semana.fim) : null,
         origem: metrica?.origem ? (ORIGEM_ROTULO[metrica.origem] ?? metrica.origem) : null,
         atualizadoEm: metrica?.atualizadoEm ?? null,
         views: metrica ? metrica.views : null,

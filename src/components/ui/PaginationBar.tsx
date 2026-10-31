@@ -86,9 +86,9 @@ export function PaginationBar({
 
             {pages.map((page, index) =>
               page === 'ellipsis' ? (
-                <span key={`ellipsis-${index}`} className="px-1 text-2xs text-[var(--text-tertiary)]">
+                <Text variant="meta" as="span" key={`ellipsis-${index}`} className="px-1 text-[var(--text-tertiary)]">
                   …
-                </span>
+                </Text>
               ) : (
                 <AppButton
                   key={page}

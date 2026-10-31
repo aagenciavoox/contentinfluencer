@@ -1,3 +1,4 @@
+import { Text } from '../../components/ui/Text';
 import { Plus } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '../../lib/utils';
@@ -47,7 +48,7 @@ function MobileBottomNavItem({
       <span
         className={cn(
           'whitespace-nowrap text-[length:var(--font-size-nav-mobile)] leading-none',
-          isActive ? 'font-semibold' : 'font-medium',
+          isActive ? '' : '',
         )}
       >
         {label}
@@ -105,9 +106,9 @@ export function MobileBottomNav({ onOpenCreateMenu, moduleFlags }: MobileBottomN
             )}
           >
             <Plus className="h-5 w-5 stroke-[2.5]" aria-hidden />
-            <span className="whitespace-nowrap text-[length:var(--font-size-nav-mobile)] font-semibold leading-none">
+            <Text variant="bodyStrong" as="span" className="whitespace-nowrap text-[length:var(--font-size-nav-mobile)] leading-none">
               Criar
-            </span>
+            </Text>
           </button>
         </div>
       </div>

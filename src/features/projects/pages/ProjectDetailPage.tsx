@@ -1,7 +1,7 @@
 import { useState } from 'react';
+import { diaNumerico } from '../../../lib/dates';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
-  Briefcase,
   CalendarDays,
   ClipboardList,
   Link2,
@@ -28,6 +28,7 @@ import { MoreMenu } from '../../../components/ui/MoreMenu';
 import { Surface } from '../../../components/ui/Surface';
 import { TagSelect } from '../../../components/ui/TagSelect';
 import { Text } from '../../../components/ui/Text';
+import { ValorVazio } from '../../../components/ui/ValorVazio';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { Dialog } from '../../../components/overlays/Dialog';
 import { ProjectDetailMobileScreen } from '../../../mobile/screens/projects/ProjectDetailMobileScreen';
@@ -67,10 +68,8 @@ function localTodayKey() {
 }
 
 function formatDate(value: string | null) {
-  if (!value) return '--';
-  const [year, month, day] = value.split('-');
-  if (year && month && day) return `${day}/${month}/${year}`;
-  return new Date(value).toLocaleDateString('pt-BR');
+  if (!value) return '—';
+  return diaNumerico(value);
 }
 
 function formatDayMonth(value: string) {
@@ -163,7 +162,7 @@ export function ProjectDetailPage() {
   const statusLabel = PROJECT_STATUS_LABEL[projeto.status] ?? projeto.status;
   const formattedValue = projeto.value
     ? projeto.value.toLocaleString('pt-BR', { style: 'currency', currency: projeto.currency || 'BRL' })
-    : '--';
+    : <ValorVazio />;
 
   const startEditing = () => {
     setEditNome(projeto.nome);
@@ -381,7 +380,6 @@ export function ProjectDetailPage() {
               </div>
             </div>
           )}
-          icon={Briefcase}
           backLabel="Projetos"
           backTo="/projetos"
           rowAlign="center"
@@ -534,7 +532,7 @@ export function ProjectDetailPage() {
                 <dl className="stack-sm">
                   {[
                     { label: 'Tipo', value: rotuloProjetoTipo(projeto.tipo, projeto.tipoPersonalizado) },
-                    { label: 'Marca ou parceiro', value: projeto.brand || '--' },
+                    { label: 'Marca ou parceiro', value: projeto.brand ? projeto.brand : <ValorVazio /> },
                     ...(isProjetoPubli(projeto.tipo) ? [{ label: 'Valor', value: formattedValue }] : []),
                     ...(evento ? [{ label: 'Aviso', value: rotuloAvisoDias(projeto.avisoDias) }] : []),
                   ].map(item => (
@@ -590,7 +588,7 @@ export function ProjectDetailPage() {
                 <input
                   value={editDriveUrl}
                   onChange={event => setEditDriveUrl(event.target.value)}
-                  placeholder="Link da pasta no Drive (https://...)"
+                  placeholder="Link da pasta no Drive (https://…)"
                   type="url"
                   className="w-full rounded-xl border border-[var(--border-input)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                 />

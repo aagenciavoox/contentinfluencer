@@ -6,18 +6,24 @@ import { SettingsGridCard, SETTINGS_ENTITY_GRID_CLASS } from '../../../component
 import { AppButton } from '../../../components/ui/AppButton';
 import { Badge } from '../../../components/ui/Badge';
 import { EmptyState } from '../../../components/ui/EmptyState';
-import { Text } from '../../../components/ui/Text';
+import { Section } from '../../../components/ui/Section';
 import { useAppContext } from '../../../context/AppContext';
 import type { Pilar } from '../../../lib/database';
 import { CONFIRM, type ConfirmState } from '../../../lib/uiCopy';
 import { sortPilares } from '../../settings/lib/activePilares';
 import { AjustesEditorialPanel } from './plano/AjustesEditorialPanel';
 
+function linhaDeSeries(nomes: string[]) {
+  if (nomes.length === 0) return 'Sem séries ligadas';
+  const amostra = nomes.slice(0, 2).join(', ');
+  return nomes.length > 2 ? `Séries: ${amostra} e mais ${nomes.length - 2}` : `Séries: ${amostra}`;
+}
+
 function nomeChave(nome: string): string {
   return nome.trim().toLocaleLowerCase('pt-BR');
 }
 
-/** Direção editorial: pilares com séries ligadas e, logo abaixo, ritmo, conta, horários e hashtags. */
+/** Direção editorial: pilares com séries ligadas e ritmo. */
 export function DirecaoEditorialPanel() {
   const { state, dispatch } = useAppContext();
   const navigate = useNavigate();
@@ -54,64 +60,66 @@ export function DirecaoEditorialPanel() {
 
   return (
     <div className="stack-lg">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <Text variant="sectionTitle" as="h2">Pilares</Text>
-      </div>
+      <Section
+        title="Pilares"
+        action={(
+          <AppButton variant="secondary" leftIcon={<Plus className="h-4 w-4" />} onClick={() => navigate('/editorial/pilares/nova')}>
+            Novo pilar
+          </AppButton>
+        )}
+      >
+        {pilares.length === 0 ? (
+          <EmptyState
+            icon={<Palette className="h-8 w-8" />}
+            title="Nenhum pilar cadastrado"
+            description="Adicione o primeiro pilar para organizar os temas editoriais."
+            action={(
+              <AppButton variant="primary" leftIcon={<Plus className="h-4 w-4" />} onClick={() => navigate('/editorial/pilares/nova')}>
+                Novo pilar
+              </AppButton>
+            )}
+          />
+        ) : (
+          <div className={SETTINGS_ENTITY_GRID_CLASS}>
+            {pilares.map(pilar => {
+              const nomeRepetido = (nomesRepetidos.get(nomeChave(pilar.nome)) ?? 0) > 1;
+              const ligadas = seriesPorPilar.get(pilar.id) ?? [];
+              return (
+                <SettingsGridCard
+                  key={pilar.id}
+                  compact
+                  title={pilar.nome}
+                  color={pilar.cor}
+                  active={pilar.ativo}
+                  inactiveLabel="Inativo"
+                  dimmed={!pilar.ativo}
+                  onToggle={() => dispatch({ type: 'UPDATE_PILAR', payload: { ...pilar, ativo: !pilar.ativo } })}
+                  onOpen={() => navigate(`/editorial/pilares/${pilar.id}`)}
+                  onEdit={() => navigate(`/editorial/pilares/${pilar.id}`)}
+                  editLabel="Editar definições"
+                  onDelete={() => remove(pilar)}
+                  meta={linhaDeSeries(ligadas)}
+                  badges={nomeRepetido ? <Badge variant="warning">Nome repetido</Badge> : undefined}
+                />
+              );
+            })}
+          </div>
+        )}
+      </Section>
 
-      {(state.dnaVoz?.publico?.trim() || state.editorial.preferencias.publicoLinguagem?.trim()) ? (
-        <div className="stack-xs rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-4">
-          <Text variant="label" as="p">Público e linguagem</Text>
-          <Text variant="body" as="p" className="mt-1 whitespace-pre-wrap">
-            {state.editorial.preferencias.publicoLinguagem?.trim()
-              || state.dnaVoz?.publico?.trim()
-              || ''}
-          </Text>
+      <Section
+        title="Ritmo e ajustes"
+        description="Configurações gerais. Metas de um período ficam no Planejamento."
+        action={(
+          <AppButton variant="secondary" onClick={() => navigate('/planejamento')}>
+            Prioridade e metas
+          </AppButton>
+        )}
+      >
+        <div id="ritmo-editorial">
+          <AjustesEditorialPanel />
         </div>
-      ) : null}
-
-      {pilares.length === 0 ? (
-        <EmptyState
-          icon={<Palette className="h-8 w-8" />}
-          title="Nenhum pilar cadastrado"
-          description="Adicione o primeiro pilar para organizar os temas editoriais."
-          action={(
-            <AppButton variant="primary" leftIcon={<Plus className="h-4 w-4" />} onClick={() => navigate('/editorial/pilares/nova')}>
-              Novo pilar
-            </AppButton>
-          )}
-        />
-      ) : (
-        <div className={SETTINGS_ENTITY_GRID_CLASS}>
-          {pilares.map(pilar => {
-            const nomeRepetido = (nomesRepetidos.get(nomeChave(pilar.nome)) ?? 0) > 1;
-            const ligadas = seriesPorPilar.get(pilar.id) ?? [];
-            return (
-              <SettingsGridCard
-                key={pilar.id}
-                title={pilar.nome}
-                description={pilar.descricao || undefined}
-                color={pilar.cor}
-                active={pilar.ativo}
-                dimmed={!pilar.ativo}
-                onToggle={() => dispatch({ type: 'UPDATE_PILAR', payload: { ...pilar, ativo: !pilar.ativo } })}
-                onOpen={() => navigate(`/editorial/pilares/${pilar.id}`)}
-                onDelete={() => remove(pilar)}
-                meta={[
-                  ligadas.length === 0
-                    ? 'Sem séries ligadas'
-                    : ligadas.length <= 2
-                      ? ligadas.join(' · ')
-                      : `${ligadas.slice(0, 2).join(' · ')} e mais ${ligadas.length - 2}`,
-                  nomeRepetido ? 'Outro pilar tem o mesmo nome.' : null,
-                ].filter(Boolean).join(' · ')}
-                badges={nomeRepetido ? <Badge variant="warning">Nome repetido</Badge> : undefined}
-              />
-            );
-          })}
-        </div>
-      )}
-
-      <AjustesEditorialPanel />
+      </Section>
 
       <ConfirmModal
         open={Boolean(confirm)}

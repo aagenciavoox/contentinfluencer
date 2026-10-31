@@ -11,11 +11,11 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "lint:design": "node scripts/lint-design.mjs",
+    "lint:design": "node --test scripts/design-lint-rules.test.mjs && node scripts/lint-design.mjs",
     "fix:encoding": "node scripts/fix-encoding.mjs",
     "voice:audit": "node scripts/audit-product-voice.mjs",
     "check": "npm run voice:audit && npm run lint:design && npm run lint && npm test && npm run build",
-    "test": "node --experimental-strip-types src/test-runner.ts"
+    "test": "node --experimental-strip-types src/test-runner.ts && node --import tsx --test src/components/ui/textPresentation.test.tsx src/context/planningConversion.test.ts src/features/library/lib/annotationDraft.test.ts"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

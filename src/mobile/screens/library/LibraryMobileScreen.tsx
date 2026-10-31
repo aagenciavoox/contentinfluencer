@@ -13,6 +13,7 @@ import { MobileSearchBar } from '../../components/MobileSearchBar';
 import { AppButton } from '../../../components/ui/AppButton';
 import { EMPTY } from '../../../lib/uiCopy';
 import { Text } from '../../../components/ui/Text';
+import { ValorVazio } from '../../../components/ui/ValorVazio';
 import { CoverFallback } from '../../../features/library/components/CoverFallback';
 import type { BibliotecaCapaFilter } from '../../../features/library/components/LibraryToolbar';
 import { useAuth } from '../../../context/AuthContext';
@@ -228,7 +229,7 @@ export function LibraryMobileScreen({
   // O "+" ao lado da busca já é a ação principal; no estado vazio o mesmo atalho fica secundário.
   const focusAction = (
     <AppButton variant="secondary" fullWidth onClick={onOpenCreate} leftIcon={<Plus className="h-4 w-4" />}>
-      Novo item
+      Nova obra
     </AppButton>
   );
 
@@ -243,7 +244,12 @@ export function LibraryMobileScreen({
 
   return (
     <div className="stack-md pt-2">
-      {/* Seção (Acervo / Análise) é aba: trilho de largura toda, metades iguais, preenchido.
+      {libraryTotal > 0 ? (
+        <Text variant="meta">
+          {libraryTotal === 1 ? '1 obra' : `${libraryTotal.toLocaleString('pt-BR')} obras`}
+        </Text>
+      ) : null}
+      {/* Seção (Acervo / Panorama) é aba: trilho de largura toda, metades iguais, preenchido.
           Momento (Agora / Fila / Feitos) é filtro: chip baixo e contornado, abaixo da aba. */}
       <div className="stack-sm">
         <SegmentTabs<LibrarySection>
@@ -251,7 +257,7 @@ export function LibraryMobileScreen({
           fullWidth
           options={[
             { id: 'collection', label: 'Acervo' },
-            { id: 'analysis', label: 'Análise' },
+            { id: 'analysis', label: 'Panorama' },
           ]}
           value={activeSection}
           onChange={section => {
@@ -285,7 +291,7 @@ export function LibraryMobileScreen({
             variant="primary"
             size="lg"
             iconOnly
-            aria-label="Novo item"
+            aria-label="Nova obra"
             onClick={onOpenCreate}
             leftIcon={<Plus className="h-4 w-4" />}
           />
@@ -310,7 +316,7 @@ export function LibraryMobileScreen({
         {filteredItems.length === 0 ? (
           <EmptyState compact
             title="Nada nessa visão da biblioteca"
-            description={hasActiveFilters ? 'Nada com essa busca ou filtro.' : 'Troque o momento acima ou adicione um novo item.'}
+            description={hasActiveFilters ? 'Nada com essa busca ou filtro.' : 'Troque o momento acima ou adicione uma nova obra.'}
             action={
               hasActiveFilters ? (
                 <AppButton variant="secondary" onClick={clearSearchAndFilters}>
@@ -345,12 +351,12 @@ export function LibraryMobileScreen({
                     className="block w-full text-left active:opacity-90"
                   >
                     <div className="stack-xs p-3">
-                      <p className="line-clamp-2 text-sm font-semibold leading-snug text-[var(--text-primary)]">
+                      <Text variant="itemTitle" as="p" className="line-clamp-2 leading-snug text-[var(--text-primary)]">
                         {item.titulo}
-                      </p>
-                      <p className="line-clamp-1 text-xs text-[var(--text-secondary)]">
-                        {item.autorDiretor || TYPE_LABELS[item.tipo]}
-                      </p>
+                      </Text>
+                      <Text variant="meta" as="p" className="line-clamp-1 text-[var(--text-secondary)]">
+                        {item.autorDiretor?.trim() ? item.autorDiretor : <ValorVazio />}
+                      </Text>
 
                       <div className="flex min-w-0 flex-wrap gap-1">
                         <Badge variant="neutral">{TYPE_LABELS[item.tipo]}</Badge>

@@ -1,6 +1,6 @@
 import {useMemo, useState} from 'react';
 import {Link} from 'react-router-dom';
-import {AlertCircle, ArrowUpRight, AtSign, Plus} from 'lucide-react';
+import {AlertCircle, ArrowUpRight, Plus} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
 import {useAuth} from '../../../context/AuthContext';
 import type {Content, ContentPlataforma, Platform, RedeSocial} from '../../../lib/database';
@@ -201,7 +201,6 @@ export function PlatformsSettingsPage() {
         <DesktopPageHeader
           section="Criação"
           title="Contas e horários"
-          icon={AtSign}
           backLabel="Criação"
           backTo="/criacao"
           actions={
@@ -308,7 +307,7 @@ export function PlatformsSettingsPage() {
                         {item.contentId ? (
                           <Link
                             to={`/conteudos/${item.contentId}?tab=publicacao`}
-                            className="inline-flex shrink-0 items-center gap-1 rounded-[var(--radius-sm)] t-secondary font-semibold text-[var(--text-primary)] underline underline-offset-2 hover:no-underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                            className="inline-flex shrink-0 items-center gap-1 rounded-[var(--radius-sm)] t-secondary text-[var(--text-primary)] underline underline-offset-2 hover:no-underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                           >
                             Abrir roteiro
                             <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />

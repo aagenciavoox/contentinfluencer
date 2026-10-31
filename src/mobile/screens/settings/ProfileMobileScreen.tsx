@@ -40,7 +40,7 @@ function Feedback({ message, tone }: { message: string; tone: 'success' | 'error
   return (
     <p
       role={tone === 'error' ? 'alert' : 'status'}
-      className={`rounded-[var(--radius-input)] border px-4 py-3 text-sm text-[var(--text-primary)] ${classes}`}
+      className={`rounded-[var(--radius-input)] border px-4 py-3 t-body text-[var(--text-primary)] ${classes}`}
     >
       {message}
     </p>
@@ -85,8 +85,8 @@ export function ProfileMobileScreen({
           />
         ) : (
           <div className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3">
-            <p className="t-label text-[var(--text-tertiary)]">E-mail atual</p>
-            <p className="mt-1 text-sm font-semibold text-[var(--text-primary)]">{accountEmail}</p>
+            <Text variant="label" as="p" className="text-[var(--text-tertiary)]">E-mail atual</Text>
+            <Text variant="itemTitle" as="p" className="mt-1 text-[var(--text-primary)]">{accountEmail}</Text>
           </div>
         )}
       </section>
@@ -121,7 +121,7 @@ export function ProfileMobileScreen({
       <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
         <div className="mb-3 flex items-center gap-2 text-[var(--text-secondary)]">
           <Mail className="h-4 w-4" />
-          <p className="t-label">Trocar e-mail</p>
+          <Text variant="label" as="p" className="text-inherit">Trocar e-mail</Text>
         </div>
         <label htmlFor="mobile-profile-email" className="mb-2 block t-label text-[var(--text-tertiary)]">
           Novo e-mail
@@ -135,10 +135,10 @@ export function ProfileMobileScreen({
           disabled={!backendReady || emailLoading}
           className="input"
         />
-        <p className="mt-3 text-xs text-[var(--text-secondary)]">
+        <Text variant="meta" as="p" className="mt-3 text-[var(--text-secondary)]">
           Enviaremos um link de confirmação para o novo endereço. A troca só termina depois que você
           validar esse e-mail.
-        </p>
+        </Text>
         <AppButton
           variant={primaryCard === 'email' ? 'primary' : 'secondary'}
           fullWidth
@@ -159,7 +159,7 @@ export function ProfileMobileScreen({
       <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
         <div className="mb-3 flex items-center gap-2 text-[var(--text-secondary)]">
           <KeyRound className="h-4 w-4" />
-          <p className="t-label">Trocar senha</p>
+          <Text variant="label" as="p" className="text-inherit">Trocar senha</Text>
         </div>
         <div className="stack-md">
           <div className="stack-sm">
@@ -189,7 +189,7 @@ export function ProfileMobileScreen({
             />
           </div>
         </div>
-        <div className="mt-3 rounded-[var(--radius-input)] bg-[var(--bg-primary)] px-4 py-3 text-xs text-[var(--text-secondary)]">
+        <div className="mt-3 rounded-[var(--radius-input)] bg-[var(--bg-primary)] px-4 py-3 t-meta text-[var(--text-secondary)]">
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-[var(--text-tertiary)]" aria-hidden />
             <span>Mínimo de 6 caracteres.</span>

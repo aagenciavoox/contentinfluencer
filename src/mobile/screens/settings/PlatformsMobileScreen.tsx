@@ -129,7 +129,7 @@ export function PlatformsMobileScreen({
                   ) : undefined
                 }
                 meta={
-                  <Text variant="meta" className="font-semibold text-[var(--text-secondary)]">
+                  <Text variant="meta" className=" text-[var(--text-secondary)]">
                     {lockedOn ? 'Ativa' : 'Inativa'}
                     {padrao ? ' · Padrão' : ''}
                   </Text>
@@ -182,7 +182,7 @@ export function PlatformsMobileScreen({
           <button
             type="button"
             onClick={closeForm}
-            className="flex min-h-11 flex-1 items-center justify-center rounded-[var(--radius-md)] border border-[var(--border-color)] text-xs font-semibold  text-[var(--text-secondary)]"
+            className="flex min-h-11 flex-1 items-center justify-center rounded-[var(--radius-md)] border border-[var(--border-color)] t-label text-[var(--text-secondary)]"
           >
             Cancelar
           </button>

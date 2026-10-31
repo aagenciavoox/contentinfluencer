@@ -175,7 +175,7 @@ function testNeedsScriptsWhenBacklogInsufficient() {
   const needs = violations.find(item => item.ruleId === 'pilar-pilar-1-needs-scripts');
   assert.ok(needs);
   assert.equal(needs?.type, 'deficit');
-  assert.match(needs?.message ?? '', /Mais 1 cobriria o ciclo/);
+  assert.match(needs?.message ?? '', /Mais 1 cobriria a meta/);
 }
 
 function testHashtagTemplateLimit() {

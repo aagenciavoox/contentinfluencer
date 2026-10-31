@@ -2,6 +2,7 @@ import {useEffect} from 'react';
 import {Check, Minus, Plus, Type} from 'lucide-react';
 import {ToolbarDropdown} from '../../../../components/editors/EditorToolbar';
 import {SelectField} from '../../../../components/ui/SelectField';
+import {Text} from '../../../../components/ui/Text';
 import {cn} from '../../../../lib/utils';
 import {
   preloadRoteiroFonts,
@@ -52,9 +53,9 @@ function SizeStepper({
       >
         <Minus className="h-3.5 w-3.5" aria-hidden />
       </button>
-      <span className="min-w-[2.75rem] text-center text-xs tabular-nums text-[var(--text-primary)]" aria-live="polite">
+      <Text variant="meta" as="span" className="min-w-[2.75rem] text-center tabular-nums text-[var(--text-primary)]" aria-live="polite">
         {size}px
-      </span>
+      </Text>
       <button
         type="button"
         className={STEP_BUTTON}
@@ -92,9 +93,9 @@ export function RoteiroTypographyControls({
   if (variant === 'panel') {
     return (
       <div className="flex flex-col gap-2" title={TITLE}>
-        <p className="px-1 text-[11px] font-medium uppercase tracking-wide text-[var(--text-secondary)]">
+        <Text variant="eyebrow" as="p" className="px-1">
           Fonte do roteiro
-        </p>
+        </Text>
         <div className="flex flex-col gap-0.5" role="radiogroup" aria-label="Fonte do roteiro">
           {ROTEIRO_FONTS.map(font => {
             const active = font.id === typography.font;
@@ -110,10 +111,10 @@ export function RoteiroTypographyControls({
                   onChange({font: font.id});
                 }}
                 className={cn(
-                  'flex w-full items-center gap-2 rounded-[var(--radius-input)] px-2 py-1.5 text-left text-sm transition',
+                  'flex w-full items-center gap-2 rounded-[var(--radius-input)] px-2 py-1.5 text-left t-body transition',
                   'focus-visible:outline-none focus-visible:bg-[var(--bg-hover)]',
                   active
-                    ? 'bg-[var(--bg-hover)] font-semibold text-[var(--text-primary)]'
+                    ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
                     : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]',
                 )}
                 style={{fontFamily: font.family}}
@@ -125,9 +126,9 @@ export function RoteiroTypographyControls({
           })}
         </div>
         <div className="flex items-center justify-between gap-2 border-t border-[var(--border-color)] px-1 pt-2">
-          <span className="text-[11px] font-medium uppercase tracking-wide text-[var(--text-secondary)]">
+          <Text variant="eyebrow" as="span">
             Tamanho
-          </span>
+          </Text>
           <SizeStepper size={typography.size} onChange={onChange} />
         </div>
       </div>

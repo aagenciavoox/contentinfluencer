@@ -12,7 +12,7 @@ import {
   transitionCreationStatus,
   updateContentFromLegacyIdea,
 } from '../features/contents/lib/creationContent';
-import {
+import type {
   AppData,
   Content, Idea, Pilar, Serie, Tema, Temporada, Cenario, Look,
   BibliotecaItem, Anotacao, Projeto, ProjetoEtapa, ProjetoLivro,
@@ -128,6 +128,7 @@ export type AppAction =
   | { type: 'ADD_POST_IT';        payload: PlanejamentoPostIt }
   | { type: 'UPDATE_POST_IT';     payload: PlanejamentoPostIt }
   | { type: 'UPDATE_POST_ITS';    payload: PlanejamentoPostIt[] }
+  | { type: 'CONVERT_POST_IT'; payload: {content: Content; postIt: PlanejamentoPostIt} }
   | { type: 'DELETE_POST_IT';     payload: string }
   | { type: 'DELETE_POST_ITS';    payload: string[] }
   | { type: 'DELETE_AGENDA_ITEM'; payload: string }
@@ -484,7 +485,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         bibliotecaItems: state.bibliotecaItems.map(b =>
           b.id === action.payload.itemId
-            ? { ...b, anotacoes: [...b.anotacoes, action.payload.anotacao] }
+            ? { ...b, anotacoes: [...b.anotacoes.filter(a => a.id !== action.payload.anotacao.id), action.payload.anotacao] }
             : b
         ),
       };
@@ -495,7 +496,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         bibliotecaItems: state.bibliotecaItems.map(b =>
           b.id === addLivroId
-            ? { ...b, anotacoes: [...b.anotacoes, addedAnnotation] }
+            ? { ...b, anotacoes: [...b.anotacoes.filter(a => a.id !== addedAnnotation.id), addedAnnotation] }
             : b
         ),
       };
@@ -624,6 +625,15 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
     case 'DELETE_AGENDA_ITEM':
       return { ...state, agendaItems: state.agendaItems.filter(a => a.id !== action.payload) };
+    case 'CONVERT_POST_IT': {
+      const {content, postIt} = action.payload;
+      const exists = state.contents.some(item => item.id === content.id);
+      return {
+        ...state,
+        contents: exists ? state.contents.map(item => item.id === content.id ? content : item) : [content, ...state.contents],
+        postIts: state.postIts.map(item => item.id === postIt.id ? postIt : item),
+      };
+    }
     case 'ADD_POST_IT':
       return { ...state, postIts: [...state.postIts, action.payload] };
     case 'UPDATE_POST_IT':

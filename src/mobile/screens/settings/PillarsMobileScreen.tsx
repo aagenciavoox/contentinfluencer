@@ -67,8 +67,8 @@ export function PillarsMobileScreen({
               actionLabel={`Editar ${pilar.nome}`}
               meta={
                 <>
-                  <span
-                    className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] border border-transparent px-2 py-0.5 text-xs font-medium"
+                  <Text variant="label" as="span"
+                    className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] border border-transparent px-2 py-0.5 text-inherit"
                     style={getEntityTagStyle(pilar.cor)}
                   >
                     <span
@@ -76,7 +76,7 @@ export function PillarsMobileScreen({
                       style={{ backgroundColor: pilar.cor }}
                     />
                     Cor
-                  </span>
+                  </Text>
                   <Badge variant="neutral">
                     {pilar.plataformas.length} plataforma{pilar.plataformas.length === 1 ? '' : 's'}
                   </Badge>

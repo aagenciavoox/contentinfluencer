@@ -20,7 +20,7 @@ describe('writing format bar', () => {
     assert.equal(new Set(WRITING_BAR_ACTION_IDS).size, WRITING_BAR_ACTION_IDS.length);
     assert.ok(WRITING_FORMAT_MENU_IDS.includes('underline'));
     assert.ok(WRITING_FORMAT_MENU_IDS.includes('list'));
-    assert.equal(WRITING_FORMAT_MENU_IDS.includes('bold'), false);
+    assert.equal((WRITING_FORMAT_MENU_IDS as readonly string[]).includes('bold'), false);
   });
 
   it('never collapses Inserir/histórico/Formatar', () => {

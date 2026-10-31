@@ -1,3 +1,5 @@
+import { Text } from '../ui/Text';
+import { TextCount } from '../ui/TextCount';
 import { useEditor, useEditorState, EditorContent } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
 import { Extension, type Editor } from '@tiptap/core';
@@ -382,12 +384,12 @@ function EditorDialog({ title, onClose, children }: {
   useFocusScope(true, ref, onClose);
   if (typeof document === 'undefined') return null;
   return createPortal(
-    <div className="fixed inset-0 z-[220] flex items-end justify-center bg-black/40 p-4 sm:items-center"
+    <div className="fixed inset-0 z-[220] flex items-end justify-center bg-[var(--overlay-scrim)] p-4 sm:items-center"
       onPointerDown={event => { if (event.target === event.currentTarget) onClose(); }}>
       <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}
         className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-5 text-[var(--text-primary)] shadow-[var(--shadow-modal)]">
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 id={titleId} className="text-base font-semibold">{title}</h2>
+          <Text variant="bodyStrong" as="h2" id={titleId} className="text-inherit">{title}</Text>
           <button type="button" aria-label="Fechar diálogo" onClick={onClose} className={controlClass(false)}>
             <X className="h-5 w-5" />
           </button>
@@ -413,25 +415,25 @@ function CommentComposer({ draft, value, onChange, onSubmit, onCancel, authorNam
   };
   return (
     <form onSubmit={event => { event.preventDefault(); onSubmit(); }} aria-busy={pending}>
-      <p className="mb-2 text-xs font-semibold">{authorName}</p>
-      <blockquote className="mb-3 line-clamp-3 border-l-2 border-[var(--border-strong)] pl-3 text-sm italic text-[var(--text-secondary)]">
+      <Text variant="label" as="p" className="mb-2 text-inherit">{authorName}</Text>
+      <blockquote className="mb-3 line-clamp-3 border-l-2 border-[var(--border-strong)] pl-3 t-secondary italic text-[var(--text-secondary)]">
         “{draft.text}”
       </blockquote>
-      <label htmlFor={inputId} className="mb-1 block text-sm font-medium">Comentário</label>
+      <label htmlFor={inputId} className="mb-1 block t-label ">Comentário</label>
       <textarea id={inputId} data-autofocus autoFocus value={value} disabled={pending}
         onChange={event => onChange(event.target.value)} onKeyDown={onKeyDown}
         placeholder="O que você quer comentar?" aria-describedby={error || !draft.valid ? errorId : undefined}
-        className="min-h-[88px] w-full resize-y rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-base text-[var(--text-primary)] focus:border-[var(--accent-blue)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-blue)]" />
+        className="min-h-[88px] w-full resize-y rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-[var(--text-primary)] focus:border-[var(--accent-blue)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-blue)]" />
       {error || !draft.valid ? (
-        <p id={errorId} role="alert" className="mt-2 text-sm text-[var(--text-primary)]">
+        <Text variant="body" as="p" id={errorId} role="alert" className="mt-2 text-[var(--text-primary)]">
           {error ?? 'O trecho foi alterado ou excluído. Cancele e selecione novamente o texto para comentar.'}
-        </p>
+        </Text>
       ) : null}
       <div className="mt-4 flex items-center justify-end gap-3">
         <button type="button" disabled={pending} onClick={onCancel}
-          className="min-h-10 rounded-[var(--radius-input)] px-3 text-sm text-[var(--text-secondary)] disabled:opacity-40">Cancelar</button>
+          className="min-h-10 rounded-[var(--radius-input)] px-3 t-secondary text-[var(--text-secondary)] disabled:opacity-40">Cancelar</button>
         <button type="submit" disabled={pending || !value.trim() || !draft.valid}
-          className="min-h-10 rounded-[var(--radius-input)] bg-[var(--accent-blue)] px-4 text-sm font-semibold text-white disabled:opacity-40">
+          className="min-h-10 rounded-[var(--radius-input)] bg-[var(--accent-blue)] px-4 t-body-strong text-white disabled:opacity-40">
           {pending ? 'Enviando…' : 'Comentar'}
         </button>
       </div>
@@ -462,16 +464,16 @@ function LinkEditor({ initialURL, onApply, onClose }: {
           onApply(normalized);
         } catch { setError('Confira o endereço informado.'); }
       }}>
-        <label htmlFor={inputId} className="mb-1 block text-sm font-medium">Endereço</label>
+        <label htmlFor={inputId} className="mb-1 block t-label ">Endereço</label>
         <input id={inputId} data-autofocus autoFocus type="text" inputMode="url" autoComplete="url"
           value={url} onChange={event => { setURL(event.target.value); setError(null); }}
           aria-invalid={!!error} aria-describedby={error ? errorId : undefined} placeholder="https://exemplo.com"
-          className="w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--accent-blue)]" />
-        {error ? <p id={errorId} role="alert" className="mt-2 text-sm">{error}</p> : null}
-        <p className="mt-2 text-xs text-[var(--text-secondary)]">Deixe vazio para remover o link.</p>
+          className="w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--accent-blue)]" />
+        {error ? <Text variant="body" as="p" id={errorId} role="alert" className="mt-2 text-inherit">{error}</Text> : null}
+        <Text variant="meta" as="p" className="mt-2 text-[var(--text-secondary)]">Deixe vazio para remover o link.</Text>
         <div className="mt-4 flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="min-h-10 px-3 text-sm">Cancelar</button>
-          <button type="submit" className="min-h-10 rounded-[var(--radius-input)] bg-[var(--accent-blue)] px-4 text-sm font-semibold text-white">Aplicar</button>
+          <button type="button" onClick={onClose} className="min-h-10 px-3 t-body">Cancelar</button>
+          <button type="submit" className="min-h-10 rounded-[var(--radius-input)] bg-[var(--accent-blue)] px-4 t-body-strong text-white">Aplicar</button>
         </div>
       </form>
     </EditorDialog>
@@ -537,7 +539,7 @@ function MobileQuickToolbar({ editor, toolbarStart, onComment, onComments, onLin
         {onComment ? <button type="button" onMouseDown={event => event.preventDefault()} onClick={onComment}
           disabled={!state.selection} aria-label="Comentar trecho selecionado" className={controlClass(false)}><MessageSquarePlus className="h-4 w-4" /></button> : null}
         {onComments ? <button type="button" onClick={onComments} aria-label={`Ver todos os comentários (${count})`}
-          className="flex h-10 shrink-0 items-center gap-1 rounded-full px-2 text-sm"><MessageSquare className="h-4 w-4" />{count}</button> : null}
+          className="flex h-10 shrink-0 items-center gap-1 rounded-full px-2 t-body"><MessageSquare className="h-4 w-4" />{count}</button> : null}
         <button type="button" onClick={onFind} aria-label="Buscar no texto" className={controlClass(false)}><Search className="h-4 w-4" /></button>
         <button type="button" onClick={onExpand} aria-label="Expandir editor" className={controlClass(false)}><Maximize2 className="h-4 w-4" /></button>
       </div>
@@ -1048,11 +1050,11 @@ function RichTextEditorInstance({
       : localDirty || saveState === 'dirty' ? 'Alterações não salvas'
         : saveState === 'saved' ? 'Salvo' : null;
   const saveStatus = (
-    <span className="inline-flex min-w-0 items-center gap-2 text-xs text-[var(--text-secondary)]">
+    <Text variant="meta" as="span" className="inline-flex min-w-0 items-center gap-2 text-[var(--text-secondary)]">
       <span role="status" aria-live="polite" aria-atomic="true">{status}</span>
       {saveState === 'error' && onRetrySave ? <button type="button" onClick={() => callbacksRef.current.onRetrySave?.()}
         className="min-h-8 shrink-0 underline underline-offset-2">Tentar novamente</button> : null}
-    </span>
+    </Text>
   );
   const composer = activeDraft ? (
     <CommentComposer draft={activeDraft} value={draftCommentText} onChange={setDraftCommentText}
@@ -1108,7 +1110,7 @@ function RichTextEditorInstance({
       )}>
       {isFullscreen ? <div className="flex min-h-14 shrink-0 items-center gap-3 border-b border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-2 pt-safe md:px-6">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-[var(--text-primary)]" title={documentTitle}>{documentTitle}</p>
+          <Text variant="itemTitle" as="p" className="truncate text-[var(--text-primary)]" title={documentTitle}>{documentTitle}</Text>
           {saveStatus}
         </div>
         {onNotesPanelChange ? (
@@ -1118,7 +1120,7 @@ function RichTextEditorInstance({
             aria-pressed={notesPanelOpen}
             title={notesPanelOpen ? 'Fechar rascunho (Ctrl+Shift+N)' : 'Abrir rascunho (Ctrl+Shift+N)'}
             className={cn(
-              'flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition',
+              'flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-3 t-label transition',
               notesPanelOpen
                 ? 'border-[var(--border-strong)] bg-[var(--bg-secondary)] text-[var(--text-primary)]'
                 : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
@@ -1135,12 +1137,12 @@ function RichTextEditorInstance({
           </button>
         ) : null}
         {commentsEnabled ? <button type="button" onClick={() => setCommentsPanelOpen(true)}
-          aria-label={`Ver todos os comentários (${openCount})`} className="flex min-h-10 shrink-0 items-center gap-2 rounded-[var(--radius-input)] px-3 text-sm hover:bg-[var(--bg-hover)]">
+          aria-label={`Ver todos os comentários (${openCount})`} className="flex min-h-10 shrink-0 items-center gap-2 rounded-[var(--radius-input)] px-3 t-body hover:bg-[var(--bg-hover)]">
           <MessageSquare className="h-4 w-4" /><span className="hidden sm:inline">Comentários</span>{openCount}
         </button> : null}
         <button type="button" onClick={() => setFullscreen(false)}
           aria-label="Sair do modo foco" title="Sair do modo foco (Ctrl+Shift+\\)"
-          className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-[var(--radius-input)] px-3 text-sm font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
+          className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-[var(--radius-input)] px-3 t-secondary text-[var(--text-secondary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
           <Minimize2 className="h-4 w-4" aria-hidden />
           <span>Sair do modo foco</span>
         </button>
@@ -1159,7 +1161,7 @@ function RichTextEditorInstance({
               aria-selected={mobileFocusPane === tab.id}
               onClick={() => setMobileFocusPane(tab.id)}
               className={cn(
-                'min-h-9 flex-1 rounded-[var(--radius-input)] px-3 text-sm font-medium transition',
+                'min-h-9 flex-1 rounded-[var(--radius-input)] px-3 t-body-strong transition',
                 mobileFocusPane === tab.id
                   ? 'bg-[var(--bg-secondary)] text-[var(--text-primary)]'
                   : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]',
@@ -1192,7 +1194,7 @@ function RichTextEditorInstance({
                     aria-pressed={commentsPanelOpen}
                     title="Abrir painel de comentários"
                     className={cn(
-                      'flex h-8 shrink-0 items-center gap-1.5 rounded-[var(--radius-input)] px-2 text-xs font-medium transition',
+                      'flex h-8 shrink-0 items-center gap-1.5 rounded-[var(--radius-input)] px-2 t-label transition',
                       'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]',
                       commentsPanelOpen && 'bg-[var(--bg-secondary)] text-[var(--text-primary)]',
                     )}
@@ -1224,21 +1226,21 @@ function RichTextEditorInstance({
             className="flex h-10 shrink-0 items-center gap-1.5 rounded-[var(--radius-input)] px-2.5 text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
           >
             <Maximize2 className="h-4 w-4" aria-hidden />
-            <span className="hidden text-xs font-medium sm:inline">Modo foco</span>
+            <Text variant="label" as="span" className="hidden sm:inline text-inherit">Modo foco</Text>
           </button>
         ) : null}
       </div> : null}
 
-      {sync.conflict ? <div role="alert" className="flex shrink-0 flex-wrap items-center gap-3 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm">
+      {sync.conflict ? <div role="alert" className="flex shrink-0 flex-wrap items-center gap-3 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 t-body">
         <p className="min-w-[12rem] flex-1">Chegou outra versão deste texto. Sua edição foi preservada.</p>
-        <button type="button" onClick={sync.keepLocal} className="min-h-10 rounded-[var(--radius-input)] border border-[var(--border-color)] px-3 font-medium">Manter minha edição</button>
+        <button type="button" onClick={sync.keepLocal} className="min-h-10 rounded-[var(--radius-input)] border border-[var(--border-color)] px-3 ">Manter minha edição</button>
         <button type="button" onClick={() => {
           sync.acceptIncoming(); setLocalDirty(false); setLinkRequest(null); setDraftCommentText('');
         }} className="min-h-10 px-3 underline underline-offset-2">Carregar versão recebida</button>
       </div> : null}
 
       {commentsEnabled && annotations.length > 0 && wideLayout && !isMobile && !compactMobileComposer && !isFullscreen ? (
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-b border-[var(--border-color)] px-3 py-1 text-xs text-[var(--text-secondary)]">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-b border-[var(--border-color)] px-3 py-1 t-meta text-[var(--text-secondary)]">
           <button type="button" aria-pressed={commentsOpen} onClick={() => setCommentsOpen(open => !open)}
             className="min-h-9 rounded-[var(--radius-input)] px-2 hover:bg-[var(--bg-hover)]">
             {commentsOpen ? 'Ocultar comentários ao lado' : 'Mostrar comentários ao lado'}
@@ -1330,8 +1332,8 @@ function RichTextEditorInstance({
         ) : null}
       </div>
 
-      {(!compactMobileComposer || isFullscreen) ? <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-2.5 text-xs text-[var(--text-secondary)]">
-        {meter !== 'none' ? <span>{wordCount} {wordCount === 1 ? 'palavra' : 'palavras'} · {durationLabel}</span> : <span />}
+      {(!compactMobileComposer || isFullscreen) ? <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-2.5 t-meta text-[var(--text-secondary)]">
+        {meter !== 'none' ? <span className="ml-auto inline-flex items-baseline gap-1"><TextCount as="span" count={wordCount} mode="words" /> · {durationLabel}</span> : <span />}
         <div className="flex min-w-0 flex-wrap items-center gap-3">{!isFullscreen ? saveStatus : null}{saveAction}</div>
       </div> : saveAction || status ? <div className="flex flex-wrap items-center gap-3 pb-20 pt-3">{saveStatus}{saveAction}</div> : null}
     </div>

@@ -24,7 +24,7 @@ import { useHydrateContentBodies } from '../../../hooks/useHydrateContentBodies'
 import type { Content, RecordingBlock } from '../../../lib/database';
 import { cn, htmlToReadableText } from '../../../lib/utils';
 import { isContentBodyLoaded } from '../../../features/contents/lib/contentBody';
-import { buildPrompterLines } from '../../../features/contents/lib/prompterLines';
+import { buildPrompterLines, EMPTY_SCRIPT_LINE } from '../../../features/contents/lib/prompterLines';
 import {
   CardDivider,
   type ChoiceOption,
@@ -272,14 +272,14 @@ export function BurstModeMobileScreen({
   const currentEntry = liveEntries[currentIndex] ?? null;
   const currentContent = currentEntry?.content ?? null;
   const currentScript = useMemo(() => {
-    if (!currentContent) return 'Este roteiro ainda não tem texto. Dá para gravar de improviso.';
+    if (!currentContent) return EMPTY_SCRIPT_LINE;
     if (!isContentBodyLoaded(currentContent)) {
       if (hasHydrationError(currentContent.id)) {
         return 'Não foi possível carregar o roteiro.';
       }
       return 'Carregando roteiro…';
     }
-    return htmlToReadableText(currentContent.script) || 'Este roteiro ainda não tem texto. Dá para gravar de improviso.';
+    return htmlToReadableText(currentContent.script) || EMPTY_SCRIPT_LINE;
   }, [currentContent, hasHydrationError]);
   const scriptLines = useMemo(() => buildPrompterLines(currentScript, PROMPTER_LINE_MAX_WORDS), [currentScript]);
   const totalWords = useMemo(() => scriptLines.reduce((sum, line) => sum + countWords(line), 0), [scriptLines]);
@@ -514,8 +514,9 @@ export function BurstModeMobileScreen({
             </button>
 
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-semibold">{currentContent.title || 'Roteiro sem título'}</p>
-              <p className={cn('text-xs font-semibold t-label-uppercase', theme.muted)}>
+              <Text variant="label" as="p" className={cn('t-label-uppercase', theme.muted)}>Modo gravação</Text>
+              <Text variant="label" as="p" className="truncate text-inherit">{currentContent.title || 'Roteiro sem título'}</Text>
+              <Text variant="label" as="p" className={cn('t-label-uppercase', theme.muted)}>
                 {playbackState === 'preparing'
                   ? 'Preparar'
                   : playbackState === 'reading'
@@ -523,7 +524,7 @@ export function BurstModeMobileScreen({
                     : 'Pausado'}
                 {' · '}
                 {formatSeconds(elapsedSeconds)} / {formatSeconds(totalEstimatedSeconds)}
-              </p>
+              </Text>
             </div>
 
             <button
@@ -581,9 +582,9 @@ export function BurstModeMobileScreen({
         <>
           <div className="flex items-center justify-between px-4 pb-3 pt-[calc(env(safe-area-inset-top)+10px)]">
             <div className="min-w-0">
-              <p className={cn('text-xs font-semibold ', theme.muted)}>
+              <Text variant="label" as="p" className={cn('', theme.muted)}>
                 Modo gravação
-              </p>
+              </Text>
               <Text variant="sectionTitle" truncate className={cn('mt-1', theme.text)}>{currentContent.title || 'Roteiro sem título'}</Text>
             </div>
 
@@ -591,7 +592,7 @@ export function BurstModeMobileScreen({
               type="button"
               onClick={onClose}
               className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-full border', theme.border, theme.card)}
-              aria-label="Fechar modo gravação"
+              aria-label="Fechar Modo gravação"
             >
               <X className="h-5 w-5" />
             </button>
@@ -608,8 +609,8 @@ export function BurstModeMobileScreen({
       {teleprompterEnabled && countdownRemaining !== null && (
         <div className="absolute inset-0 z-[10] flex flex-col items-center justify-center bg-[var(--overlay-scrim)] px-6">
           <div className={cn('rounded-[var(--radius-card-mobile)] border px-10 py-8 text-center shadow-none', theme.card, theme.border)}>
-            <p className={cn('text-xs font-semibold ', theme.muted)}>Preparar</p>
-            <p className="mt-2 text-6xl font-semibold">{countdownRemaining}</p>
+            <Text variant="label" as="p" className={cn('', theme.muted)}>Preparar</Text>
+            <Text variant="display" as="p" className="mt-2 text-inherit">{countdownRemaining}</Text>
           </div>
           <button
             type="button"
@@ -617,7 +618,7 @@ export function BurstModeMobileScreen({
               setCountdownRemaining(null);
               setIsPlaying(false);
             }}
-            className="mt-6 min-h-11 rounded-full border border-white/30 px-6 text-sm font-semibold t-label-uppercase text-white"
+            className="mt-6 min-h-11 rounded-full border border-white/30 px-6 t-label t-label-uppercase text-white"
           >
             Cancelar
           </button>
@@ -674,7 +675,7 @@ export function BurstModeMobileScreen({
       <Dialog
         open={isSettingsOpen && !isPreparing}
         onClose={() => setIsSettingsOpen(false)}
-        ariaLabel="Configurações do modo gravação"
+        ariaLabel="Configurações do Modo gravação"
         zIndex="z-[220]"
       >
         <section className="flex min-h-0 flex-1 flex-col bg-[var(--bg-elevated)] text-[var(--text-primary)]">
@@ -777,20 +778,20 @@ export function BurstModeMobileScreen({
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-[var(--radius-input)] bg-[var(--bg-hover)] px-3 py-3">
-      <p className="text-xs font-semibold  text-[var(--text-tertiary)]">
+      <Text variant="label" as="p" className="text-[var(--text-tertiary)]">
         {label}
-      </p>
-      <p className="mt-1 text-base font-semibold text-[var(--text-primary)]">{value}</p>
+      </Text>
+      <Text variant="bodyStrong" as="p" className="mt-1 text-[var(--text-primary)]">{value}</Text>
     </div>
   );
 }
 
 function InfoPill({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-[var(--bg-hover)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)]">
+    <Text variant="label" as="span" className="inline-flex items-center gap-1 rounded-full bg-[var(--bg-hover)] px-3 py-1 text-[var(--text-secondary)]">
       {icon}
       {label}
-    </span>
+    </Text>
   );
 }
 
@@ -823,7 +824,7 @@ function ActionIconButton({
       )}
     >
       {icon}
-      <span className="text-xs font-semibold ">{label}</span>
+      <Text variant="label" as="span" className="text-inherit">{label}</Text>
     </button>
   );
 }

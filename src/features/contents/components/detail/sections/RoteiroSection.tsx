@@ -293,7 +293,7 @@ export function RoteiroSection({
       aria-pressed={notesOpen}
       title={notesOpen ? 'Fechar rascunho (Ctrl+Shift+N)' : 'Abrir rascunho (Ctrl+Shift+N)'}
       className={cn(
-        'flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium transition',
+        'flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-2.5 t-label transition',
         'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
         notesOpen
           ? 'border-[var(--border-strong)] bg-[var(--bg-elevated)] text-[var(--text-primary)]'
@@ -436,7 +436,7 @@ export function RoteiroSection({
                 aria-label="Título do roteiro"
                 autoComplete="off"
                 className={cn(
-                  'w-full min-w-0 border-0 bg-transparent py-1 pr-8 text-xl font-semibold tracking-tight',
+                  'w-full min-w-0 border-0 bg-transparent py-1 pr-8 t-section-title tracking-tight',
                   'text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]',
                   'rounded-none shadow-none focus:border-0 focus:shadow-none',
                 )}
@@ -463,13 +463,13 @@ export function RoteiroSection({
               {showDraftSessionHint ? (
                 <div
                   role="status"
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-2 text-xs text-[var(--text-secondary)]"
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-2 t-meta text-[var(--text-secondary)]"
                 >
                   <span>Rascunho fechado só nesta edição — a preferência de abrir automaticamente continua ligada.</span>
                   <button
                     type="button"
                     onClick={() => setDraftSessionHintDismissed(true)}
-                    className="shrink-0 font-medium text-[var(--text-primary)] underline-offset-2 hover:underline"
+                    className="shrink-0 text-[var(--text-primary)] underline-offset-2 hover:underline"
                   >
                     Entendi
                   </button>

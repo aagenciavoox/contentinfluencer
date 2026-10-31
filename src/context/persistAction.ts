@@ -392,6 +392,12 @@ export async function persistAction({ action, userId, state, api }: PersistActio
       await persistenceApi.deleteAgendaItem(action.payload);
       return;
 
+    case 'CONVERT_POST_IT':
+      // O conteúdo precisa existir antes do vínculo (chave estrangeira).
+      await persistContentRecord(action.payload.content, userId, persistenceApi);
+      await persistenceApi.savePlanejamentoPostIt({...action.payload.postIt, userId});
+      return;
+
     case 'ADD_POST_IT':
     case 'UPDATE_POST_IT':
       await persistenceApi.savePlanejamentoPostIt({ ...action.payload, userId });

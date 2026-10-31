@@ -1,3 +1,4 @@
+import { Text } from './Text';
 import {useLayoutEffect, useRef, useState, type ReactNode} from 'react';
 import {createPortal} from 'react-dom';
 import {cn} from '../../lib/utils';
@@ -70,7 +71,7 @@ export function Tooltip({label, children, side = 'right', className, disabled = 
       {children}
       {open && point
         ? createPortal(
-            <span
+            <Text variant="meta" as="span"
               role="tooltip"
               style={{
                 position: 'fixed',
@@ -79,10 +80,10 @@ export function Tooltip({label, children, side = 'right', className, disabled = 
                 transform: side === 'top' ? 'translate(-50%, -100%)' : 'translateY(-50%)',
                 color: 'var(--text-primary)',
               }}
-              className="pointer-events-none z-[80] whitespace-nowrap rounded-md border border-[var(--border-color)] bg-[var(--bg-elevated)] px-2.5 py-1.5 t-meta font-medium shadow-[var(--shadow-dropdown)]"
+              className="pointer-events-none z-[80] whitespace-nowrap rounded-[var(--radius-sm)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-2.5 py-1.5 shadow-[var(--shadow-dropdown)] text-inherit"
             >
               {label}
-            </span>,
+            </Text>,
             document.body,
           )
         : null}

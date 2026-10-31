@@ -1,8 +1,7 @@
 import React, {useMemo, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
-import {format, parseISO} from 'date-fns';
-import {ptBR} from 'date-fns/locale';
 import {Layers, Pencil, Play, Tags, Trash2, Video} from 'lucide-react';
+import {dia} from '../../../../lib/dates';
 import {AppButton} from '../../../../components/ui/AppButton';
 import {ConfirmModal} from '../../../../components/feedback/modals/ConfirmModal';
 import {CONFIRM, EMPTY, type ConfirmState} from '../../../../lib/uiCopy';
@@ -67,12 +66,12 @@ export function RecordingQueueTab() {
     <div className="stack-2xl">
       <div className="grid-content">
         {filled.length === 0 && empty.length === 0 ? (
-          <div className="col-span-full mt-8 flex flex-col items-center gap-6 rounded-[3rem] border-2 border-dashed border-[var(--border-color)] py-32 text-center opacity-30">
+          <div className="col-span-full mt-8 flex flex-col items-center gap-6 rounded-[var(--radius-card)] border-2 border-dashed border-[var(--border-color)] py-32 text-center opacity-30">
             <Video className="h-12 w-12" />
-            <p className="text-sm font-semibold uppercase tracking-[0.3em]">{EMPTY.blocos.title}</p>
-            <span className="mt-2 text-center text-xs font-bold  opacity-70">
+            <Text variant="eyebrow" as="p">{EMPTY.blocos.title}</Text>
+            <Text variant="meta" as="span" className="mt-2 text-center opacity-70">
               {EMPTY.blocos.description}
-            </span>
+            </Text>
           </div>
         ) : (
           filled.map(({block, contents}) => (
@@ -137,8 +136,8 @@ type RecordingBlockCardProps = {
 };
 
 function formatBlockDate(value: string): string | null {
-  const parsed = parseISO(value);
-  return Number.isNaN(parsed.getTime()) ? null : format(parsed, "d 'de' MMM", {locale: ptBR});
+  if (!value || Number.isNaN(new Date(value).getTime())) return null;
+  return dia(value);
 }
 
 function RecordingBlockCard({block, contents, onOpen, onRecord, onDelete}: RecordingBlockCardProps) {
@@ -169,9 +168,9 @@ function RecordingBlockCard({block, contents, onOpen, onRecord, onDelete}: Recor
     >
       <div>
         <div className="mb-4 flex items-center justify-between">
-          <span
+          <Text variant="label" as="span"
             className={cn(
-              'rounded-full border px-3 py-1 text-xs font-semibold ',
+              'rounded-full border px-3 py-1 ',
               isEmpty
                 ? 'border-[var(--border-color)] bg-[var(--bg-hover)] text-[var(--text-secondary)]'
                 : isCompleted
@@ -180,7 +179,7 @@ function RecordingBlockCard({block, contents, onOpen, onRecord, onDelete}: Recor
             )}
           >
             {isEmpty ? 'Vazio' : isCompleted ? 'Gravado' : 'Para gravar'}
-          </span>
+          </Text>
 
           <button
             type="button"
@@ -196,10 +195,10 @@ function RecordingBlockCard({block, contents, onOpen, onRecord, onDelete}: Recor
           <Text variant="itemTitle" className="line-clamp-2 leading-snug">
             {block.name}
           </Text>
-          <span className="card-actions inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--border-color)] bg-[var(--bg-hover)] px-2 py-1 text-xs font-semibold text-[var(--text-tertiary)]">
+          <Text variant="label" as="span" className="card-actions inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--border-color)] bg-[var(--bg-hover)] px-2 py-1 text-[var(--text-tertiary)]">
             <Pencil className="h-3 w-3" />
             Editar
-          </span>
+          </Text>
         </div>
 
         {createdLabel ? (
@@ -214,7 +213,7 @@ function RecordingBlockCard({block, contents, onOpen, onRecord, onDelete}: Recor
         ) : null}
 
         <div className="mt-2 stack-sm">
-          <div className="flex items-center justify-between text-xs font-semibold  text-[var(--text-secondary)]">
+          <div className="flex items-center justify-between t-label text-[var(--text-secondary)]">
             <span>Progresso</span>
             <span>
               {completedCount} de {totalCount} gravados ({progressPercentage}%)
@@ -235,19 +234,19 @@ function RecordingBlockCard({block, contents, onOpen, onRecord, onDelete}: Recor
 
       <div className="mt-6 grid grid-cols-2 gap-3">
         <div className="stack-sm">
-          <div className="flex items-center gap-2 text-xs font-semibold  text-[var(--text-tertiary)]">
+          <div className="flex items-center gap-2 t-label text-[var(--text-tertiary)]">
             <Layers className="h-3 w-3" /> Roteiros
           </div>
-          <p className="text-lg font-semibold text-[var(--text-primary)]">{contents.length}</p>
+          <Text variant="sectionTitle" as="p" className="text-[var(--text-primary)]">{contents.length}</Text>
         </div>
 
         <div className="stack-sm">
-          <div className="flex items-center gap-2 text-xs font-semibold  text-[var(--text-tertiary)]">
+          <div className="flex items-center gap-2 t-label text-[var(--text-tertiary)]">
             <Tags className="h-3 w-3" /> Marcadores
           </div>
-          <p className="truncate text-xs font-bold text-[var(--text-primary)]">
+          <Text variant="label" as="p" className="truncate text-[var(--text-primary)]">
             {resolveRecordingContextSummary({block, content: firstContent})}
-          </p>
+          </Text>
         </div>
       </div>
 

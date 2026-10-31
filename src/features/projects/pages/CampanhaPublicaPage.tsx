@@ -1,3 +1,4 @@
+import { ValorVazio } from '../../../components/ui/ValorVazio';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
@@ -13,6 +14,7 @@ import {
 import { Text } from '../../../components/ui/Text';
 import { Surface } from '../../../components/ui/Surface';
 import { cn } from '../../../lib/utils';
+import { diaNumerico } from '../../../lib/dates';
 import {
   fetchCampanhaPublica,
   type CampanhaPublicaData,
@@ -25,20 +27,16 @@ const FOCUS_INTERACTIVE = 'focus-visible:outline-none focus-visible:shadow-[var(
 
 function fmtDate(value: string | null) {
   if (!value) return null;
-  return new Date(value + 'T00:00:00').toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+  return diaNumerico(value);
 }
 
 function fmtNum(value: number | null) {
-  if (value === null || value === undefined) return '—';
+  if (value === null || value === undefined) return <ValorVazio />;
   return value.toLocaleString('pt-BR');
 }
 
 function fmtPct(value: number | null) {
-  if (value === null || value === undefined) return '—';
+  if (value === null || value === undefined) return <ValorVazio />;
   return `${value.toFixed(1)}%`;
 }
 
@@ -90,7 +88,7 @@ function aggregateMetrics(metrics: CampanhaPublicaData['metrics']) {
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-function KpiCard({ label, value }: { label: string; value: string }) {
+function KpiCard({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <Surface variant="outlined" padding="lg">
       <Text variant="label" uppercase className="mb-2">{label}</Text>
@@ -468,7 +466,7 @@ export function CampanhaPublicaPage() {
         {/* ── Footer ── */}
         <div className="mt-12 text-center">
           <Text variant="meta">
-            Gerado com Criaki · {new Date().toLocaleDateString('pt-BR')}
+            Gerado com Criaki · {diaNumerico(new Date())}
           </Text>
         </div>
       </div>
@@ -476,7 +474,7 @@ export function CampanhaPublicaPage() {
   );
 }
 
-function StatCell({ label, value }: { label: string; value: string }) {
+function StatCell({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <span className="min-w-0 text-xs text-[var(--text-secondary)]">
       <Text variant="label" uppercase className="mb-0.5 block break-words">{label}</Text>
@@ -485,7 +483,7 @@ function StatCell({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <span className="flex flex-col gap-px">
       <Text variant="label" uppercase>{label}</Text>

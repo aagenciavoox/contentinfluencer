@@ -18,6 +18,7 @@ import { FilterChips } from '../../../components/ui/FilterChips';
 import { SelectField } from '../../../components/ui/SelectField';
 import { TagSelect } from '../../../components/ui/TagSelect';
 import { Text } from '../../../components/ui/Text';
+import { ValorVazio } from '../../../components/ui/ValorVazio';
 import { Surface } from '../../../components/ui/Surface';
 import { cn } from '../../../lib/utils';
 import { AnnotationNoteCard } from '../../../features/library/components/AnnotationNoteCard';
@@ -135,7 +136,7 @@ export function BookDetailMobileScreen({
   };
 
   return (
-    <div className="stack-md pb-24">
+    <div className="stack-md">
       <Surface variant="outlined" padding="sm" className="bg-[var(--bg-secondary)]">
         <div className="flex gap-3">
           <div className="h-16 w-11 shrink-0 overflow-hidden rounded-[var(--radius-input)] bg-[var(--bg-hover)]">
@@ -159,9 +160,9 @@ export function BookDetailMobileScreen({
 
           <div className="min-w-0 flex-1 stack-xs">
             {/* O título da obra já está no cabeçalho; aqui ficam autoria, tipo, status e nota. */}
-            <p className="text-sm text-[var(--text-secondary)]">
-              {livro.autorDiretor || 'Sem autoria'}
-            </p>
+            <Text variant="secondary" as="p" className="text-[var(--text-secondary)]">
+              {livro.autorDiretor?.trim() ? livro.autorDiretor : <ValorVazio />}
+            </Text>
             <div className="flex flex-wrap gap-1.5">
               <Badge variant="neutral">{itemTypeLabel}</Badge>
               <Badge variant="neutral">{livro.status}</Badge>
@@ -198,7 +199,7 @@ export function BookDetailMobileScreen({
       <MobileSegmentTabs
         rounded="tight"
         fullWidth
-        ariaLabel="Seções do item"
+        ariaLabel="Seções da obra"
         tabs={[
           { value: 'info', label: 'Info' },
           { value: 'anotacoes', label: 'Anotações', count: livro.anotacoes.length },
@@ -227,11 +228,11 @@ export function BookDetailMobileScreen({
               }
             />
 
-            <dl className="stack-md text-sm">
+            <dl className="stack-md t-body">
               {leituraNasAnotacoes ? null : (
                 <div>
                   <dt>
-                    <Text variant="label" uppercase className="font-semibold">
+                    <Text variant="label" uppercase className="">
                       Status
                     </Text>
                   </dt>
@@ -240,7 +241,7 @@ export function BookDetailMobileScreen({
               )}
               <div>
                 <dt>
-                  <Text variant="label" uppercase className="font-semibold">
+                  <Text variant="label" uppercase className="">
                     Gêneros
                   </Text>
                 </dt>
@@ -252,14 +253,14 @@ export function BookDetailMobileScreen({
                       ))}
                     </div>
                   ) : (
-                    <span className="text-[var(--text-secondary)]">Nenhum gênero</span>
+                    <ValorVazio />
                   )}
                 </dd>
               </div>
               {progressPercent !== null ? (
                 <div>
                   <dt>
-                    <Text variant="label" uppercase className="font-semibold">
+                    <Text variant="label" uppercase className="">
                       Progresso
                     </Text>
                   </dt>
@@ -300,6 +301,17 @@ export function BookDetailMobileScreen({
               className="bg-[var(--bg-secondary)]"
             />
           ) : null}
+
+          <div className="sticky top-[calc(env(safe-area-inset-top,0px)+3.5rem+1px)] z-20 -mx-4 bg-[var(--bg-primary)] px-4 py-2">
+            <AppButton
+              variant="secondary"
+              fullWidth
+              onClick={onOpenAnnotationComposer}
+              leftIcon={<Pencil className="h-4 w-4" aria-hidden />}
+            >
+              Adicionar anotação
+            </AppButton>
+          </div>
 
           {/* Uma fileira só, rolando para o lado (antes quebrava em duas linhas). */}
           <FilterChips<AnotacaoFiltro>
@@ -348,17 +360,6 @@ export function BookDetailMobileScreen({
               ))}
             </div>
           )}
-
-          {anotacoesFiltradas.length > 0 ? (
-            <button
-              type="button"
-              onClick={onOpenAnnotationComposer}
-              className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-20 inline-flex h-14 w-14 items-center justify-center rounded-full bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-[var(--shadow-dropdown)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-              aria-label="Nova anotação"
-            >
-              <Plus className="h-6 w-6" aria-hidden />
-            </button>
-          ) : null}
         </div>
       ) : null}
 
@@ -369,13 +370,13 @@ export function BookDetailMobileScreen({
         onClose={() => setEditInfoOpen(false)}
         desktopMaxW="max-w-md"
         zIndex="z-[110]"
-        ariaLabel="Editar item"
+        ariaLabel="Editar obra"
       >
-        <OverlayHeader title="Editar item" onClose={() => setEditInfoOpen(false)} />
+        <OverlayHeader title="Editar obra" onClose={() => setEditInfoOpen(false)} />
         <OverlayBody className="stack-lg">
 
           <label className="block stack-sm">
-            <span className="t-label text-[var(--text-tertiary)]">Título</span>
+            <Text variant="label" as="span" className="text-[var(--text-tertiary)]">Título</Text>
             <input
               type="text"
               value={infoLocal.titulo}
@@ -385,7 +386,7 @@ export function BookDetailMobileScreen({
           </label>
 
           <label className="block stack-sm">
-            <span className="t-label text-[var(--text-tertiary)]">{creatorLabel}</span>
+            <Text variant="label" as="span" className="text-[var(--text-tertiary)]">{creatorLabel}</Text>
             <input
               type="text"
               value={infoLocal.autor}
@@ -396,7 +397,7 @@ export function BookDetailMobileScreen({
 
           {leituraNasAnotacoes ? null : (
             <label className="block stack-sm">
-              <span className="t-label text-[var(--text-tertiary)]">Status de leitura</span>
+              <Text variant="label" as="span" className="text-[var(--text-tertiary)]">Status de leitura</Text>
               <SelectField
                 block
                 ariaLabel="Status de leitura"
@@ -427,7 +428,7 @@ export function BookDetailMobileScreen({
           {/* Livros avaliam por critério na aba Anotações. */}
           {leituraNasAnotacoes ? null : (
             <div className="stack-sm" role="group" aria-label="Avaliação">
-              <span className="t-label text-[var(--text-tertiary)]" aria-hidden>Avaliação</span>
+              <Text variant="label" as="span" className="text-[var(--text-tertiary)]" aria-hidden>Avaliação</Text>
               <div className="flex gap-1">
                 {[1, 2, 3, 4, 5].map((rating) => (
                   <button
@@ -455,7 +456,7 @@ export function BookDetailMobileScreen({
 
           <div className="grid-metrics">
             <label className="block stack-sm">
-              <span className="t-label text-[var(--text-tertiary)]">{progressLabels.current}</span>
+              <Text variant="label" as="span" className="text-[var(--text-tertiary)]">{progressLabels.current}</Text>
               <input
                 type="number"
                 min={0}
@@ -469,7 +470,7 @@ export function BookDetailMobileScreen({
               />
             </label>
             <label className="block stack-sm">
-              <span className="t-label text-[var(--text-tertiary)]">{progressLabels.total}</span>
+              <Text variant="label" as="span" className="text-[var(--text-tertiary)]">{progressLabels.total}</Text>
               <input
                 type="number"
                 min={1}

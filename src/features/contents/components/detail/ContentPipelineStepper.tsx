@@ -73,7 +73,7 @@ export function ContentPipelineStepper({
             className={cn(
               'tab-item',
               isActive && 'tab-item-active',
-              compact && 'h-7 min-h-0 px-2.5 py-1 text-xs font-medium text-[var(--text-tertiary)]',
+              compact && 'h-7 min-h-0 px-2.5 py-1 t-label text-[var(--text-tertiary)]',
               compact && isActive && 'bg-[var(--bg-hover)] text-[var(--text-primary)]',
             )}
           >

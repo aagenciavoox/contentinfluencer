@@ -1,3 +1,4 @@
+import { Text } from './Text';
 import {Globe, Newspaper} from 'lucide-react';
 import type {RedeSocial} from '../../lib/database';
 import {cn} from '../../lib/utils';
@@ -39,7 +40,7 @@ export function PlatformIcons({
         </span>
       ))}
       {resto > 0 ? (
-        <span role="listitem" title={nomes} aria-label={`mais ${resto}`} className="text-2xs tabular-nums">+{resto}</span>
+        <Text variant="meta" as="span" role="listitem" title={nomes} aria-label={`mais ${resto}`} className="tabular-nums text-inherit">+{resto}</Text>
       ) : null}
     </span>
   );

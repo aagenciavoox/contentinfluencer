@@ -151,14 +151,14 @@ export function PostingTimesOverview() {
       </div>
 
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2" aria-hidden>
-        <span className="inline-flex items-center gap-2 t-secondary text-[var(--text-secondary)]">
+        <Text variant="secondary" as="span" className="inline-flex items-center gap-2 text-[var(--text-secondary)]">
           <Globe className="h-4 w-4" />
           Usa o padrão geral
-        </span>
-        <span className="inline-flex items-center gap-2 t-secondary text-[var(--text-secondary)]">
+        </Text>
+        <Text variant="secondary" as="span" className="inline-flex items-center gap-2 text-[var(--text-secondary)]">
           <span className="h-2.5 w-2.5 rounded-full bg-[var(--brand-accent)]" />
           Horários próprios
-        </span>
+        </Text>
       </div>
 
       {/* Desktop e tablet: uma coluna por conta. */}
@@ -288,10 +288,10 @@ function CabecalhoConta({conta}: {conta: Platform}) {
 function AvisoDeLimite({total}: {total: number}) {
   if (total <= MAX_TIMES_PER_DAY) return null;
   return (
-    <span className="inline-flex items-center gap-1.5 t-meta font-semibold" style={{color: ALERTA_TEXTO}}>
+    <Text variant="meta" as="span" className="inline-flex items-center gap-1.5 text-inherit" style={{color: ALERTA_TEXTO}}>
       <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
       {`${total} horários · revisar limite`}
-    </span>
+    </Text>
   );
 }
 
@@ -318,12 +318,12 @@ function HorariosDoPadrao({times}: {times: string[]}) {
 
 function HorarioProprio({time}: {time: string}) {
   return (
-    <span
-      className="inline-flex h-8 min-w-[4.5rem] items-center justify-center rounded-[var(--radius-sm)] bg-[var(--brand-accent-soft)] px-3 t-body font-semibold tabular-nums"
+    <Text variant="body" as="span"
+      className="inline-flex h-8 min-w-[4.5rem] items-center justify-center rounded-[var(--radius-sm)] bg-[var(--brand-accent-soft)] px-3 tabular-nums text-inherit"
       style={{color: MARCA_TEXTO}}
     >
       {time}
-    </span>
+    </Text>
   );
 }
 
@@ -355,10 +355,10 @@ function CelulaDaConta({
               {proprios.map(time => <HorarioProprio key={time} time={time} />)}
             </span>
             <span className="flex flex-col items-start">
-              <span className="inline-flex items-center gap-1.5 t-meta font-semibold" style={{color: MARCA_TEXTO}}>
+              <Text variant="meta" as="span" className="inline-flex items-center gap-1.5 text-inherit" style={{color: MARCA_TEXTO}}>
                 <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--brand-accent)]" aria-hidden />
                 Próprio
-              </span>
+              </Text>
               <button
                 type="button"
                 onClick={onUsarPadrao}
@@ -426,7 +426,7 @@ function EditarDia({
               {times.map(time => (
                 <li
                   key={time}
-                  className="inline-flex h-9 items-center rounded-[var(--radius-sm)] bg-[var(--brand-accent-soft)] pl-3 t-body font-semibold tabular-nums"
+                  className="inline-flex h-9 items-center rounded-[var(--radius-sm)] bg-[var(--brand-accent-soft)] pl-3 t-body tabular-nums"
                   style={{color: MARCA_TEXTO}}
                 >
                   {time}

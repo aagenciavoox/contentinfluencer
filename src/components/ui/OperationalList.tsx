@@ -46,7 +46,7 @@ export function OperationalList({
       <button
         type="button"
         onClick={() => navigate(seeAllHref)}
-        className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-[var(--radius-input)] py-2.5 text-sm font-medium text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+        className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-[var(--radius-input)] py-2.5 t-secondary text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
       >
         {seeAllLabel}
         <ArrowRight className="h-3 w-3" />

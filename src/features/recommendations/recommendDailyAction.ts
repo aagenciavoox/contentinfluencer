@@ -33,7 +33,7 @@ function formatRoom(gap: number): string {
 }
 
 function formatLastPublication(timestamp: string | null): string {
-  if (!timestamp) return 'ainda não saiu neste ciclo';
+  if (!timestamp) return 'ainda sem publicação';
   return `última publicação ${formatDistanceToNow(new Date(timestamp), { addSuffix: true, locale: ptBR })}`;
 }
 
@@ -92,7 +92,7 @@ export function recommendDailyAction({
           roteirosEscritos: postCandidate.metrics.roteirosEscritos,
         },
         contentIds: postCandidate.metrics.postableContentIds,
-        message: `${formatRoom(gap)} de "${pilar.nome}" neste ciclo. A série "${postCandidate.serie.name}" tem ${formatCount(postCandidate.metrics.gravadosProntos, 'roteiro gravado', 'roteiros gravados')} e ${formatLastPublication(postCandidate.metrics.ultimaPublicacao)}.`,
+        message: `${formatRoom(gap)} de "${pilar.nome}" para a meta do pilar. A série "${postCandidate.serie.name}" tem ${formatCount(postCandidate.metrics.gravadosProntos, 'roteiro gravado', 'roteiros gravados')} e ${formatLastPublication(postCandidate.metrics.ultimaPublicacao)}.`,
         href: '/calendario',
       };
     }
@@ -124,7 +124,7 @@ export function recommendDailyAction({
       configuredMetrics.totalDisponivel,
       configuredMetrics.gapCiclo,
     ),
-    message: 'O que já está pronto cobre as metas do ciclo. Dá para seguir no seu ritmo.',
+    message: 'O que já está pronto cobre a meta de cada pilar. Dá para seguir no seu ritmo.',
     href: '/criacao',
   };
 }
