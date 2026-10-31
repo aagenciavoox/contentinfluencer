@@ -2,6 +2,12 @@ export type RecommendationKind = 'post' | 'record' | 'on_track' | 'configure_met
 
 export interface SerieProductionMetrics {
   serieId: string;
+  /** Episódios cadastrados na série e nos quadros, uma vez cada. */
+  episodios: number;
+  /** Publicações por conta ainda previstas ou programadas. */
+  publicacoesPrevistas: number;
+  /** Publicações por conta já publicadas. */
+  publicacoesRealizadas: number;
   roteirosEscritos: number;
   gravadosProntos: number;
   publicadosNoCiclo: number;

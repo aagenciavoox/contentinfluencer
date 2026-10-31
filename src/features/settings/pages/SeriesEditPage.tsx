@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
@@ -11,7 +11,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
-import type { Serie } from '../../../lib/database';
+import type { Serie, SerieTipoAgrupamento } from '../../../lib/database';
 import { CONFIRM } from '../../../lib/uiCopy';
 import {
   aplicarFuncaoPublicada,
@@ -24,15 +24,30 @@ import {
   type SerieEditChromeState,
 } from '../components/SerieEditForm';
 import {nextFreeSerieColor, takenSerieColorKeys} from '../lib/serieColors';
+import {tipoDaSerie} from '../lib/serieAgrupamento';
+
+const TITULO_CRIAR: Record<SerieTipoAgrupamento, string> = {
+  familia: 'Criar família',
+  serie: 'Criar série',
+  quadro: 'Criar quadro',
+};
+
+const TITULO_EDITAR: Record<SerieTipoAgrupamento, string> = {
+  familia: 'Editar família',
+  serie: 'Editar série',
+  quadro: 'Editar quadro',
+};
 import {ordenarContas} from '../../contas/lib/contas';
 import {roteirosQueSeguemASerie, type AlteracaoDeRoteiro} from '../../editorial/lib/legendaSerie';
 
 function SerieEditHeaderActions({
   isCreate,
+  rotuloSalvar,
   onDelete,
   chrome,
 }: {
   isCreate: boolean;
+  rotuloSalvar: string;
   onDelete?: () => void;
   chrome: SerieEditChromeState | null;
 }) {
@@ -60,7 +75,7 @@ function SerieEditHeaderActions({
         onClick={chrome.handleSave}
         disabled={!chrome.canSave}
       >
-        Salvar alterações
+        {rotuloSalvar}
       </AppButton>
     </div>
   );
@@ -72,6 +87,7 @@ export function SeriesEditPage() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { serieId } = useParams<{ serieId: string }>();
+  const [searchParams] = useSearchParams();
   const [chrome, setChrome] = useState<SerieEditChromeState | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pendingApply, setPendingApply] = useState<Serie | null>(null);
@@ -81,11 +97,27 @@ export function SeriesEditPage() {
     aplicarFuncao: boolean;
   } | null>(null);
 
-  const isCreate = !serieId || serieId === 'nova';
+  const { pathname } = useLocation();
+  // Quadro só nasce dentro de uma série: /series/:serieId/quadros/novo.
+  const criandoQuadro = pathname.endsWith('/quadros/novo');
+  const isCreate = criandoQuadro || !serieId || serieId === 'nova';
   const editingSerie = useMemo(
     () => (isCreate ? null : state.series.find(serie => serie.id === serieId) ?? null),
     [isCreate, serieId, state.series],
   );
+  const serieDoQuadro = criandoQuadro ? state.series.find(serie => serie.id === serieId) ?? null : null;
+  const familiaPedida = searchParams.get('familia');
+  const familiaInicial = !criandoQuadro && familiaPedida
+    && state.series.some(serie => serie.id === familiaPedida && tipoDaSerie(serie.id, state.series) === 'familia')
+    ? familiaPedida
+    : null;
+  const tipo: SerieTipoAgrupamento = editingSerie
+    ? tipoDaSerie(editingSerie.id, state.series)
+    : criandoQuadro
+      ? 'quadro'
+      : searchParams.get('tipo') === 'familia' ? 'familia' : 'serie';
+  const quadroSemSerie = criandoQuadro
+    && (!serieDoQuadro || tipoDaSerie(serieDoQuadro.id, state.series) !== 'serie');
 
   const contas = useMemo(() => {
     const ligadas = new Set((editingSerie?.plataformas ?? []).map(item => item.platformId));
@@ -95,10 +127,12 @@ export function SeriesEditPage() {
   const editorialSettings = state.editorial;
   const voltarLista = () => navigate('/series');
   const voltarSerie = (id: string) => navigate(`/series/${id}`);
-  const voltar = () => {
-    if (isCreate || !serieId || serieId === 'nova') voltarLista();
-    else voltarSerie(serieId);
-  };
+  const destinoDeVolta = criandoQuadro && serieId
+    ? `/series/${serieId}?aba=quadros`
+    : familiaInicial
+      ? `/series/${familiaInicial}?aba=quadros`
+      : isCreate || !serieId ? '/series' : `/series/${serieId}`;
+  const voltar = () => navigate(destinoDeVolta);
 
   const alteracoesDeLegenda = (serie: Serie) => {
     const anterior = state.series.find(item => item.id === serie.id);
@@ -142,7 +176,9 @@ export function SeriesEditPage() {
 
     setPendingApply(null);
     setLegendaPendente(null);
-    voltarSerie(payload.id);
+    // Quadro novo volta para a série, na lista de quadros; o resto abre a própria página.
+    if (!exists && tipo === 'quadro' && payload.parentId) navigate(`/series/${payload.parentId}?aba=quadros`);
+    else voltarSerie(payload.id);
   };
 
   const seguirParaLegenda = (serie: Serie, aplicarFuncao: boolean) => {
@@ -182,21 +218,26 @@ export function SeriesEditPage() {
     ? `Última edição ${formatDistanceToNow(new Date(editingSerie.updatedAt), {addSuffix: true, locale: ptBR})} por você.`
     : null;
 
-  const pageTitle = isCreate ? 'Nova série' : 'Editar definições';
+  const pageTitle = isCreate ? TITULO_CRIAR[tipo] : TITULO_EDITAR[tipo];
   const pageMeta = isCreate
-    ? 'Cadastre os padrões e a identidade desta série.'
-    : editingSerie?.name || 'Atualize os padrões e a identidade desta série.';
+    ? criandoQuadro && serieDoQuadro
+      ? `Dentro de ${serieDoQuadro.name}. Só o nome é necessário agora.`
+      : 'Só o nome é necessário agora. O resto pode ficar para depois.'
+    : editingSerie?.name || '';
+  const rotuloVolta = criandoQuadro ? serieDoQuadro?.name || 'Série' : isCreate ? 'Séries e quadros' : editingSerie?.name || 'Série';
 
   const handleChromeChange = useCallback((next: SerieEditChromeState) => {
     setChrome(next);
   }, []);
 
-  if (!isCreate && !editingSerie) {
+  if ((!isCreate && !editingSerie) || (quadroSemSerie && state.isLoaded)) {
     return (
       <PageLayout variant="settings">
         <div className="mx-auto max-w-3xl text-center">
           <Text variant="body" className="text-[var(--text-tertiary)]">
-            Esta série não existe mais.
+            {quadroSemSerie
+              ? 'Quadros são criados dentro de uma série. Abra a série e use Criar quadro.'
+              : 'Esta série não existe mais.'}
           </Text>
           <AppButton variant="secondary" className="mt-4" onClick={voltarLista}>
             Voltar para séries
@@ -206,12 +247,20 @@ export function SeriesEditPage() {
     );
   }
 
-  const formKey = editingSerie?.id || 'new';
+  const formKey = editingSerie?.id || `novo:${tipo}:${criandoQuadro ? serieId : familiaInicial ?? ''}`;
 
   const formElement = (
     <SerieEditForm
       key={formKey}
-      initial={editingSerie ?? {cor: nextFreeSerieColor(state.series)}}
+      tipo={tipo}
+      initial={editingSerie ?? {
+        cor: nextFreeSerieColor(state.series),
+        tipoAgrupamento: tipo,
+        // Quadro já chega dentro da série; série criada pela família já chega nela.
+        parentId: criandoQuadro ? serieId ?? null : familiaInicial,
+        // Quadro acompanha a meta da série até ganhar uma própria.
+        ...(tipo === 'quadro' ? { frequenciaRecomendada: 'Sob demanda' } : {}),
+      }}
       takenColors={[...takenSerieColorKeys(state.series, editingSerie?.id)]}
       contas={contas}
       pilares={state.pilares}
@@ -232,7 +281,7 @@ export function SeriesEditPage() {
         <div className="min-h-full bg-[var(--bg-primary)] px-4 pb-28 pt-4">
           <div className="mb-4 flex items-center justify-between gap-2">
             <AppButton variant="ghost" size="sm" onClick={voltar}>
-              {isCreate ? 'Séries' : 'Série'}
+              {rotuloVolta}
             </AppButton>
             <div className="flex items-center gap-2">
               {chrome ? (
@@ -246,7 +295,7 @@ export function SeriesEditPage() {
                     onClick={chrome.handleSave}
                     disabled={!chrome.canSave}
                   >
-                    Salvar
+                    {isCreate ? 'Criar' : 'Salvar'}
                   </AppButton>
                 </>
               ) : null}
@@ -300,14 +349,15 @@ export function SeriesEditPage() {
         header={
           <DesktopPageHeader
             section="Criação"
-            backLabel={isCreate ? 'Séries' : 'Série'}
-            backTo={isCreate || !serieId ? '/series' : `/series/${serieId}`}
+            backLabel={rotuloVolta}
+            backTo={destinoDeVolta}
             title={pageTitle}
             meta={pageMeta}
             hideSearch
             actions={
               <SerieEditHeaderActions
                 isCreate={isCreate}
+                rotuloSalvar={isCreate ? TITULO_CRIAR[tipo] : 'Salvar alterações'}
                 onDelete={() => setConfirmDelete(true)}
                 chrome={chrome}
               />

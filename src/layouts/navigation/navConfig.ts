@@ -169,7 +169,7 @@ export function buildSidebarSections(moduleFlags: ModuleFlags): NavSectionDefini
             { to: '/criacao/transcricao', label: 'Transcrição', icon: AudioLines },
           ],
         },
-        { to: '/series', label: 'Séries', icon: ListVideo, end: false },
+        { to: '/series', label: 'Séries e quadros', icon: ListVideo, end: false },
         { to: '/editorial', label: 'Editorial', icon: Columns3 },
         { to: '/analises', label: 'Análises', icon: ChartColumn },
         { to: '/contas', label: 'Contas e horários', icon: AtSign },

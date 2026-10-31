@@ -1,84 +1,48 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Layers, Plus } from 'lucide-react';
+import { LayoutGrid, Layers, List, Plus } from 'lucide-react';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
-import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { OverlayBody } from '../../../components/overlays/OverlayBody';
 import { OverlayFooter } from '../../../components/overlays/OverlayFooter';
 import { OverlayHeader } from '../../../components/overlays/OverlayHeader';
-import { SettingsPageScaffold } from '../../../components/settings/SettingsPageScaffold';
-import { SettingsGridCard, SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/SettingsGridCard';
 import { AppButton } from '../../../components/ui/AppButton';
-import { Badge } from '../../../components/ui/Badge';
-import { FilterChips } from '../../../components/ui/FilterChips';
-import { QueryViewState, resolveQueryViewStatus } from '../../../components/ui/QueryViewState';
-import { SegmentTabs } from '../../../components/ui/SegmentTabs';
-import { Surface } from '../../../components/ui/Surface';
+import { QueryViewState } from '../../../components/ui/QueryViewState';
+import { SelectField } from '../../../components/ui/SelectField';
 import { Text } from '../../../components/ui/Text';
-import { ToggleRow } from '../../../components/ui/ToggleSwitch';
 import { ToolbarSearchInput } from '../../../components/ui/ToolbarSearchInput';
+import { ViewModeToggle } from '../../../components/ui/ViewModeToggle';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useIsMobile } from '../../../hooks/useIsMobile';
+import { useScrollMemory } from '../../../hooks/useSessionState';
+import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
+import { PageLayout } from '../../../layouts/page/PageLayout';
 import type { Serie } from '../../../lib/database';
-import { CONFIRM, type ConfirmState } from '../../../lib/uiCopy';
 import { SeriesMobileScreen } from '../../../mobile/screens/settings/SeriesMobileScreen';
 import { generateUUID } from '../../../utils/uuid';
-import { atualizarPreferencias } from '../../editorial/lib/editorialSettings';
-import { rotuloFuncaoPadrao } from '../../editorial/lib/funcoes';
-import { formatOpenItems, getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
-import { caminhoDaSerie } from '../../editorial/lib/serieArvore';
-import { exibirSeriesVisiveis, type SerieListaModo } from '../../editorial/lib/serieLista';
-import { CONTENT_STATUS, normalizeContentStatus } from '../../contents/lib/contentPipeline';
-import { isActiveCreation } from '../../contents/lib/contentWorkflow';
+import { PreferenciasSeries, ResultadoDaLista } from '../components/series-list/SeriesListResultado';
+import { useSeriesLista, type SeriesListaModelo } from '../hooks/useSeriesLista';
 import { PILAR_PRESET_CORES } from '../lib/pilarConstants';
 import { isSerieColorTaken, nextFreeSerieColor, serieColorKey, takenSerieColorKeys } from '../lib/serieColors';
-
-type SeriesFilter = 'todas' | 'ativas' | 'inativas' | 'abertas';
+import type { FiltroSituacao, FiltroTipoLista, VistaLista } from '../lib/seriesListaView';
 
 export function SeriesSettingsPage() {
   const { state, dispatch } = useAppContext();
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<SeriesFilter>('todas');
-  const [modoLista, setModoLista] = useState<SerieListaModo>('agrupada');
-  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
+  const modelo = useSeriesLista();
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
   const [quickName, setQuickName] = useState('');
   const [quickColor, setQuickColor] = useState(() => nextFreeSerieColor([]));
-  const editorialSettings = state.editorial;
-  const preferenciasSeries = [
-    {
-      key: 'quickSeriesCreate',
-      title: 'Criação rápida de séries',
-      description: 'Crie com nome e cor e complete os detalhes depois.',
-      enabled: editorialSettings.quickSeriesCreate,
-      toggle: () => dispatch({
-        type: 'SET_EDITORIAL',
-        payload: atualizarPreferencias({ ...editorialSettings, quickSeriesCreate: !editorialSettings.quickSeriesCreate }, {}),
-      }),
-    },
-    {
-      key: 'openInfoNotices',
-      title: 'Avisar sobre informações em aberto',
-      description: 'Sinaliza séries sem pilar, função, recorrência, formato ou esforço.',
-      enabled: editorialSettings.openInfoNotices,
-      toggle: () => dispatch({
-        type: 'SET_EDITORIAL',
-        payload: atualizarPreferencias({ ...editorialSettings, openInfoNotices: !editorialSettings.openInfoNotices }, {}),
-      }),
-    },
-  ];
 
-  const openCreatePage = () => {
-    if (editorialSettings.quickSeriesCreate) {
+  const criarSerie = () => {
+    if (state.editorial.quickSeriesCreate) {
       setQuickColor(nextFreeSerieColor(state.series));
       setQuickCreateOpen(true);
       return;
     }
-    navigate('/series/nova');
+    navigate('/series/novo');
   };
 
   const handleQuickCreate = () => {
@@ -112,71 +76,6 @@ export function SeriesSettingsPage() {
     navigate(`/series/${serie.id}`);
   };
 
-  const roteiroCountBySerie = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const content of state.contents) {
-      if (!content.seriesId || !isActiveCreation(content)) continue;
-      if (normalizeContentStatus(content.status) === CONTENT_STATUS.IDEIA) continue;
-      map.set(content.seriesId, (map.get(content.seriesId) || 0) + 1);
-    }
-    return map;
-  }, [state.contents]);
-
-  const openItems = useMemo(
-    () => new Map(state.series.map(serie => [
-      serie.id,
-      getSerieOpenItems(serie, { series: state.series, contents: state.contents }),
-    ])),
-    [state.contents, state.series],
-  );
-  const avisosLigados = editorialSettings.openInfoNotices;
-  const filtroAtivo: SeriesFilter = !avisosLigados && filter === 'abertas' ? 'todas' : filter;
-
-  const filtradas = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return state.series.filter(serie => {
-      if (filtroAtivo === 'ativas' && !serie.ativa) return false;
-      if (filtroAtivo === 'inativas' && serie.ativa) return false;
-      if (filtroAtivo === 'abertas' && (openItems.get(serie.id)?.length ?? 0) === 0) return false;
-      if (!query) return true;
-      const haystack = [serie.name, serie.bordao, serie.notes, serie.frequenciaRecomendada]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      return haystack.includes(query);
-    });
-  }, [filtroAtivo, openItems, search, state.series]);
-
-  const exibicao = useMemo(
-    () => exibirSeriesVisiveis(filtradas, modoLista),
-    [filtradas, modoLista],
-  );
-
-  const filterCounts = useMemo(() => {
-    const ativas = state.series.filter(serie => serie.ativa).length;
-    const abertas = state.series.filter(serie => (openItems.get(serie.id)?.length ?? 0) > 0).length;
-    return {
-      todas: state.series.length,
-      ativas,
-      inativas: state.series.length - ativas,
-      abertas,
-    };
-  }, [openItems, state.series]);
-
-  const seriesStatus = resolveQueryViewStatus({
-    loading: !state.isLoaded,
-    enabled: true,
-    fetchAttempted: state.isLoaded,
-    itemCount: state.series.length,
-  });
-
-  const remover = (serie: Serie) => {
-    setConfirm({
-      ...CONFIRM.excluirSerie,
-      onConfirm: () => dispatch({ type: 'DELETE_SERIE', payload: serie.id }),
-    });
-  };
-
   const quickSheet = (
     <QuickCreateSheet
       open={quickCreateOpen}
@@ -194,16 +93,7 @@ export function SeriesSettingsPage() {
     return (
       <>
         <div className="min-h-full bg-[var(--bg-primary)]">
-          <SeriesMobileScreen
-            series={state.series}
-            contents={state.contents}
-            roteiroCountBySerie={roteiroCountBySerie}
-            onOpen={serieId => navigate(`/series/${serieId}`)}
-            onCreate={openCreatePage}
-            onConfigure={serieId => navigate(`/series/${serieId}/editar`)}
-            showOpenBadges={avisosLigados}
-            preferencias={preferenciasSeries}
-          />
+          <SeriesMobileScreen modelo={modelo} onCreate={criarSerie} onCreateFamilia={() => navigate('/series/novo?tipo=familia')} />
         </div>
         {quickSheet}
       </>
@@ -211,156 +101,94 @@ export function SeriesSettingsPage() {
   }
 
   return (
-    <SettingsPageScaffold
-      section="Criação"
-      title="Séries"
-      icon={Layers}
-      showBack={false}
-      variant="default"
-      toolbar={
-        state.series.length > 0 ? (
-          <div className="desktop-subheader !mb-0">
-            <ToolbarSearchInput
-              value={search}
-              onChange={setSearch}
-              placeholder="Buscar série ou quadro…"
-              className="desktop-subheader-search"
-            />
-            <FilterChips<SeriesFilter>
-              value={filtroAtivo}
-              onChange={setFilter}
-              ariaLabel="Filtrar séries"
-              options={[
-                { id: 'todas', label: 'Todas', count: filterCounts.todas },
-                { id: 'ativas', label: 'Ativas', count: filterCounts.ativas },
-                { id: 'inativas', label: 'Inativas', count: filterCounts.inativas },
-                ...(avisosLigados ? [{ id: 'abertas' as const, label: 'Em aberto', count: filterCounts.abertas }] : []),
-              ]}
-            />
-          </div>
-        ) : undefined
-      }
-      actions={
-        <AppButton
-          onClick={openCreatePage}
-          variant="primary"
-          leftIcon={<Plus className="h-4 w-4" />}
-        >
-          Nova série
-        </AppButton>
+    <PageLayout
+      header={
+        <DesktopPageHeader
+          section="Criação"
+          title="Séries e quadros"
+          meta="Organize seus conteúdos recorrentes."
+          actions={[
+            <AppButton key="familia" variant="secondary" onClick={() => navigate('/series/novo?tipo=familia')} leftIcon={<Plus className="h-4 w-4" />}>
+              Criar família
+            </AppButton>,
+            <AppButton key="serie" variant="primary" onClick={criarSerie} leftIcon={<Plus className="h-4 w-4" />}>
+              Criar série
+            </AppButton>,
+          ]}
+        />
       }
     >
-      <Text variant="secondary" className="mb-4">
-        Séries e quadros. Abrir um item mostra os episódios.
-      </Text>
-      <Surface padding="sm" className="mb-4 grid gap-x-6 gap-y-2 md:grid-cols-2">
-        {preferenciasSeries.map(row => (
-          <ToggleRow
-            key={row.key}
-            id={`series-${row.key}`}
-            enabled={row.enabled}
-            onToggle={row.toggle}
-            title={row.title}
-            className="gap-4 py-1"
-          >
-            <span className="stack-xs">
-              <Text variant="body" as="span">{row.title}</Text>
-              <Text variant="secondary" as="span">{row.description}</Text>
-            </span>
-          </ToggleRow>
-        ))}
-      </Surface>
-      {state.series.length > 0 ? (
-        <div className="mb-4">
-          <SegmentTabs<SerieListaModo>
-            value={modoLista}
-            onChange={setModoLista}
-            ariaLabel="Visualização das séries"
+      <SeriesListaDesktop modelo={modelo} onCreate={criarSerie} />
+      {quickSheet}
+    </PageLayout>
+  );
+}
+
+function SeriesListaDesktop({ modelo, onCreate }: { modelo: SeriesListaModelo; onCreate: () => void }) {
+  const { filtros, atualizarFiltro, lista } = modelo;
+  const rolagem = useScrollMemory('criaki:series:lista', modelo.status === 'ready');
+
+  return (
+    <div ref={rolagem} className="stack-lg">
+      {modelo.total > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <ToolbarSearchInput
+            value={filtros.busca}
+            onChange={valor => atualizarFiltro('busca', valor)}
+            placeholder="Buscar séries e quadros"
+            className="min-w-[14rem] flex-1"
+          />
+          <SelectField
+            ariaLabel="Tipo"
+            prefix="Tipo:"
+            value={filtros.tipo}
+            onChange={valor => atualizarFiltro('tipo', valor as FiltroTipoLista)}
+            options={modelo.opcoesTipo}
+          />
+          <SelectField
+            ariaLabel="Pilar"
+            prefix="Pilar:"
+            value={filtros.pilar}
+            onChange={valor => atualizarFiltro('pilar', valor)}
+            options={modelo.opcoesPilar}
+          />
+          <SelectField
+            ariaLabel="Situação"
+            value={filtros.situacao}
+            onChange={valor => atualizarFiltro('situacao', valor as FiltroSituacao)}
+            options={modelo.opcoesSituacao}
+          />
+          <ViewModeToggle<VistaLista>
+            ariaLabel="Ver como"
+            value={filtros.vista}
+            onChange={vista => atualizarFiltro('vista', vista)}
             options={[
-              { id: 'agrupada', label: 'Agrupada' },
-              { id: 'lista', label: 'Lista' },
+              { value: 'cards', label: 'Cards', icon: LayoutGrid },
+              { value: 'lista', label: 'Lista', icon: List },
             ]}
           />
         </div>
       ) : null}
+
+      <PreferenciasSeries preferencias={modelo.preferencias} />
+
       <QueryViewState
-        status={seriesStatus}
+        status={modelo.status}
+        onRetry={modelo.tentarDeNovo}
         skeletonCount={6}
-        skeletonVariant="row"
+        skeletonVariant="card"
         emptyIcon={<Layers className="h-8 w-8" />}
         emptyTitle="Nenhuma série criada"
-        emptyDescription="Crie a primeira série para agrupar roteiros recorrentes."
+        emptyDescription="Crie a primeira série para organizar conteúdos recorrentes."
         emptyAction={
-          <AppButton variant="primary" leftIcon={<Plus className="h-4 w-4" />} onClick={openCreatePage}>
-            Nova série
+          <AppButton variant="primary" leftIcon={<Plus className="h-4 w-4" />} onClick={onCreate}>
+            Criar série
           </AppButton>
         }
       >
-        {exibicao.length === 0 ? (
-          <div className="py-10 text-center">
-            <Text variant="body" className="text-[var(--text-tertiary)]">Nenhuma série encontrada</Text>
-          </div>
-        ) : (
-          <div className={SETTINGS_ENTITY_GRID_CLASS}>
-            {exibicao.map(({ serie, profundidade }) => {
-              const items = openItems.get(serie.id) ?? [];
-              const aberta = avisosLigados && items.length > 0;
-              const caminho = profundidade > 0
-                ? caminhoDaSerie(serie.id, state.series).slice(0, -1).map(item => item.name).filter(Boolean).join(' · ')
-                : null;
-              const roteiros = roteiroCountBySerie.get(serie.id) || 0;
-              return (
-                <SettingsGridCard
-                  key={serie.id}
-                  compact
-                  title={serie.name}
-                  color={serie.cor || undefined}
-                  imageUrl={serie.capaUrl}
-                  active={serie.ativa}
-                  dimmed={!serie.ativa}
-                  onOpen={() => navigate(`/series/${serie.id}`)}
-                  onToggle={() => dispatch({
-                    type: 'UPDATE_SERIE',
-                    payload: { ...serie, ativa: !serie.ativa, updatedAt: new Date().toISOString() },
-                  })}
-                  onDelete={() => remover(serie)}
-                  meta={[
-                    caminho ? `Quadro de ${caminho}` : null,
-                    serie.frequenciaRecomendada || 'Sob demanda',
-                    rotuloFuncaoPadrao(serie.funcaoPadrao),
-                    `${roteiros} ${roteiros === 1 ? 'roteiro' : 'roteiros'}`,
-                  ].filter(Boolean).join(' · ')}
-                  footer={(
-                    <AppButton variant="secondary" size="sm" onClick={() => navigate(`/series/${serie.id}/editar`)}>
-                      Editar definições
-                    </AppButton>
-                  )}
-                >
-                  {aberta ? (
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <Badge variant="neutral">Em aberto</Badge>
-                      <Text variant="meta" as="span">{formatOpenItems(items)}</Text>
-                    </div>
-                  ) : null}
-                </SettingsGridCard>
-              );
-            })}
-          </div>
-        )}
+        <ResultadoDaLista modelo={modelo} />
       </QueryViewState>
-      {quickSheet}
-      <ConfirmModal
-        open={Boolean(confirm)}
-        message={confirm?.message ?? ''}
-        confirmLabel={confirm?.confirmLabel}
-        cancelLabel={confirm?.cancelLabel}
-        onConfirm={() => {
-          confirm?.onConfirm();
-          setConfirm(null);
-        }}
-        onCancel={() => setConfirm(null)}
-      />
-    </SettingsPageScaffold>
+    </div>
   );
 }
 
@@ -387,7 +215,7 @@ function QuickCreateSheet({
   return (
     <BottomSheetModal open={open} onClose={onClose} desktopMaxW="max-w-md">
       <OverlayHeader onClose={onClose}>
-        <Text variant="sectionTitle">Nova série</Text>
+        <Text variant="sectionTitle">Criar série</Text>
         <Text variant="meta" className="mt-1 text-[var(--text-secondary)]">Comece com nome e cor.</Text>
       </OverlayHeader>
       <OverlayBody className="stack-lg">
@@ -398,7 +226,7 @@ function QuickCreateSheet({
             value={name}
             onChange={event => onNameChange(event.target.value)}
             placeholder="Nome da série"
-            className="ds-input w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2 text-sm"
+            className="ds-input w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2 t-body"
           />
         </label>
         <div>

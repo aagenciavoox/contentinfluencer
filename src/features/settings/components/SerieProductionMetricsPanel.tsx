@@ -22,26 +22,39 @@ function Metric({ label, value }: { label: string; value: number }) {
 export function SerieProductionMetricsPanel({
   serie,
   contents,
+  series = [],
   onActiveChange,
   lastEditLabel,
 }: {
   serie: Serie;
   contents: Content[];
+  /** Todas as séries, para somar os quadros. */
+  series?: readonly Pick<Serie, 'id' | 'parentId'>[];
   onActiveChange?: (ativa: boolean) => void;
   lastEditLabel?: string | null;
 }) {
-  const metrics = computeSerieMetrics(serie, contents);
+  const metrics = computeSerieMetrics(serie, contents, new Date(), series);
+  const temQuadros = series.some(item => item.parentId === serie.id);
   const lastPublicationLabel = metrics.ultimaPublicacao
     ? formatDistanceToNow(new Date(metrics.ultimaPublicacao), { addSuffix: true, locale: ptBR })
     : 'Nunca';
 
   return (
     <div>
-      <Text variant="itemTitle">Produção e publicação</Text>
+      <Text variant="itemTitle">Episódios e publicações</Text>
       <div className="mt-4 grid grid-cols-3 divide-x divide-[var(--border-color)]">
+        <Metric label="Episódios" value={metrics.episodios} />
+        <Metric label="Previstas" value={metrics.publicacoesPrevistas} />
+        <Metric label="Publicadas" value={metrics.publicacoesRealizadas} />
+      </div>
+      <Text variant="meta" as="p" className="mt-2 text-[var(--text-tertiary)]">
+        {temQuadros
+          ? 'Inclui os episódios dos quadros, uma vez cada. Publicações contam por conta.'
+          : 'Publicações contam por conta.'}
+      </Text>
+      <div className="mt-4 grid grid-cols-2 divide-x divide-[var(--border-color)]">
         <Metric label="Escritos" value={metrics.roteirosEscritos} />
-        <Metric label="Produzidos" value={metrics.gravadosProntos} />
-        <Metric label="Publicados" value={metrics.publicadosNoCiclo} />
+        <Metric label="Prontos para publicar" value={metrics.gravadosProntos} />
       </div>
       <div className="mt-4 flex items-center justify-between gap-3">
         <Text variant="meta" className="text-[var(--text-secondary)]">

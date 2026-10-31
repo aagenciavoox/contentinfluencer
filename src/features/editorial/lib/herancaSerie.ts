@@ -24,6 +24,7 @@ export type SerieHeranca = Pick<
   | 'formatoVisualPadrao'
   | 'energiaPadrao'
   | 'ativa'
+  | 'semPilar'
 > & SerieNo;
 
 export type ConteudoHeranca = {
@@ -95,6 +96,8 @@ export function resolverPilar(
     if (pilar) {
       return { pilarId: pilar, origemSerieId: serie.id, estado: 'herdada' };
     }
+    // "Sem pilar" de propósito para a subida: não herda do agrupamento superior.
+    if (serie.semPilar) break;
   }
   return { pilarId: null, origemSerieId: null, estado: 'vazia' };
 }

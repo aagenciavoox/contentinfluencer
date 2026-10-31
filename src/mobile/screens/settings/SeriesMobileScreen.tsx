@@ -1,231 +1,118 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Layers, Plus } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
-import { Badge } from '../../../components/ui/Badge';
-import { EmptyState } from '../../../components/ui/EmptyState';
-import { FilterChips } from '../../../components/ui/FilterChips';
-import { MoreMenu } from '../../../components/ui/MoreMenu';
-import { SegmentTabs } from '../../../components/ui/SegmentTabs';
+import { QueryViewState } from '../../../components/ui/QueryViewState';
 import { Text } from '../../../components/ui/Text';
-import { ToggleRow } from '../../../components/ui/ToggleSwitch';
-import { getSerieOpenItems } from '../../../features/editorial/lib/serieCompleteness';
-import { caminhoDaSerie } from '../../../features/editorial/lib/serieArvore';
-import { exibirSeriesVisiveis, type SerieListaModo } from '../../../features/editorial/lib/serieLista';
-import type { Content, Serie } from '../../../lib/database';
-import { MobileListCard } from '../../components/MobileListCard';
+import { useScrollMemory } from '../../../hooks/useSessionState';
+import { PreferenciasSeries, ResultadoDaLista } from '../../../features/settings/components/series-list/SeriesListResultado';
+import type { SeriesListaModelo } from '../../../features/settings/hooks/useSeriesLista';
+import type { FiltroSituacao, FiltroTipoLista } from '../../../features/settings/lib/seriesListaView';
+import { MobileFilterSelect, MobileFilterSheet } from '../../components/MobileFilterSheet';
 import { MobileSearchBar } from '../../components/MobileSearchBar';
 
-interface SeriesMobileScreenProps {
-  series: Serie[];
-  contents?: readonly Pick<Content, 'seriesId' | 'deletedAt'>[];
-  roteiroCountBySerie: Map<string, number>;
-  onOpen: (serieId: string) => void;
-  onCreate: () => void;
-  onConfigure: (serieId: string) => void;
-  showOpenBadges: boolean;
-  preferencias?: Array<{ key: string; title: string; description: string; enabled: boolean; toggle: () => void }>;
-}
-
-type SeriesFilter = 'todas' | 'ativas' | 'inativas' | 'abertas';
-
-function formatRoteiroCount(count: number) {
-  return `${count} roteiro${count === 1 ? '' : 's'}`;
-}
-
+/** Lista de séries no celular: uma coluna, busca no topo e os filtros num painel. */
 export function SeriesMobileScreen({
-  series,
-  contents = [],
-  roteiroCountBySerie,
-  onOpen,
+  modelo,
   onCreate,
-  onConfigure,
-  showOpenBadges,
-  preferencias = [],
-}: SeriesMobileScreenProps) {
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<SeriesFilter>('todas');
-  const [modoLista, setModoLista] = useState<SerieListaModo>('agrupada');
-  const activeCount = series.filter(serie => serie.ativa).length;
-  const filtroAtivo: SeriesFilter = !showOpenBadges && filter === 'abertas' ? 'todas' : filter;
-
-  const filterCounts = useMemo(() => {
-    const ativas = series.filter(serie => serie.ativa).length;
-    const abertas = series.filter(serie => getSerieOpenItems(serie, { series, contents }).length > 0).length;
-    return {
-      todas: series.length,
-      ativas,
-      inativas: series.length - ativas,
-      abertas,
-    };
-  }, [contents, series]);
-
-  const exibicao = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    const filtradas = series.filter(serie => {
-      if (filtroAtivo === 'ativas' && !serie.ativa) return false;
-      if (filtroAtivo === 'inativas' && serie.ativa) return false;
-      if (filtroAtivo === 'abertas' && getSerieOpenItems(serie, { series, contents }).length === 0) return false;
-      if (!query) return true;
-      const haystack = [serie.name, serie.bordao, serie.notes, serie.frequenciaRecomendada]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      return haystack.includes(query);
-    });
-    return exibirSeriesVisiveis(filtradas, modoLista);
-  }, [contents, filtroAtivo, modoLista, search, series]);
+  onCreateFamilia,
+}: {
+  modelo: SeriesListaModelo;
+  onCreate: () => void;
+  onCreateFamilia: () => void;
+}) {
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+  const { filtros, atualizarFiltro } = modelo;
+  const rolagem = useScrollMemory('criaki:series:lista-celular', modelo.status === 'ready');
+  const rotuloOpcao = (opcoes: readonly { value: string; label: string }[], valor: string) =>
+    opcoes.find(opcao => opcao.value === valor)?.label ?? valor;
+  const ativos = [
+    filtros.tipo !== 'todos' ? `Tipo: ${rotuloOpcao(modelo.opcoesTipo, filtros.tipo)}` : null,
+    filtros.pilar !== 'todos' ? `Pilar: ${rotuloOpcao(modelo.opcoesPilar, filtros.pilar)}` : null,
+    filtros.situacao !== 'ativas' ? `Situação: ${modelo.rotulosSituacao[filtros.situacao]}` : null,
+  ].filter((item): item is string => Boolean(item));
 
   return (
-    <div className="stack-lg">
-      <section className="stack-md">
-        <Text variant="secondary" className="px-1">
-          {series.length === 0
-            ? 'Séries e quadros. Abrir um item mostra os episódios.'
-            : `${activeCount} ativa${activeCount === 1 ? '' : 's'} · ${series.length} no total`}
-        </Text>
-        <AppButton
-          variant="primary"
-          fullWidth
-          onClick={onCreate}
-          leftIcon={<Plus className="h-4 w-4" />}
-        >
-          Nova série
+    <div ref={rolagem} className="stack-lg">
+      <div className="grid grid-cols-2 gap-2">
+        <AppButton variant="secondary" fullWidth onClick={onCreateFamilia} leftIcon={<Plus className="h-4 w-4" />}>
+          Criar família
         </AppButton>
-      </section>
+        <AppButton variant="primary" fullWidth onClick={onCreate} leftIcon={<Plus className="h-4 w-4" />}>
+          Criar série
+        </AppButton>
+      </div>
 
-      {preferencias.length > 0 ? (
-        <section className="stack-sm rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
-          {preferencias.map(row => (
-            <ToggleRow
-              key={row.key}
-              id={`series-mobile-${row.key}`}
-              enabled={row.enabled}
-              onToggle={row.toggle}
-              title={row.title}
-              className="gap-4"
-            >
-              <span className="stack-xs">
-                <Text variant="body" as="span">{row.title}</Text>
-                <Text variant="secondary" as="span">{row.description}</Text>
-              </span>
-            </ToggleRow>
-          ))}
-        </section>
-      ) : null}
-
-      {series.length > 0 ? (
+      {modelo.total > 0 ? (
         <section className="stack-sm">
           <MobileSearchBar
-            value={search}
-            onChange={setSearch}
-            placeholder="Buscar série ou quadro…"
+            value={filtros.busca}
+            onChange={valor => atualizarFiltro('busca', valor)}
+            placeholder="Buscar séries e quadros"
+            onFilterClick={() => setFiltrosAbertos(true)}
+            filterLabel={ativos.length > 0 ? `Abrir filtros (${ativos.length} ativos)` : 'Abrir filtros'}
           />
-          <SegmentTabs<SerieListaModo>
-            value={modoLista}
-            onChange={setModoLista}
-            ariaLabel="Visualização das séries"
-            options={[
-              { id: 'agrupada', label: 'Agrupada' },
-              { id: 'lista', label: 'Lista' },
-            ]}
-          />
-          <FilterChips<SeriesFilter>
-            ariaLabel="Filtrar séries"
-            value={filtroAtivo}
-            onChange={setFilter}
-            options={[
-              { id: 'todas', label: 'Todas', count: filterCounts.todas },
-              { id: 'ativas', label: 'Ativas', count: filterCounts.ativas },
-              { id: 'inativas', label: 'Inativas', count: filterCounts.inativas },
-              ...(showOpenBadges ? [{ id: 'abertas' as const, label: 'Em aberto', count: filterCounts.abertas }] : []),
-            ]}
-          />
+          {ativos.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1">
+              <Text variant="meta" as="span">{ativos.join(' · ')}</Text>
+              <button
+                type="button"
+                onClick={modelo.limparFiltros}
+                className="min-h-11 t-button text-[var(--text-primary)] underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              >
+                Limpar filtros
+              </button>
+            </div>
+          ) : null}
         </section>
       ) : null}
 
-      <section className="stack-md">
-        {series.length === 0 ? (
-          <EmptyState
-            compact
-            title="Nenhuma série criada"
-            description="Crie a primeira série para agrupar roteiros recorrentes."
-            icon={<Layers className="h-8 w-8" />}
-            action={
-              <AppButton variant="secondary" onClick={onCreate} leftIcon={<Plus className="h-4 w-4" />}>
-                Nova série
-              </AppButton>
-            }
-          />
-        ) : exibicao.length === 0 ? (
-          <EmptyState
-            compact
-            title="Nenhuma série encontrada"
-            description="Ajuste a busca ou o filtro para ver outras séries."
-            icon={<Layers className="h-8 w-8" />}
-            action={
-              <AppButton
-                variant="secondary"
-                onClick={() => {
-                  setSearch('');
-                  setFilter('todas');
-                }}
-              >
-                Limpar busca e filtro
-              </AppButton>
-            }
-          />
-        ) : (
-          exibicao.map(({ serie, profundidade }) => {
-            const roteiroCount = roteiroCountBySerie.get(serie.id) || 0;
-            const serieColor = serie.cor || 'var(--text-tertiary)';
-            const caminho = profundidade > 0
-              ? caminhoDaSerie(serie.id, series).slice(0, -1).map(item => item.name).filter(Boolean).join(' · ')
-              : null;
-            const aberta = showOpenBadges && getSerieOpenItems(serie, { series, contents }).length > 0;
-            return (
-              <div key={serie.id} style={profundidade > 0 ? { marginLeft: Math.min(profundidade, 3) * 12 } : undefined}>
-                <MobileListCard
-                  title={serie.name}
-                  imageUrl={serie.capaUrl}
-                  description={serie.notes?.trim() || undefined}
-                  onClick={() => onOpen(serie.id)}
-                  meta={
-                    <Text variant="meta" as="p" className="leading-none">
-                      <span
-                        className="entity-color-dot mr-1.5 inline-block h-2 w-2 rounded-full align-middle"
-                        style={{ backgroundColor: serieColor }}
-                        aria-hidden
-                      />
-                      {[
-                        caminho ? `Quadro de ${caminho}` : null,
-                        serie.frequenciaRecomendada || 'Sob demanda',
-                        formatRoteiroCount(roteiroCount),
-                      ].filter(Boolean).join(' · ')}
-                    </Text>
-                  }
-                  trailing={
-                    <div className="mt-1 flex items-start">
-                      <MoreMenu
-                        size="sm"
-                        items={[{ label: 'Editar definições', onClick: () => onConfigure(serie.id) }]}
-                        triggerClassName="border-transparent bg-transparent"
-                      />
-                    </div>
-                  }
-                  status={
-                    !serie.ativa || aberta ? (
-                      <div className="flex flex-wrap items-center gap-2">
-                        {!serie.ativa ? <Badge variant="neutral">Inativa</Badge> : null}
-                        {aberta ? <Badge variant="neutral">Em aberto</Badge> : null}
-                      </div>
-                    ) : undefined
-                  }
-                />
-              </div>
-            );
-          })
-        )}
-      </section>
+      <PreferenciasSeries preferencias={modelo.preferencias} />
+
+      <QueryViewState
+        status={modelo.status}
+        onRetry={modelo.tentarDeNovo}
+        skeletonCount={4}
+        skeletonVariant="row"
+        emptyIcon={<Layers className="h-8 w-8" />}
+        emptyTitle="Nenhuma série criada"
+        emptyDescription="Crie a primeira série para organizar conteúdos recorrentes."
+        emptyAction={
+          <AppButton variant="secondary" leftIcon={<Plus className="h-4 w-4" />} onClick={onCreate}>
+            Criar série
+          </AppButton>
+        }
+      >
+        <ResultadoDaLista modelo={modelo} celular />
+      </QueryViewState>
+
+      <MobileFilterSheet
+        open={filtrosAbertos}
+        title="Filtros"
+        onClose={() => setFiltrosAbertos(false)}
+        onClear={() => {
+          modelo.limparFiltros();
+          setFiltrosAbertos(false);
+        }}
+      >
+        <MobileFilterSelect
+          label="Tipo"
+          value={filtros.tipo}
+          onChange={valor => atualizarFiltro('tipo', valor as FiltroTipoLista)}
+          options={modelo.opcoesTipo}
+        />
+        <MobileFilterSelect
+          label="Pilar"
+          value={filtros.pilar}
+          onChange={valor => atualizarFiltro('pilar', valor)}
+          options={modelo.opcoesPilar}
+        />
+        <MobileFilterSelect
+          label="Situação"
+          value={filtros.situacao}
+          onChange={valor => atualizarFiltro('situacao', valor as FiltroSituacao)}
+          options={modelo.opcoesSituacao}
+        />
+      </MobileFilterSheet>
     </div>
   );
 }

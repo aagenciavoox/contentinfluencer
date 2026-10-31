@@ -55,11 +55,16 @@ assert.equal(editorialPilar.title, 'Editar pilar');
 assert.equal(editorialPilar.backTo, '/editorial?aba=pilares');
 
 const editorialSerie = getMobileRouteMeta('/editorial/series/nova');
-assert.equal(editorialSerie.title, 'Nova série');
+assert.equal(editorialSerie.title, 'Criar série');
 assert.equal(editorialSerie.backTo, '/series');
 assert.equal(getMobileRouteMeta('/series/serie-1').title, 'Série');
 assert.equal(getMobileRouteMeta('/series/serie-1').backTo, '/series');
 assert.equal(getMobileRouteMeta('/series/serie-1/editar').backTo, '/series/serie-1');
+assert.equal(getMobileRouteMeta('/series/novo').title, 'Criar série');
+assert.equal(getMobileRouteMeta('/series/serie-1/criacao-em-massa').backTo, '/series/serie-1');
+assert.equal(getMobileRouteMeta('/series/serie-1/quadros/novo').title, 'Criar quadro');
+assert.equal(getMobileRouteMeta('/series/serie-1/quadros/novo').backTo, '/series/serie-1?aba=quadros');
+assert.equal(getMobileRouteMeta('/series/serie-1/temporadas/t-1').backTo, '/series/serie-1');
 
 assert.equal(getMobileRouteMeta('/configuracoes/perfil').title, 'Perfil');
 assert.equal(getMobileRouteMeta('/configuracoes/dna').title, 'Configurações');

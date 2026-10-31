@@ -46,6 +46,11 @@ function LegacySeriesEditRedirect() {
   return <Navigate to={`/series/${serieId ?? ''}/editar${search}${hash}`} replace />;
 }
 
+function LegacySeriesNewRedirect() {
+  const { search, hash } = useLocation();
+  return <Navigate to={`/series/novo${search}${hash}`} replace />;
+}
+
 function LegacySeriesScriptsRedirect() {
   const { serieId } = useParams<{ serieId: string }>();
   const { search, hash } = useLocation();
@@ -96,7 +101,7 @@ export function buildAppRoutes(): RouteObject[] {
                 { path: '/contas', element: <PlataformasSettings /> },
                 { path: '/editorial/pilares/nova', element: <PilarEditar /> },
                 { path: '/editorial/pilares/:pilarId', element: <PilarEditar /> },
-                { path: '/editorial/series/nova', element: <Navigate to="/series/nova" replace /> },
+                { path: '/editorial/series/nova', element: <Navigate to="/series/novo" replace /> },
                 { path: '/editorial/series/:serieId', element: <LegacySeriesEditRedirect /> },
                 {
                   path: '/planejamento',
@@ -186,12 +191,16 @@ export function buildAppRoutes(): RouteObject[] {
                 { path: '/configuracoes/looks', element: <Navigate to="/configuracoes" replace /> },
                 { path: '/configuracoes/regras', element: <Navigate to="/editorial?aba=pilares" replace /> },
                 { path: '/series', element: <SeriesSettings /> },
-                { path: '/series/nova', element: <SeriesEditar /> },
+                { path: '/series/novo', element: <SeriesEditar /> },
+                { path: '/series/nova', element: <LegacySeriesNewRedirect /> },
                 { path: '/series/:serieId/editar', element: <SeriesEditar /> },
+                { path: '/series/:serieId/quadros/novo', element: <SeriesEditar /> },
                 { path: '/series/:serieId/roteiros', element: <LegacySeriesScriptsRedirect /> },
+                { path: '/series/:serieId/criacao-em-massa', element: <SeriesRoteiros /> },
+                { path: '/series/:serieId/temporadas/:temporadaId', element: <SeriesRoteiros /> },
                 { path: '/series/:serieId', element: <SeriesRoteiros /> },
                 { path: '/configuracoes/series', element: <Navigate to="/series" replace /> },
-                { path: '/configuracoes/series/nova', element: <Navigate to="/series/nova" replace /> },
+                { path: '/configuracoes/series/nova', element: <Navigate to="/series/novo" replace /> },
                 {
                   path: '/configuracoes/series/:serieId/editar',
                   element: <LegacySeriesEditRedirect />,

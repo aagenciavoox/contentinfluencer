@@ -50,7 +50,7 @@ export function SeriesAboutPanel({
       ) : (
         <Text variant="secondary">Nada preenchido sobre esta série ainda.</Text>
       )}
-      <AppButton variant="secondary" onClick={onEdit}>Editar definições</AppButton>
+      <AppButton variant="secondary" onClick={onEdit}>Editar</AppButton>
     </Surface>
   );
 }
@@ -72,20 +72,20 @@ export function SeriesSettingsPanel({
   const formatos = (serie.formatoVisualPadrao ?? []).map(item => item.trim()).filter(Boolean);
   const filhos = filhosDaSerie(serie.id, series);
   const heranca = serie.parentId
-    ? 'O que ficar vazio aqui continua vindo da série pai.'
+    ? 'O que ficar vazio aqui continua vindo do agrupamento superior.'
     : filhos.length > 0
       ? 'Quadros sem definição própria usam estes padrões.'
-      : 'Roteiros novos usam estes padrões.';
+      : 'Conteúdos novos usam estes padrões.';
 
   return (
     <Surface variant="outlined" padding="md" className="stack-lg">
       <Campo rotulo="Frequência" valor={serie.frequenciaRecomendada?.trim() || 'Não definida'} />
-      <Campo rotulo="Função" valor={rotuloFuncaoPadrao(serie.funcaoPadrao) || 'Não definida'} />
+      <Campo rotulo="Objetivo" valor={rotuloFuncaoPadrao(serie.funcaoPadrao) || 'Não definido'} />
       <Campo rotulo="Esforço" valor={serie.energiaPadrao ? ENERGIA_LABELS[serie.energiaPadrao] : 'Não definido'} />
       <Campo rotulo="Formatos" valor={formatos.length > 0 ? formatos.join(', ') : 'Não definido'} />
       <Campo rotulo="Contas" valor={contas.length > 0 ? contas.join(', ') : 'Nenhuma conta ligada'} />
       <Text variant="secondary">{heranca}</Text>
-      <AppButton variant="secondary" onClick={onEdit}>Editar definições</AppButton>
+      <AppButton variant="secondary" onClick={onEdit}>Editar</AppButton>
     </Surface>
   );
 }

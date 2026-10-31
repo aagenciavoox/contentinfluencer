@@ -41,7 +41,6 @@ export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMe
   if (pathname === '/biblioteca/analise') {
     return {
       title: 'Análise',
-      subtitle: 'Progresso e anotações por obra.',
       mode: 'back',
       backTo: '/biblioteca',
     };
@@ -50,7 +49,6 @@ export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMe
   if (pathname === '/biblioteca/anotacoes') {
     return {
       title: 'Anotações',
-      subtitle: 'Todas as notas da Biblioteca.',
       mode: 'back',
       backTo: '/biblioteca/analise',
     };
@@ -113,9 +111,9 @@ export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMe
     };
   }
 
-  if (pathname === '/editorial/series/nova' || pathname === '/series/nova') {
+  if (pathname === '/editorial/series/nova' || pathname === '/series/nova' || pathname === '/series/novo') {
     return {
-      title: 'Nova série',
+      title: 'Criar série',
       mode: 'back',
       backTo: '/series',
       titleVariant: 'compact-center',
@@ -162,7 +160,37 @@ export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMe
   if (pathname.startsWith('/series/') && pathname.endsWith('/editar')) {
     const serieId = pathname.split('/')[2] || '';
     return {
-      title: 'Editar definições',
+      title: 'Editar série',
+      mode: 'back',
+      backTo: serieId ? `/series/${serieId}` : '/series',
+      titleVariant: 'compact-center',
+    };
+  }
+
+  if (pathname.startsWith('/series/') && pathname.endsWith('/quadros/novo')) {
+    const serieId = pathname.split('/')[2] || '';
+    return {
+      title: 'Criar quadro',
+      mode: 'back',
+      backTo: serieId ? `/series/${serieId}?aba=quadros` : '/series',
+      titleVariant: 'compact-center',
+    };
+  }
+
+  if (pathname.startsWith('/series/') && pathname.endsWith('/criacao-em-massa')) {
+    const serieId = pathname.split('/')[2] || '';
+    return {
+      title: 'Adicionar em massa',
+      mode: 'back',
+      backTo: serieId ? `/series/${serieId}` : '/series',
+      titleVariant: 'compact-center',
+    };
+  }
+
+  if (pathname.startsWith('/series/') && pathname.includes('/temporadas/')) {
+    const serieId = pathname.split('/')[2] || '';
+    return {
+      title: 'Temporada',
       mode: 'back',
       backTo: serieId ? `/series/${serieId}` : '/series',
       titleVariant: 'compact-center',
@@ -232,17 +260,15 @@ export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMe
     case '/calendario':
       return {
         title: 'Calendário',
-        subtitle: 'Roteiros, eventos e projetos na linha do tempo.',
       };
     case '/planejamento':
     case '/programacao':
       return {
         title: 'Planejamento',
-        subtitle: 'Post-its antes da ideia.',
       };
     case '/series':
       return {
-        title: 'Séries',
+        title: 'Séries e quadros',
         titleVariant: 'compact-center',
       };
     case '/editorial':
@@ -253,7 +279,6 @@ export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMe
     case '/analises':
       return {
         title: 'Análises',
-        subtitle: 'Publicações, vínculos e métricas por conta.',
         titleVariant: 'compact-center',
       };
     case '/contas':
@@ -269,7 +294,6 @@ export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMe
     case '/projetos':
       return {
         title: 'Projetos',
-        subtitle: 'Contexto e datas combinadas.',
       };
     case '/gravacao':
       return {

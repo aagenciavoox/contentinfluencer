@@ -41,11 +41,11 @@ import { semanaDe } from '../../editorial/lib/periodoEditorial';
 import { pilarPrincipalDaSerie } from '../../editorial/lib/pilarDaSerie';
 import { getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
 import { formariaCicloParent } from '../../editorial/lib/serieArvore';
-import { acharTemporadaPorNome, temporadasDoEscopo } from '../../editorial/lib/temporadas';
-import type { FuncaoPadraoSerie } from '../../../lib/database';
+import { pilarEfetivoDaSerie } from '../lib/serieAgrupamento';
+import { erroDoVinculo, opcoesDePai } from '../lib/serieHierarquia';
+import type { FuncaoPadraoSerie, SerieTipoAgrupamento } from '../../../lib/database';
 import { FUNCAO_DESCRICOES, FUNCAO_LABELS, FUNCOES } from '../../editorial/lib/funcoes';
 import { useAppContext } from '../../../context/AppContext';
-import { useAuth } from '../../../context/AuthContext';
 
 const SERIE_DEFAULT_COR = '#6366f1';
 
@@ -54,6 +54,30 @@ const UNIDADES_FREQUENCIA = [
   { value: 'quinzena', label: 'Quinzena' },
   { value: 'mes', label: 'Mês' },
 ] as const;
+
+/**
+ * Cada tipo tem o seu formulário. Quadro herda da série o que não aparece aqui;
+ * temporadas são criadas na página da série.
+ */
+const SECOES_POR_TIPO: Record<SerieTipoAgrupamento, readonly string[]> = {
+  familia: ['serie-identidade', 'serie-organizacao', 'serie-frequencia'],
+  serie: [
+    'serie-identidade',
+    'serie-organizacao',
+    'serie-frequencia',
+    'serie-modelo',
+    'serie-direcionamento',
+    'serie-destinos',
+    'serie-legendas',
+  ],
+  quadro: ['serie-identidade', 'serie-organizacao', 'serie-frequencia', 'serie-modelo'],
+};
+
+const NOME_DO_TIPO: Record<SerieTipoAgrupamento, { artigo: string; exemplo: string }> = {
+  familia: { artigo: 'a família', exemplo: 'Ex.: Descomplicando' },
+  serie: { artigo: 'a série', exemplo: 'Ex.: Descomplicando Branbran' },
+  quadro: { artigo: 'o quadro', exemplo: 'Ex.: Por onde começo?' },
+};
 
 function escolhaSobDemanda(value: string): boolean {
   return value
@@ -88,7 +112,7 @@ const FUNCAO_OPTIONS: Array<{ value: FuncaoPadraoSerie; label: string; descripti
     label: FUNCAO_LABELS[value],
     description: FUNCAO_DESCRICOES[value],
   })),
-  { value: 'varia', label: 'Varia por conteúdo', description: 'Cada roteiro escolhe o seu.' },
+  { value: 'varia', label: 'Varia por roteiro', description: 'Cada roteiro escolhe o seu.' },
 ];
 
 export type SerieEditChromeState = {
@@ -97,16 +121,6 @@ export type SerieEditChromeState = {
   handleSave: () => void;
   handleCancel: () => void;
 };
-
-function serieSlugFromName(name: string): string {
-  return name
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '') || 'serie';
-}
 
 function CardHeading({
   title,
@@ -144,7 +158,7 @@ function FieldLabel({
   optional?: boolean;
 }) {
   return (
-    <Text variant="label" className="mb-1.5 block font-medium text-[var(--text-primary)]">
+    <Text variant="label" className="mb-1.5 block text-[var(--text-primary)]">
       {children}
       {required ? <span className="text-[var(--brand-accent-text)]"> *</span> : null}
       {optional ? <span className="font-normal text-[var(--text-tertiary)]"> · opcional</span> : null}
@@ -257,7 +271,7 @@ function SuggestField({
         type="button"
         aria-label="Abrir sugestões"
         onClick={() => setOpen(current => !current)}
-        className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-[var(--radius-input)] p-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
       >
         <ChevronDown className="h-4 w-4" />
       </button>
@@ -277,7 +291,7 @@ function SuggestField({
                   onChange(option);
                   setOpen(false);
                 }}
-                className="flex w-full items-center px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                className="flex w-full items-center px-3 py-2 text-left t-body text-[var(--text-primary)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
               >
                 {option}
               </button>
@@ -294,12 +308,21 @@ function SuggestField({
 }
 
 const inputClass =
-  'ds-input w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
+  'ds-input w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-3 py-2 t-body text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
-type AbaCadastro = 'sobre' | 'roteiros' | 'publicacao';
+const SECOES_DO_FORMULARIO = [
+  { id: 'serie-identidade', label: 'Identidade' },
+  { id: 'serie-organizacao', label: 'Organização' },
+  { id: 'serie-frequencia', label: 'Frequência' },
+  { id: 'serie-modelo', label: 'Modelo de roteiro' },
+  { id: 'serie-direcionamento', label: 'Direcionamento editorial' },
+  { id: 'serie-destinos', label: 'Destinos e formatos' },
+  { id: 'serie-legendas', label: 'Legendas e hashtags' },
+] as const;
 
 export function SerieEditForm({
   initial,
+  tipo = 'serie',
   contas,
   pilares,
   series = [],
@@ -313,6 +336,8 @@ export function SerieEditForm({
   lastEditLabel = null,
 }: {
   initial: Partial<Serie>;
+  /** Família, série ou quadro: define as seções e o vínculo aceito. */
+  tipo?: SerieTipoAgrupamento;
   contas: Platform[];
   pilares: Pilar[];
   /** Catálogo para “Faz parte de”. */
@@ -326,12 +351,8 @@ export function SerieEditForm({
   takenColors?: readonly string[];
   lastEditLabel?: string | null;
 }) {
-  const { state, dispatch } = useAppContext();
-  const { user } = useAuth();
-  const [aba, setAba] = useState<AbaCadastro>('sobre');
-  const [mostrarAgrupar, setMostrarAgrupar] = useState(Boolean(initial.parentId));
-  const [mostrarTemporadas, setMostrarTemporadas] = useState(Boolean(initial.usaTemporadas));
-  const [novaTemporadaNome, setNovaTemporadaNome] = useState('');
+  const { state } = useAppContext();
+  const [tentouSalvar, setTentouSalvar] = useState(false);
   const initialSnapshot = useRef({
     form: {
       id: initial.id || generateUUID(),
@@ -359,6 +380,8 @@ export function SerieEditForm({
       legendaBase: initial.legendaBase || '',
       parentId: initial.parentId ?? null,
       usaTemporadas: initial.usaTemporadas === true,
+      tipoAgrupamento: initial.tipoAgrupamento ?? null,
+      semPilar: initial.semPilar === true,
       plataformas: initial.plataformas || [],
     },
   });
@@ -368,6 +391,9 @@ export function SerieEditForm({
   const isDirty = useMemo(() => {
     const snap = initialSnapshot.current;
     if (form.name !== snap.form.name) return true;
+    if (form.notes !== snap.form.notes) return true;
+    if (form.tipoAgrupamento !== snap.form.tipoAgrupamento) return true;
+    if (form.semPilar !== snap.form.semPilar) return true;
     if (form.bordao !== snap.form.bordao) return true;
     if (form.cor !== snap.form.cor) return true;
     if (form.capaUrl !== snap.form.capaUrl) return true;
@@ -395,7 +421,10 @@ export function SerieEditForm({
     takenColors.map((cor, index) => ({id: `taken-${index}`, cor})),
     form.cor,
   );
-  const canSave = Boolean(form.name.trim()) && !colorTaken;
+  const erroVinculo = erroDoVinculo(tipo, form.parentId, form.id, series);
+  const valido = Boolean(form.name.trim()) && !colorTaken && !erroVinculo;
+  const erroNome = tentouSalvar && !form.name.trim() ? `Dê um nome para identificar ${NOME_DO_TIPO[tipo].artigo}.` : null;
+  const erroCor = colorTaken ? 'Esta cor já está em outra série. Escolha outra.' : null;
 
   const updatePlatformHashtags = (platformId: string, hashtags: string) => {
     const current = [...form.plataformas];
@@ -433,7 +462,13 @@ export function SerieEditForm({
   };
 
   const handleSave = useCallback(() => {
-    if (!form.name.trim() || colorTaken) return;
+    if (!form.name.trim() || colorTaken || erroVinculo) {
+      // Os campos continuam como estão; o que falta aparece marcado.
+      setTentouSalvar(true);
+      const alvo = !form.name.trim() ? 'serie-nome' : colorTaken ? 'serie-identidade' : 'serie-organizacao';
+      document.getElementById(alvo)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      return;
+    }
 
     onSave({
       id: form.id,
@@ -461,6 +496,8 @@ export function SerieEditForm({
       legendaBase: form.legendaBase.trim() || null,
       parentId: form.parentId,
       usaTemporadas: form.usaTemporadas,
+      tipoAgrupamento: tipo,
+      semPilar: !form.pilarPrincipalId && form.semPilar,
       pilarIds: form.pilarPrincipalId ? [form.pilarPrincipalId] : [],
       plataformas: contas
         .map(conta => form.plataformas.find(item => item.platformId === conta.id))
@@ -469,10 +506,10 @@ export function SerieEditForm({
       createdAt: initial.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
-  }, [colorTaken, contas, form, initial.createdAt, onSave]);
+  }, [colorTaken, contas, erroVinculo, form, initial.createdAt, onSave, tipo]);
 
   useUnsavedChangesRegistration(isDirty, () => {
-    if (canSave) handleSaveRef.current();
+    if (valido) handleSaveRef.current();
   });
 
   const onChromeChangeRef = useRef(onChromeChange);
@@ -485,11 +522,12 @@ export function SerieEditForm({
   useEffect(() => {
     onChromeChangeRef.current?.({
       isDirty,
-      canSave,
+      // O botão fica sempre ativo: com erro, o formulário marca o que falta e guarda o resto.
+      canSave: true,
       handleSave: () => handleSaveRef.current(),
       handleCancel: () => onCancelRef.current(),
     });
-  }, [isDirty, canSave]);
+  }, [isDirty]);
 
   const copyHashtags = async (value: string) => {
     if (!value.trim()) return;
@@ -500,7 +538,6 @@ export function SerieEditForm({
     }
   };
 
-  const slug = serieSlugFromName(form.name || 'serie');
   const coverPreview = /^https?:\/\//i.test(form.capaUrl.trim()) ? form.capaUrl.trim() : '';
   const openTemplateCreate = useRef<(() => void) | null>(null);
   const selectedPilar = pilares.find(item => item.id === form.pilarPrincipalId) ?? null;
@@ -559,26 +596,21 @@ export function SerieEditForm({
 
   const [confirmDesvincular, setConfirmDesvincular] = useState(false);
   const [confirmParent, setConfirmParent] = useState<{ next: string | null; message: string } | null>(null);
-  const opcoesPai = series
-    .filter(item => item.id !== form.id && !formariaCicloParent(form.id, item.id, [
-      ...series.map(s => s.id === form.id ? { ...s, parentId: form.parentId } : s),
-    ]))
-    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  const existe = series.some(item => item.id === form.id);
+  const opcoesDoPai = opcoesDePai(tipo, form.id, series);
+  // Vínculo antigo fora da ordem continua visível para poder ser trocado.
+  const paiForaDaOrdem = form.parentId && !opcoesDoPai.some(item => item.id === form.parentId)
+    ? series.find(item => item.id === form.parentId) ?? null
+    : null;
+  const mostra = (secao: string) => SECOES_POR_TIPO[tipo].includes(secao);
+  const rotuloDoPai = tipo === 'quadro' ? 'Série' : 'Família';
+  const nomeDoPai = form.parentId ? series.find(item => item.id === form.parentId)?.name?.trim() || null : null;
+  const pilarDoPai = form.parentId ? pilarEfetivoDaSerie(form.parentId, series) : null;
+  const nomePilarDoPai = pilarDoPai?.pilarId ? pilares.find(item => item.id === pilarDoPai.pilarId)?.nome ?? null : null;
+  const metaCompartilhada = Boolean(form.parentId) && selecionouSobDemanda && form.frequenciaVezes === null;
 
   return (
     <div className="relative w-full">
-      <div className="mb-3">
-        <SegmentTabs<AbaCadastro>
-          value={aba}
-          onChange={setAba}
-          ariaLabel="Cadastro da série"
-          options={[
-            { id: 'sobre', label: 'Sobre' },
-            { id: 'roteiros', label: 'Roteiros' },
-            { id: 'publicacao', label: 'Publicação' },
-          ]}
-        />
-      </div>
       {showOpenInfoNotice ? (
         <OpenInfoNotice
           items={getSerieOpenItems({
@@ -593,80 +625,47 @@ export function SerieEditForm({
           className="mb-3"
         />
       ) : null}
-      <Surface variant="info" padding="md" className="mb-3 w-full">
-        <div className="flex w-full items-center gap-3">
-          {coverPreview ? (
-            <img
-              src={coverPreview}
-              alt=""
-              className="h-10 w-10 shrink-0 rounded-full object-cover"
-            />
-          ) : (
-            <span
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
-              style={{backgroundColor: form.cor}}
-            >
-              <Layers className="h-5 w-5" strokeWidth={1.75} style={{ color: entitySwatchInk(form.cor) }} />
-            </span>
-          )}
-          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-            <Text variant="itemTitle" className="min-w-0 break-words">
-              {form.name.trim() || 'Nova série'}
-            </Text>
-            <Badge
-              className={form.ativa
-                ? 'border-transparent bg-[color-mix(in_srgb,var(--accent-green)_16%,transparent)] text-[var(--accent-green)]'
-                : undefined}
-            >
-              {form.ativa ? 'Ativa' : 'Inativa'}
-            </Badge>
-            <Text variant="meta" className="text-[var(--text-tertiary)]">
-              ID: {slug}
-            </Text>
-          </div>
+      {tentouSalvar && !valido ? (
+        <div role="alert" className="mb-3 rounded-[var(--radius-card)] border border-[var(--danger)] bg-[var(--bg-elevated)] px-4 py-3">
+          <Text variant="body" as="p">Corrija o que está marcado para salvar. O que você preencheu continua aqui.</Text>
         </div>
-      </Surface>
+      ) : null}
 
-      <div className="grid w-full grid-cols-1 items-start gap-3 lg:grid-cols-[minmax(0,1.7fr)_minmax(280px,0.95fr)]">
-        <div className={cn('flex min-w-0 flex-col gap-3', aba !== 'sobre' && aba !== 'roteiros' && 'hidden')}>
-          <Surface variant="outlined" padding="md" className={aba !== 'sobre' ? 'hidden' : undefined}>
-            <CardHeading
-              title="Identidade"
-              description="Como esta série aparece na sua central."
-            />
-
+      <div className="grid w-full grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,300px)]">
+        <div className="flex min-w-0 flex-col gap-3">
+          <Surface id="serie-identidade" variant="outlined" padding="md" className="scroll-mt-24">
+            <CardHeading title="Identidade" />
             <div className="stack-lg">
               <div>
-                <FieldLabel required>Nome</FieldLabel>
+                <label htmlFor="serie-nome">
+                  <FieldLabel required>Nome</FieldLabel>
+                </label>
                 <input
+                  id="serie-nome"
                   type="text"
                   value={form.name}
+                  aria-invalid={erroNome ? true : undefined}
+                  aria-describedby={erroNome ? 'serie-nome-erro' : undefined}
                   onChange={event => setForm(previous => ({...previous, name: event.target.value}))}
-                  placeholder="Ex.: Destrinchando"
+                  placeholder={NOME_DO_TIPO[tipo].exemplo}
                   className={inputClass}
+                  style={erroNome ? { borderColor: 'var(--danger)' } : undefined}
                 />
-              </div>
-
-              <div>
-                <FieldLabel>Elemento fixo</FieldLabel>
-                <input
-                  type="text"
-                  value={form.bordao}
-                  onChange={event => setForm(previous => ({...previous, bordao: event.target.value}))}
-                  placeholder="Ex.: vamos destrinchar isso"
-                  className={inputClass}
-                />
+                {erroNome ? (
+                  <p id="serie-nome-erro" className="mt-1.5 t-meta" style={{ color: 'var(--danger)' }}>{erroNome}</p>
+                ) : null}
               </div>
 
               <div className="grid-form">
                 <div>
-                  <FieldLabel>Cor da série</FieldLabel>
+                  <FieldLabel>Cor</FieldLabel>
                   <EntityColorPicker
                     variant="inline"
                     value={form.cor}
                     unavailableColors={takenColors}
                     onChange={cor => setForm(previous => ({...previous, cor}))}
                   />
+                  {erroCor ? <p className="mt-1.5 t-meta" style={{ color: 'var(--danger)' }}>{erroCor}</p> : null}
                 </div>
                 <div>
                   <FieldLabel optional>Capa</FieldLabel>
@@ -680,169 +679,120 @@ export function SerieEditForm({
                   />
                 </div>
               </div>
+
+              <div>
+                <label htmlFor="serie-jargao">
+                  <FieldLabel optional>Jargão</FieldLabel>
+                </label>
+                <input
+                  id="serie-jargao"
+                  type="text"
+                  value={form.bordao}
+                  onChange={event => setForm(previous => ({...previous, bordao: event.target.value}))}
+                  placeholder="Ex.: vamos descomplicar isso"
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="serie-descricao">
+                  <FieldLabel optional>Descrição</FieldLabel>
+                </label>
+                <textarea
+                  id="serie-descricao"
+                  value={form.notes}
+                  onChange={event => setForm(previous => ({...previous, notes: event.target.value}))}
+                  placeholder={`Do que ${NOME_DO_TIPO[tipo].artigo} trata, em uma ou duas frases.`}
+                  rows={2}
+                  className={cn(inputClass, 'resize-y leading-relaxed')}
+                />
+              </div>
             </div>
           </Surface>
 
-          {aba === 'sobre' ? (
-            <Surface variant="outlined" padding="md">
-              <CardHeading
-                title="Organização opcional"
-                description="Agrupar e temporadas ficam recolhidos enquanto vazios."
-              />
-              <div className="stack-md">
-                {!mostrarAgrupar && !form.parentId ? (
-                  <AppButton variant="secondary" size="sm" onClick={() => setMostrarAgrupar(true)}>
-                    Agrupar com outra série
-                  </AppButton>
-                ) : (
-                  <div className="stack-sm">
-                    <FieldLabel>Faz parte de</FieldLabel>
+          <Surface id="serie-organizacao" variant="outlined" padding="md" className="scroll-mt-24">
+            <CardHeading title="Organização" />
+            <div className="stack-lg">
+              <div className="grid-form">
+                {tipo === 'familia' ? null : (
+                  <div className="col-span-full">
+                    <FieldLabel required={tipo === 'quadro'}>{rotuloDoPai}</FieldLabel>
                     <SelectField
-                      ariaLabel="Faz parte de"
+                      block
+                      ariaLabel={rotuloDoPai}
                       value={form.parentId ?? ''}
                       onChange={parentId => {
                         const next = parentId || null;
                         if (next === (form.parentId ?? null)) return;
-                        if (form.parentId || next) {
+                        if (existe && (form.parentId || next)) {
                           setConfirmParent({
                             next,
                             message: form.parentId
-                              ? 'Mudar o pai pode alterar o agrupamento dos relatórios, porque a análise lê a série ao vivo. Classificação congelada permanece.'
-                              : 'Agrupar pode mudar metas e herança deste quadro em relação ao pai. Os episódios permanecem nesta série.',
+                              ? 'Mudar de lugar pode alterar o agrupamento dos relatórios, porque a análise lê a série ao vivo. Classificação congelada permanece. Os conteúdos continuam aqui.'
+                              : 'Colocar numa família pode mudar a meta e o que esta série herda dela. Os conteúdos continuam nesta série.',
                           });
                           return;
                         }
-                        setForm(previous => ({
-                          ...previous,
-                          parentId: next,
-                          ...(next && !previous.frequenciaRecomendada.trim()
-                            ? { frequenciaRecomendada: 'Sob demanda', frequenciaVezes: null, frequenciaUnidade: '' }
-                            : {}),
-                        }));
+                        setForm(previous => ({ ...previous, parentId: next }));
                       }}
                       options={[
-                        { value: '', label: 'Nenhuma (série independente)' },
-                        ...opcoesPai.map(item => ({ value: item.id, label: item.name })),
+                        ...(tipo === 'serie'
+                          ? [{ value: '', label: 'Nenhuma (série independente)' }]
+                          : form.parentId ? [] : [{ value: '', label: 'Escolher…' }]),
+                        ...(paiForaDaOrdem ? [{ value: paiForaDaOrdem.id, label: paiForaDaOrdem.name }] : []),
+                        ...opcoesDoPai.map(item => ({ value: item.id, label: item.name })),
                       ]}
                     />
-                    {form.parentId ? (
-                      <AppButton variant="secondary" size="sm" onClick={() => setConfirmDesvincular(true)}>
-                        Desfazer vínculo
+                    {erroVinculo && (tentouSalvar || form.parentId) ? (
+                      <p className="mt-1.5 t-meta" style={{ color: 'var(--danger)' }}>{erroVinculo}</p>
+                    ) : tipo === 'serie' && opcoesDoPai.length === 0 && !form.parentId ? (
+                      <Text variant="meta" as="p" className="mt-1.5 text-[var(--text-tertiary)]">
+                        Nenhuma família criada. A série pode ficar independente.
+                      </Text>
+                    ) : null}
+                    {tipo === 'serie' && form.parentId && existe ? (
+                      <AppButton variant="secondary" size="sm" onClick={() => setConfirmDesvincular(true)} className="mt-2">
+                        Tirar da família
                       </AppButton>
                     ) : null}
                   </div>
                 )}
-
-                {!mostrarTemporadas && !form.usaTemporadas ? (
-                  <AppButton variant="secondary" size="sm" onClick={() => setMostrarTemporadas(true)}>
-                    Usar temporadas
-                  </AppButton>
-                ) : (
-                  <div className="stack-sm">
-                    <label className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
-                      <input
-                        type="checkbox"
-                        className="mt-1"
-                        checked={form.usaTemporadas}
-                        onChange={event => setForm(previous => ({
-                          ...previous,
-                          usaTemporadas: event.target.checked,
-                        }))}
-                      />
-                      <span>
-                        <span className="font-medium">Usar temporadas neste registro</span>
-                        <span className="block text-[var(--text-secondary)]">
-                          Este fica o escopo das temporadas da subárvore. Desligar preserva as linhas já criadas.
-                        </span>
-                      </span>
-                    </label>
-                    {form.usaTemporadas && form.id ? (
-                      <div className="stack-sm rounded-[var(--radius-card)] border border-[var(--border-subtle)] p-3">
-                        <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-                          Nomes neste escopo. A mesma grafia (sem maiúsculas nem espaços nas pontas) reutiliza a linha.
-                        </Text>
-                        <ul className="stack-xs">
-                          {temporadasDoEscopo(form.id, state.temporadas).map(temp => (
-                            <li key={temp.id} className="flex items-center justify-between gap-2 text-sm">
-                              <span>{temp.nome}</span>
-                              <AppButton
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => dispatch({ type: 'DELETE_TEMPORADA', payload: temp.id })}
-                              >
-                                Remover
-                              </AppButton>
-                            </li>
-                          ))}
-                        </ul>
-                        <div className="flex flex-wrap gap-2">
-                          <input
-                            value={novaTemporadaNome}
-                            onChange={event => setNovaTemporadaNome(event.target.value)}
-                            placeholder="Nova temporada…"
-                            className="min-w-[12rem] flex-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-sm"
-                          />
-                          <AppButton
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => {
-                              const nome = novaTemporadaNome.trim();
-                              if (!nome || !user?.id) return;
-                              const existente = acharTemporadaPorNome(form.id, nome, state.temporadas);
-                              if (existente) {
-                                setNovaTemporadaNome('');
-                                return;
-                              }
-                              void dispatch({
-                                type: 'ADD_TEMPORADA',
-                                payload: {
-                                  id: generateUUID(),
-                                  userId: user.id,
-                                  serieId: form.id,
-                                  nome,
-                                  createdAt: new Date().toISOString(),
-                                },
-                              });
-                              setNovaTemporadaNome('');
-                            }}
-                          >
-                            Adicionar
-                          </AppButton>
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                )}
-              </div>
-            </Surface>
-          ) : null}
-
-          <Surface variant="outlined" padding="md" className={aba !== 'sobre' ? 'hidden' : undefined}>
-            <CardHeading
-              title="Estratégia"
-              description="Padrões usados ao criar conteúdos desta série."
-            />
-
-            <div className="stack-lg">
-              <div className="grid-form">
                 <div>
-                  <FieldLabel>Pilar principal</FieldLabel>
-                  <TagSelect
-                    label="Pilar principal"
-                    hideLabel
-                    id="serie-pilar-principal"
-                    maxSelections={1}
-                    placeholder="Escolher…"
-                    values={form.pilarPrincipalId ? [form.pilarPrincipalId] : []}
-                    onChange={values => setForm(previous => ({
-                      ...previous,
-                      pilarPrincipalId: values[0] ?? null,
-                    }))}
-                    options={pilarChoices.map(item => ({ value: item.id, label: item.nome }))}
+                  <FieldLabel>Pilar</FieldLabel>
+                  <SelectField
+                    block
+                    ariaLabel="Pilar"
+                    value={form.pilarPrincipalId ?? (form.semPilar ? '__sem' : '__herdar')}
                     leadingIcon={selectedPilar ? (
                       <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: selectedPilar.cor }} />
                     ) : undefined}
+                    onChange={valor => setForm(previous => ({
+                      ...previous,
+                      pilarPrincipalId: valor === '__sem' || valor === '__herdar' ? null : valor,
+                      semPilar: valor === '__sem',
+                    }))}
+                    options={[
+                      {
+                        value: '__herdar',
+                        label: form.parentId
+                          ? `Herdar de ${nomeDoPai || 'agrupamento superior'}${nomePilarDoPai ? ` (${nomePilarDoPai})` : ''}`
+                          : 'Escolher…',
+                      },
+                      ...pilarChoices.map(item => ({ value: item.id, label: item.nome })),
+                      { value: '__sem', label: 'Sem pilar' },
+                    ]}
                   />
+                  <Text variant="meta" as="p" className="mt-1.5 text-[var(--text-tertiary)]">
+                    {form.pilarPrincipalId
+                      ? tipo === 'familia'
+                        ? 'Séries da família sem escolha própria usam este.'
+                        : tipo === 'serie' ? 'Quadros sem escolha própria usam este.' : 'Pilar deste quadro.'
+                      : form.semPilar
+                        ? 'Fica sem pilar de propósito: não herda do agrupamento superior.'
+                        : form.parentId
+                          ? 'Usa o pilar do agrupamento superior enquanto não houver escolha aqui.'
+                          : 'Escolha no Editorial os pilares disponíveis.'}
+                  </Text>
                 </div>
                 <div>
                   <FieldLabel>Objetivo padrão</FieldLabel>
@@ -854,7 +804,10 @@ export function SerieEditForm({
                       ...previous,
                       funcaoPadrao: (value || null) as typeof previous.funcaoPadrao,
                     }))}
-                    options={[{ value: '', label: 'Escolher…' }, ...FUNCAO_OPTIONS.map(option => ({ value: option.value, label: option.label }))]}
+                    options={[
+                      { value: '', label: form.parentId ? `Herdar de ${nomeDoPai || 'agrupamento superior'}` : 'Escolher…' },
+                      ...FUNCAO_OPTIONS.map(option => ({ value: option.value, label: option.label })),
+                    ]}
                   />
                   {funcaoDescription ? (
                     <Text variant="meta" className="mt-1.5 block text-[var(--text-tertiary)]">
@@ -862,6 +815,36 @@ export function SerieEditForm({
                     </Text>
                   ) : null}
                 </div>
+              </div>
+            </div>
+          </Surface>
+
+          <Surface id="serie-frequencia" variant="outlined" padding="md" className="scroll-mt-24">
+            <CardHeading title="Frequência" />
+            <div className="stack-lg">
+              {form.parentId ? (
+                <div className="stack-sm">
+                  <FieldLabel>Meta</FieldLabel>
+                  <SelectField
+                    block
+                    ariaLabel="Meta"
+                    value={metaCompartilhada ? 'compartilhada' : 'propria'}
+                    onChange={valor => setForm(previous => (valor === 'compartilhada'
+                      ? { ...previous, frequenciaRecomendada: 'Sob demanda', frequenciaVezes: null, frequenciaUnidade: '' }
+                      : { ...previous, frequenciaRecomendada: previous.frequenciaRecomendada === 'Sob demanda' ? '' : previous.frequenciaRecomendada }))}
+                    options={[
+                      { value: 'compartilhada', label: `Compartilhada com ${nomeDoPai || 'o agrupamento superior'}` },
+                      { value: 'propria', label: 'Meta própria' },
+                    ]}
+                  />
+                  {metaCompartilhada ? (
+                    <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
+                      Os conteúdos daqui contam na frequência de {nomeDoPai || 'o agrupamento superior'}.
+                    </Text>
+                  ) : null}
+                </div>
+              ) : null}
+              {form.parentId && metaCompartilhada ? null : (
                 <div className="col-span-full stack-sm">
                   <FieldLabel>Frequência de publicação</FieldLabel>
                   <SelectField
@@ -935,107 +918,27 @@ export function SerieEditForm({
                       className={inputClass}
                     />
                   </div>
-                  <Text variant="meta" className="text-[var(--text-secondary)]">
-                    A frequência serve para comparar com o que já está no período. Ela não cria datas nem post-its.
-                  </Text>
                   <Text variant="body">
                     {expectativaPeriodo == null
                       ? 'Quando houver pauta'
                       : `Neste período, a frequência pede ${expectativaPeriodo}.`}
                   </Text>
                 </div>
-                <div>
-                  <FieldLabel>Formato de publicação</FieldLabel>
-                  <MultiChoiceField
-                    id="serie-formato-publicacao"
-                    label="Formato de publicação"
-                    value={form.formatoVisualPadrao}
-                    onChange={formatoVisualPadrao => setForm(previous => ({ ...previous, formatoVisualPadrao }))}
-                    options={formatoOptions}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <FieldLabel>Formato de apresentação</FieldLabel>
-                <MultiChoiceField
-                  id="serie-formato-apresentacao"
-                  label="Formato de apresentação"
-                  value={form.formatoApresentacao}
-                  onChange={formatoApresentacao => setForm(previous => ({ ...previous, formatoApresentacao }))}
-                  options={apresentacaoOptions}
-                />
-              </div>
-
-              <div className="grid-form">
-                <div>
-                  <FieldLabel optional>Motivo para salvar</FieldLabel>
-                  <input
-                    type="text"
-                    value={form.motivoSalvar}
-                    onChange={event => setForm(previous => ({ ...previous, motivoSalvar: event.target.value }))}
-                    placeholder="O que faz a pessoa guardar"
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <FieldLabel optional>Motivo para mandar</FieldLabel>
-                  <input
-                    type="text"
-                    value={form.motivoEnviar}
-                    onChange={event => setForm(previous => ({ ...previous, motivoEnviar: event.target.value }))}
-                    placeholder="O que faz a pessoa enviar"
-                    className={inputClass}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <FieldLabel>Esforço de produção</FieldLabel>
-                <div
-                  role="radiogroup"
-                  aria-label="Esforço de produção"
-                  className="grid grid-cols-3 gap-1 rounded-[var(--radius-input)] border border-[var(--border-color)] p-1"
-                >
-                  {ENERGIA_NIVEIS.map(value => {
-                    const selected = form.energiaPadrao === value;
-                    return (
-                      <button
-                        key={value}
-                        type="button"
-                        role="radio"
-                        aria-checked={selected}
-                        onClick={() => setForm(previous => ({
-                          ...previous,
-                          energiaPadrao: selected ? null : value,
-                        }))}
-                        className={cn(
-                          'rounded-[var(--radius-input)] px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-                          // Seleção é preta, como em todo o app; o rosa fica só para a ação principal.
-                          selected
-                            ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
-                        )}
-                      >
-                        {ENERGIA_LABELS[value]}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              )}
             </div>
           </Surface>
 
-          <Surface variant="outlined" padding="md">
+          {mostra('serie-modelo') ? (
+            <>
+          <Surface id="serie-modelo" variant="outlined" padding="md" className="scroll-mt-24">
             <CardHeading
-              title="Estrutura do roteiro"
-              description="Modelo base para os conteúdos da série."
-              inline
+              title="Modelo de roteiro"
+              description="Estrutura sugerida para os conteúdos novos. Os que já existem não mudam."
             />
             <textarea
               value={form.estruturaRoteiro}
               onChange={event => setForm(previous => ({...previous, estruturaRoteiro: event.target.value}))}
-              placeholder="Estrutura base para os conteúdos desta série…"
+              placeholder="Estrutura base para os roteiros desta série…"
               rows={7}
               className={cn(inputClass, 'min-h-[140px] resize-y leading-relaxed')}
             />
@@ -1074,20 +977,119 @@ export function SerieEditForm({
               </Text>
             )}
           </Surface>
-        </div>
+            </>
+          ) : null}
 
-        <aside className={cn('flex min-w-0 flex-col gap-3 lg:sticky lg:top-24 lg:self-start', aba === 'roteiros' && 'hidden')}>
-          <Surface variant="outlined" padding="sm" className={cn('stack-sm', aba !== 'publicacao' && 'hidden')}>
+          {mostra('serie-direcionamento') ? (
+            <>
+          <Surface id="serie-direcionamento" variant="outlined" padding="md" className="scroll-mt-24">
+            <CardHeading title="Direcionamento editorial" />
+            <div className="stack-lg">
+              <div className="grid-form">
+                <div>
+                  <FieldLabel optional>Motivo para salvar</FieldLabel>
+                  <input
+                    type="text"
+                    value={form.motivoSalvar}
+                    onChange={event => setForm(previous => ({ ...previous, motivoSalvar: event.target.value }))}
+                    placeholder="O que faz a pessoa guardar"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <FieldLabel optional>Motivo para mandar</FieldLabel>
+                  <input
+                    type="text"
+                    value={form.motivoEnviar}
+                    onChange={event => setForm(previous => ({ ...previous, motivoEnviar: event.target.value }))}
+                    placeholder="O que faz a pessoa enviar"
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+
+            </div>
+          </Surface>
+            </>
+          ) : null}
+
+          {mostra('serie-destinos') ? (
+            <>
+          <Surface id="serie-destinos" variant="outlined" padding="md" className="scroll-mt-24">
+            <CardHeading title="Destinos e formatos" />
+            <div className="stack-lg">
+              <div>
+                  <FieldLabel>Formato de publicação</FieldLabel>
+                  <MultiChoiceField
+                    id="serie-formato-publicacao"
+                    label="Formato de publicação"
+                    value={form.formatoVisualPadrao}
+                    onChange={formatoVisualPadrao => setForm(previous => ({ ...previous, formatoVisualPadrao }))}
+                    options={formatoOptions}
+                  />
+                </div>
+
+              <div>
+                <FieldLabel>Formato de apresentação</FieldLabel>
+                <MultiChoiceField
+                  id="serie-formato-apresentacao"
+                  label="Formato de apresentação"
+                  value={form.formatoApresentacao}
+                  onChange={formatoApresentacao => setForm(previous => ({ ...previous, formatoApresentacao }))}
+                  options={apresentacaoOptions}
+                />
+              </div>
+
+              <div>
+                <FieldLabel>Esforço de produção</FieldLabel>
+                <div
+                  role="radiogroup"
+                  aria-label="Esforço de produção"
+                  className="grid grid-cols-3 gap-1 rounded-[var(--radius-input)] border border-[var(--border-color)] p-1"
+                >
+                  {ENERGIA_NIVEIS.map(value => {
+                    const selected = form.energiaPadrao === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() => setForm(previous => ({
+                          ...previous,
+                          energiaPadrao: selected ? null : value,
+                        }))}
+                        className={cn(
+                          'rounded-[var(--radius-input)] px-3 py-2 t-button focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                          // Seleção é preta, como em todo o app; o rosa fica só para a ação principal.
+                          selected
+                            ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
+                        )}
+                      >
+                        {ENERGIA_LABELS[value]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </Surface>
+            </>
+          ) : null}
+
+          {mostra('serie-legendas') ? (
+            <>
+          <Surface id="serie-legendas" variant="outlined" padding="md" className="scroll-mt-24 stack-md">
             <CardHeading
-              title="Legenda da série"
-              description="Orienta os roteiros novos. Ao salvar, só atualiza roteiros que ainda seguem este texto e não foram publicados."
+              title="Legendas e hashtags"
+              description="Orientam os conteúdos novos. Ao salvar, só atualiza conteúdos que ainda seguem este texto e não foram publicados, e só se você confirmar."
             />
             <LegendaBaseField
               id={`serie-legenda-base-${form.id}`}
               label="Legenda-base da série"
               compact
               value={form.legendaBase}
-              descricao="Versões por conta ficam abaixo. Adaptações feitas no roteiro e textos já publicados não são reescritos."
               placeholder="Texto de origem para os roteiros novos desta série."
               onChange={legendaBase => setForm(previous => ({ ...previous, legendaBase }))}
             />
@@ -1118,14 +1120,8 @@ export function SerieEditForm({
                 );
               })
             )}
-          </Surface>
-
-          <Surface variant="outlined" padding="md">
-            <CardHeading
-              title="Hashtags por conta"
-              description="Separe as hashtags com espaço."
-            />
-
+            <div className="stack-sm border-t border-[var(--border-color)] pt-4">
+              <Text variant="label" as="p">Hashtags por conta</Text>
             {contas.length === 0 ? (
               <Text variant="meta" className="text-[var(--text-tertiary)]">
                 Nenhuma conta ativa configurada.
@@ -1139,7 +1135,7 @@ export function SerieEditForm({
                       <div className="mb-1.5 flex items-center justify-between gap-2">
                         <div className="flex min-w-0 items-center gap-2">
                           <PlatformIcon platform={iconeDaConta(conta)} className="h-4 w-4 shrink-0" />
-                          <Text variant="meta" className="font-medium text-[var(--text-primary)]">
+                          <Text variant="meta" className="text-[var(--text-primary)]">
                             {rotuloConta(conta)}
                           </Text>
                         </div>
@@ -1167,28 +1163,54 @@ export function SerieEditForm({
                 })}
               </div>
             )}
+            </div>
           </Surface>
+            </>
+          ) : null}
 
-          <Surface variant="outlined" padding="md" className={aba !== 'sobre' ? 'hidden' : undefined}>
+        </div>
+
+        <aside className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-24 lg:self-start">
+          <nav aria-label="Seções do formulário" className="hidden lg:block">
+            <ul className="stack-xs">
+              {SECOES_DO_FORMULARIO.filter(secao => mostra(secao.id)).map(secao => (
+                <li key={secao.id}>
+                  <a
+                    href={`#${secao.id}`}
+                    onClick={event => {
+                      event.preventDefault();
+                      document.getElementById(secao.id)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+                    }}
+                    className="block rounded-[var(--radius-sm)] px-2 py-1.5 t-secondary text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                  >
+                    {secao.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          {existe ? (
+          <Surface variant="outlined" padding="md">
             <SerieProductionMetricsPanel
               serie={serieForMetrics}
               contents={contents}
+              series={state.series}
               lastEditLabel={lastEditLabel}
               onActiveChange={ativa => setForm(previous => ({ ...previous, ativa }))}
             />
           </Surface>
+          ) : null}
         </aside>
       </div>
 
       <ConfirmModal
         open={confirmDesvincular}
-        message="Desfazer o vínculo remove esta série da meta e da herança do pai. Os episódios permanecem nesta série. Temporadas e classificações congeladas não mudam. O agrupamento nos relatórios muda."
+        message="Desfazer o vínculo tira esta série da meta e da herança do agrupamento superior. Os conteúdos continuam nesta série. Temporadas e classificações congeladas não mudam. O agrupamento nos relatórios muda."
         confirmLabel="Desfazer vínculo"
         cancelLabel="Manter vínculo"
         onConfirm={() => {
           setForm(previous => ({ ...previous, parentId: null }));
           setConfirmDesvincular(false);
-          setMostrarAgrupar(false);
         }}
         onCancel={() => setConfirmDesvincular(false)}
       />

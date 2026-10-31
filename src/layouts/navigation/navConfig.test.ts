@@ -101,7 +101,7 @@ function testCreationMenuIncludesEditorial() {
     creation?.items.map(item => [item.label, item.to]),
     [
       ['Criação', '/criacao'],
-      ['Séries', '/series'],
+      ['Séries e quadros', '/series'],
       ['Editorial', '/editorial'],
       ['Análises', '/analises'],
       ['Contas e horários', '/contas'],

@@ -34,6 +34,9 @@ export function rankSeriesForPilar(
       serie,
       metrics: metricsBySerieId.get(serie.id) ?? {
         serieId: serie.id,
+        episodios: 0,
+        publicacoesPrevistas: 0,
+        publicacoesRealizadas: 0,
         roteirosEscritos: 0,
         gravadosProntos: 0,
         publicadosNoCiclo: 0,
