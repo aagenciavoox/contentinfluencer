@@ -18,6 +18,7 @@ import {
   resolveRecordingContextSummary,
 } from '../lib/recordingWorkflow';
 import {AppButton} from '../../../components/ui/AppButton';
+import {Surface} from '../../../components/ui/Surface';
 import {Text} from '../../../components/ui/Text';
 import {BurstModeMobileScreen} from '../../../mobile/screens/recording/BurstModeMobileScreen';
 import type {Content} from '../../../lib/database';
@@ -200,10 +201,9 @@ export function RecordingBlockPage() {
     return (
       <>
         <div className="stack-lg">
-          <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
+          <Surface variant="outlined" padding="md">
             <Text variant="label" as="p" className="text-[var(--text-tertiary)]">Bloco de gravação</Text>
-            <Text variant="pageTitle" className="mt-2">{block.name}</Text>
-            <Text variant="secondary" as="p" className="mt-2 text-[var(--text-secondary)]">
+            <Text variant="secondary" as="p" className="mt-1 text-[var(--text-secondary)]">
               Edite o bloco, revise os roteiros e inicie o Modo gravação quando estiver pronto.
             </Text>
 
@@ -212,7 +212,7 @@ export function RecordingBlockPage() {
               <Metric label="Prontos" value={String(readyCount)} />
               <Metric label="Gravados" value={String(progress?.completedCount ?? 0)} />
             </div>
-          </section>
+          </Surface>
 
           <RecordingBlockEditor
             block={block}
@@ -223,7 +223,7 @@ export function RecordingBlockPage() {
             onUpdateContents={handleUpdateContents}
           />
 
-          <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
+          <Surface variant="outlined" padding="md">
             <div className="mb-4 flex items-center justify-between gap-3">
               <Text variant="sectionTitle">Ordem de execução</Text>
               <Text variant="label" as="span" className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-[var(--text-secondary)]">
@@ -270,7 +270,7 @@ export function RecordingBlockPage() {
                 </div>
               ))}
             </div>
-          </section>
+          </Surface>
 
           <AppButton
             variant="primary"

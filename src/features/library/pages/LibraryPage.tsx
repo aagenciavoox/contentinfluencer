@@ -531,9 +531,6 @@ export function LibraryPage() {
         <DesktopPageHeader
           section="Criação"
           title="Biblioteca"
-          meta={!libraryLoading && libraryTotal > 0
-            ? (libraryTotal === 1 ? '1 obra' : `${libraryTotal.toLocaleString('pt-BR')} obras`)
-            : undefined}
           actions={(
             <AppButton
               onClick={handleOpenModal}

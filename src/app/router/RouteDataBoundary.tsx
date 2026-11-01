@@ -1,5 +1,6 @@
 import { Suspense, useEffect, useMemo } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
+import { Text } from '../../components/ui/Text';
 import { useAppContext } from '../../context/AppContext';
 import { LOADING } from '../../lib/uiCopy';
 import {
@@ -10,9 +11,9 @@ import {
 function RouteFallback({ label = LOADING.area }: { label?: string }) {
   return (
     <div className="flex min-h-[40vh] items-center justify-center rounded-[var(--radius-overlay)] border border-[var(--border-color)] bg-[var(--bg-primary)]">
-      <p className="text-xs font-semibold t-label-uppercase text-[var(--text-tertiary)]">
+      <Text variant="eyebrow" as="p">
         {label}
-      </p>
+      </Text>
     </div>
   );
 }

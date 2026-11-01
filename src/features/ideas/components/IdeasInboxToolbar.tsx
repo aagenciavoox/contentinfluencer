@@ -64,7 +64,7 @@ export function IdeasInboxToolbar({
               type="button"
               onClick={() => onQuickFilterToggle(chip.value)}
               className={cn(
-                'rounded-[var(--radius-pill)] border px-2.5 py-1 text-xs font-medium transition-colors',
+                'rounded-[var(--radius-pill)] border px-2.5 py-1 t-label transition-colors',
                 active
                   ? 'border-[var(--accent-blue)] bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]'
                   : 'border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]',

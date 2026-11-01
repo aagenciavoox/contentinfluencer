@@ -186,8 +186,8 @@ export function PostItNote({
       <span className="min-w-0 flex-1 stack-xs">
         <span
           className={cn(
-            'block min-w-0 whitespace-normal break-words font-semibold leading-snug text-[var(--text-primary)]',
-            compact ? 'text-xs' : 'text-sm',
+            'block min-w-0 whitespace-normal break-words leading-snug text-[var(--text-primary)]',
+            compact ? 't-label' : 't-body-strong',
           )}
         >
           {postItTitle(postIt, content)}
@@ -196,7 +196,7 @@ export function PostItNote({
           <span
             className={cn(
               'block min-w-0 truncate text-[var(--text-secondary)]',
-              compact ? 'text-2xs' : 'text-xs',
+              compact ? 'text-2xs' : 't-meta',
             )}
             title={quadro}
           >

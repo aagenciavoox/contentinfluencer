@@ -62,7 +62,7 @@ export function IconTile({ children }: { children: ReactNode }) {
 
 export function FormatTag({ tipo }: { tipo: BibliotecaItem['tipo'] }) {
   return (
-    <span className="inline-flex shrink-0 items-center rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-xs text-[var(--text-secondary)]">
+    <span className="inline-flex shrink-0 items-center rounded-full bg-[var(--bg-hover)] px-2 py-0.5 t-meta">
       {formatInfo(tipo).singular}
     </span>
   );
@@ -84,7 +84,7 @@ function AccentLink({ to, children }: { to: string; children: ReactNode }) {
   return (
     <Link
       to={to}
-      className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--brand-accent-text)] hover:opacity-80 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+      className="inline-flex items-center gap-1.5 t-body-strong text-[var(--brand-accent-text)] hover:opacity-80 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
     >
       {children}
       <ArrowRight className="h-4 w-4" aria-hidden />
@@ -125,7 +125,7 @@ function KpiCard({ icon: Icon, label, value, caption, loading }: { icon: LucideI
         <Text variant="meta" className="block">{label}</Text>
         {loading
           ? <Skeleton className="mt-1 h-8 w-14" />
-          : <p className="mt-1 text-3xl font-bold leading-none tabular-nums text-[var(--text-primary)]">{value.toLocaleString('pt-BR')}</p>}
+          : <Text variant="display" as="p" className="mt-1 leading-none tabular-nums">{value.toLocaleString('pt-BR')}</Text>}
         {caption ? <Text variant="meta" className="mt-1.5 block text-[var(--text-tertiary)]">{caption}</Text> : null}
       </div>
     </Surface>
@@ -161,14 +161,14 @@ export function LibraryConsumptionTable({ analysis, loading, showAllFormats }: {
             {['a', 'b', 'c'].map(key => <Skeleton key={key} className="h-9 w-full" />)}
           </div>
         ) : (
-          <table className="w-full min-w-[600px] text-sm">
+          <table className="w-full min-w-[600px] t-body">
             <thead>
-              <tr className="bg-[var(--surface-subtle)] text-xs text-[var(--text-secondary)]">
-                <th className="rounded-l-[var(--radius-input)] px-4 py-2.5 text-left font-medium">Formato</th>
-                <th className="px-4 py-2.5 text-right font-medium">No acervo</th>
-                <th className="px-4 py-2.5 text-right font-medium">Concluídos</th>
-                <th className="px-4 py-2.5 text-right font-medium">Em andamento</th>
-                <th className="rounded-r-[var(--radius-input)] px-4 py-2.5 text-right font-medium">Consumo registrado</th>
+              <tr className="bg-[var(--surface-subtle)] t-meta">
+                <th className="rounded-l-[var(--radius-input)] px-4 py-2.5 text-left t-label">Formato</th>
+                <th className="px-4 py-2.5 text-right t-label">No acervo</th>
+                <th className="px-4 py-2.5 text-right t-label">Concluídos</th>
+                <th className="px-4 py-2.5 text-right t-label">Em andamento</th>
+                <th className="rounded-r-[var(--radius-input)] px-4 py-2.5 text-right t-label">Consumo registrado</th>
               </tr>
             </thead>
             <tbody>
@@ -185,10 +185,10 @@ export function LibraryConsumptionTable({ analysis, loading, showAllFormats }: {
                     <td className="px-4 py-3">
                       <span className="flex items-center gap-3">
                         <span className={cn(empty && 'opacity-60')}><IconTile><FormatIcon tipo={row.id} /></IconTile></span>
-                        <span className={cn(!empty && 'font-medium')}>{row.label}</span>
+                        <span className={cn(!empty && 't-body-strong')}>{row.label}</span>
                       </span>
                     </td>
-                    <td className={cn(numCell, !empty && 'font-semibold')}>{row.inCollection}</td>
+                    <td className={cn(numCell, !empty && 't-body-strong')}>{row.inCollection}</td>
                     <td className={numCell}>{row.completed}</td>
                     <td className={numCell}>{row.active}</td>
                     <td className={numCell}>{row.amount > 0 ? formatConsumption(row) : <ValorVazio />}</td>
@@ -204,7 +204,7 @@ export function LibraryConsumptionTable({ analysis, loading, showAllFormats }: {
           type="button"
           onClick={() => setShowEmpty(value => !value)}
           aria-expanded={showEmpty}
-          className="mt-3 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+          className="mt-3 t-body-strong text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
         >
           {showEmpty ? 'Ocultar formatos sem itens' : `Mostrar formatos sem itens (${emptyRows.length})`}
         </button>
@@ -219,7 +219,7 @@ function ProgressLine({ current, total, unit }: { current: number; total: number
   const percent = total > 0 ? Math.min(100, Math.round((current / total) * 100)) : 0;
   return (
     <span className="flex w-36 shrink-0 flex-col items-end gap-1 sm:w-44">
-      <span className="text-sm tabular-nums text-[var(--text-secondary)]">{formatProgress(current, total, unit)}</span>
+      <span className="t-secondary tabular-nums">{formatProgress(current, total, unit)}</span>
       {total > 0 ? (
         <span className="h-1 w-full overflow-hidden rounded-full bg-[var(--surface-subtle)]" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
           <span className="block h-full rounded-full bg-[var(--brand-accent)]" style={{ width: `${percent}%` }} />
@@ -255,7 +255,7 @@ export function LibraryActiveCard({ analysis, loading }: { analysis: LibraryPeri
                   <IconTile><FormatIcon tipo={entry.tipo} /></IconTile>
                   <Link
                     to={`/biblioteca/${entry.id}`}
-                    className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--text-primary)] hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                    className="min-w-0 flex-1 truncate t-body-strong text-[var(--text-primary)] hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                   >
                     {entry.title}
                   </Link>
@@ -263,11 +263,11 @@ export function LibraryActiveCard({ analysis, loading }: { analysis: LibraryPeri
                   {hasProgress ? (
                     <ProgressLine current={entry.current} total={entry.total} unit={entry.unit} />
                   ) : (
-                    <span className="flex shrink-0 items-center gap-2 text-sm">
+                    <span className="flex shrink-0 items-center gap-2 t-body">
                       <span className="text-[var(--text-tertiary)]">Sem progresso</span>
                       <Link
                         to={`/biblioteca/${entry.id}`}
-                        className="font-medium text-[var(--brand-accent-text)] hover:opacity-80 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                        className="t-body-strong text-[var(--brand-accent-text)] hover:opacity-80 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                       >
                         Atualizar
                       </Link>
@@ -295,19 +295,19 @@ export function LibraryNotesCard({ analysis, loading }: { analysis: LibraryPerio
         aside={(
           <div className="flex items-center gap-4 text-center">
             <div>
-              <p className="text-xl font-semibold tabular-nums text-[var(--text-primary)]">{analysis.notes}</p>
+              <Text variant="sectionTitle" as="p" className="tabular-nums">{analysis.notes}</Text>
               <Text variant="meta">{analysis.notes === 1 ? 'anotação' : 'anotações'}</Text>
             </div>
             <span className="h-8 w-px bg-[var(--border-color)]" aria-hidden />
             <div>
-              <p className="text-xl font-semibold tabular-nums text-[var(--text-primary)]">{analysis.itemsAnnotated}</p>
+              <Text variant="sectionTitle" as="p" className="tabular-nums">{analysis.itemsAnnotated}</Text>
               <Text variant="meta">{analysis.itemsAnnotated === 1 ? 'item anotado' : 'itens anotados'}</Text>
             </div>
           </div>
         )}
       />
       <div className="mt-4 flex-1 border-t border-[var(--border-color)] pt-4">
-        <Text variant="bodyStrong" className="text-sm">Itens com mais anotações</Text>
+        <Text variant="bodyStrong">Itens com mais anotações</Text>
         {loading ? (
           <Skeleton className="mt-3 h-9 w-full" />
         ) : analysis.topAnnotated.length === 0 ? (
@@ -318,9 +318,9 @@ export function LibraryNotesCard({ analysis, loading }: { analysis: LibraryPerio
               <li key={entry.id} className="border-b border-[var(--border-color)] last:border-b-0">
                 <Link to={`/biblioteca/${entry.id}`} className="flex items-center gap-3 py-2 hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]">
                   <IconTile><FormatIcon tipo={entry.tipo} /></IconTile>
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--text-primary)]">{entry.title}</span>
+                  <span className="min-w-0 flex-1 truncate t-body-strong text-[var(--text-primary)]">{entry.title}</span>
                   <span className="hidden sm:inline-flex"><FormatTag tipo={entry.tipo} /></span>
-                  <span className="shrink-0 text-sm tabular-nums text-[var(--text-secondary)]">{plural(entry.notes, 'anotação', 'anotações')}</span>
+                  <span className="shrink-0 t-secondary tabular-nums">{plural(entry.notes, 'anotação', 'anotações')}</span>
                 </Link>
               </li>
             ))}
@@ -348,8 +348,8 @@ export function LibraryGenresCard({ analysis, loading }: { analysis: LibraryPeri
             {analysis.genres.map(genre => (
               <li key={genre.id} className="flex items-center gap-3 border-b border-[var(--border-color)] py-2 last:border-b-0">
                 <LibraryGenreIcon name={genre.label} className="text-[var(--text-secondary)]" />
-                <span className="min-w-0 flex-1 truncate text-sm text-[var(--text-primary)]">{genre.label}</span>
-                <span className="shrink-0 text-sm tabular-nums text-[var(--text-secondary)]">{plural(genre.count, 'item', 'itens')}</span>
+                <span className="min-w-0 flex-1 truncate t-body text-[var(--text-primary)]">{genre.label}</span>
+                <span className="shrink-0 t-secondary tabular-nums">{plural(genre.count, 'item', 'itens')}</span>
               </li>
             ))}
           </ul>
@@ -370,7 +370,7 @@ export function LibraryRatingsCard({ analysis, loading, onRate }: { analysis: Li
       ) : ratings.count === 0 || ratings.average === null ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-1 py-4 text-center">
           <Star className="h-6 w-6 text-[var(--text-secondary)]" aria-hidden />
-          <Text variant="bodyStrong" className="mt-2 text-sm">Nenhum item avaliado neste período.</Text>
+          <Text variant="bodyStrong" className="mt-2">Nenhum item avaliado neste período.</Text>
           <AppButton variant="secondary" size="sm" className="mt-3 border-[var(--brand-accent-text)] text-[var(--brand-accent-text)]" onClick={onRate}>
             Avaliar itens concluídos
           </AppButton>
@@ -378,14 +378,14 @@ export function LibraryRatingsCard({ analysis, loading, onRate }: { analysis: Li
       ) : (
         <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center">
           <div className="shrink-0 text-center sm:w-28">
-            <p className="text-3xl font-semibold tabular-nums text-[var(--text-primary)]">
+            <Text variant="display" as="p" className="tabular-nums">
               {ratings.average.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}
-            </p>
+            </Text>
             <Text variant="meta">média de {plural(ratings.count, 'item', 'itens')}</Text>
           </div>
           <ul className="flex-1 space-y-1.5">
             {ratings.distribution.map(entry => (
-              <li key={entry.stars} className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+              <li key={entry.stars} className="flex items-center gap-2 t-meta">
                 <span className="flex w-8 items-center gap-0.5 tabular-nums">{entry.stars}<Star className="h-3 w-3" aria-hidden /></span>
                 <span className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--bg-hover)]">
                   <span className="block h-full rounded-full bg-[var(--brand-accent)]" style={{ width: `${(entry.count / max) * 100}%` }} />

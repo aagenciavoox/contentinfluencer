@@ -398,13 +398,6 @@ export function RecordingPage() {
         <DesktopPageHeader
           section="Produção"
           title="Gravação"
-          meta={
-            recordingReady
-              ? activeTab === 'queue'
-                ? `${prontos.length} ${prontos.length === 1 ? 'roteiro' : 'roteiros'} sem bloco`
-                : `${state.recordingBlocks.length} ${state.recordingBlocks.length === 1 ? 'bloco' : 'blocos'}`
-              : undefined
-          }
           actions={
             activeTab === 'queue' ? (
               <AppButton

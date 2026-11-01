@@ -78,10 +78,10 @@ export function CreationDisplayMenu({
               role="menuitemradio"
               aria-checked={sort === option.value}
               className={cn(
-                'flex w-full px-3 py-2 text-left text-sm hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                'flex w-full px-3 py-2 text-left hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
                 sort === option.value
-                  ? 'font-medium text-[var(--text-primary)]'
-                  : 'text-[var(--text-secondary)]',
+                  ? 't-body-strong text-[var(--text-primary)]'
+                  : 't-body text-[var(--text-secondary)]',
               )}
               onClick={() => {
                 onSortChange(option.value);

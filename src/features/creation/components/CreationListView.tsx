@@ -146,7 +146,7 @@ function CreationListRow({
           )}
         </div>
 
-        <Text variant="itemTitle" className="relative z-[1] min-w-0 flex-1 line-clamp-2 font-semibold leading-snug md:flex-none md:truncate">
+        <Text variant="itemTitle" className="relative z-[1] min-w-0 flex-1 line-clamp-2 leading-snug md:flex-none md:truncate">
           {title}
         </Text>
 
@@ -232,7 +232,7 @@ export function CreationListView({
         <button
           type="button"
           className={cn(
-            'text-left text-xs font-medium text-[var(--text-tertiary)] transition-colors duration-150 hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+            'text-left t-label text-[var(--text-tertiary)] transition-colors duration-150 hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
             sort === 'title' && 'text-[var(--text-primary)]',
           )}
           onClick={() => onSortChange(sort === 'title' ? 'recent' : 'title')}

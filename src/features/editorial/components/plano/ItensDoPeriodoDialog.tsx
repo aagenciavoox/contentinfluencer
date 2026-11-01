@@ -113,7 +113,7 @@ export function ItensDoPeriodoDialog({
           className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-[var(--radius-input)] border border-dashed border-[var(--border-color)] px-3 py-2"
         >
           <span className="min-w-0 flex-1">
-            <span className="block whitespace-normal break-words text-sm font-semibold text-[var(--text-primary)]">
+            <span className="block whitespace-normal break-words t-body-strong text-[var(--text-primary)]">
               {nota || 'Post-it sem nota'}
             </span>
             <Text variant="meta" as="span" className="block text-[var(--text-secondary)]">
@@ -154,7 +154,7 @@ export function ItensDoPeriodoDialog({
           className="flex w-full items-start justify-between gap-3 rounded-[var(--radius-input)] border border-[var(--border-color)] px-3 py-2 text-left hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:cursor-default disabled:hover:bg-transparent"
         >
           <span className="min-w-0 flex-1">
-            <span className="block whitespace-normal break-words text-sm font-semibold text-[var(--text-primary)]">
+            <span className="block whitespace-normal break-words t-body-strong text-[var(--text-primary)]">
               {content?.title?.trim() || 'Sem título'}
             </span>
             <Text variant="meta" as="span" className="block text-[var(--text-secondary)]">{detalhe}</Text>

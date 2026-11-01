@@ -41,7 +41,7 @@ export function LibraryToolbar({
   return (
     <FilterBar
       className="library-toolbar-filters"
-      size="compact"
+      size="default"
       searchValue={searchValue}
       onSearchChange={onSearchChange}
       searchPlaceholder="Buscar título, autoria ou tag"

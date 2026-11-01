@@ -204,7 +204,7 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
                       <FileText className="w-8 h-8 text-[var(--text-tertiary)]" />
                     </div>
                     <Text variant="itemTitle" as="span" className="text-[var(--text-primary)] mb-2">Clique para selecionar</Text>
-                    <Text variant="label" as="span" className="uppercase text-[var(--text-tertiary)] tracking-widest">Apenas arquivos .csv são suportados</Text>
+                    <Text variant="eyebrow" as="span">Apenas arquivos .csv são suportados</Text>
                   </label>
                 ) : (
                   <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] overflow-hidden">

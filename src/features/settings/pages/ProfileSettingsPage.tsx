@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { KeyRound, Mail, ShieldCheck, UserCircle2 } from 'lucide-react';
+import { SettingsSectionCard } from '../../../components/settings/SettingsSectionCard';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Text } from '../../../components/ui/Text';
 import { useAuth } from '../../../context/AuthContext';
@@ -25,28 +26,6 @@ function Feedback({
       : 'border-[var(--accent-pink)]/20 bg-[var(--accent-pink)]/8 text-[var(--accent-pink)]';
 
   return <p className={`rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border px-4 py-3 t-body ${classes}`}>{message}</p>;
-}
-
-function SectionCard({
-  icon: Icon,
-  title,
-  children,
-}: {
-  icon: typeof UserCircle2;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-6">
-      <div className="mb-4 flex items-center gap-4">
-        <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--bg-hover)] p-3 text-[var(--text-primary)]">
-          <Icon className="h-5 w-5" />
-        </div>
-        <Text variant="sectionTitle" className="min-w-0 tracking-tight">{title}</Text>
-      </div>
-      {children}
-    </section>
-  );
 }
 
 export function ProfileSettingsPage() {
@@ -254,7 +233,7 @@ export function ProfileSettingsPage() {
 
   return (
     <PageLayout
-      variant="settings"
+      contentStack="settings"
       header={
         <DesktopPageHeader
           section="Configurações"
@@ -272,8 +251,8 @@ export function ProfileSettingsPage() {
         ) : null}
 
         <div className="grid gap-6 xl:grid-cols-3">
-          <SectionCard
-            icon={UserCircle2}
+          <SettingsSectionCard
+            icon={<UserCircle2 className="h-5 w-5" />}
             title="Nome público"
           >
             <div className="stack-lg">
@@ -305,10 +284,10 @@ export function ProfileSettingsPage() {
               {profileMessage ? <Feedback message={profileMessage} tone="success" /> : null}
               {profileError ? <Feedback message={profileError} tone="error" /> : null}
             </div>
-          </SectionCard>
+          </SettingsSectionCard>
 
-          <SectionCard
-            icon={Mail}
+          <SettingsSectionCard
+            icon={<Mail className="h-5 w-5" />}
             title="E-mail da conta"
           >
             <div className="stack-lg">
@@ -349,10 +328,10 @@ export function ProfileSettingsPage() {
               {emailMessage ? <Feedback message={emailMessage} tone="success" /> : null}
               {emailError ? <Feedback message={emailError} tone="error" /> : null}
             </div>
-          </SectionCard>
+          </SettingsSectionCard>
 
-          <SectionCard
-            icon={KeyRound}
+          <SettingsSectionCard
+            icon={<KeyRound className="h-5 w-5" />}
             title="Senha"
           >
             <div className="stack-lg">
@@ -408,7 +387,7 @@ export function ProfileSettingsPage() {
               {passwordMessage ? <Feedback message={passwordMessage} tone="success" /> : null}
               {passwordError ? <Feedback message={passwordError} tone="error" /> : null}
             </div>
-          </SectionCard>
+          </SettingsSectionCard>
         </div>
     </PageLayout>
   );

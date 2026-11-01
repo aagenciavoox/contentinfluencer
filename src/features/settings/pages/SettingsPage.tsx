@@ -170,7 +170,7 @@ export function SettingsPage() {
         />
       )}
     >
-      <div className="mx-auto w-full min-w-0 max-w-xl stack-2xl">
+      <div className="w-full min-w-0 max-w-2xl stack-2xl">
         <SettingsSection label="Aparência">
           <div className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-3 ${ROW_RULE}`}>
             <Text variant="bodyStrong" className="min-w-0">Tema do app</Text>

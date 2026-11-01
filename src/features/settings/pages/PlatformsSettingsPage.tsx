@@ -196,13 +196,11 @@ export function PlatformsSettingsPage() {
 
   return (
     <PageLayout
-      variant="settings"
       header={
         <DesktopPageHeader
           section="Criação"
           title="Contas e horários"
-          backLabel="Criação"
-          backTo="/criacao"
+          subtitle="Conecte suas contas, defina os horários de postagem e gerencie preferências de publicação."
           actions={
             <AppButton
               onClick={() => setRascunho(RASCUNHO_NOVO)}

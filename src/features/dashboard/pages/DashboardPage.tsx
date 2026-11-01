@@ -243,14 +243,14 @@ export function DashboardPage() {
 
   return (
     <PageLayout
-      contentWidth="full"
+      contentWidth="wide"
       header={
         <DesktopPageHeader
           section="Hoje"
           title={dayTitle}
           actions={
             <CreateMenuButton
-              variant="secondary"
+              variant="primary"
               onCreateIdea={() => navigate('/criacao?compose=idea')}
               onCreateScript={handleNovoRoteiro}
             />

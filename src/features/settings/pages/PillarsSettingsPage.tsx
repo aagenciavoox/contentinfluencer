@@ -87,6 +87,9 @@ export function PillarsSettingsPage() {
         <DesktopPageHeader
           section="Criação"
           title="Pilares"
+          backLabel="Editorial"
+          backTo="/editorial"
+          subtitle="Pilares organizam os assuntos e a frequência de publicação por plataforma."
           actions={
             <AppButton
               onClick={openCreatePage}
@@ -99,10 +102,6 @@ export function PillarsSettingsPage() {
         />
       }
     >
-      <Text variant="secondary" className="mb-4">
-        Pilares organizam os assuntos e a publicação por plataforma. O limite da semana fica na aba Ajustes do Editorial.
-      </Text>
-
       <QueryViewState
         status={pillarsStatus}
         skeletonCount={6}

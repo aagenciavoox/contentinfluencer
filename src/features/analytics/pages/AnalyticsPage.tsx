@@ -91,7 +91,7 @@ export function AnalyticsPage() {
         />
       )}
       mobileHeader={(
-        <div className="flex flex-col gap-2 pb-1 pt-1">
+        <div className="stack-sm">
           <LibrarySectionTabs />
           <div className="flex items-center gap-2 [&>*:first-child]:min-w-0 [&>*:first-child]:flex-1">
             {periodSelect}

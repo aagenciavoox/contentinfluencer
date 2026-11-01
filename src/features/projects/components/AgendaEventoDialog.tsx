@@ -250,7 +250,7 @@ export function AgendaEventoDialog({
                 aria-checked={tipo === opcao}
                 onClick={() => escolherTipo(opcao)}
                 className={cn(
-                  'flex min-h-11 items-center gap-2 rounded-[var(--radius-input)] border px-3 py-2 text-left text-sm font-semibold',
+                  'flex min-h-11 items-center gap-2 rounded-[var(--radius-input)] border px-3 py-2 text-left t-body-strong',
                   tipo === opcao
                     ? 'border-[var(--text-primary)] bg-[var(--bg-hover)] text-[var(--text-primary)]'
                     : 'border-[var(--border-color)] text-[var(--text-secondary)]',

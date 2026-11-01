@@ -78,7 +78,7 @@ function NavUpdateDot() {
 
 function collapsedRailClass(active: boolean) {
   return cn(
-    'group relative flex h-11 w-11 items-center justify-center rounded-lg transition-colors duration-150',
+    'group relative flex h-11 w-11 items-center justify-center rounded-[var(--radius-input)] transition-colors duration-150',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-blue)]',
     active
       ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
@@ -206,7 +206,7 @@ export function Sidebar() {
           cn(
             'group relative flex items-center transition-colors duration-150',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-blue)]',
-            isCollapsed ? 'h-11 w-11 justify-center rounded-lg' : 'gap-3 rounded-md px-3 py-2',
+            isCollapsed ? 'h-11 w-11 justify-center rounded-[var(--radius-input)]' : 'gap-3 rounded-[var(--radius-input)] px-3 py-2',
             nested && !isCollapsed && 'py-1.5',
             isActive
               ? isCollapsed
@@ -239,14 +239,14 @@ export function Sidebar() {
             />
             {!isCollapsed ? (
               <>
-                <span className={cn('flex-1 truncate text-sm', isActive ? 'font-semibold' : 'font-medium')}>
+                <span className={cn('flex-1 truncate', isActive ? 't-body-strong' : 't-body')}>
                   {label}
                 </span>
                 {badge ? (
                   <span
                     title={badgeHint}
                     aria-label={badgeHint}
-                    className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--bg-primary)] px-1.5 text-xs font-semibold text-[var(--text-secondary)]"
+                    className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--bg-primary)] px-1.5 t-label text-[var(--text-secondary)]"
                   >
                     {badge}
                   </span>
@@ -279,24 +279,24 @@ export function Sidebar() {
   const settingsNavCurrent = isSettingsNavActive(location.pathname);
 
   const userMenuPanel = (
-    <div className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] shadow-lg overflow-hidden py-1">
+    <div className="rounded-[var(--radius-overlay)] border border-[var(--border-color)] bg-[var(--bg-primary)] shadow-lg overflow-hidden py-1">
       <button
         onClick={() => { navigate('/configuracoes/perfil'); setUserMenuOpen(false); }}
-        className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors"
+        className="flex items-center gap-2.5 w-full px-3 py-2 t-body text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors"
       >
         <User className="h-4 w-4 shrink-0" />
         Meu perfil
       </button>
       <button
         onClick={() => { toggleTheme(); setUserMenuOpen(false); }}
-        className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors"
+        className="flex items-center gap-2.5 w-full px-3 py-2 t-body text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors"
       >
         {state.theme === 'light' ? <Moon className="h-4 w-4 shrink-0" /> : <Sun className="h-4 w-4 shrink-0" />}
         {state.theme === 'light' ? 'Modo escuro' : 'Modo claro'}
       </button>
       <button
         onClick={() => { signOut(); setUserMenuOpen(false); }}
-        className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors"
+        className="flex items-center gap-2.5 w-full px-3 py-2 t-body text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors"
       >
         <LogOut className="h-4 w-4 shrink-0" />
         Sair
@@ -337,7 +337,7 @@ export function Sidebar() {
             onClick={toggleCollapsed}
             aria-label="Recolher menu"
             title="Recolher menu"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
           >
             <PanelLeftClose className="h-4 w-4" />
           </button>
@@ -350,7 +350,7 @@ export function Sidebar() {
             type="button"
             onClick={openCommandPalette}
             aria-label="Buscar"
-            className="flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-tertiary)] transition-colors duration-150 hover:border-[var(--border-strong)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-blue)]"
+            className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-tertiary)] transition-colors duration-150 hover:border-[var(--border-strong)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-blue)]"
           >
             <Search className="h-4 w-4" />
           </button>
@@ -358,11 +358,11 @@ export function Sidebar() {
       ) : (
         <button
           onClick={openCommandPalette}
-          className="group mb-4 flex w-full items-center gap-2 rounded-md border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-left text-[var(--text-tertiary)] transition-colors hover:border-[var(--border-strong)]"
+          className="group mb-4 flex w-full items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-left text-[var(--text-tertiary)] transition-colors hover:border-[var(--border-strong)]"
         >
           <Search className="h-4 w-4 shrink-0" />
-          <span className="flex-1 text-sm">Buscar…</span>
-          <span className="rounded border border-[var(--border-color)] px-1.5 py-0.5 text-xs font-medium text-[var(--text-tertiary)]">
+          <span className="flex-1 t-body">Buscar…</span>
+          <span className="rounded-[var(--radius-sm)] border border-[var(--border-color)] px-1.5 py-0.5 t-label text-[var(--text-tertiary)]">
             Ctrl K
           </span>
         </button>
@@ -429,7 +429,7 @@ export function Sidebar() {
             to="/configuracoes"
             aria-current={settingsNavCurrent ? 'page' : undefined}
             className={cn(
-              'group flex items-center gap-3 rounded-md px-3 py-2 transition-colors',
+              'group flex items-center gap-3 rounded-[var(--radius-input)] px-3 py-2 transition-colors',
               settingsNavCurrent
                 ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
                 : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
@@ -439,7 +439,7 @@ export function Sidebar() {
               'h-5 w-5',
               settingsNavCurrent ? 'text-[var(--brand-accent)]' : 'text-[var(--text-tertiary)]'
             )} />
-            <span className="flex-1 text-sm font-medium">Configurações</span>
+            <span className="flex-1 t-body-strong">Configurações</span>
             <ChevronRight className="h-4 w-4 text-[var(--text-tertiary)]" />
           </Link>
         )}
@@ -457,7 +457,7 @@ export function Sidebar() {
                 }}
                 className={cn(
                   collapsedRailClass(false),
-                  'rounded-full bg-[var(--bg-hover)] text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--border-color)] hover:text-[var(--text-primary)]',
+                  'rounded-full bg-[var(--bg-hover)] t-label text-[var(--text-secondary)] hover:bg-[var(--border-color)] hover:text-[var(--text-primary)]',
                   userMenuOpen && 'bg-[var(--border-color)] text-[var(--text-primary)]',
                 )}
                 aria-label="Perfil"
@@ -481,15 +481,15 @@ export function Sidebar() {
             )}
             <button
               onClick={e => { e.stopPropagation(); setUserMenuOpen(prev => !prev); }}
-              className="flex w-full items-center gap-3 rounded-md border border-transparent p-2 text-left transition-colors hover:bg-[var(--bg-hover)]"
+              className="flex w-full items-center gap-3 rounded-[var(--radius-input)] border border-transparent p-2 text-left transition-colors hover:bg-[var(--bg-hover)]"
               aria-label="Abrir perfil"
             >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--bg-hover)] text-sm font-semibold text-[var(--text-secondary)]">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--bg-hover)] t-body-strong text-[var(--text-secondary)]">
                 {userInitials}
               </div>
               <div className="flex min-w-0 flex-1 flex-col items-start overflow-hidden">
-                <span className="w-full truncate text-sm font-semibold text-[var(--text-primary)]">{userName}</span>
-                <span className="w-full truncate text-xs text-[var(--text-tertiary)]">{userEmail}</span>
+                <span className="w-full truncate t-body-strong text-[var(--text-primary)]">{userName}</span>
+                <span className="w-full truncate t-meta text-[var(--text-tertiary)]">{userEmail}</span>
               </div>
               <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
             </button>

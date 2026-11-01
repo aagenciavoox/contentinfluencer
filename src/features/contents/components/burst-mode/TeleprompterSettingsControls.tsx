@@ -122,16 +122,14 @@ export function SettingsCard({
     >
       <div className="mb-4 flex items-center gap-3 md:mb-4">
         <Icon aria-hidden className="h-6 w-6 shrink-0" strokeWidth={1.75} />
-        <h3 id={titleId}>
-          <Text variant="itemTitle" as="span" className="leading-tight">{title}</Text>
-        </h3>
+        <Text variant="itemTitle" as="h3" id={titleId} className="leading-tight">{title}</Text>
         {badge && (
           <Text variant="meta" as="span" className="rounded-full border border-[var(--border-color)] px-2 py-0.5 text-[var(--text-tertiary)]">
             {badge}
           </Text>
         )}
       </div>
-      <div className="space-y-4">{children}</div>
+      <div className="stack-lg">{children}</div>
     </section>
   );
 }

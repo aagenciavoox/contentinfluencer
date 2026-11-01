@@ -182,7 +182,7 @@ export function CaptionFilaCard({
             <Link
               to={buildContentDetailRoute(content.id, 'publicacao')}
               state={{ from: '/criacao/legendas' }}
-              className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] t-secondary font-semibold text-[var(--text-primary)] underline underline-offset-2 hover:no-underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] t-label text-[var(--text-primary)] underline underline-offset-2 hover:no-underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
             >
               Abrir roteiro
               <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />

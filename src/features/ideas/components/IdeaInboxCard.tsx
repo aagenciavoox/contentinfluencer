@@ -54,7 +54,7 @@ export function IdeaInboxCard({
     serieNome ? (
       <span
         key="serie"
-        className="status-pill text-xs font-medium uppercase tracking-[0.06em]"
+        className="status-pill t-label uppercase tracking-[0.06em]"
         style={getEntityTagStyle(serieCor)}
       >
         {serieNome}
@@ -63,7 +63,7 @@ export function IdeaInboxCard({
     pilarNome ? (
       <span
         key="pilar"
-        className="status-pill text-xs font-medium uppercase tracking-[0.06em]"
+        className="status-pill t-label uppercase tracking-[0.06em]"
         style={getEntityTagStyle(pilarCor)}
       >
         {pilarNome}
@@ -72,7 +72,7 @@ export function IdeaInboxCard({
     origemTitulo ? (
       <span
         key="origem"
-        className="status-pill gap-1 text-xs font-medium uppercase tracking-[0.06em] text-[var(--accent-orange)]"
+        className="status-pill gap-1 t-label uppercase tracking-[0.06em] text-[var(--accent-orange)]"
       >
         <BookOpen className="h-3 w-3" />
         <span className="truncate">{origemTitulo}</span>
@@ -123,7 +123,7 @@ export function IdeaInboxCard({
                 type="button"
                 onClick={onPromote}
                 title="Transformar em roteiro"
-                className="rounded-md p-1.5 text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
+                className="rounded-[var(--radius-input)] p-1.5 text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
               >
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </button>
@@ -133,7 +133,7 @@ export function IdeaInboxCard({
                 type="button"
                 onClick={onEdit}
                 title="Editar"
-                className="rounded-md p-1.5 text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                className="rounded-[var(--radius-input)] p-1.5 text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
               >
                 <Edit3 className="h-3.5 w-3.5" />
               </button>
@@ -143,7 +143,7 @@ export function IdeaInboxCard({
                 type="button"
                 onClick={onArchive}
                 title="Arquivar"
-                className="rounded-md p-1.5 text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                className="rounded-[var(--radius-input)] p-1.5 text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
               >
                 <Archive className="h-3.5 w-3.5" />
               </button>

@@ -9,7 +9,7 @@ function DownloadMenuItem({ icon, label, onClick }: { icon: ReactNode; label: st
     <button
       type="button"
       role="menuitem"
-      className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-11"
+      className="flex w-full items-center gap-2 px-4 py-2.5 text-left t-body-strong text-[var(--text-primary)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-11"
       onClick={onClick}
     >
       <span className="flex shrink-0 text-[var(--text-tertiary)]" aria-hidden>{icon}</span>

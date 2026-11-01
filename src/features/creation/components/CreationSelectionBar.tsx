@@ -61,7 +61,7 @@ function selectionDetail({
 
 // No celular os botões viram blocos com ícone sobre o texto (4 por linha); do `md:` em diante, botões normais.
 const actionClassName = cn(
-  'h-auto min-h-14 w-full flex-col gap-1 px-1 py-2 text-xs',
+  'h-auto min-h-14 w-full flex-col gap-1 px-1 py-2 t-label',
   'md:h-[var(--app-button-height)] md:min-h-0 md:w-auto md:flex-row md:gap-2 md:px-4 md:py-0 md:text-[length:var(--font-size-button)]',
 );
 
@@ -144,7 +144,7 @@ export function CreationSelectionBar({
               <span
                 aria-hidden
                 className={cn(
-                  'inline-flex h-4 w-4 items-center justify-center rounded border transition-colors',
+                  'inline-flex h-4 w-4 items-center justify-center rounded-[var(--radius-sm)] border transition-colors',
                   nothingSelected
                     ? 'border-[var(--border-strong)] bg-[var(--bg-elevated)]'
                     : 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]',

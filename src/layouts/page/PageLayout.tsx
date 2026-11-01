@@ -94,8 +94,6 @@ export function PageLayout({
       ) : null}
 
       <main className="min-w-0 flex-1">
-        {isMobile && mobileHeader ? <div>{mobileHeader}</div> : null}
-
         <PageContainer
           width={contentWidth}
           className={cn(
@@ -104,7 +102,8 @@ export function PageLayout({
             contentClassName,
           )}
         >
-          {isMobile && mobileToolbar ? <div>{mobileToolbar}</div> : null}
+          {isMobile && mobileHeader ? <div className="min-w-0">{mobileHeader}</div> : null}
+          {isMobile && mobileToolbar ? <div className="min-w-0">{mobileToolbar}</div> : null}
           {children}
         </PageContainer>
       </main>

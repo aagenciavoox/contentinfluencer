@@ -128,7 +128,7 @@ export function SemDataPanel({
           value={busca}
           onChange={event => setBusca(event.target.value)}
           placeholder="Buscar ideia ou roteiro…"
-          className="w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] py-2 pl-8 pr-3 text-sm text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+          className="w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] py-2 pl-8 pr-3 t-body text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
         />
       </label>
 
@@ -138,21 +138,21 @@ export function SemDataPanel({
           value={quadroId}
           onChange={setQuadroId}
           options={quadroOptions}
-          className="min-h-8 text-xs"
+          className="min-h-8 t-label"
         />
         <SelectField
           ariaLabel="Filtrar por assunto"
           value={assuntoId}
           onChange={setAssuntoId}
           options={assuntoOptions.length > 1 ? assuntoOptions : [{value: 'todos', label: 'Assunto'}]}
-          className="min-h-8 text-xs"
+          className="min-h-8 t-label"
         />
         <SelectField
           ariaLabel="Filtrar por etapa"
           value={etapa}
           onChange={value => setEtapa(value as PostItKind | 'todas')}
           options={ETAPA_OPCOES}
-          className="min-h-8 text-xs"
+          className="min-h-8 t-label"
         />
       </div>
 

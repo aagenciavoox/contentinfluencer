@@ -25,7 +25,7 @@ export function CreationSelectCheckbox({
         onToggle();
       }}
       className={cn(
-        'relative inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-[opacity,colors,box-shadow] duration-150',
+        'relative inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border transition-[opacity,colors,box-shadow] duration-150',
         // No toque, a caixa continua pequena mas a área de toque vai a 44px.
         "pointer-coarse:before:absolute pointer-coarse:before:-inset-3 pointer-coarse:before:content-['']",
         'focus-visible:opacity-100 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',

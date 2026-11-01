@@ -239,7 +239,7 @@ export function TodayHome({
                       <Link
                         to={buildContentDetailRoute(script.id)}
                         state={detailBack}
-                        className="block rounded-sm focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                        className="block rounded-[var(--radius-sm)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                       >
                         <Text variant="bodyStrong" className="line-clamp-2">
                           {script.title?.trim() || 'Sem título'}

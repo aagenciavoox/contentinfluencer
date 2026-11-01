@@ -138,7 +138,7 @@ export function CommentCard({
       </Text>
 
       {replies.length > 0 ? (
-        <div className="mt-2 space-y-2 border-t border-[var(--border-color)] pt-2">
+        <div className="mt-2 stack-sm border-t border-[var(--border-color)] pt-2">
           {(active ? replies : replies.slice(-1)).map(item => (
             <div key={item.id} className="flex gap-2">
               <CornerDownRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" />
@@ -158,7 +158,7 @@ export function CommentCard({
       ) : null}
 
       {active ? (
-        <div className="mt-3 space-y-2 border-t border-[var(--border-color)] pt-3" onClick={event => event.stopPropagation()}>
+        <div className="mt-3 stack-sm border-t border-[var(--border-color)] pt-3" onClick={event => event.stopPropagation()}>
           {onReply && !resolved ? (
             <div className="flex items-end gap-2">
               <textarea
@@ -346,7 +346,7 @@ export function CommentsPanel({
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="flex-1 space-y-2 overflow-y-auto p-3">
+        <div className="flex-1 stack-sm overflow-y-auto p-3">
           {items.length === 0 ? (
             <Text variant="secondary" as="p" className="px-2 py-8 text-center text-[var(--text-tertiary)]">
               Nenhum comentário{resolvedCount > 0 && !showResolved ? ' aberto' : ''}. Selecione um trecho e toque em comentar.

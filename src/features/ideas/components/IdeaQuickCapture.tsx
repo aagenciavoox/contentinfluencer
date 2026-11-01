@@ -105,7 +105,7 @@ export function IdeaQuickCapture({
           // Botão dentro de botão não é HTML válido e o X ficava com 16px. Agora são dois botões
           // lado a lado dentro do mesmo chip; no toque, os dois têm 44px de altura.
           <div
-            className="inline-flex min-h-11 max-w-full items-center rounded-[var(--radius-pill)] border border-transparent text-xs font-medium md:min-h-0"
+            className="inline-flex min-h-11 max-w-full items-center rounded-[var(--radius-pill)] border border-transparent t-label md:min-h-0"
             style={chipStyle}
           >
             {/* Toque abre a lista do design system (folha no celular) direto no chip. */}
@@ -173,7 +173,7 @@ export function IdeaQuickCapture({
             aria-label="Título da ideia"
             className={cn(
               fieldClassName,
-              'h-10 py-0 pl-9 pr-3 text-sm font-semibold placeholder:font-normal',
+              'h-10 py-0 pl-9 pr-3 t-body-strong placeholder:font-normal',
             )}
           />
         </div>
@@ -181,7 +181,7 @@ export function IdeaQuickCapture({
           <button
             type="button"
             onClick={expandCapture}
-            className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-2.5 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] md:min-h-8"
+            className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-2.5 t-label text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] md:min-h-8"
           >
             + Observações
           </button>
@@ -203,7 +203,7 @@ export function IdeaQuickCapture({
           aria-label="Observações da ideia"
           className={cn(
             fieldClassName,
-            'min-h-[4.5rem] max-h-28 resize-none bg-[var(--bg-hover)] px-3 py-2 text-sm leading-relaxed custom-scrollbar',
+            'min-h-[4.5rem] max-h-28 resize-none bg-[var(--bg-hover)] px-3 py-2 t-body leading-relaxed custom-scrollbar',
           )}
         />
       </div>

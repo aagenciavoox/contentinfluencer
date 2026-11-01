@@ -176,7 +176,7 @@ export function PuxarConteudoDialog({
                         className="flex w-full items-start justify-between gap-3 rounded-[var(--radius-input)] border border-[var(--border-color)] px-3 py-2 text-left hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                       >
                         <span className="min-w-0 flex-1">
-                          <span className="block whitespace-normal break-words text-sm font-semibold text-[var(--text-primary)]">
+                          <span className="block whitespace-normal break-words t-body-strong text-[var(--text-primary)]">
                             {content.title || 'Sem título'}
                           </span>
                           {classe.length > 0 ? (

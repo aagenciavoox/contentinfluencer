@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { AppProviders } from './app/providers/AppProviders';
 import { appRouter } from './app/router/appRouter';
+import { Text } from './components/ui/Text';
 import { useAuth } from './context/AuthContext';
 import { supabaseConfigStatus } from './lib/supabase';
 
@@ -30,11 +31,11 @@ function AppRouter() {
           <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)]">
             <AlertTriangle className="h-7 w-7" />
           </div>
-          <h1 className="text-2xl font-semibold t-label-uppercase">Backend obrigatório</h1>
-          <p className="mt-4 text-sm leading-6 text-[var(--text-secondary)]">
+          <Text variant="pageTitle" as="h1" uppercase>Backend obrigatório</Text>
+          <Text variant="secondary" as="p" className="mt-4">
             Este app não opera mais em modo offline. Preencha o arquivo <code>.env.local</code> na raiz do projeto e reinicie o servidor (<code>npm run dev</code>).
-          </p>
-          <ul className="mt-4 stack-sm text-sm font-mono">
+          </Text>
+          <ul className="mt-4 stack-sm t-body font-mono">
             <li className={supabaseConfigStatus.url ? 'text-[var(--success)]' : 'text-[var(--danger)]'}>
               {supabaseConfigStatus.url ? '✔' : '✗'} VITE_SUPABASE_URL
             </li>
@@ -43,7 +44,7 @@ function AppRouter() {
             </li>
           </ul>
           {!supabaseConfigStatus.anonKey && (
-            <p className="mt-4 text-xs leading-5 text-[var(--text-secondary)]">
+            <Text variant="meta" as="p" className="mt-4">
               Copie a chave <strong>anon public</strong> em{' '}
               <a
                 href="https://supabase.com/dashboard/project/aftffcaychrfffefkeoj/settings/api"
@@ -54,7 +55,7 @@ function AppRouter() {
                 Supabase → Settings → API
               </a>
               .
-            </p>
+            </Text>
           )}
         </div>
       </div>

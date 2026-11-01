@@ -20,7 +20,7 @@ function NovaHashtag({ disabled, rotulo, onAdd }: { disabled: boolean; rotulo: s
       disabled={disabled}
       placeholder="Nova hashtag"
       aria-label={`Nova hashtag para ${rotulo}`}
-      className="h-8 min-w-[8.5rem] max-w-[12rem] rounded-[var(--radius-pill)] border border-dashed border-[var(--border-input)] bg-transparent px-2.5 text-xs font-semibold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50 pointer-coarse:h-11"
+      className="h-8 min-w-[8.5rem] max-w-[12rem] rounded-[var(--radius-pill)] border border-dashed border-[var(--border-input)] bg-transparent px-2.5 t-label text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50 pointer-coarse:h-11"
       onChange={event => setValue(event.target.value)}
       onBlur={commit}
       onKeyDown={event => {
@@ -78,18 +78,18 @@ export function HashtagsField({
   };
 
   const contagem = (
-    <Text variant="meta" className={cn('ml-auto font-semibold tabular-nums', acima && 'text-[var(--danger)]')}>
+    <Text variant="label" className={cn('ml-auto tabular-nums text-[var(--text-secondary)]', acima && 'text-[var(--danger)]')}>
       {`${tags.length} de ${limite}`}
     </Text>
   );
 
   return (
     <div className={cn('stack-sm', boxed && 'stack-md rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-4')}>
-      <Text variant="bodyStrong" as="p" className={cn(!boxed && 'text-sm')}>Hashtags</Text>
+      <Text variant="bodyStrong" as="p">Hashtags</Text>
       {sugestao.length > 0 ? (
         <div className="flex flex-col gap-2 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <Text variant="meta" className="font-semibold text-[var(--text-primary)]">Sugestão</Text>
+            <Text variant="label" className="text-[var(--text-primary)]">Sugestão</Text>
             <Text variant="secondary" className="mt-0.5 break-words">{sugestao.join(' ')}</Text>
           </div>
           <AppButton

@@ -93,7 +93,7 @@ export function LegendaVersaoField({
           {semTitulo ? null : <PlatformIcon platform={icone} className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" />}
           <div className="min-w-0">
             {semTitulo ? null : <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">{titulo}</Text>}
-            <Text variant="bodyStrong" as="p" className={cn('truncate', !semTitulo && 'text-sm')}>
+            <Text variant="bodyStrong" as="p" className="truncate">
               {rotulo}
               {detalhe ? <span className="font-normal text-[var(--text-secondary)]">{` · ${detalhe}`}</span> : null}
             </Text>
@@ -122,14 +122,14 @@ export function LegendaVersaoField({
           rows={compact ? 2 : 3}
           aria-label={`${titulo}: ${rotulo}`}
           onChange={event => onEditar(event.target.value)}
-          className="block w-full resize-none overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-sm leading-6 text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60"
+          className="block w-full resize-none overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 t-body text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60"
           placeholder={`Legenda só para ${rotulo}`}
         />
       ) : (
         <p
           id={id}
           className={cn(
-            'whitespace-pre-wrap break-words rounded-[var(--radius-input)] bg-[var(--surface-subtle)] px-3 py-2 text-sm leading-6',
+            'whitespace-pre-wrap break-words rounded-[var(--radius-input)] bg-[var(--surface-subtle)] px-3 py-2 t-body',
             texto.trim() ? 'text-[var(--text-secondary)]' : 'italic text-[var(--text-tertiary)]',
             compact && 'line-clamp-4',
           )}

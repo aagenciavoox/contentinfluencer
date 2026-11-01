@@ -682,15 +682,17 @@ export function BurstModeExperience({
                     </Text>
                   </div>
 
-                  <article
-                    className="whitespace-pre-wrap break-words t-section-title leading-[1.8] md:text-[30px] md:leading-[1.75]"
+                  <Text
+                    variant="sectionTitle"
+                    as="article"
+                    className="whitespace-pre-wrap break-words leading-[1.8] md:text-[30px] md:leading-[1.75]"
                     style={{
                       color: getResolvedTextColor(settings.theme, settings.textColor),
                       textAlign: settings.textAlign,
                     }}
                   >
                     {scriptText}
-                  </article>
+                  </Text>
                 </div>
               </div>
             </div>

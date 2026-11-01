@@ -227,7 +227,7 @@ export function CalendarAgendaView({
             <div className="flex justify-between items-center mb-6 px-2">
               <div>
                 <Text variant="itemTitle">{format(selectedDayItems.date, "dd 'de' MMMM", { locale: ptBR })}</Text>
-                <Text variant="label" as="p" className="uppercase text-[var(--text-tertiary)] tracking-widest">{selectedDayItems.items.length} EVENTOS</Text>
+                <Text variant="eyebrow" as="p">{selectedDayItems.items.length} EVENTOS</Text>
               </div>
               <button onClick={() => setSelectedDayItems(null)} className="p-2 bg-[var(--bg-hover)] rounded-full">
                  <span className=" leading-none">×</span>

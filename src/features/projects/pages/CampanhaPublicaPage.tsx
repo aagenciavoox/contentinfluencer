@@ -92,7 +92,7 @@ function KpiCard({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <Surface variant="outlined" padding="lg">
       <Text variant="label" uppercase className="mb-2">{label}</Text>
-      <Text variant="itemTitle" as="p" className="text-[1.75rem] font-bold tracking-tight">{value}</Text>
+      <Text variant="spotlightTitle" as="p" className="text-[1.75rem] tracking-tight">{value}</Text>
     </Surface>
   );
 }
@@ -100,7 +100,7 @@ function KpiCard({ label, value }: { label: string; value: React.ReactNode }) {
 function StatusBadge({ label, color }: { label: string; color: string }) {
   return (
     <span
-      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold"
+      className="inline-flex items-center rounded-full px-2.5 py-0.5 t-label"
       style={{
         background: `color-mix(in srgb, ${color} 12%, transparent)`,
         color,
@@ -186,7 +186,7 @@ export function CampanhaPublicaPage() {
             <Text variant="secondary" as="span">· {projeto.nome}</Text>
           )}
         </div>
-        <Text variant="label" className="font-medium">Relatório de campanha</Text>
+        <Text variant="label">Relatório de campanha</Text>
       </div>
 
       {/* ── Content ── */}
@@ -229,7 +229,7 @@ export function CampanhaPublicaPage() {
               target="_blank"
               rel="noopener noreferrer"
               className={cn(
-                'inline-flex items-center gap-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-2.5 text-sm font-semibold text-[var(--text-primary)] no-underline transition-[border-color] hover:border-[var(--border-strong)]',
+                'inline-flex items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-2.5 t-button text-[var(--text-primary)] no-underline transition-[border-color] hover:border-[var(--border-strong)]',
                 FOCUS_INTERACTIVE,
               )}
             >
@@ -283,7 +283,7 @@ export function CampanhaPublicaPage() {
               {/* Conteúdos agendados */}
               {agendados.map(c => (
                 <Surface key={c.id} variant="outlined" padding="md" className="flex items-center gap-3.5">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-primary)]">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-input)] bg-[var(--bg-primary)]">
                     <Calendar className="h-4 w-4 text-[var(--accent-blue)]" />
                   </span>
                   <div className="min-w-0 flex-1">
@@ -299,7 +299,7 @@ export function CampanhaPublicaPage() {
               {/* Conteúdos publicados */}
               {publicados.map(c => (
                 <Surface key={c.id} variant="outlined" padding="md" className="flex items-center gap-3.5">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-primary)]">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-input)] bg-[var(--bg-primary)]">
                     <CheckCircle2 className="h-4 w-4 text-[var(--success)]" />
                   </span>
                   <div className="min-w-0 flex-1">
@@ -316,7 +316,7 @@ export function CampanhaPublicaPage() {
                       target="_blank"
                       rel="noopener noreferrer"
                       className={cn(
-                        'flex shrink-0 items-center gap-1 text-xs font-semibold text-[var(--success)] no-underline',
+                        'flex shrink-0 items-center gap-1 t-label text-[var(--success)] no-underline',
                         FOCUS_INTERACTIVE,
                       )}
                     >
@@ -331,7 +331,7 @@ export function CampanhaPublicaPage() {
               {/* Eventos de agenda (reuniões, entregas) */}
               {agenda_items.filter(a => a.tipo !== 'Publicação').map(a => (
                 <Surface key={a.id} variant="outlined" padding="md" className="flex items-center gap-3.5">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-primary)]">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-input)] bg-[var(--bg-primary)]">
                     <Calendar className="h-4 w-4 text-[var(--text-tertiary)]" />
                   </span>
                   <div className="flex-1">
@@ -414,7 +414,7 @@ export function CampanhaPublicaPage() {
                               target="_blank"
                               rel="noopener noreferrer"
                               className={cn(
-                                'flex shrink-0 items-center gap-1 text-xs font-semibold text-[var(--accent-blue)] no-underline',
+                                'flex shrink-0 items-center gap-1 t-label text-[var(--accent-blue)] no-underline',
                                 FOCUS_INTERACTIVE,
                               )}
                             >
@@ -438,7 +438,7 @@ export function CampanhaPublicaPage() {
                           return (
                             <span
                               key={cm.id}
-                              className="mr-1.5 mt-2 inline-block rounded px-2 py-0.5 text-xs font-semibold text-[var(--text-tertiary)] bg-[var(--bg-hover)]"
+                              className="mr-1.5 mt-2 inline-block rounded-[var(--radius-sm)] px-2 py-0.5 t-label text-[var(--text-tertiary)] bg-[var(--bg-hover)]"
                             >
                               {plNome}
                             </span>
@@ -476,7 +476,7 @@ export function CampanhaPublicaPage() {
 
 function StatCell({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <span className="min-w-0 text-xs text-[var(--text-secondary)]">
+    <span className="min-w-0 t-meta">
       <Text variant="label" uppercase className="mb-0.5 block break-words">{label}</Text>
       {value}
     </span>

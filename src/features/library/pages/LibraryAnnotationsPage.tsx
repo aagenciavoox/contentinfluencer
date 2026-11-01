@@ -53,7 +53,7 @@ export function LibraryAnnotationsPage() {
         />
       )}
       mobileHeader={(
-        <div className="stack-sm pb-1 pt-1">
+        <div className="stack-sm">
           <LibrarySectionTabs />
           <LibraryFormatChips value={format} onChange={setFormat} />
         </div>

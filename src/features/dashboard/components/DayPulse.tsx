@@ -25,7 +25,7 @@ export function DayPulse({
               to={segment.to}
               // Sublinhado sempre: na mesma cor e peso do texto, só o sublinhado diz que é link (WCAG 1.4.1).
               className={cn(
-                'rounded-sm underline decoration-[color-mix(in_srgb,currentColor_55%,transparent)] decoration-1 underline-offset-2 hover:decoration-current focus-visible:outline-none',
+                'rounded-[var(--radius-sm)] underline decoration-[color-mix(in_srgb,currentColor_55%,transparent)] decoration-1 underline-offset-2 hover:decoration-current focus-visible:outline-none',
                 focusClass,
                 toneClass,
               )}

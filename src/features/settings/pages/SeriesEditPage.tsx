@@ -8,7 +8,6 @@ import { MoreMenu } from '../../../components/ui/MoreMenu';
 import { Text } from '../../../components/ui/Text';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
-import { useIsMobile } from '../../../hooks/useIsMobile';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import type { Serie, SerieTipoAgrupamento } from '../../../lib/database';
@@ -97,7 +96,6 @@ export function SeriesEditPage() {
   const { state, dispatch } = useAppContext();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const isMobile = useIsMobile();
   const { serieId } = useParams<{ serieId: string }>();
   const [searchParams] = useSearchParams();
   const [chrome, setChrome] = useState<SerieEditChromeState | null>(null);
@@ -256,7 +254,7 @@ export function SeriesEditPage() {
 
   if ((!isCreate && !editingSerie) || (quadroSemSerie && state.isLoaded)) {
     return (
-      <PageLayout variant="settings">
+      <PageLayout>
         <div className="mx-auto max-w-3xl text-center">
           <Text variant="body" className="text-[var(--text-tertiary)]">
             {quadroSemSerie
@@ -299,89 +297,6 @@ export function SeriesEditPage() {
     />
   );
 
-  if (isMobile) {
-    return (
-      <>
-        <div className="min-h-full bg-[var(--bg-primary)] px-4 pb-28 pt-4">
-          <div className="mb-4 flex items-center justify-between gap-2">
-            <AppButton variant="ghost" size="sm" onClick={voltar}>
-              {rotuloVolta}
-            </AppButton>
-            <div className="flex items-center gap-2">
-              {!isCreate ? (
-                <MoreMenu
-                  size="sm"
-                  items={[
-                    {
-                      label: editingSerie?.ativa !== false ? 'Arquivar' : 'Reativar',
-                      onClick: handleToggleAtiva,
-                    },
-                    {
-                      label: CONFIRM.excluirSerie.confirmLabel,
-                      tone: 'danger',
-                      onClick: () => setConfirmDelete(true),
-                    },
-                  ]}
-                />
-              ) : null}
-              {chrome ? (
-                <>
-                  <AppButton variant="secondary" size="sm" onClick={chrome.handleCancel}>
-                    Cancelar
-                  </AppButton>
-                  <AppButton
-                    variant="primary"
-                    size="sm"
-                    onClick={chrome.handleSave}
-                    disabled={!chrome.canSave}
-                  >
-                    {isCreate ? 'Criar' : 'Salvar'}
-                  </AppButton>
-                </>
-              ) : null}
-            </div>
-          </div>
-          <Text variant="sectionTitle" className="mb-1">
-            {pageTitle}
-          </Text>
-          <Text variant="meta" className="mb-4 text-[var(--text-secondary)]">
-            {pageMeta}
-          </Text>
-          {formElement}
-        </div>
-        <ConfirmModal
-          open={confirmDelete}
-          message={CONFIRM.excluirSerie.message}
-          confirmLabel={CONFIRM.excluirSerie.confirmLabel}
-          cancelLabel={CONFIRM.excluirSerie.cancelLabel}
-          onConfirm={() => {
-            handleDelete();
-            setConfirmDelete(false);
-          }}
-          onCancel={() => setConfirmDelete(false)}
-        />
-        <ConfirmModal
-          open={Boolean(pendingApply)}
-          message={aplicarMensagem}
-          confirmLabel="Aplicar aos publicados"
-          cancelLabel="Manter os publicados"
-          onConfirm={() => pendingApply && seguirParaLegenda(pendingApply, true)}
-          onCancel={() => pendingApply && seguirParaLegenda(pendingApply, false)}
-        />
-        <ConfirmModal
-          open={Boolean(legendaPendente)}
-          message={legendaPendente
-            ? `${legendaPendente.alvos.length === 1 ? '1 roteiro ainda segue a legenda desta série e não foi publicado. Atualizar esse texto?' : `${legendaPendente.alvos.length} roteiros ainda seguem a legenda desta série e não foram publicados. Atualizar esses textos?`} Versões editadas à mão e publicações já feitas ficam como estão.`
-            : ''}
-          confirmLabel="Atualizar esses roteiros"
-          cancelLabel="Só salvar a série"
-          onConfirm={() => legendaPendente && persistSerie(legendaPendente.serie, legendaPendente.aplicarFuncao, legendaPendente.alvos)}
-          onCancel={() => legendaPendente && persistSerie(legendaPendente.serie, legendaPendente.aplicarFuncao)}
-        />
-      </>
-    );
-  }
-
   return (
     <>
       <PageLayout
@@ -392,7 +307,7 @@ export function SeriesEditPage() {
             backLabel={rotuloVolta}
             backTo={destinoDeVolta}
             title={pageTitle}
-            meta={pageMeta}
+            subtitle={isCreate ? pageMeta : undefined}
             actions={
               <SerieEditHeaderActions
                 isCreate={isCreate}
@@ -405,6 +320,23 @@ export function SeriesEditPage() {
             }
           />
         }
+        mobileHeader={(
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            {pageMeta ? (
+              <Text variant="meta" className="min-w-0 flex-1 text-[var(--text-secondary)]">
+                {pageMeta}
+              </Text>
+            ) : <span />}
+            <SerieEditHeaderActions
+              isCreate={isCreate}
+              ativa={editingSerie?.ativa}
+              rotuloSalvar={isCreate ? 'Criar' : 'Salvar'}
+              onToggleAtiva={handleToggleAtiva}
+              onDelete={() => setConfirmDelete(true)}
+              chrome={chrome}
+            />
+          </div>
+        )}
       >
         <div className="w-full">{formElement}</div>
       </PageLayout>

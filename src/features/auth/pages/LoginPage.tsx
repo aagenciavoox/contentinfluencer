@@ -104,7 +104,7 @@ function AuthForm({
             className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]"
             aria-hidden
           >
-            <span className="text-lg font-semibold">✓</span>
+            <Text variant="sectionTitle" as="span">✓</Text>
           </div>
           <div className="stack-sm">
             <Text variant="sectionTitle" as="h2">
@@ -112,7 +112,7 @@ function AuthForm({
             </Text>
             <Text variant="secondary">
               Enviamos um link para{' '}
-              <span className="font-semibold text-[var(--text-primary)]">{email}</span>.
+              <strong className="text-[var(--text-primary)]">{email}</strong>.
               Confirme para entrar.
             </Text>
           </div>

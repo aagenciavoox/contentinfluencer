@@ -1167,7 +1167,6 @@ export function CreationHubPage() {
           <DesktopPageHeader
             section="Criação"
             title="Criação"
-            meta={countMeta}
             actions={activeTab === 'Lixeira' ? trashActions : (
               <CreateMenuButton
                 onCreateIdea={openIdeaComposer}
@@ -1184,7 +1183,7 @@ export function CreationHubPage() {
           />
         )}
         mobileHeader={(
-          <div className="stack-sm pb-1 pt-1">
+          <div className="stack-sm">
             {activeTab === 'Lixeira' ? trashActions : null}
             {mobileTabs}
           </div>

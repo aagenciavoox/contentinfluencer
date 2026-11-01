@@ -52,7 +52,6 @@ export function CreateMenuButton({
       <AppButton
         variant={variant}
         leftIcon={<Plus className="h-4 w-4" />}
-        rightIcon={<ChevronDown className="h-4 w-4" />}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}

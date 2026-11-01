@@ -349,8 +349,8 @@ function CaptionGridRow({
                 </Text>
               ) : null}
               <Text
-                variant="meta"
-                className={cn('ml-auto font-semibold', hashtagsOver && 'text-[var(--danger)]')}
+                variant="label"
+                className={cn('ml-auto', hashtagsOver ? 'text-[var(--danger)]' : 'text-[var(--text-secondary)]')}
               >
                 {`${hashtagCount} de ${hashtagLimit}`}
               </Text>

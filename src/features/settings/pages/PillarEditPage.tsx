@@ -8,7 +8,6 @@ import { MoreMenu } from '../../../components/ui/MoreMenu';
 import { Text } from '../../../components/ui/Text';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
-import { useIsMobile } from '../../../hooks/useIsMobile';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import type { Pilar } from '../../../lib/database';
@@ -73,7 +72,6 @@ export function PillarEditPage() {
   const { state, dispatch } = useAppContext();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const isMobile = useIsMobile();
   const { pilarId } = useParams<{ pilarId: string }>();
   const [chrome, setChrome] = useState<PilarEditChromeState | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -153,7 +151,7 @@ export function PillarEditPage() {
 
   if (!isCreate && !editingPilar) {
     return (
-      <PageLayout variant="settings">
+      <PageLayout>
         <div className="mx-auto max-w-3xl text-center">
           <Text variant="body" className="text-[var(--text-tertiary)]">
             Este pilar não existe mais.
@@ -185,51 +183,14 @@ export function PillarEditPage() {
     />
   );
 
-  if (isMobile) {
-    return (
-      <>
-        <div className="min-h-full bg-[var(--bg-primary)] px-4 pb-28 pt-4">
-          <div className="mb-4 flex items-center justify-between gap-2">
-            <AppButton variant="ghost" size="sm" onClick={backToList}>
-              Pilares
-            </AppButton>
-            <div className="flex items-center gap-2">
-              {chrome ? (
-                <>
-                  <AppButton variant="secondary" size="sm" onClick={chrome.handleCancel}>
-                    Cancelar
-                  </AppButton>
-                  <AppButton
-                    variant="primary"
-                    size="sm"
-                    onClick={chrome.handleSave}
-                    disabled={!chrome.canSave}
-                  >
-                    Salvar
-                  </AppButton>
-                </>
-              ) : null}
-            </div>
-          </div>
-          <Text variant="sectionTitle" className="mb-1">
-            {pageTitle}
-          </Text>
-          {formElement}
-        </div>
-        <ConfirmModal
-          open={confirmDelete}
-          message={CONFIRM.excluirPilar.message}
-          confirmLabel={CONFIRM.excluirPilar.confirmLabel}
-          cancelLabel={CONFIRM.excluirPilar.cancelLabel}
-          onConfirm={() => {
-            handleDelete();
-            setConfirmDelete(false);
-          }}
-          onCancel={() => setConfirmDelete(false)}
-        />
-      </>
-    );
-  }
+  const headerActions = (
+    <PilarEditHeaderActions
+      isCreate={isCreate}
+      pilarId={isCreate ? undefined : pilarId}
+      onDelete={() => setConfirmDelete(true)}
+      chrome={chrome}
+    />
+  );
 
   return (
     <>
@@ -241,16 +202,10 @@ export function PillarEditPage() {
             backLabel="Pilares"
             backTo="/editorial"
             title={pageTitle}
-            actions={
-              <PilarEditHeaderActions
-                isCreate={isCreate}
-                pilarId={isCreate ? undefined : pilarId}
-                onDelete={() => setConfirmDelete(true)}
-                chrome={chrome}
-              />
-            }
+            actions={headerActions}
           />
         }
+        mobileHeader={headerActions}
       >
         <div className="w-full">{formElement}</div>
       </PageLayout>

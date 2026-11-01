@@ -5,20 +5,29 @@ import { cn } from '../../lib/utils';
 import { Text } from '../../components/ui/Text';
 
 interface DesktopPageHeaderProps {
-  /** Breadcrumb / section label shown above the title. Doubles as the back link when `backTo`/`onBack` is set. */
+  /** Breadcrumb / section label shown above the title (e.g. 'Produção', 'Criação', 'Configurações'). */
   section: string;
+  /** Main H1 title of the page. */
   title: string;
   /** Replaces the default title node (e.g. inline title editor). */
   titleContent?: ReactNode;
   /** Larger sans display weight for hero page titles (e.g. Dashboard). */
   titleVariant?: 'default' | 'display';
+  /**
+   * Optional operational support/description text for utility or complex onboarding screens.
+   * Rendered directly below H1 with 4px top margin, 14px size and secondary neutral color.
+   */
+  subtitle?: ReactNode;
+  /** Legacy support text / short count. */
   meta?: string;
   /** Observação curta depois do meta, num tom mais leve (ex.: onde fica outra coisa). */
   metaNote?: string;
   /** Ao lado do título: contagem ou selo (ex.: "69 publicações"). */
   titleAside?: ReactNode;
+  /** Primary action button aligned to the far right. */
   actions?: ReactNode;
   className?: string;
+  /** Parent section/page label for back navigation (e.g. '< Configurações', '< Criação'). */
   backLabel?: string;
   backTo?: string;
   onBack?: () => void;
@@ -31,6 +40,7 @@ export function DesktopPageHeader({
   title,
   titleContent,
   titleVariant = 'default',
+  subtitle,
   meta,
   metaNote,
   titleAside,
@@ -43,50 +53,56 @@ export function DesktopPageHeader({
 }: DesktopPageHeaderProps) {
   const navigate = useNavigate();
   const handleBack = onBack ?? (backTo ? () => navigate(backTo) : undefined);
-  const eyebrow = backLabel === 'Roteiros' ? 'Criação' : backLabel || section;
-  const hideEyebrow = !backLabel && section === title;
   const hasBack = Boolean(backTo || handleBack);
+  const eyebrow = hasBack ? (backLabel === 'Roteiros' ? 'Criação' : (backLabel || section)) : section;
   const actionItems = Children.toArray(actions);
+  const supportText = subtitle ?? meta;
   const crumbInteractiveClass =
-    'desktop-page-header-crumb desktop-page-header-back transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
+    'desktop-page-header-crumb desktop-page-header-back inline-flex items-center gap-1 text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
   return (
-    <div className={cn('desktop-page-header', className)}>
-      {!hideEyebrow && eyebrow ? (
-        hasBack ? (
-          backTo ? (
-            <Link to={backTo} className={crumbInteractiveClass}>
-              <ChevronLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              {eyebrow}
-            </Link>
+    <div className={cn('desktop-page-header w-full', className)}>
+      {eyebrow ? (
+        <div className="mb-1 flex items-center">
+          {hasBack ? (
+            backTo ? (
+              <Link to={backTo} className={crumbInteractiveClass} aria-label={`Voltar para ${eyebrow}`}>
+                <ChevronLeft className="-ml-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                <span>{eyebrow}</span>
+              </Link>
+            ) : (
+              <button type="button" onClick={handleBack} className={crumbInteractiveClass} aria-label={`Voltar para ${eyebrow}`}>
+                <ChevronLeft className="-ml-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                <span>{eyebrow}</span>
+              </button>
+            )
           ) : (
-            <button type="button" onClick={handleBack} className={crumbInteractiveClass}>
-              <ChevronLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span className="desktop-page-header-crumb">
               {eyebrow}
-            </button>
-          )
-        ) : (
-          <span className="desktop-page-header-crumb">{eyebrow}</span>
-        )
+            </span>
+          )}
+        </div>
       ) : null}
 
-      <div className={cn('desktop-page-header-row', rowAlign === 'center' && 'items-center')}>
+      <div className={cn('desktop-page-header-row flex items-start justify-between gap-6', rowAlign === 'center' && 'items-center')}>
         <div className="min-w-0 flex-1">
           <div className={cn('min-w-0', titleAside && 'flex items-center gap-3')}>
             {titleContent ?? (
               titleVariant === 'display' ? (
-                <Text variant="display" className="truncate">{title}</Text>
+                <Text variant="display" as="h1" className="truncate text-[var(--text-primary)]">
+                  {title}
+                </Text>
               ) : (
-                <Text variant="pageTitle" className="truncate">
+                <Text variant="pageTitle" as="h1" className="truncate text-[var(--text-primary)]">
                   {title}
                 </Text>
               )
             )}
             {titleAside ? <div className="flex shrink-0 items-center gap-2">{titleAside}</div> : null}
           </div>
-          {meta ? (
-            <p className="mt-1.5 truncate t-body text-[var(--text-secondary)]">
-              {meta}
+          {supportText ? (
+            <p className="mt-1 truncate t-body text-[var(--text-secondary)]">
+              {supportText}
               {metaNote ? (
                 <>
                   <span aria-hidden className="mx-2 text-[var(--text-tertiary)]">·</span>
@@ -98,7 +114,7 @@ export function DesktopPageHeader({
         </div>
 
         {actionItems.length > 0 ? (
-          <div className="flex shrink-0 items-start justify-end gap-2">
+          <div className="flex shrink-0 items-center justify-end gap-2">
             {actionItems}
           </div>
         ) : null}

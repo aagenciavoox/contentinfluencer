@@ -28,7 +28,7 @@ const iconButtonClass =
   'inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius-input)] border transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-40';
 
 const contaChipClass =
-  'inline-flex min-h-11 max-w-full items-center gap-2 rounded-[var(--radius-input)] border px-3 text-left text-sm transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50';
+  'inline-flex min-h-11 max-w-full items-center gap-2 rounded-[var(--radius-input)] border px-3 text-left t-body transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50';
 
 /**
  * Onde o conteúdo vai ser publicado. Primeiro a plataforma, só com o ícone; depois,
@@ -109,7 +109,7 @@ export function DestinationChips({
         <span
           aria-hidden
           className={cn(
-            'flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border',
+            'flex h-4 w-4 shrink-0 items-center justify-center rounded-[calc(var(--radius-sm)/2)] border',
             marcada ? 'border-[var(--accent)] bg-[var(--accent)] text-[var(--bg-primary)]' : 'border-[var(--border-strong)]',
           )}
         >
@@ -117,9 +117,9 @@ export function DestinationChips({
         </span>
         <PlatformIcon platform={iconeDaConta(conta)} className="h-3.5 w-3.5 shrink-0" />
         <span className="min-w-0">
-          <span className="block truncate font-medium">{rotuloCurtoConta(conta)}</span>
+          <span className="block truncate t-body-strong">{rotuloCurtoConta(conta)}</span>
           {conta.handle && conta.nome.trim() && !ehRedePrincipalComMesmoNome(conta) ? (
-            <span className="block truncate text-xs text-[var(--text-tertiary)]">{conta.nome}</span>
+            <span className="block truncate text-2xs text-[var(--text-tertiary)]">{conta.nome}</span>
           ) : null}
         </span>
       </button>
@@ -176,7 +176,7 @@ export function DestinationChips({
                         aria-hidden
                         className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-[var(--bg-primary)] bg-[var(--text-primary)] px-1 text-[var(--bg-primary)]"
                       >
-                        <Text variant="label" as="span" className="font-semibold text-[var(--bg-primary)]">
+                        <Text variant="label" as="span" className="text-[var(--bg-primary)]">
                           {marcadas.length}
                         </Text>
                       </span>
