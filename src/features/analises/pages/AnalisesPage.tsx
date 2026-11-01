@@ -136,9 +136,6 @@ export function AnalisesPage() {
           : 'Sem recorte de data.'}
         {' '}O alcance de cada conta é contado à parte. Taxa de engajamento: {FORMULA_ENGAJAMENTO}.
       </Text>
-      <Text variant="meta">
-        A taxa usa {FORMULA_ENGAJAMENTO}. Sem visualizações no denominador, ela não é calculada.
-      </Text>
     </div>
   );
 
