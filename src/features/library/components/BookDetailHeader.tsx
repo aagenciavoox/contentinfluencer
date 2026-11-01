@@ -1,8 +1,7 @@
-import { useState, type ReactNode } from 'react';
-import { ChevronLeft, type LucideIcon } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import { Text } from '../../../components/ui/Text';
 import { ValorVazio } from '../../../components/ui/ValorVazio';
+import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { cn } from '../../../lib/utils';
 
 interface BookDetailHeaderProps {
@@ -10,8 +9,6 @@ interface BookDetailHeaderProps {
   creator?: string;
   typeLabel: string;
   status?: string;
-  coverUrl?: string | null;
-  icon: LucideIcon;
   backLabel: string;
   backTo: string;
   actions?: ReactNode;
@@ -27,29 +24,8 @@ const STATUS_DOT: Record<string, string> = {
   'Concluído': 'bg-[var(--accent-green)]',
 };
 
-/** Capa pequena do cabeçalho; sem capa (ou com URL quebrada), o ícone do tipo. */
-function HeaderCover({ coverUrl, title, icon: Icon }: { coverUrl?: string | null; title: string; icon: LucideIcon }) {
-  const [failed, setFailed] = useState(false);
-  const showImage = Boolean(coverUrl) && !failed;
-
-  return (
-    <div className="relative h-32 w-24 shrink-0 overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border-color)] bg-[var(--bg-hover)]">
-      {showImage ? (
-        <img src={coverUrl ?? undefined} alt={`Capa de ${title}`} className="h-full w-full object-cover" onError={() => setFailed(true)} />
-      ) : (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-[linear-gradient(160deg,var(--bg-hover),var(--bg-elevated))]" aria-hidden>
-          <Icon className="h-8 w-8 text-[var(--text-tertiary)]" strokeWidth={1.5} />
-          <span className="h-px w-10 bg-[var(--border-strong)]" />
-        </div>
-      )}
-      {/* Lombada: uma faixa escura na borda esquerda, como num livro. */}
-      <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-[color-mix(in_srgb,var(--text-primary)_10%,transparent)]" />
-    </div>
-  );
-}
-
 /**
- * Cabeçalho do item da Biblioteca no desktop: capa, título, autor/tipo/status e ações principais.
+ * Cabeçalho do item da Biblioteca no desktop: título, autor/tipo/status e ações principais.
  * A navegação por abas fica separada na região `navigation` do `PageLayout`.
  */
 export function BookDetailHeader({
@@ -57,48 +33,38 @@ export function BookDetailHeader({
   creator,
   typeLabel,
   status,
-  coverUrl,
-  icon,
   backLabel,
   backTo,
   actions,
 }: BookDetailHeaderProps) {
   return (
-    <div className="desktop-page-header">
-      <Link
-        to={backTo}
-        className="desktop-page-header-crumb desktop-page-header-back transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-      >
-        <ChevronLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        {backLabel}
-      </Link>
-
-      <div className="mt-4 flex items-start gap-6">
-        <HeaderCover coverUrl={coverUrl} title={title} icon={icon} />
-
-        <div className="flex min-w-0 flex-1 flex-col self-stretch">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <Text variant="display" className="truncate">{title}</Text>
-              <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 t-body text-[var(--text-secondary)]">
-                <span className="truncate">{creator?.trim() ? creator : <ValorVazio />}</span>
+    <DesktopPageHeader
+      section={backLabel}
+      title={title}
+      backLabel={backLabel}
+      backTo={backTo}
+      actions={actions}
+      titleContent={(
+        <div className="min-w-0">
+          <Text variant="pageTitle" as="h1" className="truncate text-[var(--text-primary)]">
+            {title}
+          </Text>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 t-body text-[var(--text-secondary)]">
+            <span className="truncate">{creator?.trim() ? creator : <ValorVazio />}</span>
+            <span aria-hidden className="text-[var(--text-tertiary)]">•</span>
+            <span>{typeLabel}</span>
+            {status ? (
+              <>
                 <span aria-hidden className="text-[var(--text-tertiary)]">•</span>
-                <span>{typeLabel}</span>
-                {status ? (
-                  <>
-                    <span aria-hidden className="text-[var(--text-tertiary)]">•</span>
-                    <Text variant="secondary" as="span" className="inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] bg-[var(--bg-hover)] px-2.5 py-1 text-[var(--text-primary)]">
-                      <span aria-hidden className={cn('h-2 w-2 rounded-full', STATUS_DOT[status] ?? 'bg-[var(--text-tertiary)]')} />
-                      {status}
-                    </Text>
-                  </>
-                ) : null}
-              </div>
-            </div>
-            {actions ? <div className="flex shrink-0 items-start gap-2">{actions}</div> : null}
+                <Text variant="secondary" as="span" className="inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] bg-[var(--bg-hover)] px-2.5 py-0.5 text-[var(--text-primary)]">
+                  <span aria-hidden className={cn('h-2 w-2 rounded-full', STATUS_DOT[status] ?? 'bg-[var(--text-tertiary)]')} />
+                  {status}
+                </Text>
+              </>
+            ) : null}
           </div>
         </div>
-      </div>
-    </div>
+      )}
+    />
   );
 }

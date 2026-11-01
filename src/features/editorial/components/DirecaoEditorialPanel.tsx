@@ -60,21 +60,14 @@ export function DirecaoEditorialPanel() {
 
   return (
     <div className="stack-lg">
-      <Section
-        title="Pilares"
-        action={(
-          <AppButton variant="secondary" leftIcon={<Plus className="h-4 w-4" />} onClick={() => navigate('/editorial/pilares/nova')}>
-            Novo pilar
-          </AppButton>
-        )}
-      >
+      <Section title="Pilares">
         {pilares.length === 0 ? (
           <EmptyState
             icon={<Palette className="h-8 w-8" />}
             title="Nenhum pilar cadastrado"
             description="Adicione o primeiro pilar para organizar os temas editoriais."
             action={(
-              <AppButton variant="primary" leftIcon={<Plus className="h-4 w-4" />} onClick={() => navigate('/editorial/pilares/nova')}>
+              <AppButton variant="secondary" leftIcon={<Plus className="h-4 w-4" />} onClick={() => navigate('/editorial/pilares/nova')}>
                 Novo pilar
               </AppButton>
             )}

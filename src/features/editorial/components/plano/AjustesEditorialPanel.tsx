@@ -131,10 +131,6 @@ export function AjustesEditorialPanel() {
 
   return (
     <div className="stack-lg">
-      <Text variant="secondary" as="p">
-        Prioridade e metas de cada semana ficam no Planejamento.
-      </Text>
-
       <CardConfiguracao
         icone={<CalendarDays className="h-5 w-5" />}
         titulo="Ritmo de criação"

@@ -688,72 +688,65 @@ export function PlanejamentoPage() {
 
   return (
     <PageLayout
-      contentWidth="full"
-      contentStack="none"
-      className="min-h-full"
-      contentClassName="!py-0"
+      contentWidth="wide"
       header={(
         <DesktopPageHeader
           section="Produção"
           title="Planejamento"
           actions={(
-            <>
-              {/* No cabeçalho só a ação principal; as outras ficam no ⋯ e a Prioridade e metas vai para a barra. */}
-              <MoreMenu items={[{id: 'novo-post-it', label: 'Novo post-it', onClick: () => addEmpty(null)}]} />
-              <AppButton
-                variant="primary"
-                leftIcon={<Plus className="h-4 w-4" />}
-                onClick={() => {
-                  setPullDate(null);
-                  setPullOpen(true);
-                }}
-              >
-                Puxar da Criação
-              </AppButton>
-            </>
+            <AppButton
+              variant="primary"
+              leftIcon={<Plus className="h-4 w-4" />}
+              onClick={() => {
+                setPullDate(null);
+                setPullOpen(true);
+              }}
+            >
+              Puxar da Criação
+            </AppButton>
           )}
+        />
+      )}
+      navigation={(
+        <CalendarPeriodNav
+          anchorDate={month}
+          onAnchorDateChange={setMonth}
+          viewMode={vista}
+          onViewModeChange={mode => setVista(mode)}
+          weekViewId="semana"
+          views={[
+            {id: 'semana' as const, label: 'Semana'},
+            {id: 'mes' as const, label: 'Mês'},
+          ]}
         />
       )}
       toolbar={(
         <PageToolbar
-          leading={(
-            <CalendarPeriodNav
-              anchorDate={month}
-              onAnchorDateChange={setMonth}
-              viewMode={vista}
-              onViewModeChange={mode => setVista(mode)}
-              weekViewId="semana"
-              views={[
-                {id: 'semana' as const, label: 'Semana'},
-                {id: 'mes' as const, label: 'Mês'},
-              ]}
-            />
-          )}
+          filters={
+            assuntosDoPlanejamento.length > 0 ? (
+              <SelectField
+                ariaLabel="Destacar por assunto"
+                prefix="Assunto:"
+                value={assuntoFiltro?.id ?? 'todos'}
+                onChange={value => setAssuntoFiltroId(value === 'todos' ? null : value)}
+                selected={Boolean(assuntoFiltro)}
+                options={[
+                  {value: 'todos', label: 'Todos'},
+                  ...assuntosDoPlanejamento.map(tema => ({value: tema.id, label: tema.nome})),
+                ]}
+              />
+            ) : undefined
+          }
           view={(
-            <>
-              {assuntosDoPlanejamento.length > 0 ? (
-                <SelectField
-                  ariaLabel="Destacar por assunto"
-                  prefix="Assunto:"
-                  value={assuntoFiltro?.id ?? 'todos'}
-                  onChange={value => setAssuntoFiltroId(value === 'todos' ? null : value)}
-                  selected={Boolean(assuntoFiltro)}
-                  options={[
-                    {value: 'todos', label: 'Todos'},
-                    ...assuntosDoPlanejamento.map(tema => ({value: tema.id, label: tema.nome})),
-                  ]}
-                />
-              ) : null}
-              <AppButton
-                variant="secondary"
-                aria-expanded={direcaoAberta}
-                aria-controls="direcao-periodo-planejamento"
-                rightIcon={<ChevronDown className={cn('h-4 w-4 transition-transform', direcaoAberta && 'rotate-180')} />}
-                onClick={() => setDirecaoAberta(atual => !atual)}
-              >
-                Prioridade e metas
-              </AppButton>
-            </>
+            <AppButton
+              variant="secondary"
+              aria-expanded={direcaoAberta}
+              aria-controls="direcao-periodo-planejamento"
+              rightIcon={<ChevronDown className={cn('h-4 w-4 transition-transform', direcaoAberta && 'rotate-180')} />}
+              onClick={() => setDirecaoAberta(atual => !atual)}
+            >
+              Prioridade e metas
+            </AppButton>
           )}
         />
       )}
@@ -994,7 +987,7 @@ export function PlanejamentoPage() {
                           type="date"
                           value={dateDraft ?? ''}
                           onChange={event => setDateDraft(event.target.value || null)}
-                          className="w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-2 text-sm text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                          className="w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-2 t-body text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                         />
                       </label>
                       {dateDraft ? (
@@ -1074,7 +1067,7 @@ export function PlanejamentoPage() {
                       rows={5}
                       autoFocus
                       placeholder="Pode ficar em branco."
-                      className="w-full resize-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-2 text-sm text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                      className="w-full resize-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-2 t-body text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                     />
                   </label>
                 ) : (
@@ -1147,7 +1140,7 @@ export function PlanejamentoPage() {
                 {!editing && openKind === 'vazio' ? (
                   <section className="stack-md border-t border-[var(--border-color)] pt-6" aria-labelledby="postit-encaixar">
                     <div className="stack-xs">
-                      <Text variant="itemTitle" as="h3" className="font-semibold">
+                      <Text variant="itemTitle" as="h3">
                         <span id="postit-encaixar">Usar uma ideia ou roteiro que já existe</span>
                       </Text>
                       <Text variant="secondary" className="text-[var(--text-secondary)]">
@@ -1162,7 +1155,7 @@ export function PlanejamentoPage() {
                 {!editing && openKind !== 'roteiro' && (options.ideia || options.roteiro) ? (
                   <section className="stack-md border-t border-[var(--border-color)] pt-6" aria-labelledby="postit-transformar">
                     <div className="stack-xs">
-                      <Text variant="itemTitle" as="h3" className="font-semibold">
+                      <Text variant="itemTitle" as="h3">
                         <span id="postit-transformar">Transformar post-it</span>
                       </Text>
                       <Text variant="secondary" className="text-[var(--text-secondary)]">
@@ -1251,7 +1244,7 @@ export function PlanejamentoPage() {
                   type="date"
                   value={moveDate ?? ''}
                   onChange={event => setMoveDate(event.target.value || null)}
-                  className="w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-2 text-sm text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                  className="w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-hover)] px-3 py-2 t-body text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                 />
               </label>
               {moveDate ? (

@@ -56,7 +56,7 @@ export function TranscriptionPage() {
   if (viewing?.transcript) {
     return (
       <PageLayout
-        contentWidth="narrow"
+        contentWidth="wide"
         contentStack="dense"
         header={(
           <DesktopPageHeader
@@ -92,7 +92,7 @@ export function TranscriptionPage() {
 
   return (
     <PageLayout
-      contentWidth="narrow"
+      contentWidth="wide"
       contentStack="dense"
       header={(
         <DesktopPageHeader
@@ -100,7 +100,7 @@ export function TranscriptionPage() {
           title="Transcrição"
           backLabel="Criação"
           backTo="/criacao"
-          meta={PRIVACY_NOTE}
+          subtitle={PRIVACY_NOTE}
         />
       )}
     >
@@ -147,11 +147,11 @@ export function TranscriptionPage() {
             {done.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {done.length > 1 ? (
-                  <AppButton size="sm" leftIcon={<Download className="h-4 w-4" />} onClick={downloadAll}>
+                  <AppButton variant="secondary" size="sm" leftIcon={<Download className="h-4 w-4" />} onClick={downloadAll}>
                     Baixar todas (.txt)
                   </AppButton>
                 ) : null}
-                <AppButton size="sm" onClick={() => transcriptionQueue.clearDone()}>
+                <AppButton variant="ghost" size="sm" onClick={() => transcriptionQueue.clearDone()}>
                   Limpar prontas
                 </AppButton>
               </div>

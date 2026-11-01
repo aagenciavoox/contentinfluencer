@@ -77,21 +77,21 @@ export function CaptionsPage() {
     <PageToolbar
       filters={
         <FilterBar
-          size="compact"
+          size="default"
           searchValue={search}
           onSearchChange={setSearch}
           searchPlaceholder="Buscar roteiro, conta ou legenda"
-          leading={(
-            <FilterChips<CaptionListFilter>
-              ariaLabel="Filtrar legendas"
-              className="max-w-full"
-              options={FILTERS}
-              value={filter}
-              onChange={setFilter}
-            />
-          )}
         />
       }
+      chips={(
+        <FilterChips<CaptionListFilter>
+          ariaLabel="Filtrar legendas"
+          className="max-w-full"
+          options={FILTERS}
+          value={filter}
+          onChange={setFilter}
+        />
+      )}
     />
   );
 
