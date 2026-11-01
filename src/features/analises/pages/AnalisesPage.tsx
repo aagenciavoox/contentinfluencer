@@ -77,23 +77,24 @@ export function AnalisesPage() {
   }), [base, contaId, recorte?.fim, recorte?.inicio, rede, state.contentMetrics, state.contents, state.pilares, state.platforms, state.series]);
   const nenhumaComMetricas = linhas.length > 0 && linhas.every(semMetricas);
 
+  const abasPeriodo = (
+    <div className="max-w-full overflow-x-auto">
+      <SegmentTabs<ModoVista>
+        ariaLabel="Tamanho do período"
+        className="w-max"
+        value={modo}
+        onChange={setModo}
+        options={[
+          { id: 'semana', label: 'Semana' },
+          { id: 'mes', label: 'Mês' },
+          { id: 'tudo', label: 'Tudo' },
+        ]}
+      />
+    </div>
+  );
+
   const filtros = (
     <PageToolbar
-      leading={(
-        <div className="max-w-full overflow-x-auto">
-          <SegmentTabs<ModoVista>
-            ariaLabel="Tamanho do período"
-            className="w-max"
-            value={modo}
-            onChange={setModo}
-            options={[
-              { id: 'semana', label: 'Semana' },
-              { id: 'mes', label: 'Mês' },
-              { id: 'tudo', label: 'Tudo' },
-            ]}
-          />
-        </div>
-      )}
       filters={(
         <div className="inline-stack-sm min-w-0 flex-wrap">
           <SelectField
@@ -144,12 +145,13 @@ export function AnalisesPage() {
         <DesktopPageHeader
           section="Criação"
           title="Análises"
-          meta={pronto ? (linhas.length === 1 ? '1 publicação' : `${linhas.length} publicações`) : 'Carregando'}
         />
       )}
+      navigation={abasPeriodo}
       toolbar={filtros}
       mobileHeader={(
-        <div className="px-4 pt-2 pb-1">
+        <div className="stack-sm">
+          {abasPeriodo}
           {filtros}
         </div>
       )}
@@ -176,7 +178,7 @@ export function AnalisesPage() {
               <Text variant="secondary">Nenhuma destas publicações tem métricas ainda.</Text>
             ) : null}
             {linhas.map(linha => (
-            <Surface key={linha.publicacaoId} padding="sm" className="stack-sm">
+            <Surface key={linha.publicacaoId} variant="outlined" padding="md" className="stack-sm">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <Link
                   to={`/conteudos/${linha.contentId}?tab=publicacao`}

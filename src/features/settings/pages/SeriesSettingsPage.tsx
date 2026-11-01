@@ -119,12 +119,11 @@ export function SeriesSettingsPage() {
         <DesktopPageHeader
           section="Criação"
           title="Séries e quadros"
-          meta="Organize seus conteúdos recorrentes."
           actions={[
-            <MoreMenu key="mais" items={[{ id: 'criar-familia', label: 'Criar família', onClick: () => setModalTarget({ tipo: 'familia' }) }]} />,
             <AppButton key="serie" variant="primary" onClick={criarSerie} leftIcon={<Plus className="h-4 w-4" />}>
               Criar série
             </AppButton>,
+            <MoreMenu key="mais" items={[{ id: 'criar-familia', label: 'Criar família', onClick: () => setModalTarget({ tipo: 'familia' }) }]} />,
           ]}
         />
       }
@@ -246,7 +245,7 @@ function QuickCreateSheet({
             value={name}
             onChange={event => onNameChange(event.target.value)}
             placeholder="Nome da série"
-            className="ds-input w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2 t-body"
+            className="input"
           />
         </label>
         <div>

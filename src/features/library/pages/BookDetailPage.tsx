@@ -985,6 +985,70 @@ export function BookDetailPage() {
     </div>
   );
 
+  const brainstormModal = (
+    <Dialog
+      open={brainstormMode && anotacoesDestaque.length > 0}
+      onClose={() => setBrainstormMode(false)}
+      desktopMaxW="max-w-lg"
+      ariaLabel="Gerar ideias"
+    >
+      <div className="bg-[var(--bg-primary)] rounded-[var(--radius-overlay)] p-8 max-w-lg w-full shadow-none">
+        <div className="flex items-center justify-between mb-6">
+          <Text variant="label" as="span" className="text-[var(--text-tertiary)]">
+            Gerar ideias — {brainstormIdx + 1}/{anotacoesDestaque.length}
+          </Text>
+          <button
+            type="button"
+            onClick={() => setBrainstormMode(false)}
+            className={cn('rounded-full p-2 transition-colors hover:bg-[var(--bg-hover)]', FOCUS_INTERACTIVE)}
+          >
+            <X className="w-5 h-5 text-[var(--text-tertiary)]" />
+          </button>
+        </div>
+        <Text variant="sectionTitle" as="p" className="text-[var(--text-primary)] leading-relaxed mb-8">
+          &quot;{anotacoesDestaque[brainstormIdx]?.texto}&quot;
+        </Text>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <AppButton
+            variant="primary"
+            fullWidth
+            onClick={() => handleBrainstormConteudo(anotacoesDestaque[brainstormIdx])}
+          >
+            Criar roteiro
+          </AppButton>
+          <AppButton
+            variant="secondary"
+            fullWidth
+            onClick={() => handleBrainstormIdeia(anotacoesDestaque[brainstormIdx])}
+          >
+            Transformar em ideia
+          </AppButton>
+          <AppButton
+            variant="ghost"
+            onClick={handleBrainstormPular}
+            className="opacity-60"
+          >
+            Pular
+          </AppButton>
+        </div>
+      </div>
+    </Dialog>
+  );
+
+  const confirmModal = (
+    <ConfirmModal
+      open={!!confirm}
+      message={confirm?.message || ''}
+      confirmLabel={confirm?.confirmLabel}
+      cancelLabel={confirm?.cancelLabel}
+      onConfirm={() => {
+        confirm?.onConfirm();
+        setConfirm(null);
+      }}
+      onCancel={() => setConfirm(null)}
+    />
+  );
+
   if (isMobile) {
     return (
       <>
@@ -1029,62 +1093,8 @@ export function BookDetailPage() {
             roteirosContent={roteirosTab}
           />
         </div>
-
-        <Dialog
-          open={brainstormMode && anotacoesDestaque.length > 0}
-          onClose={() => setBrainstormMode(false)}
-          desktopMaxW="max-w-lg"
-          ariaLabel="Gerar ideias"
-        >
-          <div className="w-full max-w-lg rounded-[var(--radius-overlay)] bg-[var(--bg-primary)] p-8 shadow-none">
-            <div className="mb-6 flex items-center justify-between">
-              <Text variant="label" as="span" className="text-[var(--text-tertiary)]">
-                Gerar ideias — {brainstormIdx + 1}/{anotacoesDestaque.length}
-              </Text>
-              <button
-                onClick={() => setBrainstormMode(false)}
-                className="rounded-full p-2 transition-colors hover:bg-[var(--bg-hover)]"
-              >
-                <X className="h-5 w-5 text-[var(--text-tertiary)]" />
-              </button>
-            </div>
-            <Text variant="sectionTitle" as="p" className="mb-8 leading-relaxed text-[var(--text-primary)]">
-              &quot;{anotacoesDestaque[brainstormIdx]?.texto}&quot;
-            </Text>
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <button
-                onClick={() => handleBrainstormConteudo(anotacoesDestaque[brainstormIdx])}
-                className="flex-1 rounded-[var(--radius-card-mobile)] bg-[var(--text-primary)] py-3 t-label text-[var(--bg-primary)] transition-all hover:scale-[1.02] md:rounded-[var(--radius-card)]"
-              >
-                Criar roteiro
-              </button>
-              <button
-                onClick={() => handleBrainstormIdeia(anotacoesDestaque[brainstormIdx])}
-                className="flex-1 rounded-[var(--radius-card-mobile)] border border-[var(--border-strong)] py-3 t-label text-[var(--text-primary)] transition-all hover:bg-[var(--bg-hover)] md:rounded-[var(--radius-card)]"
-              >
-                Transformar em ideia
-              </button>
-              <button
-                onClick={handleBrainstormPular}
-                className="px-4 py-3 t-label text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-primary)]"
-              >
-                Pular
-              </button>
-            </div>
-          </div>
-        </Dialog>
-
-        <ConfirmModal
-          open={!!confirm}
-          message={confirm?.message || ''}
-          confirmLabel={confirm?.confirmLabel}
-          cancelLabel={confirm?.cancelLabel}
-          onConfirm={() => {
-            confirm?.onConfirm();
-            setConfirm(null);
-          }}
-          onCancel={() => setConfirm(null)}
-        />
+        {brainstormModal}
+        {confirmModal}
         <BookAnnotationComposerSheet
           book={livro}
           open={mobileNoteComposerOpen}
@@ -1104,14 +1114,11 @@ export function BookDetailPage() {
           creator={livro.autorDiretor}
           typeLabel={itemTypeLabel}
           status={livro.status}
-          coverUrl={livro.capaUrl}
-          icon={ItemIcon}
           backLabel="Biblioteca"
           backTo="/biblioteca"
           actions={
             <AppButton
-              variant="primary"
-              size="lg"
+              variant="secondary"
               leftIcon={<Download className="h-4 w-4" />}
               onClick={handleBaixarWord}
               disabled={baixandoWord}
@@ -1186,12 +1193,12 @@ export function BookDetailPage() {
                 <SectionLabel>Identificação</SectionLabel>
                 <div className="grid-form">
                   <div>
-                    <label className="t-label text-[var(--text-tertiary)] block mb-1.5">Título</label>
-                    <input type="text" value={infoLocal.titulo} onChange={e => setInfoLocal(prev => ({ ...prev, titulo: e.target.value }))} className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)]" />
+                    <label htmlFor="book-titulo" className="t-label text-[var(--text-tertiary)] block mb-1.5">Título</label>
+                    <input id="book-titulo" type="text" value={infoLocal.titulo} onChange={e => setInfoLocal(prev => ({ ...prev, titulo: e.target.value }))} className="input" />
                   </div>
                   <div>
-                    <label className="t-label text-[var(--text-tertiary)] block mb-1.5">{creatorLabel}</label>
-                    <input type="text" value={infoLocal.autor} onChange={e => setInfoLocal(prev => ({ ...prev, autor: e.target.value }))} className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)]" />
+                    <label htmlFor="book-autor" className="t-label text-[var(--text-tertiary)] block mb-1.5">{creatorLabel}</label>
+                    <input id="book-autor" type="text" value={infoLocal.autor} onChange={e => setInfoLocal(prev => ({ ...prev, autor: e.target.value }))} className="input" />
                   </div>
                 </div>
                 <div className="mt-4">
@@ -1254,17 +1261,17 @@ export function BookDetailPage() {
                     />
                   </div>
                   <div>
-                    <label className="t-label text-[var(--text-tertiary)] block mb-1.5">{progressLabels.current}</label>
-                    <input type="number" min={0} value={infoLocal.paginasLidas} onChange={e => setInfoLocal(prev => ({ ...prev, paginasLidas: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder={livro.tipo === 'filme' ? 'Ex.: 95' : livro.tipo === 'série' || livro.tipo === 'anime' ? 'Ex.: 8' : livro.tipo === 'manga' ? 'Ex.: 12' : 'Ex.: 120'} className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                    <label htmlFor="book-paginas-lidas" className="t-label text-[var(--text-tertiary)] block mb-1.5">{progressLabels.current}</label>
+                    <input id="book-paginas-lidas" type="number" min={0} value={infoLocal.paginasLidas} onChange={e => setInfoLocal(prev => ({ ...prev, paginasLidas: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder={livro.tipo === 'filme' ? 'Ex.: 95' : livro.tipo === 'série' || livro.tipo === 'anime' ? 'Ex.: 8' : livro.tipo === 'manga' ? 'Ex.: 12' : 'Ex.: 120'} className="input" />
                   </div>
                   <div>
-                    <label className="t-label text-[var(--text-tertiary)] block mb-1.5">{progressLabels.total}</label>
-                    <input type="number" min={1} value={infoLocal.totalPaginas} onChange={e => setInfoLocal(prev => ({ ...prev, totalPaginas: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder={livro.tipo === 'filme' ? 'Ex.: 130' : livro.tipo === 'série' || livro.tipo === 'anime' ? 'Ex.: 10' : 'Ex.: 380'} className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                    <label htmlFor="book-total-paginas" className="t-label text-[var(--text-tertiary)] block mb-1.5">{progressLabels.total}</label>
+                    <input id="book-total-paginas" type="number" min={1} value={infoLocal.totalPaginas} onChange={e => setInfoLocal(prev => ({ ...prev, totalPaginas: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder={livro.tipo === 'filme' ? 'Ex.: 130' : livro.tipo === 'série' || livro.tipo === 'anime' ? 'Ex.: 10' : 'Ex.: 380'} className="input" />
                   </div>
                   {(livro.tipo === 'série' || livro.tipo === 'anime') && (
                     <div>
-                      <label className="t-label text-[var(--text-tertiary)] block mb-1.5">Duração por episódio</label>
-                      <input type="text" value={infoLocal.duracaoPorEpisodio} onChange={e => setInfoLocal(prev => ({ ...prev, duracaoPorEpisodio: e.target.value }))} placeholder="Ex.: 45 min" className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                      <label htmlFor="book-duracao-episodio" className="t-label text-[var(--text-tertiary)] block mb-1.5">Duração por episódio</label>
+                      <input id="book-duracao-episodio" type="text" value={infoLocal.duracaoPorEpisodio} onChange={e => setInfoLocal(prev => ({ ...prev, duracaoPorEpisodio: e.target.value }))} placeholder="Ex.: 45 min" className="input" />
                     </div>
                   )}
                 </div>
@@ -1288,30 +1295,30 @@ export function BookDetailPage() {
                 <SectionLabel>Detalhes técnicos</SectionLabel>
                 <div className="grid-form">
                   <div>
-                    <label className="t-label text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.publisher}</label>
-                    <input type="text" value={infoLocal.editora} onChange={e => setInfoLocal(prev => ({ ...prev, editora: e.target.value }))} placeholder={technicalLabels.publisherPlaceholder} className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                    <label htmlFor="book-editora" className="t-label text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.publisher}</label>
+                    <input id="book-editora" type="text" value={infoLocal.editora} onChange={e => setInfoLocal(prev => ({ ...prev, editora: e.target.value }))} placeholder={technicalLabels.publisherPlaceholder} className="input" />
                   </div>
                   <div>
-                    <label className="t-label text-[var(--text-tertiary)] block mb-1.5">Ano de publicação</label>
-                    <input type="number" value={infoLocal.anoPublicacao} onChange={e => setInfoLocal(prev => ({ ...prev, anoPublicacao: e.target.value }))} placeholder="2024" className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                    <label htmlFor="book-ano" className="t-label text-[var(--text-tertiary)] block mb-1.5">Ano de publicação</label>
+                    <input id="book-ano" type="number" value={infoLocal.anoPublicacao} onChange={e => setInfoLocal(prev => ({ ...prev, anoPublicacao: e.target.value }))} placeholder="2024" className="input" />
                   </div>
                   {(livro.tipo === 'livro' || livro.tipo === 'manga' || livro.tipo === 'quadrinho') && (
                     <div>
-                      <label className="t-label text-[var(--text-tertiary)] block mb-1.5">ISBN</label>
-                      <input type="text" value={infoLocal.isbn} onChange={e => setInfoLocal(prev => ({ ...prev, isbn: e.target.value }))} placeholder="978-…" className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                      <label htmlFor="book-isbn" className="t-label text-[var(--text-tertiary)] block mb-1.5">ISBN</label>
+                      <input id="book-isbn" type="text" value={infoLocal.isbn} onChange={e => setInfoLocal(prev => ({ ...prev, isbn: e.target.value }))} placeholder="978-…" className="input" />
                     </div>
                   )}
                   <div>
-                    <label className="t-label text-[var(--text-tertiary)] block mb-1.5">Idioma</label>
-                    <input type="text" value={infoLocal.idioma} onChange={e => setInfoLocal(prev => ({ ...prev, idioma: e.target.value }))} placeholder="Português" className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                    <label htmlFor="book-idioma" className="t-label text-[var(--text-tertiary)] block mb-1.5">Idioma</label>
+                    <input id="book-idioma" type="text" value={infoLocal.idioma} onChange={e => setInfoLocal(prev => ({ ...prev, idioma: e.target.value }))} placeholder="Português" className="input" />
                   </div>
                   <div>
-                    <label className="t-label text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.translation}</label>
-                    <input type="text" value={infoLocal.traducao} onChange={e => setInfoLocal(prev => ({ ...prev, traducao: e.target.value }))} placeholder={technicalLabels.translationPlaceholder} className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                    <label htmlFor="book-traducao" className="t-label text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.translation}</label>
+                    <input id="book-traducao" type="text" value={infoLocal.traducao} onChange={e => setInfoLocal(prev => ({ ...prev, traducao: e.target.value }))} placeholder={technicalLabels.translationPlaceholder} className="input" />
                   </div>
                   <div>
-                    <label className="t-label text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.collection}</label>
-                    <input type="text" value={infoLocal.serieColecao} onChange={e => setInfoLocal(prev => ({ ...prev, serieColecao: e.target.value }))} placeholder={technicalLabels.collectionPlaceholder} className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                    <label htmlFor="book-serie-colecao" className="t-label text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.collection}</label>
+                    <input id="book-serie-colecao" type="text" value={infoLocal.serieColecao} onChange={e => setInfoLocal(prev => ({ ...prev, serieColecao: e.target.value }))} placeholder={technicalLabels.collectionPlaceholder} className="input" />
                   </div>
                   {(livro.tipo === 'livro' || livro.tipo === 'manga' || livro.tipo === 'quadrinho') && (
                     <>
@@ -1330,21 +1337,21 @@ export function BookDetailPage() {
                       </div>
                       {infoLocal.colecaoStatus === 'sim' && (
                         <div>
-                          <label className="t-label text-[var(--text-tertiary)] block mb-1.5">Qual coleção?</label>
-                          <input type="text" value={infoLocal.colecaoNome} onChange={e => setInfoLocal(prev => ({ ...prev, colecaoNome: e.target.value, serieColecao: e.target.value }))} placeholder="Ex.: Trono de Vidro" className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                          <label htmlFor="book-colecao-nome" className="t-label text-[var(--text-tertiary)] block mb-1.5">Qual coleção?</label>
+                          <input id="book-colecao-nome" type="text" value={infoLocal.colecaoNome} onChange={e => setInfoLocal(prev => ({ ...prev, colecaoNome: e.target.value, serieColecao: e.target.value }))} placeholder="Ex.: Trono de Vidro" className="input" />
                         </div>
                       )}
                       <div>
-                        <label className="t-label text-[var(--text-tertiary)] block mb-1.5">Gênero do autor</label>
-                        <input type="text" value={infoLocal.generoAutor} onChange={e => setInfoLocal(prev => ({ ...prev, generoAutor: e.target.value }))} placeholder="Ex.: mulher, homem, não binárie" className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                        <label htmlFor="book-genero-autor" className="t-label text-[var(--text-tertiary)] block mb-1.5">Gênero do autor</label>
+                        <input id="book-genero-autor" type="text" value={infoLocal.generoAutor} onChange={e => setInfoLocal(prev => ({ ...prev, generoAutor: e.target.value }))} placeholder="Ex.: mulher, homem, não binárie" className="input" />
                       </div>
                       <div>
-                        <label className="t-label text-[var(--text-tertiary)] block mb-1.5">País do autor</label>
-                        <input type="text" value={infoLocal.paisAutor} onChange={e => setInfoLocal(prev => ({ ...prev, paisAutor: e.target.value }))} placeholder="Ex.: Nigéria" className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                        <label htmlFor="book-pais-autor" className="t-label text-[var(--text-tertiary)] block mb-1.5">País do autor</label>
+                        <input id="book-pais-autor" type="text" value={infoLocal.paisAutor} onChange={e => setInfoLocal(prev => ({ ...prev, paisAutor: e.target.value }))} placeholder="Ex.: Nigéria" className="input" />
                       </div>
                       <div>
-                        <label className="t-label text-[var(--text-tertiary)] block mb-1.5">Raça do autor</label>
-                        <input type="text" value={infoLocal.racaAutor} onChange={e => setInfoLocal(prev => ({ ...prev, racaAutor: e.target.value }))} placeholder="Como você prefere catalogar" className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-card)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]" />
+                        <label htmlFor="book-raca-autor" className="t-label text-[var(--text-tertiary)] block mb-1.5">Raça do autor</label>
+                        <input id="book-raca-autor" type="text" value={infoLocal.racaAutor} onChange={e => setInfoLocal(prev => ({ ...prev, racaAutor: e.target.value }))} placeholder="Como você prefere catalogar" className="input" />
                       </div>
                     </>
                   )}
@@ -1392,22 +1399,32 @@ export function BookDetailPage() {
                 />
               )}
 
-              <div className="flex flex-wrap gap-2">
-                {(['Todos', 'Destaques', ...TIPOS] as (TipoAnotacao | 'Todos' | 'Destaques')[]).map(t => (
-                  <button
-                    key={t}
-                    type="button"
-                    aria-pressed={filtroTipo === t}
-                    onClick={() => setFiltroTipo(t)}
-                    // Mesmo chip de filtro do Calendário, maior e com o ativo em rosa nesta aba.
-                    className={cn(
-                      'filter-chip filter-chip--roomy filter-chip--accent pointer-coarse:min-h-11',
-                      filtroTipo === t && 'filter-chip-active',
-                    )}
-                  >
-                    {t === 'Destaques' ? '⭐ Destaques' : t}
-                  </button>
-                ))}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap gap-2">
+                  {(['Todos', 'Destaques', ...TIPOS] as (TipoAnotacao | 'Todos' | 'Destaques')[]).map(t => (
+                    <button
+                      key={t}
+                      type="button"
+                      aria-pressed={filtroTipo === t}
+                      onClick={() => setFiltroTipo(t)}
+                      // Mesmo chip de filtro do Calendário, maior e com o ativo em rosa nesta aba.
+                      className={cn(
+                        'filter-chip filter-chip--roomy filter-chip--accent pointer-coarse:min-h-11',
+                        filtroTipo === t && 'filter-chip-active',
+                      )}
+                    >
+                      {t === 'Destaques' ? '⭐ Destaques' : t}
+                    </button>
+                  ))}
+                </div>
+                <div className="w-full sm:w-56">
+                  <ToolbarSearchInput
+                    value={buscaAnotacoes}
+                    onChange={setBuscaAnotacoes}
+                    placeholder="Buscar anotações…"
+                    size="compact"
+                  />
+                </div>
               </div>
 
               {anotacoesFiltradas.length === 0 ? (
@@ -1443,17 +1460,6 @@ export function BookDetailPage() {
                 key={livro.id}
                 book={livro}
                 referencePlaceholder={coverageLabels.placeholder}
-                headerAside={
-                  // A largura fica no invólucro: o .filter-bar-search ocupa 100% de quem o contém.
-                  <div className="w-full sm:w-52">
-                    <ToolbarSearchInput
-                      value={buscaAnotacoes}
-                      onChange={setBuscaAnotacoes}
-                      placeholder="Buscar anotações…"
-                      size="compact"
-                    />
-                  </div>
-                }
               />
             </div>
           </div>
@@ -1463,65 +1469,8 @@ export function BookDetailPage() {
         {tab === 'conteudos' && roteirosTab}
       </div>
     </PageLayout>
-
-      {/* ── Modal Brainstorm ── */}
-      <Dialog
-        open={brainstormMode && anotacoesDestaque.length > 0}
-        onClose={() => setBrainstormMode(false)}
-        desktopMaxW="max-w-lg"
-        ariaLabel="Gerar ideias"
-      >
-        <div className="bg-[var(--bg-primary)] rounded-[var(--radius-overlay)] p-8 max-w-lg w-full shadow-none">
-          <div className="flex items-center justify-between mb-6">
-            <Text variant="label" as="span" className="text-[var(--text-tertiary)]">
-              Gerar ideias — {brainstormIdx + 1}/{anotacoesDestaque.length}
-            </Text>
-            <button
-              type="button"
-              onClick={() => setBrainstormMode(false)}
-              className={cn('rounded-full p-2 transition-colors hover:bg-[var(--bg-hover)]', FOCUS_INTERACTIVE)}
-            >
-              <X className="w-5 h-5 text-[var(--text-tertiary)]" />
-            </button>
-          </div>
-          <Text variant="sectionTitle" as="p" className="text-[var(--text-primary)] leading-relaxed mb-8">
-            "{anotacoesDestaque[brainstormIdx]?.texto}"
-          </Text>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <AppButton
-              variant="primary"
-              fullWidth
-              onClick={() => handleBrainstormConteudo(anotacoesDestaque[brainstormIdx])}
-            >
-              Criar roteiro
-            </AppButton>
-            <AppButton
-              variant="secondary"
-              fullWidth
-              onClick={() => handleBrainstormIdeia(anotacoesDestaque[brainstormIdx])}
-            >
-              Transformar em ideia
-            </AppButton>
-            <AppButton
-              variant="ghost"
-              onClick={handleBrainstormPular}
-              className="opacity-60"
-            >
-              Pular
-            </AppButton>
-          </div>
-        </div>
-      </Dialog>
-
-      {/* Modal de conteúdo */}
-      <ConfirmModal
-        open={!!confirm}
-        message={confirm?.message || ''}
-        confirmLabel={confirm?.confirmLabel}
-        cancelLabel={confirm?.cancelLabel}
-        onConfirm={() => { confirm?.onConfirm(); setConfirm(null); }}
-        onCancel={() => setConfirm(null)}
-      />
+    {brainstormModal}
+    {confirmModal}
     </>
   );
 }

@@ -3,12 +3,12 @@ import { useState } from 'react';
 import { CountBadge } from '../../../components/ui/CountBadge';
 import { Plus, Trash2, Edit2, ToggleLeft, ToggleRight, Check, } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
-import { useIsMobile } from '../../../hooks/useIsMobile';
 import { Look, Cenario } from '../../../lib/database';
 import { generateUUID } from '../../../utils/uuid';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import { AppButton } from '../../../components/ui/AppButton';
+import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
 import { TagSelect } from '../../../components/ui/TagSelect';
 
@@ -17,7 +17,6 @@ type EditingCenario = Partial<Cenario> & { nome: string; descricao: string; temp
 
 export function LooksSettingsPage() {
   const { state, dispatch } = useAppContext();
-  const isMobile = useIsMobile();
 
   const [editLookId, setEditLookId] = useState<string | null>(null);
   const [editCenarioId, setEditCenarioId] = useState<string | null>(null);
@@ -66,31 +65,20 @@ export function LooksSettingsPage() {
 
   return (
     <PageLayout
-      variant="settings"
+      contentStack="settings"
       header={
-        !isMobile ? (
         <DesktopPageHeader
           section="Configurações"
           title="Looks e cenários"
           backLabel="Configurações"
           backTo="/configuracoes"
+          subtitle="Cadastre roupas, acessórios e cenários para organizar a identidade visual das suas gravações."
         />
-        ) : undefined
-      }
-      mobileHeader={
-        isMobile ? (
-          <div className="px-1 pb-3 pt-1">
-            <Text variant="sectionTitle">Looks e cenários</Text>
-            <Text variant="meta" className="mt-1 text-[var(--text-tertiary)]">
-              Catálogo de looks e cenários
-            </Text>
-          </div>
-        ) : undefined
       }
     >
 
         {/* LOOKS */}
-        <section className="mb-12">
+        <section>
           <div className="flex items-center justify-between mb-4">
             <Text variant="sectionTitle">
               <span className="inline-flex items-center gap-1.5">Looks <CountBadge count={activeLooks.length} /></span>
@@ -108,25 +96,27 @@ export function LooksSettingsPage() {
           </div>
 
           {criandoLook && (
-            <div className="mb-4 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] p-6 stack-md">
+            <Surface variant="outlined" padding="lg" className="mb-4 stack-md">
               <div className="flex gap-3">
                 <div>
-                  <label className="t-label text-[var(--text-tertiary)] block mb-1">Nº</label>
+                  <label htmlFor="look-numero" className="t-label text-[var(--text-tertiary)] block mb-1">Nº</label>
                   <input
+                    id="look-numero"
                     type="number"
                     value={lookForm.numero}
                     onChange={e => setLookForm(p => ({ ...p, numero: parseInt(e.target.value) || 1 }))}
-                    className="w-16 t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-input)] px-2 py-2 text-[var(--text-primary)]"
+                    className="input w-20"
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="t-label text-[var(--text-tertiary)] block mb-1">Descrição</label>
+                  <label htmlFor="look-descricao" className="t-label text-[var(--text-tertiary)] block mb-1">Descrição</label>
                   <input
+                    id="look-descricao"
                     type="text"
                     value={lookForm.descricao}
                     onChange={e => setLookForm(p => ({ ...p, descricao: e.target.value }))}
                     placeholder="Ex.: Blusa bege, cabelo preso"
-                    className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-input)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
+                    className="input"
                   />
                 </div>
               </div>
@@ -151,7 +141,7 @@ export function LooksSettingsPage() {
                   Salvar
                 </AppButton>
               </div>
-            </div>
+            </Surface>
           )}
 
           <div className="stack-sm">
@@ -160,19 +150,19 @@ export function LooksSettingsPage() {
             ) : activeLooks.map(look => {
               const cenario = look.cenarioId ? state.cenarios.find(c => c.id === look.cenarioId) : null;
               return (
-                <div key={look.id} className="flex items-center gap-4 px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)]">
+                <Surface key={look.id} variant="outlined" padding="none" className="flex items-center gap-4 px-4 py-3">
                   {editLookId === look.id ? (
-                    <div className="flex-1 flex gap-2">
+                    <div className="flex-1 flex items-center gap-2">
                       <input
                         type="text"
                         defaultValue={look.descricao}
                         onBlur={e => dispatch({ type: 'UPDATE_LOOK', payload: { ...look, descricao: e.target.value } })}
-                        className="flex-1 t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-input)] px-3 py-1.5"
+                        className="input flex-1"
                         autoFocus
                       />
-                      <button onClick={() => setEditLookId(null)} aria-label="Concluir edição" className="p-1.5 hover:bg-[var(--bg-hover)] rounded-[var(--radius-input)]">
+                      <AppButton variant="ghost" size="sm" iconOnly onClick={() => setEditLookId(null)} aria-label="Concluir edição">
                         <Check className="w-4 h-4 text-[var(--accent-green)]" />
-                      </button>
+                      </AppButton>
                     </div>
                   ) : (
                     <>
@@ -182,22 +172,27 @@ export function LooksSettingsPage() {
                         {cenario && <Text variant="meta" className="block">{cenario.nome}</Text>}
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <button onClick={() => dispatch({ type: 'UPDATE_LOOK', payload: { ...look, ativo: !look.ativo } })} aria-label={look.ativo ? `Desativar look ${look.numero}` : `Ativar look ${look.numero}`}>
+                        <button
+                          type="button"
+                          onClick={() => dispatch({ type: 'UPDATE_LOOK', payload: { ...look, ativo: !look.ativo } })}
+                          aria-label={look.ativo ? `Desativar look ${look.numero}` : `Ativar look ${look.numero}`}
+                          className="rounded-[var(--radius-input)] p-1 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                        >
                           {look.ativo
                             ? <ToggleRight className="w-5 h-5 text-[var(--accent-green)]" />
                             : <ToggleLeft className="w-5 h-5 text-[var(--text-tertiary)]" />
                           }
                         </button>
-                        <button onClick={() => setEditLookId(look.id)} aria-label={`Editar look ${look.numero}`} className="p-1.5 hover:bg-[var(--bg-hover)] rounded-[var(--radius-input)]">
+                        <AppButton variant="ghost" size="sm" iconOnly onClick={() => setEditLookId(look.id)} aria-label={`Editar look ${look.numero}`}>
                           <Edit2 className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
-                        </button>
-                        <button onClick={() => dispatch({ type: 'DELETE_LOOK', payload: look.id })} aria-label={`Excluir look ${look.numero}`} className="p-1.5 hover:bg-[var(--accent-pink)]/10 rounded-[var(--radius-input)]">
-                          <Trash2 className="w-3.5 h-3.5 text-[var(--accent-pink)] opacity-40 hover:opacity-100" />
-                        </button>
+                        </AppButton>
+                        <AppButton variant="ghost" size="sm" iconOnly onClick={() => dispatch({ type: 'DELETE_LOOK', payload: look.id })} aria-label={`Excluir look ${look.numero}`}>
+                          <Trash2 className="w-3.5 h-3.5 text-[var(--danger)]" />
+                        </AppButton>
                       </div>
                     </>
                   )}
-                </div>
+                </Surface>
               );
             })}
           </div>
@@ -209,69 +204,71 @@ export function LooksSettingsPage() {
             <Text variant="sectionTitle">
               <span className="inline-flex items-center gap-1.5">Cenários <CountBadge count={activeCenarios.length} /></span>
             </Text>
-            <button
+            <AppButton
               onClick={() => setCriandoCenario(true)}
-              className="t-button t-button-uppercase flex items-center gap-1.5 rounded-[var(--radius-card)] bg-[var(--text-primary)] px-3 py-2 text-[var(--bg-primary)] shadow-sm transition-all hover:scale-[1.02]"
+              variant="secondary"
+              leftIcon={<Plus className="w-3.5 h-3.5" />}
             >
-              <Plus className="w-3.5 h-3.5" />
               Novo cenário
-            </button>
+            </AppButton>
           </div>
 
           {criandoCenario && (
-            <div className="mb-4 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] p-6 stack-md">
+            <Surface variant="outlined" padding="lg" className="mb-4 stack-md">
               <div className="grid-metrics">
                 <div>
-                  <label className="t-label block mb-1">Nome *</label>
+                  <label htmlFor="cenario-nome" className="t-label block mb-1">Nome *</label>
                   <input
+                    id="cenario-nome"
                     type="text"
                     value={cenarioForm.nome}
                     onChange={e => setCenarioForm(p => ({ ...p, nome: e.target.value }))}
                     placeholder="Ex.: Mesa com livros"
-                    className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-input)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
+                    className="input"
                   />
                 </div>
                 <div>
-                  <label className="t-label block mb-1">Montagem (min)</label>
+                  <label htmlFor="cenario-montagem" className="t-label block mb-1">Montagem (min)</label>
                   <input
+                    id="cenario-montagem"
                     type="number"
                     value={cenarioForm.tempoSetupMinutos}
                     onChange={e => setCenarioForm(p => ({ ...p, tempoSetupMinutos: parseInt(e.target.value) || 0 }))}
-                    className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-input)] px-3 py-2 text-[var(--text-primary)]"
+                    className="input"
                   />
                 </div>
               </div>
               <div>
-                <label className="t-label block mb-1">Descrição</label>
+                <label htmlFor="cenario-descricao" className="t-label block mb-1">Descrição</label>
                 <input
+                  id="cenario-descricao"
                   type="text"
                   value={cenarioForm.descricao}
                   onChange={e => setCenarioForm(p => ({ ...p, descricao: e.target.value }))}
                   placeholder="Onde fica, como montar…"
-                  className="w-full t-body bg-[var(--bg-hover)] border-none rounded-[var(--radius-input)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
+                  className="input"
                 />
               </div>
-              <div className="flex gap-3">
-                <AppButton onClick={() => setCriandoCenario(false)} variant="secondary" className="flex-1">
+              <div className="flex justify-end gap-3">
+                <AppButton onClick={() => setCriandoCenario(false)} variant="secondary">
                   Cancelar
                 </AppButton>
                 <AppButton
                   onClick={() => cenarioForm.nome.trim() && saveCenario(cenarioForm)}
                   disabled={!cenarioForm.nome.trim()}
                   variant="primary"
-                  className="flex-1"
                 >
                   Salvar
                 </AppButton>
               </div>
-            </div>
+            </Surface>
           )}
 
           <div className="stack-sm">
             {activeCenarios.length === 0 ? (
               <Text variant="label" as="p" className="text-[var(--text-tertiary)] text-center py-8 ">Nenhum cenário cadastrado ainda</Text>
             ) : activeCenarios.map(cenario => (
-              <div key={cenario.id} className="flex items-center gap-4 px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)]">
+              <Surface key={cenario.id} variant="outlined" padding="none" className="flex items-center gap-4 px-4 py-3">
                 <div className="flex-1 min-w-0">
                   <Text variant="itemTitle" as="p" className="text-[var(--text-primary)]">{cenario.nome}</Text>
                   <Text variant="meta" className="block">
@@ -279,17 +276,22 @@ export function LooksSettingsPage() {
                   </Text>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <button onClick={() => dispatch({ type: 'UPDATE_CENARIO', payload: { ...cenario, ativo: !cenario.ativo } })} aria-label={cenario.ativo ? `Desativar cenário ${cenario.nome}` : `Ativar cenário ${cenario.nome}`}>
+                  <button
+                    type="button"
+                    onClick={() => dispatch({ type: 'UPDATE_CENARIO', payload: { ...cenario, ativo: !cenario.ativo } })}
+                    aria-label={cenario.ativo ? `Desativar cenário ${cenario.nome}` : `Ativar cenário ${cenario.nome}`}
+                    className="rounded-[var(--radius-input)] p-1 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                  >
                     {cenario.ativo
                       ? <ToggleRight className="w-5 h-5 text-[var(--accent-green)]" />
                       : <ToggleLeft className="w-5 h-5 text-[var(--text-tertiary)]" />
                     }
                   </button>
-                  <button onClick={() => dispatch({ type: 'DELETE_CENARIO', payload: cenario.id })} aria-label={`Excluir cenário ${cenario.nome}`} className="p-1.5 hover:bg-[var(--accent-pink)]/10 rounded-[var(--radius-input)]">
-                    <Trash2 className="w-3.5 h-3.5 text-[var(--accent-pink)] opacity-40 hover:opacity-100" />
-                  </button>
+                  <AppButton variant="ghost" size="sm" iconOnly onClick={() => dispatch({ type: 'DELETE_CENARIO', payload: cenario.id })} aria-label={`Excluir cenário ${cenario.nome}`}>
+                    <Trash2 className="w-3.5 h-3.5 text-[var(--danger)]" />
+                  </AppButton>
                 </div>
-              </div>
+              </Surface>
             ))}
           </div>
         </section>

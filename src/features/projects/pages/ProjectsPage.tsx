@@ -152,14 +152,17 @@ export function ProjectsPage() {
           <OverlayHeader title="Novo projeto" onClose={handleClose} />
 
           <OverlayBody className="stack-lg py-6">
-            <input
-              autoFocus
-              value={nome}
-              onChange={e => setNome(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleCreate()}
-              placeholder="Nome do projeto"
-              className="w-full"
-            />
+            <label className="block stack-sm">
+              <Text variant="label">Nome do projeto</Text>
+              <input
+                autoFocus
+                value={nome}
+                onChange={e => setNome(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleCreate()}
+                placeholder="Nome do projeto"
+                className="input"
+              />
+            </label>
             <ProjetoEventoFields
               tipo={tipo}
               avisoDias={avisoDias}
@@ -170,35 +173,47 @@ export function ProjectsPage() {
               onTipoPersonalizadoChange={setTipoPersonalizado}
             />
             {isProjetoPubli(tipo) ? (
-              <input
-                value={value}
-                onChange={e => setValue(e.target.value)}
-                type="number"
-                placeholder="Valor (R$)"
-                className="w-full"
-              />
+              <label className="block stack-sm">
+                <Text variant="label">Valor (R$)</Text>
+                <input
+                  value={value}
+                  onChange={e => setValue(e.target.value)}
+                  type="number"
+                  placeholder="Valor (R$)"
+                  className="input"
+                />
+              </label>
             ) : null}
-            <input
-              value={brand}
-              onChange={e => setBrand(e.target.value)}
-              placeholder="Marca ou parceiro"
-              className="w-full"
-            />
+            <label className="block stack-sm">
+              <Text variant="label">Marca ou parceiro</Text>
+              <input
+                value={brand}
+                onChange={e => setBrand(e.target.value)}
+                placeholder="Marca ou parceiro"
+                className="input"
+              />
+            </label>
             <ProjetoCorPicker value={color} onChange={setColor} />
-            <input
-              value={driveUrl}
-              onChange={e => setDriveUrl(e.target.value)}
-              type="url"
-              placeholder="Link da pasta no Drive (https://…)"
-              className="w-full"
-            />
-            <textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              placeholder="Notas do projeto"
-              rows={3}
-              className="w-full resize-none"
-            />
+            <label className="block stack-sm">
+              <Text variant="label">Pasta no Drive</Text>
+              <input
+                value={driveUrl}
+                onChange={e => setDriveUrl(e.target.value)}
+                type="url"
+                placeholder="Link da pasta no Drive (https://…)"
+                className="input"
+              />
+            </label>
+            <label className="block stack-sm">
+              <Text variant="label">Notas</Text>
+              <textarea
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                placeholder="Notas do projeto"
+                rows={3}
+                className="input resize-none"
+              />
+            </label>
           </OverlayBody>
 
           <OverlayFooter className="pb-safe">
@@ -240,20 +255,11 @@ export function ProjectsPage() {
         <DesktopPageHeader
           section="Produção"
           title="Projetos"
-          meta={
-            state.projetos.length === 0
-              ? undefined
-              : projetos.length === state.projetos.length
-                ? `${state.projetos.length} ${state.projetos.length === 1 ? 'projeto' : 'projetos'}`
-                : `Mostrando ${projetos.length} de ${state.projetos.length}`
-          }
           actions={(
             <AppButton
               onClick={() => setShowForm(true)}
               variant="primary"
-              size="md"
-              leftIcon={<Plus className="w-4 h-4" />}
-              className="shrink-0"
+              leftIcon={<Plus className="h-4 w-4" />}
             >
               Novo projeto
             </AppButton>
@@ -348,7 +354,7 @@ export function ProjectsPage() {
                     ) : (
                       <span
                         aria-hidden
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-sm font-semibold text-[var(--text-primary)]"
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-input)] t-body-strong text-[var(--text-primary)]"
                         style={{
                           backgroundColor: `color-mix(in srgb, ${projeto.color || '#78716c'} 18%, var(--bg-secondary))`,
                           color: projeto.color ? tintedTextColor(projeto.color) : 'var(--text-primary)',
@@ -377,12 +383,12 @@ export function ProjectsPage() {
                   </div>
                   {entrega ? (
                     <Text
-                      variant="meta"
+                      variant={entrega.tipo === 'passou' && destacarPrazos ? 'label' : 'meta'}
                       as="p"
                       className={cn(
                         'flex min-w-0 items-center gap-1.5 pl-1',
                         // Texto escuro e ícone colorido: a cor como texto pequeno fica abaixo de 4,5:1.
-                        entrega.tipo === 'passou' && destacarPrazos && 'font-semibold text-[var(--text-primary)]',
+                        entrega.tipo === 'passou' && destacarPrazos && 'text-[var(--text-primary)]',
                       )}
                     >
                       {entrega.tipo === 'passou' && destacarPrazos
@@ -396,18 +402,18 @@ export function ProjectsPage() {
                   ) : null}
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pl-1">
                     {isProjetoPubli(projeto.tipo) && projeto.value ? (
-                      <span className="flex items-center gap-1 text-xs font-medium text-[var(--text-secondary)]">
+                      <span className="flex items-center gap-1 t-label text-[var(--text-secondary)]">
                         <DollarSign className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
                         {projeto.value.toLocaleString('pt-BR', { style: 'currency', currency: projeto.currency || 'BRL' })}
                       </span>
                     ) : null}
                     {isProjetoEvento(projeto.tipo) && projeto.avisoDias != null ? (
-                      <span className="text-xs text-[var(--text-tertiary)]">
+                      <span className="text-2xs text-[var(--text-tertiary)]">
                         {rotuloAvisoDias(projeto.avisoDias)}
                       </span>
                     ) : null}
                     {eventoCount > 0 ? (
-                      <span className="flex items-center gap-1 text-xs text-[var(--text-tertiary)]">
+                      <span className="flex items-center gap-1 text-2xs text-[var(--text-tertiary)]">
                         <CalendarDays className="h-3.5 w-3.5" />
                         {eventoCount} {eventoCount === 1 ? 'evento' : 'eventos'}
                       </span>

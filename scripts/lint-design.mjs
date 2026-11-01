@@ -82,11 +82,18 @@ const visualWarnExceptions = new Set([
 const nativeControlDirs = ['features', 'mobile'];
 
 // Pastas já migradas: as regras de warn viram erro (lint gradual).
-const migratedErrorDirs = new Set(['creation', 'library', 'recording', 'projects', 'captions', 'planejamento', 'editorial', 'settings']);
+const migratedErrorDirs = new Set([
+  'creation', 'library', 'recording', 'projects', 'captions', 'planejamento',
+  'editorial', 'settings', 'editorial-calendar', 'analises', 'analytics',
+  'transcription', 'contents', 'dashboard', 'contas',
+]);
 const migratedErrorPatterns = [
   { name: 'native <select> in migrated scope (use TagSelect/SelectField)', regex: /<select\b/g },
   { name: 'window.prompt/window.confirm in migrated scope (use ConfirmModal)', regex: /\bwindow\.(?:prompt|confirm)\s*\(/g },
   { name: 'count in parentheses in migrated scope (use CountBadge or AppButton count)', regex: /\(\{[\w.]+\.(?:length|size)\}\)/g },
+  { name: 'orphan 20px spacing in migrated scope (use stack-xl or --space-xl / p-6)', regex: /\b(?:p-5|px-5|py-5|pt-5|pb-5|pl-5|pr-5|gap-5|space-y-5|space-x-5|m-5|mx-5|my-5)\b/g },
+  { name: 'legacy space-y in migrated scope (use stack-sm/md/lg/xl/2xl)', regex: /\bspace-y-[23468]\b/g },
+  { name: 'orphan gap-10 in migrated scope (use --space-2xl or --space-3xl)', regex: /\bgap-10\b/g },
 ];
 
 const stringLiteralRegex = /"[^"\n]*"|'[^'\n]*'|`[^`]*`/g;

@@ -10,7 +10,9 @@ const dateFormattingOwners = new Set([
 export const tokenMigrationScopes = [
   'src/features/contents/', 'src/components/', 'src/features/library/',
   'src/features/settings/', 'src/mobile/', 'src/features/editorial-calendar/',
-  'src/features/recording/',
+  'src/features/recording/', 'src/features/projects/', 'src/features/editorial/',
+  'src/features/planejamento/', 'src/features/captions/', 'src/features/analises/',
+  'src/features/transcription/', 'src/features/analytics/', 'src/layouts/',
 ];
 const normalize = file => file.replaceAll('\\', '/').replace(/^.*?\/src\//, 'src/');
 const isTest = file => /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file);

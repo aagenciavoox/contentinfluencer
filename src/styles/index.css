@@ -540,18 +540,26 @@ body.mobile-burst-open > [data-burst-portal] {
 }
 
 /* Global Form Elements Branding */
+input:not([type]):not(.filter-bar-search-input):not(.input-plain),
 input[type="text"]:not(.filter-bar-search-input):not(.input-plain),
-input[type="number"], input[type="password"], input[type="email"], input[type="date"],
-textarea, select, .input, .input-inline {
+input[type="number"], input[type="password"], input[type="email"], input[type="date"], input[type="time"], input[type="url"], input[type="tel"],
+textarea, select, .input, .input-inline, .ds-input {
   background-color: var(--bg-elevated);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-input);
   border-radius: var(--radius-input);
-  padding: 0.75rem 1rem;
+  padding: 0.5rem 0.75rem;
   font-size: var(--font-size-body);
   font-weight: 400;
   color: var(--text-primary);
   transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
   outline: none;
+}
+
+input:not([type]):not(.filter-bar-search-input):not(.input-plain),
+input[type="text"]:not(.filter-bar-search-input):not(.input-plain),
+input[type="number"], input[type="password"], input[type="email"], input[type="date"], input[type="time"], input[type="url"], input[type="tel"],
+select, .input, .input-inline, .ds-input {
+  min-height: var(--control-height);
 }
 
 input:hover:not(.filter-bar-search-input):not(.input-plain):not([type="search"]),
@@ -2065,16 +2073,21 @@ input[type="search"]::-webkit-search-results-decoration {
     padding-right: var(--layout-gutter);
   }
 
+  input:not([type]):not(.filter-bar-search-input):not(.input-plain),
   input[type="text"]:not(.filter-bar-search-input):not(.input-plain),
   input[type="number"],
   input[type="password"],
   input[type="email"],
   input[type="date"],
+  input[type="time"],
+  input[type="url"],
+  input[type="tel"],
   select,
   .input,
-  .input-inline {
-    min-height: 40px;
-    padding: 12px;
+  .input-inline,
+  .ds-input {
+    min-height: var(--control-height);
+    padding: 0.5rem 0.75rem;
   }
 
   .property-row {
@@ -2156,7 +2169,7 @@ input[type="search"]::-webkit-search-results-decoration {
 }
 
 /* O respiro do topo já vem do <main> do shell: o PageContainer que abre a página não soma outro. */
-html.mobile-app-shell .mobile-shell-scroll--header main > .desktop-content-frame:first-child {
+html.mobile-app-shell .mobile-shell-scroll--header main > .desktop-content-frame {
   padding-top: 0;
 }
 

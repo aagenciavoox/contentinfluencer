@@ -1,5 +1,5 @@
 import { TextCount } from '../../../../components/ui/TextCount';
-import { useId, useRef, useState, type ReactNode } from 'react';
+import { useId, useRef, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { useAppContext } from '../../../../context/AppContext';
 import { useAuth } from '../../../../context/AuthContext';
@@ -21,8 +21,6 @@ interface BookAnnotationComposerProps {
   referencePlaceholder?: string;
   framed?: boolean;
   onSubmitted?: () => void;
-  /** Ao lado do título "Nova anotação" (no desktop, a busca das anotações). */
-  headerAside?: ReactNode;
 }
 
 interface BookAnnotationComposerSheetProps {
@@ -48,7 +46,6 @@ function AnnotationComposerForm({
   referencePlaceholder = 'Cap. / página',
   framed = true,
   onSubmitted,
-  headerAside,
   userId,
 }: BookAnnotationComposerProps & { userId: string | null }) {
   const { dispatch } = useAppContext();
@@ -105,7 +102,6 @@ function AnnotationComposerForm({
     <div className="stack-lg">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Text variant="sectionTitle">Nova anotação</Text>
-        {headerAside}
       </div>
 
       <div className="stack-sm">

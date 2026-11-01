@@ -502,7 +502,7 @@ export function SeriesScriptsPage() {
       contentStack="dense"
       header={cabecalho(false)}
       toolbar={toolbar}
-      mobileHeader={<div className="stack-md px-4 pt-3 pb-1">{cabecalho(true)}</div>}
+      mobileHeader={cabecalho(true)}
       mobileToolbar={toolbar}
     >
       <div ref={rolagem} className="stack-lg">

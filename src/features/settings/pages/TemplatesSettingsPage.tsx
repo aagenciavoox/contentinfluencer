@@ -9,6 +9,8 @@ import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {Text} from '../../../components/ui/Text';
 import {AppButton} from '../../../components/ui/AppButton';
+import {Badge} from '../../../components/ui/Badge';
+import {Surface} from '../../../components/ui/Surface';
 import {SelectField} from '../../../components/ui/SelectField';
 import {TagSelect} from '../../../components/ui/TagSelect';
 import {EmptyState} from '../../../components/ui/EmptyState';
@@ -376,13 +378,14 @@ export function TemplatesSettingsPage({
               <aside className="border-r border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:p-6">
                 <div className="stack-lg">
                   <div className="stack-sm">
-                    <label className="t-label text-[var(--text-tertiary)]">
+                    <label htmlFor="template-editor-nome" className="t-label text-[var(--text-tertiary)]">
                       Nome
                     </label>
                     <input
+                      id="template-editor-nome"
                       value={templateEditor.nome}
                       onChange={event => setTemplateEditor(previous => ({...previous, nome: event.target.value}))}
-                      className="w-full rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 t-body-strong text-[var(--text-primary)] focus:outline-none"
+                      className="input"
                     />
                   </div>
 
@@ -435,13 +438,14 @@ export function TemplatesSettingsPage({
                     />
                   </div>
 
-                  <button
+                  <AppButton
+                    variant="primary"
+                    fullWidth
                     onClick={saveTemplateMeta}
                     disabled={!templateEditor.nome.trim() || !isTemplateMetaDirty}
-                    className="w-full rounded-[var(--radius-card)] bg-[var(--text-primary)] px-4 py-3 t-label text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-30"
                   >
                     Salvar contexto
-                  </button>
+                  </AppButton>
                 </div>
 
                 <div className="mt-6 border-t border-[var(--border-color)] pt-6">
@@ -518,7 +522,7 @@ export function TemplatesSettingsPage({
                       onChange={event => setNovoBlocoLabel(event.target.value)}
                       onKeyDown={event => event.key === 'Enter' && addBloco()}
                       placeholder="Novo bloco"
-                      className="flex-1 rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-primary)] px-3 py-2 t-body-strong text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
+                      className="input flex-1"
                     />
                     <SelectField
                       ariaLabel="Tipo do novo bloco"
@@ -529,14 +533,15 @@ export function TemplatesSettingsPage({
                         {value: 'fixo', label: 'Fixo'},
                       ]}
                     />
-                    <button
+                    <AppButton
+                      variant="secondary"
+                      iconOnly
                       onClick={addBloco}
                       disabled={!novoBlocoLabel.trim()}
                       aria-label="Adicionar bloco"
-                      className="rounded-[var(--radius-input)] bg-[var(--text-primary)] p-2 text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-30"
                     >
                       <Plus className="h-4 w-4" />
-                    </button>
+                    </AppButton>
                   </div>
                 </div>
               </aside>
@@ -552,21 +557,23 @@ export function TemplatesSettingsPage({
                     </div>
 
                     <div className="stack-sm">
-                      <label className="t-label text-[var(--text-tertiary)]">
+                      <label htmlFor="bloco-editor-nome" className="t-label text-[var(--text-tertiary)]">
                         Nome do bloco
                       </label>
                       <input
+                        id="bloco-editor-nome"
                         value={blocoEditor.label}
                         onChange={event => setBlocoEditor(previous => ({...previous, label: event.target.value}))}
-                        className="w-full rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 t-body-strong text-[var(--text-primary)] focus:outline-none"
+                        className="input"
                       />
                     </div>
 
                     <div className="stack-sm">
-                      <label className="t-label text-[var(--text-tertiary)]">
+                      <label htmlFor="bloco-editor-conteudo" className="t-label text-[var(--text-tertiary)]">
                         {editingBloco.tipo === 'fixo' ? 'Conteúdo fixo' : 'Placeholder da variável'}
                       </label>
                       <textarea
+                        id="bloco-editor-conteudo"
                         value={editingBloco.tipo === 'fixo' ? blocoEditor.conteudo : blocoEditor.placeholder}
                         onChange={event =>
                           editingBloco.tipo === 'fixo'
@@ -579,25 +586,26 @@ export function TemplatesSettingsPage({
                             : 'Explique o que entra neste bloco…'
                         }
                         rows={editingBloco.tipo === 'fixo' ? 16 : 12}
-                        className="min-h-[340px] w-full resize-y rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-4 py-4 t-body leading-7 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
+                        className="input min-h-[340px] resize-y leading-7"
                       />
                     </div>
 
                     <div className="flex flex-wrap gap-3 border-t border-[var(--border-color)] pt-4">
-                      <button
+                      <AppButton
+                        variant="primary"
                         onClick={saveBloco}
                         disabled={!blocoEditor.label.trim() || !isBlocoDirty}
-                        className="inline-flex items-center gap-2 rounded-[var(--radius-card)] bg-[var(--text-primary)] px-6 py-3 t-label text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-30"
+                        leftIcon={<Check className="h-4 w-4" />}
                       >
-                        <Check className="h-4 w-4" />
                         Salvar bloco
-                      </button>
-                      <button
+                      </AppButton>
+                      <AppButton
+                        variant="secondary"
                         onClick={() => deleteBloco(editingBloco.id)}
-                        className="rounded-[var(--radius-card)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] px-6 py-3 t-label text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]"
+                        className="text-[var(--danger)]"
                       >
                         Excluir bloco
-                      </button>
+                      </AppButton>
                     </div>
                   </div>
                 ) : (
@@ -636,14 +644,14 @@ export function TemplatesSettingsPage({
   const catalog = (
     <>
         {showNewForm && (
-          <div className="stack-md rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-6">
+          <Surface variant="outlined" padding="lg" className="stack-md">
             <Text variant="eyebrow">Novo template</Text>
             <input
               autoFocus
               value={novoNome}
               onChange={event => setNovoNome(event.target.value)}
               placeholder="Nome do template"
-              className="w-full rounded-[var(--radius-card)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-4 py-3 t-body-strong text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
+              className="input"
             />
             <div className="flex flex-wrap gap-3">
               {lockedSeriesId ? null : (
@@ -680,7 +688,13 @@ export function TemplatesSettingsPage({
                 className="min-w-[120px] flex-1"
               />
             </div>
-            <div className="flex gap-3">
+            <div className="flex justify-end gap-3">
+              <AppButton
+                onClick={() => setShowNewForm(false)}
+                variant="secondary"
+              >
+                Cancelar
+              </AppButton>
               <AppButton
                 onClick={handleCreateTemplate}
                 disabled={!novoNome.trim()}
@@ -688,14 +702,8 @@ export function TemplatesSettingsPage({
               >
                 Criar template
               </AppButton>
-              <AppButton
-                onClick={() => setShowNewForm(false)}
-                variant="secondary"
-              >
-                Cancelar
-              </AppButton>
             </div>
-          </div>
+          </Surface>
         )}
 
         {templates.length === 0 && !showNewForm ? (
@@ -709,7 +717,7 @@ export function TemplatesSettingsPage({
             title={EMPTY.templates.title}
             description={EMPTY.templates.description}
             action={
-              <AppButton variant="primary" onClick={() => setShowNewForm(true)} leftIcon={<Plus className="h-4 w-4" />}>
+              <AppButton variant="secondary" onClick={() => setShowNewForm(true)} leftIcon={<Plus className="h-4 w-4" />}>
                 Novo template
               </AppButton>
             }
@@ -722,9 +730,11 @@ export function TemplatesSettingsPage({
               const platform = state.platforms.find(item => item.id === template.platformId);
 
               return (
-                <div
+                <Surface
                   key={template.id}
-                  className="group relative flex items-start gap-3 rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-6 transition-all hover:shadow-[var(--shadow-card-hover)]"
+                  variant="interactive"
+                  padding="lg"
+                  className="group relative flex items-start gap-3"
                 >
                   {/* O card inteiro abre o template: botão que cobre o card, como na Criação. */}
                   <button
@@ -735,19 +745,9 @@ export function TemplatesSettingsPage({
                   />
                   <div className="pointer-events-none relative z-[1] min-w-0 flex-1 stack-md">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Text variant="label" as="span" className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-[var(--text-primary)]">
-                        {template.type || 'roteiro'}
-                      </Text>
-                      {serie ? (
-                        <Text variant="label" as="span" className="rounded-full bg-[var(--accent-purple)]/10 px-3 py-1 text-[var(--accent-purple)]">
-                          {serie.name}
-                        </Text>
-                      ) : null}
-                      {platform ? (
-                        <Text variant="label" as="span" className="rounded-full bg-[var(--accent-green)]/10 px-3 py-1 text-[var(--accent-green)]">
-                          {platform.nome}
-                        </Text>
-                      ) : null}
+                      <Badge variant="neutral">{template.type || 'roteiro'}</Badge>
+                      {serie ? <Badge variant="neutral">{serie.name}</Badge> : null}
+                      {platform ? <Badge variant="neutral">{platform.nome}</Badge> : null}
                     </div>
 
                     <div>
@@ -758,18 +758,20 @@ export function TemplatesSettingsPage({
                     </div>
                   </div>
 
-                  <button
-                    type="button"
+                  <AppButton
+                    variant="ghost"
+                    size="sm"
+                    iconOnly
                     onClick={(event) => {
                       event.stopPropagation();
                       deleteTemplate(template.id);
                     }}
                     aria-label={`Excluir template ${template.nome}`}
-                    className="relative z-[2] inline-flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded-full text-[var(--text-tertiary)] transition-all hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:text-[var(--danger)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+                    className="relative z-[2] shrink-0 text-[var(--text-tertiary)] hover:text-[var(--danger)]"
                   >
                     <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
+                  </AppButton>
+                </Surface>
               );
             })}
           </div>
@@ -801,15 +803,16 @@ export function TemplatesSettingsPage({
   return (
     <>
       <PageLayout
-        variant="settings"
+        contentStack="settings"
         header={
           <DesktopPageHeader
             section="Configurações"
-            title="Templates"
+            title="Modelos de roteiro"
             backLabel="Configurações"
             backTo="/configuracoes"
+            subtitle="Crie e gerencie modelos com blocos pré-definidos para acelerar a escrita dos seus roteiros."
             actions={
-              <AppButton variant="primary" size="sm" onClick={() => setShowNewForm(true)} leftIcon={<Plus className="h-4 w-4" />}>
+              <AppButton variant="primary" onClick={() => setShowNewForm(true)} leftIcon={<Plus className="h-4 w-4" />}>
                 Novo template
               </AppButton>
             }

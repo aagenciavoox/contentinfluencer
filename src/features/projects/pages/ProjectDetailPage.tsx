@@ -142,14 +142,25 @@ export function ProjectDetailPage() {
 
   if (!projeto) {
     return (
-      <div className="flex min-h-full items-center justify-center bg-[var(--bg-primary)] px-4 py-16">
-        <div className="stack-lg text-center">
-          <Text variant="bodyStrong">Projeto não encontrado</Text>
-          <AppButton variant="secondary" onClick={() => navigate('/projetos')}>
-            Voltar aos projetos
-          </AppButton>
-        </div>
-      </div>
+      <PageLayout
+        header={
+          <DesktopPageHeader
+            section="Produção"
+            title="Projeto não encontrado"
+            backLabel="Projetos"
+            backTo="/projetos"
+          />
+        }
+      >
+        <Surface variant="info" padding="lg" className="stack-md">
+          <Text variant="secondary">O projeto solicitado não existe ou foi removido.</Text>
+          <div>
+            <AppButton variant="secondary" onClick={() => navigate('/projetos')}>
+              Voltar aos projetos
+            </AppButton>
+          </div>
+        </Surface>
+      </PageLayout>
     );
   }
 
@@ -385,13 +396,6 @@ export function ProjectDetailPage() {
           rowAlign="center"
           actions={
             <>
-              <MoreMenu
-                label="Mais opções do projeto"
-                items={[
-                  { id: 'edit', label: 'Editar', onClick: startEditing },
-                  { id: 'delete', label: 'Excluir', onClick: handleDeleteProjeto, tone: 'danger' },
-                ]}
-              />
               <AppButton
                 variant="primary"
                 leftIcon={<Plus className="h-4 w-4" />}
@@ -399,6 +403,13 @@ export function ProjectDetailPage() {
               >
                 Novo evento
               </AppButton>
+              <MoreMenu
+                label="Mais opções do projeto"
+                items={[
+                  { id: 'edit', label: 'Editar', onClick: startEditing },
+                  { id: 'delete', label: 'Excluir', onClick: handleDeleteProjeto, tone: 'danger' },
+                ]}
+              />
             </>
           }
         />
@@ -412,7 +423,7 @@ export function ProjectDetailPage() {
             padding="md"
             className={card.alert ? 'border-[var(--danger)]' : undefined}
           >
-            <Text variant="label" className={card.alert ? 'font-semibold text-[var(--text-primary)]' : undefined}>
+            <Text variant="label" className={card.alert ? 'text-[var(--text-primary)]' : undefined}>
               {card.label}
             </Text>
             <Text variant="sectionTitle" as="p" className="mt-3">{card.value}</Text>
@@ -525,6 +536,11 @@ export function ProjectDetailPage() {
             eyebrow="Contexto"
             title="Resumo do projeto"
             informative={!isEditing}
+            action={!isEditing ? (
+              <AppButton variant="secondary" size="sm" onClick={startEditing}>
+                Editar
+              </AppButton>
+            ) : undefined}
           >
             {!isEditing ? (
               <div className="stack-lg">
@@ -552,12 +568,15 @@ export function ProjectDetailPage() {
               </div>
             ) : (
               <div className="stack-lg">
-                <input
-                  value={editNome}
-                  onChange={event => setEditNome(event.target.value)}
-                  placeholder="Nome"
-                  className="w-full rounded-xl border border-[var(--border-input)] bg-[var(--bg-secondary)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
-                />
+                <label className="block stack-sm">
+                  <Text variant="label">Nome</Text>
+                  <input
+                    value={editNome}
+                    onChange={event => setEditNome(event.target.value)}
+                    placeholder="Nome"
+                    className="input"
+                  />
+                </label>
                 <ProjetoEventoFields
                   tipo={editTipo}
                   avisoDias={editAvisoDias}
@@ -567,44 +586,56 @@ export function ProjectDetailPage() {
                   onTipoChange={setEditTipo}
                   onAvisoDiasChange={setEditAvisoDias}
                   onTipoPersonalizadoChange={setEditTipoPersonalizado}
-                  inputClassName="w-full rounded-xl border border-[var(--border-input)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
+                  inputClassName="input"
                 />
-                <input
-                  value={editBrand}
-                  onChange={event => setEditBrand(event.target.value)}
-                  placeholder="Marca ou parceiro"
-                  className="w-full rounded-xl border border-[var(--border-input)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
-                />
-                {isProjetoPubli(editTipo) ? (
+                <label className="block stack-sm">
+                  <Text variant="label">Marca ou parceiro</Text>
                   <input
-                    type="number"
-                    value={editValue}
-                    onChange={event => setEditValue(event.target.value)}
-                    placeholder="Valor (R$)"
-                    className="w-full rounded-xl border border-[var(--border-input)] bg-[var(--bg-secondary)] px-4 py-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
+                    value={editBrand}
+                    onChange={event => setEditBrand(event.target.value)}
+                    placeholder="Marca ou parceiro"
+                    className="input"
                   />
+                </label>
+                {isProjetoPubli(editTipo) ? (
+                  <label className="block stack-sm">
+                    <Text variant="label">Valor (R$)</Text>
+                    <input
+                      type="number"
+                      value={editValue}
+                      onChange={event => setEditValue(event.target.value)}
+                      placeholder="Valor (R$)"
+                      className="input"
+                    />
+                  </label>
                 ) : null}
                 <ProjetoCorPicker value={editColor} onChange={setEditColor} />
-                <input
-                  value={editDriveUrl}
-                  onChange={event => setEditDriveUrl(event.target.value)}
-                  placeholder="Link da pasta no Drive (https://…)"
-                  type="url"
-                  className="w-full rounded-xl border border-[var(--border-input)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
-                />
-                <textarea
-                  value={editNotes}
-                  onChange={event => setEditNotes(event.target.value)}
-                  placeholder="Notas do projeto"
-                  rows={4}
-                  className="w-full resize-none rounded-xl border border-[var(--border-input)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
-                />
-                <div className="flex flex-wrap gap-3">
-                  <AppButton variant="secondary" onClick={saveEdit} disabled={avisoDiasInvalido(editTipo, editAvisoDias)}>
-                    Salvar
-                  </AppButton>
+                <label className="block stack-sm">
+                  <Text variant="label">Pasta no Drive</Text>
+                  <input
+                    value={editDriveUrl}
+                    onChange={event => setEditDriveUrl(event.target.value)}
+                    placeholder="Link da pasta no Drive (https://…)"
+                    type="url"
+                    className="input"
+                  />
+                </label>
+                <label className="block stack-sm">
+                  <Text variant="label">Notas</Text>
+                  <textarea
+                    value={editNotes}
+                    onChange={event => setEditNotes(event.target.value)}
+                    placeholder="Notas do projeto"
+                    rows={4}
+                    className="input resize-none"
+                  />
+                </label>
+                <div className="flex flex-wrap justify-end gap-2">
                   <AppButton variant="secondary" onClick={() => setIsEditing(false)}>
                     Cancelar
+                  </AppButton>
+                  <AppButton variant="primary" onClick={saveEdit} disabled={avisoDiasInvalido(editTipo, editAvisoDias)}>
+                    Salvar
                   </AppButton>
                 </div>
               </div>
