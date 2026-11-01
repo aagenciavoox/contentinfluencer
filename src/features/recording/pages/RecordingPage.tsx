@@ -429,87 +429,89 @@ export function RecordingPage() {
           }
         />
       }
-      toolbar={
-        <PageToolbar
-          tabs={
-            <SegmentTabs<RecordingPageTab>
-              value={activeTab}
-              onChange={handleTabChange}
-              options={[
-                {
-                  id: 'queue',
-                  label: 'Sem bloco',
-                  count: recordingReady ? queueContents.length : undefined,
-                },
-                {
-                  id: 'blocks',
-                  label: 'Blocos',
-                  count: recordingReady ? state.recordingBlocks.length : undefined,
-                },
-              ]}
-            />
-          }
-          filters={activeTab === 'queue' ? (
-            <FilterBar
-              className="min-w-0 flex-1"
-              searchValue={searchTerm}
-              onSearchChange={setSearchTerm}
-              searchPlaceholder="Buscar por roteiro, pilar, série ou marcador"
-              filters={[
-                {
-                  id: 'pilar',
-                  label: 'Pilar',
-                  value: filterPilar,
-                  onChange: setFilterPilar,
-                  options: [
-                    {label: 'Pilar', value: ''},
-                    ...state.pilares.map(pilar => ({label: pilar.nome, value: pilar.id})),
-                  ],
-                },
-                {
-                  id: 'serie',
-                  label: 'Série',
-                  value: filterSerie,
-                  onChange: setFilterSerie,
-                  options: [
-                    {label: 'Série', value: ''},
-                    ...state.series.map(serie => ({label: serie.name, value: serie.id})),
-                  ],
-                },
-                {
-                  id: 'tag',
-                  label: 'Marcador',
-                  value: filterTag,
-                  onChange: setFilterTag,
-                  options: [
-                    {label: 'Marcador', value: ''},
-                    ...availableRecordingTags.map(tag => ({label: tag, value: tag})),
-                  ],
-                },
-                {
-                  id: 'energia',
-                  label: 'Energia',
-                  value: filterEnergia,
-                  onChange: setFilterEnergia,
-                  options: [
-                    {label: 'Energia', value: ''},
-                    {label: 'Baixa', value: 'baixa'},
-                    {label: 'Média', value: 'média'},
-                    {label: 'Alta', value: 'alta'},
-                  ],
-                },
-              ]}
-              sortValue={sortValue}
-              onSortChange={setSortValue}
-              sortOptions={[
-                {label: 'Recentes', value: 'recentes'},
-                {label: 'Título A–Z', value: 'titulo:asc'},
-                {label: 'Pilar A–Z', value: 'pilar:asc'},
-                {label: 'Energia alta', value: 'energia:desc'},
-              ]}
-            />
-          ) : null}
+      navigation={
+        <SegmentTabs<RecordingPageTab>
+          value={activeTab}
+          onChange={handleTabChange}
+          options={[
+            {
+              id: 'queue',
+              label: 'Sem bloco',
+              count: recordingReady ? queueContents.length : undefined,
+            },
+            {
+              id: 'blocks',
+              label: 'Blocos',
+              count: recordingReady ? state.recordingBlocks.length : undefined,
+            },
+          ]}
         />
+      }
+      toolbar={
+        activeTab === 'queue' ? (
+          <PageToolbar
+            filters={
+              <FilterBar
+                className="min-w-0 flex-1"
+                searchValue={searchTerm}
+                onSearchChange={setSearchTerm}
+                searchPlaceholder="Buscar por roteiro, pilar, série ou marcador"
+                filters={[
+                  {
+                    id: 'pilar',
+                    label: 'Pilar',
+                    value: filterPilar,
+                    onChange: setFilterPilar,
+                    options: [
+                      {label: 'Pilar', value: ''},
+                      ...state.pilares.map(pilar => ({label: pilar.nome, value: pilar.id})),
+                    ],
+                  },
+                  {
+                    id: 'serie',
+                    label: 'Série',
+                    value: filterSerie,
+                    onChange: setFilterSerie,
+                    options: [
+                      {label: 'Série', value: ''},
+                      ...state.series.map(serie => ({label: serie.name, value: serie.id})),
+                    ],
+                  },
+                  {
+                    id: 'tag',
+                    label: 'Marcador',
+                    value: filterTag,
+                    onChange: setFilterTag,
+                    options: [
+                      {label: 'Marcador', value: ''},
+                      ...availableRecordingTags.map(tag => ({label: tag, value: tag})),
+                    ],
+                  },
+                  {
+                    id: 'energia',
+                    label: 'Energia',
+                    value: filterEnergia,
+                    onChange: setFilterEnergia,
+                    options: [
+                      {label: 'Energia', value: ''},
+                      {label: 'Baixa', value: 'baixa'},
+                      {label: 'Média', value: 'média'},
+                      {label: 'Alta', value: 'alta'},
+                    ],
+                  },
+                ]}
+                sortValue={sortValue}
+                onSortChange={setSortValue}
+                sortOptions={[
+                  {label: 'Recentes', value: 'recentes'},
+                  {label: 'Título A–Z', value: 'titulo:asc'},
+                  {label: 'Pilar A–Z', value: 'pilar:asc'},
+                  {label: 'Energia alta', value: 'energia:desc'},
+                ]}
+              />
+            }
+          />
+        ) : undefined
       }
     >
         <div className="stack-lg">

@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, Filter } from 'lucide-react';
+import { ChevronDown, Filter, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { AppButton } from './AppButton';
 import { Text } from './Text';
@@ -23,6 +23,12 @@ export interface FilterDefinition {
   emptyValue?: string;
 }
 
+export interface ActiveFilterChip {
+  id: string;
+  label: string;
+  onRemove: () => void;
+}
+
 interface FilterBarProps {
   searchValue: string;
   onSearchChange: (value: string) => void;
@@ -38,6 +44,7 @@ interface FilterBarProps {
   showSearch?: boolean;
   panelExtra?: ReactNode;
   extraActiveCount?: number;
+  extraActiveChips?: ActiveFilterChip[];
   onClearExtra?: () => void;
   panelMode?: 'inline' | 'dropdown';
   fluidSearch?: boolean;
@@ -73,9 +80,10 @@ export function FilterBar({
   leading,
   showSearch = true,
   panelExtra,
-  extraActiveCount = 0,
+  extraActiveCount,
+  extraActiveChips = [],
   onClearExtra,
-  panelMode = 'inline',
+  panelMode = 'dropdown',
   fluidSearch = false,
 }: FilterBarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -86,10 +94,19 @@ export function FilterBar({
     const inactiveValue = inactiveFilterValue(filter);
     return { filter, inactiveValue, active: filter.value !== inactiveValue };
   });
-  const extraCount = Number.isFinite(extraActiveCount)
-    ? Math.max(0, Math.trunc(extraActiveCount))
-    : 0;
-  const activeFiltersCount = filterStates.filter(item => item.active).length + extraCount;
+  const resolvedExtraCount = extraActiveCount !== undefined
+    ? (Number.isFinite(extraActiveCount) ? Math.max(0, Math.trunc(extraActiveCount)) : 0)
+    : extraActiveChips.length;
+  const activeFilterItems = filterStates.filter(item => item.active);
+  const activeFiltersCount = activeFilterItems.length + resolvedExtraCount;
+  const activeChips: ActiveFilterChip[] = [
+    ...activeFilterItems.map(({ filter, inactiveValue }) => ({
+      id: filter.id,
+      label: `${filter.label}: ${selectedLabel(filter.options, filter.value, filter.label)}`,
+      onRemove: () => filter.onChange(inactiveValue),
+    })),
+    ...extraActiveChips,
+  ];
   const hasExtraPanel = panelExtra !== undefined && panelExtra !== null
     && typeof panelExtra !== 'boolean' && panelExtra !== '';
   const hasPanel = filters.length > 0 || hasExtraPanel;
@@ -204,7 +221,6 @@ export function FilterBar({
             onChange={onSearchChange}
             placeholder={searchPlaceholder}
             size={isCompact ? 'compact' : 'default'}
-            className="desktop-subheader-search"
           />
         ) : null}
 
@@ -251,6 +267,26 @@ export function FilterBar({
           ) : null}
         </div>
       </div>
+
+      {activeFiltersCount > 0 ? (
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5" aria-label="Filtros ativos">
+          {activeChips.map(chip => (
+            <button
+              key={chip.id}
+              type="button"
+              onClick={chip.onRemove}
+              aria-label={`Remover filtro ${chip.label}`}
+              className="filter-chip filter-chip--sm filter-chip-active max-w-full"
+            >
+              <span className="truncate">{chip.label}</span>
+              <X className="h-3 w-3 shrink-0" aria-hidden="true" />
+            </button>
+          ))}
+          <AppButton type="button" variant="ghost" size="xs" onClick={clearFilters}>
+            Limpar filtros
+          </AppButton>
+        </div>
+      ) : null}
 
       {panel && (isDropdown ? createPortal(panel, document.body) : panel)}
     </div>

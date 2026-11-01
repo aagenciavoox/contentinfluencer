@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { BottomSheet } from '../../overlays/BottomSheet';
+import { Z_INDEX_MODAL } from '../../overlays/overlayConstants';
 
 interface BottomSheetModalProps {
   open: boolean;
@@ -16,7 +17,7 @@ export function BottomSheetModal({
   onClose,
   children,
   desktopMaxW = 'max-w-2xl',
-  zIndex = 'z-[100]',
+  zIndex = Z_INDEX_MODAL,
   ariaLabel,
 }: BottomSheetModalProps) {
   return (

@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react';
-import { ChevronLeft, Menu, Search } from 'lucide-react';
+import { ChevronLeft, Search } from 'lucide-react';
 import { Text } from '../../components/ui/Text';
 import { cn } from '../../lib/utils';
 
 interface MobileHeaderIOSProps {
   title: string;
   subtitle?: string;
-  mode?: 'menu' | 'back';
+  /** `root`: aba da barra inferior, sem botão à esquerda (o menu é a aba ☰). `back`: Voltar. */
+  mode?: 'root' | 'back';
   titleVariant?: 'default' | 'compact-center';
   showBrandLogo?: boolean;
   isHidden?: boolean;
@@ -17,7 +18,7 @@ interface MobileHeaderIOSProps {
   rightActionIcon?: ReactNode;
 }
 
-/** Botão redondo do cabeçalho mobile (menu, voltar, busca). 44px, com moldura. */
+/** Botão redondo do cabeçalho mobile (voltar, busca). 44px, com moldura. */
 export const MOBILE_HEADER_ACTION_CLASS = cn(
   'flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--border-color)]',
   'bg-[var(--bg-secondary)] text-[var(--text-primary)] touch-manipulation active:scale-95',
@@ -27,7 +28,7 @@ export const MOBILE_HEADER_ACTION_CLASS = cn(
 export function MobileHeaderIOS({
   title,
   subtitle,
-  mode = 'menu',
+  mode = 'root',
   titleVariant = 'default',
   showBrandLogo = false,
   isHidden = false,
@@ -37,12 +38,8 @@ export function MobileHeaderIOS({
   onRightAction,
   rightActionIcon,
 }: MobileHeaderIOSProps) {
-  const leftLabel = leftActionLabel ?? (mode === 'back' ? 'Voltar' : 'Abrir menu');
   const isCompactCenter = titleVariant === 'compact-center';
 
-  // iOS: com um campo de texto em foco, o primeiro toque só tira o foco e o clique se perde,
-  // e o menu pedia dois toques. Por isso o menu abre no pointerup do toque (abrir é idempotente) e o
-  // clique sintético é cancelado no touchend. Voltar continua só no clique para não navegar duas vezes.
   return (
     <header
       className="fixed inset-x-0 top-0 z-[70] transition-transform duration-300 ease-out motion-reduce:transition-none"
@@ -57,23 +54,19 @@ export function MobileHeaderIOS({
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
         <div className="flex h-14 max-h-14 items-center gap-2">
-          <button
-            type="button"
-            aria-label={leftLabel}
-            onPointerUp={mode === 'menu' ? event => {
-              if (event.pointerType === 'touch') onLeftAction?.();
-            } : undefined}
-            onTouchEnd={mode === 'menu' ? event => {
-              // Sem o clique sintético: o drawer já abriu no pointerup e esse clique cairia no fundo
-              // escuro do drawer, fechando-o. Tira o foco do campo para o teclado não ficar por cima.
-              event.preventDefault();
-              if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-            } : undefined}
-            onClick={onLeftAction}
-            className={MOBILE_HEADER_ACTION_CLASS}
-          >
-            {mode === 'back' ? <ChevronLeft className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
+          {mode === 'back' ? (
+            <button
+              type="button"
+              aria-label={leftActionLabel ?? 'Voltar'}
+              onClick={onLeftAction}
+              className={MOBILE_HEADER_ACTION_CLASS}
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+          ) : (
+            // Vaga do mesmo tamanho do botão da direita, para o título continuar no centro.
+            <span aria-hidden className="h-11 w-11 shrink-0" />
+          )}
 
           {showBrandLogo ? (
             <img

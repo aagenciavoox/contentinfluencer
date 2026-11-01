@@ -32,6 +32,8 @@ Content OS uses a token-based design system. Pages compose with shared UI primit
 | **PlatformIcon / PlatformTile** | `src/components/ui/PlatformIcon.tsx` | Ícone da rede; `colored` usa a cor da marca (`--platform-*`). `PlatformTile` é o quadrado colorido das listas de contas. Sempre com o nome da conta ao lado |
 | **MediaCard** | `src/components/ui/MediaCard.tsx` | Capa/thumbnail para grids de catálogo |
 | **MobileSectionHeader** | `src/mobile/components/MobileSectionHeader.tsx` | Cabeçalho in-card em telas mobile |
+| **MobileBottomNav** | `src/mobile/components/MobileBottomNav.tsx` | A única navegação do celular: Criação · Biblioteca · [+] · Gravação · Menu. Cinco colunas iguais, ícone de 24px, rótulo de 12px, traço de 2px na aba ativa. Sempre uma aba marcada; o que não é das outras abas marca Menu |
+| **MenuMobileScreen** | `src/mobile/screens/menu/MenuMobileScreen.tsx` | Tela `/menu` (aba ☰): perfil, as seções do menu do desktop sem as abas da barra (`buildMobileMenuSections()`), Configurações, tema e sair. Tela nova no menu do desktop aparece aqui sozinha. O cabeçalho do celular não tem ☰: nas abas fica vazio à esquerda, nas outras telas é Voltar |
 
 ### Surface elevation (cards, borders, shadows)
 

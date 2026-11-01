@@ -4,12 +4,14 @@ import { useAppContext } from '../../../context/AppContext';
 import { useDomainsReady } from '../../../hooks/useDomainsReady';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
+import { PageToolbar } from '../../../components/ui/PageToolbar';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
 import { dia } from '../../../lib/dates';
 import type { LibraryFormatFilter } from '../../analytics/lib/libraryPeriodAnalysis';
 import { CARD_CLASS, FormatIcon, FormatTag, IconTile, LibraryFormatChips } from '../../analytics/components/LibraryAnalysisSections';
+import { LibrarySectionTabs } from '../components/LibrarySectionTabs';
 
 function formatDate(value: string) {
   if (Number.isNaN(new Date(value).getTime())) return '';
@@ -41,12 +43,23 @@ export function LibraryAnnotationsPage() {
           section="Criação"
           title="Anotações"
           backLabel="Biblioteca"
-          backTo="/biblioteca/analise"
+          backTo="/biblioteca"
         />
+      )}
+      navigation={<LibrarySectionTabs />}
+      toolbar={(
+        <PageToolbar
+          chips={<LibraryFormatChips value={format} onChange={setFormat} />}
+        />
+      )}
+      mobileHeader={(
+        <div className="stack-sm pb-1 pt-1">
+          <LibrarySectionTabs />
+          <LibraryFormatChips value={format} onChange={setFormat} />
+        </div>
       )}
     >
       <div className="stack-lg">
-        <LibraryFormatChips value={format} onChange={setFormat} />
         {!ready ? (
           <div className="stack-md" aria-busy="true">
             {['a', 'b', 'c'].map(key => <Skeleton key={key} className="h-20 w-full" />)}

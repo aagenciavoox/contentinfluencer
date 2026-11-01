@@ -34,7 +34,6 @@ function AppDataLoadingScreen() {
 }
 
 export function AppShell() {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
 
@@ -150,7 +149,6 @@ export function AppShell() {
   }, [state.theme]);
 
   const chromeActions: MobileChromeOutletContext = {
-    openMobileMenu: () => setIsMobileMenuOpen(true),
     openSearch: () => setIsCommandPaletteOpen(true),
   };
 
@@ -166,10 +164,6 @@ export function AppShell() {
           isOpen={isCommandPaletteOpen}
           onClose={() => setIsCommandPaletteOpen(false)}
         />
-        <Sidebar
-          isOpen={isMobileMenuOpen}
-          onClose={() => setIsMobileMenuOpen(false)}
-        />
         <MobileAppShell
           hideHeader={Boolean(routeMeta.hideHeader)}
           hideBottomNav={Boolean(routeMeta.hideBottomNav)}
@@ -182,16 +176,12 @@ export function AppShell() {
               mode={routeMeta.mode}
               isHidden={isHidden}
               onLeftAction={() => {
-                if (routeMeta.mode === 'back') {
-                  const target = resolveRouteBack(
-                    location.pathname,
-                    location.state as { from?: string } | null,
-                    routeMeta.backTo ?? '/criacao',
-                  );
-                  navigate(target);
-                  return;
-                }
-                setIsMobileMenuOpen(true);
+                const target = resolveRouteBack(
+                  location.pathname,
+                  location.state as { from?: string } | null,
+                  routeMeta.backTo ?? '/criacao',
+                );
+                navigate(target);
               }}
               onRightAction={() => setIsCommandPaletteOpen(true)}
               rightActionIcon={<Search className="h-4 w-4" />}
@@ -225,10 +215,7 @@ export function AppShell() {
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
       />
-      <Sidebar
-        isOpen={isMobileMenuOpen}
-        onClose={() => setIsMobileMenuOpen(false)}
-      />
+      <Sidebar />
       <main
         onScroll={handleScroll}
         className="relative flex-1 overflow-y-auto bg-transparent pb-24 transition-transform duration-300 ease-in-out md:pb-0 md:pt-0"

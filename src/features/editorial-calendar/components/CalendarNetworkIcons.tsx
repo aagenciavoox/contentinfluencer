@@ -35,7 +35,7 @@ export function CalendarNetworkIcons({
 export function CalendarLegend() {
   const swatch = 'inline-flex h-5 w-5 items-center justify-center rounded-full';
   return (
-    <ul className="flex flex-wrap items-center gap-x-5 gap-y-2 px-1 t-secondary text-[var(--text-secondary)]" aria-label="Legenda do calendário">
+    <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 px-1 t-secondary text-[var(--text-secondary)]" aria-label="Legenda do calendário">
       <li className="inline-flex items-center gap-2">
         <span className={swatch} style={editorialPillStyle('var(--status-posted)')} aria-hidden>
           <Check className="h-3 w-3" strokeWidth={3} />

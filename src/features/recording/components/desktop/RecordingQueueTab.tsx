@@ -254,7 +254,7 @@ function RecordingBlockCard({block, contents, onOpen, onRecord, onDelete}: Recor
         <AppButton
           variant="secondary"
           fullWidth
-          className="mt-5"
+          className="mt-4"
           leftIcon={<Play className="h-4 w-4" />}
           onClick={event => {
             event.stopPropagation();

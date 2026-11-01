@@ -8,6 +8,7 @@ import { useSessionState } from '../../../hooks/useSessionState';
 import type { AppDataDomain } from '../../../lib/database';
 import { atualizarPreferencias } from '../../editorial/lib/editorialSettings';
 import { getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
+import type { SerieCreateModalTarget } from '../components/SerieCreateModal';
 import { TIPOS_AGRUPAMENTO, TIPO_AGRUPAMENTO_PLURAL } from '../lib/serieAgrupamento';
 import { rotaParaCriarFilho } from '../lib/serieHierarquia';
 import {
@@ -40,7 +41,7 @@ function validarLista(valor: unknown): string[] | null {
 }
 
 /** Regras da lista de séries, compartilhadas pela tela do computador e a do celular. */
-export function useSeriesLista() {
+export function useSeriesLista(onAbrirModalCriacao?: (target: SerieCreateModalTarget) => void) {
   const { state, dispatch, domainStatus, ensureDataDomains } = useAppContext();
   const navigate = useNavigate();
   const [filtrosSalvos, setFiltros] = useSessionState<FiltrosLista>('criaki:series:lista', FILTROS_LISTA_PADRAO, validarFiltros);
@@ -113,10 +114,14 @@ export function useSeriesLista() {
     onEdit: (serieId: string) => navigate(`/series/${serieId}/editar`),
     onToggleAtiva: alternarAtiva,
     onCriarFilho: (item: Pick<ItemLista, 'serie' | 'tipo'>) => {
+      if (item.tipo === 'serie' && onAbrirModalCriacao) {
+        onAbrirModalCriacao({ tipo: 'quadro', seriePaiId: item.serie.id });
+        return;
+      }
       const rota = rotaParaCriarFilho(item.serie.id, item.tipo);
       if (rota) navigate(rota);
     },
-  }), [alternarAtiva, navigate]);
+  }), [alternarAtiva, navigate, onAbrirModalCriacao]);
 
   const opcoesTipo = [
     { value: 'todos', label: 'Todos' },

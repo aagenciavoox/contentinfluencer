@@ -11,6 +11,7 @@ import {
   MOBILE_PANEL_EXIT,
   MOBILE_PANEL_INITIAL,
   MOBILE_PANEL_TRANSITION,
+  Z_INDEX_MODAL,
 } from './overlayConstants';
 import { OverlayRoot } from './OverlayRoot';
 
@@ -31,7 +32,7 @@ export function Dialog({
   onClose,
   children,
   desktopMaxW = 'md:max-w-[1200px]',
-  zIndex = 'z-[100]',
+  zIndex = Z_INDEX_MODAL,
   desktopPanelClassName,
   ariaLabel,
   fitVisualViewport = false,

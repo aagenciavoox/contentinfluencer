@@ -232,7 +232,7 @@ export function DashboardPage() {
           weekdayLabel={weekdayLabel}
           pulseSegments={pulseSegments}
           pauseMode={gentleExperience.pauseMode}
-          onOpenMenu={() => chrome?.openMobileMenu()}
+          onOpenProfile={() => navigate('/configuracoes/perfil')}
           onOpenSearch={() => chrome?.openSearch()}
         >
           {home}
@@ -255,11 +255,10 @@ export function DashboardPage() {
               onCreateScript={handleNovoRoteiro}
             />
           }
-        >
-          <DayPulse segments={pulseSegments} />
-        </DesktopPageHeader>
+        />
       }
     >
+      <DayPulse segments={pulseSegments} />
       {pause}
       {home}
     </PageLayout>

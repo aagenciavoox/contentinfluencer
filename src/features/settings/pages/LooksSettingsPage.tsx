@@ -91,7 +91,7 @@ export function LooksSettingsPage() {
 
         {/* LOOKS */}
         <section className="mb-12">
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center justify-between mb-4">
             <Text variant="sectionTitle">
               <span className="inline-flex items-center gap-1.5">Looks <CountBadge count={activeLooks.length} /></span>
             </Text>
@@ -205,7 +205,7 @@ export function LooksSettingsPage() {
 
         {/* CENÁRIOS */}
         <section>
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center justify-between mb-4">
             <Text variant="sectionTitle">
               <span className="inline-flex items-center gap-1.5">Cenários <CountBadge count={activeCenarios.length} /></span>
             </Text>

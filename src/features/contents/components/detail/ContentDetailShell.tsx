@@ -1112,9 +1112,8 @@ export function ContentDetailShell({
             overflowExtra={writingModeMenu}
           />
         )}
-      >
-        <div className={cn('flex flex-col', activeTab === 'roteiro' ? 'gap-4' : 'gap-6')}>
-          {activeTab !== 'roteiro' ? (
+        navigation={
+          !isIdea && !documentHeader ? (
             <ContentPipelineStepper
               content={mergedContent}
               activeTab={activeTab}
@@ -1122,8 +1121,10 @@ export function ContentDetailShell({
               stageOptions={stageOptions}
               onTabChange={setTab}
             />
-          ) : null}
-
+          ) : undefined
+        }
+      >
+        <div className={cn('flex flex-col', activeTab === 'roteiro' ? 'gap-4' : 'gap-6')}>
           {activeTab === 'roteiro' ? (
             detailSection
           ) : (

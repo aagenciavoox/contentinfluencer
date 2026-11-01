@@ -572,7 +572,7 @@ export function EditorialCalendarPage() {
       }
       toolbar={
         <PageToolbar
-          tabs={
+          leading={
             <>
               {isMonthView ? null : (
                 <button
@@ -606,15 +606,12 @@ export function EditorialCalendarPage() {
               </div>
             </>
           }
-          view={
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <FilterBar
-              className="filter-bar--inline"
+          filters={
+            <FilterBar
               size="compact"
               searchValue={searchTerm}
               onSearchChange={setSearchTerm}
               searchPlaceholder="Buscar no calendário"
-              showSearch={false}
               sortValue={sortValue}
               onSortChange={setSortValue}
               sortOptions={[
@@ -638,62 +635,54 @@ export function EditorialCalendarPage() {
                   options: CONTENT_STATUS_FILTER_OPTIONS,
                 },
               ]}
-              panelExtra={(
-                <>
-                  <div className="col-span-full">
-                    <ToolbarSearchInput
-                      value={searchTerm}
-                      onChange={setSearchTerm}
-                      placeholder="Buscar no calendário"
-                      size="compact"
-                      className="w-full"
-                    />
+              panelExtra={
+                isMonthView ? (
+                  <div className="col-span-full stack-sm">
+                    <Text variant="label" as="span" className="px-1">
+                      Camadas
+                    </Text>
+                    <LayerFilterChips activeLayers={activeLayers} onToggle={handleLayerToggle} />
                   </div>
-                  {isMonthView ? (
-                    <div className="col-span-full stack-sm">
-                      <Text variant="label" as="span" className="px-1">
-                        Camadas
-                      </Text>
-                      <LayerFilterChips activeLayers={activeLayers} onToggle={handleLayerToggle} />
-                    </div>
-                  ) : null}
-                </>
-              )}
+                ) : undefined
+              }
               extraActiveCount={isMonthView ? hiddenLayerCount : 0}
               onClearExtra={isMonthView ? () => setActiveLayers(DEFAULT_LAYERS) : undefined}
             />
-            <AppButton
-              variant="ghost"
-              size="sm"
-              leftIcon={<Clock className="h-3.5 w-3.5" />}
-              onClick={() => navigate('/contas')}
-            >
-              Horários
-            </AppButton>
-            {undatedRoteiros.length > 0 ? (
+          }
+          view={
+            <div className="flex flex-wrap items-center justify-end gap-2">
               <AppButton
                 variant="ghost"
                 size="sm"
-                aria-pressed={undatedPileOpen}
-                onClick={() => setUndatedPileOpen(!undatedPileOpen)}
-                count={undatedRoteiros.length}
-                leftIcon={<FileText className="h-3.5 w-3.5" />}
+                leftIcon={<Clock className="h-3.5 w-3.5" />}
+                onClick={() => navigate('/contas')}
               >
-                Sem data
+                Horários
               </AppButton>
-            ) : null}
-            {!showDayPanel && !dayPanelCrowdsEmptyDay ? (
-              <AppButton
-                variant="ghost"
-                size="sm"
-                onClick={() => setDayPanelOpen(true)}
-                count={selectedEntries.length}
-                leftIcon={<PanelRight className="h-3.5 w-3.5" />}
-                className="hidden xl:inline-flex"
-              >
-                Dia
-              </AppButton>
-            ) : null}
+              {undatedRoteiros.length > 0 ? (
+                <AppButton
+                  variant="ghost"
+                  size="sm"
+                  aria-pressed={undatedPileOpen}
+                  onClick={() => setUndatedPileOpen(!undatedPileOpen)}
+                  count={undatedRoteiros.length}
+                  leftIcon={<FileText className="h-3.5 w-3.5" />}
+                >
+                  Sem data
+                </AppButton>
+              ) : null}
+              {!showDayPanel && !dayPanelCrowdsEmptyDay ? (
+                <AppButton
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDayPanelOpen(true)}
+                  count={selectedEntries.length}
+                  leftIcon={<PanelRight className="h-3.5 w-3.5" />}
+                  className="hidden xl:inline-flex"
+                >
+                  Dia
+                </AppButton>
+              ) : null}
             </div>
           }
         />

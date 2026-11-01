@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import { FilterBar } from '../../../components/ui/FilterBar';
 import { BibliotecaItem } from '../../../lib/database';
 
@@ -21,7 +20,6 @@ interface LibraryToolbarProps {
   onSortChange: (value: string) => void;
   statusOptions: StatusLeitura[];
   genreOptions: string[];
-  tabs?: ReactNode;
 }
 
 export function LibraryToolbar({
@@ -39,13 +37,11 @@ export function LibraryToolbar({
   onSortChange,
   statusOptions,
   genreOptions,
-  tabs,
 }: LibraryToolbarProps) {
   return (
     <FilterBar
       className="library-toolbar-filters"
       size="compact"
-      leading={tabs}
       searchValue={searchValue}
       onSearchChange={onSearchChange}
       searchPlaceholder="Buscar título, autoria ou tag"

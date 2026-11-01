@@ -387,7 +387,7 @@ function EditorDialog({ title, onClose, children }: {
     <div className="fixed inset-0 z-[220] flex items-end justify-center bg-[var(--overlay-scrim)] p-4 sm:items-center"
       onPointerDown={event => { if (event.target === event.currentTarget) onClose(); }}>
       <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}
-        className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-5 text-[var(--text-primary)] shadow-[var(--shadow-modal)]">
+        className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-6 text-[var(--text-primary)] shadow-[var(--shadow-modal)]">
         <div className="mb-4 flex items-center justify-between gap-3">
           <Text variant="bodyStrong" as="h2" id={titleId} className="text-inherit">{title}</Text>
           <button type="button" aria-label="Fechar diálogo" onClick={onClose} className={controlClass(false)}>
@@ -1281,7 +1281,7 @@ function RichTextEditorInstance({
           <div className={cn(
             'mx-auto flex w-full flex-1 items-start',
             showDraftPane
-              ? 'max-w-none px-4 py-5 md:px-6 md:py-6'
+              ? 'max-w-none px-4 py-6 md:px-6 md:py-6'
               : railVisible
                 ? 'max-w-[76rem] gap-8 px-4 py-6 md:px-8'
                 : 'max-w-[56rem] justify-center px-4 py-6 md:max-w-[64rem] md:px-10',
@@ -1289,14 +1289,14 @@ function RichTextEditorInstance({
           )}>
             <div ref={editorContainerRef} onPointerDown={handleEditorPointerDown} className={cn(
               'script-sheet relative min-w-0 flex-1 cursor-text bg-[var(--bg-elevated)]',
-              isFullscreen && !showDraftPane ? 'mx-auto min-h-[calc(100dvh-16rem)] max-w-[52rem] px-5 py-8 pb-24 md:max-w-[56rem] md:px-10 md:py-10'
+              isFullscreen && !showDraftPane ? 'mx-auto min-h-[calc(100dvh-16rem)] max-w-[52rem] px-6 py-8 pb-24 md:max-w-[56rem] md:px-10 md:py-10'
                 : compactMobileComposer && !isFullscreen ? 'min-h-[50dvh] bg-transparent px-0 py-2 pb-24'
                   : isWorkspace ? cn(
                     'min-h-[12rem]',
                     writingBar && !showDraftPane && 'mx-auto min-h-[calc(100dvh-18rem)] max-w-[52rem] px-3 py-4 md:max-w-[56rem] md:px-8 md:py-6',
                     !showDraftPane && !writingBar && 'mx-auto max-w-[52rem] md:max-w-[56rem]',
                   )
-                    : 'min-h-[500px] rounded-[var(--radius-input)] border border-[var(--border-color)] px-5 py-8 shadow-[var(--shadow-editorial)] md:px-12 md:py-12',
+                    : 'min-h-[500px] rounded-[var(--radius-input)] border border-[var(--border-color)] px-6 py-8 shadow-[var(--shadow-editorial)] md:px-12 md:py-12',
               editorCanvasClassName,
             )}>
               <EditorContent editor={editor} className={cn('max-w-none cursor-text', !isWorkspace && 'prose-sm sm:prose lg:prose-lg')} />

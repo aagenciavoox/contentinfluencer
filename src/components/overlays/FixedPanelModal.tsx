@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { Dialog } from './Dialog';
+import { Z_INDEX_MODAL } from './overlayConstants';
 
 interface FixedPanelModalProps {
   open: boolean;
@@ -17,7 +18,7 @@ export function FixedPanelModal({
   children,
   desktopMaxW = 'md:max-w-[1200px]',
   desktopPanelClassName,
-  zIndex = 'z-[100]',
+  zIndex = Z_INDEX_MODAL,
 }: FixedPanelModalProps) {
   return (
     <Dialog

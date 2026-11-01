@@ -1,9 +1,18 @@
 import { GLOSSARY } from '../../lib/uiCopy.ts';
 
+/** Tela Menu do celular (mesmo valor de MOBILE_MENU_ROUTE em navConfig). */
+const MENU_ROUTE = '/menu';
+
+/** Telas abertas pela tela Menu: voltam para ela, com a aba Menu marcada na barra. */
+function fromMenu(title: string): MobileRouteMeta {
+  return { title, mode: 'back', backTo: MENU_ROUTE, titleVariant: 'compact-center' };
+}
+
 export interface MobileRouteMeta {
   title: string;
   subtitle?: string;
-  mode?: 'menu' | 'back';
+  /** `root`: aba da barra inferior, sem botão à esquerda. `back`: tela secundária, com Voltar. */
+  mode?: 'root' | 'back';
   backTo?: string;
   /** Titulo pequeno centralizado na barra superior (ex.: detalhe). */
   titleVariant?: 'default' | 'compact-center';
@@ -258,51 +267,35 @@ export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMe
         titleVariant: 'compact-center',
       };
     case '/calendario':
-      return {
-        title: 'Calendário',
-      };
+      return fromMenu('Calendário');
     case '/planejamento':
     case '/programacao':
-      return {
-        title: 'Planejamento',
-      };
+      return fromMenu('Planejamento');
     case '/series':
-      return {
-        title: 'Séries e quadros',
-        titleVariant: 'compact-center',
-      };
+      return fromMenu('Séries e quadros');
     case '/editorial':
-      return {
-        title: 'Editorial',
-        titleVariant: 'compact-center',
-      };
+      return fromMenu('Editorial');
     case '/analises':
-      return {
-        title: 'Análises',
-        titleVariant: 'compact-center',
-      };
+      return fromMenu('Análises');
     case '/contas':
-      return {
-        title: 'Contas e horários',
-        titleVariant: 'compact-center',
-      };
+      return fromMenu('Contas e horários');
     case '/biblioteca':
       return {
         title: GLOSSARY.biblioteca,
         titleVariant: 'compact-center',
       };
     case '/projetos':
-      return {
-        title: 'Projetos',
-      };
+      return fromMenu('Projetos');
     case '/gravacao':
       return {
         title: 'Gravação',
         titleVariant: 'compact-center',
       };
     case '/configuracoes':
+      return fromMenu('Configurações');
+    case MENU_ROUTE:
       return {
-        title: 'Configurações',
+        title: 'Menu',
       };
     default:
       return {

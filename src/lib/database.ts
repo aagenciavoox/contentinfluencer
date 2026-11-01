@@ -206,6 +206,7 @@ export interface Temporada {
   userId: string;
   serieId: string;
   nome: string;
+  descricao?: string | null;
   createdAt: string;
 }
 
@@ -1289,6 +1290,7 @@ const mp = {
     userId: r.user_id,
     serieId: String(r.serie_id),
     nome: typeof r.nome === 'string' ? r.nome : '',
+    descricao: typeof r.descricao === 'string' && r.descricao.trim() ? r.descricao : null,
     createdAt: r.created_at,
   }),
   tema: (r: Row): Tema => ({
@@ -2969,12 +2971,22 @@ export async function saveTemporada(temporada: Omit<Temporada, 'createdAt'>): Pr
   if (!supabase) return;
   const nome = temporada.nome.trim();
   if (!nome) throw new Error('temporadas: nome vazio');
-  const { error } = await supabase.from('temporadas').upsert({
+  const descricao = temporada.descricao?.trim() || null;
+  let { error } = await supabase.from('temporadas').upsert({
     id: temporada.id,
     user_id: temporada.userId,
     serie_id: temporada.serieId,
     nome,
+    descricao,
   });
+  if (error && isMissingNamedColumn(error.message ?? '', 'descricao')) {
+    ({ error } = await supabase.from('temporadas').upsert({
+      id: temporada.id,
+      user_id: temporada.userId,
+      serie_id: temporada.serieId,
+      nome,
+    }));
+  }
   if (error) throw new Error(`temporadas: ${error.message}`);
 }
 

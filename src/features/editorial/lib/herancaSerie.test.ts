@@ -105,8 +105,8 @@ const series = [
 
 {
   const resolvido = resolverHerancaSerie({ seriesId: 'filho' }, series);
-  assert.equal(resolvido.formato.length, 0); // formato não sobe
-  assert.equal(resolvido.energia, null); // esforço não sobe
+  assert.deepEqual(resolvido.formato, ['Reels']); // quadro sem formato próprio herda da série
+  assert.equal(resolvido.energia, 'alta'); // quadro sem esforço próprio herda da série
   assert.deepEqual(resolvido.caminho.map(c => c.id), ['pai', 'filho']);
 }
 

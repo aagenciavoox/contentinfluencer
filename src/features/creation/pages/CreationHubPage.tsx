@@ -1030,6 +1030,18 @@ export function CreationHubPage() {
     />
   );
 
+  const activeTemaChips = useMemo(
+    () => temaFilter.map(temaId => {
+      const label = state.temas.find(tema => tema.id === temaId)?.nome ?? temaId;
+      return {
+        id: `tema-${temaId}`,
+        label: `Tema: ${label}`,
+        onRemove: () => setTemaFilter(temaFilter.filter(id => id !== temaId)),
+      };
+    }),
+    [setTemaFilter, state.temas, temaFilter],
+  );
+
   const filters = (
     <FilterBar
       className="min-w-0 flex-1"
@@ -1041,6 +1053,7 @@ export function CreationHubPage() {
       filters={filterDefinitions}
       panelExtra={temaFilterField}
       extraActiveCount={temaFilter.length > 0 ? 1 : 0}
+      extraActiveChips={activeTemaChips}
       onClearExtra={() => setTemaFilter([])}
     />
   );
@@ -1163,14 +1176,12 @@ export function CreationHubPage() {
             )}
           />
         )}
+        navigation={desktopTabs}
         toolbar={(
-          <div className="stack-md min-w-0">
-            <div className="flex min-w-0 items-center">{desktopTabs}</div>
-            <PageToolbar
-              filters={filters}
-              view={toolbarView}
-            />
-          </div>
+          <PageToolbar
+            filters={filters}
+            view={toolbarView}
+          />
         )}
         mobileHeader={(
           <div className="stack-sm pb-1 pt-1">

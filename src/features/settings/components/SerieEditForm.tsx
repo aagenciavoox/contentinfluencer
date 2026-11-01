@@ -1,28 +1,32 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import {
   ChevronDown,
   Copy,
-  Layers,
-  Plus,
 } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
-import { Badge } from '../../../components/ui/Badge';
 import { MultiFilterChips } from '../../../components/ui/MultiFilterChips';
-import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { Surface } from '../../../components/ui/Surface';
 import { SelectField } from '../../../components/ui/SelectField';
-import { TagSelect } from '../../../components/ui/TagSelect';
 import { Text } from '../../../components/ui/Text';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { CoverUploadField } from '../../library/components/CoverUploadField';
-import { normalizeFormatoList, type Content, type Pilar, type Platform, type Serie } from '../../../lib/database';
+import {
+  normalizeFormatoList,
+  type Content,
+  type FuncaoPadraoSerie,
+  type Pilar,
+  type Platform,
+  type Serie,
+  type SerieTipoAgrupamento,
+} from '../../../lib/database';
 import { SerieProductionMetricsPanel } from './SerieProductionMetricsPanel';
-import { TemplatesSettingsPage } from '../pages/TemplatesSettingsPage';
+import { templateToHtml } from '../../contents/lib/seriesScriptTemplate';
 import { cn } from '../../../lib/utils';
 import { useUnsavedChangesRegistration } from '../../../hooks/useUnsavedChangesRegistration';
 import { generateUUID } from '../../../utils/uuid';
-import { EntityColorPicker, entitySwatchInk } from './EntityColorPicker';
+import { EntityColorPicker } from './EntityColorPicker';
 import { isSerieColorTaken } from '../lib/serieColors';
 import { OpenInfoNotice } from '../../editorial/components/OpenInfoNotice';
 import { LegendaBaseField } from '../../editorial/components/legendas/LegendaBaseField';
@@ -34,16 +38,12 @@ import {
   ENERGIA_LABELS,
   ENERGIA_NIVEIS,
   FORMATO_APRESENTACAO_SUGESTOES,
-  FREQUENCIAS_SERIE,
 } from '../../editorial/lib/editorialOptions';
-import { expectativaNoIntervalo, lerFrequencia } from '../../editorial/lib/frequenciaSerie';
-import { semanaDe } from '../../editorial/lib/periodoEditorial';
+import { lerFrequencia } from '../../editorial/lib/frequenciaSerie';
 import { pilarPrincipalDaSerie } from '../../editorial/lib/pilarDaSerie';
 import { getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
-import { formariaCicloParent } from '../../editorial/lib/serieArvore';
 import { pilarEfetivoDaSerie } from '../lib/serieAgrupamento';
 import { erroDoVinculo, opcoesDePai } from '../lib/serieHierarquia';
-import type { FuncaoPadraoSerie, SerieTipoAgrupamento } from '../../../lib/database';
 import { FUNCAO_DESCRICOES, FUNCAO_LABELS, FUNCOES } from '../../editorial/lib/funcoes';
 import { useAppContext } from '../../../context/AppContext';
 
@@ -55,37 +55,11 @@ const UNIDADES_FREQUENCIA = [
   { value: 'mes', label: 'Mês' },
 ] as const;
 
-/**
- * Cada tipo tem o seu formulário. Quadro herda da série o que não aparece aqui;
- * temporadas são criadas na página da série.
- */
-const SECOES_POR_TIPO: Record<SerieTipoAgrupamento, readonly string[]> = {
-  familia: ['serie-identidade', 'serie-organizacao', 'serie-frequencia'],
-  serie: [
-    'serie-identidade',
-    'serie-organizacao',
-    'serie-frequencia',
-    'serie-modelo',
-    'serie-direcionamento',
-    'serie-destinos',
-    'serie-legendas',
-  ],
-  quadro: ['serie-identidade', 'serie-organizacao', 'serie-frequencia', 'serie-modelo'],
-};
-
 const NOME_DO_TIPO: Record<SerieTipoAgrupamento, { artigo: string; exemplo: string }> = {
   familia: { artigo: 'a família', exemplo: 'Ex.: Descomplicando' },
   serie: { artigo: 'a série', exemplo: 'Ex.: Descomplicando Branbran' },
-  quadro: { artigo: 'o quadro', exemplo: 'Ex.: Por onde começo?' },
+  quadro: { artigo: 'o quadro', exemplo: 'Ex.: Cosmere sem TCC' },
 };
-
-function escolhaSobDemanda(value: string): boolean {
-  return value
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '') === 'sob demanda';
-}
 
 function diaFrequencia(value: string | null | undefined): string {
   const candidato = value?.trim().slice(0, 10) ?? '';
@@ -98,12 +72,40 @@ function parseVezes(raw: string): number | null {
   return Number(raw.trim());
 }
 
-function opcoesFrequencia(atual: string): string[] {
-  const valor = atual.trim();
-  if (!valor || (FREQUENCIAS_SERIE as readonly string[]).includes(valor)) {
-    return [...FREQUENCIAS_SERIE];
+function unirOrientacoesIniciais(motivoSalvar?: string | null, motivoEnviar?: string | null): string {
+  return [motivoSalvar?.trim(), motivoEnviar?.trim()].filter(Boolean).join('\n');
+}
+
+function formatarFrequenciaRecomendada(vezes: number | null, unidade: string): string | null {
+  const u = unidade.trim().toLowerCase();
+  const qtd = vezes && vezes > 0 ? vezes : 1;
+  if (u === 'semana') return qtd === 1 ? 'Semanal' : `${qtd} por semana`;
+  if (u === 'quinzena') return qtd === 1 ? 'Quinzenal' : `${qtd} por quinzena`;
+  if (u === 'mes') return qtd === 1 ? 'Mensal' : `${qtd} por mês`;
+  return null;
+}
+
+function formatarResumoMeta(vezes: number | null, unidade: string, aPartirDe: string): string {
+  const qtd = vezes && vezes > 0 ? vezes : 1;
+  const ep = qtd === 1 ? '1 episódio' : `${qtd} episódios`;
+  const periodo = unidade === 'quinzena' ? 'por quinzena' : unidade === 'mes' ? 'por mês' : 'por semana';
+  let dataLabel = '';
+  if (aPartirDe && /^\d{4}-\d{2}-\d{2}$/.test(aPartirDe)) {
+    try {
+      dataLabel = `, a partir de ${format(parseISO(aPartirDe), "d 'de' MMMM", { locale: ptBR })}`;
+    } catch {
+      dataLabel = '';
+    }
   }
-  return [valor, ...FREQUENCIAS_SERIE];
+  return `${ep} ${periodo}${dataLabel}`;
+}
+
+function limparHtmlModelo(html: string): string {
+  return html
+    .replace(/<\/p>\s*<p>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .trim();
 }
 
 const FUNCAO_OPTIONS: Array<{ value: FuncaoPadraoSerie; label: string; description: string }> = [
@@ -122,32 +124,6 @@ export type SerieEditChromeState = {
   handleCancel: () => void;
 };
 
-function CardHeading({
-  title,
-  description,
-  action,
-  inline = false,
-}: {
-  title: string;
-  description?: string;
-  action?: React.ReactNode;
-  inline?: boolean;
-}) {
-  return (
-    <div className="mb-4 flex items-start justify-between gap-3">
-      <div className={cn('min-w-0', inline ? 'flex flex-wrap items-baseline gap-x-2' : 'stack-sm')}>
-        <Text variant="itemTitle">{title}</Text>
-        {description ? (
-          <Text variant="meta" className="text-[var(--text-secondary)]">
-            {description}
-          </Text>
-        ) : null}
-      </div>
-      {action ? <div className="shrink-0">{action}</div> : null}
-    </div>
-  );
-}
-
 function FieldLabel({
   children,
   required,
@@ -163,6 +139,53 @@ function FieldLabel({
       {required ? <span className="text-[var(--brand-accent-text)]"> *</span> : null}
       {optional ? <span className="font-normal text-[var(--text-tertiary)]"> · opcional</span> : null}
     </Text>
+  );
+}
+
+function CollapsibleSection({
+  id,
+  title,
+  description,
+  defaultOpen = false,
+  children,
+}: {
+  id: string;
+  title: string;
+  description?: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <Surface id={id} variant="outlined" padding="md" className="scroll-mt-24">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen(current => !current)}
+        className="flex w-full items-center justify-between gap-3 text-left focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+      >
+        <div className="min-w-0 stack-xs">
+          <Text variant="itemTitle">{title}</Text>
+          {description ? (
+            <Text variant="meta" className="text-[var(--text-secondary)]">
+              {description}
+            </Text>
+          ) : null}
+        </div>
+        <ChevronDown
+          className={cn(
+            'h-4 w-4 shrink-0 text-[var(--text-secondary)] transition-transform',
+            open && 'rotate-180',
+          )}
+          aria-hidden
+        />
+      </button>
+      {open ? (
+        <div className="mt-4 border-t border-[var(--border-color)] pt-4 stack-lg">
+          {children}
+        </div>
+      ) : null}
+    </Surface>
   );
 }
 
@@ -219,106 +242,8 @@ function MultiChoiceField({
   );
 }
 
-function SuggestField({
-  id,
-  value,
-  onChange,
-  suggestions,
-  placeholder,
-}: {
-  id: string;
-  value: string;
-  onChange: (value: string) => void;
-  suggestions: readonly string[];
-  placeholder: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const query = value.trim().toLowerCase();
-  const options = query
-    ? suggestions.filter(item => item.toLowerCase().includes(query))
-    : [...suggestions];
-
-  useEffect(() => {
-    if (!open) return;
-    const handlePointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
-    };
-    document.addEventListener('pointerdown', handlePointerDown);
-    return () => document.removeEventListener('pointerdown', handlePointerDown);
-  }, [open]);
-
-  return (
-    <div className="relative" ref={rootRef}>
-      <input
-        id={id}
-        role="combobox"
-        aria-expanded={open}
-        aria-autocomplete="list"
-        value={value}
-        placeholder={placeholder}
-        onChange={event => {
-          onChange(event.target.value);
-          setOpen(true);
-        }}
-        onFocus={() => setOpen(true)}
-        onKeyDown={event => {
-          if (event.key === 'Escape') setOpen(false);
-        }}
-        className={cn(inputClass, 'pr-9')}
-      />
-      <button
-        type="button"
-        aria-label="Abrir sugestões"
-        onClick={() => setOpen(current => !current)}
-        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-[var(--radius-input)] p-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-      >
-        <ChevronDown className="h-4 w-4" />
-      </button>
-      {open ? (
-        <div
-          role="listbox"
-          className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 max-h-56 overflow-y-auto rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] py-1 shadow-[var(--shadow-dropdown)]"
-        >
-          {options.length > 0 ? (
-            options.map(option => (
-              <button
-                key={option}
-                type="button"
-                role="option"
-                aria-selected={option === value}
-                onClick={() => {
-                  onChange(option);
-                  setOpen(false);
-                }}
-                className="flex w-full items-center px-3 py-2 text-left t-body text-[var(--text-primary)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-              >
-                {option}
-              </button>
-            ))
-          ) : (
-            <Text variant="meta" className="block px-3 py-2 text-[var(--text-tertiary)]">
-              Nenhuma sugestão. O texto digitado permanece.
-            </Text>
-          )}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 const inputClass =
   'ds-input w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-3 py-2 t-body text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
-
-const SECOES_DO_FORMULARIO = [
-  { id: 'serie-identidade', label: 'Identidade' },
-  { id: 'serie-organizacao', label: 'Organização' },
-  { id: 'serie-frequencia', label: 'Frequência' },
-  { id: 'serie-modelo', label: 'Modelo de roteiro' },
-  { id: 'serie-direcionamento', label: 'Direcionamento editorial' },
-  { id: 'serie-destinos', label: 'Destinos e formatos' },
-  { id: 'serie-legendas', label: 'Legendas e hashtags' },
-] as const;
 
 export function SerieEditForm({
   initial,
@@ -334,6 +259,7 @@ export function SerieEditForm({
   showOpenInfoNotice = false,
   takenColors = [],
   lastEditLabel = null,
+  inModal = false,
 }: {
   initial: Partial<Serie>;
   /** Família, série ou quadro: define as seções e o vínculo aceito. */
@@ -350,9 +276,21 @@ export function SerieEditForm({
   showOpenInfoNotice?: boolean;
   takenColors?: readonly string[];
   lastEditLabel?: string | null;
+  inModal?: boolean;
 }) {
   const { state } = useAppContext();
   const [tentouSalvar, setTentouSalvar] = useState(false);
+
+  const frequenciaInicial = lerFrequencia({
+    frequenciaRecomendada: initial.frequenciaRecomendada,
+    vezes: initial.frequenciaVezes,
+    unidade: initial.frequenciaUnidade,
+    aPartirDe: initial.frequenciaAPartirDe,
+  });
+  const temMetaInicial = frequenciaInicial.unidade !== 'sob-demanda';
+  const estruturaInicial = (initial.estruturaRoteiro || initial.template || '').trim();
+  const orientacoesIniciais = unirOrientacoesIniciais(initial.motivoSalvar, initial.motivoEnviar);
+
   const initialSnapshot = useRef({
     form: {
       id: initial.id || generateUUID(),
@@ -362,21 +300,20 @@ export function SerieEditForm({
       notes: initial.notes || '',
       slotPadrao: initial.slotPadrao || null,
       formatoVisualPadrao: normalizeFormatoList(initial.formatoVisualPadrao),
-      estruturaRoteiro: initial.estruturaRoteiro || '',
+      estruturaRoteiro: estruturaInicial,
       bordao: initial.bordao || '',
       cor: initial.cor || SERIE_DEFAULT_COR,
       capaUrl: initial.capaUrl || '',
       ativa: initial.ativa ?? true,
-      frequenciaRecomendada: initial.frequenciaRecomendada || '',
-      frequenciaVezes: initial.frequenciaVezes ?? null,
-      frequenciaUnidade: initial.frequenciaUnidade?.trim() || '',
+      temMeta: tipo === 'familia' ? false : temMetaInicial,
+      frequenciaVezes: temMetaInicial ? (frequenciaInicial.vezes ?? 1) : null,
+      frequenciaUnidade: (temMetaInicial ? frequenciaInicial.unidade : 'semana') as string,
       frequenciaAPartirDe: diaFrequencia(initial.frequenciaAPartirDe),
       funcaoPadrao: initial.funcaoPadrao || null,
       energiaPadrao: initial.energiaPadrao || null,
       pilarPrincipalId: pilarPrincipalDaSerie(initial),
       formatoApresentacao: normalizeFormatoList(initial.formatoApresentacao),
-      motivoSalvar: initial.motivoSalvar || '',
-      motivoEnviar: initial.motivoEnviar || '',
+      orientacoesEditoriais: orientacoesIniciais,
       legendaBase: initial.legendaBase || '',
       parentId: initial.parentId ?? null,
       usaTemporadas: initial.usaTemporadas === true,
@@ -388,6 +325,46 @@ export function SerieEditForm({
 
   const [form, setForm] = useState(initialSnapshot.current.form);
 
+  const seriePai = useMemo(
+    () => (form.parentId ? series.find(item => item.id === form.parentId) ?? null : null),
+    [form.parentId, series],
+  );
+
+  // Modos explícitos de herança no Quadro ("Usar da série" vs "Definir outro")
+  const [modoModelo, setModoModelo] = useState<'herdar' | 'nenhum' | 'proprio'>(() => {
+    if (estruturaInicial) return 'proprio';
+    return tipo === 'quadro' ? 'herdar' : 'nenhum';
+  });
+  const [templateEscolhidoId, setTemplateEscolhidoId] = useState<string>('');
+
+  const [quadroIdentidadePropria, setQuadroIdentidadePropria] = useState<boolean>(() => {
+    if (tipo !== 'quadro') return true;
+    const temCapa = Boolean(initial.capaUrl?.trim());
+    const temBordao = Boolean(initial.bordao?.trim());
+    const corDiferente = Boolean(initial.cor && seriePai?.cor && initial.cor !== seriePai.cor);
+    return temCapa || temBordao || corDiferente;
+  });
+  const [quadroOrientacoesProprias, setQuadroOrientacoesProprias] = useState<boolean>(
+    () => tipo !== 'quadro' || Boolean(orientacoesIniciais),
+  );
+  const [quadroApresentacaoPropria, setQuadroApresentacaoPropria] = useState<boolean>(
+    () => tipo !== 'quadro' || normalizeFormatoList(initial.formatoApresentacao).length > 0,
+  );
+  const [quadroFormatosProprios, setQuadroFormatosProprios] = useState<boolean>(
+    () => tipo !== 'quadro' || normalizeFormatoList(initial.formatoVisualPadrao).length > 0,
+  );
+  const [quadroLegendaPropria, setQuadroLegendaPropria] = useState<boolean>(
+    () => tipo !== 'quadro' || Boolean(initial.legendaBase?.trim()),
+  );
+  const [quadroContasProprias, setQuadroContasProprias] = useState<boolean>(
+    () => tipo !== 'quadro' || (initial.plataformas?.length ?? 0) > 0,
+  );
+
+  const roteiroTemplates = useMemo(
+    () => state.templates.filter(tpl => tpl.ativo && (tpl.type ?? 'roteiro') === 'roteiro'),
+    [state.templates],
+  );
+
   const isDirty = useMemo(() => {
     const snap = initialSnapshot.current;
     if (form.name !== snap.form.name) return true;
@@ -398,7 +375,7 @@ export function SerieEditForm({
     if (form.cor !== snap.form.cor) return true;
     if (form.capaUrl !== snap.form.capaUrl) return true;
     if (form.estruturaRoteiro !== snap.form.estruturaRoteiro) return true;
-    if (form.frequenciaRecomendada !== snap.form.frequenciaRecomendada) return true;
+    if (form.temMeta !== snap.form.temMeta) return true;
     if (form.frequenciaVezes !== snap.form.frequenciaVezes) return true;
     if (form.frequenciaUnidade !== snap.form.frequenciaUnidade) return true;
     if (form.frequenciaAPartirDe !== snap.form.frequenciaAPartirDe) return true;
@@ -407,8 +384,7 @@ export function SerieEditForm({
     if (form.energiaPadrao !== snap.form.energiaPadrao) return true;
     if (form.pilarPrincipalId !== snap.form.pilarPrincipalId) return true;
     if (JSON.stringify(form.formatoApresentacao) !== JSON.stringify(snap.form.formatoApresentacao)) return true;
-    if (form.motivoSalvar !== snap.form.motivoSalvar) return true;
-    if (form.motivoEnviar !== snap.form.motivoEnviar) return true;
+    if (form.orientacoesEditoriais !== snap.form.orientacoesEditoriais) return true;
     if (form.legendaBase !== snap.form.legendaBase) return true;
     if (form.parentId !== snap.form.parentId) return true;
     if (form.usaTemporadas !== snap.form.usaTemporadas) return true;
@@ -417,8 +393,9 @@ export function SerieEditForm({
     return false;
   }, [form]);
 
-  const colorTaken = isSerieColorTaken(
-    takenColors.map((cor, index) => ({id: `taken-${index}`, cor})),
+  const usandoCorPropria = tipo !== 'quadro' || quadroIdentidadePropria;
+  const colorTaken = usandoCorPropria && isSerieColorTaken(
+    takenColors.map((cor, index) => ({ id: `taken-${index}`, cor })),
     form.cor,
   );
   const erroVinculo = erroDoVinculo(tipo, form.parentId, form.id, series);
@@ -426,89 +403,185 @@ export function SerieEditForm({
   const erroNome = tentouSalvar && !form.name.trim() ? `Dê um nome para identificar ${NOME_DO_TIPO[tipo].artigo}.` : null;
   const erroCor = colorTaken ? 'Esta cor já está em outra série. Escolha outra.' : null;
 
+  const contasDestinoIds = useMemo(
+    () => form.plataformas.map(item => item.platformId),
+    [form.plataformas],
+  );
+
+  const toggleContasDestino = (nextIds: string[]) => {
+    const wanted = new Set(nextIds);
+    const updated = contas
+      .filter(conta => wanted.has(conta.id))
+      .map(conta => {
+        const existing = form.plataformas.find(item => item.platformId === conta.id);
+        return existing ?? { serieId: form.id, platformId: conta.id, hashtags: '', legenda: null };
+      });
+    setForm(previous => ({ ...previous, plataformas: updated }));
+  };
+
   const updatePlatformHashtags = (platformId: string, hashtags: string) => {
     const current = [...form.plataformas];
     const index = current.findIndex(item => item.platformId === platformId);
-
-    if (!hashtags) {
-      if (index >= 0) {
-        if ((current[index].legenda ?? '').trim()) current[index] = { ...current[index], hashtags: '' };
-        else current.splice(index, 1);
-      }
-    } else if (index >= 0) {
-      current[index] = {...current[index], hashtags};
-    } else {
-      current.push({serieId: form.id, platformId, hashtags});
+    if (index >= 0) {
+      current[index] = { ...current[index], hashtags };
+    } else if (hashtags.trim()) {
+      current.push({ serieId: form.id, platformId, hashtags, legenda: null });
     }
-
-    setForm(previous => ({...previous, plataformas: current}));
+    setForm(previous => ({ ...previous, plataformas: current }));
   };
 
   const updatePlatformLegenda = (platformId: string, legenda: string | null) => {
     const current = [...form.plataformas];
     const index = current.findIndex(item => item.platformId === platformId);
     const texto = legenda?.trim() ?? '';
-    if (!texto) {
-      if (index >= 0) {
-        if (current[index].hashtags.trim()) current[index] = { ...current[index], legenda: null };
-        else current.splice(index, 1);
-      }
-    } else if (index >= 0) {
-      current[index] = { ...current[index], legenda: texto };
-    } else {
+    if (index >= 0) {
+      current[index] = { ...current[index], legenda: texto || null };
+    } else if (texto) {
       current.push({ serieId: form.id, platformId, hashtags: '', legenda: texto });
     }
     setForm(previous => ({ ...previous, plataformas: current }));
   };
 
-  const handleSave = useCallback(() => {
-    if (!form.name.trim() || colorTaken || erroVinculo) {
-      // Os campos continuam como estão; o que falta aparece marcado.
-      setTentouSalvar(true);
-      const alvo = !form.name.trim() ? 'serie-nome' : colorTaken ? 'serie-identidade' : 'serie-organizacao';
-      document.getElementById(alvo)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      return;
+  const buildPayload = useCallback((): Serie => {
+    const now = new Date().toISOString();
+    if (tipo === 'familia') {
+      return {
+        id: form.id,
+        userId: form.userId,
+        name: form.name.trim(),
+        template: '',
+        notes: form.notes.trim(),
+        slotPadrao: null,
+        formatoVisualPadrao: [],
+        estruturaRoteiro: null,
+        bordao: null,
+        cor: form.cor,
+        capaUrl: form.capaUrl.trim() || null,
+        ativa: form.ativa,
+        frequenciaRecomendada: null,
+        frequenciaVezes: null,
+        frequenciaUnidade: null,
+        frequenciaAPartirDe: null,
+        funcaoPadrao: null,
+        energiaPadrao: null,
+        pilarPrincipalId: null,
+        formatoApresentacao: [],
+        motivoSalvar: null,
+        motivoEnviar: null,
+        legendaBase: null,
+        parentId: null,
+        usaTemporadas: false,
+        tipoAgrupamento: 'familia',
+        semPilar: false,
+        pilarIds: [],
+        plataformas: [],
+        createdAt: initial.createdAt || now,
+        updatedAt: now,
+      };
     }
 
-    onSave({
+    const vezes = form.temMeta ? (form.frequenciaVezes && form.frequenciaVezes > 0 ? form.frequenciaVezes : 1) : null;
+    const unidade = form.temMeta ? (form.frequenciaUnidade.trim() || 'semana') : null;
+    const aPartirDe = form.temMeta ? (form.frequenciaAPartirDe || null) : null;
+    const frequenciaRecomendada = form.temMeta && unidade
+      ? formatarFrequenciaRecomendada(vezes, unidade)
+      : tipo === 'quadro'
+        ? 'Sob demanda'
+        : null;
+
+    const estruturaFinal = modoModelo === 'proprio' ? form.estruturaRoteiro.trim() : '';
+    const corFinal = tipo === 'quadro' && !quadroIdentidadePropria
+      ? (seriePai?.cor || form.cor)
+      : form.cor;
+    const capaFinal = tipo === 'quadro' && !quadroIdentidadePropria
+      ? null
+      : (form.capaUrl.trim() || null);
+    const bordaoFinal = tipo === 'quadro' && !quadroIdentidadePropria
+      ? null
+      : (form.bordao.trim() || null);
+    const orientacoesFinal = tipo === 'quadro' && !quadroOrientacoesProprias
+      ? null
+      : (form.orientacoesEditoriais.trim() || null);
+    const apresentacaoFinal = tipo === 'quadro' && !quadroApresentacaoPropria
+      ? []
+      : form.formatoApresentacao;
+    const formatosFinal = tipo === 'quadro' && !quadroFormatosProprios
+      ? []
+      : form.formatoVisualPadrao;
+    const legendaFinal = tipo === 'quadro' && !quadroLegendaPropria
+      ? null
+      : (form.legendaBase.trim() || null);
+    const plataformasFinal = tipo === 'quadro' && !quadroContasProprias
+      ? []
+      : contas
+        .map(conta => form.plataformas.find(item => item.platformId === conta.id))
+        .filter((item): item is NonNullable<typeof item> => Boolean(item))
+        .map(item => ({
+          serieId: form.id,
+          platformId: item.platformId,
+          hashtags: item.hashtags.trim(),
+          legenda: item.legenda?.trim() || null,
+        }));
+
+    return {
       id: form.id,
       userId: form.userId,
       name: form.name.trim(),
-      template: form.template,
-      notes: form.notes,
+      template: estruturaFinal,
+      notes: form.notes.trim(),
       slotPadrao: form.slotPadrao,
-      formatoVisualPadrao: form.formatoVisualPadrao,
-      estruturaRoteiro: form.estruturaRoteiro.trim() || null,
-      bordao: form.bordao.trim() || null,
-      cor: form.cor,
-      capaUrl: form.capaUrl.trim() || null,
+      formatoVisualPadrao: formatosFinal,
+      estruturaRoteiro: estruturaFinal || null,
+      bordao: bordaoFinal,
+      cor: corFinal,
+      capaUrl: capaFinal,
       ativa: form.ativa,
-      frequenciaRecomendada: form.frequenciaRecomendada.trim() || null,
-      frequenciaVezes: form.frequenciaVezes,
-      frequenciaUnidade: form.frequenciaUnidade.trim() || null,
-      frequenciaAPartirDe: form.frequenciaAPartirDe || null,
+      frequenciaRecomendada,
+      frequenciaVezes: vezes,
+      frequenciaUnidade: unidade,
+      frequenciaAPartirDe: aPartirDe,
       funcaoPadrao: form.funcaoPadrao,
       energiaPadrao: form.energiaPadrao,
       pilarPrincipalId: form.pilarPrincipalId,
-      formatoApresentacao: form.formatoApresentacao,
-      motivoSalvar: form.motivoSalvar.trim() || null,
-      motivoEnviar: form.motivoEnviar.trim() || null,
-      legendaBase: form.legendaBase.trim() || null,
+      formatoApresentacao: apresentacaoFinal,
+      motivoSalvar: orientacoesFinal,
+      motivoEnviar: null,
+      legendaBase: legendaFinal,
       parentId: form.parentId,
       usaTemporadas: form.usaTemporadas,
       tipoAgrupamento: tipo,
       semPilar: !form.pilarPrincipalId && form.semPilar,
       pilarIds: form.pilarPrincipalId ? [form.pilarPrincipalId] : [],
-      plataformas: contas
-        .map(conta => form.plataformas.find(item => item.platformId === conta.id))
-        .filter((item): item is NonNullable<typeof item> => Boolean(item && (item.hashtags.trim() || (item.legenda ?? '').trim())))
-        .map(item => ({...item, hashtags: item.hashtags.trim(), legenda: item.legenda?.trim() || null})),
-      createdAt: initial.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
-  }, [colorTaken, contas, erroVinculo, form, initial.createdAt, onSave, tipo]);
+      plataformas: plataformasFinal,
+      createdAt: initial.createdAt || now,
+      updatedAt: now,
+    };
+  }, [
+    contas,
+    form,
+    initial.createdAt,
+    modoModelo,
+    quadroApresentacaoPropria,
+    quadroContasProprias,
+    quadroFormatosProprios,
+    quadroIdentidadePropria,
+    quadroLegendaPropria,
+    quadroOrientacoesProprias,
+    seriePai?.cor,
+    tipo,
+  ]);
 
-  useUnsavedChangesRegistration(isDirty, () => {
+  const handleSave = useCallback(() => {
+    if (!form.name.trim() || colorTaken || erroVinculo) {
+      setTentouSalvar(true);
+      const alvo = !form.name.trim() ? 'serie-nome' : 'serie-principal';
+      document.getElementById(alvo)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      return;
+    }
+    onSave(buildPayload());
+  }, [buildPayload, colorTaken, erroVinculo, form.name, onSave]);
+
+  useUnsavedChangesRegistration(!inModal && isDirty, () => {
     if (valido) handleSaveRef.current();
   });
 
@@ -522,7 +595,6 @@ export function SerieEditForm({
   useEffect(() => {
     onChromeChangeRef.current?.({
       isDirty,
-      // O botão fica sempre ativo: com erro, o formulário marca o que falta e guarda o resto.
       canSave: true,
       handleSave: () => handleSaveRef.current(),
       handleCancel: () => onCancelRef.current(),
@@ -538,90 +610,142 @@ export function SerieEditForm({
     }
   };
 
-  const coverPreview = /^https?:\/\//i.test(form.capaUrl.trim()) ? form.capaUrl.trim() : '';
-  const openTemplateCreate = useRef<(() => void) | null>(null);
   const selectedPilar = pilares.find(item => item.id === form.pilarPrincipalId) ?? null;
   const pilarChoices = pilares.filter(item => item.ativo || item.id === form.pilarPrincipalId);
   const funcaoDescription = FUNCAO_OPTIONS.find(option => option.value === form.funcaoPadrao)?.description ?? null;
-  const selecionouSobDemanda = escolhaSobDemanda(form.frequenciaRecomendada);
-  const frequenciaLida = lerFrequencia({
-    frequenciaRecomendada: form.frequenciaRecomendada,
-    vezes: form.frequenciaVezes,
-    unidade: form.frequenciaUnidade,
-    aPartirDe: form.frequenciaAPartirDe || null,
-  });
-  const mostrarFrequenciaDetalhe = !selecionouSobDemanda
-    || form.frequenciaVezes !== null
-    || Boolean(form.frequenciaUnidade.trim());
-  const semanaAtual = semanaDe(format(new Date(), 'yyyy-MM-dd'));
-  const expectativaPeriodo = expectativaNoIntervalo(frequenciaLida, semanaAtual.inicio, semanaAtual.fim);
-  const frequenciaOpcoes = opcoesFrequencia(form.frequenciaRecomendada);
-  const unidadeExtra = form.frequenciaUnidade.trim()
-    && !UNIDADES_FREQUENCIA.some(item => item.value === form.frequenciaUnidade)
-    ? form.frequenciaUnidade.trim()
-    : '';
   const formatoOptions = collectFormatoSuggestions([...usedFormatoValues, ...form.formatoVisualPadrao]);
   const apresentacaoOptions = normalizeFormatoList([...FORMATO_APRESENTACAO_SUGESTOES, ...form.formatoApresentacao]);
-  const serieForMetrics: Serie = {
-        id: form.id,
-        userId: form.userId,
-        name: form.name,
-        template: form.template,
-        notes: form.notes,
-        slotPadrao: form.slotPadrao,
-        formatoVisualPadrao: form.formatoVisualPadrao,
-        estruturaRoteiro: form.estruturaRoteiro.trim() || null,
-        bordao: form.bordao.trim() || null,
-        cor: form.cor,
-        capaUrl: form.capaUrl.trim() || null,
-        ativa: form.ativa,
-        frequenciaRecomendada: form.frequenciaRecomendada.trim() || null,
-        frequenciaVezes: form.frequenciaVezes,
-        frequenciaUnidade: form.frequenciaUnidade.trim() || null,
-        frequenciaAPartirDe: form.frequenciaAPartirDe || null,
-        funcaoPadrao: form.funcaoPadrao,
-        energiaPadrao: form.energiaPadrao,
-        pilarPrincipalId: form.pilarPrincipalId,
-        formatoApresentacao: form.formatoApresentacao,
-        motivoSalvar: form.motivoSalvar.trim() || null,
-        motivoEnviar: form.motivoEnviar.trim() || null,
-        parentId: form.parentId,
-        usaTemporadas: form.usaTemporadas,
-        legendaBase: form.legendaBase.trim() || null,
-        pilarIds: form.pilarPrincipalId ? [form.pilarPrincipalId] : [],
-        plataformas: form.plataformas,
-        createdAt: initial.createdAt || new Date().toISOString(),
-        updatedAt: initial.updatedAt || new Date().toISOString(),
-      };
+  const serieForMetrics = useMemo(() => buildPayload(), [buildPayload]);
 
-  const [confirmDesvincular, setConfirmDesvincular] = useState(false);
   const [confirmParent, setConfirmParent] = useState<{ next: string | null; message: string } | null>(null);
   const existe = series.some(item => item.id === form.id);
   const opcoesDoPai = opcoesDePai(tipo, form.id, series);
-  // Vínculo antigo fora da ordem continua visível para poder ser trocado.
   const paiForaDaOrdem = form.parentId && !opcoesDoPai.some(item => item.id === form.parentId)
     ? series.find(item => item.id === form.parentId) ?? null
     : null;
-  const mostra = (secao: string) => SECOES_POR_TIPO[tipo].includes(secao);
-  const rotuloDoPai = tipo === 'quadro' ? 'Série' : 'Família';
-  const nomeDoPai = form.parentId ? series.find(item => item.id === form.parentId)?.name?.trim() || null : null;
   const pilarDoPai = form.parentId ? pilarEfetivoDaSerie(form.parentId, series) : null;
   const nomePilarDoPai = pilarDoPai?.pilarId ? pilares.find(item => item.id === pilarDoPai.pilarId)?.nome ?? null : null;
-  const metaCompartilhada = Boolean(form.parentId) && selecionouSobDemanda && form.frequenciaVezes === null;
+
+  const selecionarModelo = (valor: string) => {
+    if (valor === 'herdar' || valor === 'nenhum') {
+      setModoModelo(valor);
+      setTemplateEscolhidoId('');
+      setForm(previous => ({ ...previous, estruturaRoteiro: '', template: '' }));
+      return;
+    }
+    if (valor.startsWith('tpl:')) {
+      const tplId = valor.slice(4);
+      const tpl = roteiroTemplates.find(item => item.id === tplId);
+      setModoModelo('proprio');
+      setTemplateEscolhidoId(tplId);
+      if (tpl) {
+        const texto = limparHtmlModelo(templateToHtml(tpl));
+        setForm(previous => ({ ...previous, estruturaRoteiro: texto, template: texto }));
+      }
+      return;
+    }
+    setModoModelo('proprio');
+    setTemplateEscolhidoId('');
+  };
+
+  const valorSelectModelo = modoModelo === 'proprio'
+    ? (templateEscolhidoId ? `tpl:${templateEscolhidoId}` : 'proprio')
+    : (tipo === 'quadro' ? 'herdar' : 'nenhum');
+
+  const renderCamposMeta = (notaAdicional?: string) => (
+    <div className="stack-sm pt-1">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div>
+          <FieldLabel>Quantidade</FieldLabel>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            step={1}
+            aria-label="Quantidade"
+            value={form.frequenciaVezes ?? 1}
+            onChange={event => {
+              const parsed = parseVezes(event.target.value);
+              if (event.target.value.trim() && parsed === null) return;
+              setForm(previous => ({ ...previous, frequenciaVezes: parsed ?? 1 }));
+            }}
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <FieldLabel>Período</FieldLabel>
+          <SelectField
+            block
+            ariaLabel="Período"
+            value={form.frequenciaUnidade || 'semana'}
+            onChange={frequenciaUnidade => setForm(previous => ({
+              ...previous,
+              frequenciaUnidade: frequenciaUnidade || 'semana',
+            }))}
+            options={UNIDADES_FREQUENCIA.map(item => ({ value: item.value, label: item.label }))}
+          />
+        </div>
+        <div>
+          <FieldLabel optional>Data de início</FieldLabel>
+          <input
+            type="date"
+            aria-label="Data de início"
+            value={form.frequenciaAPartirDe}
+            onChange={event => setForm(previous => ({
+              ...previous,
+              frequenciaAPartirDe: event.target.value,
+            }))}
+            className={inputClass}
+          />
+        </div>
+      </div>
+      <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+        {formatarResumoMeta(form.frequenciaVezes, form.frequenciaUnidade || 'semana', form.frequenciaAPartirDe)}
+        {notaAdicional ? ` · ${notaAdicional}` : ''}
+      </Text>
+    </div>
+  );
+
+  const renderBlocoModeloRoteiro = (isQuadro: boolean) => (
+    <div className="stack-sm">
+      <FieldLabel optional>Modelo de roteiro</FieldLabel>
+      <SelectField
+        block
+        ariaLabel="Modelo de roteiro"
+        value={valorSelectModelo}
+        onChange={selecionarModelo}
+        options={[
+          isQuadro
+            ? { value: 'herdar', label: 'Usar modelo da série' }
+            : { value: 'nenhum', label: 'Sem modelo definido' },
+          { value: 'proprio', label: 'Escrever estrutura própria' },
+          ...roteiroTemplates.map(tpl => ({
+            value: `tpl:${tpl.id}`,
+            label: `Modelo: ${tpl.nome}`,
+          })),
+        ]}
+      />
+      {modoModelo === 'proprio' ? (
+        <textarea
+          value={form.estruturaRoteiro}
+          onChange={event => setForm(previous => ({
+            ...previous,
+            estruturaRoteiro: event.target.value,
+            template: event.target.value,
+          }))}
+          placeholder="Estrutura sugerida para os novos episódios (ex.: Gancho → Contexto → Virada → Fechamento)…"
+          rows={6}
+          className={cn(inputClass, 'min-h-[120px] resize-y leading-relaxed')}
+        />
+      ) : null}
+    </div>
+  );
 
   return (
     <div className="relative w-full">
-      {showOpenInfoNotice ? (
+      {showOpenInfoNotice && tipo === 'serie' ? (
         <OpenInfoNotice
-          items={getSerieOpenItems({
-            id: form.id,
-            pilarIds: form.pilarPrincipalId ? [form.pilarPrincipalId] : [],
-            pilarPrincipalId: form.pilarPrincipalId,
-            funcaoPadrao: form.funcaoPadrao,
-            frequenciaRecomendada: form.frequenciaRecomendada,
-            formatoVisualPadrao: form.formatoVisualPadrao,
-            energiaPadrao: form.energiaPadrao,
-          }, { series, contents })}
+          items={getSerieOpenItems(serieForMetrics, { series, contents })}
           className="mb-3"
         />
       ) : null}
@@ -631,95 +755,114 @@ export function SerieEditForm({
         </div>
       ) : null}
 
-      <div className="grid w-full grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,300px)]">
+      <div className={cn('grid w-full grid-cols-1 items-start gap-4', existe && !inModal && 'lg:grid-cols-[minmax(0,1fr)_minmax(260px,300px)]')}>
         <div className="flex min-w-0 flex-col gap-3">
-          <Surface id="serie-identidade" variant="outlined" padding="md" className="scroll-mt-24">
-            <CardHeading title="Identidade" />
-            <div className="stack-lg">
-              <div>
-                <label htmlFor="serie-nome">
-                  <FieldLabel required>Nome</FieldLabel>
-                </label>
-                <input
-                  id="serie-nome"
-                  type="text"
-                  value={form.name}
-                  aria-invalid={erroNome ? true : undefined}
-                  aria-describedby={erroNome ? 'serie-nome-erro' : undefined}
-                  onChange={event => setForm(previous => ({...previous, name: event.target.value}))}
-                  placeholder={NOME_DO_TIPO[tipo].exemplo}
-                  className={inputClass}
-                  style={erroNome ? { borderColor: 'var(--danger)' } : undefined}
-                />
-                {erroNome ? (
-                  <p id="serie-nome-erro" className="mt-1.5 t-meta" style={{ color: 'var(--danger)' }}>{erroNome}</p>
-                ) : null}
-              </div>
-
-              <div className="grid-form">
+          {/* ==============================================================
+              1. FAMÍLIA
+             ============================================================== */}
+          {tipo === 'familia' ? (
+            <>
+              <Surface id="serie-principal" variant="outlined" padding="md" className="scroll-mt-24 stack-lg">
                 <div>
-                  <FieldLabel>Cor</FieldLabel>
-                  <EntityColorPicker
-                    variant="inline"
-                    value={form.cor}
-                    unavailableColors={takenColors}
-                    onChange={cor => setForm(previous => ({...previous, cor}))}
+                  <label htmlFor="serie-nome">
+                    <FieldLabel required>Nome</FieldLabel>
+                  </label>
+                  <input
+                    id="serie-nome"
+                    type="text"
+                    value={form.name}
+                    aria-invalid={erroNome ? true : undefined}
+                    aria-describedby={erroNome ? 'serie-nome-erro' : undefined}
+                    onChange={event => setForm(previous => ({ ...previous, name: event.target.value }))}
+                    placeholder={NOME_DO_TIPO.familia.exemplo}
+                    className={inputClass}
+                    style={erroNome ? { borderColor: 'var(--danger)' } : undefined}
                   />
-                  {erroCor ? <p className="mt-1.5 t-meta" style={{ color: 'var(--danger)' }}>{erroCor}</p> : null}
+                  {erroNome ? (
+                    <p id="serie-nome-erro" className="mt-1.5 t-meta" style={{ color: 'var(--danger)' }}>{erroNome}</p>
+                  ) : null}
                 </div>
+
                 <div>
-                  <FieldLabel optional>Capa</FieldLabel>
-                  <CoverUploadField
-                    appearance="series"
-                    value={form.capaUrl}
-                    onChange={capaUrl => setForm(previous => ({...previous, capaUrl}))}
-                    itemId={form.id}
-                    title={form.name.trim() || 'Série'}
-                    plain
+                  <label htmlFor="serie-descricao">
+                    <FieldLabel optional>Descrição</FieldLabel>
+                  </label>
+                  <textarea
+                    id="serie-descricao"
+                    value={form.notes}
+                    onChange={event => setForm(previous => ({ ...previous, notes: event.target.value }))}
+                    placeholder="Conceito que conecta as séries desta família."
+                    rows={3}
+                    className={cn(inputClass, 'resize-y leading-relaxed')}
                   />
                 </div>
-              </div>
+              </Surface>
 
-              <div>
-                <label htmlFor="serie-jargao">
-                  <FieldLabel optional>Jargão</FieldLabel>
-                </label>
-                <input
-                  id="serie-jargao"
-                  type="text"
-                  value={form.bordao}
-                  onChange={event => setForm(previous => ({...previous, bordao: event.target.value}))}
-                  placeholder="Ex.: vamos descomplicar isso"
-                  className={inputClass}
-                />
-              </div>
+              <CollapsibleSection
+                id="familia-aparencia"
+                title="Personalizar aparência"
+                description="Cor e capa da família."
+                defaultOpen={Boolean(erroCor || form.capaUrl.trim())}
+              >
+                <div className="grid-form">
+                  <div>
+                    <FieldLabel>Cor</FieldLabel>
+                    <EntityColorPicker
+                      variant="inline"
+                      value={form.cor}
+                      unavailableColors={takenColors}
+                      onChange={cor => setForm(previous => ({ ...previous, cor }))}
+                    />
+                    {erroCor ? <p className="mt-1.5 t-meta" style={{ color: 'var(--danger)' }}>{erroCor}</p> : null}
+                  </div>
+                  <div>
+                    <FieldLabel optional>Capa</FieldLabel>
+                    <CoverUploadField
+                      appearance="series"
+                      value={form.capaUrl}
+                      onChange={capaUrl => setForm(previous => ({ ...previous, capaUrl }))}
+                      itemId={form.id}
+                      title={form.name.trim() || 'Família'}
+                      plain
+                    />
+                  </div>
+                </div>
+              </CollapsibleSection>
+            </>
+          ) : null}
 
-              <div>
-                <label htmlFor="serie-descricao">
-                  <FieldLabel optional>Descrição</FieldLabel>
-                </label>
-                <textarea
-                  id="serie-descricao"
-                  value={form.notes}
-                  onChange={event => setForm(previous => ({...previous, notes: event.target.value}))}
-                  placeholder={`Do que ${NOME_DO_TIPO[tipo].artigo} trata, em uma ou duas frases.`}
-                  rows={2}
-                  className={cn(inputClass, 'resize-y leading-relaxed')}
-                />
-              </div>
-            </div>
-          </Surface>
+          {/* ==============================================================
+              2. SÉRIE
+             ============================================================== */}
+          {tipo === 'serie' ? (
+            <>
+              <Surface id="serie-principal" variant="outlined" padding="md" className="scroll-mt-24 stack-lg">
+                <div>
+                  <label htmlFor="serie-nome">
+                    <FieldLabel required>Nome</FieldLabel>
+                  </label>
+                  <input
+                    id="serie-nome"
+                    type="text"
+                    value={form.name}
+                    aria-invalid={erroNome ? true : undefined}
+                    aria-describedby={erroNome ? 'serie-nome-erro' : undefined}
+                    onChange={event => setForm(previous => ({ ...previous, name: event.target.value }))}
+                    placeholder={NOME_DO_TIPO.serie.exemplo}
+                    className={inputClass}
+                    style={erroNome ? { borderColor: 'var(--danger)' } : undefined}
+                  />
+                  {erroNome ? (
+                    <p id="serie-nome-erro" className="mt-1.5 t-meta" style={{ color: 'var(--danger)' }}>{erroNome}</p>
+                  ) : null}
+                </div>
 
-          <Surface id="serie-organizacao" variant="outlined" padding="md" className="scroll-mt-24">
-            <CardHeading title="Organização" />
-            <div className="stack-lg">
-              <div className="grid-form">
-                {tipo === 'familia' ? null : (
-                  <div className="col-span-full">
-                    <FieldLabel required={tipo === 'quadro'}>{rotuloDoPai}</FieldLabel>
+                <div className="grid-form">
+                  <div>
+                    <FieldLabel optional>Família</FieldLabel>
                     <SelectField
                       block
-                      ariaLabel={rotuloDoPai}
+                      ariaLabel="Família"
                       value={form.parentId ?? ''}
                       onChange={parentId => {
                         const next = parentId || null;
@@ -727,493 +870,721 @@ export function SerieEditForm({
                         if (existe && (form.parentId || next)) {
                           setConfirmParent({
                             next,
-                            message: form.parentId
-                              ? 'Mudar de lugar pode alterar o agrupamento dos relatórios, porque a análise lê a série ao vivo. Classificação congelada permanece. Os conteúdos continuam aqui.'
-                              : 'Colocar numa família pode mudar a meta e o que esta série herda dela. Os conteúdos continuam nesta série.',
+                            message: 'Mudar a família atualiza como esta série é agrupada. Os episódios e padrões desta série continuam aqui.',
                           });
                           return;
                         }
                         setForm(previous => ({ ...previous, parentId: next }));
                       }}
                       options={[
-                        ...(tipo === 'serie'
-                          ? [{ value: '', label: 'Nenhuma (série independente)' }]
-                          : form.parentId ? [] : [{ value: '', label: 'Escolher…' }]),
+                        { value: '', label: 'Sem família' },
                         ...(paiForaDaOrdem ? [{ value: paiForaDaOrdem.id, label: paiForaDaOrdem.name }] : []),
                         ...opcoesDoPai.map(item => ({ value: item.id, label: item.name })),
                       ]}
                     />
                     {erroVinculo && (tentouSalvar || form.parentId) ? (
                       <p className="mt-1.5 t-meta" style={{ color: 'var(--danger)' }}>{erroVinculo}</p>
-                    ) : tipo === 'serie' && opcoesDoPai.length === 0 && !form.parentId ? (
-                      <Text variant="meta" as="p" className="mt-1.5 text-[var(--text-tertiary)]">
-                        Nenhuma família criada. A série pode ficar independente.
-                      </Text>
-                    ) : null}
-                    {tipo === 'serie' && form.parentId && existe ? (
-                      <AppButton variant="secondary" size="sm" onClick={() => setConfirmDesvincular(true)} className="mt-2">
-                        Tirar da família
-                      </AppButton>
                     ) : null}
                   </div>
-                )}
-                <div>
-                  <FieldLabel>Pilar</FieldLabel>
-                  <SelectField
-                    block
-                    ariaLabel="Pilar"
-                    value={form.pilarPrincipalId ?? (form.semPilar ? '__sem' : '__herdar')}
-                    leadingIcon={selectedPilar ? (
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: selectedPilar.cor }} />
-                    ) : undefined}
-                    onChange={valor => setForm(previous => ({
-                      ...previous,
-                      pilarPrincipalId: valor === '__sem' || valor === '__herdar' ? null : valor,
-                      semPilar: valor === '__sem',
-                    }))}
-                    options={[
-                      {
-                        value: '__herdar',
-                        label: form.parentId
-                          ? `Herdar de ${nomeDoPai || 'agrupamento superior'}${nomePilarDoPai ? ` (${nomePilarDoPai})` : ''}`
-                          : 'Escolher…',
-                      },
-                      ...pilarChoices.map(item => ({ value: item.id, label: item.nome })),
-                      { value: '__sem', label: 'Sem pilar' },
-                    ]}
-                  />
-                  <Text variant="meta" as="p" className="mt-1.5 text-[var(--text-tertiary)]">
-                    {form.pilarPrincipalId
-                      ? tipo === 'familia'
-                        ? 'Séries da família sem escolha própria usam este.'
-                        : tipo === 'serie' ? 'Quadros sem escolha própria usam este.' : 'Pilar deste quadro.'
-                      : form.semPilar
-                        ? 'Fica sem pilar de propósito: não herda do agrupamento superior.'
-                        : form.parentId
-                          ? 'Usa o pilar do agrupamento superior enquanto não houver escolha aqui.'
-                          : 'Escolha no Editorial os pilares disponíveis.'}
-                  </Text>
-                </div>
-                <div>
-                  <FieldLabel>Objetivo padrão</FieldLabel>
-                  <SelectField
-                    block
-                    ariaLabel="Objetivo padrão"
-                    value={form.funcaoPadrao ?? ''}
-                    onChange={value => setForm(previous => ({
-                      ...previous,
-                      funcaoPadrao: (value || null) as typeof previous.funcaoPadrao,
-                    }))}
-                    options={[
-                      { value: '', label: form.parentId ? `Herdar de ${nomeDoPai || 'agrupamento superior'}` : 'Escolher…' },
-                      ...FUNCAO_OPTIONS.map(option => ({ value: option.value, label: option.label })),
-                    ]}
-                  />
-                  {funcaoDescription ? (
-                    <Text variant="meta" className="mt-1.5 block text-[var(--text-tertiary)]">
-                      {funcaoDescription}
-                    </Text>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-          </Surface>
 
-          <Surface id="serie-frequencia" variant="outlined" padding="md" className="scroll-mt-24">
-            <CardHeading title="Frequência" />
-            <div className="stack-lg">
-              {form.parentId ? (
-                <div className="stack-sm">
-                  <FieldLabel>Meta</FieldLabel>
-                  <SelectField
-                    block
-                    ariaLabel="Meta"
-                    value={metaCompartilhada ? 'compartilhada' : 'propria'}
-                    onChange={valor => setForm(previous => (valor === 'compartilhada'
-                      ? { ...previous, frequenciaRecomendada: 'Sob demanda', frequenciaVezes: null, frequenciaUnidade: '' }
-                      : { ...previous, frequenciaRecomendada: previous.frequenciaRecomendada === 'Sob demanda' ? '' : previous.frequenciaRecomendada }))}
-                    options={[
-                      { value: 'compartilhada', label: `Compartilhada com ${nomeDoPai || 'o agrupamento superior'}` },
-                      { value: 'propria', label: 'Meta própria' },
-                    ]}
-                  />
-                  {metaCompartilhada ? (
-                    <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
-                      Os conteúdos daqui contam na frequência de {nomeDoPai || 'o agrupamento superior'}.
-                    </Text>
-                  ) : null}
-                </div>
-              ) : null}
-              {form.parentId && metaCompartilhada ? null : (
-                <div className="col-span-full stack-sm">
-                  <FieldLabel>Frequência de publicação</FieldLabel>
-                  <SelectField
-                    block
-                    ariaLabel="Frequência de publicação"
-                    value={form.frequenciaRecomendada}
-                    onChange={frequenciaRecomendada => {
-                      setForm(previous => ({
-                        ...previous,
-                        frequenciaRecomendada,
-                        ...(escolhaSobDemanda(frequenciaRecomendada)
-                          ? { frequenciaVezes: null, frequenciaUnidade: '' }
-                          : {}),
-                      }));
-                    }}
-                    options={[{ value: '', label: 'Escolher…' }, ...frequenciaOpcoes.map(item => ({ value: item, label: item }))]}
-                  />
-                  {selecionouSobDemanda && frequenciaLida.unidade === 'sob-demanda' ? (
-                    <Text variant="meta" className="text-[var(--text-tertiary)]">
-                      Quando houver pauta
-                    </Text>
-                  ) : null}
-                  {mostrarFrequenciaDetalhe ? (
-                    <div className="grid-form">
-                      <div>
-                        <FieldLabel>Vezes</FieldLabel>
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          min={0}
-                          step={1}
-                          aria-label="Vezes"
-                          value={form.frequenciaVezes ?? ''}
-                          onChange={event => {
-                            const frequenciaVezes = parseVezes(event.target.value);
-                            if (event.target.value.trim() && frequenciaVezes === null) return;
-                            setForm(previous => ({ ...previous, frequenciaVezes }));
-                          }}
-                          className={inputClass}
-                        />
-                      </div>
-                      <div>
-                        <FieldLabel>Unidade</FieldLabel>
-                        <SelectField
-                          block
-                          ariaLabel="Unidade"
-                          value={form.frequenciaUnidade}
-                          onChange={frequenciaUnidade => setForm(previous => ({
-                            ...previous,
-                            frequenciaUnidade,
-                          }))}
-                          options={[
-                            { value: '', label: 'Escolher…' },
-                            ...(unidadeExtra ? [{ value: unidadeExtra, label: unidadeExtra }] : []),
-                            ...UNIDADES_FREQUENCIA.map(item => ({ value: item.value, label: item.label })),
-                          ]}
-                        />
-                      </div>
-                    </div>
-                  ) : null}
                   <div>
-                    <FieldLabel>A partir de</FieldLabel>
-                    <input
-                      type="date"
-                      aria-label="A partir de"
-                      value={form.frequenciaAPartirDe}
-                      onChange={event => setForm(previous => ({
+                    <FieldLabel optional>Pilar</FieldLabel>
+                    <SelectField
+                      block
+                      ariaLabel="Pilar"
+                      value={form.pilarPrincipalId ?? ''}
+                      leadingIcon={selectedPilar ? (
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: selectedPilar.cor }} />
+                      ) : undefined}
+                      onChange={valor => setForm(previous => ({
                         ...previous,
-                        frequenciaAPartirDe: event.target.value,
+                        pilarPrincipalId: valor || null,
+                        semPilar: !valor,
                       }))}
-                      className={inputClass}
+                      options={[
+                        { value: '', label: 'Sem pilar' },
+                        ...pilarChoices.map(item => ({ value: item.id, label: item.nome })),
+                      ]}
                     />
                   </div>
-                  <Text variant="body">
-                    {expectativaPeriodo == null
-                      ? 'Quando houver pauta'
-                      : `Neste período, a frequência pede ${expectativaPeriodo}.`}
-                  </Text>
+
+                  <div>
+                    <FieldLabel optional>Objetivo padrão</FieldLabel>
+                    <SelectField
+                      block
+                      ariaLabel="Objetivo padrão"
+                      value={form.funcaoPadrao ?? ''}
+                      onChange={value => setForm(previous => ({
+                        ...previous,
+                        funcaoPadrao: (value || null) as typeof previous.funcaoPadrao,
+                      }))}
+                      options={[
+                        { value: '', label: 'Sem objetivo definido' },
+                        ...FUNCAO_OPTIONS.map(option => ({ value: option.value, label: option.label })),
+                      ]}
+                    />
+                    {funcaoDescription ? (
+                      <Text variant="meta" className="mt-1.5 block text-[var(--text-tertiary)]">
+                        {funcaoDescription}
+                      </Text>
+                    ) : null}
+                  </div>
+
+                  <div>
+                    <FieldLabel optional>Meta de publicação</FieldLabel>
+                    <SelectField
+                      block
+                      ariaLabel="Meta de publicação"
+                      value={form.temMeta ? 'com-meta' : 'sem-meta'}
+                      onChange={valor => {
+                        const ativar = valor === 'com-meta';
+                        setForm(previous => ({
+                          ...previous,
+                          temMeta: ativar,
+                          frequenciaVezes: ativar ? (previous.frequenciaVezes ?? 1) : null,
+                          frequenciaUnidade: ativar ? (previous.frequenciaUnidade || 'semana') : 'semana',
+                        }));
+                      }}
+                      options={[
+                        { value: 'sem-meta', label: 'Sem meta definida' },
+                        { value: 'com-meta', label: 'Definir meta' },
+                      ]}
+                    />
+                  </div>
                 </div>
-              )}
-            </div>
-          </Surface>
 
-          {mostra('serie-modelo') ? (
-            <>
-          <Surface id="serie-modelo" variant="outlined" padding="md" className="scroll-mt-24">
-            <CardHeading
-              title="Modelo de roteiro"
-              description="Estrutura sugerida para os conteúdos novos. Os que já existem não mudam."
-            />
-            <textarea
-              value={form.estruturaRoteiro}
-              onChange={event => setForm(previous => ({...previous, estruturaRoteiro: event.target.value}))}
-              placeholder="Estrutura base para os roteiros desta série…"
-              rows={7}
-              className={cn(inputClass, 'min-h-[140px] resize-y leading-relaxed')}
-            />
-          </Surface>
+                {form.temMeta ? renderCamposMeta() : null}
+              </Surface>
 
-          <Surface variant="outlined" padding="md">
-            <CardHeading
-              title="Templates de roteiro"
-              description="Templates desta série para começar um roteiro."
-              inline
-              action={
-                <AppButton
-                  variant="secondary"
-                  size="sm"
-                  disabled={!initial.id}
-                  onClick={() => openTemplateCreate.current?.()}
-                  leftIcon={<Plus className="h-4 w-4" />}
-                >
-                  Adicionar template
-                </AppButton>
-              }
-            />
-            {initial.id ? (
-              <TemplatesSettingsPage
-                seriesId={initial.id}
-                embedded
-                hideCreateButton
-                emptyLabel="Nenhum template adicionado."
-                onCreateReady={open => {
-                  openTemplateCreate.current = open;
-                }}
-              />
-            ) : (
-              <Text variant="meta" className="block py-6 text-center text-[var(--text-tertiary)]">
-                Salve a série para cadastrar templates de roteiro.
-              </Text>
-            )}
-          </Surface>
-            </>
-          ) : null}
-
-          {mostra('serie-direcionamento') ? (
-            <>
-          <Surface id="serie-direcionamento" variant="outlined" padding="md" className="scroll-mt-24">
-            <CardHeading title="Direcionamento editorial" />
-            <div className="stack-lg">
-              <div className="grid-form">
+              <CollapsibleSection
+                id="serie-identidade"
+                title="Identidade"
+                description="Descrição, cor, capa e bordão."
+                defaultOpen={Boolean(erroCor)}
+              >
                 <div>
-                  <FieldLabel optional>Motivo para salvar</FieldLabel>
+                  <label htmlFor="serie-descricao">
+                    <FieldLabel optional>Descrição</FieldLabel>
+                  </label>
+                  <textarea
+                    id="serie-descricao"
+                    value={form.notes}
+                    onChange={event => setForm(previous => ({ ...previous, notes: event.target.value }))}
+                    placeholder="Do que a série trata, em uma ou duas frases."
+                    rows={2}
+                    className={cn(inputClass, 'resize-y leading-relaxed')}
+                  />
+                </div>
+
+                <div className="grid-form">
+                  <div>
+                    <FieldLabel>Cor</FieldLabel>
+                    <EntityColorPicker
+                      variant="inline"
+                      value={form.cor}
+                      unavailableColors={takenColors}
+                      onChange={cor => setForm(previous => ({ ...previous, cor }))}
+                    />
+                    {erroCor ? <p className="mt-1.5 t-meta" style={{ color: 'var(--danger)' }}>{erroCor}</p> : null}
+                  </div>
+                  <div>
+                    <FieldLabel optional>Capa</FieldLabel>
+                    <CoverUploadField
+                      appearance="series"
+                      value={form.capaUrl}
+                      onChange={capaUrl => setForm(previous => ({ ...previous, capaUrl }))}
+                      itemId={form.id}
+                      title={form.name.trim() || 'Série'}
+                      plain
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="serie-bordao">
+                    <FieldLabel optional>Bordão</FieldLabel>
+                  </label>
                   <input
+                    id="serie-bordao"
                     type="text"
-                    value={form.motivoSalvar}
-                    onChange={event => setForm(previous => ({ ...previous, motivoSalvar: event.target.value }))}
-                    placeholder="O que faz a pessoa guardar"
+                    value={form.bordao}
+                    onChange={event => setForm(previous => ({ ...previous, bordao: event.target.value }))}
+                    placeholder="Ex.: vamos descomplicar isso"
                     className={inputClass}
                   />
                 </div>
+              </CollapsibleSection>
+
+              <CollapsibleSection
+                id="serie-criacao"
+                title="Criação"
+                description="Modelo de roteiro, orientações editoriais, apresentação habitual e esforço de produção."
+              >
+                {renderBlocoModeloRoteiro(false)}
+
                 <div>
-                  <FieldLabel optional>Motivo para mandar</FieldLabel>
-                  <input
-                    type="text"
-                    value={form.motivoEnviar}
-                    onChange={event => setForm(previous => ({ ...previous, motivoEnviar: event.target.value }))}
-                    placeholder="O que faz a pessoa enviar"
-                    className={inputClass}
+                  <label htmlFor="serie-orientacoes">
+                    <FieldLabel optional>Orientações editoriais</FieldLabel>
+                  </label>
+                  <textarea
+                    id="serie-orientacoes"
+                    value={form.orientacoesEditoriais}
+                    onChange={event => setForm(previous => ({ ...previous, orientacoesEditoriais: event.target.value }))}
+                    placeholder="Proposta da série, motivos para salvar ou compartilhar e outros direcionamentos…"
+                    rows={3}
+                    className={cn(inputClass, 'resize-y leading-relaxed')}
                   />
                 </div>
-              </div>
 
-            </div>
-          </Surface>
-            </>
-          ) : null}
+                <div>
+                  <FieldLabel optional>Apresentação habitual</FieldLabel>
+                  <MultiChoiceField
+                    id="serie-formato-apresentacao"
+                    label="Apresentação habitual"
+                    value={form.formatoApresentacao}
+                    onChange={formatoApresentacao => setForm(previous => ({ ...previous, formatoApresentacao }))}
+                    options={apresentacaoOptions}
+                  />
+                </div>
 
-          {mostra('serie-destinos') ? (
-            <>
-          <Surface id="serie-destinos" variant="outlined" padding="md" className="scroll-mt-24">
-            <CardHeading title="Destinos e formatos" />
-            <div className="stack-lg">
-              <div>
-                  <FieldLabel>Formato de publicação</FieldLabel>
+                <div>
+                  <FieldLabel optional>Esforço de produção</FieldLabel>
+                  <div
+                    role="radiogroup"
+                    aria-label="Esforço de produção"
+                    className="grid grid-cols-3 gap-1 rounded-[var(--radius-input)] border border-[var(--border-color)] p-1"
+                  >
+                    {ENERGIA_NIVEIS.map(value => {
+                      const selected = form.energiaPadrao === value;
+                      return (
+                        <button
+                          key={value}
+                          type="button"
+                          role="radio"
+                          aria-checked={selected}
+                          onClick={() => setForm(previous => ({
+                            ...previous,
+                            energiaPadrao: selected ? null : value,
+                          }))}
+                          className={cn(
+                            'rounded-[var(--radius-input)] px-3 py-2 t-button focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                            selected
+                              ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                              : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
+                          )}
+                        >
+                          {ENERGIA_LABELS[value]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </CollapsibleSection>
+
+              <CollapsibleSection
+                id="serie-publicacao"
+                title="Publicação"
+                description="Contas de destino, formatos e legenda-base."
+              >
+                <div>
+                  <FieldLabel optional>Contas de destino</FieldLabel>
+                  {contas.length === 0 ? (
+                    <Text variant="meta" className="text-[var(--text-tertiary)]">
+                      Nenhuma conta ativa cadastrada.
+                    </Text>
+                  ) : (
+                    <MultiFilterChips
+                      value={contasDestinoIds}
+                      onChange={toggleContasDestino}
+                      options={contas.map(conta => ({ id: conta.id, label: rotuloConta(conta) }))}
+                      ariaLabel="Contas de destino"
+                    />
+                  )}
+                </div>
+
+                <div>
+                  <FieldLabel optional>Formatos</FieldLabel>
                   <MultiChoiceField
                     id="serie-formato-publicacao"
-                    label="Formato de publicação"
+                    label="Formatos"
                     value={form.formatoVisualPadrao}
                     onChange={formatoVisualPadrao => setForm(previous => ({ ...previous, formatoVisualPadrao }))}
                     options={formatoOptions}
                   />
                 </div>
 
-              <div>
-                <FieldLabel>Formato de apresentação</FieldLabel>
-                <MultiChoiceField
-                  id="serie-formato-apresentacao"
-                  label="Formato de apresentação"
-                  value={form.formatoApresentacao}
-                  onChange={formatoApresentacao => setForm(previous => ({ ...previous, formatoApresentacao }))}
-                  options={apresentacaoOptions}
+                <LegendaBaseField
+                  id={`serie-legenda-base-${form.id}`}
+                  label="Legenda-base"
+                  compact
+                  value={form.legendaBase}
+                  placeholder="Texto padrão para os novos episódios desta série."
+                  onChange={legendaBase => setForm(previous => ({ ...previous, legendaBase }))}
                 />
-              </div>
+              </CollapsibleSection>
 
-              <div>
-                <FieldLabel>Esforço de produção</FieldLabel>
-                <div
-                  role="radiogroup"
-                  aria-label="Esforço de produção"
-                  className="grid grid-cols-3 gap-1 rounded-[var(--radius-input)] border border-[var(--border-color)] p-1"
-                >
-                  {ENERGIA_NIVEIS.map(value => {
-                    const selected = form.energiaPadrao === value;
-                    return (
-                      <button
-                        key={value}
-                        type="button"
-                        role="radio"
-                        aria-checked={selected}
-                        onClick={() => setForm(previous => ({
-                          ...previous,
-                          energiaPadrao: selected ? null : value,
-                        }))}
-                        className={cn(
-                          'rounded-[var(--radius-input)] px-3 py-2 t-button focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-                          // Seleção é preta, como em todo o app; o rosa fica só para a ação principal.
-                          selected
-                            ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
-                        )}
-                      >
-                        {ENERGIA_LABELS[value]}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </Surface>
-            </>
-          ) : null}
-
-          {mostra('serie-legendas') ? (
-            <>
-          <Surface id="serie-legendas" variant="outlined" padding="md" className="scroll-mt-24 stack-md">
-            <CardHeading
-              title="Legendas e hashtags"
-              description="Orientam os conteúdos novos. Ao salvar, só atualiza conteúdos que ainda seguem este texto e não foram publicados, e só se você confirmar."
-            />
-            <LegendaBaseField
-              id={`serie-legenda-base-${form.id}`}
-              label="Legenda-base da série"
-              compact
-              value={form.legendaBase}
-              placeholder="Texto de origem para os roteiros novos desta série."
-              onChange={legendaBase => setForm(previous => ({ ...previous, legendaBase }))}
-            />
-            {contas.length === 0 ? (
-              <Text variant="meta">Cadastre uma conta para criar uma versão por plataforma.</Text>
-            ) : (
-              contas.map(conta => {
-                const versao = form.plataformas.find(item => item.platformId === conta.id)?.legenda ?? '';
-                const propria = versao.trim().length > 0;
-                return (
-                  <LegendaVersaoField
-                    key={conta.id}
-                    id={`serie-legenda-${conta.id}`}
-                    icone={iconeDaConta(conta)}
-                    rotulo={rotuloConta(conta)}
-                    detalhe={complementoDoRotulo(conta)}
-                    titulo="Versão desta conta"
-                    estado={propria ? 'propria' : 'base'}
-                    texto={propria ? versao : form.legendaBase}
-                    baseVazia={!form.legendaBase.trim()}
-                    nomeDaBase="legenda-base da série"
-                    alcanceDaBase="Esta conta voltará a acompanhar a legenda-base da série. Roteiros novos usam esse texto. Roteiros já publicados e adaptações manuais não mudam ao salvar."
-                    compact
-                    onCriarPropria={() => updatePlatformLegenda(conta.id, form.legendaBase)}
-                    onEditar={valor => updatePlatformLegenda(conta.id, valor)}
-                    onVoltarParaBase={() => updatePlatformLegenda(conta.id, null)}
-                  />
-                );
-              })
-            )}
-            <div className="stack-sm border-t border-[var(--border-color)] pt-4">
-              <Text variant="label" as="p">Hashtags por conta</Text>
-            {contas.length === 0 ? (
-              <Text variant="meta" className="text-[var(--text-tertiary)]">
-                Nenhuma conta ativa configurada.
-              </Text>
-            ) : (
-              <div className="stack-md">
-                {contas.map(conta => {
-                  const value = form.plataformas.find(item => item.platformId === conta.id)?.hashtags || '';
-                  return (
-                    <div key={conta.id}>
-                      <div className="mb-1.5 flex items-center justify-between gap-2">
-                        <div className="flex min-w-0 items-center gap-2">
-                          <PlatformIcon platform={iconeDaConta(conta)} className="h-4 w-4 shrink-0" />
-                          <Text variant="meta" className="text-[var(--text-primary)]">
-                            {rotuloConta(conta)}
-                          </Text>
+              <CollapsibleSection
+                id="serie-ajustes-conta"
+                title="Ajustes por conta"
+                description="Legenda e hashtags específicas de cada conta."
+              >
+                {contas.length === 0 ? (
+                  <Text variant="meta">Cadastre uma conta para configurar legendas e hashtags por plataforma.</Text>
+                ) : (
+                  <div className="stack-lg">
+                    {contas.map(conta => {
+                      const versao = form.plataformas.find(item => item.platformId === conta.id)?.legenda ?? '';
+                      const propria = versao.trim().length > 0;
+                      const hashtagsValue = form.plataformas.find(item => item.platformId === conta.id)?.hashtags || '';
+                      return (
+                        <div key={conta.id} className="stack-sm border-b border-[var(--border-color)] pb-4 last:border-b-0 last:pb-0">
+                          <LegendaVersaoField
+                            id={`serie-legenda-${conta.id}`}
+                            icone={iconeDaConta(conta)}
+                            rotulo={rotuloConta(conta)}
+                            detalhe={complementoDoRotulo(conta)}
+                            titulo="Legenda desta conta"
+                            estado={propria ? 'propria' : 'base'}
+                            texto={propria ? versao : form.legendaBase}
+                            baseVazia={!form.legendaBase.trim()}
+                            nomeDaBase="legenda-base da série"
+                            alcanceDaBase="Esta conta voltará a acompanhar a legenda-base da série."
+                            compact
+                            onCriarPropria={() => updatePlatformLegenda(conta.id, form.legendaBase)}
+                            onEditar={valor => updatePlatformLegenda(conta.id, valor)}
+                            onVoltarParaBase={() => updatePlatformLegenda(conta.id, null)}
+                          />
+                          <div>
+                            <div className="mb-1.5 flex items-center justify-between gap-2">
+                              <div className="flex min-w-0 items-center gap-2">
+                                <PlatformIcon platform={iconeDaConta(conta)} className="h-4 w-4 shrink-0" />
+                                <Text variant="meta" className="text-[var(--text-secondary)]">
+                                  Hashtags em {rotuloConta(conta)}
+                                </Text>
+                              </div>
+                              <AppButton
+                                variant="secondary"
+                                size="xs"
+                                onClick={() => void copyHashtags(hashtagsValue)}
+                                disabled={!hashtagsValue.trim()}
+                                leftIcon={<Copy className="h-3.5 w-3.5" />}
+                                aria-label={`Copiar hashtags de ${rotuloConta(conta)}`}
+                              >
+                                Copiar
+                              </AppButton>
+                            </div>
+                            <textarea
+                              value={hashtagsValue}
+                              onChange={event => updatePlatformHashtags(conta.id, event.target.value)}
+                              placeholder="#hashtag1 #hashtag2"
+                              rows={2}
+                              className={cn(inputClass, 'min-h-[60px] resize-y leading-relaxed')}
+                            />
+                          </div>
                         </div>
-                        <AppButton
-                          variant="secondary"
-                          size="xs"
-                          onClick={() => void copyHashtags(value)}
-                          disabled={!value.trim()}
-                          leftIcon={<Copy className="h-3.5 w-3.5" />}
-                          className="pointer-coarse:h-11"
-                          aria-label={`Copiar hashtags de ${rotuloConta(conta)}`}
-                        >
-                          Copiar
-                        </AppButton>
-                      </div>
-                      <textarea
-                        value={value}
-                        onChange={event => updatePlatformHashtags(conta.id, event.target.value)}
-                        placeholder="#hashtag1 #hashtag2"
-                        rows={2}
-                        className={cn(inputClass, 'min-h-[64px] resize-y leading-relaxed')}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            </div>
-          </Surface>
+                      );
+                    })}
+                  </div>
+                )}
+              </CollapsibleSection>
             </>
           ) : null}
 
+          {/* ==============================================================
+              3. QUADRO
+             ============================================================== */}
+          {tipo === 'quadro' ? (
+            <>
+              <Surface id="serie-principal" variant="outlined" padding="md" className="scroll-mt-24 stack-lg">
+                <div>
+                  <label htmlFor="serie-nome">
+                    <FieldLabel required>Nome</FieldLabel>
+                  </label>
+                  <input
+                    id="serie-nome"
+                    type="text"
+                    value={form.name}
+                    aria-invalid={erroNome ? true : undefined}
+                    aria-describedby={erroNome ? 'serie-nome-erro' : undefined}
+                    onChange={event => setForm(previous => ({ ...previous, name: event.target.value }))}
+                    placeholder={NOME_DO_TIPO.quadro.exemplo}
+                    className={inputClass}
+                    style={erroNome ? { borderColor: 'var(--danger)' } : undefined}
+                  />
+                  {erroNome ? (
+                    <p id="serie-nome-erro" className="mt-1.5 t-meta" style={{ color: 'var(--danger)' }}>{erroNome}</p>
+                  ) : null}
+                </div>
+
+                {!form.parentId || erroVinculo ? (
+                  <div>
+                    <FieldLabel required>Série</FieldLabel>
+                    <SelectField
+                      block
+                      ariaLabel="Série"
+                      value={form.parentId ?? ''}
+                      onChange={parentId => setForm(previous => ({ ...previous, parentId: parentId || null }))}
+                      options={[
+                        { value: '', label: 'Escolher…' },
+                        ...opcoesDoPai.map(item => ({ value: item.id, label: item.name })),
+                      ]}
+                    />
+                    {erroVinculo ? (
+                      <p className="mt-1.5 t-meta" style={{ color: 'var(--danger)' }}>{erroVinculo}</p>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                <div>
+                  <label htmlFor="serie-descricao">
+                    <FieldLabel optional>Descrição da proposta</FieldLabel>
+                  </label>
+                  <textarea
+                    id="serie-descricao"
+                    value={form.notes}
+                    onChange={event => setForm(previous => ({ ...previous, notes: event.target.value }))}
+                    placeholder="Qual é o recorte ou dinâmica deste quadro dentro da série."
+                    rows={2}
+                    className={cn(inputClass, 'resize-y leading-relaxed')}
+                  />
+                </div>
+
+                {renderBlocoModeloRoteiro(true)}
+
+                <div className="stack-sm">
+                  <FieldLabel optional>Meta de publicação</FieldLabel>
+                  <SelectField
+                    block
+                    ariaLabel="Meta de publicação"
+                    value={form.temMeta ? 'quadro' : 'serie'}
+                    onChange={valor => {
+                      const ativar = valor === 'quadro';
+                      setForm(previous => ({
+                        ...previous,
+                        temMeta: ativar,
+                        frequenciaVezes: ativar ? (previous.frequenciaVezes ?? 1) : null,
+                        frequenciaUnidade: ativar ? (previous.frequenciaUnidade || 'semana') : 'semana',
+                      }));
+                    }}
+                    options={[
+                      { value: 'serie', label: 'Seguir apenas a meta da série' },
+                      { value: 'quadro', label: 'Definir também uma meta para este quadro' },
+                    ]}
+                  />
+                  {form.temMeta
+                    ? renderCamposMeta('O episódio deste quadro conta nas duas metas.')
+                    : null}
+                </div>
+              </Surface>
+
+              <CollapsibleSection
+                id="quadro-personalizar"
+                title="Personalizar padrões da série"
+                description="Cada configuração começa em “Usar da série”. Altere apenas quando o quadro tiver uma necessidade própria."
+                defaultOpen={Boolean(erroCor)}
+              >
+                <div className="grid-form">
+                  <div>
+                    <FieldLabel>Pilar</FieldLabel>
+                    <SelectField
+                      block
+                      ariaLabel="Pilar"
+                      value={form.pilarPrincipalId ?? (form.semPilar ? '__sem' : '__herdar')}
+                      leadingIcon={selectedPilar ? (
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: selectedPilar.cor }} />
+                      ) : undefined}
+                      onChange={valor => setForm(previous => ({
+                        ...previous,
+                        pilarPrincipalId: valor === '__sem' || valor === '__herdar' ? null : valor,
+                        semPilar: valor === '__sem',
+                      }))}
+                      options={[
+                        {
+                          value: '__herdar',
+                          label: `Usar da série${nomePilarDoPai ? ` (${nomePilarDoPai})` : ''}`,
+                        },
+                        ...pilarChoices.map(item => ({ value: item.id, label: item.nome })),
+                        { value: '__sem', label: 'Sem pilar' },
+                      ]}
+                    />
+                  </div>
+
+                  <div>
+                    <FieldLabel>Objetivo</FieldLabel>
+                    <SelectField
+                      block
+                      ariaLabel="Objetivo"
+                      value={form.funcaoPadrao ?? ''}
+                      onChange={value => setForm(previous => ({
+                        ...previous,
+                        funcaoPadrao: (value || null) as typeof previous.funcaoPadrao,
+                      }))}
+                      options={[
+                        { value: '', label: 'Usar da série' },
+                        ...FUNCAO_OPTIONS.map(option => ({ value: option.value, label: option.label })),
+                      ]}
+                    />
+                  </div>
+                </div>
+
+                <div className="stack-sm">
+                  <FieldLabel>Cor, capa e bordão</FieldLabel>
+                  <SelectField
+                    block
+                    ariaLabel="Cor, capa e bordão"
+                    value={quadroIdentidadePropria ? 'proprio' : 'herdar'}
+                    onChange={valor => setQuadroIdentidadePropria(valor === 'proprio')}
+                    options={[
+                      { value: 'herdar', label: 'Usar da série' },
+                      { value: 'proprio', label: 'Definir outro' },
+                    ]}
+                  />
+                  {quadroIdentidadePropria ? (
+                    <div className="stack-md pt-2">
+                      <div className="grid-form">
+                        <div>
+                          <FieldLabel>Cor</FieldLabel>
+                          <EntityColorPicker
+                            variant="inline"
+                            value={form.cor}
+                            unavailableColors={takenColors}
+                            onChange={cor => setForm(previous => ({ ...previous, cor }))}
+                          />
+                          {erroCor ? <p className="mt-1.5 t-meta" style={{ color: 'var(--danger)' }}>{erroCor}</p> : null}
+                        </div>
+                        <div>
+                          <FieldLabel optional>Capa</FieldLabel>
+                          <CoverUploadField
+                            appearance="series"
+                            value={form.capaUrl}
+                            onChange={capaUrl => setForm(previous => ({ ...previous, capaUrl }))}
+                            itemId={form.id}
+                            title={form.name.trim() || 'Quadro'}
+                            plain
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label htmlFor="quadro-bordao">
+                          <FieldLabel optional>Bordão</FieldLabel>
+                        </label>
+                        <input
+                          id="quadro-bordao"
+                          type="text"
+                          value={form.bordao}
+                          onChange={event => setForm(previous => ({ ...previous, bordao: event.target.value }))}
+                          placeholder="Ex.: vamos descomplicar isso"
+                          className={inputClass}
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="grid-form">
+                  <div>
+                    <FieldLabel>Orientações editoriais</FieldLabel>
+                    <SelectField
+                      block
+                      ariaLabel="Orientações editoriais"
+                      value={quadroOrientacoesProprias ? 'proprio' : 'herdar'}
+                      onChange={valor => setQuadroOrientacoesProprias(valor === 'proprio')}
+                      options={[
+                        { value: 'herdar', label: 'Usar da série' },
+                        { value: 'proprio', label: 'Definir outro' },
+                      ]}
+                    />
+                  </div>
+
+                  <div>
+                    <FieldLabel>Apresentação habitual</FieldLabel>
+                    <SelectField
+                      block
+                      ariaLabel="Apresentação habitual"
+                      value={quadroApresentacaoPropria ? 'proprio' : 'herdar'}
+                      onChange={valor => setQuadroApresentacaoPropria(valor === 'proprio')}
+                      options={[
+                        { value: 'herdar', label: 'Usar da série' },
+                        { value: 'proprio', label: 'Definir outro' },
+                      ]}
+                    />
+                  </div>
+
+                  <div>
+                    <FieldLabel>Esforço de produção</FieldLabel>
+                    <SelectField
+                      block
+                      ariaLabel="Esforço de produção"
+                      value={form.energiaPadrao ?? ''}
+                      onChange={valor => setForm(previous => ({
+                        ...previous,
+                        energiaPadrao: (valor || null) as typeof previous.energiaPadrao,
+                      }))}
+                      options={[
+                        { value: '', label: 'Usar da série' },
+                        ...ENERGIA_NIVEIS.map(nivel => ({ value: nivel, label: ENERGIA_LABELS[nivel] })),
+                      ]}
+                    />
+                  </div>
+                </div>
+
+                {quadroOrientacoesProprias ? (
+                  <div>
+                    <label htmlFor="quadro-orientacoes">
+                      <FieldLabel optional>Orientações editoriais do quadro</FieldLabel>
+                    </label>
+                    <textarea
+                      id="quadro-orientacoes"
+                      value={form.orientacoesEditoriais}
+                      onChange={event => setForm(previous => ({ ...previous, orientacoesEditoriais: event.target.value }))}
+                      placeholder="Direcionamentos específicos para este quadro…"
+                      rows={3}
+                      className={cn(inputClass, 'resize-y leading-relaxed')}
+                    />
+                  </div>
+                ) : null}
+
+                {quadroApresentacaoPropria ? (
+                  <div>
+                    <FieldLabel optional>Apresentação habitual do quadro</FieldLabel>
+                    <MultiChoiceField
+                      id="quadro-formato-apresentacao"
+                      label="Apresentação habitual do quadro"
+                      value={form.formatoApresentacao}
+                      onChange={formatoApresentacao => setForm(previous => ({ ...previous, formatoApresentacao }))}
+                      options={apresentacaoOptions}
+                    />
+                  </div>
+                ) : null}
+
+                <div className="grid-form">
+                  <div>
+                    <FieldLabel>Formatos</FieldLabel>
+                    <SelectField
+                      block
+                      ariaLabel="Formatos"
+                      value={quadroFormatosProprios ? 'proprio' : 'herdar'}
+                      onChange={valor => setQuadroFormatosProprios(valor === 'proprio')}
+                      options={[
+                        { value: 'herdar', label: 'Usar da série' },
+                        { value: 'proprio', label: 'Definir outro' },
+                      ]}
+                    />
+                  </div>
+
+                  <div>
+                    <FieldLabel>Legenda-base</FieldLabel>
+                    <SelectField
+                      block
+                      ariaLabel="Legenda-base"
+                      value={quadroLegendaPropria ? 'proprio' : 'herdar'}
+                      onChange={valor => setQuadroLegendaPropria(valor === 'proprio')}
+                      options={[
+                        { value: 'herdar', label: 'Usar da série' },
+                        { value: 'proprio', label: 'Definir outro' },
+                      ]}
+                    />
+                  </div>
+
+                  <div>
+                    <FieldLabel>Contas e hashtags</FieldLabel>
+                    <SelectField
+                      block
+                      ariaLabel="Contas e hashtags"
+                      value={quadroContasProprias ? 'proprio' : 'herdar'}
+                      onChange={valor => setQuadroContasProprias(valor === 'proprio')}
+                      options={[
+                        { value: 'herdar', label: 'Usar da série' },
+                        { value: 'proprio', label: 'Definir outro' },
+                      ]}
+                    />
+                  </div>
+                </div>
+
+                {quadroFormatosProprios ? (
+                  <div>
+                    <FieldLabel optional>Formatos do quadro</FieldLabel>
+                    <MultiChoiceField
+                      id="quadro-formato-publicacao"
+                      label="Formatos do quadro"
+                      value={form.formatoVisualPadrao}
+                      onChange={formatoVisualPadrao => setForm(previous => ({ ...previous, formatoVisualPadrao }))}
+                      options={formatoOptions}
+                    />
+                  </div>
+                ) : null}
+
+                {quadroLegendaPropria ? (
+                  <LegendaBaseField
+                    id={`quadro-legenda-base-${form.id}`}
+                    label="Legenda-base do quadro"
+                    compact
+                    value={form.legendaBase}
+                    placeholder="Texto de legenda específico para os episódios deste quadro."
+                    onChange={legendaBase => setForm(previous => ({ ...previous, legendaBase }))}
+                  />
+                ) : null}
+
+                {quadroContasProprias ? (
+                  <div className="stack-md">
+                    <div>
+                      <FieldLabel optional>Contas de destino do quadro</FieldLabel>
+                      {contas.length === 0 ? (
+                        <Text variant="meta" className="text-[var(--text-tertiary)]">
+                          Nenhuma conta ativa cadastrada.
+                        </Text>
+                      ) : (
+                        <MultiFilterChips
+                          value={contasDestinoIds}
+                          onChange={toggleContasDestino}
+                          options={contas.map(conta => ({ id: conta.id, label: rotuloConta(conta) }))}
+                          ariaLabel="Contas de destino do quadro"
+                        />
+                      )}
+                    </div>
+                    {contas.map(conta => {
+                      const hashtagsValue = form.plataformas.find(item => item.platformId === conta.id)?.hashtags || '';
+                      return (
+                        <div key={conta.id}>
+                          <div className="mb-1.5 flex items-center justify-between gap-2">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <PlatformIcon platform={iconeDaConta(conta)} className="h-4 w-4 shrink-0" />
+                              <Text variant="meta" className="text-[var(--text-secondary)]">
+                                Hashtags em {rotuloConta(conta)}
+                              </Text>
+                            </div>
+                          </div>
+                          <textarea
+                            value={hashtagsValue}
+                            onChange={event => updatePlatformHashtags(conta.id, event.target.value)}
+                            placeholder="#hashtag1 #hashtag2"
+                            rows={2}
+                            className={cn(inputClass, 'min-h-[60px] resize-y leading-relaxed')}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </CollapsibleSection>
+            </>
+          ) : null}
         </div>
 
-        <aside className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-24 lg:self-start">
-          <nav aria-label="Seções do formulário" className="hidden lg:block">
-            <ul className="stack-xs">
-              {SECOES_DO_FORMULARIO.filter(secao => mostra(secao.id)).map(secao => (
-                <li key={secao.id}>
-                  <a
-                    href={`#${secao.id}`}
-                    onClick={event => {
-                      event.preventDefault();
-                      document.getElementById(secao.id)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-                    }}
-                    className="block rounded-[var(--radius-sm)] px-2 py-1.5 t-secondary text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-                  >
-                    {secao.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-          {existe ? (
-          <Surface variant="outlined" padding="md">
-            <SerieProductionMetricsPanel
-              serie={serieForMetrics}
-              contents={contents}
-              series={state.series}
-              lastEditLabel={lastEditLabel}
-              onActiveChange={ativa => setForm(previous => ({ ...previous, ativa }))}
-            />
-          </Surface>
-          ) : null}
-        </aside>
+        {existe && !inModal ? (
+          <aside className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-24 lg:self-start">
+            <Surface variant="outlined" padding="md">
+              <SerieProductionMetricsPanel
+                serie={serieForMetrics}
+                contents={contents}
+                series={state.series}
+                lastEditLabel={lastEditLabel}
+              />
+            </Surface>
+          </aside>
+        ) : null}
       </div>
 
-      <ConfirmModal
-        open={confirmDesvincular}
-        message="Desfazer o vínculo tira esta série da meta e da herança do agrupamento superior. Os conteúdos continuam nesta série. Temporadas e classificações congeladas não mudam. O agrupamento nos relatórios muda."
-        confirmLabel="Desfazer vínculo"
-        cancelLabel="Manter vínculo"
-        onConfirm={() => {
-          setForm(previous => ({ ...previous, parentId: null }));
-          setConfirmDesvincular(false);
-        }}
-        onCancel={() => setConfirmDesvincular(false)}
-      />
       <ConfirmModal
         open={Boolean(confirmParent)}
         message={confirmParent?.message ?? ''}
@@ -1222,13 +1593,7 @@ export function SerieEditForm({
         onConfirm={() => {
           if (!confirmParent) return;
           const next = confirmParent.next;
-          setForm(previous => ({
-            ...previous,
-            parentId: next,
-            ...(next && !previous.frequenciaRecomendada.trim()
-              ? { frequenciaRecomendada: 'Sob demanda', frequenciaVezes: null, frequenciaUnidade: '' }
-              : {}),
-          }));
+          setForm(previous => ({ ...previous, parentId: next }));
           setConfirmParent(null);
         }}
         onCancel={() => setConfirmParent(null)}

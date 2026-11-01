@@ -91,13 +91,13 @@ export function PublishingSection({
           Prepare legenda, capa, contas e datas desde já. Programado pede o material pronto na Edição; uma publicação que já saiu pode ser registrada a qualquer momento.
         </Text>
       ) : null}
-      <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:rounded-[var(--radius-card)] md:p-7">
+      <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:rounded-[var(--radius-card)] md:p-6">
         <div className="flex items-center gap-2 t-label text-[var(--text-tertiary)]">
           <CalendarDays className="h-4 w-4" />
           Agendamento
         </div>
 
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
           <label className="block">
             <Text variant="label" as="span" className="mb-2 block text-[var(--text-tertiary)]">
               Data principal
@@ -196,12 +196,12 @@ export function PublishingSection({
       />
 
       {activePlatformIds.length > 0 ? (
-        <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:rounded-[var(--radius-card)] md:p-7">
+        <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:rounded-[var(--radius-card)] md:p-6">
           <div className="flex items-center gap-2 t-label text-[var(--text-tertiary)]">
             <Send className="h-4 w-4" />
             Datas por plataforma
           </div>
-          <div className="mt-5 stack-lg">
+          <div className="mt-4 stack-lg">
             {draft.plataformas.map(plataforma => (
               <article
                 key={plataforma.id || plataforma.platformId}
@@ -287,7 +287,7 @@ export function PublishingSection({
         </section>
       ) : null}
 
-      <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:rounded-[var(--radius-card)] md:p-7">
+      <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:rounded-[var(--radius-card)] md:p-6">
         <div className="flex items-center gap-2 t-label text-[var(--text-tertiary)]">
           <Image className="h-4 w-4" />
           Assets e observações
@@ -303,7 +303,7 @@ export function PublishingSection({
 
 
       {isPosted ? (
-        <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:rounded-[var(--radius-card)] md:p-7">
+        <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:rounded-[var(--radius-card)] md:p-6">
           <Text variant="itemTitle" as="p" className="text-[var(--text-primary)]">Repostar</Text>
           <Text variant="secondary" as="p" className="mt-1 text-[var(--text-secondary)]">
             Abre um ciclo novo no mesmo roteiro, sem desfazer a publicação anterior nem as métricas.

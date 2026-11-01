@@ -204,7 +204,7 @@ export function EditorColorMenu({
                 role="dialog"
                 aria-label={LABELS[kind].title}
                 onMouseDown={event => event.stopPropagation()}
-                className="w-full rounded-t-[var(--radius-overlay)] border-t border-[var(--border-color)] bg-[var(--bg-elevated)] p-5 pb-safe"
+                className="w-full rounded-t-[var(--radius-overlay)] border-t border-[var(--border-color)] bg-[var(--bg-elevated)] p-6 pb-safe"
               >
                 <div className="mx-auto mb-4 h-1 w-10 rounded-[var(--radius-pill)] bg-[var(--border-strong)]" />
                 <Text variant="itemTitle" as="p" className="mb-3 text-[var(--text-primary)]">{LABELS[kind].title}</Text>

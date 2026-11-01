@@ -9,6 +9,7 @@ import {
 } from 'motion/react';
 import { cn } from '../../lib/utils';
 import { useVisualViewportBounds } from '../../hooks/useVisualViewportBounds';
+import { Z_INDEX_MODAL } from './overlayConstants';
 import { useOverlayBehavior } from './useOverlayBehavior';
 
 export type OverlayPlacement = 'center' | 'bottom' | 'end';
@@ -40,7 +41,7 @@ export function OverlayRoot({
   onClose,
   children,
   placement = 'center',
-  zIndex = 'z-[100]',
+  zIndex = Z_INDEX_MODAL,
   mobileEdgePadding = true,
   fitVisualViewport = false,
   className,

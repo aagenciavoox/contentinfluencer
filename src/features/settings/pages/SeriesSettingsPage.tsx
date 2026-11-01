@@ -6,10 +6,11 @@ import { OverlayBody } from '../../../components/overlays/OverlayBody';
 import { OverlayFooter } from '../../../components/overlays/OverlayFooter';
 import { OverlayHeader } from '../../../components/overlays/OverlayHeader';
 import { AppButton } from '../../../components/ui/AppButton';
+import { MoreMenu } from '../../../components/ui/MoreMenu';
+import { FilterBar } from '../../../components/ui/FilterBar';
+import { PageToolbar } from '../../../components/ui/PageToolbar';
 import { QueryViewState } from '../../../components/ui/QueryViewState';
-import { SelectField } from '../../../components/ui/SelectField';
 import { Text } from '../../../components/ui/Text';
-import { ToolbarSearchInput } from '../../../components/ui/ToolbarSearchInput';
 import { ViewModeToggle } from '../../../components/ui/ViewModeToggle';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -21,6 +22,7 @@ import type { Serie } from '../../../lib/database';
 import { SeriesMobileScreen } from '../../../mobile/screens/settings/SeriesMobileScreen';
 import { generateUUID } from '../../../utils/uuid';
 import { PreferenciasSeries, ResultadoDaLista } from '../components/series-list/SeriesListResultado';
+import { SerieCreateModal, type SerieCreateModalTarget } from '../components/SerieCreateModal';
 import { useSeriesLista, type SeriesListaModelo } from '../hooks/useSeriesLista';
 import { PILAR_PRESET_CORES } from '../lib/pilarConstants';
 import { isSerieColorTaken, nextFreeSerieColor, serieColorKey, takenSerieColorKeys } from '../lib/serieColors';
@@ -31,7 +33,8 @@ export function SeriesSettingsPage() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const modelo = useSeriesLista();
+  const [modalTarget, setModalTarget] = useState<SerieCreateModalTarget | null>(null);
+  const modelo = useSeriesLista(setModalTarget);
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
   const [quickName, setQuickName] = useState('');
   const [quickColor, setQuickColor] = useState(() => nextFreeSerieColor([]));
@@ -89,13 +92,23 @@ export function SeriesSettingsPage() {
     />
   );
 
+  const createModals = (
+    <>
+      {quickSheet}
+      <SerieCreateModal
+        target={modalTarget}
+        onClose={() => setModalTarget(null)}
+      />
+    </>
+  );
+
   if (isMobile) {
     return (
       <>
         <div className="min-h-full bg-[var(--bg-primary)]">
-          <SeriesMobileScreen modelo={modelo} onCreate={criarSerie} onCreateFamilia={() => navigate('/series/novo?tipo=familia')} />
+          <SeriesMobileScreen modelo={modelo} onCreate={criarSerie} onCreateFamilia={() => setModalTarget({ tipo: 'familia' })} />
         </div>
-        {quickSheet}
+        {createModals}
       </>
     );
   }
@@ -108,68 +121,75 @@ export function SeriesSettingsPage() {
           title="Séries e quadros"
           meta="Organize seus conteúdos recorrentes."
           actions={[
-            <AppButton key="familia" variant="secondary" onClick={() => navigate('/series/novo?tipo=familia')} leftIcon={<Plus className="h-4 w-4" />}>
-              Criar família
-            </AppButton>,
+            <MoreMenu key="mais" items={[{ id: 'criar-familia', label: 'Criar família', onClick: () => setModalTarget({ tipo: 'familia' }) }]} />,
             <AppButton key="serie" variant="primary" onClick={criarSerie} leftIcon={<Plus className="h-4 w-4" />}>
               Criar série
             </AppButton>,
           ]}
         />
       }
+      toolbar={
+        modelo.total > 0 ? (
+          <PageToolbar
+            filters={
+              <FilterBar
+                searchValue={modelo.filtros.busca}
+                onSearchChange={valor => modelo.atualizarFiltro('busca', valor)}
+                searchPlaceholder="Buscar séries e quadros"
+                filters={[
+                  {
+                    id: 'tipo',
+                    label: 'Tipo',
+                    value: modelo.filtros.tipo,
+                    emptyValue: 'todos',
+                    onChange: valor => modelo.atualizarFiltro('tipo', valor as FiltroTipoLista),
+                    options: modelo.opcoesTipo,
+                  },
+                  {
+                    id: 'pilar',
+                    label: 'Pilar',
+                    value: modelo.filtros.pilar,
+                    emptyValue: 'todos',
+                    onChange: valor => modelo.atualizarFiltro('pilar', valor),
+                    options: modelo.opcoesPilar,
+                  },
+                  {
+                    id: 'situacao',
+                    label: 'Situação',
+                    value: modelo.filtros.situacao,
+                    emptyValue: 'ativas',
+                    onChange: valor => modelo.atualizarFiltro('situacao', valor as FiltroSituacao),
+                    options: modelo.opcoesSituacao,
+                  },
+                ]}
+              />
+            }
+            view={
+              <ViewModeToggle<VistaLista>
+                ariaLabel="Ver como"
+                value={modelo.filtros.vista}
+                onChange={vista => modelo.atualizarFiltro('vista', vista)}
+                options={[
+                  { value: 'cards', label: 'Cards', icon: LayoutGrid },
+                  { value: 'lista', label: 'Lista', icon: List },
+                ]}
+              />
+            }
+          />
+        ) : undefined
+      }
     >
       <SeriesListaDesktop modelo={modelo} onCreate={criarSerie} />
-      {quickSheet}
+      {createModals}
     </PageLayout>
   );
 }
 
 function SeriesListaDesktop({ modelo, onCreate }: { modelo: SeriesListaModelo; onCreate: () => void }) {
-  const { filtros, atualizarFiltro, lista } = modelo;
   const rolagem = useScrollMemory('criaki:series:lista', modelo.status === 'ready');
 
   return (
     <div ref={rolagem} className="stack-lg">
-      {modelo.total > 0 ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <ToolbarSearchInput
-            value={filtros.busca}
-            onChange={valor => atualizarFiltro('busca', valor)}
-            placeholder="Buscar séries e quadros"
-            className="min-w-[14rem] flex-1"
-          />
-          <SelectField
-            ariaLabel="Tipo"
-            prefix="Tipo:"
-            value={filtros.tipo}
-            onChange={valor => atualizarFiltro('tipo', valor as FiltroTipoLista)}
-            options={modelo.opcoesTipo}
-          />
-          <SelectField
-            ariaLabel="Pilar"
-            prefix="Pilar:"
-            value={filtros.pilar}
-            onChange={valor => atualizarFiltro('pilar', valor)}
-            options={modelo.opcoesPilar}
-          />
-          <SelectField
-            ariaLabel="Situação"
-            value={filtros.situacao}
-            onChange={valor => atualizarFiltro('situacao', valor as FiltroSituacao)}
-            options={modelo.opcoesSituacao}
-          />
-          <ViewModeToggle<VistaLista>
-            ariaLabel="Ver como"
-            value={filtros.vista}
-            onChange={vista => atualizarFiltro('vista', vista)}
-            options={[
-              { value: 'cards', label: 'Cards', icon: LayoutGrid },
-              { value: 'lista', label: 'Lista', icon: List },
-            ]}
-          />
-        </div>
-      ) : null}
-
       <PreferenciasSeries preferencias={modelo.preferencias} />
 
       <QueryViewState

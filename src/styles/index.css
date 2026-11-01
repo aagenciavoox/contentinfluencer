@@ -102,19 +102,19 @@
   --text-h3: 1.25rem;       /* 20 */
   --text-body: var(--font-size-callout);
   --text-small: var(--font-size-footnote);
-  --text-meta: var(--font-size-footnote); /* 13 — 12px deixava a tela quase toda em letra miúda */
+  --text-meta: var(--font-size-footnote); /* 13 no celular; no desktop vira 12 (escala de 01/11, mais abaixo) */
   --font-size-page-title-mobile: 1.125rem;                 /* 18 — compact mobile chrome */
   --font-size-page-title-desktop: 1.5rem;                      /* 24 */
   --font-size-section-title-mobile: var(--font-size-body-reading); /* 17 */
-  --font-size-section-title-desktop: var(--font-size-title-3);  /* 20 */
+  --font-size-section-title-desktop: 1.125rem;                 /* 18 */
   --font-size-item-title: 0.875rem;                             /* 14 mobile list cards */
-  --font-size-item-title-desktop: 0.9375rem;                   /* 15 */
+  --font-size-item-title-desktop: 1rem;                        /* 16 — título de card no desktop */
   --font-size-panel-section: 0.875rem;                          /* 14 */
   --font-size-label-mobile: var(--font-size-caption);
   --font-size-label-desktop: var(--font-size-caption);
   --font-size-body: var(--font-size-callout);                   /* 15 UI */
   --font-size-body-mobile: var(--font-size-callout);            /* 15 UI */
-  --font-size-secondary: var(--font-size-footnote);             /* 13 */
+  --font-size-secondary: var(--font-size-caption);              /* 12 — só desktop; o celular usa -mobile */
   --font-size-secondary-mobile: var(--font-size-footnote);      /* 13 */
   --font-size-button: var(--font-size-footnote);
   --font-size-button-mobile: var(--font-size-footnote);
@@ -529,18 +529,14 @@ body.mobile-burst-open > [data-burst-portal] {
   padding-top: max(1.25rem, env(safe-area-inset-top));
 }
 
-/* Floating bottom nav pill (browser + PWA). */
+/* Barra inferior do celular (navegador e PWA): faixa inteira colada na base, cinco colunas iguais.
+   A área segura de baixo fica dentro da barra, abaixo da fileira de 56px. */
 .mobile-bottom-nav {
-  padding-left: 1rem;
-  padding-right: 1rem;
-  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
-}
-
-.mobile-bottom-nav-pill {
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--border-color);
-  background: var(--bg-secondary);
-  box-shadow: var(--shadow-dropdown);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: max(0.25rem, env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-elevated);
 }
 
 /* Global Form Elements Branding */
@@ -731,7 +727,18 @@ input.caption-locked:focus {
   text-size-adjust: 100%;
 }
 
+/* Escala do desktop (01/11): título 24, seção 18, card 16, corpo 14 com entrelinha 1,5, legenda 12.
+   O celular fica com a escala de cima até a decisão D3 do plano do design system. */
 @media (min-width: 1024px) {
+  :root {
+    --font-size-body: 0.875rem;
+    --text-meta: var(--font-size-caption);
+  }
+
+  body {
+    line-height: 1.5;
+  }
+
   .t-page-title {
     font-size: var(--font-size-page-title-desktop);
     font-weight: 700;
@@ -756,7 +763,7 @@ input.caption-locked:focus {
   .t-body,
   .t-body-strong {
     font-size: var(--font-size-body);
-    line-height: 1.55;
+    line-height: 1.5;
   }
 
   .t-secondary {
@@ -1482,14 +1489,6 @@ textarea.property-input {
   box-shadow: none;
 }
 
-.desktop-toolbar-surface {
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--bg-elevated) 78%, transparent);
-  box-shadow: none;
-  backdrop-filter: blur(12px);
-}
-
 .filter-select {
   min-height: 2.25rem;
   border: 1px solid var(--border-input);
@@ -1809,7 +1808,7 @@ input[type="search"]::-webkit-search-results-decoration {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: var(--space-sm);
   width: 100%;
 }
@@ -1907,42 +1906,6 @@ input[type="search"]::-webkit-search-results-decoration {
   box-shadow: var(--shadow-soft);
 }
 
-.library-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-  width: 100%;
-}
-
-.library-toolbar-tabs {
-  display: flex;
-  flex-shrink: 0;
-  gap: 2px;
-  border-radius: 8px;
-  background: var(--bg-hover);
-  padding: 2px;
-}
-
-.library-toolbar-tab {
-  border-radius: 6px;
-  padding: 0 10px;
-  min-height: 36px;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  transition: all 0.15s ease;
-  white-space: nowrap;
-}
-
-.library-toolbar-tab-active {
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  box-shadow: var(--shadow-soft);
-}
-
 .library-toolbar-filters {
   width: 100%;
   min-width: 0;
@@ -1982,6 +1945,7 @@ input[type="search"]::-webkit-search-results-decoration {
 .desktop-header-frame-wide,
 .desktop-header-frame-book,
 .desktop-header-frame-full,
+.desktop-controls-frame,
 .desktop-content-frame,
 .desktop-content-frame-wide,
 .desktop-content-frame-book {
@@ -2001,6 +1965,15 @@ input[type="search"]::-webkit-search-results-decoration {
   padding-bottom: var(--space-xl);
 }
 
+.desktop-page-header-shell--with-controls .desktop-header-frame {
+  padding-bottom: var(--space-md);
+}
+
+.desktop-controls-frame {
+  padding-top: var(--space-md);
+  padding-bottom: var(--space-md);
+}
+
 .desktop-content-frame,
 .desktop-content-frame-wide,
 .desktop-content-frame-book {
@@ -2013,7 +1986,7 @@ input[type="search"]::-webkit-search-results-decoration {
 }
 
 .desktop-page-header-crumb {
-  font-size: var(--font-size-footnote);
+  font-size: var(--font-size-caption);
   font-weight: 500;
   line-height: 1.2;
   color: var(--text-secondary);
@@ -2051,52 +2024,40 @@ input[type="search"]::-webkit-search-results-decoration {
   align-items: center;
 }
 
-.desktop-subheader {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-  margin-bottom: var(--space-xl);
-}
-
-.desktop-subheader .filter-bar {
-  width: auto;
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.desktop-subheader-search {
-  flex: 1 1 auto;
-  width: 100%;
-  min-width: 0;
-  max-width: 320px;
-}
-
 /* Shell-coupled desktop chrome — min-width matches --bp-lg / SHELL switch */
 @media (min-width: 1024px) {
+  /* Cabeçalho branco com uma linha fina embaixo, sobre o fundo cinza da página (decidido em 01/11).
+     Com barra de controles, título e barra formam um bloco branco só, e a linha fica embaixo da barra. */
+  .desktop-page-header-shell {
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+  }
+
+  .desktop-page-header-shell--with-controls {
+    border-bottom: 0;
+  }
+
   .desktop-header-sticky {
     position: sticky;
     top: 0;
     z-index: 20;
     border-bottom: 1px solid var(--border-color);
-    background: color-mix(in srgb, var(--bg-secondary) 90%, transparent);
-    backdrop-filter: blur(16px);
-    box-shadow: 0 12px 30px rgba(36, 37, 34, 0.05);
+    background: color-mix(in srgb, var(--bg-secondary) 88%, transparent);
+    backdrop-filter: blur(12px);
   }
 
-  /* Cabeçalho alto (capa + abas) rola com a página; fica só a linha de baixo. */
+  /* Controles estáticos quando sticky está desativado: continuam no bloco branco. */
   .desktop-header-sticky.desktop-header-static {
     position: static;
-    background: transparent;
+    background: var(--bg-secondary);
     backdrop-filter: none;
-    box-shadow: none;
   }
 
   .desktop-header-frame,
   .desktop-header-frame-wide,
   .desktop-header-frame-book,
   .desktop-header-frame-full,
+  .desktop-controls-frame,
   .desktop-content-frame,
   .desktop-content-frame-wide,
   .desktop-content-frame-book {
@@ -2132,12 +2093,10 @@ input[type="search"]::-webkit-search-results-decoration {
   }
 
   .filter-bar-controls {
-    flex-wrap: nowrap;
-    overflow-x: auto;
+    flex-wrap: wrap;
   }
 
-  .filter-bar-search,
-  .desktop-subheader-search {
+  .filter-bar-search {
     flex: 0 1 auto;
     width: min(100%, 320px);
     max-width: 320px;
@@ -2156,6 +2115,22 @@ input[type="search"]::-webkit-search-results-decoration {
   .library-toolbar-filters .filter-bar-search,
   .library-toolbar-add {
     min-height: 40px;
+  }
+
+  /* No desktop toda busca tem 40px contando a borda, inclusive a compacta (barras e diálogos).
+     Antes o campo de 40px somava a borda do contorno e a caixa ficava com 42px. */
+  .filter-bar-search,
+  .filter-bar-search--compact {
+    height: var(--control-height);
+    min-height: var(--control-height);
+    max-height: var(--control-height);
+  }
+
+  .filter-bar-search input.filter-bar-search-input,
+  .filter-bar-search--compact input.filter-bar-search-input {
+    height: 100%;
+    min-height: 0;
+    font-size: 0.875rem;
   }
 }
 
@@ -2249,7 +2224,7 @@ html.mobile-app-shell .mobile-shell-scroll--header main > .desktop-content-frame
    área segura) mais um respiro. Elemento real, e não padding do <main>, porque o WebKit
    ignora o padding-bottom de contêiner rolável em alguns layouts. */
 .mobile-shell-bottom-spacer {
-  height: calc(3.25rem + max(0.75rem, env(safe-area-inset-bottom, 0px)) + var(--space-xl));
+  height: calc(3.5rem + 1px + max(0.25rem, env(safe-area-inset-bottom, 0px)) + var(--space-xl));
   flex-shrink: 0;
 }
 

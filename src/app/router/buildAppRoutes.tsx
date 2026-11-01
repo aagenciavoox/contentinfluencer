@@ -2,6 +2,7 @@ import { lazy } from 'react';
 import { Navigate, useLocation, useParams, type RouteObject } from 'react-router-dom';
 import { AppShell } from '../../layouts/app/AppShell';
 import { CampanhaPublicaPage } from '../../features/projects/pages/CampanhaPublicaPage';
+import { MenuMobileScreen } from '../../mobile/screens/menu/MenuMobileScreen';
 import { LoginRoute, RequireAuth } from './RequireAuth';
 import { ModuleRoute } from './ModuleRoute';
 import { RouteDataBoundary } from './RouteDataBoundary';
@@ -179,6 +180,8 @@ export function buildAppRoutes(): RouteObject[] {
                     </ModuleRoute>
                   ),
                 },
+                // Aba Menu da barra inferior do celular; no desktop volta para Criação.
+                { path: '/menu', element: <MenuMobileScreen /> },
                 { path: '/configuracoes', element: <Settings /> },
                 { path: '/configuracoes/perfil', element: <PerfilSettings /> },
                 { path: '/configuracoes/pilares', element: <Navigate to="/editorial" replace /> },

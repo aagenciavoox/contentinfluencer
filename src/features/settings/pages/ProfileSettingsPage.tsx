@@ -38,7 +38,7 @@ function SectionCard({
 }) {
   return (
     <section className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-6">
-      <div className="mb-5 flex items-center gap-4">
+      <div className="mb-4 flex items-center gap-4">
         <div className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--bg-hover)] p-3 text-[var(--text-primary)]">
           <Icon className="h-5 w-5" />
         </div>

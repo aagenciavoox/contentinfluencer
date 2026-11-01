@@ -2,7 +2,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { cn } from '../../../lib/utils';
 
-type LibrarySection = 'collection' | 'analysis';
+type LibrarySection = 'collection' | 'analysis' | 'annotations';
 
 interface LibrarySectionTabsProps {
   className?: string;
@@ -11,18 +11,27 @@ interface LibrarySectionTabsProps {
 const OPTIONS = [
   { id: 'collection', label: 'Acervo' },
   { id: 'analysis', label: 'Panorama' },
+  { id: 'annotations', label: 'Anotações' },
 ] satisfies Array<{ id: LibrarySection; label: string }>;
+
+const SECTION_ROUTES: Record<LibrarySection, string> = {
+  collection: '/biblioteca',
+  analysis: '/biblioteca/analise',
+  annotations: '/biblioteca/anotacoes',
+};
 
 export function LibrarySectionTabs({ className }: LibrarySectionTabsProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const activeSection: LibrarySection = location.pathname === '/biblioteca/analise'
     ? 'analysis'
-    : 'collection';
+    : location.pathname === '/biblioteca/anotacoes'
+      ? 'annotations'
+      : 'collection';
 
   const handleChange = (section: LibrarySection) => {
     if (section === activeSection) return;
-    navigate(section === 'analysis' ? '/biblioteca/analise' : '/biblioteca');
+    navigate(SECTION_ROUTES[section]);
   };
 
   return (

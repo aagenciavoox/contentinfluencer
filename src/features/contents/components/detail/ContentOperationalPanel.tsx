@@ -5,7 +5,8 @@ import {getDay, parseISO} from 'date-fns';
 import {CalendarClock, ChevronDown, Clock, ExternalLink, ImageIcon, Layers, ListChecks, Palette, Sun, Target, Video, Zap} from 'lucide-react';
 import type {Content, EnergiaNivel, Pilar, Serie, Temporada} from '../../../../lib/database';
 import {escopoTemporadas, temporadaNoEscopo, temporadasDoEscopo} from '../../../editorial/lib/temporadas';
-import {caminhoDaSerie} from '../../../editorial/lib/serieArvore';
+import {caminhoDaSerie, filhosDaSerie} from '../../../editorial/lib/serieArvore';
+import {tipoDaSerie} from '../../../settings/lib/serieAgrupamento';
 import {AvisoTrocaSerieModal} from './DerivarConteudoDialog';
 import {VISUAL_FORMATS, getVisualFormatLabel} from '../../../../constants';
 import {
@@ -556,18 +557,36 @@ export function ContentOperationalPanel({
     setOpenSection(current => (current === id ? null : id));
   };
 
+  const tipoLinked = linkedSerie ? tipoDaSerie(linkedSerie.id, series) : null;
+  const seriePrincipal = tipoLinked === 'quadro' && linkedSerie?.parentId
+    ? series.find(item => item.id === linkedSerie.parentId) ?? linkedSerie
+    : linkedSerie;
+  const quadrosDaSerie = seriePrincipal
+    ? filhosDaSerie(seriePrincipal.id, series)
+        .map(no => series.find(item => item.id === no.id))
+        .filter((item): item is Serie => Boolean(item && tipoDaSerie(item.id, series) === 'quadro'))
+    : [];
+  const seriesPrincipais = series.filter(item => {
+    const t = tipoDaSerie(item.id, series);
+    return t === 'serie' || item.id === seriePrincipal?.id;
+  });
+
   const aplicarSerie = (serieId: string | null) => {
+    const manterTemporada = Boolean(
+      draft.temporadaId && serieId && temporadaNoEscopo(draft.temporadaId, serieId, series, temporadas),
+    );
     onChange({
       ...aplicarEscolhasDaSerie(
         draft,
         serieId ? series.find(serie => serie.id === serieId) ?? null : null,
+        series,
       ),
-      temporadaId: null,
+      temporadaId: manterTemporada ? draft.temporadaId : null,
     });
   };
 
   const pedirTrocaSerie = (serieId: string | null) => {
-    const atual = draft.seriesId ?? null;
+    const atual = seriePrincipal?.id ?? null;
     if (atual && atual !== serieId) {
       setSeriePendenteId(serieId);
       return;
@@ -582,18 +601,33 @@ export function ContentOperationalPanel({
     <PropertySection label="Propriedades">
       <PropertyRow label="Série" icon={<Layers />}>
         <PropertySelect
-          value={draft.seriesId ?? ''}
+          value={seriePrincipal?.id ?? ''}
           onChange={event => pedirTrocaSerie(event.target.value || null)}
-          className={emptySelect(draft.seriesId)}
+          className={emptySelect(seriePrincipal?.id)}
         >
           <option value="">Selecionar série…</option>
-          {series.map(serie => (
+          {seriesPrincipais.map(serie => (
             <option key={serie.id} value={serie.id}>
               {serie.name}
             </option>
           ))}
         </PropertySelect>
       </PropertyRow>
+
+      {seriePrincipal && quadrosDaSerie.length > 0 ? (
+        <PropertyRow label="Quadro" icon={<Layers />}>
+          <PropertySelect
+            value={tipoLinked === 'quadro' && linkedSerie ? linkedSerie.id : ''}
+            onChange={event => aplicarSerie(event.target.value || seriePrincipal.id)}
+            className={emptySelect(tipoLinked === 'quadro' ? linkedSerie?.id : null)}
+          >
+            <option value="">Sem quadro</option>
+            {quadrosDaSerie.map(quadro => (
+              <option key={quadro.id} value={quadro.id}>{quadro.name}</option>
+            ))}
+          </PropertySelect>
+        </PropertyRow>
+      ) : null}
 
       {caminhoSerie && caminhoSerie.includes(' · ') ? (
         <Text variant="meta" as="p" className="px-1 text-[var(--text-secondary)]">

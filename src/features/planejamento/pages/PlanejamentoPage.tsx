@@ -12,6 +12,7 @@ import {
 import {AppButton} from '../../../components/ui/AppButton';
 import {Badge} from '../../../components/ui/Badge';
 import {MoreMenu, type MoreMenuItem} from '../../../components/ui/MoreMenu';
+import {PageToolbar} from '../../../components/ui/PageToolbar';
 import {Surface} from '../../../components/ui/Surface';
 import {TagSelect} from '../../../components/ui/TagSelect';
 import {Text} from '../../../components/ui/Text';
@@ -697,24 +698,8 @@ export function PlanejamentoPage() {
           title="Planejamento"
           actions={(
             <>
-              {!isMobile && selectedIds.size > 0 ? (
-                <AppButton variant="ghost" size="sm" onClick={clearSelection}>
-                  Limpar
-                </AppButton>
-              ) : null}
-              {!isMobile && selectedIds.size > 0 ? (
-                <AppButton
-                  variant="secondary"
-                  size="sm"
-                  leftIcon={<Trash2 className="h-4 w-4" />}
-                  onClick={removeSelected}
-                >
-                  {selectedIds.size === 1 ? 'Apagar 1' : `Apagar ${selectedIds.size}`}
-                </AppButton>
-              ) : null}
-              <AppButton variant="secondary" leftIcon={<StickyNote className="h-4 w-4" />} onClick={() => addEmpty(null)}>
-                Novo post-it
-              </AppButton>
+              {/* No cabeçalho só a ação principal; as outras ficam no ⋯ e a Prioridade e metas vai para a barra. */}
+              <MoreMenu items={[{id: 'novo-post-it', label: 'Novo post-it', onClick: () => addEmpty(null)}]} />
               <AppButton
                 variant="primary"
                 leftIcon={<Plus className="h-4 w-4" />}
@@ -727,13 +712,50 @@ export function PlanejamentoPage() {
               </AppButton>
             </>
           )}
-        >
-          {!isMobile && selectedIds.size > 0 ? (
-            <Text variant="meta" className="text-[var(--text-secondary)]">
-              {selectedIds.size === 1 ? '1 post-it selecionado.' : `${selectedIds.size} post-its selecionados.`} Arraste um deles para mover todos. Apagar remove todos.
-            </Text>
-          ) : null}
-        </DesktopPageHeader>
+        />
+      )}
+      toolbar={(
+        <PageToolbar
+          leading={(
+            <CalendarPeriodNav
+              anchorDate={month}
+              onAnchorDateChange={setMonth}
+              viewMode={vista}
+              onViewModeChange={mode => setVista(mode)}
+              weekViewId="semana"
+              views={[
+                {id: 'semana' as const, label: 'Semana'},
+                {id: 'mes' as const, label: 'Mês'},
+              ]}
+            />
+          )}
+          view={(
+            <>
+              {assuntosDoPlanejamento.length > 0 ? (
+                <SelectField
+                  ariaLabel="Destacar por assunto"
+                  prefix="Assunto:"
+                  value={assuntoFiltro?.id ?? 'todos'}
+                  onChange={value => setAssuntoFiltroId(value === 'todos' ? null : value)}
+                  selected={Boolean(assuntoFiltro)}
+                  options={[
+                    {value: 'todos', label: 'Todos'},
+                    ...assuntosDoPlanejamento.map(tema => ({value: tema.id, label: tema.nome})),
+                  ]}
+                />
+              ) : null}
+              <AppButton
+                variant="secondary"
+                aria-expanded={direcaoAberta}
+                aria-controls="direcao-periodo-planejamento"
+                rightIcon={<ChevronDown className={cn('h-4 w-4 transition-transform', direcaoAberta && 'rotate-180')} />}
+                onClick={() => setDirecaoAberta(atual => !atual)}
+              >
+                Prioridade e metas
+              </AppButton>
+            </>
+          )}
+        />
       )}
     >
       {isMobile ? (
@@ -781,48 +803,6 @@ export function PlanejamentoPage() {
       ) : (
         // Sem padding lateral próprio: o frame já dá a margem, e assim o conteúdo alinha com o título.
         <div className="stack-md pt-4 pb-8">
-        {/* Uma linha só: navegação à esquerda, filtros e atalhos à direita. */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="min-w-0 shrink-0">
-            <CalendarPeriodNav
-              anchorDate={month}
-              onAnchorDateChange={setMonth}
-              viewMode={vista}
-              onViewModeChange={mode => setVista(mode)}
-              weekViewId="semana"
-              views={[
-                {id: 'semana' as const, label: 'Semana'},
-                {id: 'mes' as const, label: 'Mês'},
-              ]}
-            />
-          </div>
-          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-            <AppButton
-              variant={direcaoAberta ? 'secondary' : 'ghost'}
-              size="sm"
-              aria-expanded={direcaoAberta}
-              aria-controls="direcao-periodo-planejamento"
-              rightIcon={<ChevronDown className={cn('h-4 w-4 transition-transform', direcaoAberta && 'rotate-180')} />}
-              onClick={() => setDirecaoAberta(atual => !atual)}
-            >
-              Prioridade e metas
-            </AppButton>
-            {assuntosDoPlanejamento.length > 0 ? (
-              <SelectField
-                ariaLabel="Destacar por assunto"
-                prefix="Assunto:"
-                value={assuntoFiltro?.id ?? 'todos'}
-                onChange={value => setAssuntoFiltroId(value === 'todos' ? null : value)}
-                selected={Boolean(assuntoFiltro)}
-                options={[
-                  {value: 'todos', label: 'Todos'},
-                  ...assuntosDoPlanejamento.map(tema => ({value: tema.id, label: tema.nome})),
-                ]}
-              />
-            ) : null}
-          </div>
-        </div>
-
         {direcaoAberta ? (
           <div id="direcao-periodo-planejamento" className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-4">
             <PeriodoPanel
@@ -861,6 +841,27 @@ export function PlanejamentoPage() {
           onVerPautas={verPautasDoAviso}
           onLimparDestaque={limparDestaque}
         />
+
+        {selectedIds.size > 0 ? (
+          <Surface variant="outlined" padding="sm" className="flex flex-wrap items-center justify-between gap-3">
+            <Text variant="meta" className="text-[var(--text-secondary)]">
+              {selectedIds.size === 1 ? '1 post-it selecionado.' : `${selectedIds.size} post-its selecionados.`} Arraste um deles para mover todos.
+            </Text>
+            <div className="flex flex-wrap items-center gap-2">
+              <AppButton
+                variant="secondary"
+                size="sm"
+                leftIcon={<Trash2 className="h-4 w-4" />}
+                onClick={removeSelected}
+              >
+                {selectedIds.size === 1 ? 'Apagar 1' : `Apagar ${selectedIds.size}`}
+              </AppButton>
+              <AppButton variant="ghost" size="sm" onClick={clearSelection}>
+                Sair da seleção
+              </AppButton>
+            </div>
+          </Surface>
+        ) : null}
 
         <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_17rem] xl:items-start 2xl:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="stack-md min-w-0">

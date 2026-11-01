@@ -11,6 +11,7 @@ import {
   Columns3,
   Library,
   ListVideo,
+  Menu as MenuIcon,
   PenLine,
   SunMedium,
 } from 'lucide-react';
@@ -46,16 +47,19 @@ export const STUDIO_ROUTES = [
   '/editorial',
 ] as const;
 
+/** Tela Menu do celular: o resto do app, fora das abas da barra inferior. */
+export const MOBILE_MENU_ROUTE = '/menu';
+
 /** Left side of mobile bottom nav (before FAB). */
 export const MOBILE_BOTTOM_NAV_LEFT: NavItemDefinition[] = [
-  { to: '/hoje', label: 'Hoje', icon: SunMedium },
   { to: '/criacao', label: 'Criação', icon: PenLine, badgeKey: 'editorial' },
+  { to: '/biblioteca', label: 'Biblioteca', icon: Library, badgeKey: 'library', module: 'library' },
 ];
 
 /** Right side of mobile bottom nav (after FAB). */
 export const MOBILE_BOTTOM_NAV_RIGHT: NavItemDefinition[] = [
-  { to: '/biblioteca', label: 'Biblioteca', icon: Library, badgeKey: 'library', module: 'library' },
   { to: '/gravacao?tab=queue', label: 'Gravação', icon: Clapperboard, module: 'recording' },
+  { to: MOBILE_MENU_ROUTE, label: 'Menu', icon: MenuIcon },
 ];
 
 /** @deprecated Use MOBILE_BOTTOM_NAV_LEFT + MOBILE_BOTTOM_NAV_RIGHT */
@@ -139,13 +143,38 @@ export function isNavItemActive(to: string, pathname: string): boolean {
   return pathMatches(pathname, target);
 }
 
-/** Bottom nav keeps Criação highlighted on `/criacao/legendas` and `/criacao/transcricao`. */
+/**
+ * Bottom nav keeps Criação highlighted on `/criacao/legendas` and `/criacao/transcricao`.
+ * Menu fica marcado em toda tela que não pertence às outras abas (Hoje, Calendário, Planejamento…),
+ * para sempre haver uma aba marcada.
+ */
 export function isBottomNavItemActive(to: string, pathname: string): boolean {
   const target = to.split('?')[0];
+  if (target === MOBILE_MENU_ROUTE) {
+    return !MOBILE_BOTTOM_NAV_ITEMS
+      .filter(item => item.to !== MOBILE_MENU_ROUTE)
+      .some(item => isBottomNavItemActive(item.to, pathname));
+  }
   if (target === '/criacao') {
     return pathMatches(pathname, '/criacao') || pathMatches(pathname, '/conteudos');
   }
   return isNavItemActive(to, pathname);
+}
+
+/**
+ * Seções da tela Menu: as mesmas do menu do desktop, sem o que já está na barra inferior.
+ * Subitens (Legendas, Transcrição) sobem para a seção, já que o pai (Criação) é uma aba.
+ */
+export function buildMobileMenuSections(moduleFlags: ModuleFlags): NavSectionDefinition[] {
+  const barTargets = new Set(MOBILE_BOTTOM_NAV_ITEMS.map(item => item.to));
+  return buildSidebarSections(moduleFlags)
+    .map(section => ({
+      label: section.label,
+      items: section.items
+        .flatMap(item => (barTargets.has(item.to) ? item.nested ?? [] : [item, ...(item.nested ?? [])]))
+        .filter(item => !barTargets.has(item.to) && !isNavItemHidden(item, moduleFlags)),
+    }))
+    .filter(section => section.items.length > 0);
 }
 
 export function buildSidebarSections(moduleFlags: ModuleFlags): NavSectionDefinition[] {

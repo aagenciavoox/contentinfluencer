@@ -14,7 +14,19 @@
 
 ## Status de execução
 
-Nada iniciado. Nenhum arquivo de código foi alterado na análise.
+**01/11 — Fase 5.1 a 5.5 implementadas** (não commitadas), com o nome **Menu** (ícone ☰), a pedido, no lugar de "Mais":
+- **Barra inferior:** Criação · Biblioteca · [+] · Gravação · Menu, nas medidas da referência enviada:
+  - faixa inteira colada na base, cinco colunas iguais;
+  - ícone de 24px e rótulo de 12px;
+  - traço de 2px no topo da aba ativa;
+  - botão + de 52px sem rótulo (nome acessível "Criar").
+- **Tela `/menu`:** perfil no topo, as seções do menu do desktop sem o que já está na barra, e o grupo Conta (Configurações, Tema escuro, Sair). No desktop, `/menu` volta para Criação.
+- **Cabeçalho:** o ☰ e a gaveta lateral saíram (`MobileSidebarDrawer` apagado). Nas abas, o cabeçalho não tem botão à esquerda. As telas abertas pelo Menu têm Voltar para `/menu`, e a aba Menu fica marcada nelas.
+- **Hoje:** o círculo com a inicial abre o Perfil.
+- **Decisões:** M6 = página; M7 = seções do menu do desktop (Criação, Produção) mais Conta.
+- **Verificação:** `tsc`, `npm test` e `lint:design` passam. Falta conferir na tela.
+
+As outras fases não foram iniciadas.
 
 ---
 

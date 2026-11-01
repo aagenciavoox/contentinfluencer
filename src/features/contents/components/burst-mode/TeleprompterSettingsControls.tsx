@@ -62,7 +62,7 @@ function SettingsHeaderButton({
 /** "Modo gravação / Configurações" com Restaurar padrões, Fechar (só no desktop) e X. */
 export function SettingsHeader({ onReset, onClose }: { onReset: () => void; onClose: () => void }) {
   return (
-    <header className="flex items-start justify-between gap-4 border-b border-[var(--border-color)] px-5 pb-4 pt-1 md:px-8 md:py-5">
+    <header className="flex items-start justify-between gap-4 border-b border-[var(--border-color)] px-6 pb-4 pt-1 md:px-8 md:py-6">
       <div className="min-w-0">
         <Text variant="secondary" as="p" className="text-[var(--text-tertiary)]">Modo gravação</Text>
         <Text variant="sectionTitle" as="h2" className="mt-1">Configurações</Text>
@@ -115,12 +115,12 @@ export function SettingsCard({
     <section
       aria-labelledby={titleId}
       className={cn(
-        '@container rounded-[var(--radius-card)] border border-[var(--border-color)] p-5 md:p-6',
+        '@container rounded-[var(--radius-card)] border border-[var(--border-color)] p-6 md:p-6',
         subtle ? 'bg-[var(--bg-primary)]' : 'bg-[var(--bg-elevated)]',
         className
       )}
     >
-      <div className="mb-4 flex items-center gap-3 md:mb-5">
+      <div className="mb-4 flex items-center gap-3 md:mb-4">
         <Icon aria-hidden className="h-6 w-6 shrink-0" strokeWidth={1.75} />
         <h3 id={titleId}>
           <Text variant="itemTitle" as="span" className="leading-tight">{title}</Text>
@@ -131,7 +131,7 @@ export function SettingsCard({
           </Text>
         )}
       </div>
-      <div className="space-y-5">{children}</div>
+      <div className="space-y-4">{children}</div>
     </section>
   );
 }
@@ -142,7 +142,7 @@ export function CardDivider() {
 
 export function SettingRow({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2">
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
       <Text variant="body" as="span">{label}</Text>
       {children}
     </div>
@@ -213,7 +213,7 @@ export function SliderRow({
   const fill = clamp(((value - min) / (max - min)) * 100, 0, 100);
 
   return (
-    <div className="flex flex-col gap-2 @[30rem]:flex-row @[30rem]:items-center @[30rem]:gap-5">
+    <div className="flex flex-col gap-2 @[30rem]:flex-row @[30rem]:items-center @[30rem]:gap-4">
       <label htmlFor={id} className={ROW_LABEL}>
         {label}
       </label>
@@ -255,7 +255,7 @@ export function ChoiceRow<T extends string>({
   const labelId = useId();
 
   return (
-    <div className="flex flex-col gap-2 @[30rem]:flex-row @[30rem]:items-center @[30rem]:gap-5">
+    <div className="flex flex-col gap-2 @[30rem]:flex-row @[30rem]:items-center @[30rem]:gap-4">
       <span id={labelId} className={ROW_LABEL}>
         {label}
       </span>

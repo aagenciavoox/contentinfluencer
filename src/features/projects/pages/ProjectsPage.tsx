@@ -318,14 +318,8 @@ export function ProjectsPage() {
           }
         />
       ) : (
-        <>
-          <div className="mb-3 flex items-center gap-2">
-            <span className="eyebrow-label">
-              {projetos.length} {projetos.length === 1 ? 'projeto' : 'projetos'}
-            </span>
-          </div>
-          <div className="grid-content">
-            {projetos.map(projeto => {
+        <div className="grid-content">
+          {projetos.map(projeto => {
               const eventosDoProjeto = state.agendaItems.filter(a => a.projetoId === projeto.id);
               const eventoCount = eventosDoProjeto.length;
               const entrega = entregaDoProjeto(projeto, eventosDoProjeto, hojeKey);
@@ -423,7 +417,6 @@ export function ProjectsPage() {
               );
             })}
           </div>
-        </>
       )}
     </PageLayout>
     {createProjectDialog}

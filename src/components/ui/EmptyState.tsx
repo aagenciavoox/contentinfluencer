@@ -40,7 +40,7 @@ export function EmptyState({
           {description}
         </Text>
       </div>
-      {action ? <div className="mt-5">{action}</div> : null}
+      {action ? <div className="mt-4">{action}</div> : null}
     </div>
   );
 }

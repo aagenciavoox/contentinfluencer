@@ -42,12 +42,16 @@ import {roteirosQueSeguemASerie, type AlteracaoDeRoteiro} from '../../editorial/
 
 function SerieEditHeaderActions({
   isCreate,
+  ativa,
   rotuloSalvar,
+  onToggleAtiva,
   onDelete,
   chrome,
 }: {
   isCreate: boolean;
+  ativa?: boolean;
   rotuloSalvar: string;
+  onToggleAtiva?: () => void;
   onDelete?: () => void;
   chrome: SerieEditChromeState | null;
 }) {
@@ -55,14 +59,22 @@ function SerieEditHeaderActions({
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      {!isCreate && onDelete ? (
+      {!isCreate && (onToggleAtiva || onDelete) ? (
         <MoreMenu
           items={[
-            {
-              label: CONFIRM.excluirSerie.confirmLabel,
-              tone: 'danger',
-              onClick: onDelete,
-            },
+            ...(onToggleAtiva
+              ? [{
+                label: ativa !== false ? 'Arquivar' : 'Reativar',
+                onClick: onToggleAtiva,
+              }]
+              : []),
+            ...(onDelete
+              ? [{
+                label: CONFIRM.excluirSerie.confirmLabel,
+                tone: 'danger' as const,
+                onClick: onDelete,
+              }]
+              : []),
           ]}
         />
       ) : null}
@@ -214,6 +226,18 @@ export function SeriesEditPage() {
     voltarLista();
   };
 
+  const handleToggleAtiva = () => {
+    if (!editingSerie) return;
+    dispatch({
+      type: 'UPDATE_SERIE',
+      payload: {
+        ...editingSerie,
+        ativa: !editingSerie.ativa,
+        updatedAt: new Date().toISOString(),
+      },
+    });
+  };
+
   const lastEditLabel = editingSerie?.updatedAt
     ? `Última edição ${formatDistanceToNow(new Date(editingSerie.updatedAt), {addSuffix: true, locale: ptBR})} por você.`
     : null;
@@ -254,7 +278,7 @@ export function SeriesEditPage() {
       key={formKey}
       tipo={tipo}
       initial={editingSerie ?? {
-        cor: nextFreeSerieColor(state.series),
+        cor: tipo === 'quadro' && serieDoQuadro?.cor ? serieDoQuadro.cor : nextFreeSerieColor(state.series),
         tipoAgrupamento: tipo,
         // Quadro já chega dentro da série; série criada pela família já chega nela.
         parentId: criandoQuadro ? serieId ?? null : familiaInicial,
@@ -284,6 +308,22 @@ export function SeriesEditPage() {
               {rotuloVolta}
             </AppButton>
             <div className="flex items-center gap-2">
+              {!isCreate ? (
+                <MoreMenu
+                  size="sm"
+                  items={[
+                    {
+                      label: editingSerie?.ativa !== false ? 'Arquivar' : 'Reativar',
+                      onClick: handleToggleAtiva,
+                    },
+                    {
+                      label: CONFIRM.excluirSerie.confirmLabel,
+                      tone: 'danger',
+                      onClick: () => setConfirmDelete(true),
+                    },
+                  ]}
+                />
+              ) : null}
               {chrome ? (
                 <>
                   <AppButton variant="secondary" size="sm" onClick={chrome.handleCancel}>
@@ -304,7 +344,7 @@ export function SeriesEditPage() {
           <Text variant="sectionTitle" className="mb-1">
             {pageTitle}
           </Text>
-          <Text variant="meta" className="mb-5 text-[var(--text-secondary)]">
+          <Text variant="meta" className="mb-4 text-[var(--text-secondary)]">
             {pageMeta}
           </Text>
           {formElement}
@@ -356,7 +396,9 @@ export function SeriesEditPage() {
             actions={
               <SerieEditHeaderActions
                 isCreate={isCreate}
+                ativa={editingSerie?.ativa}
                 rotuloSalvar={isCreate ? TITULO_CRIAR[tipo] : 'Salvar alterações'}
+                onToggleAtiva={handleToggleAtiva}
                 onDelete={() => setConfirmDelete(true)}
                 chrome={chrome}
               />

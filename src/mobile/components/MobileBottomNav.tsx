@@ -1,6 +1,6 @@
-import { Text } from '../../components/ui/Text';
 import { Plus } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { Text } from '../../components/ui/Text';
 import { cn } from '../../lib/utils';
 import type { ModuleFlags } from '../../features/settings/lib/moduleFlags';
 import {
@@ -16,6 +16,10 @@ interface MobileBottomNavProps {
   moduleFlags: ModuleFlags;
 }
 
+/**
+ * Coluna da barra: ícone de 24px, rótulo de 12px e um traço de 2px no topo quando ativa.
+ * Ícone e rótulo ativos usam o rosa de texto (≥ 4,5:1); o rosa da marca fica só no traço.
+ */
 function MobileBottomNavItem({
   to,
   label,
@@ -27,32 +31,25 @@ function MobileBottomNavItem({
   return (
     <NavLink
       to={to}
-      aria-label={label}
       aria-current={isActive ? 'page' : undefined}
       className={cn(
-        'relative flex h-full w-full flex-col items-center justify-center gap-0.5 rounded-full',
+        'relative flex h-full min-w-0 flex-col items-center justify-center gap-0.5',
         'touch-manipulation select-none',
         'transition-colors duration-200 motion-reduce:transition-none',
         'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-        // Rosa só no ícone: como texto pequeno ele fica abaixo do contraste mínimo.
-        isActive ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]',
+        isActive ? 'text-[var(--brand-accent-text)]' : 'text-[var(--text-tertiary)]',
       )}
     >
-      <Icon
-        className={cn(
-          'h-6 w-6 shrink-0',
-          isActive ? 'stroke-[2.25] text-[var(--brand-accent)]' : 'stroke-[1.75]',
-        )}
-        aria-hidden
-      />
-      <span
-        className={cn(
-          'whitespace-nowrap text-[length:var(--font-size-nav-mobile)] leading-none',
-          isActive ? '' : '',
-        )}
-      >
+      {isActive ? (
+        <span
+          aria-hidden
+          className="absolute left-1/2 top-0 h-0.5 w-6 -translate-x-1/2 rounded-full bg-[var(--brand-accent)]"
+        />
+      ) : null}
+      <Icon className={cn('h-6 w-6 shrink-0', isActive ? 'stroke-[2.25]' : 'stroke-[1.75]')} aria-hidden />
+      <Text variant="label" as="span" truncate className="max-w-full text-inherit">
         {label}
-      </span>
+      </Text>
     </NavLink>
   );
 }
@@ -67,50 +64,41 @@ export function MobileBottomNav({ onOpenCreateMenu, moduleFlags }: MobileBottomN
   const rightPadding = sideSlots - rightItems.length;
 
   return (
-    <nav
-      aria-label="Navegação principal"
-      className="mobile-bottom-nav pointer-events-none fixed inset-x-0 bottom-0 z-[100] w-full"
-    >
-      <div className="mobile-bottom-nav-inner pointer-events-auto relative mx-auto max-w-md">
-        <div className="mobile-bottom-nav-rail relative h-13">
-          <div
-            className="mobile-bottom-nav-pill grid h-full items-center"
-            style={{ gridTemplateColumns: `repeat(${sideSlots * 2 + 1}, minmax(0, 1fr))` }}
-          >
-            {Array.from({ length: leftPadding }, (_, index) => (
-              <div key={`left-slot-${index}`} aria-hidden />
-            ))}
-            {leftItems.map(item => (
-              <MobileBottomNavItem key={item.to} {...item} />
-            ))}
-            <div aria-hidden />
-            {rightItems.map(item => (
-              <MobileBottomNavItem key={item.to} {...item} />
-            ))}
-            {Array.from({ length: rightPadding }, (_, index) => (
-              <div key={`right-slot-${index}`} aria-hidden />
-            ))}
-          </div>
+    <nav aria-label="Navegação principal" className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-[100]">
+      <div
+        className="mx-auto grid h-14 max-w-md items-stretch"
+        style={{ gridTemplateColumns: `repeat(${sideSlots * 2 + 1}, minmax(0, 1fr))` }}
+      >
+        {Array.from({ length: leftPadding }, (_, index) => (
+          <div key={`left-slot-${index}`} aria-hidden />
+        ))}
+        {leftItems.map(item => (
+          <MobileBottomNavItem key={item.to} {...item} />
+        ))}
 
+        <div className="flex items-center justify-center">
           <button
             type="button"
             aria-label="Criar"
             onClick={onOpenCreateMenu}
             className={cn(
-              'absolute left-1/2 top-1/2 z-10 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2',
-              'flex-col items-center justify-center gap-0.5 rounded-full',
+              'flex h-13 w-13 items-center justify-center rounded-full',
               'bg-[var(--brand-accent-strong)] text-[var(--brand-on-accent)]',
               'touch-manipulation select-none',
               'transition-transform duration-200 motion-reduce:transition-none',
               'active:scale-95 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
             )}
           >
-            <Plus className="h-5 w-5 stroke-[2.5]" aria-hidden />
-            <Text variant="bodyStrong" as="span" className="whitespace-nowrap text-[length:var(--font-size-nav-mobile)] leading-none">
-              Criar
-            </Text>
+            <Plus className="h-6 w-6 stroke-[2.5]" aria-hidden />
           </button>
         </div>
+
+        {rightItems.map(item => (
+          <MobileBottomNavItem key={item.to} {...item} />
+        ))}
+        {Array.from({ length: rightPadding }, (_, index) => (
+          <div key={`right-slot-${index}`} aria-hidden />
+        ))}
       </div>
     </nav>
   );

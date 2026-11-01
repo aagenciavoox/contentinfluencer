@@ -545,9 +545,9 @@ export function LibraryPage() {
           )}
         />
       )}
+      navigation={<LibrarySectionTabs />}
       toolbar={
         <PageToolbar
-          tabs={<LibrarySectionTabs />}
           filters={
             <LibraryToolbar
               searchValue={searchTerm}

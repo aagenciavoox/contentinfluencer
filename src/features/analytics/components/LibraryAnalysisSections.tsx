@@ -155,7 +155,7 @@ export function LibraryConsumptionTable({ analysis, loading, showAllFormats }: {
       <CardHeader
         title="Consumo por formato"
       />
-      <div className="mt-5 overflow-x-auto">
+      <div className="mt-4 overflow-x-auto">
         {loading ? (
           <div className="stack-md" aria-busy="true">
             {['a', 'b', 'c'].map(key => <Skeleton key={key} className="h-9 w-full" />)}
@@ -376,7 +376,7 @@ export function LibraryRatingsCard({ analysis, loading, onRate }: { analysis: Li
           </AppButton>
         </div>
       ) : (
-        <div className="mt-4 flex flex-col gap-5 sm:flex-row sm:items-center">
+        <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center">
           <div className="shrink-0 text-center sm:w-28">
             <p className="text-3xl font-semibold tabular-nums text-[var(--text-primary)]">
               {ratings.average.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}

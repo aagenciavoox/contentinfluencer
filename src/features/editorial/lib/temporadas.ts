@@ -6,6 +6,7 @@ export type Temporada = {
   userId: string;
   serieId: string;
   nome: string;
+  descricao?: string | null;
   createdAt: string;
 };
 

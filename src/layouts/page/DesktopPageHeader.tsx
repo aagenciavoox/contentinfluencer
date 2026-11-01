@@ -18,7 +18,6 @@ interface DesktopPageHeaderProps {
   /** Ao lado do título: contagem ou selo (ex.: "69 publicações"). */
   titleAside?: ReactNode;
   actions?: ReactNode;
-  children?: ReactNode;
   className?: string;
   backLabel?: string;
   backTo?: string;
@@ -36,7 +35,6 @@ export function DesktopPageHeader({
   metaNote,
   titleAside,
   actions,
-  children,
   className,
   backLabel,
   backTo,
@@ -53,7 +51,7 @@ export function DesktopPageHeader({
     'desktop-page-header-crumb desktop-page-header-back transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
   return (
-    <header className={cn('desktop-page-header', className)}>
+    <div className={cn('desktop-page-header', className)}>
       {!hideEyebrow && eyebrow ? (
         hasBack ? (
           backTo ? (
@@ -105,8 +103,6 @@ export function DesktopPageHeader({
           </div>
         ) : null}
       </div>
-
-      {children ? <div className="pt-4">{children}</div> : null}
-    </header>
+    </div>
   );
 }

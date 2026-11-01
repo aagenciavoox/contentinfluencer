@@ -27,7 +27,7 @@ function AppRouter() {
     return (
       <div className="min-h-screen w-full bg-[var(--bg-primary)] text-[var(--text-primary)] flex items-center justify-center p-6">
         <div className="w-full max-w-lg rounded-[var(--radius-card-mobile)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] bg-[var(--bg-secondary)] p-8 shadow-none">
-          <div className="mb-5 inline-flex h-14 w-14 items-center justify-center rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)]">
+          <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)]">
             <AlertTriangle className="h-7 w-7" />
           </div>
           <h1 className="text-2xl font-semibold t-label-uppercase">Backend obrigatório</h1>

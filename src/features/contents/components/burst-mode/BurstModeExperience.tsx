@@ -573,7 +573,7 @@ export function BurstModeExperience({
           type="button"
           aria-label="Fechar modo gravação"
           onClick={handleFinishBlock}
-          className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] px-12 py-5 t-body-strong text-[var(--bg-primary)] shadow-none transition-all hover:scale-105"
+          className="rounded-[var(--radius-card-mobile)] md:rounded-[var(--radius-card)] bg-[var(--text-primary)] px-12 py-6 t-body-strong text-[var(--bg-primary)] shadow-none transition-all hover:scale-105"
         >
           Fechar modo gravação
         </button>

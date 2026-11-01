@@ -20,6 +20,8 @@ type SerieCompletenessFields = Partial<Pick<
   Serie,
   | 'id'
   | 'parentId'
+  | 'tipoAgrupamento'
+  | 'semPilar'
   | 'pilarIds'
   | 'pilarPrincipalId'
   | 'funcaoPadrao'
@@ -43,21 +45,49 @@ export function serieSoAgrupa(
 export function getSerieOpenItems(
   serie: SerieCompletenessFields,
   opts?: {
-    series?: readonly Pick<Serie, 'id' | 'parentId'>[];
+    series?: readonly SerieCompletenessFields[];
     contents?: readonly Pick<Content, 'seriesId' | 'deletedAt'>[];
   },
 ): SerieOpenItem[] {
-  const soAgrupa = opts?.series
-    ? serieSoAgrupa(serie as Pick<Serie, 'id'>, opts.series, opts.contents ?? [])
+  if (serie.tipoAgrupamento === 'familia') return [];
+
+  const pai = serie.parentId && opts?.series
+    ? opts.series.find(item => item.id === serie.parentId) ?? null
+    : null;
+  const paiEhSerie = pai && pai.tipoAgrupamento !== 'familia' ? pai : null;
+
+  const soAgrupa = opts?.series && serie.id
+    ? serieSoAgrupa(
+      { id: serie.id },
+      opts.series.filter((item): item is Pick<Serie, 'id' | 'parentId'> => Boolean(item.id)),
+      opts.contents ?? [],
+    )
     : false;
+
+  const temPilar = Boolean(
+    pilarPrincipalDaSerie(serie)
+    || serie.semPilar
+    || (paiEhSerie && (pilarPrincipalDaSerie(paiEhSerie) || paiEhSerie.semPilar)),
+  );
+  const temFuncao = Boolean(serie.funcaoPadrao || paiEhSerie?.funcaoPadrao);
+  const temFrequencia = Boolean(
+    serie.frequenciaRecomendada?.trim()
+    || paiEhSerie?.frequenciaRecomendada?.trim(),
+  );
+  const temFormato = Boolean(
+    (serie.formatoVisualPadrao ?? []).some(item => item.trim())
+    || (paiEhSerie?.formatoVisualPadrao ?? []).some(item => item.trim()),
+  );
+  const temEnergia = Boolean(serie.energiaPadrao || paiEhSerie?.energiaPadrao);
+
   const missing: SerieOpenItemKey[] = [];
-  if (!pilarPrincipalDaSerie(serie)) missing.push('pilar');
-  if (!serie.funcaoPadrao) missing.push('funcao');
-  if (!serie.frequenciaRecomendada?.trim()) missing.push('frequencia');
+  if (!temPilar) missing.push('pilar');
+  if (!temFuncao) missing.push('funcao');
+  if (!temFrequencia) missing.push('frequencia');
   // Só-agrupadora não cobra modelo, formato nem esforço.
   if (!soAgrupa) {
-    if (!(serie.formatoVisualPadrao ?? []).some(item => item.trim())) missing.push('formato');
-    if (!serie.energiaPadrao) missing.push('energia');
+    if (!temFormato) missing.push('formato');
+    if (!temEnergia) missing.push('energia');
   }
   return missing.map(key => ({ key, label: OPEN_ITEM_LABELS[key] }));
 }

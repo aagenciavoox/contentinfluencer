@@ -104,7 +104,8 @@ export function TranscriptionPage() {
         />
       )}
     >
-      <div className="stack-md">
+      {/* Envio e idioma num cartão só: o idioma vale para os vídeos que entram por ali. */}
+      <Surface padding="md" className="stack-md">
         <TranscriptionDropzone
           compact={hasItems}
           onFiles={files => transcriptionQueue.addFiles(files, language)}
@@ -123,7 +124,7 @@ export function TranscriptionPage() {
         </div>
 
         {isMobile && !hasItems ? <Text variant="meta">{PRIVACY_NOTE}</Text> : null}
-      </div>
+      </Surface>
 
       {queue.pausedMessage ? (
         <Surface padding="md" className="flex flex-wrap items-center justify-between gap-3" role="status">

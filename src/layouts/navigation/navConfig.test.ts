@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
 import {
+  buildMobileMenuSections,
   buildSidebarSections,
   isBottomNavItemActive,
   isNavItemActive,
   isSettingsNavActive,
+  MOBILE_BOTTOM_NAV_LEFT,
+  MOBILE_BOTTOM_NAV_RIGHT,
   splitBottomNavItems,
 } from './navConfig.ts';
 import { DEFAULT_MODULE_FLAGS } from '../../features/settings/lib/moduleFlags.ts';
@@ -156,7 +159,57 @@ function testExactlyOneDesktopItemIsActiveOnRepresentativeRoutes() {
   }
 }
 
+function testBottomNavOrder() {
+  assert.deepEqual(
+    [...MOBILE_BOTTOM_NAV_LEFT, ...MOBILE_BOTTOM_NAV_RIGHT].map(item => item.label),
+    ['Criação', 'Biblioteca', 'Gravação', 'Menu'],
+  );
+}
+
+function testExactlyOneBottomTabIsActive() {
+  const tabs = [...MOBILE_BOTTOM_NAV_LEFT, ...MOBILE_BOTTOM_NAV_RIGHT];
+  const expected: Array<[string, string]> = [
+    ['/criacao', 'Criação'],
+    ['/criacao/legendas', 'Criação'],
+    ['/conteudos/content-1', 'Criação'],
+    ['/biblioteca/analise', 'Biblioteca'],
+    ['/gravacao/block-1', 'Gravação'],
+    ['/menu', 'Menu'],
+    ['/hoje', 'Menu'],
+    ['/calendario', 'Menu'],
+    ['/planejamento', 'Menu'],
+    ['/editorial/pilares/pilar-1', 'Menu'],
+    ['/series/serie-1', 'Menu'],
+    ['/configuracoes/perfil', 'Menu'],
+  ];
+  for (const [pathname, label] of expected) {
+    const active = tabs.filter(tab => isBottomNavItemActive(tab.to, pathname)).map(tab => tab.label);
+    assert.deepEqual(active, [label], `${pathname} should mark only ${label}, got ${active.join(', ') || 'none'}`);
+  }
+}
+
+function testMobileMenuListsWhatIsNotInTheBar() {
+  const sections = buildMobileMenuSections(DEFAULT_MODULE_FLAGS);
+  assert.deepEqual(
+    sections.map(section => [section.label, section.items.map(item => item.label)]),
+    [
+      [null, ['Hoje']],
+      ['Criação', ['Legendas', 'Transcrição', 'Séries e quadros', 'Editorial', 'Análises', 'Contas e horários']],
+      ['Produção', ['Calendário', 'Planejamento', 'Projetos']],
+    ],
+  );
+}
+
+function testMobileMenuHidesDisabledModules() {
+  const sections = buildMobileMenuSections({ ...DEFAULT_MODULE_FLAGS, calendar: false, projects: false });
+  assert.equal(sections.some(section => section.label === 'Produção'), false);
+}
+
 const tests = [
+  ['bottom nav is criacao, biblioteca, gravacao and menu', testBottomNavOrder],
+  ['exactly one bottom tab is active, menu for everything else', testExactlyOneBottomTabIsActive],
+  ['mobile menu lists what is not in the bottom bar', testMobileMenuListsWhatIsNotInTheBar],
+  ['mobile menu hides disabled modules', testMobileMenuHidesDisabledModules],
   ['splits four items evenly around the fab', testSplitsFourItemsEvenly],
   ['splits two items beside the fab', testSplitsTwoItemsBesideFab],
   ['highlights home only on /hoje', testHomeRouteOnlyMatchesHoje],

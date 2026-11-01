@@ -11,7 +11,8 @@ import { useAppContext } from '../../../context/AppContext';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { PillarsMobileScreen } from '../../../mobile/screens/settings/PillarsMobileScreen';
 import { sortPilares } from '../lib/activePilares';
-import { SettingsPageScaffold } from '../../../components/settings/SettingsPageScaffold';
+import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
+import { PageLayout } from '../../../layouts/page/PageLayout';
 import { SettingsGridCard, SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/SettingsGridCard';
 
 export function PillarsSettingsPage() {
@@ -80,19 +81,22 @@ export function PillarsSettingsPage() {
   }
 
   return (
-    <SettingsPageScaffold
-      section="Criação"
-      title="Pilares"
-      showBack={false}
+    <PageLayout
       variant="default"
-      actions={
-        <AppButton
-          onClick={openCreatePage}
-          variant="primary"
-          leftIcon={<Plus className="h-4 w-4" />}
-        >
-          Novo pilar
-        </AppButton>
+      header={
+        <DesktopPageHeader
+          section="Criação"
+          title="Pilares"
+          actions={
+            <AppButton
+              onClick={openCreatePage}
+              variant="primary"
+              leftIcon={<Plus className="h-4 w-4" />}
+            >
+              Novo pilar
+            </AppButton>
+          }
+        />
       }
     >
       <Text variant="secondary" className="mb-4">
@@ -170,6 +174,6 @@ export function PillarsSettingsPage() {
         }}
         onCancel={() => setConfirm(null)}
       />
-    </SettingsPageScaffold>
+    </PageLayout>
   );
 }

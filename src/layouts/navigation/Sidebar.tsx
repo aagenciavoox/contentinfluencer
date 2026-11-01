@@ -11,9 +11,8 @@ import {
   Settings,
   Sun,
   User,
-  X,
 } from 'lucide-react';
-import {AnimatePresence, motion} from 'motion/react';
+import {motion} from 'motion/react';
 import {Z_INDEX_NAV} from '../../components/overlays/overlayConstants';
 import {Tooltip} from '../../components/ui/Tooltip';
 import {Text} from '../../components/ui/Text';
@@ -24,7 +23,6 @@ import {useIsMobile} from '../../hooks/useIsMobile';
 import {useNavCounts} from '../../hooks/useNavCounts';
 import {readStoredJson, writeStoredJson} from '../../lib/browserStorage';
 import {cn} from '../../lib/utils';
-import {MobileSidebarDrawer} from '../../mobile/components/MobileSidebarDrawer';
 import {BrandLockup} from './BrandLockup';
 import {getUserInitials} from './userInitials';
 import {
@@ -36,11 +34,6 @@ import {
   resolveNavBadge,
   type NavItemDefinition,
 } from './navConfig';
-
-interface SidebarProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
 
 const SIDEBAR_COLLAPSED_KEY = 'sidebar_collapsed';
 const SIDEBAR_WIDTH_EXPANDED = 240;
@@ -146,13 +139,13 @@ function CollapsedFlyout({
   );
 }
 
-export function Sidebar({isOpen, onClose}: SidebarProps) {
+/** Menu lateral do desktop. No celular a navegação é a barra inferior e a tela Menu. */
+export function Sidebar() {
   const {state, dispatch} = useAppContext();
   const {signOut, user} = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const previousPathname = React.useRef(location.pathname);
   const moduleFlags = getModuleFlags(state.preferences);
   const navCounts = useNavCounts(state.bibliotecaItems.length);
   const [isCollapsed, setIsCollapsed] = React.useState(() =>
@@ -160,37 +153,6 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
   );
   const [userMenuOpen, setUserMenuOpen] = React.useState(false);
   const profileAnchorRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    if (isOpen && previousPathname.current !== location.pathname) {
-      onClose();
-    }
-    previousPathname.current = location.pathname;
-  }, [isOpen, location.pathname, onClose]);
-
-  React.useEffect(() => {
-    if (!isOpen) return undefined;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [isOpen]);
-
-  React.useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
 
   React.useEffect(() => {
     if (!userMenuOpen) return;
@@ -349,7 +311,7 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
         isCollapsed ? 'px-2 py-4' : 'p-4'
       )}
     >
-      <div className={cn('mb-5 flex shrink-0 items-center gap-2', isCollapsed ? 'flex-col' : 'justify-between')}>
+      <div className={cn('mb-4 flex shrink-0 items-center gap-2', isCollapsed ? 'flex-col' : 'justify-between')}>
         {isCollapsed ? (
           <Tooltip label="Criaki">
             <BrandLockup collapsed />
@@ -380,16 +342,6 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
             <PanelLeftClose className="h-4 w-4" />
           </button>
         )}
-
-        {!isCollapsed && isMobile ? (
-          <button
-            onClick={onClose}
-            className="rounded-md p-1.5 text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-            aria-label="Fechar menu"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        ) : null}
       </div>
 
       {isCollapsed ? (
@@ -548,41 +500,16 @@ export function Sidebar({isOpen, onClose}: SidebarProps) {
     </div>
   );
 
-  return (
-    <>
-      {!isMobile ? (
-        <motion.div
-          initial={false}
-          animate={{width: isCollapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH_EXPANDED}}
-          transition={{type: 'spring', damping: 32, stiffness: 320}}
-          className={cn('relative h-screen shrink-0 overflow-hidden', Z_INDEX_NAV)}
-        >
-          {sidebarContent}
-        </motion.div>
-      ) : null}
+  if (isMobile) return null;
 
-      <AnimatePresence>
-        {isMobile && isOpen ? (
-          <>
-            <motion.div
-              initial={{opacity: 0}}
-              animate={{opacity: 1}}
-              exit={{opacity: 0}}
-              onClick={onClose}
-              className="fixed inset-0 z-[105] bg-[var(--backdrop-medium)]"
-            />
-            <motion.div
-              initial={{x: '-100%'}}
-              animate={{x: 0}}
-              exit={{x: '-100%'}}
-              transition={{type: 'spring', damping: 30, stiffness: 280}}
-              className="fixed left-0 top-0 z-[110] h-full w-[min(88vw,280px)] overflow-hidden shadow-none"
-            >
-              <MobileSidebarDrawer onClose={onClose} />
-            </motion.div>
-          </>
-        ) : null}
-      </AnimatePresence>
-    </>
+  return (
+    <motion.div
+      initial={false}
+      animate={{width: isCollapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH_EXPANDED}}
+      transition={{type: 'spring', damping: 32, stiffness: 320}}
+      className={cn('relative h-screen shrink-0 overflow-hidden', Z_INDEX_NAV)}
+    >
+      {sidebarContent}
+    </motion.div>
   );
 }

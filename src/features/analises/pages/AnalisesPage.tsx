@@ -1,18 +1,17 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChartColumn } from 'lucide-react';
 import { EmptyState } from '../../../components/ui/EmptyState';
+import { PageToolbar } from '../../../components/ui/PageToolbar';
 import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { SelectField } from '../../../components/ui/SelectField';
-import { TagSelect } from '../../../components/ui/TagSelect';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
-import { ValorVazio } from '../../../components/ui/ValorVazio';
 import { useAppContext } from '../../../context/AppContext';
 import { useDomainsReady } from '../../../hooks/useDomainsReady';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
-import { dia, intervalo } from '../../../lib/dates';
+import { intervalo } from '../../../lib/dates';
 import { contasAtivas, REDE_ROTULO, REDES_PRINCIPAIS, redeDaConta, rotuloConta } from '../../contas/lib/contas';
 import { intervaloDoModo, hojeIso, type ModoPeriodo } from '../../editorial/components/plano/PeriodoEditorialControl';
 import {
@@ -79,20 +78,8 @@ export function AnalisesPage() {
   const nenhumaComMetricas = linhas.length > 0 && linhas.every(semMetricas);
 
   const filtros = (
-    <div className="stack-sm">
-      <div className="flex flex-col gap-1">
-        <Text variant="label" as="span">Contar pela</Text>
-        <SelectField
-          ariaLabel="Contar pela data planejada ou pela data efetiva"
-          value={base}
-          onChange={value => setBase(value as BaseDoPeriodo)}
-          options={[
-            {value: 'planejada', label: 'Data planejada'},
-            {value: 'efetiva', label: 'Data efetiva'},
-          ]}
-        />
-      </div>
-      <div className="flex flex-wrap items-end gap-3">
+    <PageToolbar
+      leading={(
         <div className="max-w-full overflow-x-auto">
           <SegmentTabs<ModoVista>
             ariaLabel="Tamanho do período"
@@ -106,37 +93,47 @@ export function AnalisesPage() {
             ]}
           />
         </div>
-        <TagSelect
-          id="analise-rede"
-          label="Plataforma"
-          placeholder="Todas"
-          maxSelections={1}
-          values={rede ? [rede] : []}
-          options={REDES_PRINCIPAIS.map(item => ({ value: item, label: REDE_ROTULO[item] }))}
-          onChange={values => {
-            setRede(values[0] ?? '');
-            setContaId('');
-          }}
-        />
-        <TagSelect
-          id="analise-conta"
-          label="Conta"
-          placeholder="Todas"
-          searchable
-          maxSelections={1}
-          className="min-w-[12rem]"
-          values={contaId ? [contaId] : []}
-          options={contas.map(conta => ({ value: conta.id, label: rotuloConta(conta) }))}
-          onChange={values => setContaId(values[0] ?? '')}
-        />
-      </div>
-      <Text variant="meta">
-        {recorte
-          ? `${base === 'planejada' ? 'Data planejada' : 'Data efetiva'}: ${intervalo(recorte.inicio, recorte.fim)}.`
-          : 'Sem recorte de data.'}
-        {' '}O alcance de cada conta é contado à parte. Taxa de engajamento: {FORMULA_ENGAJAMENTO}.
-      </Text>
-    </div>
+      )}
+      filters={(
+        <div className="inline-stack-sm min-w-0 flex-wrap">
+          <SelectField
+            ariaLabel="Contar pela data planejada ou pela data efetiva"
+            prefix="Data:"
+            value={base}
+            onChange={value => setBase(value as BaseDoPeriodo)}
+            options={[
+              { value: 'planejada', label: 'Planejada' },
+              { value: 'efetiva', label: 'Efetiva' },
+            ]}
+          />
+          <SelectField
+            ariaLabel="Plataforma"
+            prefix="Plataforma:"
+            value={rede || 'todas'}
+            selected={Boolean(rede)}
+            onChange={value => {
+              setRede(value === 'todas' ? '' : value);
+              setContaId('');
+            }}
+            options={[
+              { value: 'todas', label: 'Todas' },
+              ...REDES_PRINCIPAIS.map(item => ({ value: item, label: REDE_ROTULO[item] })),
+            ]}
+          />
+          <SelectField
+            ariaLabel="Conta"
+            prefix="Conta:"
+            value={contaId || 'todas'}
+            selected={Boolean(contaId)}
+            onChange={value => setContaId(value === 'todas' ? '' : value)}
+            options={[
+              { value: 'todas', label: 'Todas' },
+              ...contas.map(conta => ({ value: conta.id, label: rotuloConta(conta) })),
+            ]}
+          />
+        </div>
+      )}
+    />
   );
 
   return (
@@ -151,22 +148,34 @@ export function AnalisesPage() {
         />
       )}
       toolbar={filtros}
-      mobileHeader={filtros}
+      mobileHeader={(
+        <div className="px-4 pt-2 pb-1">
+          {filtros}
+        </div>
+      )}
     >
-      {!pronto ? (
-        <Text variant="secondary">Carregando publicações.</Text>
-      ) : linhas.length === 0 ? (
-        <EmptyState
-          icon={<ChartColumn className="h-6 w-6" />}
-          title="Nenhuma publicação neste filtro"
-          description="Troque o período, a plataforma ou a conta para ver outras publicações."
-        />
-      ) : (
-        <div className="stack-sm">
-          {nenhumaComMetricas ? (
-            <Text variant="secondary">Nenhuma destas publicações tem métricas ainda.</Text>
-          ) : null}
-          {linhas.map(linha => (
+      <div className="stack-sm">
+        <Text variant="meta">
+          {recorte
+            ? `${base === 'planejada' ? 'Data planejada' : 'Data efetiva'}: ${intervalo(recorte.inicio, recorte.fim)}.`
+            : 'Sem recorte de data.'}
+          {' '}O alcance de cada conta é contado à parte. Taxa de engajamento: {FORMULA_ENGAJAMENTO}.
+        </Text>
+
+        {!pronto ? (
+          <Text variant="secondary">Carregando publicações.</Text>
+        ) : linhas.length === 0 ? (
+          <EmptyState
+            icon={<ChartColumn className="h-6 w-6" />}
+            title="Nenhuma publicação neste filtro"
+            description="Troque o período, a plataforma ou a conta para ver outras publicações."
+          />
+        ) : (
+          <div className="stack-sm">
+            {nenhumaComMetricas ? (
+              <Text variant="secondary">Nenhuma destas publicações tem métricas ainda.</Text>
+            ) : null}
+            {linhas.map(linha => (
             <Surface key={linha.publicacaoId} padding="sm" className="stack-sm">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <Link
@@ -204,8 +213,9 @@ export function AnalisesPage() {
               ) : null}
             </Surface>
           ))}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </PageLayout>
   );
 }

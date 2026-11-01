@@ -6,6 +6,7 @@ import { useDomainsReady } from '../../../hooks/useDomainsReady';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import { AppButton } from '../../../components/ui/AppButton';
+import { PageToolbar } from '../../../components/ui/PageToolbar';
 import { SelectField } from '../../../components/ui/SelectField';
 import { LibrarySectionTabs } from '../../library/components/LibrarySectionTabs';
 import {
@@ -76,16 +77,19 @@ export function AnalyticsPage() {
           backLabel="Biblioteca"
           backTo="/biblioteca"
           actions={(
-            <div className="flex items-center gap-2">
-              {periodSelect}
-              <AppButton variant="primary" leftIcon={<Plus className="h-4 w-4" />} onClick={newItem}>
-                Novo item
-              </AppButton>
-            </div>
+            <AppButton variant="primary" leftIcon={<Plus className="h-4 w-4" />} onClick={newItem}>
+              Novo item
+            </AppButton>
           )}
         />
       )}
-      toolbar={<LibrarySectionTabs />}
+      navigation={<LibrarySectionTabs />}
+      toolbar={(
+        <PageToolbar
+          leading={periodSelect}
+          chips={<LibraryFormatChips value={format} onChange={setFormat} />}
+        />
+      )}
       mobileHeader={(
         <div className="flex flex-col gap-2 pb-1 pt-1">
           <LibrarySectionTabs />
@@ -95,11 +99,11 @@ export function AnalyticsPage() {
               Novo item
             </AppButton>
           </div>
+          <LibraryFormatChips value={format} onChange={setFormat} />
         </div>
       )}
     >
       <div className="stack-lg">
-        <LibraryFormatChips value={format} onChange={setFormat} />
         <LibraryKpis analysis={analysis} formatLabel={formatLabel} rangeText={periodRangeText(period)} loading={loading} />
         <LibraryConsumptionTable analysis={analysis} loading={loading} showAllFormats={format === 'todos'} />
         <div className="grid gap-4 lg:grid-cols-2">

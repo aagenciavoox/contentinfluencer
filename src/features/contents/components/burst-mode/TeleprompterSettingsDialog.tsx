@@ -91,7 +91,7 @@ export function TeleprompterSettingsDialog({
       zIndex="z-[140]"
     >
       <section className="flex min-h-0 flex-1 flex-col bg-[var(--bg-elevated)] text-[var(--text-primary)]">
-        <header className="flex items-start justify-between gap-4 border-b border-[var(--border-color)] px-5 pb-4 pt-1 md:px-8 md:py-5">
+        <header className="flex items-start justify-between gap-4 border-b border-[var(--border-color)] px-6 pb-4 pt-1 md:px-8 md:py-6">
           <div className="min-w-0">
             <Text variant="secondary" as="p" className="text-[var(--text-tertiary)]">Modo gravação</Text>
             <Text variant="sectionTitle" as="h2" className="mt-1">Configurações</Text>
@@ -119,9 +119,9 @@ export function TeleprompterSettingsDialog({
           </div>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-5">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-6">
           {!teleprompterEnabled && (
-            <div className="mb-4 rounded-[var(--radius-card)] border border-[color-mix(in_srgb,var(--warning),transparent_60%)] bg-[var(--warning-bg)] px-4 py-3 md:mb-5">
+            <div className="mb-4 rounded-[var(--radius-card)] border border-[color-mix(in_srgb,var(--warning),transparent_60%)] bg-[var(--warning-bg)] px-4 py-3 md:mb-4">
               <Text variant="itemTitle" as="p" className="text-inherit">Rolagem automática desligada</Text>
               <Text variant="secondary" as="p" className="mt-1 leading-relaxed text-[var(--text-secondary)]">
                 Os ajustes de texto continuam valendo. Velocidade e contagem regressiva voltam quando a rolagem for ligada no bloco.
@@ -129,7 +129,7 @@ export function TeleprompterSettingsDialog({
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-4 md:gap-5 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:gap-4 lg:grid-cols-2">
             <SettingsCard icon={Palette} title="Aparência">
               <SettingRow label="Tamanho da fonte">
                 <FontSizeStepper
@@ -274,7 +274,7 @@ export function TeleprompterSettingsDialog({
             >
               <ul
                 className={cn(
-                  'grid grid-cols-2 gap-x-2 gap-y-5 sm:grid-cols-4 lg:flex lg:gap-0 lg:divide-x lg:divide-[var(--border-color)]',
+                  'grid grid-cols-2 gap-x-2 gap-y-4 sm:grid-cols-4 lg:flex lg:gap-0 lg:divide-x lg:divide-[var(--border-color)]',
                   !settings.shortcutsEnabled && 'opacity-50'
                 )}
               >
@@ -350,12 +350,12 @@ function SettingsCard({
     <section
       aria-labelledby={titleId}
       className={cn(
-        '@container rounded-[var(--radius-card)] border border-[var(--border-color)] p-5 md:p-6',
+        '@container rounded-[var(--radius-card)] border border-[var(--border-color)] p-6 md:p-6',
         subtle ? 'bg-[var(--bg-primary)]' : 'bg-[var(--bg-elevated)]',
         className
       )}
     >
-      <div className="mb-4 flex items-center gap-3 md:mb-5">
+      <div className="mb-4 flex items-center gap-3 md:mb-4">
         <Icon aria-hidden className="h-6 w-6 shrink-0" strokeWidth={1.75} />
         <h3 id={titleId}>
           <Text variant="itemTitle" as="span" className="leading-tight">{title}</Text>
@@ -366,7 +366,7 @@ function SettingsCard({
           </Text>
         )}
       </div>
-      <div className="space-y-5">{children}</div>
+      <div className="space-y-4">{children}</div>
     </section>
   );
 }
@@ -377,7 +377,7 @@ function CardDivider() {
 
 function SettingRow({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2">
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
       <Text variant="body" as="span">{label}</Text>
       {children}
     </div>
@@ -448,7 +448,7 @@ function SliderRow({
   const fill = clamp(((value - min) / (max - min)) * 100, 0, 100);
 
   return (
-    <div className="flex flex-col gap-2 @[30rem]:flex-row @[30rem]:items-center @[30rem]:gap-5">
+    <div className="flex flex-col gap-2 @[30rem]:flex-row @[30rem]:items-center @[30rem]:gap-4">
       <label htmlFor={id} className={ROW_LABEL}>
         {label}
       </label>
@@ -490,7 +490,7 @@ function ChoiceRow<T extends string>({
   const labelId = useId();
 
   return (
-    <div className="flex flex-col gap-2 @[30rem]:flex-row @[30rem]:items-center @[30rem]:gap-5">
+    <div className="flex flex-col gap-2 @[30rem]:flex-row @[30rem]:items-center @[30rem]:gap-4">
       <span id={labelId} className={ROW_LABEL}>
         {label}
       </span>

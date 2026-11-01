@@ -193,7 +193,7 @@ export function CampanhaPublicaPage() {
       <div className="mx-auto max-w-[900px] px-6 pb-20 pt-10">
 
         {/* ── Header ── */}
-        <div className="mb-9">
+        <div className="mb-8">
           <div className="mb-3 flex items-center gap-2.5">
             <StatusBadge label={TIPO_LABEL[projeto.tipo] || projeto.tipo} color={tipoColor} />
             <StatusBadge label={STATUS_LABEL[projeto.status] || projeto.status} color="var(--text-secondary)" />
@@ -229,7 +229,7 @@ export function CampanhaPublicaPage() {
               target="_blank"
               rel="noopener noreferrer"
               className={cn(
-                'inline-flex items-center gap-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] px-[18px] py-2.5 text-sm font-semibold text-[var(--text-primary)] no-underline transition-[border-color] hover:border-[var(--border-strong)]',
+                'inline-flex items-center gap-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-2.5 text-sm font-semibold text-[var(--text-primary)] no-underline transition-[border-color] hover:border-[var(--border-strong)]',
                 FOCUS_INTERACTIVE,
               )}
             >

@@ -2,7 +2,6 @@ import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Clock } from 'lucide-react';
 import { Text } from '../../../components/ui/Text';
-import { SelectField } from '../../../components/ui/SelectField';
 import type { Content, Serie } from '../../../lib/database';
 import { computeSerieMetrics } from '../../recommendations/computeSerieMetrics';
 
@@ -23,7 +22,6 @@ export function SerieProductionMetricsPanel({
   serie,
   contents,
   series = [],
-  onActiveChange,
   lastEditLabel,
 }: {
   serie: Serie;
@@ -63,20 +61,6 @@ export function SerieProductionMetricsPanel({
         <Text variant="body" className="text-[var(--text-primary)]">
           {lastPublicationLabel}
         </Text>
-      </div>
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <Text variant="meta" className="text-[var(--text-secondary)]">
-          Status da série
-        </Text>
-        <SelectField
-          ariaLabel="Status da série"
-          value={serie.ativa ? 'ativa' : 'inativa'}
-          onChange={value => onActiveChange?.(value === 'ativa')}
-          options={[
-            { value: 'ativa', label: 'Ativa' },
-            { value: 'inativa', label: 'Inativa' },
-          ]}
-        />
       </div>
       {lastEditLabel ? (
         <div className="mt-4 flex items-center gap-1.5">

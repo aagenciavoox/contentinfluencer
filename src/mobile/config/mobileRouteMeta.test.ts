@@ -66,6 +66,18 @@ assert.equal(getMobileRouteMeta('/series/serie-1/quadros/novo').title, 'Criar qu
 assert.equal(getMobileRouteMeta('/series/serie-1/quadros/novo').backTo, '/series/serie-1?aba=quadros');
 assert.equal(getMobileRouteMeta('/series/serie-1/temporadas/t-1').backTo, '/series/serie-1');
 
+// Menu do celular: as abas não têm botão à esquerda; o que abre pela tela Menu volta para ela.
+assert.equal(getMobileRouteMeta('/menu').title, 'Menu');
+assert.equal(getMobileRouteMeta('/menu').mode, undefined);
+assert.equal(getMobileRouteMeta('/criacao').mode, undefined);
+assert.equal(getMobileRouteMeta('/biblioteca').mode, undefined);
+assert.equal(getMobileRouteMeta('/gravacao').mode, undefined);
+for (const pathname of ['/calendario', '/planejamento', '/series', '/editorial', '/analises', '/contas', '/projetos', '/configuracoes']) {
+  const meta = getMobileRouteMeta(pathname);
+  assert.equal(meta.mode, 'back', `${pathname} should have Voltar`);
+  assert.equal(meta.backTo, '/menu', `${pathname} should go back to /menu`);
+}
+
 assert.equal(getMobileRouteMeta('/configuracoes/perfil').title, 'Perfil');
 assert.equal(getMobileRouteMeta('/configuracoes/dna').title, 'Configurações');
 assert.equal(resolveMobileRouteMeta('/calendario').titleVariant, 'compact-center');

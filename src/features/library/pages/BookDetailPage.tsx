@@ -1098,9 +1098,8 @@ export function BookDetailPage() {
     <>
     <PageLayout
       contentStack="dense"
-      stickyHeader={false}
       header={
-        <BookDetailHeader<Tab>
+        <BookDetailHeader
           title={livro.titulo}
           creator={livro.autorDiretor}
           typeLabel={itemTypeLabel}
@@ -1109,13 +1108,6 @@ export function BookDetailPage() {
           icon={ItemIcon}
           backLabel="Biblioteca"
           backTo="/biblioteca"
-          tabs={[
-            { id: 'info', label: 'Info' },
-            { id: 'anotacoes', label: 'Anotações', count: tabCounts.anotacoes ?? 0 },
-            { id: 'conteudos', label: 'Roteiros', count: tabCounts.conteudos ?? 0 },
-          ]}
-          activeTab={tab}
-          onTabChange={setTab}
           actions={
             <AppButton
               variant="primary"
@@ -1127,6 +1119,18 @@ export function BookDetailPage() {
               {baixandoWord ? 'Gerando Word…' : 'Baixar em Word'}
             </AppButton>
           }
+        />
+      }
+      navigation={
+        <SegmentTabs<Tab>
+          ariaLabel={`Seções de ${livro.titulo}`}
+          value={tab}
+          onChange={setTab}
+          options={[
+            { id: 'info', label: 'Info' },
+            { id: 'anotacoes', label: 'Anotações', count: tabCounts.anotacoes ?? 0 },
+            { id: 'conteudos', label: 'Roteiros', count: tabCounts.conteudos ?? 0 },
+          ]}
         />
       }
     >

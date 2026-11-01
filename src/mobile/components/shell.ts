@@ -6,11 +6,9 @@
 export { MobileAppShell } from './MobileAppShell';
 export { MobileBottomNav } from './MobileBottomNav';
 export { MobileHeaderIOS } from './MobileHeaderIOS';
-export { MobileSidebarDrawer } from './MobileSidebarDrawer';
 export { MobileActionMenu } from './MobileActionMenu';
 
 export type MobileChromeOutletContext = {
-  openMobileMenu: () => void;
   openSearch: () => void;
 };
 

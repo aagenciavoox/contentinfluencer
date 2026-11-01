@@ -5,6 +5,7 @@ import type {
   PilarOrigem,
   Serie,
   SeriePlataforma,
+  SerieTipoAgrupamento,
 } from '../../../lib/database.ts';
 import { isFuncaoEditorial } from './funcoes.ts';
 import { pilarPrincipalDaSerie } from './pilarDaSerie.ts';
@@ -25,7 +26,10 @@ export type SerieHeranca = Pick<
   | 'energiaPadrao'
   | 'ativa'
   | 'semPilar'
-> & SerieNo;
+> & {
+  estruturaRoteiro?: string | null;
+  tipoAgrupamento?: SerieTipoAgrupamento | null;
+} & SerieNo;
 
 export type ConteudoHeranca = {
   pilarId?: string | null;
@@ -52,14 +56,15 @@ function cadeia(serieId: string, series: readonly SerieHeranca[]): SerieHeranca[
     .filter((serie): serie is SerieHeranca => Boolean(serie));
 }
 
-/** Da própria série aos ancestrais (próxima primeiro na subida). */
+/** Da própria série aos ancestrais (próxima primeiro na subida), ignorando famílias. */
 function propriaEAncestrais(serieId: string, series: readonly SerieHeranca[]): SerieHeranca[] {
   const porId = seriePorId(series);
   const propria = porId.get(serieId);
   const acima = ancestraisDaSerie(serieId, series)
     .map(no => porId.get(no.id))
     .filter((serie): serie is SerieHeranca => Boolean(serie));
-  return propria ? [propria, ...acima] : acima;
+  const lista = propria ? [propria, ...acima] : acima;
+  return lista.filter(serie => serie.tipoAgrupamento !== 'familia');
 }
 
 export type PilarResolvido = {
@@ -184,7 +189,7 @@ export function resolverModelo(
   if (!serieId) return { template: null, origemSerieId: null, preservarAutor: false };
   for (const serie of propriaEAncestrais(serieId, series)) {
     if (!serie.ativa) continue;
-    const template = serie.template?.trim();
+    const template = serie.estruturaRoteiro?.trim() || serie.template?.trim();
     if (template) {
       return { template, origemSerieId: serie.id, preservarAutor: false };
     }
@@ -262,7 +267,7 @@ export function sugerirHashtags(
   return { hashtags: null, origem: 'ajustes', origemId: null };
 }
 
-/** Formato e esforço: só a série do episódio; não sobem. */
+/** Formato e esforço: quadro sem definição própria herda da série. */
 export function formatoDaSerie(
   content: ConteudoHeranca,
   series: readonly SerieHeranca[],
@@ -270,8 +275,11 @@ export function formatoDaSerie(
   if (content.formatoVisual?.trim()) return [content.formatoVisual.trim()];
   const serieId = content.seriesId?.trim();
   if (!serieId) return [];
-  const serie = seriePorId(series).get(serieId);
-  return (serie?.formatoVisualPadrao ?? []).filter(Boolean);
+  for (const serie of propriaEAncestrais(serieId, series)) {
+    const formatos = (serie.formatoVisualPadrao ?? []).map(item => item.trim()).filter(Boolean);
+    if (formatos.length > 0) return formatos;
+  }
+  return [];
 }
 
 export function energiaDaSerie(
@@ -281,7 +289,10 @@ export function energiaDaSerie(
   if (content.energiaNecessaria) return content.energiaNecessaria;
   const serieId = content.seriesId?.trim();
   if (!serieId) return null;
-  return seriePorId(series).get(serieId)?.energiaPadrao ?? null;
+  for (const serie of propriaEAncestrais(serieId, series)) {
+    if (serie.energiaPadrao) return serie.energiaPadrao;
+  }
+  return null;
 }
 
 /** Resolvedor único usado pela ficha e pelo MCP. */

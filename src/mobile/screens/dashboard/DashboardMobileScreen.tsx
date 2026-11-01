@@ -13,7 +13,7 @@ interface DashboardMobileScreenProps {
   pulseSegments: DayPulseSegment[];
   pauseMode: boolean;
   children: ReactNode;
-  onOpenMenu: () => void;
+  onOpenProfile: () => void;
   onOpenSearch: () => void;
 }
 
@@ -23,7 +23,7 @@ export function DashboardMobileScreen({
   pulseSegments,
   pauseMode,
   children,
-  onOpenMenu,
+  onOpenProfile,
   onOpenSearch,
 }: DashboardMobileScreenProps) {
   const initial = greetingName.trim().charAt(0).toUpperCase() || 'C';
@@ -38,12 +38,12 @@ export function DashboardMobileScreen({
       >
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            {/* O avatar abre o menu (mesma posição do botão de menu das outras telas). O título
-                fica fora do botão para a tela ter um h1 e o nome do botão bater com o que ele faz. */}
+            {/* O avatar abre o Perfil; o menu é a aba ☰ da barra inferior. O título fica fora do
+                botão para a tela ter um h1 e o nome do botão bater com o que ele faz. */}
             <button
               type="button"
-              onClick={onOpenMenu}
-              aria-label="Abrir menu"
+              onClick={onOpenProfile}
+              aria-label="Perfil"
               className={cn(MOBILE_HEADER_ACTION_CLASS, 't-body-strong ')}
             >
               <span aria-hidden>{initial}</span>

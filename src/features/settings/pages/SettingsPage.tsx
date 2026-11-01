@@ -5,7 +5,7 @@ import {SegmentTabs} from '../../../components/ui/SegmentTabs';
 import {Text} from '../../../components/ui/Text';
 import {ToggleRow} from '../../../components/ui/ToggleSwitch';
 import {useAppContext} from '../../../context/AppContext';
-import {useIsMobile} from '../../../hooks/useIsMobile';
+import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {atualizarPreferencias} from '../../editorial/lib/editorialSettings';
 import {
@@ -31,7 +31,6 @@ const ROW_RULE = 'border-b border-[var(--border-color)] py-4';
 export function SettingsPage() {
   const navigate = useNavigate();
   const {state, dispatch} = useAppContext();
-  const isMobile = useIsMobile();
   const moduleFlags = getModuleFlags(state.preferences);
   const gentleExperience = getGentleExperienceSettings(state.preferences);
   const writingWorkspace = getWritingWorkspaceSettings(state.preferences);
@@ -161,12 +160,17 @@ export function SettingsPage() {
   ];
 
   return (
-    <PageLayout variant="settings" contentStack="none">
+    <PageLayout
+      variant="settings"
+      contentStack="none"
+      header={(
+        <DesktopPageHeader
+          section="Configurações"
+          title="Configurações"
+        />
+      )}
+    >
       <div className="mx-auto w-full min-w-0 max-w-xl stack-2xl">
-        {isMobile ? null : (
-          <Text variant="pageTitle">Configurações</Text>
-        )}
-
         <SettingsSection label="Aparência">
           <div className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-3 ${ROW_RULE}`}>
             <Text variant="bodyStrong" className="min-w-0">Tema do app</Text>

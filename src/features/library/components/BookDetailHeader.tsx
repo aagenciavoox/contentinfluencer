@@ -1,18 +1,11 @@
 import { useState, type ReactNode } from 'react';
 import { ChevronLeft, type LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { Text } from '../../../components/ui/Text';
 import { ValorVazio } from '../../../components/ui/ValorVazio';
 import { cn } from '../../../lib/utils';
 
-export interface BookDetailTab<T extends string> {
-  id: T;
-  label: string;
-  count?: number;
-}
-
-interface BookDetailHeaderProps<T extends string> {
+interface BookDetailHeaderProps {
   title: string;
   creator?: string;
   typeLabel: string;
@@ -21,9 +14,6 @@ interface BookDetailHeaderProps<T extends string> {
   icon: LucideIcon;
   backLabel: string;
   backTo: string;
-  tabs: BookDetailTab<T>[];
-  activeTab: T;
-  onTabChange: (tab: T) => void;
   actions?: ReactNode;
 }
 
@@ -59,10 +49,10 @@ function HeaderCover({ coverUrl, title, icon: Icon }: { coverUrl?: string | null
 }
 
 /**
- * Cabeçalho do item da Biblioteca no desktop: capa, título, autor/tipo/status e as abas.
- * As abas ficam sobre a linha de baixo do cabeçalho, com o sublinhado da aba ativa em cima dela.
+ * Cabeçalho do item da Biblioteca no desktop: capa, título, autor/tipo/status e ações principais.
+ * A navegação por abas fica separada na região `navigation` do `PageLayout`.
  */
-export function BookDetailHeader<T extends string>({
+export function BookDetailHeader({
   title,
   creator,
   typeLabel,
@@ -71,13 +61,10 @@ export function BookDetailHeader<T extends string>({
   icon,
   backLabel,
   backTo,
-  tabs,
-  activeTab,
-  onTabChange,
   actions,
-}: BookDetailHeaderProps<T>) {
+}: BookDetailHeaderProps) {
   return (
-    <header className="desktop-page-header">
+    <div className="desktop-page-header">
       <Link
         to={backTo}
         className="desktop-page-header-crumb desktop-page-header-back transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
@@ -110,22 +97,8 @@ export function BookDetailHeader<T extends string>({
             </div>
             {actions ? <div className="flex shrink-0 items-start gap-2">{actions}</div> : null}
           </div>
-
-          {/* A margem negativa leva as abas até a borda de baixo do cabeçalho (padding do .desktop-header-frame). */}
-          <div className="mt-auto -mb-[var(--space-xl)] flex items-end gap-2 pt-4">
-            <SegmentTabs<T>
-              ariaLabel={`Seções de ${title}`}
-              value={activeTab}
-              onChange={onTabChange}
-              options={tabs.map(tab => ({
-                id: tab.id,
-                label: tab.label,
-                count: tab.count,
-              }))}
-            />
-          </div>
         </div>
       </div>
-    </header>
+    </div>
   );
 }
