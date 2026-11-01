@@ -39,6 +39,21 @@
 
 - Use `Text`, `Surface`, `Badge`, and `AppButton` for typography, surfaces, badges, and buttons.
 - Use CSS tokens from `src/styles/index.css`.
+- **Page shell & headers:**
+  - Wrap pages in `PageLayout` and use `DesktopPageHeader` for desktop headers (use `titleContent` when custom badges/metadata sit below the title).
+  - Never add manual `px-4`, `pt-*`, or `pb-28` inside `PageLayout.mobileHeader` or mobile children of `PageLayout`; `PageLayout` and `MobileAppShell` already own horizontal gutters and bottom safe-area spacing.
+- **Toolbars & Law of Proximity:**
+  - Use `PageToolbar` with its semantic slots (`leading`, `search`, `chips`, `filters`, `view`, `sort`). Do not mix filter controls inside the `view` slot.
+  - Keep search inputs, filters, and section actions ("Editar", "Configurar") visually adjacent to the list or card they control.
+- **Button hierarchy & ordering:**
+  - Keep a single primary CTA (`AppButton variant="primary"`) per screen context; use `variant="secondary"` or `variant="ghost"` for secondary and empty-state actions when the header already has a primary CTA.
+  - In header `actions`, place the primary CTA first and `MoreMenu` last (far right).
+  - In form/dialog footers, place `Cancelar` (`variant="secondary"`) on the left and `Salvar`/`Criar` (`variant="primary"`) on the right.
+- **Forms, cards & grids:**
+  - Style text/number/date/time/url inputs and textareas with `.input` (or `.ds-input`), using `--border-input`, `--radius-input`, and `--control-height`. Always pair form controls with a visible `<label>` (`htmlFor` + `id`).
+  - Use `SelectField` or `TagSelect` instead of native `<select>`.
+  - Use `SettingsSectionCard` or `Surface` (`outlined`, `interactive`, `info`, `subtle`) instead of ad-hoc card `<div>` wrappers, and avoid nesting `bg-[var(--bg-elevated)]` inside `bg-[var(--bg-elevated)]`.
+  - Use the 8px spacing scale (`stack-xs/sm/md/lg/xl/2xl`) and canonical grid classes (`.grid-content`, `.grid-form`, `.grid-editor`, `.grid-metrics`, `.grid-metrics-3`). Never use orphan spacing classes (`p-5`, `gap-5`, `m-5`, `gap-10`, `space-y-*`).
 - BurstMode teleprompter themes are the only exception for custom hex colors.
 - Never use PowerShell bulk `WriteAllText` on `src/`. Use an editor or Node with explicit UTF-8 encoding.
 - Run `npm run lint:design` before finishing UI work.
