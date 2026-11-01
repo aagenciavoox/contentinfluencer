@@ -61,6 +61,7 @@ await import('./features/settings/lib/serieColors.test.ts');
 await import('./features/settings/lib/seriesBulkDraft.test.ts');
 await import('./features/settings/lib/serieAgrupamento.test.ts');
 await import('./features/settings/lib/serieHierarquia.test.ts');
+await import('./features/settings/lib/seriesGrupos.test.ts');
 await import('./features/editorial/lib/editorialSettings.test.ts');
 await import('./features/editorial/lib/periodoEditorial.test.ts');
 await import('./features/editorial/lib/referenciaPublicacao.test.ts');

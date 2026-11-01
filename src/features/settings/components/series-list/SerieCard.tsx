@@ -27,8 +27,8 @@ export function itensDoMenuDaSerie(
     : [];
   return [
     ...criarFilho,
-    { label: 'Editar', onClick: () => acoes.onEdit(item.serie.id) },
-    { label: item.serie.ativa ? 'Desativar' : 'Ativar', onClick: () => acoes.onToggleAtiva(item.serie.id) },
+    { label: 'Configurar', onClick: () => acoes.onEdit(item.serie.id) },
+    { label: item.serie.ativa ? 'Arquivar' : 'Reativar', onClick: () => acoes.onToggleAtiva(item.serie.id) },
   ];
 }
 

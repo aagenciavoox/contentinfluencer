@@ -14,8 +14,9 @@ import type {Pilar, Serie} from '../../../../lib/database';
 import {cn} from '../../../../lib/utils';
 import {CONTENT_STATUS, getStatusOptions, normalizeContentStatus} from '../../lib/contentPipeline';
 import {aplicarEscolhasDaSerie, marcarEscolhaManual} from '../../../editorial/lib/escolhasSerie';
-import {caminhoDaSerie} from '../../../editorial/lib/serieArvore';
+import {caminhoDaSerie, filhosDaSerie} from '../../../editorial/lib/serieArvore';
 import {escopoTemporadas, temporadaNoEscopo, temporadasDoEscopo} from '../../../editorial/lib/temporadas';
+import {tipoDaSerie} from '../../../settings/lib/serieAgrupamento';
 import {FuncaoEditorialFields} from './ContentOperationalPanel';
 import {AvisoTrocaSerieModal} from './DerivarConteudoDialog';
 import {LivroMultiSelect} from './LivroMultiSelect';
@@ -144,6 +145,19 @@ export function ContentManageWorkspace({
   const navigate = useNavigate();
   const linkedPilar = draft.pilarId ? pilares.find(item => item.id === draft.pilarId) ?? null : null;
   const linkedSerie = draft.seriesId ? series.find(item => item.id === draft.seriesId) ?? null : null;
+  const tipoLinked = linkedSerie ? tipoDaSerie(linkedSerie.id, series) : null;
+  const seriePrincipal = tipoLinked === 'quadro' && linkedSerie?.parentId
+    ? series.find(item => item.id === linkedSerie.parentId) ?? linkedSerie
+    : linkedSerie;
+  const quadrosDaSerie = seriePrincipal
+    ? filhosDaSerie(seriePrincipal.id, series)
+        .map(no => series.find(item => item.id === no.id))
+        .filter((item): item is Serie => Boolean(item && tipoDaSerie(item.id, series) === 'quadro'))
+    : [];
+  const seriesPrincipais = series.filter(item => {
+    const t = tipoDaSerie(item.id, series);
+    return t === 'serie' || item.id === seriePrincipal?.id;
+  });
   const temporadas = state.temporadas ?? [];
   const escopo = draft.seriesId ? escopoTemporadas(draft.seriesId, series) : null;
   const temporadasDisponiveis = escopo ? temporadasDoEscopo(escopo.id, temporadas) : [];
@@ -161,15 +175,18 @@ export function ContentManageWorkspace({
   const [seriePendenteId, setSeriePendenteId] = useState<string | null | undefined>(undefined);
 
   const aplicarSerie = (serieId: string | null) => {
+    const manterTemporada = Boolean(
+      draft.temporadaId && serieId && temporadaNoEscopo(draft.temporadaId, serieId, series, temporadas),
+    );
     onChange({
       ...aplicarEscolhasDaSerie(draft, series.find(item => item.id === serieId) ?? null, series),
       seriesId: serieId,
-      temporadaId: null,
+      temporadaId: manterTemporada ? draft.temporadaId : null,
     });
   };
 
   const pedirTrocaSerie = (serieId: string | null) => {
-    if (disabled || serieId === (draft.seriesId ?? null)) return;
+    if (disabled || serieId === (seriePrincipal?.id ?? null)) return;
     if (draft.seriesId) {
       setSeriePendenteId(serieId);
       return;
@@ -236,9 +253,9 @@ export function ContentManageWorkspace({
                   disabled={disabled}
                   maxSelections={1}
                   placeholder="Selecionar série…"
-                  values={draft.seriesId ? [draft.seriesId] : []}
+                  values={seriePrincipal ? [seriePrincipal.id] : []}
                   onChange={values => pedirTrocaSerie(values[0] ?? null)}
-                  options={series.map(item => ({
+                  options={seriesPrincipais.map(item => ({
                     value: item.id,
                     label: caminhoDaSerie(item.id, series).map(node => node.name).join(' · '),
                   }))}
@@ -250,6 +267,23 @@ export function ContentManageWorkspace({
                   </Text>
                 ) : null}
               </div>
+
+              {seriePrincipal && quadrosDaSerie.length > 0 ? (
+                <div className="block">
+                  <FieldLabel icon={<Layers className="h-4 w-4" />}>Quadro</FieldLabel>
+                  <ManageSelect
+                    ariaLabel="Quadro"
+                    disabled={disabled}
+                    value={tipoLinked === 'quadro' && linkedSerie ? linkedSerie.id : ''}
+                    onChange={quadroId => aplicarSerie(quadroId || seriePrincipal.id)}
+                  >
+                    <option value="">Sem quadro</option>
+                    {quadrosDaSerie.map(quadro => (
+                      <option key={quadro.id} value={quadro.id}>{quadro.name}</option>
+                    ))}
+                  </ManageSelect>
+                </div>
+              ) : null}
 
               <div className="block">
                   <FieldLabel icon={<Layers className="h-4 w-4" />}>Temporada</FieldLabel>
@@ -283,9 +317,9 @@ export function ContentManageWorkspace({
                       variant="ghost"
                       size="sm"
                       className="mt-1"
-                      onClick={() => navigate(`/series/${escopo?.id ?? linkedSerie.id}/editar`)}
+                      onClick={() => navigate(`/series/${escopo?.id ?? linkedSerie.id}?nova=temporada`)}
                     >
-                      Configurar temporadas
+                      Criar temporada
                     </AppButton>
                   ) : null}
               </div>

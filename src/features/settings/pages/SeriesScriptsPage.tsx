@@ -1,11 +1,13 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowDownUp, Layers, Plus } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { FilterChips } from '../../../components/ui/FilterChips';
+import { PageToolbar } from '../../../components/ui/PageToolbar';
 import { QueryViewState } from '../../../components/ui/QueryViewState';
 import { resolveQueryViewStatus } from '../../../components/ui/queryViewStatus';
+import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { SelectField } from '../../../components/ui/SelectField';
 import { Text } from '../../../components/ui/Text';
 import { ToolbarSearchInput } from '../../../components/ui/ToolbarSearchInput';
@@ -15,28 +17,28 @@ import { useDomainsReady } from '../../../hooks/useDomainsReady';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { useScrollMemory, useSessionState } from '../../../hooks/useSessionState';
 import { PageLayout } from '../../../layouts/page/PageLayout';
-import type { AppDataDomain, Content } from '../../../lib/database';
+import type { AppDataDomain, Content, RedeSocial, Temporada } from '../../../lib/database';
 import { withDetailBack } from '../../../lib/navigation/detailBack';
 import { notifySaveFeedback } from '../../../lib/saveFeedback';
 import { broadcastDataSync } from '../../../lib/syncBroadcast';
 import { cn } from '../../../lib/utils';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
-import { CONTENT_STATUS } from '../../contents/lib/contentPipeline';
-import { createContentDraft } from '../../contents/lib/createContentDraft';
 import { OpenInfoNotice } from '../../editorial/components/OpenInfoNotice';
+import { destinosPadraoAtivos, publicacoesDosDestinos } from '../../editorial/lib/destinations';
 import { ETAPA_LABEL, ETAPAS_DE_CONTEUDO } from '../../editorial/lib/etapas';
 import { FUNCAO_LABELS, isFuncaoEditorial } from '../../editorial/lib/funcoes';
 import { formatOpenItems, getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
 import { ancestraisDaSerie, filhosDaSerie } from '../../editorial/lib/serieArvore';
 import { escopoTemporadas, temporadasDoEscopo } from '../../editorial/lib/temporadas';
-import { SerieCard } from '../components/series-list/SerieCard';
+import { SerieCreateModal, type SerieCreateModalTarget } from '../components/SerieCreateModal';
+import { NovoConteudoDialog, type PedidoNovoConteudo } from '../components/series-detail/NovoConteudoDialog';
 import { SeriesBulkDrawer, type PedidoMassa } from '../components/series-detail/SeriesBulkDrawer';
-import { SeriesConteudosSecoes, type AcoesDasSecoes } from '../components/series-detail/SeriesConteudosSecoes';
 import { SeriesDetailHeader } from '../components/series-detail/SeriesDetailHeader';
-import { SeriesTemporadasPanel } from '../components/series-detail/SeriesTemporadasPanel';
-import { podeTerTemporadas, rotaParaCriarFilho } from '../lib/serieHierarquia';
+import { SeriesGruposLista, type AcoesDosGrupos, type SelecaoDaLista } from '../components/series-detail/SeriesGruposLista';
+import { MoverConteudosSheet, SeriesSelectionBar } from '../components/series-detail/SeriesSelecao';
+import { TemporadaDialogs, type EdicaoTemporada } from '../components/series-detail/TemporadaDialogs';
+import { rotaParaCriarFilho } from '../lib/serieHierarquia';
 import { generateUUID } from '../../../utils/uuid';
-import { SeriesAboutPanel, SeriesSettingsPanel } from '../components/series-detail/SeriesReadPanels';
 import {
   contarConteudos,
   pilarEfetivoDaSerie,
@@ -44,22 +46,32 @@ import {
   textoConteudos,
   tipoDaSerie,
   tiposDasSeries,
-  TIPO_AGRUPAMENTO_PLURAL,
 } from '../lib/serieAgrupamento';
-import { FILTROS_LISTA_PADRAO, montarListaSeries } from '../lib/seriesListaView';
+import { conteudoDoBloco, criarBloco } from '../lib/seriesBulkDraft';
+import {
+  agruparPadrao,
+  conteudosDaPagina,
+  conteudosQueMudam,
+  modosDeAgrupar,
+  montarGrupos,
+  moverConteudo,
+  redesDeCostume,
+  redesDoConteudo,
+  redesUsadas,
+  rotuloDoModo,
+  type AgruparPor,
+  type DestinoMover,
+} from '../lib/seriesGrupos';
 import {
   contagemDoEscopo,
   FILTROS_PADRAO,
   filtrosAtivos,
-  montarSecoes,
   type FiltroEtapa,
   type FiltroTipoConteudo,
   type FiltrosConteudos,
   type OrdemConteudos,
 } from '../lib/seriesSecoes';
 import { useAuth } from '../../../context/AuthContext';
-
-type AbaSerie = 'conteudos' | 'quadros' | 'temporadas' | 'sobre';
 
 const DOMINIOS_DA_SERIE: readonly AppDataDomain[] = ['production', 'content'];
 
@@ -72,9 +84,11 @@ const ORDENS: Array<{ value: OrdemConteudos; label: string }> = [
 type EstadoDaPagina = {
   filtros: FiltrosConteudos;
   abertas: Record<string, boolean>;
+  /** Null segue o padrão: temporada quando a série usa temporadas, senão quadro. */
+  agruparPor: AgruparPor | null;
 };
 
-const ESTADO_INICIAL: EstadoDaPagina = { filtros: FILTROS_PADRAO, abertas: {} };
+const ESTADO_INICIAL: EstadoDaPagina = { filtros: FILTROS_PADRAO, abertas: {}, agruparPor: null };
 
 function validarEstado(valor: unknown): EstadoDaPagina | null {
   if (!valor || typeof valor !== 'object') return null;
@@ -89,18 +103,37 @@ function validarEstado(valor: unknown): EstadoDaPagina | null {
       ordem: filtros.ordem === 'recentes' || filtros.ordem === 'titulo' ? filtros.ordem : 'criacao',
     },
     abertas: bruto.abertas && typeof bruto.abertas === 'object' ? bruto.abertas as Record<string, boolean> : {},
+    agruparPor: bruto.agruparPor === 'temporada' || bruto.agruparPor === 'quadro' || bruto.agruparPor === 'rede'
+      ? bruto.agruparPor
+      : null,
   };
 }
+
+/** Links antigos abriam as abas Quadros e Temporadas; hoje viram o agrupamento da lista. */
+function agruparDoLink(aba: string | null): AgruparPor | null {
+  if (aba === 'quadros') return 'quadro';
+  if (aba === 'temporadas') return 'temporada';
+  return null;
+}
+
+type Selecao = { ativa: boolean; ids: ReadonlySet<string> };
+const SEM_SELECAO: Selecao = { ativa: false, ids: new Set() };
 
 export function SeriesScriptsPage() {
   const { serieId = '', temporadaId = null } = useParams<{ serieId: string; temporadaId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { state, dispatch, domainStatus, ensureDataDomains } = useAppContext();
+  const { state, dispatch, updateContent, domainStatus, ensureDataDomains } = useAppContext();
   const { user } = useAuth();
   const celular = useIsMobile();
   const emMassa = location.pathname.endsWith('/criacao-em-massa');
+  const [modalTarget, setModalTarget] = useState<SerieCreateModalTarget | null>(null);
+  const [novoEm, setNovoEm] = useState<{ serieId: string; temporadaId: string | null } | null>(null);
+  const [edicaoTemporada, setEdicaoTemporada] = useState<EdicaoTemporada | null>(null);
+  const [excluirTemporada, setExcluirTemporada] = useState<Temporada | null>(null);
+  const [selecao, setSelecao] = useState<Selecao>(SEM_SELECAO);
+  const [movendo, setMovendo] = useState(false);
 
   const [estado, setEstado] = useSessionState<EstadoDaPagina>(`criaki:serie:${serieId}`, ESTADO_INICIAL, validarEstado);
   const { filtros } = estado;
@@ -112,59 +145,96 @@ export function SeriesScriptsPage() {
   const falhou = DOMINIOS_DA_SERIE.some(dominio => resolveDomainStatus(domainStatus, dominio) === 'error');
   const rolagem = useScrollMemory(`criaki:serie:${serieId}${temporadaId ? `:${temporadaId}` : ''}`, pronto && Boolean(serie));
 
+  // Seleção é desta página: trocar de série ou de temporada começa do zero.
+  useEffect(() => setSelecao(SEM_SELECAO), [serieId, temporadaId]);
+
   const tipos = useMemo(() => tiposDasSeries(state.series), [state.series]);
   const filhos = useMemo(() => (serie ? filhosDaSerie(serie.id, state.series) : []), [serie, state.series]);
-  const secoes = useMemo(
-    () => (serie
-      ? montarSecoes({ serieId: serie.id, series: state.series, temporadas: state.temporadas, contents: state.contents, filtros, temporadaId })
-      : []),
-    [filtros, serie, state.contents, state.series, state.temporadas, temporadaId],
-  );
-  const contagem = useMemo(() => {
-    const todos = secoes.flatMap(secao => [
-      ...secao.contents,
-      ...(secao.temporadas ?? []).flatMap(faixa => faixa.contents),
-    ]);
-    // O total é sempre o do escopo inteiro; o filtro só muda quantos aparecem.
-    const total = serie
-      ? contagemDoEscopo({ serieId: serie.id, series: state.series, contents: state.contents, temporadaId })
-      : contarConteudos([]);
-    return { total, visiveis: contarConteudos(todos).conteudos };
-  }, [secoes, serie, state.contents, state.series, temporadaId]);
-
-  const itensDaLista = useMemo(
-    () => montarListaSeries({
-      series: state.series,
-      contents: state.contents,
-      filtros: { ...FILTROS_LISTA_PADRAO, situacao: 'todas' },
-    }).itens,
-    [state.contents, state.series],
-  );
-
-  const temporadasDaSerie = useMemo(() => {
-    if (!serie) return [];
-    const escopo = escopoTemporadas(serie.id, state.series);
-    return escopo ? temporadasDoEscopo(escopo.id, state.temporadas) : [];
-  }, [serie, state.series, state.temporadas]);
-
-  const abaPedida = searchParams.get('aba');
   const tipo = serie ? tipos.get(serie.id) ?? tipoDaSerie(serie.id, state.series) : 'serie';
-  // Família → séries, série → quadros e temporadas. Quadro não tem nada dentro.
-  const mostraQuadros = tipo !== 'quadro' || filhos.length > 0;
-  const mostraTemporadas = podeTerTemporadas(tipo);
-  const aba: AbaSerie = abaPedida === 'sobre'
-    ? 'sobre'
-    : abaPedida === 'quadros' && mostraQuadros
-      ? 'quadros'
-      : abaPedida === 'temporadas' && mostraTemporadas ? 'temporadas' : 'conteudos';
-  const rotaCriarFilho = serie ? rotaParaCriarFilho(serie.id, tipo) : null;
-  const nomeDosFilhos = tipo === 'familia' ? TIPO_AGRUPAMENTO_PLURAL.serie : TIPO_AGRUPAMENTO_PLURAL.quadro;
 
-  const trocarAba = (proxima: AbaSerie) => {
+  const modos = useMemo<AgruparPor[]>(
+    () => (serie ? modosDeAgrupar({ serieId: serie.id, series: state.series, temporadaId }) : ['quadro']),
+    [serie, state.series, temporadaId],
+  );
+  const pedidoDoLink = agruparDoLink(searchParams.get('aba'));
+  const agruparPor: AgruparPor = [pedidoDoLink, estado.agruparPor].find(
+    (modo): modo is AgruparPor => Boolean(modo && modos.includes(modo)),
+  ) ?? agruparPadrao(modos);
+
+  const grupos = useMemo(
+    () => (serie
+      ? montarGrupos({
+        serieId: serie.id,
+        tipo,
+        series: state.series,
+        temporadas: state.temporadas,
+        contents: state.contents,
+        contas: state.platforms,
+        destinosPadrao: state.editorial.destinosPadrao,
+        filtros,
+        agruparPor,
+        temporadaId,
+      })
+      : []),
+    [agruparPor, filtros, serie, state.contents, state.editorial.destinosPadrao, state.platforms, state.series, state.temporadas, temporadaId, tipo],
+  );
+  const visiveis = useMemo(
+    () => grupos.flatMap(grupo => [...grupo.contents, ...grupo.blocos.flatMap(bloco => bloco.contents)]),
+    [grupos],
+  );
+  // O total é sempre o do escopo inteiro; o filtro só muda quantos aparecem.
+  const total = useMemo(
+    () => (serie
+      ? contagemDoEscopo({ serieId: serie.id, series: state.series, contents: state.contents, temporadaId })
+      : contarConteudos([])),
+    [serie, state.contents, state.series, temporadaId],
+  );
+
+  const escopoTemporada = useMemo(
+    () => (serie ? escopoTemporadas(serie.id, state.series) : null),
+    [serie, state.series],
+  );
+  const temporadasDaSerie = useMemo(
+    () => (escopoTemporada ? temporadasDoEscopo(escopoTemporada.id, state.temporadas) : []),
+    [escopoTemporada, state.temporadas],
+  );
+  // Temporadas moram na série: a série cria; o quadro cria na série dele.
+  const serieDasTemporadas = tipo === 'serie'
+    ? serie
+    : tipo === 'quadro' ? escopoTemporada ?? state.series.find(item => item.id === serie?.parentId) ?? null : null;
+
+  // "Criar temporada" na página do conteúdo chega aqui com ?nova=temporada.
+  useEffect(() => {
+    if (searchParams.get('nova') !== 'temporada' || !serieDasTemporadas) return;
+    setEdicaoTemporada({ modo: 'criar' });
     const params = new URLSearchParams(searchParams);
-    if (proxima === 'conteudos') params.delete('aba');
-    else params.set('aba', proxima);
+    params.delete('nova');
     setSearchParams(params, { replace: true });
+  }, [searchParams, serieDasTemporadas, setSearchParams]);
+
+  // No celular as redes de cada linha só aparecem quando fogem das de costume.
+  const redesForaDoPadrao = useMemo(() => {
+    const usadas = redesUsadas(conteudosDaPagina(serieId, state.series, state.contents, temporadaId), state.platforms);
+    const costumes = new Map<string, Set<RedeSocial>>();
+    return (content: Content) => {
+      if (!content.seriesId) return false;
+      let costume = costumes.get(content.seriesId);
+      if (!costume) {
+        costume = redesDeCostume(content.seriesId, state.series, state.platforms, state.editorial.destinosPadrao, usadas);
+        costumes.set(content.seriesId, costume);
+      }
+      const redes = redesDoConteudo(content, state.platforms);
+      return redes.length > 0 && (redes.length !== costume.size || redes.some(rede => !costume.has(rede)));
+    };
+  }, [serieId, state.contents, state.editorial.destinosPadrao, state.platforms, state.series, temporadaId]);
+
+  const trocarAgrupamento = (proximo: AgruparPor) => {
+    setEstado(atual => ({ ...atual, agruparPor: proximo }));
+    if (searchParams.has('aba')) {
+      const params = new URLSearchParams(searchParams);
+      params.delete('aba');
+      setSearchParams(params, { replace: true });
+    }
   };
 
   const atualizarFiltro = <K extends keyof FiltrosConteudos>(chave: K, valor: FiltrosConteudos[K]) => {
@@ -175,8 +245,32 @@ export function SeriesScriptsPage() {
     setEstado(atual => ({ ...atual, abertas: { ...atual.abertas, [id]: !(atual.abertas[id] ?? padrao) } }));
   }, [setEstado]);
 
+  const selecaoDaLista: SelecaoDaLista = {
+    ativa: selecao.ativa,
+    ids: selecao.ids,
+    alternar: id => setSelecao(atual => {
+      const ids = new Set(atual.ids);
+      if (ids.has(id)) ids.delete(id);
+      else ids.add(id);
+      // No computador a seleção nasce da caixinha; desmarcar a última encerra.
+      return { ativa: celular || ids.size > 0, ids };
+    }),
+    entrar: id => setSelecao(atual => ({ ativa: true, ids: id ? new Set([...atual.ids, id]) : atual.ids })),
+  };
+  const selecionados = useMemo(
+    () => state.contents.filter(content => selecao.ids.has(content.id)),
+    [selecao.ids, state.contents],
+  );
+
   const caminhoDaPagina = `${location.pathname.replace(/\/criacao-em-massa$/, '')}${location.search}`;
-  const acoes: AcoesDasSecoes = {
+  const abrirMassa = (destinoId: string, temporadaDestino: string | null) => {
+    const params = new URLSearchParams();
+    if (destinoId !== serieId) params.set('em', destinoId);
+    if (temporadaDestino) params.set('temporada', temporadaDestino);
+    const query = params.toString();
+    navigate(`/series/${serieId}/criacao-em-massa${query ? `?${query}` : ''}`, { state: { voltarPara: caminhoDaPagina } });
+  };
+  const acoes: AcoesDosGrupos = {
     rotaDoConteudo: content => ({ to: buildContentDetailRoute(content.id), ...withDetailBack(caminhoDaPagina) }),
     onCopiarLink: content => {
       const url = `${window.location.origin}/conteudos/${content.id}`;
@@ -185,14 +279,11 @@ export function SeriesScriptsPage() {
         () => notifySaveFeedback({ status: 'error', message: 'Não foi possível copiar o link.' }),
       );
     },
-    onBulk: (destinoId, temporadaDestino) => {
-      const params = new URLSearchParams();
-      if (destinoId !== serieId) params.set('em', destinoId);
-      if (temporadaDestino) params.set('temporada', temporadaDestino);
-      const query = params.toString();
-      navigate(`/series/${serieId}/criacao-em-massa${query ? `?${query}` : ''}`, { state: { voltarPara: caminhoDaPagina } });
-    },
-    onEditSerie: id => navigate(`/series/${id}/editar`),
+    onNovo: (destinoId, temporadaDestino) => setNovoEm({ serieId: destinoId, temporadaId: temporadaDestino }),
+    onBulk: abrirMassa,
+    onConfigurar: id => navigate(`/series/${id}/editar`),
+    onEditarTemporada: item => setEdicaoTemporada({ modo: 'renomear', temporada: item }),
+    onExcluirTemporada: setExcluirTemporada,
   };
 
   const pedido = useMemo<PedidoMassa | null>(() => {
@@ -216,17 +307,47 @@ export function SeriesScriptsPage() {
     broadcastDataSync();
   };
 
-  const criarConteudo = () => {
-    if (!serie) return;
-    const novo = createContentDraft({
-      title: 'Novo roteiro',
-      status: CONTENT_STATUS.ROTEIRO,
-      seriesId: serie.id,
-      temporadaId: temporadaId ?? null,
+  const criarUm = (novo: PedidoNovoConteudo) => {
+    const destino = novoEm ? state.series.find(item => item.id === novoEm.serieId) : null;
+    if (!novoEm || !destino) return;
+    const bloco = {
+      ...criarBloco({ id: novo.id, serieId: destino.id, temporadaId: novoEm.temporadaId, modo: novo.modo }),
+      titulo: novo.titulo,
+      texto: novo.texto,
+    };
+    const base = conteudoDoBloco(bloco, destino, state.series);
+    // Mesmos destinos do "Em massa": os padrão de conteúdo novo.
+    const contas = state.platforms.filter(conta => conta.ativo).map(conta => ({ id: conta.id, nome: conta.nome }));
+    const destinos = destinosPadraoAtivos(state.editorial.destinosPadrao, contas);
+    const content: Content = {
+      ...base,
       userId: user?.id || '',
-    }, serie, state.series);
-    void dispatch({ type: 'ADD_CONTENT', payload: novo });
-    navigate(`${buildContentDetailRoute(novo.id)}&focus=script`, withDetailBack(caminhoDaPagina));
+      plataformas: publicacoesDosDestinos({ destinos, contentId: base.id }),
+    };
+    void dispatch({ type: 'ADD_CONTENT', payload: content });
+    setNovoEm(null);
+    const rota = buildContentDetailRoute(content.id);
+    navigate(novo.modo === 'roteiro' ? `${rota}&focus=script` : rota, withDetailBack(caminhoDaPagina));
+  };
+
+  const mover = async (destino: DestinoMover) => {
+    const mudam = conteudosQueMudam(selecionados, destino, state.series, state.temporadas);
+    setMovendo(false);
+    setSelecao(SEM_SELECAO);
+    if (mudam.length === 0) {
+      notifySaveFeedback({ status: 'success', message: 'Os selecionados já estavam aí' });
+      return;
+    }
+    notifySaveFeedback({ status: 'saving', message: 'Movendo…' });
+    try {
+      const agora = new Date().toISOString();
+      for (const content of mudam) {
+        await updateContent(moverConteudo(content, destino, state.series, state.temporadas, agora), { silent: true });
+      }
+      notifySaveFeedback({ status: 'success', message: plural(mudam.length, 'conteúdo movido', 'conteúdos movidos') });
+    } catch {
+      notifySaveFeedback({ status: 'error', message: 'Não foi possível mover todos. Confira a lista e tente de novo.' });
+    }
   };
 
   if (!serie) {
@@ -237,7 +358,7 @@ export function SeriesScriptsPage() {
       itemCount: 0,
     });
     return (
-      <PageLayout variant="settings">
+      <PageLayout>
         <QueryViewState
           status={status}
           onRetry={() => void ensureDataDomains(DOMINIOS_DA_SERIE, { force: true })}
@@ -254,17 +375,16 @@ export function SeriesScriptsPage() {
     );
   }
 
-  const pilar = pilarEfetivoDaSerie(serie.id, state.series);
-  const pilarNome = pilar.pilarId ? state.pilares.find(item => item.id === pilar.pilarId)?.nome ?? null : null;
-  const objetivo = isFuncaoEditorial(serie.funcaoPadrao) ? FUNCAO_LABELS[serie.funcaoPadrao] : null;
-  const resumo = [textoConteudos(contagem.total.conteudos), pilarNome, objetivo].filter(Boolean).join(' · ');
-  const abertos = getSerieOpenItems(serie, { series: state.series, contents: state.contents });
-  const abas: Array<{ id: AbaSerie; label: string }> = [
-    { id: 'conteudos', label: 'Conteúdos' },
-    ...(mostraQuadros ? [{ id: 'quadros' as const, label: nomeDosFilhos }] : []),
-    ...(mostraTemporadas ? [{ id: 'temporadas' as const, label: 'Temporadas' }] : []),
-    { id: 'sobre', label: 'Sobre' },
-  ];
+  const pilar = tipo === 'familia' ? null : pilarEfetivoDaSerie(serie.id, state.series);
+  const pilarNome = pilar?.pilarId ? state.pilares.find(item => item.id === pilar.pilarId)?.nome ?? null : null;
+  const objetivo = tipo !== 'familia' && isFuncaoEditorial(serie.funcaoPadrao) ? FUNCAO_LABELS[serie.funcaoPadrao] : null;
+  const resumo = [
+    filhos.length > 0 ? plural(filhos.length, tipo === 'familia' ? 'série' : 'quadro', tipo === 'familia' ? 'séries' : 'quadros') : null,
+    !temporada && temporadasDaSerie.length > 0 ? plural(temporadasDaSerie.length, 'temporada', 'temporadas') : null,
+    pilarNome,
+    objetivo,
+  ].filter(Boolean).join(' · ');
+  const abertos = tipo === 'familia' ? [] : getSerieOpenItems(serie, { series: state.series, contents: state.contents });
   const opcoesEtapa = [
     { value: 'todas', label: 'Todas as etapas' },
     ...ETAPAS_DE_CONTEUDO
@@ -273,245 +393,209 @@ export function SeriesScriptsPage() {
   ];
   const ordemAtual = ORDENS.find(item => item.value === filtros.ordem) ?? ORDENS[0];
   const proximaOrdem = ORDENS[(ORDENS.indexOf(ordemAtual) + 1) % ORDENS.length];
+  const rotaCriarFilho = rotaParaCriarFilho(serie.id, tipo);
+  const criarFilho = () => {
+    if (tipo === 'serie') {
+      setModalTarget({ tipo: 'quadro', seriePaiId: serie.id });
+      return;
+    }
+    if (rotaCriarFilho) navigate(rotaCriarFilho);
+  };
+  const ondeVaiFicar = novoEm
+    ? [
+      state.series.find(item => item.id === novoEm.serieId)?.name?.trim() || 'Sem nome',
+      novoEm.temporadaId ? state.temporadas.find(item => item.id === novoEm.temporadaId)?.nome : null,
+    ].filter(Boolean).join(' · ')
+    : '';
+
+  const ancestrais = ancestraisDaSerie(serie.id, state.series).reverse().map(no => ({ id: no.id, name: no.name ?? '' }));
+  const toolbar = (
+    <PageToolbar
+      leading={(
+        <span className="flex min-w-0 items-center gap-2">
+          <Text variant="meta" as="span" className="shrink-0">Agrupar por</Text>
+          <SegmentTabs<AgruparPor>
+            ariaLabel="Agrupar por"
+            value={agruparPor}
+            onChange={trocarAgrupamento}
+            options={modos.map(modo => ({ id: modo, label: rotuloDoModo(modo, tipo, filhos.length > 0) }))}
+          />
+        </span>
+      )}
+      search={(
+        <ToolbarSearchInput
+          value={filtros.busca}
+          onChange={valor => atualizarFiltro('busca', valor)}
+          placeholder="Buscar conteúdos"
+          className={cn('min-w-0', celular ? 'w-full' : 'min-w-[14rem] flex-1')}
+        />
+      )}
+      chips={(
+        <FilterChips<FiltroTipoConteudo>
+          ariaLabel="Mostrar"
+          value={filtros.tipo}
+          onChange={valor => setEstado(atual => ({
+            ...atual,
+            filtros: { ...atual.filtros, tipo: valor, etapa: 'todas' },
+          }))}
+          options={[
+            { id: 'todos', label: 'Todos' },
+            { id: 'ideias', label: 'Ideias' },
+            { id: 'roteiros', label: 'Roteiros' },
+          ]}
+        />
+      )}
+      filters={
+        filtros.tipo !== 'ideias' ? (
+          <SelectField
+            ariaLabel="Etapa"
+            value={filtros.etapa}
+            onChange={valor => atualizarFiltro('etapa', valor as FiltroEtapa)}
+            options={opcoesEtapa}
+          />
+        ) : undefined
+      }
+      sort={(
+        <AppButton
+          variant="secondary"
+          iconOnly
+          aria-label={`Ordem: ${ordemAtual.label}. Trocar para ${proximaOrdem.label}`}
+          title={ordemAtual.label}
+          onClick={() => atualizarFiltro('ordem', proximaOrdem.value)}
+        >
+          <ArrowDownUp className="h-4 w-4" />
+        </AppButton>
+      )}
+    />
+  );
+  const rodape = (
+    <>
+      {serieDasTemporadas && !temporada ? (
+        <AppButton variant="ghost" size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setEdicaoTemporada({ modo: 'criar' })}>
+          Nova temporada
+        </AppButton>
+      ) : null}
+      {rotaCriarFilho ? (
+        <AppButton variant="ghost" size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={criarFilho}>
+          {tipo === 'familia' ? 'Nova série' : 'Novo quadro'}
+        </AppButton>
+      ) : null}
+    </>
+  );
+  const cabecalho = (noCelular: boolean) => (
+    <SeriesDetailHeader
+      serie={serie}
+      tipo={tipo}
+      ancestrais={ancestrais}
+      temporada={temporada}
+      resumo={resumo}
+      celular={noCelular}
+      onConfigure={() => navigate(`/series/${serie.id}/editar`)}
+      onCreate={() => setNovoEm({ serieId: serie.id, temporadaId: temporadaId ?? null })}
+      onBulk={() => abrirMassa(serie.id, temporadaId)}
+    />
+  );
 
   return (
-    <PageLayout variant="settings" contentWidth="wide" contentStack="dense">
+    <PageLayout
+      contentWidth="wide"
+      contentStack="dense"
+      header={cabecalho(false)}
+      toolbar={toolbar}
+      mobileHeader={<div className="stack-md px-4 pt-3 pb-1">{cabecalho(true)}</div>}
+      mobileToolbar={toolbar}
+    >
       <div ref={rolagem} className="stack-lg">
-        <SeriesDetailHeader
-          serie={serie}
-          tipo={tipo}
-          ancestrais={ancestraisDaSerie(serie.id, state.series).reverse().map(no => ({ id: no.id, name: no.name ?? '' }))}
-          temporada={temporada}
-          resumo={resumo}
-          celular={celular}
-          onEdit={() => navigate(`/series/${serie.id}/editar`)}
-          onCreate={criarConteudo}
-          onBulk={() => acoes.onBulk(serie.id, temporadaId)}
-        />
-
         {state.editorial.openInfoNotices && abertos.length > 0 ? (
           <OpenInfoNotice
             items={abertos}
             title={`Esta série tem informações em aberto: ${formatOpenItems(abertos)}`}
             description={null}
-            actionLabel="Editar"
+            actionLabel="Configurar"
             onAction={() => navigate(`/series/${serie.id}/editar`)}
           />
         ) : null}
 
-        <div role="tablist" aria-label="Série" className="flex gap-6 border-b border-[var(--border-color)]">
-          {abas.map(item => {
-            const ativa = aba === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                role="tab"
-                aria-selected={ativa}
-                onClick={() => trocarAba(item.id)}
-                className={cn(
-                  '-mb-px min-h-11 border-b-2 px-1 t-button focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-                  ativa
-                    ? 'border-[var(--text-primary)] text-[var(--text-primary)]'
-                    : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
-                )}
-              >
-                {item.label}
-              </button>
-            );
-          })}
-        </div>
+        <div className="stack-md">
+          <Text variant="meta" as="p">
+            {[
+              textoConteudos(total.conteudos),
+              plural(total.roteiros, 'roteiro', 'roteiros'),
+              plural(total.ideias, 'ideia', 'ideias'),
+              filtrando ? `${visiveis.length} ${visiveis.length === 1 ? 'aparece' : 'aparecem'} com os filtros` : null,
+              filtros.ordem !== 'criacao' ? ordemAtual.label : null,
+            ].filter(Boolean).join(' · ')}
+          </Text>
 
-        {aba === 'conteudos' ? (
-          <div className="stack-md">
-            <div className="flex flex-wrap items-center gap-2">
-              <ToolbarSearchInput
-                value={filtros.busca}
-                onChange={valor => atualizarFiltro('busca', valor)}
-                placeholder="Buscar conteúdos"
-                className={cn('min-w-0', celular ? 'w-full' : 'min-w-[14rem] flex-1')}
-              />
-              <FilterChips<FiltroTipoConteudo>
-                ariaLabel="Mostrar"
-                value={filtros.tipo}
-                onChange={valor => setEstado(atual => ({
-                  ...atual,
-                  filtros: { ...atual.filtros, tipo: valor, etapa: 'todas' },
-                }))}
-                options={[
-                  { id: 'todos', label: 'Todos' },
-                  { id: 'ideias', label: 'Ideias' },
-                  { id: 'roteiros', label: 'Roteiros' },
-                ]}
-              />
-              {filtros.tipo !== 'ideias' ? (
-                <SelectField
-                  ariaLabel="Etapa"
-                  value={filtros.etapa}
-                  onChange={valor => atualizarFiltro('etapa', valor as FiltroEtapa)}
-                  options={opcoesEtapa}
-                />
-              ) : null}
-              <AppButton
-                variant="secondary"
-                iconOnly
-                aria-label={`Ordem: ${ordemAtual.label}. Trocar para ${proximaOrdem.label}`}
-                title={ordemAtual.label}
-                onClick={() => atualizarFiltro('ordem', proximaOrdem.value)}
-              >
-                <ArrowDownUp className="h-4 w-4" />
-              </AppButton>
-            </div>
-
-            <Text variant="meta" as="p">
-              {[
-                textoConteudos(contagem.total.conteudos),
-                plural(contagem.total.roteiros, 'roteiro', 'roteiros'),
-                plural(contagem.total.ideias, 'ideia', 'ideias'),
-                filtrando ? `${contagem.visiveis} ${contagem.visiveis === 1 ? 'aparece' : 'aparecem'} com os filtros` : null,
-                filtros.ordem !== 'criacao' ? ordemAtual.label : null,
-              ].filter(Boolean).join(' · ')}
-            </Text>
-
-            {!pronto || falhou ? (
-              <QueryViewState
-                status={falhou && pronto ? 'error' : 'loading'}
-                onRetry={() => void ensureDataDomains(DOMINIOS_DA_SERIE, { force: true })}
-                skeletonCount={5}
-                skeletonVariant="row"
-                emptyTitle=""
-                emptyDescription=""
-              >
-                {null}
-              </QueryViewState>
-            ) : secoes.length === 0 ? (
-              <EmptyState
-                compact
-                title={filtros.busca.trim() ? `Nada encontrado para “${filtros.busca.trim()}”` : 'Nenhum conteúdo com estes filtros'}
-                description="Ajuste a busca ou os filtros para ver outros conteúdos."
-                action={(
-                  <AppButton
-                    variant="secondary"
-                    onClick={() => setEstado(atual => ({ ...atual, filtros: { ...FILTROS_PADRAO, ordem: atual.filtros.ordem } }))}
-                  >
-                    Limpar busca e filtro
-                  </AppButton>
-                )}
-              />
-            ) : contagem.total.conteudos === 0 && filhos.length === 0 ? (
-              <EmptyState
-                compact
-                title={temporada ? 'Nenhum conteúdo nesta temporada' : 'Nenhum conteúdo ainda'}
-                description="Crie um conteúdo ou prepare vários de uma vez."
-                action={(
-                  <AppButton variant="secondary" onClick={() => acoes.onBulk(serie.id, temporadaId)}>
-                    Adicionar em massa
-                  </AppButton>
-                )}
-              />
-            ) : (
-              <SeriesConteudosSecoes
-                secoes={secoes}
-                serieDaPagina={serie.id}
-                series={state.series}
-                tipos={tipos}
-                contas={state.platforms}
-                celular={celular}
-                filtrando={filtrando}
-                estaAberta={estaAberta}
-                alternar={alternar}
-                acoes={acoes}
-              />
-            )}
-          </div>
-        ) : null}
-
-        {aba === 'quadros' ? (
-          <div className="stack-md">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <Text variant="meta" as="p">
-                {filhos.length === 0
-                  ? `Nenhum ${tipo === 'familia' ? 'série' : 'quadro'} ainda.`
-                  : plural(filhos.length, tipo === 'familia' ? 'série' : 'quadro', tipo === 'familia' ? 'séries' : 'quadros')}
-              </Text>
-              {rotaCriarFilho ? (
+          {!pronto || falhou ? (
+            <QueryViewState
+              status={falhou && pronto ? 'error' : 'loading'}
+              onRetry={() => void ensureDataDomains(DOMINIOS_DA_SERIE, { force: true })}
+              skeletonCount={5}
+              skeletonVariant="row"
+              emptyTitle=""
+              emptyDescription=""
+            >
+              {null}
+            </QueryViewState>
+          ) : grupos.length === 0 && filtrando ? (
+            <EmptyState
+              compact
+              title={filtros.busca.trim() ? `Nada encontrado para “${filtros.busca.trim()}”` : 'Nenhum conteúdo com estes filtros'}
+              description="Ajuste a busca ou os filtros para ver outros conteúdos."
+              action={(
                 <AppButton
                   variant="secondary"
-                  leftIcon={<Plus className="h-4 w-4" />}
-                  onClick={() => navigate(rotaCriarFilho)}
+                  onClick={() => setEstado(atual => ({ ...atual, filtros: { ...FILTROS_PADRAO, ordem: atual.filtros.ordem } }))}
                 >
-                  {tipo === 'familia' ? 'Criar série nesta família' : 'Criar quadro'}
+                  Limpar busca e filtro
                 </AppButton>
-              ) : null}
-            </div>
-            {filhos.length > 0 ? (
-              <div className={celular ? 'grid grid-cols-1 gap-3' : 'grid-content'}>
-                {filhos.map(filho => {
-                  const item = itensDaLista.get(filho.id);
-                  if (!item) return null;
-                  const pilarDoFilho = item.pilar.pilarId ? state.pilares.find(p => p.id === item.pilar.pilarId)?.nome ?? null : null;
-                  return (
-                    <SerieCard
-                      key={filho.id}
-                      item={item}
-                      pilarNome={pilarDoFilho}
-                      onOpen={id => navigate(`/series/${id}`)}
-                      onOpenFilhos={id => navigate(`/series/${id}?aba=quadros`)}
-                      onEdit={id => navigate(`/series/${id}/editar`)}
-                      onCriarFilho={filhoItem => {
-                        const rota = rotaParaCriarFilho(filhoItem.serie.id, filhoItem.tipo);
-                        if (rota) navigate(rota);
-                      }}
-                      onToggleAtiva={id => {
-                        const alvo = state.series.find(s => s.id === id);
-                        if (!alvo) return;
-                        void dispatch({ type: 'UPDATE_SERIE', payload: { ...alvo, ativa: !alvo.ativa, updatedAt: new Date().toISOString() } });
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+              )}
+            />
+          ) : grupos.length === 0 ? (
+            <EmptyState
+              compact
+              title={temporada ? 'Nenhum conteúdo nesta temporada' : 'Nenhum conteúdo ainda'}
+              description="Crie um conteúdo ou prepare vários de uma vez."
+              action={(
+                <AppButton variant="secondary" onClick={() => setNovoEm({ serieId: serie.id, temporadaId: temporadaId ?? null })}>
+                  Novo conteúdo
+                </AppButton>
+              )}
+            />
+          ) : (
+            <SeriesGruposLista
+              grupos={grupos}
+              agruparPor={agruparPor}
+              serieDaPagina={serie.id}
+              series={state.series}
+              tipos={tipos}
+              temporadas={state.temporadas}
+              contas={state.platforms}
+              celular={celular}
+              filtrando={filtrando}
+              estaAberta={estaAberta}
+              alternar={alternar}
+              acoes={acoes}
+              selecao={selecaoDaLista}
+              redesForaDoPadrao={redesForaDoPadrao}
+              rodape={rotaCriarFilho || (serieDasTemporadas && !temporada) ? rodape : undefined}
+            />
+          )}
+        </div>
 
-        {aba === 'temporadas' ? (
-          <SeriesTemporadasPanel
-            serie={serie}
-            temporadas={temporadasDoEscopo(serie.id, state.temporadas)}
-            contagem={id => contagemDoEscopo({ serieId: serie.id, series: state.series, contents: state.contents, temporadaId: id }).conteudos}
-            onCriar={nome => {
-              const agora = new Date().toISOString();
-              void dispatch({
-                type: 'ADD_TEMPORADA',
-                payload: { id: generateUUID(), userId: user?.id || '', serieId: serie.id, nome, createdAt: agora },
-              });
-              // A primeira temporada liga o uso de temporadas na série.
-              if (!serie.usaTemporadas) {
-                void dispatch({ type: 'UPDATE_SERIE', payload: { ...serie, usaTemporadas: true, updatedAt: agora } });
-              }
-            }}
-            onRenomear={(temporada, nome) => void dispatch({ type: 'UPDATE_TEMPORADA', payload: { ...temporada, nome } })}
-            onExcluir={temporada => void dispatch({ type: 'DELETE_TEMPORADA', payload: temporada.id })}
+        {selecao.ativa ? (
+          <SeriesSelectionBar
+            quantidade={selecao.ids.size}
+            disponiveis={visiveis.length}
+            onToggleTodos={() => setSelecao(atual => (
+              visiveis.every(content => atual.ids.has(content.id))
+                ? { ativa: celular, ids: new Set() }
+                : { ativa: true, ids: new Set(visiveis.map(content => content.id)) }
+            ))}
+            onMover={() => setMovendo(true)}
+            onCancelar={() => setSelecao(SEM_SELECAO)}
           />
-        ) : null}
-
-        {aba === 'sobre' ? (
-          <div className="grid gap-4 lg:grid-cols-2">
-            <SeriesAboutPanel
-              serie={serie}
-              series={state.series}
-              pilares={state.pilares}
-              temporadas={temporadasDaSerie}
-              onEdit={() => navigate(`/series/${serie.id}/editar`)}
-            />
-            <SeriesSettingsPanel
-              serie={serie}
-              series={state.series}
-              plataformas={state.platforms}
-              onEdit={() => navigate(`/series/${serie.id}/editar`)}
-            />
-          </div>
         ) : null}
       </div>
 
@@ -531,6 +615,57 @@ export function SeriesScriptsPage() {
         pedido={pedido}
         idsExistentes={idsExistentes}
         onCreate={criarConteudos}
+      />
+
+      <NovoConteudoDialog
+        open={Boolean(novoEm)}
+        ondeVaiFicar={ondeVaiFicar}
+        onClose={() => setNovoEm(null)}
+        onCreate={criarUm}
+      />
+
+      <MoverConteudosSheet
+        open={movendo}
+        quantidade={selecao.ids.size}
+        serie={serie}
+        tipo={tipo}
+        series={state.series}
+        temporadas={state.temporadas}
+        onClose={() => setMovendo(false)}
+        onMover={destino => void mover(destino)}
+      />
+
+      {serieDasTemporadas ? (
+        <TemporadaDialogs
+          escopoId={serieDasTemporadas.id}
+          escopoNome={serieDasTemporadas.name ?? ''}
+          temporadas={temporadasDoEscopo(serieDasTemporadas.id, state.temporadas)}
+          edicao={edicaoTemporada}
+          excluir={excluirTemporada}
+          contagem={id => contagemDoEscopo({ serieId: serieDasTemporadas.id, series: state.series, contents: state.contents, temporadaId: id }).conteudos}
+          onFecharEdicao={() => setEdicaoTemporada(null)}
+          onFecharExcluir={() => setExcluirTemporada(null)}
+          onCriar={(nome, descricao) => {
+            const alvo = state.series.find(item => item.id === serieDasTemporadas.id);
+            if (!alvo) return;
+            const agora = new Date().toISOString();
+            void dispatch({
+              type: 'ADD_TEMPORADA',
+              payload: { id: generateUUID(), userId: user?.id || '', serieId: alvo.id, nome, descricao, createdAt: agora },
+            });
+            // A primeira temporada liga o uso de temporadas na série.
+            if (!alvo.usaTemporadas) {
+              void dispatch({ type: 'UPDATE_SERIE', payload: { ...alvo, usaTemporadas: true, updatedAt: agora } });
+            }
+          }}
+          onRenomear={(item, nome, descricao) => void dispatch({ type: 'UPDATE_TEMPORADA', payload: { ...item, nome, descricao } })}
+          onExcluir={item => void dispatch({ type: 'DELETE_TEMPORADA', payload: item.id })}
+        />
+      ) : null}
+
+      <SerieCreateModal
+        target={modalTarget}
+        onClose={() => setModalTarget(null)}
       />
     </PageLayout>
   );

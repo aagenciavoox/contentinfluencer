@@ -8,7 +8,8 @@ import {
   tipoDaSerie,
   tipoSugeridoParaFilho,
 } from './serieAgrupamento.ts';
-import { FILTROS_PADRAO, contagemDoEscopo, destinoDoConteudo, montarSecoes, passaNoFiltro } from './seriesSecoes.ts';
+import { montarGrupos } from './seriesGrupos.ts';
+import { FILTROS_PADRAO, contagemDoEscopo, destinoDoConteudo, passaNoFiltro } from './seriesSecoes.ts';
 
 const serieBase = {
   userId: 'u',
@@ -140,50 +141,45 @@ assert.equal(passaNoFiltro(contents[1], { ...FILTROS_PADRAO, etapa: 'producao' }
 assert.equal(passaNoFiltro(contents[0], { ...FILTROS_PADRAO, busca: 'brandon' }), true);
 assert.equal(passaNoFiltro(contents[1], { ...FILTROS_PADRAO, busca: 'caminho dos reis' }), true);
 
-// Página da série: diretos primeiro, depois um grupo por quadro, com temporadas dentro.
-const secoes = montarSecoes({ serieId: 'branbran', series, temporadas, contents, filtros: FILTROS_PADRAO });
-assert.deepEqual(secoes.map(secao => secao.id), ['direto', 'filho:cosmere', 'filho:comece']);
-assert.equal(secoes[0].rotulo, 'Diretos na série');
-const comece = secoes[2];
-assert.equal(comece.contagem.conteudos, 5);
-assert.deepEqual(comece.temporadas?.map(faixa => [faixa.rotulo, faixa.total]), [
-  ['Temporada 1 — Portas de entrada', 4],
-  ['Sem temporada', 1],
-]);
-assert.equal(secoes[1].temporadas?.[0].rotulo, 'Temporada 2');
+// Página da série por quadro: direto na série primeiro, depois um grupo por quadro.
+const base = { series, temporadas, contents, contas: [], destinosPadrao: [], filtros: FILTROS_PADRAO };
+const porQuadro = montarGrupos({ ...base, serieId: 'branbran', tipo: 'serie', agruparPor: 'quadro' });
+assert.deepEqual(porQuadro.map(grupo => grupo.id), ['direto', 'filho:cosmere', 'filho:comece']);
+assert.equal(porQuadro[0].rotulo, 'Direto na série');
+assert.equal(porQuadro[2].total, 5);
 
-// Filtro esconde grupos vazios, mas a contagem da seção continua sendo a do escopo inteiro.
-const soIdeias = montarSecoes({
+// Por temporada: as temporadas da série valem para os quadros dela.
+const porTemporada = montarGrupos({ ...base, serieId: 'branbran', tipo: 'serie', agruparPor: 'temporada' });
+assert.deepEqual(porTemporada.map(grupo => [grupo.rotulo, grupo.total]), [
+  ['Temporada 1 — Portas de entrada', 4],
+  ['Temporada 2', 1],
+  ['Sem temporada', 2],
+]);
+
+// Filtro esconde grupos vazios, mas o total do grupo continua sendo o do escopo inteiro.
+const soIdeias = montarGrupos({
+  ...base,
   serieId: 'branbran',
-  series,
-  temporadas,
-  contents,
+  tipo: 'serie',
+  agruparPor: 'quadro',
   filtros: { ...FILTROS_PADRAO, tipo: 'ideias' },
 });
-assert.deepEqual(soIdeias.map(secao => [secao.id, secao.visiveis, secao.contagem.conteudos]), [
+assert.deepEqual(soIdeias.map(grupo => [grupo.id, grupo.visiveis, grupo.total]), [
   ['direto', 1, 1],
   ['filho:comece', 1, 5],
 ]);
 
 // Página da temporada: só os conteúdos dela.
-const daTemporada = montarSecoes({
-  serieId: 'branbran',
-  series,
-  temporadas,
-  contents,
-  filtros: FILTROS_PADRAO,
-  temporadaId: 't1',
-});
-assert.equal(daTemporada.reduce((soma, secao) => soma + secao.visiveis, 0), 4);
+const daTemporada = montarGrupos({ ...base, serieId: 'branbran', tipo: 'serie', agruparPor: 'quadro', temporadaId: 't1' });
+assert.equal(daTemporada.reduce((soma, grupo) => soma + grupo.visiveis, 0), 4);
 
 // O total da página não depende do filtro.
 assert.equal(contagemDoEscopo({ serieId: 'branbran', series, contents }).conteudos, 7);
 assert.equal(contagemDoEscopo({ serieId: 'branbran', series, contents, temporadaId: 't1' }).conteudos, 4);
 
-// Quadro sem filhos nem temporadas: lista simples.
-const solto = montarSecoes({ serieId: 'tolkien', series, temporadas, contents, filtros: FILTROS_PADRAO });
+// Série sem filhos: lista simples num grupo só.
+const solto = montarGrupos({ ...base, serieId: 'tolkien', tipo: 'serie', agruparPor: 'quadro' });
 assert.equal(solto.length, 1);
-assert.equal(solto[0].temporadas, null);
 assert.equal(solto[0].rotulo, 'Conteúdos');
 
 // Destino pelo nome da rede, com o progresso de publicação à parte.
