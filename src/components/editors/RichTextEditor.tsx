@@ -1261,7 +1261,7 @@ function RichTextEditorInstance({
         ref={splitRowRef}
         className={cn(
           'flex min-h-0 min-w-0',
-          isFullscreen || showDraftPane || !writingBar ? 'flex-1' : 'overflow-visible',
+          isFullscreen || !writingBar ? 'flex-1' : 'overflow-visible',
           showDraftPane && !isFullscreen && writingBar && 'min-h-[calc(100dvh-18rem)]',
         )}
       >
@@ -1271,7 +1271,7 @@ function RichTextEditorInstance({
           className={cn(
             'flex min-w-0 flex-1 flex-col custom-scrollbar',
             hideScriptPane && 'hidden',
-            !isFullscreen && writingBar && isWorkspace && !showDraftPane ? 'overflow-visible' : 'min-h-0 overflow-y-auto',
+            !isFullscreen && writingBar && isWorkspace ? 'overflow-visible' : 'min-h-0 overflow-y-auto',
             compactMobileComposer && !isFullscreen ? 'bg-transparent p-0'
               : 'bg-[var(--bg-elevated)]',
             editorViewportClassName,
@@ -1293,7 +1293,8 @@ function RichTextEditorInstance({
                 : compactMobileComposer && !isFullscreen ? 'min-h-[50dvh] bg-transparent px-0 py-2 pb-24'
                   : isWorkspace ? cn(
                     'min-h-[12rem]',
-                    writingBar && !showDraftPane && 'mx-auto min-h-[calc(100dvh-18rem)] max-w-[52rem] px-3 py-4 md:max-w-[56rem] md:px-8 md:py-6',
+                    writingBar && 'min-h-[calc(100dvh-18rem)]',
+                    writingBar && !showDraftPane && 'mx-auto max-w-[52rem] px-3 py-4 md:max-w-[56rem] md:px-8 md:py-6',
                     !showDraftPane && !writingBar && 'mx-auto max-w-[52rem] md:max-w-[56rem]',
                   )
                     : 'min-h-[500px] rounded-[var(--radius-input)] border border-[var(--border-color)] px-6 py-8 shadow-[var(--shadow-editorial)] md:px-12 md:py-12',
@@ -1316,19 +1317,26 @@ function RichTextEditorInstance({
         ) : null}
 
         {showDraftPane && !hideDraftPane ? (
-          <aside
-            aria-label="Rascunho de apoio"
+          <div
             className={cn(
-              'flex min-h-0 min-w-0 flex-col overflow-hidden border-[var(--border-color)] bg-[var(--bg-primary)]',
-              '[&>section]:flex [&>section]:h-full [&>section]:min-h-0 [&>section]:flex-1 [&>section]:flex-col',
+              'relative min-w-0 self-stretch border-[var(--border-color)] bg-[var(--bg-primary)]',
               narrowSplit ? 'min-w-0 flex-1 border-0' : 'shrink-0 border-l',
             )}
             style={narrowSplit
               ? undefined
               : {width: draftPaneWidthPx ?? `${Math.round(draftRatio * 100)}%`}}
           >
-            {fullscreenAside}
-          </aside>
+            <aside
+              aria-label="Rascunho de apoio"
+              className={cn(
+                'flex min-h-0 min-w-0 flex-col overflow-hidden',
+                '[&>section]:flex [&>section]:h-full [&>section]:min-h-0 [&>section]:flex-1 [&>section]:flex-col',
+                !isFullscreen && writingBar && isWorkspace && !hideScriptPane ? 'absolute inset-0' : 'h-full',
+              )}
+            >
+              {fullscreenAside}
+            </aside>
+          </div>
         ) : null}
       </div>
 
