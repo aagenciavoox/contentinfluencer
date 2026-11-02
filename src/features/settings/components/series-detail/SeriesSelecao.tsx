@@ -37,7 +37,8 @@ export function SeriesSelectionBar({
     <div
       className={cn(
         'sticky z-30',
-        'bottom-[calc(3.25rem+max(0.75rem,env(safe-area-inset-bottom,0px))+var(--space-sm))]',
+        // Mesma conta da CreationSelectionBar: altura da barra inferior do celular + respiro.
+        'bottom-[calc(3.5rem+1px+max(0.25rem,env(safe-area-inset-bottom,0px))+var(--space-sm))]',
         'lg:bottom-[var(--space-lg)]',
       )}
     >

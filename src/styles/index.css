@@ -2187,6 +2187,26 @@ input[type="search"]::-webkit-search-results-decoration {
   scroll-padding-top: calc(env(safe-area-inset-top, 0px) + 3.5rem + 1px + var(--space-md));
 }
 
+/* Faixa grudada logo abaixo do MobileHeaderIOS, dentro do <main> acima.
+   O sticky conta o top a partir do fim do padding-top do <main> (área segura + header + respiro),
+   não da borda da tela. Antes o top era a altura do header: a faixa parava 69px abaixo dele e as
+   anotações apareciam no vão. Agora o top desconta o respiro e, quando o header some ao rolar
+   para baixo, desconta o header também: a faixa sobe junto e encosta na área segura. */
+.mobile-sticky-below-header {
+  top: calc(-1 * var(--space-md));
+  transition: top 300ms ease-out;
+}
+
+[data-mobile-header-hidden] .mobile-sticky-below-header {
+  top: calc(-1 * (3.5rem + 1px + var(--space-md)));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-sticky-below-header {
+    transition: none;
+  }
+}
+
 /* O respiro do topo já vem do <main> do shell: o PageContainer que abre a página não soma outro. */
 html.mobile-app-shell .mobile-shell-scroll--header main > .desktop-content-frame {
   padding-top: 0;

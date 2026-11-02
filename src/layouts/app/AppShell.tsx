@@ -159,7 +159,10 @@ export function AppShell() {
   if (isMobile) {
     return (
       <MobileScrollLockProvider>
-        <div className="h-dvh overflow-hidden bg-[var(--bg-primary)]">
+        <div
+          className="h-dvh overflow-hidden bg-[var(--bg-primary)]"
+          data-mobile-header-hidden={isHidden && !routeMeta.hideHeader ? '' : undefined}
+        >
         <CommandPalette
           isOpen={isCommandPaletteOpen}
           onClose={() => setIsCommandPaletteOpen(false)}

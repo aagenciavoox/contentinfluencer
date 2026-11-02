@@ -302,7 +302,7 @@ export function BookDetailMobileScreen({
             />
           ) : null}
 
-          <div className="sticky top-[calc(env(safe-area-inset-top,0px)+3.5rem+1px)] z-20 -mx-4 bg-[var(--bg-primary)] px-4 py-2">
+          <div className="mobile-sticky-below-header sticky z-20 -mx-4 bg-[var(--bg-primary)] px-4 py-2">
             <AppButton
               variant="secondary"
               fullWidth
