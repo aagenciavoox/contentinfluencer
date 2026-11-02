@@ -12,6 +12,7 @@ export type TextVariant =
   | 'secondary'
   | 'meta'
   | 'label'
+  | 'button'
   | 'eyebrow';
 
 const variantClasses: Record<TextVariant, string> = {
@@ -27,6 +28,8 @@ const variantClasses: Record<TextVariant, string> = {
   secondary: 't-secondary',
   meta: 't-meta',
   label: 't-label text-[var(--text-tertiary)]',
+  /** Texto de botão: herda a cor do botão. */
+  button: 't-button',
   /** Label eyebrow — uppercase, 11px, espaçado — para seções e spotlight */
   eyebrow: 'eyebrow-label',
 };
@@ -42,6 +45,7 @@ const defaultElements: Record<TextVariant, ElementType> = {
   secondary: 'p',
   meta: 'span',
   label: 'span',
+  button: 'span',
   eyebrow: 'span',
 };
 
