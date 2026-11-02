@@ -250,7 +250,7 @@ export function ProfileSettingsPage() {
           />
         ) : null}
 
-        <div className="grid gap-6 xl:grid-cols-3">
+        <div className="grid-content">
           <SettingsSectionCard
             icon={<UserCircle2 className="h-5 w-5" />}
             title="Nome público"

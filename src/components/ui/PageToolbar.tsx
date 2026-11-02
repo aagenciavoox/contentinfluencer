@@ -36,7 +36,7 @@ export function PageToolbar({
 }: PageToolbarProps) {
   const startSlot = leading ?? tabs;
   return (
-    <div className={cn('flex flex-wrap items-start gap-2', className)}>
+    <div className={cn('flex w-full flex-wrap items-center gap-2', className)}>
       {startSlot ? <div className="flex min-w-0 items-center">{startSlot}</div> : null}
       {search ? <div className="min-w-0 basis-64 flex-1">{search}</div> : null}
       {chips ? <div className="flex min-w-0 flex-wrap items-center gap-2">{chips}</div> : null}

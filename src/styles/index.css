@@ -1956,13 +1956,14 @@ input[type="search"]::-webkit-search-results-decoration {
 .desktop-controls-frame,
 .desktop-content-frame,
 .desktop-content-frame-wide,
-.desktop-content-frame-book {
+.desktop-content-frame-book,
+.desktop-content-frame-full {
   width: 100%;
   max-width: var(--layout-max);
   margin-left: auto;
   margin-right: auto;
-  padding-left: var(--space-lg);
-  padding-right: var(--space-lg);
+  padding-left: var(--layout-gutter);
+  padding-right: var(--layout-gutter);
 }
 
 .desktop-header-frame,
@@ -1991,6 +1992,10 @@ input[type="search"]::-webkit-search-results-decoration {
 
 .desktop-page-header {
   width: 100%;
+  padding-left: 0;
+  padding-right: 0;
+  margin-left: 0;
+  margin-right: 0;
 }
 
 .desktop-page-header-crumb {
@@ -1999,14 +2004,17 @@ input[type="search"]::-webkit-search-results-decoration {
   line-height: 1.2;
   color: var(--text-secondary);
   text-decoration: none;
+  padding: 0;
+  margin: 0;
 }
 
 .desktop-page-header-back {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
   min-height: var(--control-height-mobile);
   text-decoration: none;
+  padding: 0;
+  margin: 0;
 }
 
 @media (min-width: 768px) {
@@ -2026,6 +2034,9 @@ input[type="search"]::-webkit-search-results-decoration {
   justify-content: space-between;
   gap: var(--space-lg);
   margin-top: var(--space-sm);
+  min-height: var(--control-height);
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .desktop-page-header-row.items-center {
@@ -2068,7 +2079,8 @@ input[type="search"]::-webkit-search-results-decoration {
   .desktop-controls-frame,
   .desktop-content-frame,
   .desktop-content-frame-wide,
-  .desktop-content-frame-book {
+  .desktop-content-frame-book,
+  .desktop-content-frame-full {
     padding-left: var(--layout-gutter);
     padding-right: var(--layout-gutter);
   }
@@ -2097,8 +2109,15 @@ input[type="search"]::-webkit-search-results-decoration {
 
   .desktop-content-frame,
   .desktop-content-frame-wide,
-  .desktop-content-frame-book {
-    padding: var(--space-xl) var(--space-2xl) var(--space-3xl);
+  .desktop-content-frame-book,
+  .desktop-content-frame-full {
+    padding: var(--space-xl) var(--layout-gutter) var(--space-3xl);
+  }
+
+  .grid-content {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   }
 
   .filter-bar {
@@ -2282,8 +2301,8 @@ html.mobile-app-shell .mobile-list-card-meta .rounded-full {
 /* ── Canonical content grids ── */
 .grid-content {
   display: grid;
-  gap: var(--space-lg);
-  grid-template-columns: repeat(auto-fill, minmax(min(var(--layout-card-min), 100%), 1fr));
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
 }
 
 /* Library covers — 6 columns on desktop */

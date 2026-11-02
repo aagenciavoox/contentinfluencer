@@ -218,7 +218,7 @@ export function AppShell() {
       <Sidebar />
       <main
         onScroll={handleScroll}
-        className="relative flex-1 overflow-y-auto bg-transparent pb-24 transition-transform duration-300 ease-in-out md:pb-0 md:pt-0"
+        className="relative flex-1 overflow-y-auto bg-transparent pb-24 transition-transform duration-300 ease-in-out md:pb-0 md:pt-0 [scrollbar-gutter:stable]"
       >
         <div className="min-h-full">
           <Outlet />

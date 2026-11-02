@@ -260,7 +260,7 @@ export function ContentDetailHeader({
       type="button"
       onClick={() => setTitleEditing(true)}
       aria-label={`Editar título ${contentReference}`}
-      className="group -mx-2 inline-flex max-w-full items-center gap-2 rounded-[var(--radius-input)] px-2 py-1 text-left transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+      className="group inline-flex max-w-full items-center gap-2 rounded-[var(--radius-input)] py-1 text-left transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
     >
       <Text as="span" variant="pageTitle" truncate>
         {displayTitle || (isIdea ? 'Ideia sem título' : 'Roteiro sem título')}
@@ -312,7 +312,6 @@ export function ContentDetailHeader({
             to={backTo}
             className="desktop-page-header-crumb desktop-page-header-back transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
           >
-            <ChevronLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
             {crumbLabel === 'Roteiros' ? 'Criação' : crumbLabel}
           </Link>
           <div className="flex min-w-0 items-center justify-end gap-3">

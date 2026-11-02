@@ -106,7 +106,7 @@ export function AnalyticsPage() {
       <div className="stack-lg">
         <LibraryKpis analysis={analysis} formatLabel={formatLabel} rangeText={periodRangeText(period)} loading={loading} />
         <LibraryConsumptionTable analysis={analysis} loading={loading} showAllFormats={format === 'todos'} />
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid-content">
           <LibraryActiveCard analysis={analysis} loading={loading} />
           <LibraryNotesCard analysis={analysis} loading={loading} />
           <LibraryGenresCard analysis={analysis} loading={loading} />

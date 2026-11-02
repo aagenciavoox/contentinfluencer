@@ -154,7 +154,7 @@ export function TodayHome({
 
       <div
         className={density === 'desktop'
-          ? cn('grid items-stretch gap-4', showAgendaCard ? 'grid-cols-3' : 'grid-cols-2')
+          ? 'grid-content items-stretch'
           : 'stack-md'}
       >
         {book ? (

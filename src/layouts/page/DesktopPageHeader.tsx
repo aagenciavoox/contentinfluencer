@@ -1,5 +1,4 @@
 import { Children, ReactNode } from 'react';
-import { ChevronLeft } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import { Text } from '../../components/ui/Text';
@@ -58,7 +57,7 @@ export function DesktopPageHeader({
   const actionItems = Children.toArray(actions);
   const supportText = subtitle ?? meta;
   const crumbInteractiveClass =
-    'desktop-page-header-crumb desktop-page-header-back inline-flex items-center gap-1 text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
+    'desktop-page-header-crumb desktop-page-header-back inline-flex items-center text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
   return (
     <div className={cn('desktop-page-header w-full', className)}>
@@ -67,12 +66,10 @@ export function DesktopPageHeader({
           {hasBack ? (
             backTo ? (
               <Link to={backTo} className={crumbInteractiveClass} aria-label={`Voltar para ${eyebrow}`}>
-                <ChevronLeft className="-ml-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                 <span>{eyebrow}</span>
               </Link>
             ) : (
               <button type="button" onClick={handleBack} className={crumbInteractiveClass} aria-label={`Voltar para ${eyebrow}`}>
-                <ChevronLeft className="-ml-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                 <span>{eyebrow}</span>
               </button>
             )
@@ -84,7 +81,7 @@ export function DesktopPageHeader({
         </div>
       ) : null}
 
-      <div className={cn('desktop-page-header-row flex items-start justify-between gap-6', rowAlign === 'center' && 'items-center')}>
+      <div className={cn('desktop-page-header-row flex items-start justify-between gap-6 min-h-[var(--control-height)]', rowAlign === 'center' && 'items-center')}>
         <div className="min-w-0 flex-1">
           <div className={cn('min-w-0', titleAside && 'flex items-center gap-3')}>
             {titleContent ?? (
