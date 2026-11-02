@@ -63,18 +63,44 @@ function ValorDoRitmo({
   rotulo,
   valor,
   unidade,
+  dotColor = '#10b981',
+  helper,
 }: {
   rotulo: string;
   valor: number | null;
   unidade: string;
+  dotColor?: string;
+  helper?: string;
 }) {
   return (
-    <div className="min-w-0 stack-xs">
-      <Text variant="bodyStrong" as="p">{rotulo}</Text>
-      <Text variant="itemTitle" as="p" className="tabular-nums">{valor == null ? <ValorVazio /> : String(valor)}</Text>
-      <Text variant="secondary" as="p">
-        {valor == null ? 'Não definido' : unidade}
-      </Text>
+    <div className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-4 flex flex-col justify-between transition-all hover:border-[var(--border-strong)]">
+      <div>
+        <div className="flex items-center justify-between gap-2">
+          <Text variant="label" as="span" className="tracking-wider uppercase text-[var(--text-tertiary)] truncate">
+            {rotulo}
+          </Text>
+          <span
+            className="h-2 w-2 rounded-full shrink-0"
+            style={{ backgroundColor: valor != null ? dotColor : 'var(--text-tertiary)' }}
+            aria-hidden
+          />
+        </div>
+        <div className="mt-2 flex items-baseline gap-1.5">
+          <Text variant="sectionTitle" as="div" className="tabular-nums text-[var(--text-primary)]">
+            {valor == null ? <ValorVazio /> : String(valor)}
+          </Text>
+          {valor != null ? (
+            <Text variant="meta" as="span" className="text-[var(--text-secondary)]">
+              {unidade}
+            </Text>
+          ) : null}
+        </div>
+      </div>
+      <div className="mt-3 pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between">
+        <Text variant="meta" as="span" className="text-[var(--text-secondary)]">
+          {valor == null ? 'Não definido' : helper ?? 'Meta ativa'}
+        </Text>
+      </div>
     </div>
   );
 }
@@ -201,33 +227,35 @@ export function AjustesEditorialPanel() {
             </div>
           </div>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
             <ValorDoRitmo
               rotulo="Publicações por semana"
               valor={preferencias.limiteSemanal}
               unidade="roteiros"
+              dotColor="#10b981"
+              helper="Total do ciclo semanal"
             />
-            <div>
-              <ValorDoRitmo
-                rotulo="Espaços fora das séries"
-                valor={preferencias.reservaForaSeriesSemanal}
-                unidade="por semana"
-              />
-            </div>
-            <div>
-              <ValorDoRitmo
-                rotulo="Roteiros prontos de reserva"
-                valor={preferencias.reservaProntos}
-                unidade="roteiros"
-              />
-            </div>
-            <div>
-              <ValorDoRitmo
-                rotulo="Gravações por dia"
-                valor={preferencias.limiteGravacoesDia}
-                unidade="no máximo"
-              />
-            </div>
+            <ValorDoRitmo
+              rotulo="Espaços fora das séries"
+              valor={preferencias.reservaForaSeriesSemanal}
+              unidade="por semana"
+              dotColor="#3b82f6"
+              helper="Ideias e pautas avulsas"
+            />
+            <ValorDoRitmo
+              rotulo="Roteiros de reserva"
+              valor={preferencias.reservaProntos}
+              unidade="roteiros"
+              dotColor="#a855f7"
+              helper="Estoque sem data"
+            />
+            <ValorDoRitmo
+              rotulo="Gravações por dia"
+              valor={preferencias.limiteGravacoesDia}
+              unidade="no máximo"
+              dotColor="#ec4899"
+              helper="Aviso de sobrecarga diária"
+            />
           </div>
         )}
       </CardConfiguracao>

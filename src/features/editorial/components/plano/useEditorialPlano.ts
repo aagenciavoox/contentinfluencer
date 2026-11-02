@@ -10,7 +10,7 @@ import {
 import { decisaoDoPeriodo } from '../../lib/periodoEditorial';
 import type { ProporcaoFuncoes } from '../../lib/proporcaoObjetivos';
 
-type PatchDecisao = Partial<Pick<DecisaoPeriodo, 'prioridade' | 'metas' | 'ajustesSemana'>>;
+type PatchDecisao = Partial<Omit<DecisaoPeriodo, 'inicio' | 'fim'>>;
 
 /**
  * Lê e grava as configurações do Editorial. O que vale sempre fica em `preferencias`

@@ -30,6 +30,7 @@ import {
 import { sortPilares } from '../../../settings/lib/activePilares';
 import { CAMPO_BASE, CampoTexto, CardConfiguracao, digitos, inteiroOuNull } from './campos';
 import { ItensDoPeriodoDialog, type FiltroDosItens } from './ItensDoPeriodoDialog';
+import { PlanoVigenteView } from './PlanoVigenteView';
 import { ProporcaoObjetivosEditor } from './ProporcaoObjetivosEditor';
 import {
   PeriodoEditorialControl,
@@ -450,6 +451,7 @@ export function PeriodoPanel({
   const [filtroItens, setFiltroItens] = useState<FiltroDosItens | null>(null);
   const [editandoProporcao, setEditandoProporcao] = useState(false);
   const [semanasAbertas, setSemanasAbertas] = useState(false);
+  const [detalhesAvancados, setDetalhesAvancados] = useState(false);
   const contagem = useContagemDoPeriodo(periodo.inicio, periodo.fim);
   const postIts = usePostItsNaData();
   const decisao = decisaoDoPeriodo(settings.periodos, periodo.inicio, periodo.fim);
@@ -629,8 +631,33 @@ export function PeriodoPanel({
     <div className="stack-lg">
       <PeriodoEditorialControl periodo={periodo} onChange={onPeriodoChange} />
 
-      {/* Leitura do período: os números primeiro, numa faixa só. */}
-      <div className="stack-sm">
+      <PlanoVigenteView
+        periodo={periodo}
+        decisao={decisao}
+        platforms={state.platforms}
+        series={state.series}
+        pilares={state.pilares}
+        limiteSemanal={limiteSemanal}
+        totalPrevistos={contagem.previsto}
+        onSalvarDecisao={patch => salvarDecisao(periodo, patch)}
+        onPeriodoChange={onPeriodoChange}
+      />
+
+      <div className="pt-2">
+        <DisclosureButton
+          open={detalhesAvancados}
+          onToggle={() => setDetalhesAvancados(aberto => !aberto)}
+          controls="detalhes-avancados-periodo"
+        >
+          <Text variant="bodyStrong" as="span">Distribuição por objetivo e capacidade avançada</Text>
+          <Text variant="secondary" as="span">Ver balanço por objetivo, pilares e semanas parciais.</Text>
+        </DisclosureButton>
+      </div>
+
+      {detalhesAvancados ? (
+        <div id="detalhes-avancados-periodo" className="stack-lg pt-2 border-t border-[var(--border-subtle)]">
+          {/* Leitura do período: os números primeiro, numa faixa só. */}
+          <div className="stack-sm">
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
           {numeros.map(item => (
             <Surface key={item.id} variant="info" padding="sm">
@@ -819,6 +846,8 @@ export function PeriodoPanel({
             </ul>
           ) : null}
         </Surface>
+      ) : null}
+        </div>
       ) : null}
     </div>
   );

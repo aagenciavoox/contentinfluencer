@@ -62,6 +62,11 @@ export interface DecisaoPeriodo {
   prioridade: string;
   metas: MetasPeriodo;
   ajustesSemana: AjusteSemana[];
+  prioridadeNivel?: 'Alta' | 'Média' | 'Baixa' | string;
+  pausaEditorial?: string;
+  metasProducao?: number;
+  metasPublicacao?: number;
+  metasPorConta?: Record<string, { producao?: number; publicacao?: number; ritmoSemanal?: string }>;
 }
 
 export interface EditorialSettings {
@@ -246,6 +251,11 @@ function readDecisao(value: unknown): DecisaoPeriodo | null {
     prioridade: readTexto(raw.prioridade),
     metas: readMetas(raw.metas),
     ajustesSemana: readAjustes(raw.ajustesSemana),
+    prioridadeNivel: typeof raw.prioridadeNivel === 'string' ? raw.prioridadeNivel : undefined,
+    pausaEditorial: typeof raw.pausaEditorial === 'string' ? raw.pausaEditorial : undefined,
+    metasProducao: typeof raw.metasProducao === 'number' ? raw.metasProducao : undefined,
+    metasPublicacao: typeof raw.metasPublicacao === 'number' ? raw.metasPublicacao : undefined,
+    metasPorConta: raw.metasPorConta && typeof raw.metasPorConta === 'object' ? raw.metasPorConta as Record<string, { producao?: number; publicacao?: number; ritmoSemanal?: string }> : undefined,
   };
 }
 
