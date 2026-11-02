@@ -58,8 +58,13 @@ import { REDE_ROTULO, redeDaRef, rotuloDaRef } from '../../contas/lib/contas';
 import { SelectField } from '../../../components/ui/SelectField';
 import { getErrorDetail, notifySaveFeedback } from '../../../lib/saveFeedback';
 import { BookReadingPanel, STATUS_AVALIAVEL } from '../components/BookReadingPanel';
-import { avaliacaoGeralDosCriterios, type AvaliacaoCriterios, type CriterioAvaliacao } from '../lib/avaliacaoCriterios';
+import { BookSummary } from '../components/BookSummary';
+import { MoreMenu } from '../../../components/ui/MoreMenu';
+import { isAllowedDetailBackPath, type DetailBackState } from '../../../lib/navigation/detailBack';
+import { STATUS_BY_TYPE, datasAoMudarStatus, statusDotColor } from '../lib/libraryStatus';
+import { avaliacaoGeralDosCriterios, mediaDosCriterios, type AvaliacaoCriterios, type CriterioAvaliacao } from '../lib/avaliacaoCriterios';
 import { downloadAnnotationsDocx } from '../lib/exportAnnotationsDocx';
+import { ANNOTATION_TYPES } from '../lib/annotationDraft';
 
 type BookAnnotation = Anotacao;
 type TipoAnotacao = Anotacao['tipo'];
@@ -84,17 +89,16 @@ const SLOT_ROTULO: Record<string, string> = {
   'JANELA': 'Janela',
 };
 
-const TIPOS: TipoAnotacao[] = ['Trecho', 'Reação', 'Análise', 'Ideia de conteúdo', 'Pergunta'];
-const STATUS_LEITURA: Record<BibliotecaItem['tipo'], StatusLeitura[]> = {
-  livro: ['Quero ler', 'Lendo', 'Lido', 'Abandonado'],
-  manga: ['Quero ler', 'Lendo', 'Lido', 'Abandonado'],
-  quadrinho: ['Quero ler', 'Lendo', 'Lido', 'Abandonado'],
-  filme: ['Quero ver', 'Assistido', 'Abandonado'],
-  'série': ['Quero ver', 'Assistindo', 'Assistido', 'Abandonado'],
-  anime: ['Quero ver', 'Assistindo', 'Assistido', 'Abandonado'],
-  outro: ['Quero consumir', 'Consumindo', 'Concluído', 'Abandonado'],
-};
+// As mesmas categorias do formulário de nova anotação, a padrão ("Anotação") inclusa.
+const TIPOS: TipoAnotacao[] = ANNOTATION_TYPES;
+const STATUS_LEITURA = STATUS_BY_TYPE;
 type Tab = 'info' | 'anotacoes' | 'conteudos';
+type OrdemAnotacoes = 'recentes' | 'leitura';
+
+// A aba vem do endereço: recarregar ou voltar mantém a mesma aba. Sem `tab`, abre Anotações.
+function tabDaUrl(value: string | null): Tab {
+  return value === 'info' || value === 'conteudos' ? value : 'anotacoes';
+}
 
 function SectionLabel({ children, className }: { children: ReactNode; className?: string }) {
   return (
@@ -190,7 +194,7 @@ export function BookDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { state, dispatch } = useAppContext();
   const { user } = useAuth();
   const isMobile = useIsMobile();
@@ -213,12 +217,23 @@ export function BookDetailPage() {
       cancelled = true;
     };
   }, [dispatch, id, livro, user]);
-  const initialTab = (searchParams.get('tab') as Tab | null);
-  const [tab, setTab] = useState<Tab>(initialTab === 'info' || initialTab === 'conteudos' ? initialTab : 'anotacoes');
+  const tab = tabDaUrl(searchParams.get('tab'));
+  const setTab = (next: Tab) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('tab', next);
+    // `replace` com o mesmo state: o "voltar" do cabeçalho segue levando à grade filtrada.
+    setSearchParams(params, { replace: true, state: location.state });
+  };
+  // De onde a obra foi aberta (a Biblioteca com os filtros dela); sem isso, a Biblioteca inteira.
+  const fromPath = (location.state as DetailBackState | null)?.from;
+  const backTo = fromPath && fromPath.startsWith('/biblioteca') && isAllowedDetailBackPath(fromPath)
+    ? fromPath
+    : '/biblioteca';
 
   // Anotações state
   const [filtroTipo, setFiltroTipo] = useState<TipoAnotacao | 'Todos' | 'Destaques'>('Todos');
   const [buscaAnotacoes, setBuscaAnotacoes] = useState('');
+  const [ordemAnotacoes, setOrdemAnotacoes] = useState<OrdemAnotacoes>('recentes');
   const [mobileNoteComposerOpen, setMobileNoteComposerOpen] = useState(false);
 
   // Conteúdos state
@@ -270,9 +285,8 @@ export function BookDetailPage() {
     isbn: metadata.isbn ?? '',
     idioma: metadata.idioma ?? '',
     traducao: metadata.traducao ?? '',
-    serieColecao: metadata.serieColecao ?? '',
-    colecaoStatus: metadata.colecaoStatus ?? 'nao',
-    colecaoNome: metadata.colecaoNome ?? '',
+    // Um campo só para série/coleção; o nome antigo de "Qual coleção?" entra quando o outro está vazio.
+    serieColecao: metadata.serieColecao || metadata.colecaoNome || '',
     generoAutor: metadata.generoAutor ?? '',
     paisAutor: metadata.paisAutor ?? '',
     racaAutor: metadata.racaAutor ?? '',
@@ -297,6 +311,7 @@ export function BookDetailPage() {
   }, [hasLivro, infoJson]);
   const infoJsonRef = useRef(infoJson);
   infoJsonRef.current = infoJson;
+  const infoPendente = infoJson !== infoSavedSnapshotRef.current;
   useEffect(() => () => {
     if (infoJsonRef.current !== infoSavedSnapshotRef.current) salvarInfoRef.current();
   }, []);
@@ -325,7 +340,20 @@ export function BookDetailPage() {
       return a.tipo === filtroTipo;
     })
     .filter(a => !termoBusca || dobrarTexto(`${a.texto} ${a.capituloRef ?? ''}`).includes(termoBusca))
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // "Ordem de leitura": a ordem em que foram escritas, da primeira à última.
+    .sort((a, b) => {
+      const diferenca = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      return ordemAnotacoes === 'leitura' ? -diferenca : diferenca;
+    });
+
+  // Contagem por categoria, antes da busca: os filtros sem nenhuma anotação somem.
+  const contagemPorFiltro = new Map<string, number>([['Todos', livro.anotacoes.length]]);
+  for (const anotacao of livro.anotacoes) {
+    contagemPorFiltro.set(anotacao.tipo, (contagemPorFiltro.get(anotacao.tipo) ?? 0) + 1);
+    if (anotacao.contentPotential) contagemPorFiltro.set('Destaques', (contagemPorFiltro.get('Destaques') ?? 0) + 1);
+  }
+  const filtrosAnotacao = (['Todos', 'Destaques', ...TIPOS] as (TipoAnotacao | 'Todos' | 'Destaques')[])
+    .filter(filtro => filtro === 'Todos' || filtro === filtroTipo || (contagemPorFiltro.get(filtro) ?? 0) > 0);
 
   const conteudosDoLivro = state.contents.filter(c => livroIdsEfetivos(c).includes(livro.id));
   const ideiasDeLivro = conteudosDoLivro.filter(
@@ -468,8 +496,9 @@ export function BookDetailPage() {
           idioma: info.idioma,
           traducao: info.traducao,
           serieColecao: info.serieColecao,
-          colecaoStatus: info.colecaoStatus,
-          colecaoNome: info.colecaoNome,
+          // "Faz parte de série?" e o nome dela saem do mesmo campo (o MCP ainda lê os três).
+          colecaoStatus: info.serieColecao.trim() ? 'sim' : 'nao',
+          colecaoNome: info.serieColecao,
           generoAutor: info.generoAutor,
           paisAutor: info.paisAutor,
           racaAutor: info.racaAutor,
@@ -485,11 +514,15 @@ export function BookDetailPage() {
   };
   salvarInfoRef.current = handleSalvarInfo;
 
-  // Nos livros o status e a avaliação por critério moram na aba Anotações (no lugar das 5 estrelas da Info).
-  // O status grava na hora; as notas seguem o autosave da ficha.
+  // Nos livros a avaliação por critério mora na aba Anotações (no lugar das 5 estrelas da Info).
+  // O status fica no cabeçalho, grava na hora e completa as datas vazias (começar → início, terminar → fim).
   const leituraNasAnotacoes = livro.tipo === 'livro';
   const handleMudarStatus = (statusLeitura: StatusLeitura) => {
-    const proximo = { ...infoLocal, statusLeitura };
+    const datas = datasAoMudarStatus(statusLeitura, {
+      dataInicio: infoLocal.dataInicio || null,
+      dataFim: infoLocal.dataFim || null,
+    });
+    const proximo = { ...infoLocal, statusLeitura, dataInicio: datas.dataInicio ?? '', dataFim: datas.dataFim ?? '' };
     setInfoLocal(proximo);
     handleSalvarInfo(proximo);
   };
@@ -502,6 +535,14 @@ export function BookDetailPage() {
       return { ...prev, avaliacaoCriterios, avaliacao: avaliacaoGeralDosCriterios(avaliacaoCriterios) };
     });
   };
+
+  const pedirExclusao = () => setConfirm({
+    ...CONFIRM.excluirBiblioteca(livro.titulo),
+    onConfirm: () => {
+      dispatch({ type: 'DELETE_BOOK', payload: livro.id });
+      navigate(backTo);
+    },
+  });
 
   const handleBaixarWord = async () => {
     if (baixandoWord) return;
@@ -1071,15 +1112,7 @@ export function BookDetailPage() {
             onInfoLocalPatch={(patch) => setInfoLocal((prev) => ({ ...prev, ...patch }))}
             onSaveInfo={() => handleSalvarInfo()}
             infoSalvo={infoSalvo}
-            onRequestDelete={() =>
-              setConfirm({
-                ...CONFIRM.excluirBiblioteca(livro.titulo),
-                onConfirm: () => {
-                  dispatch({ type: 'DELETE_BOOK', payload: livro.id });
-                  navigate('/biblioteca');
-                },
-              })
-            }
+            onRequestDelete={pedirExclusao}
             filtroTipo={filtroTipo}
             onFiltroTipoChange={setFiltroTipo}
             tipoAnotacaoOptions={TIPOS}
@@ -1113,18 +1146,33 @@ export function BookDetailPage() {
           title={livro.titulo}
           creator={livro.autorDiretor}
           typeLabel={itemTypeLabel}
-          status={livro.status}
           backLabel="Biblioteca"
-          backTo="/biblioteca"
+          backTo={backTo}
           actions={
-            <AppButton
-              variant="secondary"
-              leftIcon={<Download className="h-4 w-4" />}
-              onClick={handleBaixarWord}
-              disabled={baixandoWord}
-            >
-              {baixandoWord ? 'Gerando Word…' : 'Baixar em Word'}
-            </AppButton>
+            <>
+              {/* O status muda daqui, de qualquer aba. */}
+              <SelectField
+                ariaLabel="Status"
+                value={infoLocal.statusLeitura}
+                onChange={value => handleMudarStatus(value as StatusLeitura)}
+                options={STATUS_LEITURA[livro.tipo].map(status => ({ value: status, label: status }))}
+                leadingIcon={
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: statusDotColor(infoLocal.statusLeitura) }} />
+                }
+              />
+              <AppButton
+                variant="secondary"
+                leftIcon={<Download className="h-4 w-4" />}
+                onClick={handleBaixarWord}
+                disabled={baixandoWord}
+              >
+                {baixandoWord ? 'Gerando Word…' : 'Baixar em Word'}
+              </AppButton>
+              <MoreMenu
+                label={`Mais ações de ${livro.titulo}`}
+                items={[{ id: 'delete', label: 'Excluir da biblioteca', tone: 'danger', onClick: pedirExclusao }]}
+              />
+            </>
           }
         />
       }
@@ -1134,8 +1182,8 @@ export function BookDetailPage() {
           value={tab}
           onChange={setTab}
           options={[
-            { id: 'info', label: 'Info' },
             { id: 'anotacoes', label: 'Anotações', count: tabCounts.anotacoes ?? 0 },
+            { id: 'info', label: 'Info' },
             { id: 'conteudos', label: 'Roteiros', count: tabCounts.conteudos ?? 0 },
           ]}
         />
@@ -1165,6 +1213,17 @@ export function BookDetailPage() {
                   <CoverFallback title={infoLocal.titulo || livro.titulo} typeLabel={itemTypeLabel} icon={ItemIcon} />
                 </div>
               </div>
+              {/* A capa troca embaixo dela mesma, fora do formulário. */}
+              <CoverUploadField
+                value={infoLocal.capaUrl}
+                onChange={capaUrl => setInfoLocal(prev => ({ ...prev, capaUrl }))}
+                itemId={livro.id}
+                title={infoLocal.titulo || livro.titulo}
+                typeLabel={itemTypeLabel}
+                compact
+                hidePreview
+                plain
+              />
               {/* Livros avaliam por critério na aba Anotações. */}
               {!leituraNasAnotacoes && (
                 <div>
@@ -1183,6 +1242,16 @@ export function BookDetailPage() {
                   </div>
                 </div>
               )}
+              <BookSummary
+                progresso={(infoLocal.totalPaginas as number) > 0
+                  ? { atual: Number(infoLocal.paginasLidas) || 0, total: Number(infoLocal.totalPaginas) }
+                  : null}
+                dataInicio={infoLocal.dataInicio || null}
+                dataFim={infoLocal.dataFim || null}
+                nota={leituraNasAnotacoes ? mediaDosCriterios(infoLocal.avaliacaoCriterios) : infoLocal.avaliacao ?? null}
+                anotacoes={livro.anotacoes.length}
+                roteiros={conteudosDoLivro.length}
+              />
             </div>
 
             {/* Campos direita */}
@@ -1190,7 +1259,13 @@ export function BookDetailPage() {
 
               {/* Seção 1 — Identificação */}
               <section>
-                <SectionLabel>Identificação</SectionLabel>
+                <div className="flex items-baseline justify-between gap-3">
+                  <SectionLabel>Identificação</SectionLabel>
+                  {/* A ficha salva sozinha ~0,9s depois da última mudança: sem botão Salvar. */}
+                  <Text variant="meta" as="span" role="status" className="mb-4">
+                    {infoPendente ? 'Salvando…' : 'Salvo automaticamente'}
+                  </Text>
+                </div>
                 <div className="grid-form">
                   <div>
                     <label htmlFor="book-titulo" className="t-label text-[var(--text-tertiary)] block mb-1.5">Título</label>
@@ -1215,33 +1290,9 @@ export function BookDetailPage() {
 
               {/* Seção 2 — Consumo */}
               <section className="border-t border-[var(--border-color)] pt-6">
+                {/* O status fica no cabeçalho; a capa, embaixo da própria capa. */}
                 <SectionLabel>Consumo</SectionLabel>
                 <div className="grid-form">
-                  {!leituraNasAnotacoes && (
-                    <TagSelect
-                      label="Status"
-                      values={[infoLocal.statusLeitura]}
-                      onChange={values => {
-                        const nextStatus = values.at(-1) as StatusLeitura | undefined;
-                        if (nextStatus) setInfoLocal(prev => ({ ...prev, statusLeitura: nextStatus }));
-                      }}
-                      options={STATUS_LEITURA[livro.tipo].map(status => ({ value: status, label: status }))}
-                      placeholder="Selecionar status"
-                      maxSelections={1}
-                    />
-                  )}
-                  <div className="md:col-span-2">
-                    <CoverUploadField
-                      value={infoLocal.capaUrl}
-                      onChange={capaUrl => setInfoLocal(prev => ({ ...prev, capaUrl }))}
-                      itemId={livro.id}
-                      title={infoLocal.titulo || livro.titulo}
-                      typeLabel={itemTypeLabel}
-                      compact
-                      hidePreview
-                      plain
-                    />
-                  </div>
                   <div>
                     <label className="t-label text-[var(--text-tertiary)] block mb-1.5">Início</label>
                     <PropertyDatePicker
@@ -1300,7 +1351,7 @@ export function BookDetailPage() {
                   </div>
                   <div>
                     <label htmlFor="book-ano" className="t-label text-[var(--text-tertiary)] block mb-1.5">Ano de publicação</label>
-                    <input id="book-ano" type="number" value={infoLocal.anoPublicacao} onChange={e => setInfoLocal(prev => ({ ...prev, anoPublicacao: e.target.value }))} placeholder="2024" className="input" />
+                    <input id="book-ano" type="number" value={infoLocal.anoPublicacao} onChange={e => setInfoLocal(prev => ({ ...prev, anoPublicacao: e.target.value }))} placeholder="Ex.: 2024" className="input" />
                   </div>
                   {(livro.tipo === 'livro' || livro.tipo === 'manga' || livro.tipo === 'quadrinho') && (
                     <div>
@@ -1310,7 +1361,7 @@ export function BookDetailPage() {
                   )}
                   <div>
                     <label htmlFor="book-idioma" className="t-label text-[var(--text-tertiary)] block mb-1.5">Idioma</label>
-                    <input id="book-idioma" type="text" value={infoLocal.idioma} onChange={e => setInfoLocal(prev => ({ ...prev, idioma: e.target.value }))} placeholder="Português" className="input" />
+                    <input id="book-idioma" type="text" value={infoLocal.idioma} onChange={e => setInfoLocal(prev => ({ ...prev, idioma: e.target.value }))} placeholder="Ex.: Português" className="input" />
                   </div>
                   <div>
                     <label htmlFor="book-traducao" className="t-label text-[var(--text-tertiary)] block mb-1.5">{technicalLabels.translation}</label>
@@ -1322,25 +1373,6 @@ export function BookDetailPage() {
                   </div>
                   {(livro.tipo === 'livro' || livro.tipo === 'manga' || livro.tipo === 'quadrinho') && (
                     <>
-                      <div>
-                        <label htmlFor="book-colecao-status" className="t-label text-[var(--text-tertiary)] block mb-1.5">Série ou coleção?</label>
-                        <SelectField
-                          id="book-colecao-status"
-                          block
-                          value={infoLocal.colecaoStatus}
-                          onChange={value => setInfoLocal(prev => ({ ...prev, colecaoStatus: value as 'sim' | 'nao', colecaoNome: value === 'nao' ? '' : prev.colecaoNome }))}
-                          options={[
-                            { value: 'nao', label: 'Não' },
-                            { value: 'sim', label: 'Sim' },
-                          ]}
-                        />
-                      </div>
-                      {infoLocal.colecaoStatus === 'sim' && (
-                        <div>
-                          <label htmlFor="book-colecao-nome" className="t-label text-[var(--text-tertiary)] block mb-1.5">Qual coleção?</label>
-                          <input id="book-colecao-nome" type="text" value={infoLocal.colecaoNome} onChange={e => setInfoLocal(prev => ({ ...prev, colecaoNome: e.target.value, serieColecao: e.target.value }))} placeholder="Ex.: Trono de Vidro" className="input" />
-                        </div>
-                      )}
                       <div>
                         <label htmlFor="book-genero-autor" className="t-label text-[var(--text-tertiary)] block mb-1.5">Gênero do autor</label>
                         <input id="book-genero-autor" type="text" value={infoLocal.generoAutor} onChange={e => setInfoLocal(prev => ({ ...prev, generoAutor: e.target.value }))} placeholder="Ex.: mulher, homem, não binárie" className="input" />
@@ -1357,30 +1389,6 @@ export function BookDetailPage() {
                   )}
                 </div>
               </section>
-
-              {/* Salvar / Remover — sempre disponível durante a edição do formulário longo.
-                  Presa ao pé da área de conteúdo (sticky), e não da tela: assim a barra lateral não a cobre. */}
-              <div className="sticky bottom-[var(--space-lg)] z-30 flex items-center justify-between gap-3 rounded-[var(--radius-overlay)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-3 shadow-[var(--shadow-dropdown)]">
-                <AppButton
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setConfirm({
-                    ...CONFIRM.excluirBiblioteca(livro.titulo),
-                    onConfirm: () => { dispatch({ type: 'DELETE_BOOK', payload: livro.id }); navigate('/biblioteca'); },
-                  })}
-                  className="text-[var(--danger)]"
-                >
-                  Excluir da biblioteca
-                </AppButton>
-                <AppButton
-                  variant="primary"
-                  size="sm"
-                  leftIcon={<Check className="h-3.5 w-3.5" />}
-                  onClick={() => handleSalvarInfo()}
-                >
-                  {infoSalvo ? 'Salvo!' : 'Salvar'}
-                </AppButton>
-              </div>
             </div>
           </div>
         )}
@@ -1389,41 +1397,47 @@ export function BookDetailPage() {
         {tab === 'anotacoes' && (
           <div className="grid items-start gap-8 pb-10 lg:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]">
             <div className="stack-lg min-w-0">
-              {leituraNasAnotacoes && (
-                <BookReadingPanel
-                  status={infoLocal.statusLeitura}
-                  statusOptions={STATUS_LEITURA[livro.tipo]}
-                  onStatusChange={handleMudarStatus}
-                  criterios={infoLocal.avaliacaoCriterios}
-                  onCriterioChange={handleMudarCriterio}
-                />
-              )}
-
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap gap-2">
-                  {(['Todos', 'Destaques', ...TIPOS] as (TipoAnotacao | 'Todos' | 'Destaques')[]).map(t => (
-                    <button
-                      key={t}
-                      type="button"
-                      aria-pressed={filtroTipo === t}
-                      onClick={() => setFiltroTipo(t)}
-                      // Mesmo chip de filtro do Calendário, maior e com o ativo em rosa nesta aba.
-                      className={cn(
-                        'filter-chip filter-chip--roomy filter-chip--accent pointer-coarse:min-h-11',
-                        filtroTipo === t && 'filter-chip-active',
-                      )}
-                    >
-                      {t === 'Destaques' ? '⭐ Destaques' : t}
-                    </button>
-                  ))}
+                  {filtrosAnotacao.map(t => {
+                    const total = contagemPorFiltro.get(t) ?? 0;
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        aria-pressed={filtroTipo === t}
+                        aria-label={`${t} (${total})`}
+                        onClick={() => setFiltroTipo(t)}
+                        // Mesmo chip de filtro do Calendário, maior e com o ativo em rosa nesta aba.
+                        className={cn(
+                          'filter-chip filter-chip--roomy filter-chip--accent pointer-coarse:min-h-11',
+                          filtroTipo === t && 'filter-chip-active',
+                        )}
+                      >
+                        <span>{t}</span>
+                        <span aria-hidden className="filter-chip-count tabular-nums">{total}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-                <div className="w-full sm:w-56">
-                  <ToolbarSearchInput
-                    value={buscaAnotacoes}
-                    onChange={setBuscaAnotacoes}
-                    placeholder="Buscar anotações…"
-                    size="compact"
+                <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+                  <SelectField
+                    ariaLabel="Ordem das anotações"
+                    value={ordemAnotacoes}
+                    onChange={value => setOrdemAnotacoes(value as OrdemAnotacoes)}
+                    options={[
+                      { value: 'recentes', label: 'Mais recentes' },
+                      { value: 'leitura', label: 'Ordem de leitura' },
+                    ]}
                   />
+                  <div className="min-w-0 flex-1 sm:w-56 sm:flex-none">
+                    <ToolbarSearchInput
+                      value={buscaAnotacoes}
+                      onChange={setBuscaAnotacoes}
+                      placeholder="Buscar anotações…"
+                      size="compact"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1455,12 +1469,24 @@ export function BookDetailPage() {
               )}
             </div>
 
-            <div className="lg:sticky lg:top-4">
+            {/* Coluna da direita: escrever e, com a leitura terminada, dar as notas.
+                Presa no topo, rola sozinha se passar da altura da tela. */}
+            <div className="stack-lg lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto">
               <BookAnnotationComposer
                 key={livro.id}
                 book={livro}
                 referencePlaceholder={coverageLabels.placeholder}
               />
+              {leituraNasAnotacoes && (
+                <BookReadingPanel
+                  showStatus={false}
+                  status={infoLocal.statusLeitura}
+                  statusOptions={STATUS_LEITURA[livro.tipo]}
+                  onStatusChange={handleMudarStatus}
+                  criterios={infoLocal.avaliacaoCriterios}
+                  onCriterioChange={handleMudarCriterio}
+                />
+              )}
             </div>
           </div>
         )}

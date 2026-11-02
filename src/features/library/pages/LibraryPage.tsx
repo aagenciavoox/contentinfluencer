@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { BookOpen, Clapperboard, Film, LucideIcon, Plus, Tv } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
@@ -17,15 +17,30 @@ import { useIsMobile } from '../../../hooks/useIsMobile';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { AppButton } from '../../../components/ui/AppButton';
+import { FilterChips, type FilterChipOption } from '../../../components/ui/FilterChips';
 import { PageToolbar } from '../../../components/ui/PageToolbar';
 import { PaginationBar } from '../../../components/ui/PaginationBar';
 import { QueryViewState, resolveQueryViewStatus } from '../../../components/ui/QueryViewState';
+import { Text } from '../../../components/ui/Text';
 import { EMPTY } from '../../../lib/uiCopy';
+import { buildDetailBackState } from '../../../lib/navigation/detailBack';
+import { notifySaveFeedback } from '../../../lib/saveFeedback';
 import { LibraryMobileScreen } from '../../../mobile/screens/library/LibraryMobileScreen';
 import { LibraryItemCard } from '../components/LibraryItemCard';
-import { LibraryToolbar } from '../components/LibraryToolbar';
+import { LIBRARY_SORT_VALUES, LibraryToolbar } from '../components/LibraryToolbar';
 import type { BibliotecaCapaFilter } from '../components/LibraryToolbar';
-import { COMPLETED_STATUS_BY_TYPE } from '../lib/libraryStatus';
+import {
+  COMPLETED_STATUS_BY_TYPE,
+  STATUS_BY_TYPE,
+  STATUS_FASES,
+  datasAoMudarStatus,
+  faseDaUrl,
+  faseDoStatus,
+  faseParaUrl,
+  rotuloDaFase,
+  statusesDaFase,
+  type StatusFase,
+} from '../lib/libraryStatus';
 import { GENEROS_SUGERIDOS, GENEROS_POR_TIPO } from '../lib/libraryGenres';
 import { createIdeaContent } from '../../contents/lib/creationContent';
 import { LibrarySectionTabs } from '../components/LibrarySectionTabs';
@@ -79,16 +94,6 @@ interface NovoLivroForm {
   avaliacao: '' | '1' | '2' | '3' | '4' | '5';
 }
 
-
-const STATUS_BY_TYPE: Record<BibliotecaTipo, StatusLeitura[]> = {
-  livro: ['Quero ler', 'Lendo', 'Lido', 'Abandonado'],
-  manga: ['Quero ler', 'Lendo', 'Lido', 'Abandonado'],
-  quadrinho: ['Quero ler', 'Lendo', 'Lido', 'Abandonado'],
-  filme: ['Quero ver', 'Assistido', 'Abandonado'],
-  'série': ['Quero ver', 'Assistindo', 'Assistido', 'Abandonado'],
-  anime: ['Quero ver', 'Assistindo', 'Assistido', 'Abandonado'],
-  outro: ['Quero consumir', 'Consumindo', 'Concluído', 'Abandonado'],
-};
 
 const TYPE_CONFIG: Record<BibliotecaTipo, BibliotecaTypeConfig> = {
   livro: {
@@ -156,7 +161,28 @@ const TYPE_CONFIG: Record<BibliotecaTipo, BibliotecaTypeConfig> = {
   },
 };
 
-const STATUS_OPTIONS = Array.from(new Set(Object.values(STATUS_BY_TYPE).flat()));
+const TIPOS_VALIDOS = Object.keys(TYPE_CONFIG) as BibliotecaTipo[];
+
+function tipoDaUrl(value: string | null): BibliotecaTipo | 'Todos' {
+  return TIPOS_VALIDOS.includes(value as BibliotecaTipo) ? (value as BibliotecaTipo) : 'Todos';
+}
+
+function capaDaUrl(value: string | null): BibliotecaCapaFilter {
+  return value === 'sem' || value === 'com' ? value : 'Todos';
+}
+
+function ordemDaUrl(value: string | null): string {
+  return value && (LIBRARY_SORT_VALUES as readonly string[]).includes(value) ? value : 'recentes';
+}
+
+function paginaDaUrl(value: string | null): number {
+  const pagina = Number(value);
+  return Number.isInteger(pagina) && pagina > 1 ? pagina : 1;
+}
+
+function contarObras(total: number) {
+  return `${total.toLocaleString('pt-BR')} ${total === 1 ? 'obra' : 'obras'}`;
+}
 
 const INITIAL_FORM: NovoLivroForm = {
   tipo: 'livro',
@@ -196,26 +222,51 @@ export function LibraryPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useIsMobile();
-  const [libraryPage, setLibraryPage] = useState(1);
-  const [filtroTipo, setFiltroTipo] = useState<BibliotecaTipo | 'Todos'>('Todos');
-  const [filtroStatus, setFiltroStatus] = useState<StatusLeitura | 'Todos'>('Todos');
-  const [filtroGenero, setFiltroGenero] = useState<string>('Todos');
-  const [filtroCapa, setFiltroCapa] = useState<BibliotecaCapaFilter>('Todos');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortValue, setSortValue] = useState('recentes');
   const [modalAberto, setModalAberto] = useState(false);
   const [form, setForm] = useState<NovoLivroForm>(INITIAL_FORM);
+
+  // Filtros, busca, ordem e página moram no endereço: voltar de uma obra devolve a mesma grade.
+  const filtroTipo = tipoDaUrl(searchParams.get('tipo'));
+  const filtroFase: StatusFase | 'Todos' = faseDaUrl(searchParams.get('status')) ?? 'Todos';
+  const filtroGenero = searchParams.get('genero') || 'Todos';
+  const filtroCapa = capaDaUrl(searchParams.get('capa'));
+  const searchTerm = searchParams.get('q') ?? '';
+  const sortValue = ordemDaUrl(searchParams.get('ordem'));
+  const libraryPage = paginaDaUrl(searchParams.get('pagina'));
+
+  // O setSearchParams não enfileira: "Limpar filtros" troca vários de uma vez no mesmo clique.
+  const paramsRef = useRef(searchParams);
+  paramsRef.current = searchParams;
+  const updateParams = useCallback((patch: Record<string, string | null>, keepPage = false) => {
+    const next = new URLSearchParams(paramsRef.current);
+    for (const [key, value] of Object.entries(patch)) {
+      if (value) next.set(key, value);
+      else next.delete(key);
+    }
+    // Mudou o filtro: volta para a primeira página.
+    if (!keepPage) next.delete('pagina');
+    paramsRef.current = next;
+    setSearchParams(next, { replace: true });
+  }, [setSearchParams]);
+
+  const setFiltroTipo = (value: BibliotecaTipo | 'Todos') => updateParams({ tipo: value === 'Todos' ? null : value });
+  const setFiltroFase = (value: StatusFase | 'Todos') => updateParams({ status: value === 'Todos' ? null : faseParaUrl(value) });
+  const setFiltroGenero = (value: string) => updateParams({ genero: value === 'Todos' ? null : value });
+  const setFiltroCapa = (value: BibliotecaCapaFilter) => updateParams({ capa: value === 'Todos' ? null : value });
+  const setSearchTerm = (value: string) => updateParams({ q: value || null });
+  const setSortValue = (value: string) => updateParams({ ordem: value === 'recentes' ? null : value });
+  const setLibraryPage = (page: number) => updateParams({ pagina: page > 1 ? String(page) : null }, true);
 
   const libraryQuery = useMemo(() => ({
     page: libraryPage,
     pageSize: LIBRARY_PAGE_SIZE,
     tipo: filtroTipo,
-    status: filtroStatus,
+    statusIn: filtroFase === 'Todos' ? undefined : statusesDaFase(filtroFase),
     genero: filtroGenero,
     capa: filtroCapa,
     search: searchTerm,
     sortValue,
-  }), [filtroCapa, filtroGenero, filtroStatus, filtroTipo, libraryPage, searchTerm, sortValue]);
+  }), [filtroCapa, filtroFase, filtroGenero, filtroTipo, libraryPage, searchTerm, sortValue]);
 
   const fetchLibraryPageForUser = useCallback(
     (query: typeof libraryQuery) => {
@@ -242,12 +293,25 @@ export function LibraryPage() {
   });
 
   useEffect(() => {
-    setLibraryPage(1);
-  }, [filtroCapa, filtroGenero, filtroStatus, filtroTipo, searchTerm, sortValue]);
-
-  useEffect(() => {
-    void ensureDataDomains(['library-generos', 'content']);
+    void ensureDataDomains(['library', 'library-generos', 'content']);
   }, [ensureDataDomains]);
+
+  // A lista completa (já carregada para Hoje e Anotações) dá as contagens sem outra consulta ao banco.
+  const libraryReady = useDomainsReady(['library']);
+  const contagem = useMemo(() => {
+    if (!libraryReady) return null;
+    const porFase: Record<StatusFase | 'Todos', number> = { Todos: 0, andamento: 0, quero: 0, concluido: 0, abandonado: 0 };
+    let obras = 0;
+    for (const item of state.bibliotecaItems) {
+      if (item.deletedAt) continue;
+      obras += 1;
+      if (filtroTipo !== 'Todos' && item.tipo !== filtroTipo) continue;
+      porFase.Todos += 1;
+      const fase = faseDoStatus(item.status);
+      if (fase) porFase[fase] += 1;
+    }
+    return { porFase, obras };
+  }, [filtroTipo, libraryReady, state.bibliotecaItems]);
 
   const contentReady = useDomainsReady(['content']);
   const contentCounts = useMemo(
@@ -287,19 +351,34 @@ export function LibraryPage() {
 
   const contarConteudos = (livroId: string) => contentCounts.get(livroId) || 0;
 
-  const handleMarkComplete = (item: BibliotecaItem) => {
-    dispatch({
-      type: 'UPDATE_BOOK',
-      payload: {
-        ...item,
-        status: COMPLETED_STATUS_BY_TYPE[item.tipo],
-        dataFim: item.dataFim || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
+  // A grade chega sem as anotações; gravar a partir dela apagaria as do estado (o UPDATE_BOOK mescla).
+  const itemCompleto = (item: BibliotecaItem) => state.bibliotecaItems.find(b => b.id === item.id) ?? item;
+
+  // Ações de um clique no card: o aviso traz "Desfazer" no lugar do "Alterações salvas" de sempre.
+  const handleMarkComplete = async (itemDaGrade: BibliotecaItem) => {
+    const item = itemCompleto(itemDaGrade);
+    const status = COMPLETED_STATUS_BY_TYPE[item.tipo];
+    try {
+      await dispatch({
+        type: 'UPDATE_BOOK',
+        payload: {
+          ...item,
+          status,
+          ...datasAoMudarStatus(status, { dataInicio: item.dataInicio, dataFim: item.dataFim }),
+          updatedAt: new Date().toISOString(),
+        },
+      }, { silent: true });
+    } catch {
+      return; // O erro já foi avisado.
+    }
+    notifySaveFeedback({
+      status: 'success',
+      message: `"${item.titulo}" marcado como ${status.toLowerCase()}`,
+      onUndo: () => void dispatch({ type: 'UPDATE_BOOK', payload: { ...item, updatedAt: new Date().toISOString() } }),
     });
   };
 
-  const handleTurnIntoIdea = (item: BibliotecaItem) => {
+  const handleTurnIntoIdea = async (item: BibliotecaItem) => {
     const fields = buildIdeaFields({
       title: `Conteúdo sobre "${item.titulo}"`,
       notes:
@@ -315,14 +394,23 @@ export function LibraryPage() {
       bibliotecaItemId: item.id,
     });
 
-    dispatch({ type: 'ADD_CONTENT', payload: ideia });
+    try {
+      await dispatch({ type: 'ADD_CONTENT', payload: ideia }, { silent: true });
+    } catch {
+      return;
+    }
+    notifySaveFeedback({
+      status: 'success',
+      message: `Ideia criada a partir de "${item.titulo}"`,
+      onUndo: () => void dispatch({ type: 'DELETE_CONTENT', payload: ideia.id }, { silent: true }),
+    });
   };
 
   const handleCoverChange = (item: BibliotecaItem, capaUrl: string) => {
     dispatch({
       type: 'UPDATE_BOOK',
       payload: {
-        ...item,
+        ...itemCompleto(item),
         capaUrl: capaUrl || null,
         updatedAt: new Date().toISOString(),
       },
@@ -344,17 +432,6 @@ export function LibraryPage() {
     setModalAberto(true);
     const next = new URLSearchParams(searchParams);
     next.delete('compose');
-    setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
-
-  // Links da Análise: "Ver todos" (em andamento) e "Avaliar itens concluídos".
-  useEffect(() => {
-    const statusParam = searchParams.get('status');
-    if (!statusParam) return;
-    if (statusParam === 'andamento') setFiltroStatus('Lendo');
-    else if (statusParam === 'concluidos') setFiltroStatus('Lido');
-    const next = new URLSearchParams(searchParams);
-    next.delete('status');
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 
@@ -446,6 +523,29 @@ export function LibraryPage() {
   const getItemMeta = (itemId: string) =>
     state.bibliotecaItems.find(item => item.id === itemId)?.ficha ?? {};
 
+  // A obra guarda de onde veio: o "Biblioteca" do cabeçalho dela volta com os mesmos filtros.
+  const openItem = (itemId: string, tab: 'anotacoes' | 'info') => {
+    const query = paramsRef.current.toString();
+    navigate(`/biblioteca/${itemId}?tab=${tab}`, buildDetailBackState(`/biblioteca${query ? `?${query}` : ''}`));
+  };
+
+  const faseOptions: FilterChipOption<StatusFase | 'Todos'>[] = [
+    { id: 'Todos', label: 'Todas', count: contagem?.porFase.Todos },
+    ...STATUS_FASES.map(fase => ({
+      id: fase,
+      label: rotuloDaFase(fase, filtroTipo),
+      count: contagem?.porFase[fase],
+    })),
+  ];
+
+  const filtrosAtivos = filtroTipo !== 'Todos' || filtroFase !== 'Todos' || filtroGenero !== 'Todos'
+    || filtroCapa !== 'Todos' || searchTerm.trim() !== '';
+  const contagemTexto = libraryQueryStatus !== 'ready'
+    ? null
+    : filtrosAtivos && contagem
+      ? `${libraryTotal.toLocaleString('pt-BR')} de ${contarObras(contagem.obras)}`
+      : contarObras(libraryTotal);
+
   const createFormNode = (
     <LibraryCreateForm
       value={form}
@@ -492,7 +592,7 @@ export function LibraryPage() {
             page={libraryPage}
             totalPages={totalLibraryPages}
             onPageChange={setLibraryPage}
-            onOpenItem={(itemId) => navigate(`/biblioteca/${itemId}?tab=anotacoes`)}
+            onOpenItem={(itemId) => openItem(itemId, 'anotacoes')}
             onOpenCreate={handleOpenModal}
             onTogglePrimary={handleSetPrimaryMobileBook}
             onCoverChange={handleCoverChange}
@@ -544,26 +644,36 @@ export function LibraryPage() {
       )}
       navigation={<LibrarySectionTabs />}
       toolbar={
-        <PageToolbar
-          filters={
-            <LibraryToolbar
-              searchValue={searchTerm}
-              onSearchChange={setSearchTerm}
-              filtroTipo={filtroTipo}
-              onFiltroTipoChange={setFiltroTipo}
-              filtroStatus={filtroStatus}
-              onFiltroStatusChange={setFiltroStatus}
-              filtroGenero={filtroGenero}
-              onFiltroGeneroChange={setFiltroGenero}
-              filtroCapa={filtroCapa}
-              onFiltroCapaChange={setFiltroCapa}
-              sortValue={sortValue}
-              onSortChange={setSortValue}
-              statusOptions={STATUS_OPTIONS}
-              genreOptions={availableGenreFilters}
+        <div className="stack-sm">
+          <PageToolbar
+            filters={
+              <LibraryToolbar
+                searchValue={searchTerm}
+                onSearchChange={setSearchTerm}
+                filtroTipo={filtroTipo}
+                onFiltroTipoChange={setFiltroTipo}
+                filtroGenero={filtroGenero}
+                onFiltroGeneroChange={setFiltroGenero}
+                filtroCapa={filtroCapa}
+                onFiltroCapaChange={setFiltroCapa}
+                sortValue={sortValue}
+                onSortChange={setSortValue}
+                genreOptions={availableGenreFilters}
+              />
+            }
+          />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <FilterChips
+              ariaLabel="Status"
+              value={filtroFase}
+              onChange={setFiltroFase}
+              options={faseOptions}
             />
-          }
-        />
+            {contagemTexto ? (
+              <Text variant="meta" as="p" role="status" className="tabular-nums">{contagemTexto}</Text>
+            ) : null}
+          </div>
+        </div>
       }
     >
 
@@ -593,8 +703,8 @@ export function LibraryPage() {
                 contentsCount={contarConteudos(livro.id)}
                 isPrimaryMobileBook={mobilePrimaryBookId === livro.id}
                 showTypeLabel={tiposNaGrade > 1}
-                onOpen={() => navigate(`/biblioteca/${livro.id}?tab=anotacoes`)}
-                onEdit={() => navigate(`/biblioteca/${livro.id}?tab=info`)}
+                onOpen={() => openItem(livro.id, 'anotacoes')}
+                onEdit={() => openItem(livro.id, 'info')}
                 onMarkComplete={() => handleMarkComplete(livro)}
                 onTurnIntoIdea={() => handleTurnIntoIdea(livro)}
                 onTogglePrimary={() => handleSetPrimaryMobileBook(livro.id)}

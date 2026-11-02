@@ -1,6 +1,6 @@
 import { Text } from '../../../components/ui/Text';
 import { useState } from 'react';
-import { CheckCircle2, MoreVertical, Pencil, Star } from 'lucide-react';
+import { Bookmark, CheckCircle2, MoreVertical, Pencil } from 'lucide-react';
 import { motion } from 'motion/react';
 import { AppButton } from '../../../components/ui/AppButton';
 import { MoreMenu, type MoreMenuItem } from '../../../components/ui/MoreMenu';
@@ -30,6 +30,12 @@ function formatAnnotationDate(iso: string) {
   return `${dia(iso)} às ${hora(iso)}`;
 }
 
+/** Referência só com número ("4", "40%") ganha o "Ref."; "Cap. 3" e "p. 12" ficam como estão. */
+export function formatAnnotationReference(ref: string) {
+  const texto = ref.trim();
+  return /^\d/.test(texto) ? `Ref. ${texto}` : texto;
+}
+
 interface BookAnnotationCardProps {
   anotacao: Anotacao;
   onToggleHighlight: () => void;
@@ -51,6 +57,8 @@ export function BookAnnotationCard({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(anotacao.texto);
   const tipoClass = TIPO_CORES[anotacao.tipo] || TIPO_CORES['Anotação'];
+  // "Anotação" é a categoria padrão: o selo só aparece nas outras.
+  const mostraTipo = anotacao.tipo !== 'Anotação';
   const dateLabel = formatAnnotationDate(anotacao.createdAt);
 
   const startEditing = () => {
@@ -76,15 +84,22 @@ export function BookAnnotationCard({
       layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-6"
+      className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-5 py-4"
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <Text variant="label" as="span" className={cn('rounded-[var(--radius-pill)] px-3 py-1 t-label-uppercase', tipoClass)}>
-            {anotacao.tipo}
-          </Text>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          {mostraTipo ? (
+            <Text variant="label" as="span" className={cn('rounded-[var(--radius-pill)] px-3 py-1 t-label-uppercase', tipoClass)}>
+              {anotacao.tipo}
+            </Text>
+          ) : null}
           {anotacao.capituloRef ? (
-            <Text variant="secondary" as="span" className="text-[var(--text-secondary)]">{anotacao.capituloRef}</Text>
+            <Text variant="secondary" as="span" className="text-[var(--text-secondary)]">{formatAnnotationReference(anotacao.capituloRef)}</Text>
+          ) : null}
+          {dateLabel ? (
+            <Text variant="secondary" as="span" className="text-[var(--text-tertiary)]">
+              <time dateTime={anotacao.createdAt}>{dateLabel}</time>
+            </Text>
           ) : null}
           {anotacao.destilada ? (
             <Text variant="secondary" as="span" className="inline-flex items-center gap-1 text-[var(--accent-green)]">
@@ -94,7 +109,7 @@ export function BookAnnotationCard({
           ) : null}
         </div>
 
-        <div className="-mr-2 -mt-1 flex shrink-0 items-center gap-1">
+        <div className="-mr-2 flex shrink-0 items-center gap-1">
           <button
             type="button"
             onClick={onToggleHighlight}
@@ -106,7 +121,8 @@ export function BookAnnotationCard({
               anotacao.contentPotential ? 'text-[var(--accent-orange)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
             )}
           >
-            <Star className={cn('h-[18px] w-[18px]', anotacao.contentPotential && 'fill-current')} />
+            {/* Marcador, não estrela: as estrelas são da avaliação do livro. */}
+            <Bookmark className={cn('h-[18px] w-[18px]', anotacao.contentPotential && 'fill-current')} />
           </button>
           <button
             type="button"
@@ -129,7 +145,7 @@ export function BookAnnotationCard({
       </div>
 
       {editing ? (
-        <div className="mt-3 stack-sm">
+        <div className="mt-2 stack-sm">
           <textarea
             value={draft}
             onChange={event => setDraft(event.target.value)}
@@ -157,16 +173,10 @@ export function BookAnnotationCard({
           </div>
         </div>
       ) : (
-        <Text variant="body" as="p" className="mt-3 max-w-[72ch] whitespace-pre-line leading-relaxed text-[var(--text-primary)]">
+        <Text variant="body" as="p" className="mt-2 max-w-[72ch] whitespace-pre-line leading-relaxed text-[var(--text-primary)]">
           {anotacao.texto}
         </Text>
       )}
-
-      {dateLabel ? (
-        <Text variant="secondary" as="p" className="mt-3 text-[var(--text-tertiary)]">
-          <time dateTime={anotacao.createdAt}>{dateLabel}</time>
-        </Text>
-      ) : null}
     </motion.article>
   );
 }

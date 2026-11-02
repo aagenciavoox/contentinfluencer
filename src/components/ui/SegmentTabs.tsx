@@ -9,6 +9,8 @@ export interface SegmentTabOption<T extends string = string> {
   count?: number;
   /** Ícone à esquerda do rótulo (ex.: Grade, Lista, Kanban). */
   icon?: ReactNode;
+  /** Rótulo em tom apagado quando inativa (ex.: etapa sem nenhum item). */
+  muted?: boolean;
 }
 
 interface SegmentTabsProps<T extends string = string> {
@@ -123,6 +125,7 @@ export function SegmentTabs<T extends string = string>({
                 '',
                 fullWidth && 'truncate',
                 active && 'text-[var(--bg-primary)]',
+                !active && option.muted && 'text-[var(--text-tertiary)]',
                 iconOnlyOnMobile && option.icon && !active && 'sr-only sm:not-sr-only',
               )}
             >

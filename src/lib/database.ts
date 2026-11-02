@@ -1765,6 +1765,8 @@ export type BibliotecaListQuery = {
   pageSize: number;
   tipo?: string;
   status?: string;
+  /** Um dos status da lista (a fase da obra: "Lendo" também acha "Consumindo"). */
+  statusIn?: readonly string[];
   genero?: string;
   /** Todos | sem | com */
   capa?: string;
@@ -2044,6 +2046,10 @@ export async function fetchBibliotecaPage(
     request = request.eq('status', query.status);
   }
 
+  if (query.statusIn?.length) {
+    request = request.in('status', [...query.statusIn]);
+  }
+
   if (generoFilter) {
     request = request.eq('item_generos.biblioteca_generos.nome', query.genero);
   }
@@ -2068,6 +2074,17 @@ export async function fetchBibliotecaPage(
       break;
     case 'status:asc':
       request = request.order('status', { ascending: true });
+      break;
+    // Sem nota ou sem data de fim vão para o fim da lista.
+    case 'nota:desc':
+      request = request
+        .order('avaliacao', { ascending: false, nullsFirst: false })
+        .order('updated_at', { ascending: false });
+      break;
+    case 'fim:desc':
+      request = request
+        .order('data_fim', { ascending: false, nullsFirst: false })
+        .order('updated_at', { ascending: false });
       break;
     case 'recentes':
     default:

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ChevronLeft,
   Columns3,
   FileText,
   LayoutGrid,
@@ -79,6 +80,7 @@ import { CreationListView } from '../components/CreationListView';
 import { CreationOverflowMenu } from '../components/CreationOverflowMenu';
 import { CreationRedeQuickFilter } from '../components/CreationRedeQuickFilter';
 import { CreationSelectionBar } from '../components/CreationSelectionBar';
+import { CreationStorageLinks, type CreationStorageTab } from '../components/CreationStorageLinks';
 import { ScriptComposer } from '../components/ScriptComposer';
 import {
   canExportCreation,
@@ -120,6 +122,13 @@ const TAB_QUERY: Record<CreationTab, string> = {
   Arquivados: 'arquivados',
   Lixeira: 'lixeira',
 };
+
+// Arquivados e Lixeira não são etapas: saem das abas e abrem uma tela à parte.
+const ETAPA_TABS = CREATION_TABS.filter(tab => tab !== 'Arquivados' && tab !== 'Lixeira');
+
+function isCreationStorageTab(tab: CreationTab): tab is CreationStorageTab {
+  return tab === 'Arquivados' || tab === 'Lixeira';
+}
 
 const QUERY_TAB = Object.fromEntries(
   Object.entries(TAB_QUERY).map(([label, query]) => [query, label]),
@@ -826,13 +835,29 @@ export function CreationHubPage() {
 
   // No kanban, as colunas já são as etapas: as abas de etapa saem da fileira.
   const tabOptions = (viewMode === 'kanban'
-    ? CREATION_TABS.filter(tab => !isCreationKanbanTab(tab))
-    : CREATION_TABS
+    ? ETAPA_TABS.filter(tab => !isCreationKanbanTab(tab))
+    : ETAPA_TABS
   ).map(tab => ({
     id: tab,
     label: tab,
     count: tabCounts[tab],
+    muted: tabCounts[tab] === 0,
   }));
+  // No kanban sobra só "Todos": sem escolha, a fileira de abas some.
+  const showStageTabs = tabOptions.length > 1;
+  const isStorageTab = isCreationStorageTab(activeTab);
+  const openStorage = useCallback((tab: CreationStorageTab) => {
+    updateSearchParam('tab', TAB_QUERY[tab], 'roteiros');
+  }, [updateSearchParam]);
+  const leaveStorage = useCallback(() => {
+    updateSearchParam('tab', '', 'roteiros');
+  }, [updateSearchParam]);
+  const storageCounts = { Arquivados: tabCounts.Arquivados, Lixeira: tabCounts.Lixeira };
+  const storageSubtitle = isStorageTab
+    ? `${tabCounts[activeTab]} ${tabCounts[activeTab] === 1 ? 'item' : 'itens'}. Ficam fora das etapas, da grade e das metas. ${
+      activeTab === 'Lixeira' ? 'Restaure ou exclua de vez.' : 'Restaure quando quiser trazer de volta.'
+    }`
+    : '';
 
   useEffect(() => {
     if (viewMode === 'kanban' && isCreationKanbanTab(activeTab)) {
@@ -875,16 +900,21 @@ export function CreationHubPage() {
     </AppButton>
   );
 
-  const desktopTabs = (
-    <SegmentTabs
-      fullWidth
-      options={tabOptions}
-      value={activeTab}
-      onChange={tab => updateSearchParam('tab', TAB_QUERY[tab], 'roteiros')}
-    />
+  // Sem abas (kanban), Arquivados e Lixeira vão para a barra da busca em vez de ocupar uma linha sozinhos.
+  const desktopTabs = isStorageTab || !showStageTabs ? null : (
+    <div className="flex items-center justify-between gap-3">
+      <div className="min-w-0">
+        <SegmentTabs
+          options={tabOptions}
+          value={activeTab}
+          onChange={tab => updateSearchParam('tab', TAB_QUERY[tab], 'roteiros')}
+        />
+      </div>
+      <CreationStorageLinks counts={storageCounts} onOpen={openStorage} />
+    </div>
   );
 
-  const mobileTabs = (
+  const mobileTabs = isStorageTab || !showStageTabs ? null : (
     <MobileSegmentTabs
       rounded="tight"
       tabs={tabOptions.map(tab => ({
@@ -1071,6 +1101,9 @@ export function CreationHubPage() {
 
   const toolbarView = (
     <div className="inline-stack-sm shrink-0">
+      {isStorageTab || showStageTabs ? null : (
+        <CreationStorageLinks compact counts={storageCounts} onOpen={openStorage} />
+      )}
       <CreationDisplayMenu
         sort={sort as CreationSortValue}
         onSortChange={value => updateSearchParam('sort', value, 'recent')}
@@ -1095,7 +1128,12 @@ export function CreationHubPage() {
         rounded="tight"
         trailing={selectionMenu ?? undefined}
       />
-      {redeQuickFilter}
+      {redeQuickFilter || !isStorageTab ? (
+        <div className="flex items-center justify-between gap-2">
+          {redeQuickFilter ?? <span aria-hidden />}
+          {isStorageTab ? null : <CreationStorageLinks compact counts={storageCounts} onOpen={openStorage} />}
+        </div>
+      ) : null}
     </div>
   );
 
@@ -1177,11 +1215,20 @@ export function CreationHubPage() {
       <PageLayout
         contentWidth="wide"
         contentStack="dense"
-        header={(
+        header={isStorageTab ? (
+          <DesktopPageHeader
+            section="Criação"
+            backLabel="Criação"
+            onBack={leaveStorage}
+            title={activeTab}
+            subtitle={storageSubtitle}
+            actions={activeTab === 'Lixeira' ? trashActions : undefined}
+          />
+        ) : (
           <DesktopPageHeader
             section="Criação"
             title="Criação"
-            actions={activeTab === 'Lixeira' ? trashActions : (
+            actions={(
               <CreateMenuButton
                 onCreateIdea={openIdeaComposer}
                 onCreateScript={() => setScriptComposerOpen(true)}
@@ -1196,12 +1243,21 @@ export function CreationHubPage() {
             view={toolbarView}
           />
         )}
-        mobileHeader={(
+        mobileHeader={isStorageTab ? (
           <div className="stack-sm">
+            <button
+              type="button"
+              onClick={leaveStorage}
+              className="inline-flex min-h-11 items-center gap-1 self-start text-[var(--text-secondary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+            >
+              <ChevronLeft className="h-4 w-4" aria-hidden />
+              <Text variant="secondary" as="span">Criação</Text>
+            </button>
+            <Text variant="sectionTitle" as="h2">{activeTab}</Text>
+            <Text variant="secondary">{storageSubtitle}</Text>
             {activeTab === 'Lixeira' ? trashActions : null}
-            {mobileTabs}
           </div>
-        )}
+        ) : mobileTabs}
         mobileToolbar={mobileFilters}
       >
         <QueryViewState
@@ -1219,12 +1275,14 @@ export function CreationHubPage() {
               ? 'Ajuste a busca ou limpe os filtros para encontrar outros itens.'
               : activeTab === 'Lixeira'
                 ? 'Roteiros movidos para a lixeira ficam aqui até você restaurar ou excluir.'
-                : isMobile
+                : activeTab === 'Arquivados'
+                  ? 'Itens arquivados ficam aqui até você restaurar.'
+                  : isMobile
                   ? 'Use o botão + da barra inferior para criar uma ideia ou um roteiro.'
                   : 'Crie uma ideia ou um roteiro para começar a preencher esta etapa.'
           }
           emptyAction={
-            !isMobile && !hasFilters && activeTab !== 'Lixeira' ? (
+            !isMobile && !hasFilters && !isStorageTab ? (
               <div className="flex flex-wrap justify-center gap-2">{creationActions}</div>
             ) : undefined
           }

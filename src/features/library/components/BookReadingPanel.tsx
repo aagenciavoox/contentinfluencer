@@ -20,6 +20,8 @@ type StatusLeitura = BibliotecaItem['status'];
 export const STATUS_AVALIAVEL: StatusLeitura = 'Lido';
 
 interface BookReadingPanelProps {
+  /** No desktop o status fica no cabeçalho do item; aqui sobra só a avaliação. */
+  showStatus?: boolean;
   status: StatusLeitura;
   statusOptions: readonly StatusLeitura[];
   onStatusChange: (status: StatusLeitura) => void;
@@ -28,8 +30,9 @@ interface BookReadingPanelProps {
   className?: string;
 }
 
-/** Topo da aba Anotações dos livros: status da leitura e a avaliação por critério. */
+/** Aba Anotações dos livros: status da leitura (no celular) e a avaliação por critério. */
 export function BookReadingPanel({
+  showStatus = true,
   status,
   statusOptions,
   onStatusChange,
@@ -39,24 +42,30 @@ export function BookReadingPanel({
 }: BookReadingPanelProps) {
   const statusId = useId();
   const media = mediaDosCriterios(criterios);
+  const avaliavel = status === STATUS_AVALIAVEL;
+
+  // Sem o status e antes de terminar a leitura, não há nada para mostrar.
+  if (!showStatus && !avaliavel) return null;
 
   return (
     <Surface variant="outlined" padding="md" className={cn('stack-md', className)}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <label htmlFor={statusId} className="t-secondary text-[var(--text-primary)]">
-          Status da leitura
-        </label>
-        <SelectField
-          id={statusId}
-          value={status}
-          onChange={value => onStatusChange(value as StatusLeitura)}
-          options={statusOptions.map(option => ({ value: option, label: option }))}
-        />
-      </div>
+      {showStatus ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <label htmlFor={statusId} className="t-secondary text-[var(--text-primary)]">
+            Status da leitura
+          </label>
+          <SelectField
+            id={statusId}
+            value={status}
+            onChange={value => onStatusChange(value as StatusLeitura)}
+            options={statusOptions.map(option => ({ value: option, label: option }))}
+          />
+        </div>
+      ) : null}
 
       {/* As estrelas só aparecem quando a leitura termina. */}
-      {status === STATUS_AVALIAVEL && (
-        <section className="border-t border-[var(--border-color)] pt-4" aria-label="Avaliação">
+      {avaliavel && (
+        <section className={cn(showStatus && 'border-t border-[var(--border-color)] pt-4')} aria-label="Avaliação">
           <div className="mb-3 flex items-baseline justify-between gap-3">
             <Text variant="bodyStrong" as="h3">Avaliação</Text>
             <Text variant="meta">

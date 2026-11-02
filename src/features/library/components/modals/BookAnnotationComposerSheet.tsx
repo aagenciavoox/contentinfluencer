@@ -7,14 +7,12 @@ import { useIsMobile } from '../../../../hooks/useIsMobile';
 import { Dialog } from '../../../../components/overlays/Dialog';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { Surface } from '../../../../components/ui/Surface';
-import { SelectField } from '../../../../components/ui/SelectField';
+import { FilterChips } from '../../../../components/ui/FilterChips';
 import { Text } from '../../../../components/ui/Text';
-import type { Anotacao, BibliotecaItem } from '../../../../lib/database';
+import type { BibliotecaItem } from '../../../../lib/database';
 import { cn } from '../../../../lib/utils';
 import { ANNOTATION_TYPES, createAnnotationDraft, persistAnnotationDraft, readAnnotationDraft, writeAnnotationDraft, type AnnotationDraft } from '../../lib/annotationDraft';
 import { ANNOTATION_MAX_LENGTH, ENTER_HINT } from '../BookAnnotationCard';
-
-type TipoAnotacao = Anotacao['tipo'];
 
 interface BookAnnotationComposerProps {
   book: BibliotecaItem;
@@ -104,42 +102,7 @@ function AnnotationComposerForm({
         <Text variant="sectionTitle">Nova anotação</Text>
       </div>
 
-      <div className="stack-sm">
-        <label htmlFor={`${fieldId}-tipo`} className={labelClass}>Categoria</label>
-        <SelectField
-          id={`${fieldId}-tipo`}
-          ariaLabel="Categoria da anotação"
-          value={novoTipo}
-          disabled={saving}
-          onChange={value => updateDraft({ tipo: value as TipoAnotacao })}
-          options={ANNOTATION_TYPES.map(tipo => ({ value: tipo, label: tipo }))}
-          block
-        />
-      </div>
-
-      <div className="stack-sm">
-        <div className="flex items-baseline justify-between gap-3">
-          <label htmlFor={`${fieldId}-ref`} className={labelClass}>Referência</label>
-          <Text variant="meta">Opcional</Text>
-        </div>
-        <input
-          id={`${fieldId}-ref`}
-          type="text"
-          value={novoCapitulo}
-          disabled={saving}
-          onChange={event => updateDraft({ capituloRef: event.target.value })}
-          onKeyDown={event => {
-            // Enter na referência também salva (sem texto, leva ao campo da anotação).
-            if (event.key === 'Enter' && !isMobile && !event.nativeEvent.isComposing) {
-              event.preventDefault();
-              handleAddAnotacao();
-            }
-          }}
-          placeholder={referencePlaceholder}
-          className={fieldClass}
-        />
-      </div>
-
+      {/* O texto vem primeiro: quem anota no meio da leitura escreve antes de classificar. */}
       <div className="stack-sm">
         <label htmlFor={`${fieldId}-texto`} className={labelClass}>Sua anotação</label>
         <textarea
@@ -166,6 +129,40 @@ function AnnotationComposerForm({
           {isMobile ? null : <Text variant="meta">{ENTER_HINT}</Text>}
           <TextCount id={`${fieldId}-contador`} value={novaAnotacao} limit={ANNOTATION_MAX_LENGTH} className="ml-auto" />
         </div>
+      </div>
+
+      <div className="stack-sm">
+        <Text variant="secondary" as="span" className="text-[var(--text-primary)]" aria-hidden>Categoria</Text>
+        <FilterChips
+          ariaLabel="Categoria da anotação"
+          size="sm"
+          value={novoTipo}
+          onChange={tipo => updateDraft({ tipo })}
+          options={ANNOTATION_TYPES.map(tipo => ({ id: tipo, label: tipo }))}
+        />
+      </div>
+
+      <div className="stack-sm">
+        <div className="flex items-baseline justify-between gap-3">
+          <label htmlFor={`${fieldId}-ref`} className={labelClass}>Referência</label>
+          <Text variant="meta">Opcional</Text>
+        </div>
+        <input
+          id={`${fieldId}-ref`}
+          type="text"
+          value={novoCapitulo}
+          disabled={saving}
+          onChange={event => updateDraft({ capituloRef: event.target.value })}
+          onKeyDown={event => {
+            // Enter na referência também salva (sem texto, leva ao campo da anotação).
+            if (event.key === 'Enter' && !isMobile && !event.nativeEvent.isComposing) {
+              event.preventDefault();
+              handleAddAnotacao();
+            }
+          }}
+          placeholder={referencePlaceholder}
+          className={fieldClass}
+        />
       </div>
 
       {saveError ? <Text variant="secondary" role="alert" className="text-[var(--text-primary)]">{saveError}</Text> : null}

@@ -113,7 +113,9 @@ export function FilterBar({
   const panelOpen = isExpanded && hasPanel;
   const isCompact = size === 'compact';
   const isDropdown = panelMode === 'dropdown';
-  const position = useAnchoredPosition(panelOpen && isDropdown, toggleRef, panelRef, { align: 'end', matchWidth: false });
+  // Abre a partir do botão para a direita: alinhado pela direita, o painel cobria o menu lateral.
+  // Perto da borda da tela, a posição recua sozinha para caber.
+  const position = useAnchoredPosition(panelOpen && isDropdown, toggleRef, panelRef, { align: 'start', matchWidth: false });
   const hasPosition = Boolean(position);
 
   useEffect(() => {

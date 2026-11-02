@@ -1,14 +1,15 @@
 import { useRef, useState } from 'react';
-import { LucideIcon, CheckCircle2, FileText, ImagePlus, Lightbulb, Loader2, NotebookPen, Pencil, Pin, Star } from 'lucide-react';
+import { LucideIcon, FileText, Loader2, Star } from 'lucide-react';
 import { motion } from 'motion/react';
 import { MediaCard } from '../../../components/ui/MediaCard';
+import { MoreMenu, type MoreMenuItem } from '../../../components/ui/MoreMenu';
 import { OverflowTags } from '../../../components/ui/OverflowTags';
 import { Text } from '../../../components/ui/Text';
 import { ValorVazio } from '../../../components/ui/ValorVazio';
 import { useAuth } from '../../../context/AuthContext';
 import { BibliotecaItem, BibliotecaItemMeta } from '../../../lib/database';
 import { notifySaveFeedback } from '../../../lib/saveFeedback';
-import { isCompletedStatus } from '../lib/libraryStatus';
+import { isCompletedStatus, statusDotColor } from '../lib/libraryStatus';
 import { LIBRARY_COVER_UPLOAD_ERROR, uploadLibraryCover, validateLibraryCoverFile } from '../lib/uploadLibraryCover';
 
 export interface BibliotecaTypeConfig {
@@ -31,17 +32,6 @@ interface LibraryItemCardProps {
   onTogglePrimary: () => void;
   onCoverChange: (capaUrl: string) => void;
 }
-
-const STATUS_DOT: Record<string, string> = {
-  Consumindo: 'var(--accent-blue)',
-  Lendo: 'var(--accent-blue)',
-  Assistindo: 'var(--accent-blue)',
-  Pausado: 'var(--accent-orange)',
-  Abandonado: 'var(--accent-orange)',
-  Concluído: 'var(--accent-green)',
-  Lido: 'var(--accent-green)',
-  Assistido: 'var(--accent-green)',
-};
 
 function isWishlistStatus(status: BibliotecaItem['status']) {
   return status === 'Quero consumir' || status === 'Quero ler' || status === 'Quero ver';
@@ -66,11 +56,6 @@ export function LibraryItemCard({
   const [uploadingCover, setUploadingCover] = useState(false);
   const TypeIcon = typeConfig.icon;
   const completed = isCompletedStatus(item.status);
-
-  const handleCoverPick = (event: React.MouseEvent) => {
-    event.stopPropagation();
-    fileInputRef.current?.click();
-  };
 
   const handleCoverFile = async (file: File | undefined) => {
     if (!file) return;
@@ -104,6 +89,28 @@ export function LibraryItemCard({
     }
   };
 
+  const menuItems: MoreMenuItem[] = [
+    {
+      id: 'cover',
+      label: uploadingCover ? 'Enviando capa…' : 'Trocar capa',
+      onClick: () => fileInputRef.current?.click(),
+      disabled: uploadingCover,
+    },
+    { id: 'edit', label: 'Editar ficha', onClick: onEdit },
+    {
+      id: 'complete',
+      label: completed ? 'Já concluído' : 'Marcar concluído',
+      onClick: onMarkComplete,
+      disabled: completed,
+    },
+    { id: 'idea', label: 'Transformar em ideia', onClick: onTurnIntoIdea },
+    {
+      id: 'primary',
+      label: isPrimaryMobileBook ? 'Deixar de ser o livro atual' : 'Definir como livro atual',
+      onClick: onTogglePrimary,
+    },
+  ];
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -119,6 +126,7 @@ export function LibraryItemCard({
         className="mb-2 hover-card"
         overlay={
           <>
+            {/* A capa inteira abre o livro; as outras ações ficam no ⋯ do canto, longe do centro onde se clica. */}
             <button
               type="button"
               onClick={onOpen}
@@ -127,71 +135,14 @@ export function LibraryItemCard({
               className="absolute inset-0 z-0 rounded-[var(--radius-card-mobile)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent-blue)] md:rounded-[var(--radius-card)]"
             />
 
-            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-1.5 bg-[var(--text-primary)]/55 opacity-0 backdrop-blur-[1px] transition-opacity duration-200 group-hover:opacity-100">
-              <button
-                type="button"
-                onClick={event => {
-                  event.stopPropagation();
-                  onOpen();
-                }}
-                title="Abrir anotações"
-                aria-label={`Ver anotações de ${item.titulo}`}
-                className="pointer-events-auto inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-elevated)]/95 text-[var(--text-primary)] shadow-none transition hover:scale-105"
-              >
-                <NotebookPen className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={handleCoverPick}
-                title="Trocar capa"
-                aria-label={`Trocar capa de ${item.titulo}`}
-                disabled={uploadingCover}
-                className="pointer-events-auto inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-elevated)]/95 text-[var(--text-primary)] shadow-none transition hover:scale-105 disabled:opacity-50"
-              >
-                {uploadingCover ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <ImagePlus className="h-3.5 w-3.5" />
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={event => {
-                  event.stopPropagation();
-                  onEdit();
-                }}
-                title="Editar"
-                className="pointer-events-auto inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-elevated)]/95 text-[var(--text-primary)] shadow-none transition hover:scale-105"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={event => {
-                  event.stopPropagation();
-                  onMarkComplete();
-                }}
-                title={completed ? 'Já concluído' : 'Marcar concluído'}
-                disabled={completed}
-                className="pointer-events-auto inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-elevated)]/95 text-[var(--accent-green)] shadow-none transition hover:scale-105 disabled:cursor-default disabled:opacity-40"
-              >
-                <CheckCircle2 className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={event => {
-                  event.stopPropagation();
-                  onTurnIntoIdea();
-                }}
-                title="Transformar em ideia"
-                className="pointer-events-auto inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-elevated)]/95 text-[var(--accent-orange)] shadow-none transition hover:scale-105"
-              >
-                <Lightbulb className="h-3.5 w-3.5" />
-              </button>
-            </div>
+            {uploadingCover ? (
+              <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-[var(--text-primary)]/40">
+                <Loader2 className="h-5 w-5 animate-spin text-[var(--bg-elevated)]" aria-label="Enviando capa" />
+              </div>
+            ) : null}
 
             {/* Etiquetas com fundo sólido: texto direto sobre a arte sumia em capas claras. */}
-            <div className="pointer-events-none absolute bottom-2 left-2 flex flex-col items-start gap-1 transition-opacity duration-200 group-hover:opacity-0">
+            <div className="pointer-events-none absolute bottom-2 left-2 flex flex-col items-start gap-1">
               {showTypeLabel ? (
                 <Text variant="label" as="span" className="rounded-full bg-[var(--bg-elevated)] px-2 py-0.5 text-[var(--text-primary)]">
                   {typeConfig.label}
@@ -201,36 +152,30 @@ export function LibraryItemCard({
                 <span
                   aria-hidden
                   className="h-1.5 w-1.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: STATUS_DOT[item.status] ?? 'var(--text-tertiary)' }}
+                  style={{ backgroundColor: statusDotColor(item.status) }}
                 />
                 {item.status}
               </Text>
             </div>
 
-            <button
-              type="button"
-              onClick={event => {
-                event.stopPropagation();
-                onTogglePrimary();
-              }}
-              className={`absolute right-2 top-2 z-20 inline-flex items-center gap-1 rounded-full px-2 py-1 t-label t-label-uppercase t-label opacity-0 transition-all group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100 ${
-                isPrimaryMobileBook
-                  ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                  : 'bg-[var(--backdrop-strong)] text-[var(--bg-elevated)] hover:bg-[color-mix(in_srgb,var(--text-primary)_80%,transparent)]'
-              }`}
-              aria-label={isPrimaryMobileBook ? 'Deixar de ser o livro atual' : 'Definir como livro atual'}
-            >
-              <Pin className="h-3 w-3" />
-            </button>
+            <div className="absolute right-2 top-2 z-20" onClick={event => event.stopPropagation()}>
+              <MoreMenu
+                items={menuItems}
+                size="sm"
+                label={`Mais ações de ${item.titulo}`}
+                triggerClassName="bg-[var(--bg-elevated)] text-[var(--text-primary)] opacity-0 hover:bg-[var(--bg-elevated)] group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100 pointer-coarse:opacity-100"
+              />
+            </div>
 
             {contentsCount > 0 ? (
               <div
                 title={contentsCount === 1 ? '1 roteiro usa esta obra' : `${contentsCount} roteiros usam esta obra`}
                 aria-label={contentsCount === 1 ? '1 roteiro usa esta obra' : `${contentsCount} roteiros usam esta obra`}
-                className="absolute right-2 top-2 z-20 flex h-6 items-center gap-1 rounded-full bg-[var(--text-primary)] px-2 t-label text-[var(--bg-primary)] transition-all group-hover:top-10"
+                // Desce quando o ⋯ aparece no mesmo canto.
+                className="absolute right-2 top-2 z-20 flex h-6 items-center gap-1 rounded-full bg-[var(--text-primary)] px-2 t-label text-[var(--bg-primary)] transition-all group-hover:top-11 group-focus-within:top-11 pointer-coarse:top-14"
               >
                 <FileText className="h-3 w-3" aria-hidden />
-                {contentsCount}
+                {contentsCount === 1 ? '1 roteiro' : `${contentsCount} roteiros`}
               </div>
             ) : null}
           </>

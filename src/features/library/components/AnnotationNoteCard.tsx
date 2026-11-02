@@ -1,9 +1,10 @@
 import { Text } from '../../../components/ui/Text';
 import type { ReactNode } from 'react';
-import { CheckCircle2, Film, Lightbulb, Star, Trash2 } from 'lucide-react';
+import { Bookmark, CheckCircle2, Film, Lightbulb, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import type { Anotacao } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
+import { formatAnnotationReference } from './BookAnnotationCard';
 
 const TIPO_CORES: Record<string, string> = {
   'Anotação': 'bg-[var(--text-tertiary)]/10 text-[var(--text-tertiary)]',
@@ -48,7 +49,7 @@ export function AnnotationCardActions({
             anotacao.contentPotential ? 'text-[var(--accent-orange)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
           )}
         >
-          <Star className={cn('h-3.5 w-3.5', anotacao.contentPotential && 'fill-[var(--accent-orange)] text-[var(--accent-orange)]')} />
+          <Bookmark className={cn('h-3.5 w-3.5', anotacao.contentPotential && 'fill-[var(--accent-orange)] text-[var(--accent-orange)]')} />
         </button>
       ) : null}
       {showTransformIdea && !anotacao.destilada ? (
@@ -123,7 +124,7 @@ export function AnnotationNoteCard({
             {anotacao.tipo}
           </Text>
           {anotacao.capituloRef ? (
-            <Text variant="label" as="span" className="text-[var(--text-secondary)] opacity-70">{anotacao.capituloRef}</Text>
+            <Text variant="label" as="span" className="text-[var(--text-secondary)] opacity-70">{formatAnnotationReference(anotacao.capituloRef)}</Text>
           ) : null}
           {anotacao.contentPotential ? (
             <Text variant="label" as="span" className="text-[var(--accent-orange)]">Destaque</Text>
