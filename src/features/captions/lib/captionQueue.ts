@@ -3,7 +3,13 @@ import { CONTENT_STATUS, normalizeContentStatus } from '../../contents/lib/conte
 import { publicacaoJaPostada, temLegenda } from '../../editorial/lib/captions.ts';
 import { contaDaRef, rotuloConta, type ContaRef } from '../../contas/lib/contas.ts';
 
-export type CaptionListFilter = 'todos' | 'sem-legenda' | 'com-legenda';
+export type CaptionListFilter =
+  | 'todos'
+  | 'sem-legenda'
+  | 'com-legenda'
+  | 'todas'
+  | 'preenchidas'
+  | 'em-branco';
 
 export const CAPTION_PAGE_SIZE = 10;
 
@@ -68,12 +74,80 @@ export type ItemFilaLegenda = {
   publicacao: ContentPlataforma;
 };
 
+export type ItemFilaRoteiro = {
+  /** Id do roteiro (content.id) */
+  id: string;
+  content: Content;
+  activePublicacoes: ContentPlataforma[];
+};
+
+export function filtrarFilaRoteiros(
+  contents: readonly Content[],
+  filter: CaptionListFilter,
+  search: string,
+  contas: readonly ContaRef[] = [],
+  accountFilter?: string | null,
+): ItemFilaRoteiro[] {
+  const query = search.trim().toLocaleLowerCase('pt-BR');
+  const itens: ItemFilaRoteiro[] = [];
+
+  for (const content of contents) {
+    if (!isCaptionQueueContent(content)) continue;
+
+    // Active publications that are not completed/removed
+    const activePublicacoes = content.plataformas.filter(p => !publicacaoJaPostada(p, content));
+
+    // Account filter: if filtered by an account, the script must have this account configured
+    if (accountFilter && accountFilter !== 'todas') {
+      const temConta = content.plataformas.some(p => p.platformId === accountFilter);
+      if (!temConta) continue;
+    }
+
+    // Preenchida logic: has base caption or has active publication with caption
+    const temBase = Boolean((content.legendaBase ?? '').trim());
+    const algumaComLegenda = activePublicacoes.some(p => (p.legenda ?? '').trim().length > 0);
+    const preenchida = temBase || (activePublicacoes.length > 0 && algumaComLegenda);
+
+    if ((filter === 'sem-legenda' || filter === 'em-branco') && preenchida) continue;
+    if ((filter === 'com-legenda' || filter === 'preenchidas') && !preenchida) continue;
+
+    // Search filter
+    if (query) {
+      const campos = [
+        content.title,
+        content.legendaBase ?? '',
+        ...activePublicacoes.map(p => p.legenda ?? ''),
+        ...activePublicacoes.map(p => p.hashtags ?? ''),
+        ...activePublicacoes.map(p => {
+          const c = contaDaRef(p.platformId, contas);
+          return c ? `${rotuloConta(c)} ${c.nome} ${c.handle ?? ''}` : p.platformId;
+        }),
+      ];
+      const match = campos.some(campo => campo.toLocaleLowerCase('pt-BR').includes(query));
+      if (!match) continue;
+    }
+
+    itens.push({
+      id: content.id,
+      content,
+      activePublicacoes,
+    });
+  }
+
+  return itens.sort((left, right) => {
+    const porData = right.content.updatedAt.localeCompare(left.content.updatedAt);
+    if (porData !== 0) return porData;
+    return left.id.localeCompare(right.id);
+  });
+}
+
 function casaBusca(item: ItemFilaLegenda, query: string, contas: readonly ContaRef[]): boolean {
   if (!query) return true;
   const conta = contaDaRef(item.publicacao.platformId, contas);
   const campos = [
     item.content.title,
     item.publicacao.legenda,
+    item.publicacao.hashtags ?? '',
     item.content.legendaBase ?? '',
     conta ? rotuloConta(conta) : item.publicacao.platformId,
     conta?.nome ?? '',
@@ -88,6 +162,7 @@ export function filtrarFilaLegendas(
   filter: CaptionListFilter,
   search: string,
   contas: readonly ContaRef[] = [],
+  accountFilter?: string | null,
 ): ItemFilaLegenda[] {
   const query = search.trim().toLocaleLowerCase('pt-BR');
   const itens: ItemFilaLegenda[] = [];
@@ -95,9 +170,10 @@ export function filtrarFilaLegendas(
   for (const content of contents) {
     for (const publicacao of content.plataformas) {
       if (!publicacaoNaFila(content, publicacao)) continue;
+      if (accountFilter && accountFilter !== 'todas' && publicacao.platformId !== accountFilter) continue;
       const comLegenda = temLegenda(content.legendaBase, publicacao);
-      if (filter === 'sem-legenda' && comLegenda) continue;
-      if (filter === 'com-legenda' && !comLegenda) continue;
+      if ((filter === 'sem-legenda' || filter === 'em-branco') && comLegenda) continue;
+      if ((filter === 'com-legenda' || filter === 'preenchidas') && !comLegenda) continue;
       const item = { id: publicacao.id, content, publicacao };
       if (!casaBusca(item, query, contas)) continue;
       itens.push(item);
