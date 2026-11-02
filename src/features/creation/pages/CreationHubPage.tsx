@@ -45,6 +45,7 @@ import { buildDetailBackState } from '../../../lib/navigation/detailBack';
 import { getErrorDetail, notifySaveFeedback, UserFacingError } from '../../../lib/saveFeedback';
 import { CONFIRM, ERRORS } from '../../../lib/uiCopy';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
+import { CONTENT_STATUS, normalizeContentStatus } from '../../contents/lib/contentPipeline';
 import { aplicarEscolhasDaSerie, marcarEscolhaManual } from '../../editorial/lib/escolhasSerie';
 import { datasNaGrade } from '../../editorial/lib/datasNaGrade';
 import { FUNCAO_LABELS, FUNCOES } from '../../editorial/lib/funcoes';
@@ -68,6 +69,7 @@ import {
   restoreCreation,
   restoreDeletedCreation,
   sortCreationContents,
+  transitionCreationStatus,
   type CreationSort,
   type CreationTab,
   type CreationViewMode,
@@ -106,6 +108,7 @@ import {
 import {
   etiquetasVisiveis,
   isCreationKanbanTab,
+  isIdeaContent,
   moveCreationToKanbanTab,
   readStoredCreationViewMode,
   storeCreationViewMode,
@@ -125,6 +128,14 @@ const TAB_QUERY: Record<CreationTab, string> = {
 
 // Arquivados e Lixeira não são etapas: saem das abas e abrem uma tela à parte.
 const ETAPA_TABS = CREATION_TABS.filter(tab => tab !== 'Arquivados' && tab !== 'Lixeira');
+
+// Etapas da troca em massa. Publicado não entra: só o formulário registra a publicação.
+const BULK_STATUS_OPTIONS = [
+  CONTENT_STATUS.IDEIA,
+  CONTENT_STATUS.ROTEIRO,
+  CONTENT_STATUS.PRODUCAO,
+  CONTENT_STATUS.EDICAO,
+].map(status => ({value: status, label: status}));
 
 function isCreationStorageTab(tab: CreationTab): tab is CreationStorageTab {
   return tab === 'Arquivados' || tab === 'Lixeira';
@@ -163,6 +174,8 @@ export function CreationHubPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [assignField, setAssignField] = useState<'seriesId' | 'pilarId' | null>(null);
   const [assignValue, setAssignValue] = useState('');
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [statusValue, setStatusValue] = useState('');
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [unpublishTarget, setUnpublishTarget] = useState<{content: Content; tab: CreationKanbanTab} | null>(null);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
@@ -351,6 +364,7 @@ export function CreationHubPage() {
       setSelectedExportIds(new Set());
       setAssignField(null);
       setAssignValue('');
+      setStatusDialogOpen(false);
       setBulkDeleteOpen(false);
     }
     setExportMode(!exportMode);
@@ -494,6 +508,66 @@ export function CreationHubPage() {
       }
     })();
   }, [assignField, assignValue, selectedContents, state.series, updateContent, user?.id]);
+
+  const selectedPublishedCount = useMemo(
+    () => selectedContents.filter(content =>
+      Boolean(content.postedAt) || normalizeContentStatus(content.status) === CONTENT_STATUS.POSTADO
+    ).length,
+    [selectedContents],
+  );
+
+  const openBulkStatus = useCallback(() => {
+    if (selectedExportIds.size === 0) return;
+    setStatusValue('');
+    setStatusDialogOpen(true);
+  }, [selectedExportIds.size]);
+
+  // Mesma regra da troca um por um. Publicado fica de fora: a publicação se registra em cada conteúdo.
+  const applyBulkStatus = useCallback(() => {
+    if (!statusValue || selectedContents.length === 0) return;
+
+    const status = statusValue;
+    const selected = selectedContents;
+    setStatusDialogOpen(false);
+    setStatusValue('');
+    setSelectedExportIds(new Set());
+    setExportMode(false);
+    notifySaveFeedback({ status: 'saving', message: 'Salvando alterações…' });
+
+    void (async () => {
+      try {
+        // A lista é leve; entrar ou sair de Ideia mexe nos textos, então a troca parte do conteúdo completo.
+        const ids = selected.map(content => content.id);
+        const fetched = user?.id ? await fetchContentsByIds(user.id, ids) : selected;
+        if (user?.id && fetched.length !== ids.length) {
+          throw new UserFacingError('Nem todos os itens selecionados puderam ser carregados.');
+        }
+
+        const now = new Date().toISOString();
+        const movedIds = new Set<string>();
+        for (const content of fetched) {
+          const next = transitionCreationStatus(content, status, now);
+          if (
+            next.status === content.status
+            && (next.postedAt ?? null) === (content.postedAt ?? null)
+            && !content.archivedAt
+          ) continue;
+          await updateContent(next, { silent: true });
+          movedIds.add(content.id);
+        }
+        // Trocar de etapa tira do arquivo, como no "Mover para…".
+        setArchivedContents(previous => previous.filter(item => !movedIds.has(item.id)));
+
+        notifySaveFeedback({ status: 'success', message: 'Etapa atualizada na seleção' });
+      } catch (error) {
+        notifySaveFeedback({
+          status: 'error',
+          message: ERRORS.aplicarAlteracoesMassa,
+          detail: getErrorDetail(error),
+        });
+      }
+    })();
+  }, [selectedContents, statusValue, updateContent, user?.id]);
 
   const confirmBulkDelete = useCallback(() => {
     if (selectedContents.length === 0) return;
@@ -718,6 +792,19 @@ export function CreationHubPage() {
     }
   }, [deletedContents.length, user?.id]);
 
+  // A lista é leve (sem roteiro, rascunho nem texto da ideia). Entrar ou sair de Ideias mexe nesses
+  // textos, então a troca parte do conteúdo completo; nas outras basta a etapa.
+  const withBodyForIdeaMove = useCallback(async (
+    content: Content,
+    tab: CreationKanbanTab,
+    next: Content,
+  ): Promise<Content> => {
+    const touchesIdea = tab === 'Ideias' || isIdeaContent(content);
+    if (!touchesIdea || content.script !== undefined || !user?.id) return next;
+    const [full] = await fetchContentsByIds(user.id, [content.id]);
+    return full ? moveCreationToKanbanTab(full, tab) : next;
+  }, [user?.id]);
+
   const handleMoveToTab = useCallback(async (content: Content, tab: CreationKanbanTab) => {
     const previous = content;
     // Publicado não grava no arraste: abre o detalhe no formulário de publicação.
@@ -750,7 +837,7 @@ export function CreationHubPage() {
 
     setPersistingIds(current => new Set(current).add(content.id));
     try {
-      await updateContent(next);
+      await updateContent(await withBodyForIdeaMove(content, tab, next));
     } catch (error) {
       try {
         await updateContent(previous, { silent: true });
@@ -769,7 +856,7 @@ export function CreationHubPage() {
         return nextSet;
       });
     }
-  }, [location, navigate, updateContent]);
+  }, [location, navigate, updateContent, withBodyForIdeaMove]);
 
   const confirmUnpublishMove = useCallback(async () => {
     const alvo = unpublishTarget;
@@ -780,7 +867,7 @@ export function CreationHubPage() {
     setUnpublishTarget(null);
     setPersistingIds(current => new Set(current).add(content.id));
     try {
-      await updateContent(next);
+      await updateContent(await withBodyForIdeaMove(content, tab, next));
     } catch (error) {
       try {
         await updateContent(previous, { silent: true });
@@ -799,7 +886,7 @@ export function CreationHubPage() {
         return nextSet;
       });
     }
-  }, [unpublishTarget, updateContent]);
+  }, [unpublishTarget, updateContent, withBodyForIdeaMove]);
 
   const itemActions: CreationItemActionHandlers = useMemo(() => ({
     onPromote: content => {
@@ -1063,6 +1150,7 @@ export function CreationHubPage() {
       onToggleExport={toggleExportMode}
       cancelLabel="Cancelar seleção"
       extraItems={[
+        { id: 'bulk-status', label: 'Mudar etapa em massa', onClick: beginSelection },
         { id: 'bulk-series', label: 'Mudar série em massa', onClick: beginSelection },
         { id: 'bulk-pillar', label: 'Mudar pilar em massa', onClick: beginSelection },
         { id: 'bulk-delete', label: 'Mover para a lixeira', tone: 'danger', onClick: beginSelection },
@@ -1195,6 +1283,7 @@ export function CreationHubPage() {
       availableNoun={exportCopy}
       isExporting={isExporting}
       onToggleAll={toggleSelectAllExportable}
+      onChangeStatus={openBulkStatus}
       onChangeSeries={() => openBulkAssign('seriesId')}
       onChangePillar={() => openBulkAssign('pilarId')}
       onExport={() => void handleExportCreations()}
@@ -1401,6 +1490,58 @@ export function CreationHubPage() {
               size="sm"
               disabled={!assignValue}
               onClick={() => void applyBulkAssign()}
+            >
+              Aplicar
+            </AppButton>
+          </div>
+        </div>
+      </Dialog>
+
+      <Dialog
+        open={statusDialogOpen}
+        onClose={() => setStatusDialogOpen(false)}
+        desktopMaxW="max-w-md"
+        ariaLabel="Mudar etapa"
+      >
+        <div className="stack-md p-4">
+          <Text variant="sectionTitle">Mudar etapa</Text>
+          <Text variant="secondary">
+            A mudança vale para a seleção atual. Publicado fica de fora: a publicação é registrada em cada conteúdo.
+          </Text>
+          <TagSelect
+            label="Etapa"
+            hideLabel
+            maxSelections={1}
+            placeholder="Escolha"
+            values={statusValue ? [statusValue] : []}
+            onChange={values => setStatusValue(values[0] ?? '')}
+            options={BULK_STATUS_OPTIONS}
+          />
+          {statusValue === CONTENT_STATUS.IDEIA ? (
+            <Text variant="secondary">
+              O texto do roteiro e o rascunho entram no texto da ideia, cada um com seu marcador.
+            </Text>
+          ) : null}
+          {selectedPublishedCount > 0 ? (
+            <Text variant="secondary">
+              {selectedPublishedCount === 1
+                ? 'Um item já publicado sai de Publicados e perde a data de publicação.'
+                : `${selectedPublishedCount} itens já publicados saem de Publicados e perdem a data de publicação.`}
+            </Text>
+          ) : null}
+          <div className="flex justify-end gap-2">
+            <AppButton
+              variant="secondary"
+              size="sm"
+              onClick={() => setStatusDialogOpen(false)}
+            >
+              Cancelar
+            </AppButton>
+            <AppButton
+              variant="primary"
+              size="sm"
+              disabled={!statusValue}
+              onClick={() => void applyBulkStatus()}
             >
               Aplicar
             </AppButton>

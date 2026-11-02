@@ -1,6 +1,6 @@
 import type { ContentPlataforma } from '../../../lib/database.ts';
 import { CONTENT_STATUS, normalizeContentStatus } from '../../contents/lib/contentPipeline.ts';
-import { mesmoDestino, publicacaoOriginal, type DestinoPlataforma } from './destinations.ts';
+import { mesmoDestino, publicacaoOriginal, publicacaoPublicada, type DestinoPlataforma } from './destinations.ts';
 
 /**
  * Regras da legenda. Valem para Roteiro, Legendas e Séries; nenhuma tela decide sozinha.
@@ -243,6 +243,25 @@ export function destinosDaCopia<T extends PublicacaoComStatus & Pick<ContentPlat
     && item.status !== 'nao_publicada'
     && item.status !== 'removida'
     && !publicacaoJaPostada(item, conteudo),
+  );
+}
+
+/**
+ * Publicações que levariam uma legenda escrita junto ao desmarcar a conta (as originais ainda
+ * não publicadas, como em `alternarDestino`). Pede confirmação antes. A legenda-base não é
+ * apagada; só conta o texto guardado na própria publicação.
+ */
+export function legendasQueSeriamApagadas<T extends LegendaDaPublicacao & Pick<ContentPlataforma, 'platformId' | 'publicationKind' | 'status'>>(
+  legendaBase: string | null | undefined,
+  publicacoes: readonly T[],
+  conta: DestinoPlataforma,
+): T[] {
+  return publicacoes.filter(item =>
+    publicacaoOriginal(item)
+    && mesmoDestino(item.platformId, conta)
+    && !publicacaoPublicada(item)
+    && (item.legendaPropria || legendaBase == null)
+    && (item.legenda ?? '').trim().length > 0,
   );
 }
 

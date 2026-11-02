@@ -74,6 +74,54 @@ function testStablePipelineTransitions() {
   assert.equal(demoted.status, 'Ideia');
 }
 
+function testDemotionJoinsScriptAndDraftWithMarkers() {
+  const now = '2026-11-02T12:00:00.000Z';
+  const script = createContent({
+    status: 'Roteiro',
+    notes: 'Começar com uma pergunta.',
+    script: '<p>Começar com uma pergunta.</p><p>Depois mostrar o livro.</p>',
+    writingNotes: '<p>Lembrar da capa nova.</p>',
+  });
+
+  const demoted = demoteContentToIdea(script, now);
+  assert.equal(
+    demoted.notes,
+    '<p><strong>ROTEIRO</strong></p><p>Começar com uma pergunta.</p><p>Depois mostrar o livro.</p>'
+      + '<p><strong>RASCUNHO</strong></p><p>Lembrar da capa nova.</p>',
+  );
+  // Os campos do roteiro continuam lá para quando ele voltar a ser roteiro.
+  assert.equal(demoted.script, script.script);
+  assert.equal(demoted.writingNotes, script.writingNotes);
+
+  // Rascunho antigo em texto puro vira parágrafos; sem rascunho, só o marcador do roteiro.
+  const plainDraft = demoteContentToIdea(createContent({status: 'Roteiro', writingNotes: 'linha 1\nlinha 2'}), now);
+  assert.equal(plainDraft.notes, '<p><strong>RASCUNHO</strong></p><p>linha 1</p><p>linha 2</p>');
+  const onlyScript = demoteContentToIdea(createContent({status: 'Produção', script: '<p>Só o roteiro.</p>'}), now);
+  assert.equal(onlyScript.notes, '<p><strong>ROTEIRO</strong></p><p>Só o roteiro.</p>');
+
+  // A ideia que não está no roteiro não se perde.
+  const rewritten = demoteContentToIdea(createContent({
+    status: 'Roteiro',
+    notes: 'Ideia original',
+    script: '<p>Texto reescrito.</p>',
+  }), now);
+  assert.equal(
+    rewritten.notes,
+    '<p><strong>ROTEIRO</strong></p><p>Texto reescrito.</p><p><strong>IDEIA ANTERIOR</strong></p><p>Ideia original</p>',
+  );
+
+  // Voltar a Ideia de novo sem mudar nada não duplica o texto.
+  const again = demoteContentToIdea(promoteContentToScript(demoted, now), now);
+  assert.equal(again.notes, demoted.notes);
+
+  // Sem roteiro e sem rascunho, ou com a lista leve (corpo ausente), o texto da ideia fica como está.
+  assert.equal(demoteContentToIdea(createContent({status: 'Roteiro', notes: 'Só a ideia'}), now).notes, 'Só a ideia');
+  const light = createContent({status: 'Roteiro'});
+  delete (light as Partial<Content>).script;
+  delete (light as Partial<Content>).notes;
+  assert.equal(demoteContentToIdea(light, now).notes, undefined);
+}
+
 function testPromotionKeepsAnExistingScript() {
   const source = createContent({
     status: 'Ideia',
@@ -361,6 +409,7 @@ const tests: Array<[string, () => void]> = [
   ['new script carries the networks chosen at creation', testNewScriptCarriesChosenPublications],
   ['status change is the same rule everywhere', testStatusChangeIsTheSameRuleEverywhere],
   ['creation pipeline transitions keep the same id', testStablePipelineTransitions],
+  ['demotion joins script and draft with markers', testDemotionJoinsScriptAndDraftWithMarkers],
   ['promotion preserves an existing script', testPromotionKeepsAnExistingScript],
   ['promotion preserves rich idea formatting', testPromotionPreservesRichIdeaFormatting],
   ['archive and restore are reversible', testArchiveAndRestoreAreReversible],

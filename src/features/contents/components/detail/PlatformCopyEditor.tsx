@@ -30,6 +30,7 @@ import {
   editarLegendaDaConta,
   hashtagsNaLegenda,
   legendaComHashtags,
+  legendasQueSeriamApagadas,
   legendasQueSeriamSubstituidas,
   publicacaoJaPostada,
 } from '../../../editorial/lib/captions';
@@ -170,6 +171,7 @@ export function PlatformCopyEditor({
   const [ativaId, setAtivaId] = useState<string | null>(null);
   const ativa = abas.find(item => item.id === ativaId) ?? abas[0] ?? null;
   const [confirmarCopia, setConfirmarCopia] = useState(false);
+  const [confirmarDesmarcar, setConfirmarDesmarcar] = useState<DestinoPlataforma | null>(null);
   const [copiaFeita, setCopiaFeita] = useState(false);
   const [copiado, setCopiado] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -217,6 +219,15 @@ export function PlatformCopyEditor({
     if (disabled) return;
     const marcada = destinoMarcado(plataformas, conta);
     if (marcada && contaJaPublicada(conta)) return;
+    // Desmarcar apaga a legenda escrita para a conta: pergunta antes.
+    if (marcada && legendasQueSeriamApagadas(legendaBase, plataformas, conta).length > 0) {
+      setConfirmarDesmarcar(conta);
+      return;
+    }
+    aplicarAlternancia(conta, marcada);
+  };
+
+  const aplicarAlternancia = (conta: DestinoPlataforma, marcada: boolean) => {
     const proximas = alternarDestino({publicacoes: plataformas, plataforma: conta, contentId, marcar: !marcada});
     const padraoHashtags = hashtagsPadraoForaSerie({
       seriesId: serie?.id ?? null,
@@ -456,6 +467,21 @@ export function PlatformCopyEditor({
           usarEmTodas();
         }}
         onCancel={() => setConfirmarCopia(false)}
+      />
+
+      <ConfirmModal
+        open={confirmarDesmarcar !== null}
+        message={confirmarDesmarcar
+          ? `Desmarcar ${rotuloConta(confirmarDesmarcar)}? A legenda escrita para essa conta será apagada.`
+          : ''}
+        confirmLabel="Desmarcar e apagar"
+        cancelLabel="Manter conta"
+        onConfirm={() => {
+          const conta = confirmarDesmarcar;
+          setConfirmarDesmarcar(null);
+          if (conta) aplicarAlternancia(conta, true);
+        }}
+        onCancel={() => setConfirmarDesmarcar(null)}
       />
     </Surface>
   );

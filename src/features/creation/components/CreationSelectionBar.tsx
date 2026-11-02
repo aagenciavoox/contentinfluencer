@@ -1,4 +1,4 @@
-import { Check, Download, Layers, Minus, Target, Trash2, X } from 'lucide-react';
+import { ArrowRightLeft, Check, Download, Layers, Minus, Target, Trash2, X } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Text } from '../../../components/ui/Text';
 import { cn } from '../../../lib/utils';
@@ -17,6 +17,7 @@ interface CreationSelectionBarProps {
   availableNoun: Noun;
   isExporting: boolean;
   onToggleAll: () => void;
+  onChangeStatus: () => void;
   onChangeSeries: () => void;
   onChangePillar: () => void;
   onExport: () => void;
@@ -59,7 +60,7 @@ function selectionDetail({
   return `De ${available} no filtro${offscreen}`;
 }
 
-// No celular os botões viram blocos com ícone sobre o texto (4 por linha); do `md:` em diante, botões normais.
+// No celular os botões viram blocos com ícone sobre o texto (5 por linha); do `md:` em diante, botões normais.
 const actionClassName = cn(
   'h-auto min-h-14 w-full flex-col gap-1 px-1 py-2 t-label',
   'md:h-[var(--app-button-height)] md:min-h-0 md:w-auto md:flex-row md:gap-2 md:px-4 md:py-0 md:text-[length:var(--font-size-button)]',
@@ -77,6 +78,7 @@ export function CreationSelectionBar({
   availableNoun,
   isExporting,
   onToggleAll,
+  onChangeStatus,
   onChangeSeries,
   onChangePillar,
   onExport,
@@ -108,8 +110,9 @@ export function CreationSelectionBar({
     <div
       className={cn(
         'sticky z-30',
-        // Mesma altura da barra inferior do shell mobile (.mobile-shell-bottom-spacer) + respiro.
-        'bottom-[calc(3.25rem+max(0.75rem,env(safe-area-inset-bottom,0px))+var(--space-sm))]',
+        // Altura da barra inferior do celular (borda + fileira h-14 + área segura de .mobile-bottom-nav)
+        // + respiro. A conta antiga dava 11px de folga sem área segura e só 3px com ela.
+        'bottom-[calc(3.5rem+1px+max(0.25rem,env(safe-area-inset-bottom,0px))+var(--space-sm))]',
         'lg:bottom-[var(--space-lg)]',
       )}
     >
@@ -163,7 +166,19 @@ export function CreationSelectionBar({
           {cancelButton('-my-1 -mr-1 md:hidden')}
         </div>
 
-        <div className="grid grid-cols-4 gap-1.5 md:ml-auto md:flex md:items-center md:gap-2">
+        <div className="grid grid-cols-5 gap-1.5 md:ml-auto md:flex md:items-center md:gap-2">
+          <AppButton
+            variant="secondary"
+            size="sm"
+            className={actionClassName}
+            leftIcon={<ArrowRightLeft className="h-4 w-4" />}
+            aria-label="Mudar etapa"
+            disabled={nothingSelected}
+            onClick={onChangeStatus}
+          >
+            <span className="md:hidden">Etapa</span>
+            <span className="hidden md:inline">Mudar etapa</span>
+          </AppButton>
           <AppButton
             variant="secondary"
             size="sm"

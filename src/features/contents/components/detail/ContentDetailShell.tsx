@@ -517,6 +517,7 @@ export function ContentDetailShell({
       if (changed.tags !== base.tags) ruleChanges.tags = changed.tags;
       if (changed.postedAt !== base.postedAt) ruleChanges.postedAt = changed.postedAt ?? null;
       if (changed.script !== base.script) ruleChanges.script = changed.script;
+      if (changed.notes !== base.notes) ruleChanges.notes = changed.notes;
 
       const payload: Content = {
         ...changed,

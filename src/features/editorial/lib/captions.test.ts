@@ -14,6 +14,7 @@ import {
   legendaComHashtags,
   legendaEfetiva,
   legendasDaSerie,
+  legendasQueSeriamApagadas,
   legendasQueSeriamSubstituidas,
   migrarLegendas,
   publicacaoJaPostada,
@@ -255,6 +256,31 @@ function testHashtagsDentroDaLegenda() {
   assert.equal(copiadas[1].hashtags, '');
 }
 
+function testDesmarcarContaComLegendaPedeConfirmacao() {
+  const publicacoes = [
+    publicacao({ id: 'ig', platformId: 'ig', legenda: 'texto do insta', legendaPropria: true }),
+    publicacao({ id: 'ig-repost', platformId: 'ig', legenda: 'texto do repost', legendaPropria: true, publicationKind: 'repost' }),
+    publicacao({ id: 'tt', platformId: 'tt', legenda: '   ', legendaPropria: true, hashtags: '#livros' }),
+  ];
+
+  // Só a original com texto escrito; o repost não sai ao desmarcar.
+  assert.deepEqual(legendasQueSeriamApagadas('', publicacoes, instagram).map(item => item.id), ['ig']);
+  // Conta recém-marcada, só com as hashtags padrão: desmarca sem perguntar.
+  assert.deepEqual(legendasQueSeriamApagadas('', publicacoes, tiktok), []);
+
+  // Publicada fica marcada; a que acompanha a base não apaga a base.
+  assert.deepEqual(legendasQueSeriamApagadas('', [
+    publicacao({ id: 'ig', platformId: 'ig', legenda: 'foi ao ar', legendaPropria: true, status: 'publicada' }),
+  ], instagram), []);
+  assert.deepEqual(legendasQueSeriamApagadas('legenda base', [
+    publicacao({ id: 'ig', platformId: 'ig', legenda: 'antiga' }),
+  ], instagram), []);
+  // Conteúdo antigo, sem base: o texto mora na publicação.
+  assert.deepEqual(legendasQueSeriamApagadas(null, [
+    publicacao({ id: 'ig', platformId: 'ig', legenda: 'antiga' }),
+  ], instagram).map(item => item.id), ['ig']);
+}
+
 testBaseAteAdaptar();
 testPrimeiraEdicaoPreservaTextoDiferente();
 testEditarBaseNaoMexeNaPropria();
@@ -267,5 +293,6 @@ testComLegendaPeloTextoEfetivo();
 testPostadoSemStatusPorPublicacaoContaComoRealizado();
 testSerieOrientaRoteiroNovo();
 testUsarEstaLegendaEmTodas();
+testDesmarcarContaComLegendaPedeConfirmacao();
 testHashtagsDentroDaLegenda();
 console.log('captions tests passed');

@@ -14,7 +14,8 @@ import {
 import {livroIdsEfetivos} from '../../../lib/livroIds.ts';
 import {createContentDraft} from './createContentDraft.ts';
 import {matchesTemaFilter} from './temaFilter.ts';
-import {contentReadableBody, isCarouselContent} from './carouselSlides.ts';
+import {carouselPlainText, contentReadableBody, isCarouselContent} from './carouselSlides.ts';
+import {writingNotesToHtml} from './supportDraft.ts';
 import {passaNoFiltroRede} from '../../creation/lib/creationRedeFilter.ts';
 import {contentPassaFiltroSerie} from '../../editorial/lib/filtroSubarvore.ts';
 
@@ -149,9 +150,47 @@ export function updateContentFromLegacyIdea(
   };
 }
 
+function ideaMarkerHtml(label: string): string {
+  return `<p><strong>${label}</strong></p>`;
+}
+
+function collapsedReadableText(value: string | null | undefined): string {
+  return htmlToReadableText(value).replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Texto da ideia ao voltar para Ideia: o roteiro e o rascunho, cada um debaixo do seu marcador.
+ * Os campos do roteiro ficam como estão. O texto que a ideia já tinha só continua (em
+ * "IDEIA ANTERIOR") quando não está dentro do que entrou — ao virar roteiro ele foi copiado
+ * para o roteiro. Devolve `undefined` quando não há o que juntar ou o corpo não foi carregado
+ * (lista leve): aí o texto da ideia fica como está.
+ */
+export function ideaNotesFromScript(
+  content: Pick<Content, 'notes' | 'script'> & Partial<Pick<Content, 'writingNotes' | 'writingMode' | 'carouselSlides'>>,
+): string | undefined {
+  const slidesText = isCarouselContent(content) ? carouselPlainText(content.carouselSlides, {labels: true}) : '';
+  const scriptHtml = slidesText
+    ? readableTextToScriptHtml(slidesText)
+    : htmlToReadableText(content.script).trim() ? (content.script ?? '').trim() : '';
+  const draftHtml = writingNotesToHtml(content.writingNotes);
+  const hasDraft = htmlToReadableText(draftHtml).trim().length > 0;
+  if (!scriptHtml && !hasDraft) return undefined;
+
+  let joined = '';
+  if (scriptHtml) joined += `${ideaMarkerHtml('ROTEIRO')}${scriptHtml}`;
+  if (hasDraft) joined += `${ideaMarkerHtml('RASCUNHO')}${draftHtml}`;
+
+  const previous = collapsedReadableText(content.notes);
+  if (previous && !collapsedReadableText(joined).includes(previous)) {
+    joined += `${ideaMarkerHtml('IDEIA ANTERIOR')}${ideaTextToScriptHtml(content.notes ?? '')}`;
+  }
+  return joined;
+}
+
 /**
  * A regra de troca de etapa, a mesma em todas as telas. Dá para pular ou voltar etapas.
  * Ao sair de Ideia, o texto da ideia vira o roteiro (se ele ainda estiver vazio).
+ * Ao voltar para Ideia, o roteiro e o rascunho entram no texto da ideia.
  * Vídeo que chega a Produção vindo da escrita fica marcado para gravar.
  */
 export function applyStatusChange(
@@ -174,6 +213,11 @@ export function applyStatusChange(
     const currentScript = htmlToReadableText(content.script).trim();
     const ideaText = htmlToReadableText(content.notes).trim();
     if (!currentScript && ideaText) next.script = ideaTextToScriptHtml(content.notes ?? '');
+  }
+
+  if (nextStatus === CONTENT_STATUS.IDEIA) {
+    const ideaNotes = ideaNotesFromScript(content);
+    if (ideaNotes !== undefined) next.notes = ideaNotes;
   }
 
   if (

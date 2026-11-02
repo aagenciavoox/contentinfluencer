@@ -15,7 +15,8 @@ import { getPlatformDotClass, inferPlatformFormat } from './CaptionQueueItemCard
 import { CopyCaptionToAccountsModal } from './CopyCaptionToAccountsModal';
 import { limiteDoCampo } from '../../editorial/lib/platformFields';
 import { parseHashtags, joinHashtags } from '../../contents/lib/captionHashtags';
-import { legendaEfetiva, hashtagsNaLegenda, publicacaoJaPostada } from '../../editorial/lib/captions';
+import { legendaEfetiva, hashtagsNaLegenda, legendasQueSeriamApagadas, publicacaoJaPostada } from '../../editorial/lib/captions';
+import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { alternarDestino } from '../../editorial/lib/destinations';
 
 interface CaptionEditorPanelProps {
@@ -55,6 +56,7 @@ export function CaptionEditorPanel({
   const [copyModalOpen, setCopyModalOpen] = useState(false);
   const [copiedPronto, setCopiedPronto] = useState(false);
   const [newTagInput, setNewTagInput] = useState('');
+  const [desativarPendente, setDesativarPendente] = useState<string | null>(null);
 
   // Local draft state for the current publication
   const [localText, setLocalText] = useState('');
@@ -67,6 +69,12 @@ export function CaptionEditorPanel({
   const dotClass = getPlatformDotClass(publicacao?.platformId || '', conta);
   const formato = inferPlatformFormat(publicacao?.platformId || '', content.formatoVisual, conta);
   const statusLabel = getDisplayStatusLabel(content);
+
+  const pubDesativarPendente = content.plataformas.find(p => p.id === desativarPendente);
+  const contaDesativarPendente = pubDesativarPendente ? contaDaRef(pubDesativarPendente.platformId, contas) : null;
+  const nomeDesativarPendente = contaDesativarPendente
+    ? rotuloConta(contaDesativarPendente)
+    : pubDesativarPendente?.platformId ?? 'esta conta';
 
   const serie = series.find(s => s.id === content.seriesId);
   const pilar = pilares.find(p => p.id === content.pilarId);
@@ -280,6 +288,19 @@ export function CaptionEditorPanel({
     }
   };
 
+  // Desativar apaga a legenda escrita para a conta (inclusive a que ainda está para salvar): pergunta antes.
+  const pedirDesativarConta = (publicacaoId: string) => {
+    const pub = content.plataformas.find(p => p.id === publicacaoId);
+    const contaAlvo = pub ? contaDaRef(pub.platformId, contas) : null;
+    if (!contaAlvo) return;
+    const editandoAgora = timerRef.current !== null && publicacaoId === publicacao?.id && localText.trim().length > 0;
+    if (editandoAgora || legendasQueSeriamApagadas(content.legendaBase, content.plataformas, contaAlvo).length > 0) {
+      setDesativarPendente(publicacaoId);
+      return;
+    }
+    void handleDesativarConta(publicacaoId);
+  };
+
   // Deactivate an account from this content
   const handleDesativarConta = async (publicacaoId: string) => {
     const pubParaRemover = content.plataformas.find(p => p.id === publicacaoId);
@@ -359,7 +380,7 @@ export function CaptionEditorPanel({
                     type="button"
                     onClick={e => {
                       e.stopPropagation();
-                      void handleDesativarConta(pub.id);
+                      pedirDesativarConta(pub.id);
                     }}
                     className={cn(
                       'mr-1.5 p-0.5 rounded-full hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:text-[var(--danger)] transition-colors',
@@ -620,6 +641,19 @@ export function CaptionEditorPanel({
           onConfirm={handleConfirmCopyToAccounts}
         />
       ) : null}
+
+      <ConfirmModal
+        open={desativarPendente !== null}
+        message={`Desativar ${nomeDesativarPendente} desta pauta? A legenda escrita para essa conta será apagada.`}
+        confirmLabel="Desativar e apagar"
+        cancelLabel="Manter conta"
+        onConfirm={() => {
+          const publicacaoId = desativarPendente;
+          setDesativarPendente(null);
+          if (publicacaoId) void handleDesativarConta(publicacaoId);
+        }}
+        onCancel={() => setDesativarPendente(null)}
+      />
     </div>
   );
 }
