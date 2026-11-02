@@ -638,9 +638,8 @@ export function PeriodoPanel({
         series={state.series}
         pilares={state.pilares}
         limiteSemanal={limiteSemanal}
-        totalPrevistos={contagem.previsto}
         onSalvarDecisao={patch => salvarDecisao(periodo, patch)}
-        onPeriodoChange={onPeriodoChange}
+        recolhivel
       />
 
       <div className="pt-2">

@@ -22,6 +22,16 @@ export function EditorialPage() {
     { id: 'ajustes', label: 'Ritmo & Regras Gerais', icon: <SlidersHorizontal className="h-4 w-4" /> },
   ];
 
+  const novoPilar = (
+    <AppButton
+      variant="primary"
+      leftIcon={<Plus className="h-4 w-4" />}
+      onClick={() => navigate('/editorial/pilares/nova')}
+    >
+      Novo pilar
+    </AppButton>
+  );
+
   const handleAbaChange = (novaAba: EditorialAba) => {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
@@ -38,15 +48,7 @@ export function EditorialPage() {
           section="Criação"
           title="Editorial"
           rowAlign="center"
-          actions={(
-            <AppButton
-              variant="primary"
-              leftIcon={<Plus className="h-4 w-4" />}
-              onClick={() => navigate('/editorial/pilares/nova')}
-            >
-              Novo pilar
-            </AppButton>
-          )}
+          actions={abaAtiva === 'pilares' ? novoPilar : undefined}
         />
       )}
       navigation={(
@@ -57,6 +59,18 @@ export function EditorialPage() {
             onChange={handleAbaChange}
             ariaLabel="Abas do Editorial"
           />
+        </div>
+      )}
+      // No celular o cabeçalho e a navegação do desktop não aparecem: as abas vêm aqui.
+      mobileToolbar={(
+        <div className="stack-sm">
+          <SegmentTabs<EditorialAba>
+            options={abaOptions}
+            value={abaAtiva}
+            onChange={handleAbaChange}
+            ariaLabel="Abas do Editorial"
+          />
+          {abaAtiva === 'pilares' ? novoPilar : null}
         </div>
       )}
     >

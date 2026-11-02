@@ -2,10 +2,12 @@ import {
   addDays,
   differenceInCalendarDays,
   endOfMonth,
+  endOfQuarter,
   endOfWeek,
   format,
   parseISO,
   startOfMonth,
+  startOfQuarter,
   startOfWeek,
 } from 'date-fns';
 import type { AjusteSemana, DecisaoPeriodo } from './editorialSettings.ts';
@@ -13,7 +15,8 @@ import type { AjusteSemana, DecisaoPeriodo } from './editorialSettings.ts';
 const FORMATO = 'yyyy-MM-dd';
 const SEMANA = { weekStartsOn: 0 as const };
 
-export type ModoPeriodo = 'semana' | 'mes' | 'intervalo';
+/** `semana` só chega de períodos salvos antes do trimestre; o seletor oferece mês, trimestre e personalizado. */
+export type ModoPeriodo = 'semana' | 'mes' | 'trimestre' | 'intervalo';
 
 export type PeriodoSelecionado = {
   modo: ModoPeriodo;
@@ -35,6 +38,15 @@ export function semanaDe(data: string): { inicio: string; fim: string } {
   return {
     inicio: format(startOfWeek(dia, SEMANA), FORMATO),
     fim: format(endOfWeek(dia, SEMANA), FORMATO),
+  };
+}
+
+/** Trimestre do calendário: jan–mar, abr–jun, jul–set, out–dez. */
+export function trimestreDe(data: string): { inicio: string; fim: string } {
+  const dia = parseISO(data);
+  return {
+    inicio: format(startOfQuarter(dia), FORMATO),
+    fim: format(endOfQuarter(dia), FORMATO),
   };
 }
 
@@ -137,8 +149,11 @@ export function decisaoDoPeriodo(
 
 /**
  * Lê a janela gravada em `editorial_visao`.
- * Semana volta a ser domingo–sábado e mês volta a ser o mês inteiro do início salvo.
- * Valor ausente ou quebrado devolve null: quem chama abre na semana de hoje.
+ * Semana volta a ser domingo–sábado, mês volta a ser o mês inteiro do início salvo
+ * e trimestre volta a ser o trimestre inteiro.
+ * O banco só aceita semana, mês e intervalo, então o trimestre é gravado como intervalo:
+ * um intervalo que cobre exatamente um trimestre volta como trimestre.
+ * Valor ausente ou quebrado devolve null: quem chama abre no mês de hoje.
  */
 export function lerPeriodoSalvo(value: unknown): PeriodoSelecionado | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -156,6 +171,11 @@ export function lerPeriodoSalvo(value: unknown): PeriodoSelecionado | null {
       fim: format(endOfMonth(dia), FORMATO),
     };
   }
-  if (modo === 'intervalo' && inicio <= fim) return { modo, inicio, fim };
+  if (modo === 'trimestre') return { modo, ...trimestreDe(inicio) };
+  if (modo === 'intervalo' && inicio <= fim) {
+    const trimestre = trimestreDe(inicio);
+    if (trimestre.inicio === inicio && trimestre.fim === fim) return { modo: 'trimestre', inicio, fim };
+    return { modo, inicio, fim };
+  }
   return null;
 }

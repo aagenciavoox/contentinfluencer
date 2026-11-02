@@ -2550,6 +2550,45 @@ function diaDaLinha(value: unknown): string | null {
   return /^\d{4}-\d{2}-\d{2}$/.test(dia) ? dia : null;
 }
 
+type MetasPorConta = NonNullable<EditorialSettings['periodos'][number]['metasPorConta']>;
+
+/** `metas_por_conta` do banco: só entram números inteiros e o ritmo escrito. */
+function metasPorContaDaLinha(value: unknown): MetasPorConta | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const metas: MetasPorConta = {};
+  for (const [platformId, bruto] of Object.entries(value as Record<string, unknown>)) {
+    if (!bruto || typeof bruto !== 'object' || Array.isArray(bruto)) continue;
+    const conta = bruto as Record<string, unknown>;
+    const producao = inteiroOpcional(conta.producao);
+    const publicacao = inteiroOpcional(conta.publicacao);
+    const ritmoSemanal = typeof conta.ritmoSemanal === 'string' && conta.ritmoSemanal.trim() ? conta.ritmoSemanal.trim() : undefined;
+    if (producao == null && publicacao == null && !ritmoSemanal) continue;
+    metas[platformId] = {
+      ...(producao != null ? { producao } : {}),
+      ...(publicacao != null ? { publicacao } : {}),
+      ...(ritmoSemanal ? { ritmoSemanal } : {}),
+    };
+  }
+  return Object.keys(metas).length > 0 ? metas : undefined;
+}
+
+/** Colunas do plano do período (migração 20261102200000). */
+function planoDaDecisao(periodo: EditorialSettings['periodos'][number]) {
+  return {
+    prioridade_nivel: periodo.prioridadeNivel?.trim() || null,
+    pausa_editorial: periodo.pausaEditorial?.trim() || null,
+    meta_producao: inteiroOpcional(periodo.metasProducao) ?? null,
+    meta_publicacao: inteiroOpcional(periodo.metasPublicacao) ?? null,
+    metas_por_conta: metasPorContaDaLinha(periodo.metasPorConta) ?? null,
+  };
+}
+
+/** O banco ainda sem as colunas do plano recusa a linha inteira com PGRST204. */
+function faltaColunaDoPlano(error: { code?: string; message: string }): boolean {
+  return error.code === 'PGRST204'
+    || /prioridade_nivel|pausa_editorial|meta_producao|meta_publicacao|metas_por_conta/.test(error.message);
+}
+
 function editorialDasLinhas(
   conta: Row | null,
   destinos: Row[],
@@ -2594,12 +2633,20 @@ function editorialDasLinhas(
     if (comunidade != null) metas.comunidade = comunidade;
     if (acao != null) metas.acao = acao;
     if (reter != null) metas.reter = reter;
+    const metasProducao = inteiroOpcional(decisao.meta_producao);
+    const metasPublicacao = inteiroOpcional(decisao.meta_publicacao);
+    const metasPorConta = metasPorContaDaLinha(decisao.metas_por_conta);
     return [{
       inicio,
       fim,
       prioridade: typeof decisao.prioridade === 'string' ? decisao.prioridade : '',
       metas,
       ajustesSemana: ajustesPorDecisao.get(String(decisao.id)) ?? [],
+      ...(typeof decisao.prioridade_nivel === 'string' && decisao.prioridade_nivel ? { prioridadeNivel: decisao.prioridade_nivel } : {}),
+      ...(typeof decisao.pausa_editorial === 'string' && decisao.pausa_editorial ? { pausaEditorial: decisao.pausa_editorial } : {}),
+      ...(metasProducao != null ? { metasProducao } : {}),
+      ...(metasPublicacao != null ? { metasPublicacao } : {}),
+      ...(metasPorConta ? { metasPorConta } : {}),
     }];
   });
 
@@ -2744,11 +2791,19 @@ export async function saveEditorial(settings: EditorialSettings): Promise<void> 
     meta_comunidade: periodo.metas.comunidade ?? null,
     meta_acao: periodo.metas.acao ?? null,
     meta_reter: periodo.metas.reter ?? null,
+    plano: planoDaDecisao(periodo),
     ajustes: periodo.ajustesSemana,
   }));
-  const { error: decisoesError } = await supabase.from('decisao_periodo').insert(
-    linhas.map(({ ajustes: _ajustes, ...linha }) => linha),
+  let { error: decisoesError } = await supabase.from('decisao_periodo').insert(
+    linhas.map(({ ajustes: _ajustes, plano, ...linha }) => ({ ...linha, ...plano })),
   );
+  // As decisões já foram apagadas acima: sem as colunas do plano no banco, grava o resto
+  // para não perder prioridade e metas por objetivo.
+  if (decisoesError && faltaColunaDoPlano(decisoesError)) {
+    ({ error: decisoesError } = await supabase.from('decisao_periodo').insert(
+      linhas.map(({ ajustes: _ajustes, plano: _plano, ...linha }) => linha),
+    ));
+  }
   if (decisoesError) throw new Error(`decisao_periodo: ${decisoesError.message}`);
   const ajustes = linhas.flatMap(linha => linha.ajustes.map(ajuste => ({
     decisao_id: linha.id,
@@ -2768,7 +2823,8 @@ export async function saveEditorialVisao(visao: PeriodoSelecionado): Promise<voi
   if (!uid) return;
   const { error } = await supabase.from('editorial_visao').upsert({
     user_id: uid,
-    modo: visao.modo,
+    // A coluna só aceita semana, mês e intervalo; lerPeriodoSalvo reconhece o trimestre de volta.
+    modo: visao.modo === 'trimestre' ? 'intervalo' : visao.modo,
     inicio: visao.inicio,
     fim: visao.fim,
     updated_at: new Date().toISOString(),

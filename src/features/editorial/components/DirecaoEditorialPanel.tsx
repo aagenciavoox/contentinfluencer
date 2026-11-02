@@ -14,9 +14,9 @@ import { CONFIRM, type ConfirmState } from '../../../lib/uiCopy';
 import { sortPilares } from '../../settings/lib/activePilares';
 import { AjustesEditorialPanel } from './plano/AjustesEditorialPanel';
 import { PlanoVigenteView } from './plano/PlanoVigenteView';
-import { intervaloDoModo, periodoInicial, useContagemDoPeriodo, type PeriodoSelecionado } from './plano/PeriodoEditorialControl';
+import { PeriodoEditorialControl, periodoInicial, type PeriodoSelecionado } from './plano/PeriodoEditorialControl';
 import { useEditorialPlano } from './plano/useEditorialPlano';
-import { decisaoDoPeriodo, semanaDe } from '../lib/periodoEditorial';
+import { decisaoDoPeriodo, lerPeriodoSalvo, semanaDe } from '../lib/periodoEditorial';
 import { limiteSemanalNaSemana } from '../lib/vigencias';
 
 function linhaDeSeries(nomes: string[]) {
@@ -44,14 +44,17 @@ export function DirecaoEditorialPanel({ abaAtiva: abaAtivaProp }: DirecaoEditori
   const abaAtiva: EditorialAba = abaAtivaProp ?? (abaParam === 'pilares' || abaParam === 'ajustes' ? abaParam : 'plano');
 
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
-  const [periodo, setPeriodo] = useState<PeriodoSelecionado>(() => ({
-    modo: 'mes',
-    ...intervaloDoModo('mes'),
-  }));
+  // O mesmo período salvo que o Planejamento usa: as metas ficam presas ao início e fim exatos.
+  const periodo = useMemo(
+    () => (state.editorialVisao ? lerPeriodoSalvo(state.editorialVisao) : null) ?? periodoInicial(),
+    [state.editorialVisao],
+  );
+  const salvarPeriodo = (next: PeriodoSelecionado) => {
+    dispatch({ type: 'SET_EDITORIAL_VISAO', payload: next });
+  };
 
   const pilares = useMemo(() => sortPilares(state.pilares), [state.pilares]);
   const { settings, salvarDecisao } = useEditorialPlano();
-  const contagem = useContagemDoPeriodo(periodo.inicio, periodo.fim);
   const decisao = decisaoDoPeriodo(settings.periodos, periodo.inicio, periodo.fim);
   const limiteSemanal = limiteSemanalNaSemana(
     { limiteSemanal: settings.preferencias.limiteSemanal, vigencias: settings.vigencias },
@@ -113,17 +116,18 @@ export function DirecaoEditorialPanel({ abaAtiva: abaAtivaProp }: DirecaoEditori
       ) : null}
 
       {abaAtiva === 'plano' && (
-        <PlanoVigenteView
-          periodo={periodo}
-          decisao={decisao}
-          platforms={state.platforms}
-          series={state.series}
-          pilares={state.pilares}
-          limiteSemanal={limiteSemanal}
-          totalPrevistos={contagem.previsto}
-          onSalvarDecisao={patch => salvarDecisao(periodo, patch)}
-          onPeriodoChange={novo => setPeriodo(prev => ({ ...prev, ...novo }))}
-        />
+        <div className="stack-md">
+          <PeriodoEditorialControl periodo={periodo} onChange={salvarPeriodo} />
+          <PlanoVigenteView
+            periodo={periodo}
+            decisao={decisao}
+            platforms={state.platforms}
+            series={state.series}
+            pilares={state.pilares}
+            limiteSemanal={limiteSemanal}
+            onSalvarDecisao={patch => salvarDecisao(periodo, patch)}
+          />
+        </div>
       )}
 
       {abaAtiva === 'pilares' && (

@@ -702,7 +702,8 @@ Uma linha nova no banco não escapa do cache de abertura. A foto do domínio (me
 ## editorial_visao
 
 - Uma linha por conta: `modo` (`semana`, `mes` ou `intervalo`), `inicio`, `fim`.
-- É a janela que a aba Período reabre. Sem linha, a tela abre na semana de hoje.
+- É o período que o Editorial e o Planejamento abrem. Sem linha, abre no mês de hoje.
+- O trimestre é gravado como `intervalo`; um intervalo que cobre um trimestre inteiro volta como trimestre.
 
 ## editorial_destino_padrao
 
@@ -716,6 +717,8 @@ Uma linha nova no banco não escapa do cache de abertura. A foto do domínio (me
 
 - Uma linha por intervalo fechado. Única em (`user_id`, `inicio`, `fim`).
 - Prioridade e metas `meta_atrair`, `meta_converter`, `meta_aprofundar`, `meta_comunidade`, `meta_acao`, `meta_reter`. Vazio não é zero.
+- Plano do período: `prioridade_nivel`, `pausa_editorial`, `meta_producao`, `meta_publicacao` e `metas_por_conta` (jsonb por id da conta: `producao`, `publicacao`, `ritmoSemanal`). Meta nula segue o ritmo semanal vezes as semanas do período.
+- Sem essas colunas no banco, o salvamento grava o resto da decisão e o plano fica só na tela.
 - A semana dentro do mês não herda a meta do mês.
 
 ## ajuste_semana

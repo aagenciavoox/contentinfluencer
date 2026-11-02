@@ -6,6 +6,7 @@ import {
   lerPeriodoSalvo,
   limiteProporcional,
   semanaDe,
+  trimestreDe,
 } from './periodoEditorial.ts';
 
 const OUTUBRO: DecisaoPeriodo = {
@@ -155,6 +156,29 @@ function testPeriodoSalvoVoltaComoFoiConfirmado() {
   );
 }
 
+function testTrimestreDoCalendario() {
+  assert.deepEqual(trimestreDe('2026-11-02'), { inicio: '2026-10-01', fim: '2026-12-31' });
+  assert.deepEqual(trimestreDe('2026-01-01'), { inicio: '2026-01-01', fim: '2026-03-31' });
+  assert.deepEqual(trimestreDe('2026-06-30'), { inicio: '2026-04-01', fim: '2026-06-30' });
+}
+
+/** O banco grava o trimestre como intervalo; na leitura ele volta a ser trimestre. */
+function testTrimestreSalvoComoIntervaloVoltaComoTrimestre() {
+  assert.deepEqual(
+    lerPeriodoSalvo({ modo: 'intervalo', inicio: '2026-10-01', fim: '2026-12-31' }),
+    { modo: 'trimestre', inicio: '2026-10-01', fim: '2026-12-31' },
+  );
+  assert.deepEqual(
+    lerPeriodoSalvo({ modo: 'trimestre', inicio: '2026-11-15', fim: '2026-11-15' }),
+    { modo: 'trimestre', inicio: '2026-10-01', fim: '2026-12-31' },
+  );
+  // Intervalo que não fecha um trimestre continua personalizado.
+  assert.deepEqual(
+    lerPeriodoSalvo({ modo: 'intervalo', inicio: '2026-10-01', fim: '2026-11-30' }),
+    { modo: 'intervalo', inicio: '2026-10-01', fim: '2026-11-30' },
+  );
+}
+
 function testPeriodoSalvoQuebradoNaoVale() {
   assert.equal(lerPeriodoSalvo(undefined), null);
   assert.equal(lerPeriodoSalvo('semana'), null);
@@ -166,6 +190,8 @@ function testPeriodoSalvoQuebradoNaoVale() {
 testSemanaDeDomingoASabado();
 testPeriodoSalvoVoltaComoFoiConfirmado();
 testPeriodoSalvoQuebradoNaoVale();
+testTrimestreDoCalendario();
+testTrimestreSalvoComoIntervaloVoltaComoTrimestre();
 testProporcionalDeTresDias();
 testSemanaCheiaIgualAoLimite();
 testAjusteSubstituiOProporcional();

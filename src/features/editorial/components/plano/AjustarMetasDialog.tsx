@@ -8,15 +8,17 @@ import { OverlayFooter } from '../../../../components/overlays/OverlayFooter';
 import { OverlayHeader } from '../../../../components/overlays/OverlayHeader';
 import type { Platform } from '../../../../lib/database';
 import type { DecisaoPeriodo } from '../../lib/editorialSettings';
+import { rotuloDoPeriodo, type PeriodoSelecionado } from './PeriodoEditorialControl';
 
 export interface AjustarMetasDialogProps {
   open: boolean;
   onClose: () => void;
-  periodo: { inicio: string; fim: string };
+  periodo: PeriodoSelecionado;
   decisao: DecisaoPeriodo | null;
   platforms: readonly Platform[];
-  defaultProducao: number;
-  defaultPublicacao: number;
+  /** O que a meta vale sem número escrito: o ritmo semanal vezes as semanas. null = sem meta. */
+  producaoCalculada: number | null;
+  publicacaoCalculada: number | null;
   onSalvar: (patch: Partial<Omit<DecisaoPeriodo, 'inicio' | 'fim'>>) => void;
 }
 
@@ -26,8 +28,8 @@ export function AjustarMetasDialog({
   periodo,
   decisao,
   platforms,
-  defaultProducao,
-  defaultPublicacao,
+  producaoCalculada,
+  publicacaoCalculada,
   onSalvar,
 }: AjustarMetasDialogProps) {
   const [prioridade, setPrioridade] = useState('');
@@ -41,14 +43,15 @@ export function AjustarMetasDialog({
 
   useEffect(() => {
     if (open) {
-      setPrioridade(decisao?.prioridade ?? 'Foco em Cosmere & Ritmo de Final de Ano');
+      setPrioridade(decisao?.prioridade ?? '');
       setPrioridadeNivel(decisao?.prioridadeNivel ?? 'Alta');
-      setPausaEditorial(decisao?.pausaEditorial ?? 'Pausa editorial no feriado de 15 a 17 de novembro.');
-      setMetasProducao(String(decisao?.metasProducao ?? defaultProducao));
-      setMetasPublicacao(String(decisao?.metasPublicacao ?? defaultPublicacao));
+      setPausaEditorial(decisao?.pausaEditorial ?? '');
+      // Campo vazio segue o ritmo; só um número escrito vira meta ajustada.
+      setMetasProducao(decisao?.metasProducao != null ? String(decisao.metasProducao) : '');
+      setMetasPublicacao(decisao?.metasPublicacao != null ? String(decisao.metasPublicacao) : '');
       setMetasPorConta(decisao?.metasPorConta ?? {});
     }
-  }, [open, decisao, defaultProducao, defaultPublicacao]);
+  }, [open, decisao]);
 
   const handleSave = () => {
     const prod = parseInt(metasProducao, 10);
@@ -64,17 +67,14 @@ export function AjustarMetasDialog({
     onClose();
   };
 
-  const contasExibidas = platforms.length > 0 ? platforms : [
-    { id: 'instagram_default', nome: 'Instagram Principal', handle: 'annestudio' } as Platform,
-    { id: 'tiktok_default', nome: 'TikTok Editorial', handle: 'anne_resenhas' } as Platform,
-    { id: 'youtube_default', nome: 'Canal Criaki Longo', handle: 'youtube.com/@criaki' } as Platform,
-  ];
+  const placeholderMeta = (calculada: number | null) =>
+    calculada == null ? 'Sem meta' : `${calculada} pelo ritmo`;
 
   return (
     <Dialog open={open} onClose={onClose} desktopMaxW="md:max-w-[680px]" ariaLabel="Ajustar Metas do Período">
       <OverlayHeader
         title="Ajustar Metas do Período"
-        subtitle={`Metas para o ciclo ${periodo.inicio} até ${periodo.fim}.`}
+        subtitle={`Metas do período: ${rotuloDoPeriodo(periodo)}.`}
       />
       <OverlayBody className="stack-md">
         <div className="stack-xs">
@@ -141,6 +141,7 @@ export function AjustarMetasDialog({
               type="number"
               min="0"
               className="input w-full"
+              placeholder={placeholderMeta(producaoCalculada)}
               value={metasProducao}
               onChange={e => setMetasProducao(e.target.value)}
             />
@@ -157,18 +158,29 @@ export function AjustarMetasDialog({
               type="number"
               min="0"
               className="input w-full"
+              placeholder={placeholderMeta(publicacaoCalculada)}
               value={metasPublicacao}
               onChange={e => setMetasPublicacao(e.target.value)}
             />
           </div>
         </div>
 
+        <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
+          Em branco, produção e publicação seguem o ritmo semanal da aba Ritmo.
+        </Text>
+
         <div className="stack-sm pt-2 border-t border-[var(--border-subtle)]">
           <Text variant="itemTitle" as="h4">
             Metas Individuais por Conta
           </Text>
+          <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
+            Opcional. Sem número aqui, a conta mostra só quantos posts saíram.
+          </Text>
           <div className="stack-sm">
-            {contasExibidas.map(conta => {
+            {platforms.length === 0 ? (
+              <Text variant="secondary" as="p">Nenhuma conta ativa.</Text>
+            ) : null}
+            {platforms.map(conta => {
               const dadosConta = metasPorConta[conta.id] ?? {};
               return (
                 <div
@@ -224,13 +236,13 @@ export function AjustarMetasDialog({
                     <div>
                       <label htmlFor={`ritmo-${conta.id}`}>
                         <Text variant="meta" as="span" className="block text-[var(--text-tertiary)]">
-                          Ritmo semanal
+                          Posts por semana
                         </Text>
                       </label>
                       <input
                         id={`ritmo-${conta.id}`}
                         type="text"
-                        placeholder="~3 posts/sem"
+                        placeholder="Ex.: 3"
                         className="input w-full py-1"
                         value={dadosConta.ritmoSemanal ?? ''}
                         onChange={e => {

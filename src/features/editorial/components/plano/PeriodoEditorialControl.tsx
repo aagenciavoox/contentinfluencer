@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { addDays, addMonths, differenceInCalendarDays, endOfMonth, format, parseISO, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
-import { ConfirmModal } from '../../../../components/feedback/modals/ConfirmModal';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { Surface } from '../../../../components/ui/Surface';
 import { ChoiceChips } from '../../../../components/ui/ChoiceChips';
@@ -11,7 +10,7 @@ import { useAppContext } from '../../../../context/AppContext';
 import { buildGradeEntries } from '../../lib/gradeEntries';
 import { contarPeriodo, type GradeCounts } from '../../lib/gradeCounts';
 import { usePostItsNaData } from '../../../planejamento/hooks/usePostItsNaData';
-import { semanaDe, type ModoPeriodo, type PeriodoSelecionado } from '../../lib/periodoEditorial';
+import { semanaDe, trimestreDe, type ModoPeriodo, type PeriodoSelecionado } from '../../lib/periodoEditorial';
 
 export type { ModoPeriodo, PeriodoSelecionado };
 
@@ -25,11 +24,12 @@ export function hojeIso(agora = new Date()): string {
 }
 
 export function periodoInicial(hoje = hojeIso()): PeriodoSelecionado {
-  return { modo: 'semana', ...semanaDe(hoje) };
+  return { modo: 'mes', ...intervaloDoModo('mes', hoje) };
 }
 
-export function intervaloDoModo(modo: 'semana' | 'mes', hoje = hojeIso()): { inicio: string; fim: string } {
+export function intervaloDoModo(modo: 'semana' | 'mes' | 'trimestre', hoje = hojeIso()): { inicio: string; fim: string } {
   if (modo === 'semana') return semanaDe(hoje);
+  if (modo === 'trimestre') return trimestreDe(hoje);
   const dia = parseISO(hoje);
   return {
     inicio: format(startOfMonth(dia), 'yyyy-MM-dd'),
@@ -73,6 +73,10 @@ export function rotuloDoPeriodo(periodo: PeriodoSelecionado): string {
   const fim = parseISO(periodo.fim);
   if (periodo.modo === 'mes') {
     return capitalizar(format(inicio, "MMMM 'de' yyyy", { locale: ptBR }));
+  }
+  if (periodo.modo === 'trimestre') {
+    const meses = `${format(inicio, 'MMMM', { locale: ptBR })} a ${format(fim, 'MMMM', { locale: ptBR })}`;
+    return `${format(inicio, 'Q')}º trimestre de ${format(inicio, 'yyyy')} · ${meses}`;
   }
   const mesmoMes = format(inicio, 'yyyy-MM') === format(fim, 'yyyy-MM');
   const texto = mesmoMes
@@ -118,10 +122,18 @@ export function useContagemDoPeriodo(inicio: string, fim: string): GradeCounts {
 }
 
 const MODOS: Array<{ id: ModoPeriodo; rotulo: string }> = [
-  { id: 'semana', rotulo: 'Semana' },
   { id: 'mes', rotulo: 'Mês' },
-  { id: 'intervalo', rotulo: 'Intervalo' },
+  { id: 'trimestre', rotulo: 'Trimestre' },
+  { id: 'intervalo', rotulo: 'Personalizado' },
 ];
+
+/** Semana não é mais escolha, mas um período salvo antes ainda pode chegar como semana. */
+const ROTULO_DO_MODO: Record<ModoPeriodo, string> = {
+  semana: 'Semana',
+  mes: 'Mês',
+  trimestre: 'Trimestre',
+  intervalo: 'Personalizado',
+};
 
 /** Anda um período para trás ou para frente, no tamanho do modo atual. */
 export function periodoVizinho(periodo: PeriodoSelecionado, direcao: -1 | 1): PeriodoSelecionado {
@@ -137,6 +149,9 @@ export function periodoVizinho(periodo: PeriodoSelecionado, direcao: -1 | 1): Pe
       fim: format(endOfMonth(mes), 'yyyy-MM-dd'),
     };
   }
+  if (periodo.modo === 'trimestre') {
+    return { modo: 'trimestre', ...trimestreDe(format(addMonths(inicio, 3 * direcao), 'yyyy-MM-dd')) };
+  }
   const dias = differenceInCalendarDays(parseISO(periodo.fim), inicio) + 1;
   return {
     modo: 'intervalo',
@@ -151,7 +166,7 @@ function periodosIguais(a: PeriodoSelecionado, b: PeriodoSelecionado): boolean {
 
 /**
  * Período do Editorial. A análise e os dados são calculados a partir do intervalo salvo:
- * a pessoa vê o período atual e só troca depois de editar e confirmar, porque os cálculos mudam.
+ * a pessoa vê o período atual e só troca depois de editar e salvar, porque os cálculos mudam.
  */
 export function PeriodoEditorialControl({
   periodo,
@@ -162,7 +177,6 @@ export function PeriodoEditorialControl({
 }) {
   const [editando, setEditando] = useState(false);
   const [rascunho, setRascunho] = useState(periodo);
-  const [confirmarTroca, setConfirmarTroca] = useState(false);
   const intervaloInvalido = rascunho.modo === 'intervalo' && rascunho.inicio > rascunho.fim;
   const hoje = hojeIso();
   const contemHoje = rascunho.inicio <= hoje && hoje <= rascunho.fim;
@@ -170,6 +184,12 @@ export function PeriodoEditorialControl({
   useEffect(() => {
     if (!editando) setRascunho(periodo);
   }, [editando, periodo]);
+
+  const comecarEdicao = () => {
+    // Semana não está entre as escolhas: abre como personalizado, com as mesmas datas.
+    setRascunho(periodo.modo === 'semana' ? { ...periodo, modo: 'intervalo' } : periodo);
+    setEditando(true);
+  };
 
   const escolherModo = (modo: ModoPeriodo) => {
     if (modo === 'intervalo') {
@@ -184,24 +204,15 @@ export function PeriodoEditorialControl({
     setRascunho(atual => ({ ...atual, modo: 'intervalo', [lado]: valor }));
   };
 
-  const pedirSalvar = () => {
+  // Salvar já é a confirmação: o texto do formulário avisa que os cálculos mudam.
+  const salvar = () => {
     if (intervaloInvalido) return;
-    if (periodosIguais(rascunho, periodo)) {
-      setEditando(false);
-      return;
-    }
-    setConfirmarTroca(true);
-  };
-
-  const aplicarTroca = () => {
-    onChange(rascunho);
-    setConfirmarTroca(false);
+    if (!periodosIguais(rascunho, periodo)) onChange(rascunho);
     setEditando(false);
   };
 
   const cancelar = () => {
     setRascunho(periodo);
-    setConfirmarTroca(false);
     setEditando(false);
   };
 
@@ -265,7 +276,7 @@ export function PeriodoEditorialControl({
           ) : null}
           <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
             <Text variant="secondary" as="p" className="mr-auto max-w-xl">
-              Escolha semana, mês ou intervalo e salve. Os dados e a análise são calculados a partir deste intervalo.
+              Escolha mês, trimestre ou datas personalizadas e salve. Os dados e a análise são calculados a partir deste intervalo.
             </Text>
             <AppButton variant="secondary" size="sm" onClick={cancelar}>
               Cancelar
@@ -273,7 +284,7 @@ export function PeriodoEditorialControl({
             <AppButton
               variant="primary"
               size="sm"
-              onClick={pedirSalvar}
+              onClick={salvar}
               disabled={intervaloInvalido}
               disabledReason={intervaloInvalido ? 'A data inicial precisa vir antes da final.' : undefined}
             >
@@ -284,7 +295,7 @@ export function PeriodoEditorialControl({
       ) : (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0 stack-xs">
-            <Text variant="label" as="p">{MODOS.find(modo => modo.id === periodo.modo)?.rotulo}</Text>
+            <Text variant="label" as="p">{ROTULO_DO_MODO[periodo.modo]}</Text>
             <Text variant="sectionTitle" as="h2" className="tabular-nums">{rotuloDoPeriodo(periodo)}</Text>
             <Text variant="secondary">
               Os dados e a análise são calculados a partir deste intervalo.
@@ -294,23 +305,12 @@ export function PeriodoEditorialControl({
             variant="secondary"
             size="sm"
             leftIcon={<Pencil className="h-4 w-4" />}
-            onClick={() => {
-              setRascunho(periodo);
-              setEditando(true);
-            }}
+            onClick={comecarEdicao}
           >
             Editar período
           </AppButton>
         </div>
       )}
-      <ConfirmModal
-        open={confirmarTroca}
-        message="Trocar o período muda os cálculos. Os dados e a análise passam a ser criados a partir do novo intervalo."
-        confirmLabel="Trocar período"
-        cancelLabel="Manter este período"
-        onConfirm={aplicarTroca}
-        onCancel={() => setConfirmarTroca(false)}
-      />
     </Surface>
   );
 }
