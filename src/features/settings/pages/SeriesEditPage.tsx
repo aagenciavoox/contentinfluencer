@@ -11,6 +11,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import type { Serie, SerieTipoAgrupamento } from '../../../lib/database';
+import { cn } from '../../../lib/utils';
 import { CONFIRM } from '../../../lib/uiCopy';
 import {
   aplicarFuncaoPublicada,
@@ -121,11 +122,14 @@ export function SeriesEditPage() {
     && state.series.some(serie => serie.id === familiaPedida && tipoDaSerie(serie.id, state.series) === 'familia')
     ? familiaPedida
     : null;
+  const [tipoCriacao, setTipoCriacao] = useState<SerieTipoAgrupamento>(
+    searchParams.get('tipo') === 'familia' ? 'familia' : 'serie',
+  );
   const tipo: SerieTipoAgrupamento = editingSerie
     ? tipoDaSerie(editingSerie.id, state.series)
     : criandoQuadro
       ? 'quadro'
-      : searchParams.get('tipo') === 'familia' ? 'familia' : 'serie';
+      : tipoCriacao;
   const quadroSemSerie = criandoQuadro
     && (!serieDoQuadro || tipoDaSerie(serieDoQuadro.id, state.series) !== 'serie');
 
@@ -338,7 +342,68 @@ export function SeriesEditPage() {
           </div>
         )}
       >
-        <div className="w-full">{formElement}</div>
+        <div className="w-full stack-lg">
+          {isCreate && !criandoQuadro ? (
+            <div className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-4 sm:p-6 stack-sm">
+              <Text variant="label" as="div" className="text-[var(--text-secondary)] uppercase">
+                Tipo de Agrupamento
+              </Text>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {[
+                  {
+                    id: 'serie' as const,
+                    label: 'Série',
+                    desc: 'Estrutura padrão com episódios, temporadas e cadência.',
+                  },
+                  {
+                    id: 'familia' as const,
+                    label: 'Família',
+                    desc: 'Grupo conceitual macro para organizar múltiplas séries.',
+                  },
+                ].map(item => {
+                  const selecionado = tipo === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setTipoCriacao(item.id)}
+                      className={cn(
+                        'flex flex-col gap-1 rounded-[var(--radius-input)] border p-3.5 text-left transition-all',
+                        selecionado
+                          ? 'border-[var(--brand-accent)] bg-[var(--surface-subtle)] shadow-sm'
+                          : 'border-[var(--border-color)] bg-[var(--bg-primary)] hover:border-[var(--border-strong)]',
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <Text
+                          variant="itemTitle"
+                          as="span"
+                          className={selecionado ? 'text-[var(--brand-accent)]' : 'text-[var(--text-primary)]'}
+                        >
+                          {item.label}
+                        </Text>
+                        <span
+                          className={cn(
+                            'flex h-4 w-4 items-center justify-center rounded-full border transition-colors',
+                            selecionado
+                              ? 'border-[var(--brand-accent)] bg-[var(--brand-accent)] text-[var(--brand-on-accent)]'
+                              : 'border-[var(--border-strong)] bg-transparent',
+                          )}
+                        >
+                          {selecionado ? <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand-on-accent)]" /> : null}
+                        </span>
+                      </div>
+                      <Text variant="meta" as="span" className="text-[var(--text-secondary)]">
+                        {item.desc}
+                      </Text>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+          {formElement}
+        </div>
       </PageLayout>
 
       <ConfirmModal

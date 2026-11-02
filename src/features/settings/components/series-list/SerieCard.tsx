@@ -1,4 +1,4 @@
-import { ChevronRight } from 'lucide-react';
+import { Layers } from 'lucide-react';
 import { Badge } from '../../../../components/ui/Badge';
 import { MoreMenu, type MoreMenuItem } from '../../../../components/ui/MoreMenu';
 import { Text } from '../../../../components/ui/Text';
@@ -6,9 +6,8 @@ import { cn } from '../../../../lib/utils';
 import {
   TIPO_AGRUPAMENTO_LABEL,
   plural,
-  textoRoteirosIdeias,
 } from '../../lib/serieAgrupamento';
-import { textoTipoEOnde, type ItemLista } from '../../lib/seriesListaView';
+import { type ItemLista } from '../../lib/seriesListaView';
 
 /** Menu do agrupamento, igual no card, na linha e no cabeçalho da família. */
 export function itensDoMenuDaSerie(
@@ -39,90 +38,144 @@ export function rotuloDosFilhos(item: Pick<ItemLista, 'tipo' | 'filhos'>): strin
 }
 
 /**
- * Card compacto de família, série ou quadro. A primeira linha tem cor, nome e menu;
- * descrição e números vêm abaixo; o rodapé diz o tipo e leva aos quadros.
+ * Card de série com barra de cor, jargão e navegação ao clicar em qualquer lugar.
  */
 export function SerieCard({
   item,
-  pilarNome,
-  mostrarOnde = false,
+  temporadasCount = 0,
   emAberto = false,
   onOpen,
   onOpenFilhos,
-  onEdit,
-  onToggleAtiva,
-  onCriarFilho,
 }: {
   item: ItemLista;
-  pilarNome: string | null;
-  /** Lista plana: diz de qual agrupamento o card faz parte. */
+  pilarNome?: string | null;
+  temporadasCount?: number;
   mostrarOnde?: boolean;
   emAberto?: boolean;
   onOpen: (serieId: string) => void;
   onOpenFilhos: (serieId: string) => void;
-  onEdit: (serieId: string) => void;
-  onToggleAtiva: (serieId: string) => void;
-  /** Criar o próximo nível dentro deste: série na família, quadro na série. */
+  onEdit?: (serieId: string) => void;
+  onToggleAtiva?: (serieId: string) => void;
   onCriarFilho?: (item: Pick<ItemLista, 'serie' | 'tipo'>) => void;
 }) {
   const { serie } = item;
   const nome = serie.name.trim() || 'Sem nome';
   const descricao = serie.notes?.trim() || '';
-  const tipo = mostrarOnde ? textoTipoEOnde(item, TIPO_AGRUPAMENTO_LABEL) : TIPO_AGRUPAMENTO_LABEL[item.tipo];
+  const tipoLabel = TIPO_AGRUPAMENTO_LABEL[item.tipo] || 'Série';
 
   return (
     <article
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(serie.id)}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpen(serie.id);
+        }
+      }}
+      aria-label={`Abrir ${nome}`}
+      style={{
+        '--card-accent': serie.cor || 'var(--brand-accent)',
+      } as React.CSSProperties}
       className={cn(
-        'ds-card ds-card-interactive group relative flex min-w-0 flex-col text-left',
+        'ds-card ds-card-interactive group relative flex min-w-0 flex-col text-left overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-[color-mix(in_srgb,var(--card-accent)_40%,var(--border-color))] cursor-pointer select-none focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
         !serie.ativa && 'is-dimmed',
       )}
     >
-      <button
-        type="button"
-        onClick={() => onOpen(serie.id)}
-        className="absolute inset-0 z-0 rounded-[inherit] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-        aria-label={`Abrir ${nome}`}
+      {/* Faixa superior com a cor da série */}
+      <div
+        className="h-1.5 w-full shrink-0"
+        style={{ backgroundColor: serie.cor || 'var(--brand-accent)' }}
       />
-      <div className="pointer-events-none relative z-[1] flex min-w-0 flex-1 flex-col gap-2 p-4 pr-12">
-        <span className="flex min-w-0 items-start gap-2.5">
-          <span
-            aria-hidden
-            className="entity-color-dot mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full"
-            style={{ backgroundColor: serie.cor || 'var(--text-tertiary)' }}
-          />
-          <Text variant="itemTitle" as="span" className="min-w-0 break-words leading-snug">{nome}</Text>
-        </span>
-        {!serie.ativa || emAberto ? (
-          <span className="flex flex-wrap items-center gap-1">
-            {!serie.ativa ? <Badge variant="neutral">Inativa</Badge> : null}
-            {emAberto ? <Badge variant="neutral">Em aberto</Badge> : null}
-          </span>
+
+      <div className="flex min-w-0 flex-1 flex-col gap-2 p-4 sm:p-6">
+        {/* Topo do card: badge do tipo e contagem de conteúdos */}
+        <div className="flex items-center justify-between gap-2">
+          <Badge
+            variant="neutral"
+            className="uppercase"
+            style={{
+              backgroundColor: `${serie.cor || '#e11d48'}18`,
+              color: serie.cor || 'var(--text-primary)',
+            }}
+          >
+            {tipoLabel.toUpperCase()}
+          </Badge>
+          <Text variant="meta" as="span">
+            {item.contagem.conteudos} conteúdo(s)
+          </Text>
+        </div>
+
+        {/* Título da série */}
+        <Text variant="itemTitle" as="h3" className="leading-snug">
+          {nome}
+        </Text>
+
+        {/* Jargão / Bordão entre aspas e com a cor da série */}
+        {serie.bordao ? (
+          <Text
+            variant="body"
+            as="p"
+            className="italic -mt-1"
+            style={{ color: serie.cor || 'var(--brand-accent)' }}
+          >
+            "{serie.bordao}"
+          </Text>
         ) : null}
-        {descricao ? <Text variant="secondary" className="line-clamp-2">{descricao}</Text> : null}
-        <Text variant="meta" as="p">{textoRoteirosIdeias(item.contagem)}</Text>
-      </div>
-      <div className="absolute right-2 top-2 z-[2]">
-        <MoreMenu
-          size="sm"
-          items={itensDoMenuDaSerie(item, { onEdit, onToggleAtiva, onCriarFilho })}
-          label={`Mais opções de ${nome}`}
-        />
-      </div>
-      <div className="pointer-events-none relative z-[1] flex min-h-11 items-center justify-between gap-3 border-t border-[var(--border-color)] px-4 py-2">
-        <span className="flex min-w-0 items-center gap-2">
-          <Text variant="meta" as="span" className="truncate text-[var(--text-secondary)]">{tipo}</Text>
+
+        {/* Descrição */}
+        {descricao ? (
+          <Text variant="secondary" as="p" className="line-clamp-2 leading-relaxed">
+            {descricao}
+          </Text>
+        ) : null}
+
+        {/* Badges de metadados (temporadas e frequência) */}
+        <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-2">
+          {temporadasCount > 0 ? (
+            <Badge variant="neutral">
+              {temporadasCount} temporada(s)
+            </Badge>
+          ) : null}
+          {serie.frequenciaRecomendada ? (
+            <Badge variant="neutral">
+              {serie.frequenciaRecomendada}
+            </Badge>
+          ) : null}
+          {emAberto ? <Badge variant="neutral">Em aberto</Badge> : null}
+        </div>
+
+        {/* Linha divisória sutil */}
+        <div className="my-1 border-t border-[var(--border-color)]" />
+
+        {/* Rodapé com status */}
+        <div className="flex items-center justify-between pt-1">
+          <Text variant="meta" as="span" className="flex items-center gap-1.5">
+            <span
+              className={cn(
+                'h-2 w-2 rounded-full',
+                serie.ativa ? 'bg-emerald-500' : 'bg-zinc-400',
+              )}
+            />
+            {serie.ativa ? 'Ativa' : 'Inativa'}
+          </Text>
+
           {item.filhos > 0 ? (
             <button
               type="button"
-              onClick={() => onOpenFilhos(serie.id)}
-              className="pointer-events-auto relative z-[2] inline-flex min-h-8 shrink-0 items-center gap-0.5 rounded-[var(--radius-sm)] t-button text-[var(--text-primary)] hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-11"
+              onClick={e => {
+                e.stopPropagation();
+                onOpenFilhos(serie.id);
+              }}
+              className="rounded-[var(--radius-sm)] p-1 text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+              title={rotuloDosFilhos(item)}
+              aria-label={rotuloDosFilhos(item)}
             >
-              {rotuloDosFilhos(item)}
-              <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+              <Layers className="h-4 w-4" />
             </button>
           ) : null}
-        </span>
-        {pilarNome ? <Text variant="meta" as="span" className="min-w-0 truncate">{pilarNome}</Text> : null}
+        </div>
       </div>
     </article>
   );

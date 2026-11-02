@@ -6,6 +6,8 @@ import { EmptyState } from '../../../../components/ui/EmptyState';
 import { Surface } from '../../../../components/ui/Surface';
 import { Text } from '../../../../components/ui/Text';
 import { ToggleRow } from '../../../../components/ui/ToggleSwitch';
+import { useAppContext } from '../../../../context/AppContext';
+import { temporadasDoEscopo } from '../../../editorial/lib/temporadas';
 import type { SeriesListaModelo } from '../../hooks/useSeriesLista';
 import type { ItemLista } from '../../lib/seriesListaView';
 import { SerieCard } from './SerieCard';
@@ -13,6 +15,7 @@ import { FamiliaSecao, SerieLinha } from './SeriesListBlocks';
 
 /** Corpo da lista: agrupado por família, em cards planos ou em linhas. */
 export function ResultadoDaLista({ modelo, celular = false }: { modelo: SeriesListaModelo; celular?: boolean }) {
+  const { state } = useAppContext();
   const { lista, filtros } = modelo;
   const grade = celular ? 'grid grid-cols-1 gap-3' : 'grid-content';
   const card = (item: ItemLista, mostrarOnde: boolean) => (
@@ -20,6 +23,7 @@ export function ResultadoDaLista({ modelo, celular = false }: { modelo: SeriesLi
       key={item.serie.id}
       item={item}
       pilarNome={modelo.pilarNome(item)}
+      temporadasCount={temporadasDoEscopo(item.serie.id, state.temporadas).length}
       mostrarOnde={mostrarOnde}
       emAberto={modelo.emAberto(item.serie.id)}
       onOpen={modelo.acoes.onOpen}
@@ -36,9 +40,9 @@ export function ResultadoDaLista({ modelo, celular = false }: { modelo: SeriesLi
       <EmptyState
         compact
         icon={<Layers className="h-8 w-8" />}
-        title={busca ? `Nada encontrado para “${busca}”` : 'Nenhum agrupamento com estes filtros'}
-        description="Ajuste a busca ou os filtros para ver outras séries."
-        action={<AppButton variant="secondary" onClick={modelo.limparFiltros}>Limpar busca e filtro</AppButton>}
+        title={busca ? `Nenhum agrupamento encontrado para “${busca}”` : 'Nenhum agrupamento com estes filtros'}
+        description="Ajuste o termo pesquisado ou limpe os filtros para ver outras séries."
+        action={<AppButton variant="secondary" onClick={modelo.limparFiltros}>Limpar busca e filtros</AppButton>}
       />
     );
   }

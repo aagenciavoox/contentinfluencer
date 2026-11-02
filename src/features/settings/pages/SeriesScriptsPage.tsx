@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowDownUp, Layers, Plus } from 'lucide-react';
+import { ArrowDownUp, Filter, Layers, Plus } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { FilterChips } from '../../../components/ui/FilterChips';
@@ -410,63 +410,59 @@ export function SeriesScriptsPage() {
 
   const ancestrais = ancestraisDaSerie(serie.id, state.series).reverse().map(no => ({ id: no.id, name: no.name ?? '' }));
   const toolbar = (
-    <PageToolbar
-      leading={(
-        <span className="flex min-w-0 items-center gap-2">
-          <Text variant="meta" as="span" className="shrink-0">Agrupar por</Text>
-          <SegmentTabs<AgruparPor>
-            ariaLabel="Agrupar por"
-            value={agruparPor}
-            onChange={trocarAgrupamento}
-            options={modos.map(modo => ({ id: modo, label: rotuloDoModo(modo, tipo, filhos.length > 0) }))}
-          />
-        </span>
-      )}
-      search={(
-        <ToolbarSearchInput
-          value={filtros.busca}
-          onChange={valor => atualizarFiltro('busca', valor)}
-          placeholder="Buscar conteúdos"
-          className={cn('min-w-0', celular ? 'w-full' : 'min-w-[14rem] flex-1')}
-        />
-      )}
-      chips={(
-        <FilterChips<FiltroTipoConteudo>
-          ariaLabel="Mostrar"
-          value={filtros.tipo}
-          onChange={valor => setEstado(atual => ({
-            ...atual,
-            filtros: { ...atual.filtros, tipo: valor, etapa: 'todas' },
-          }))}
-          options={[
-            { id: 'todos', label: 'Todos' },
-            { id: 'ideias', label: 'Ideias' },
-            { id: 'roteiros', label: 'Roteiros' },
-          ]}
-        />
-      )}
-      filters={
-        filtros.tipo !== 'ideias' ? (
-          <SelectField
-            ariaLabel="Etapa"
-            value={filtros.etapa}
-            onChange={valor => atualizarFiltro('etapa', valor as FiltroEtapa)}
-            options={opcoesEtapa}
-          />
-        ) : undefined
-      }
-      sort={(
+    <div className="flex flex-wrap items-center justify-between gap-4 py-2">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-1.5">
+          <Filter className="h-4 w-4" style={{ color: serie.cor || 'var(--brand-accent)' }} />
+          <Text variant="label" as="span" uppercase className="text-[var(--text-secondary)]">
+            FILTRO:
+          </Text>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {[
+            { id: 'todos', label: `Todos (${total.conteudos})` },
+            { id: 'ideias', label: `Ideias (${total.ideias})` },
+            { id: 'roteiros', label: `Roteiros & Produção (${total.roteiros})` },
+          ].map(tab => {
+            const ativo = filtros.tipo === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => atualizarFiltro('tipo', tab.id as FiltroTipoConteudo)}
+                className={cn(
+                  'rounded-[var(--radius-sm)] px-3 py-1.5 transition-colors',
+                  ativo
+                    ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-sm'
+                    : 'border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
+                )}
+              >
+                <Text variant="button" as="span">{tab.label}</Text>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        {serieDasTemporadas && !temporada ? (
+          <AppButton
+            variant="secondary"
+            leftIcon={<Plus className="h-4 w-4" />}
+            onClick={() => setEdicaoTemporada({ modo: 'criar' })}
+          >
+            Nova Temporada
+          </AppButton>
+        ) : null}
         <AppButton
-          variant="secondary"
-          iconOnly
-          aria-label={`Ordem: ${ordemAtual.label}. Trocar para ${proximaOrdem.label}`}
-          title={ordemAtual.label}
-          onClick={() => atualizarFiltro('ordem', proximaOrdem.value)}
+          variant="primary"
+          leftIcon={<Plus className="h-4 w-4" />}
+          onClick={() => setNovoEm({ serieId: serie.id, temporadaId: temporadaId ?? null })}
         >
-          <ArrowDownUp className="h-4 w-4" />
+          Novo Episódio
         </AppButton>
-      )}
-    />
+      </div>
+    </div>
   );
   const rodape = (
     <>
@@ -488,7 +484,7 @@ export function SeriesScriptsPage() {
       tipo={tipo}
       ancestrais={ancestrais}
       temporada={temporada}
-      resumo={resumo}
+      total={total}
       celular={noCelular}
       onConfigure={() => navigate(`/series/${serie.id}/editar`)}
       onCreate={() => setNovoEm({ serieId: serie.id, temporadaId: temporadaId ?? null })}
@@ -517,16 +513,6 @@ export function SeriesScriptsPage() {
         ) : null}
 
         <div className="stack-md">
-          <Text variant="meta" as="p">
-            {[
-              textoConteudos(total.conteudos),
-              plural(total.roteiros, 'roteiro', 'roteiros'),
-              plural(total.ideias, 'ideia', 'ideias'),
-              filtrando ? `${visiveis.length} ${visiveis.length === 1 ? 'aparece' : 'aparecem'} com os filtros` : null,
-              filtros.ordem !== 'criacao' ? ordemAtual.label : null,
-            ].filter(Boolean).join(' · ')}
-          </Text>
-
           {!pronto || falhou ? (
             <QueryViewState
               status={falhou && pronto ? 'error' : 'loading'}

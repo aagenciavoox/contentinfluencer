@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LayoutGrid, Layers, List, Plus } from 'lucide-react';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
@@ -11,6 +11,7 @@ import { FilterBar } from '../../../components/ui/FilterBar';
 import { PageToolbar } from '../../../components/ui/PageToolbar';
 import { QueryViewState } from '../../../components/ui/QueryViewState';
 import { Text } from '../../../components/ui/Text';
+import { ToolbarSearchInput } from '../../../components/ui/ToolbarSearchInput';
 import { ViewModeToggle } from '../../../components/ui/ViewModeToggle';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -19,6 +20,7 @@ import { useScrollMemory } from '../../../hooks/useSessionState';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import type { Serie } from '../../../lib/database';
+import { cn } from '../../../lib/utils';
 import { SeriesMobileScreen } from '../../../mobile/screens/settings/SeriesMobileScreen';
 import { generateUUID } from '../../../utils/uuid';
 import { PreferenciasSeries, ResultadoDaLista } from '../components/series-list/SeriesListResultado';
@@ -36,11 +38,30 @@ export function SeriesSettingsPage() {
   const [modalTarget, setModalTarget] = useState<SerieCreateModalTarget | null>(null);
   const modelo = useSeriesLista(setModalTarget);
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+  const [quickTipo, setQuickTipo] = useState<'serie' | 'familia'>('serie');
   const [quickName, setQuickName] = useState('');
   const [quickColor, setQuickColor] = useState(() => nextFreeSerieColor([]));
 
+  const contagensPorTipo = useMemo(() => {
+    let serie = 0;
+    let quadro = 0;
+    let familia = 0;
+    for (const item of modelo.lista.itens.values()) {
+      if (item.tipo === 'serie') serie += 1;
+      else if (item.tipo === 'quadro') quadro += 1;
+      else if (item.tipo === 'familia') familia += 1;
+    }
+    return {
+      todos: modelo.total,
+      serie,
+      quadro,
+      familia,
+    };
+  }, [modelo.lista.itens, modelo.total]);
+
   const criarSerie = () => {
     if (state.editorial.quickSeriesCreate) {
+      setQuickTipo('serie');
       setQuickColor(nextFreeSerieColor(state.series));
       setQuickCreateOpen(true);
       return;
@@ -72,6 +93,7 @@ export function SeriesSettingsPage() {
       updatedAt: now,
       pilarIds: [],
       plataformas: [],
+      tipoAgrupamento: quickTipo,
     };
     dispatch({ type: 'ADD_SERIE', payload: serie });
     setQuickCreateOpen(false);
@@ -82,13 +104,19 @@ export function SeriesSettingsPage() {
   const quickSheet = (
     <QuickCreateSheet
       open={quickCreateOpen}
+      tipo={quickTipo}
       name={quickName}
       color={quickColor}
       takenColors={[...takenSerieColorKeys(state.series)]}
+      onTipoChange={setQuickTipo}
       onNameChange={setQuickName}
       onColorChange={setQuickColor}
       onClose={() => setQuickCreateOpen(false)}
       onCreate={handleQuickCreate}
+      onOpenFullForm={() => {
+        setQuickCreateOpen(false);
+        navigate(`/series/novo?tipo=${quickTipo}`);
+      }}
     />
   );
 
@@ -118,63 +146,52 @@ export function SeriesSettingsPage() {
       header={
         <DesktopPageHeader
           section="Criação"
-          title="Séries e quadros"
+          title="Séries & Agrupamentos"
+          subtitle="Séries periódicas, quadros recorrentes, temporadas e padrões de legendas editoriais."
           actions={[
-            <AppButton key="serie" variant="primary" onClick={criarSerie} leftIcon={<Plus className="h-4 w-4" />}>
-              Criar série
+            <AppButton key="novo" variant="primary" onClick={criarSerie} leftIcon={<Plus className="h-4 w-4" />}>
+              Novo Agrupamento
             </AppButton>,
-            <MoreMenu key="mais" items={[{ id: 'criar-familia', label: 'Criar família', onClick: () => setModalTarget({ tipo: 'familia' }) }]} />,
           ]}
         />
       }
       toolbar={
         modelo.total > 0 ? (
-          <PageToolbar
-            filters={
-              <FilterBar
-                searchValue={modelo.filtros.busca}
-                onSearchChange={valor => modelo.atualizarFiltro('busca', valor)}
-                searchPlaceholder="Buscar séries e quadros"
-                filters={[
-                  {
-                    id: 'tipo',
-                    label: 'Tipo',
-                    value: modelo.filtros.tipo,
-                    emptyValue: 'todos',
-                    onChange: valor => modelo.atualizarFiltro('tipo', valor as FiltroTipoLista),
-                    options: modelo.opcoesTipo,
-                  },
-                  {
-                    id: 'pilar',
-                    label: 'Pilar',
-                    value: modelo.filtros.pilar,
-                    emptyValue: 'todos',
-                    onChange: valor => modelo.atualizarFiltro('pilar', valor),
-                    options: modelo.opcoesPilar,
-                  },
-                  {
-                    id: 'situacao',
-                    label: 'Situação',
-                    value: modelo.filtros.situacao,
-                    emptyValue: 'ativas',
-                    onChange: valor => modelo.atualizarFiltro('situacao', valor as FiltroSituacao),
-                    options: modelo.opcoesSituacao,
-                  },
-                ]}
-              />
-            }
-            view={
-              <ViewModeToggle<VistaLista>
-                ariaLabel="Ver como"
-                value={modelo.filtros.vista}
-                onChange={vista => modelo.atualizarFiltro('vista', vista)}
-                options={[
-                  { value: 'cards', label: 'Cards', icon: LayoutGrid },
-                  { value: 'lista', label: 'Lista', icon: List },
-                ]}
-              />
-            }
-          />
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-3">
+            <ToolbarSearchInput
+              value={modelo.filtros.busca}
+              onChange={valor => modelo.atualizarFiltro('busca', valor)}
+              placeholder="Buscar por nome, jargão ou descrição..."
+              className="min-w-[280px] max-w-md flex-1"
+            />
+            <div className="flex items-center gap-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-1">
+              {[
+                { id: 'todos', label: 'Todos', count: contagensPorTipo.todos },
+                { id: 'serie', label: 'Séries', count: contagensPorTipo.serie },
+                { id: 'quadro', label: 'Quadros', count: contagensPorTipo.quadro },
+                { id: 'familia', label: 'Famílias', count: contagensPorTipo.familia },
+              ].map(tab => {
+                const ativo = modelo.filtros.tipo === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => modelo.atualizarFiltro('tipo', tab.id as FiltroTipoLista)}
+                    className={cn(
+                      'rounded-[var(--radius-sm)] px-3 py-1.5 transition-colors',
+                      ativo
+                        ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-sm'
+                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
+                    )}
+                  >
+                    <span className="t-button">
+                      {tab.label} ({tab.count})
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         ) : undefined
       }
     >
@@ -213,43 +230,109 @@ function SeriesListaDesktop({ modelo, onCreate }: { modelo: SeriesListaModelo; o
 
 function QuickCreateSheet({
   open,
+  tipo,
   name,
   color,
   takenColors,
+  onTipoChange,
   onNameChange,
   onColorChange,
   onClose,
   onCreate,
+  onOpenFullForm,
 }: {
   open: boolean;
+  tipo: 'serie' | 'familia';
   name: string;
   color: string;
   takenColors: readonly string[];
+  onTipoChange: (tipo: 'serie' | 'familia') => void;
   onNameChange: (value: string) => void;
   onColorChange: (value: string) => void;
   onClose: () => void;
   onCreate: () => void;
+  onOpenFullForm: () => void;
 }) {
   const taken = new Set(takenColors);
+  const rotuloTipo = tipo === 'familia' ? 'família' : 'série';
+  const tituloBotao = tipo === 'familia' ? 'Criar família' : 'Criar série';
+
   return (
     <BottomSheetModal open={open} onClose={onClose} desktopMaxW="max-w-md">
       <OverlayHeader onClose={onClose}>
-        <Text variant="sectionTitle">Criar série</Text>
-        <Text variant="meta" className="mt-1 text-[var(--text-secondary)]">Comece com nome e cor.</Text>
+        <Text variant="sectionTitle">Novo Agrupamento</Text>
+        <Text variant="meta" className="mt-1 text-[var(--text-secondary)]">
+          Comece escolhendo o tipo, nome e cor.
+        </Text>
       </OverlayHeader>
       <OverlayBody className="stack-lg">
+        {/* Seletor de Tipo */}
+        <div>
+          <Text variant="label" as="div" className="mb-2 block uppercase text-[var(--text-secondary)]">
+            Tipo
+          </Text>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => onTipoChange('serie')}
+              className={cn(
+                'flex flex-col items-center justify-center rounded-[var(--radius-input)] border p-2.5 text-center transition-all',
+                tipo === 'serie'
+                  ? 'border-[var(--brand-accent)] bg-[var(--surface-subtle)] shadow-sm'
+                  : 'border-[var(--border-color)] bg-[var(--bg-primary)] hover:border-[var(--border-strong)]',
+              )}
+            >
+              <Text
+                variant="itemTitle"
+                as="span"
+                className={tipo === 'serie' ? 'text-[var(--brand-accent)]' : 'text-[var(--text-primary)]'}
+              >
+                Série
+              </Text>
+              <Text variant="meta" as="span" className="text-[var(--text-secondary)]">
+                Episódios e cadência
+              </Text>
+            </button>
+            <button
+              type="button"
+              onClick={() => onTipoChange('familia')}
+              className={cn(
+                'flex flex-col items-center justify-center rounded-[var(--radius-input)] border p-2.5 text-center transition-all',
+                tipo === 'familia'
+                  ? 'border-[var(--brand-accent)] bg-[var(--surface-subtle)] shadow-sm'
+                  : 'border-[var(--border-color)] bg-[var(--bg-primary)] hover:border-[var(--border-strong)]',
+              )}
+            >
+              <Text
+                variant="itemTitle"
+                as="span"
+                className={tipo === 'familia' ? 'text-[var(--brand-accent)]' : 'text-[var(--text-primary)]'}
+              >
+                Família
+              </Text>
+              <Text variant="meta" as="span" className="text-[var(--text-secondary)]">
+                Grupo de séries
+              </Text>
+            </button>
+          </div>
+        </div>
+
         <label className="block">
-          <Text variant="label" className="mb-1.5 block">Nome</Text>
+          <Text variant="label" as="div" className="mb-1.5 block">
+            Nome da {rotuloTipo}
+          </Text>
           <input
             autoFocus
             value={name}
             onChange={event => onNameChange(event.target.value)}
-            placeholder="Nome da série"
+            placeholder={tipo === 'familia' ? 'Ex.: Descomplicando' : 'Ex.: Descomplicando Sanderson'}
             className="input"
           />
         </label>
         <div>
-          <Text variant="label" className="mb-2 block">Cor</Text>
+          <Text variant="label" as="div" className="mb-2 block">
+            Cor
+          </Text>
           <div className="flex flex-wrap gap-2">
             {PILAR_PRESET_CORES.map(item => {
               const used = taken.has(serieColorKey(item) || item);
@@ -268,10 +351,22 @@ function QuickCreateSheet({
             })}
           </div>
         </div>
+
+        <div className="pt-1 text-center">
+          <button
+            type="button"
+            onClick={onOpenFullForm}
+            className="text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+          >
+            <Text variant="meta" as="span" className="hover:underline">
+              Mais opções e configuração completa →
+            </Text>
+          </button>
+        </div>
       </OverlayBody>
       <OverlayFooter>
         <AppButton variant="secondary" onClick={onClose}>Cancelar</AppButton>
-        <AppButton variant="primary" onClick={onCreate} disabled={!name.trim()}>Criar série</AppButton>
+        <AppButton variant="primary" onClick={onCreate} disabled={!name.trim()}>{tituloBotao}</AppButton>
       </OverlayFooter>
     </BottomSheetModal>
   );

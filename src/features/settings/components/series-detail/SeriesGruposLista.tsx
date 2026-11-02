@@ -1,11 +1,13 @@
 import { useId, useRef, type ReactNode } from 'react';
-import { Check, ChevronDown, FileText, Lightbulb, Plus } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Check, ChevronDown, ChevronUp, FileText, Lightbulb, Plus } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { AppButton } from '../../../../components/ui/AppButton';
+import { Badge } from '../../../../components/ui/Badge';
 import { MoreMenu, type MoreMenuItem } from '../../../../components/ui/MoreMenu';
 import { PlatformIcon } from '../../../../components/ui/PlatformIcon';
 import { Text } from '../../../../components/ui/Text';
 import type { Content, Platform, Serie, SerieTipoAgrupamento, Temporada } from '../../../../lib/database';
+import { diaNumerico } from '../../../../lib/dates';
 import { getStatusColorVar } from '../../../../lib/statusClasses';
 import { cn } from '../../../../lib/utils';
 import { getDisplayStatus, getDisplayStatusLabel } from '../../../contents/lib/contentPipeline';
@@ -115,6 +117,7 @@ function LinhaConteudo({
   const marcada = selecao.ids.has(content.id);
   const Icone = ehIdeia(content) ? Lightbulb : FileText;
   const rota = acoes.rotaDoConteudo(content);
+  const navigate = useNavigate();
 
   // Segurar o dedo entra no modo seleção, sem abrir o conteúdo.
   const toqueLongo = useRef<{ timer: number; x: number; y: number } | null>(null);
@@ -125,22 +128,21 @@ function LinhaConteudo({
   };
 
   const pontoEtapa = (
-    <span className="flex min-w-0 items-center gap-2">
-      <span
-        aria-hidden
-        className="h-2 w-2 shrink-0 rounded-full"
-        style={{ backgroundColor: getStatusColorVar(getDisplayStatus(content)) }}
-      />
-      <Text variant="secondary" as="span" className="truncate text-[var(--text-primary)]">{etapa}</Text>
-    </span>
+    <Badge
+      variant={ehIdeia(content) ? 'warning' : 'success'}
+      className="uppercase shrink-0"
+    >
+      {ehIdeia(content) ? 'IDEIA' : 'ROTEIRO'}
+    </Badge>
   );
-  const redesNoCelular = !noBloco && destino.rotulo && redesForaDoPadrao(content) ? `só ${destino.rotulo}` : null;
+  const dataFormatada = diaNumerico(content.publishDate || content.createdAt);
+  const formatoVisual = content.formatoVisual || 'Padrao';
 
   return (
     <li
       className={cn(
-        'relative flex min-h-12 items-center gap-3 border-t border-[var(--border-color)] py-2 pr-2 hover:bg-[var(--bg-hover)]',
-        noBloco ? 'pl-8 sm:pl-16' : 'pl-4 sm:pl-6',
+        'relative flex min-h-12 items-center justify-between gap-3 border-t border-[var(--border-color)] px-4 py-3 hover:bg-[var(--bg-hover)]',
+        noBloco && 'pl-8 sm:pl-16',
         marcada && 'bg-[var(--bg-hover)]',
         celular && 'select-none [-webkit-touch-callout:none]',
       )}
@@ -187,49 +189,46 @@ function LinhaConteudo({
           draggable={false}
         />
       )}
-      {!celular || selecao.ativa ? (
-        <CaixaSelecao marcada={marcada} titulo={titulo} onToggle={() => (selecao.ativa ? selecao.alternar(content.id) : selecao.entrar(content.id))} />
-      ) : null}
-      <Icone className="pointer-events-none relative z-[1] h-4 w-4 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
-      <span className="pointer-events-none relative z-[1] min-w-0 flex-1">
-        <Text variant="body" as="span" className="block truncate">{titulo}</Text>
-        {!celular && etiquetas ? <Text variant="meta" as="span" className="block truncate">{etiquetas}</Text> : null}
-        {celular ? (
-          <span className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2">
-            {pontoEtapa}
-            <Text variant="meta" as="span" className="min-w-0 truncate">
-              {[etiquetas, redesNoCelular, destino.progresso].filter(Boolean).join(' · ')}
-            </Text>
+
+      {/* Lado Esquerdo: Badge + Título */}
+      <div className="pointer-events-none relative z-[1] flex min-w-0 flex-1 items-center gap-3">
+        {!celular || selecao.ativa ? (
+          <span className="pointer-events-auto">
+            <CaixaSelecao
+              marcada={marcada}
+              titulo={titulo}
+              onToggle={() => (selecao.ativa ? selecao.alternar(content.id) : selecao.entrar(content.id))}
+            />
           </span>
         ) : null}
-      </span>
-      {celular ? null : (
-        <>
-          <span className="pointer-events-none relative z-[1] w-36 shrink-0">{pontoEtapa}</span>
-          <span className="pointer-events-none relative z-[1] w-48 shrink-0 lg:w-56">
-            <Text
-              variant={noBloco ? 'meta' : 'secondary'}
-              as="span"
-              className="block truncate"
-            >
-              {destino.rotulo || '—'}
-            </Text>
-            {destino.progresso ? <Text variant="meta" as="span" className="block">{destino.progresso}</Text> : null}
-          </span>
-        </>
-      )}
-      {selecao.ativa ? <span aria-hidden className="w-8 shrink-0" /> : (
-        <span className="relative z-[2] shrink-0">
-          <MoreMenu
-            size="sm"
-            label={`Mais opções de ${titulo}`}
-            items={[
-              ...(celular ? [{ label: 'Selecionar', onClick: () => selecao.entrar(content.id) }] : []),
-              { label: 'Copiar link', onClick: () => acoes.onCopiarLink(content) },
-            ]}
-          />
-        </span>
-      )}
+
+        {pontoEtapa}
+
+        <Text variant="bodyStrong" as="span" className="text-[var(--text-primary)] truncate">
+          {titulo}
+        </Text>
+      </div>
+
+      {/* Lado Direito: Formato + Data + Ações */}
+      <div className="relative z-[2] flex shrink-0 items-center gap-4">
+        {content.formatoVisual ? (
+          <Badge variant="neutral" className="hidden sm:inline-flex uppercase">
+            {content.formatoVisual}
+          </Badge>
+        ) : (
+          <Text variant="meta" as="span" className="hidden sm:inline">Padrão</Text>
+        )}
+        <Text variant="meta" as="span">{dataFormatada}</Text>
+        <MoreMenu
+          size="sm"
+          label={`Mais opções de ${titulo}`}
+          items={[
+            ...(celular ? [{ label: 'Selecionar', onClick: () => selecao.entrar(content.id) }] : []),
+            { label: 'Abrir no editor', onClick: () => navigate(rota.to, { state: rota.state }) },
+            { label: 'Copiar link', onClick: () => acoes.onCopiarLink(content) },
+          ]}
+        />
+      </div>
     </li>
   );
 }
@@ -277,6 +276,7 @@ function CabecalhoDoGrupo({
   aberto,
   controla,
   onToggle,
+  onNovo,
   tipoDoFilho,
   filtrando,
   serieDaPagina,
@@ -286,6 +286,7 @@ function CabecalhoDoGrupo({
   aberto: boolean;
   controla: string;
   onToggle: () => void;
+  onNovo?: () => void;
   tipoDoFilho: SerieTipoAgrupamento | null;
   filtrando: boolean;
   serieDaPagina: string;
@@ -294,31 +295,69 @@ function CabecalhoDoGrupo({
   const linkDoTitulo = grupo.temporada
     ? `/series/${serieDaPagina}/temporadas/${grupo.temporada.id}`
     : grupo.filhoId ? `/series/${grupo.filhoId}` : null;
-  const titulo = linkDoTitulo ? (
-    <Link
-      to={linkDoTitulo}
-      className="min-w-0 rounded-[var(--radius-sm)] hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-    >
-      <Text variant="itemTitle" as="span">{grupo.rotulo}</Text>
-    </Link>
-  ) : (
-    <Text variant="itemTitle" as="span" className="min-w-0">{grupo.rotulo}</Text>
-  );
-  const contagem = filtrando && grupo.visiveis !== grupo.total
-    ? `${grupo.visiveis} de ${textoConteudos(grupo.total)}`
-    : textoConteudos(grupo.total);
-  // Fechado, o grupo avisa o que está nos blocos para não ficar esquecido.
-  const nosBlocos = aberto ? [] : grupo.blocos.map(bloco => `${bloco.total} só ${REDE_ROTULO[bloco.rede]}`);
+
+  const rotuloExibicao = grupo.id === 'temp:none'
+    ? 'CONTEÚDOS DIRETOS DA SÉRIE (SEM TEMPORADA)'
+    : grupo.rotulo.toUpperCase();
+
+  const textoAcaoNovo = grupo.temporada
+    ? '+ Episódio nesta temporada'
+    : grupo.id === 'temp:none'
+      ? '+ Novo Conteúdo Direto'
+      : '+ Novo conteúdo';
+
+  const contagemRotulo = grupo.temporada
+    ? `${grupo.total} episódio(s)`
+    : `${grupo.total} conteúdo(s)`;
+
   return (
-    <div className="flex min-h-12 items-center gap-2 bg-[var(--bg-hover)]/40 pl-2 pr-2">
-      <BotaoRecolher aberta={aberto} controla={controla} onToggle={onToggle} />
-      <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3 gap-y-0.5">
-        {titulo}
-        <Text variant="meta" as="span" className="shrink-0">
-          {[tipoDoFilho ? TIPO_AGRUPAMENTO_LABEL[tipoDoFilho] : null, contagem, ...nosBlocos].filter(Boolean).join(' · ')}
-        </Text>
-      </span>
-      {menu.length > 0 ? <MoreMenu size="sm" items={menu} label={`Mais opções de ${grupo.rotulo}`} /> : null}
+    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        {linkDoTitulo ? (
+          <Link
+            to={linkDoTitulo}
+            className="min-w-0 hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+          >
+            <Text variant="itemTitle" as="span" className="text-[var(--text-primary)]">
+              {rotuloExibicao}
+            </Text>
+          </Link>
+        ) : (
+          <Text variant="itemTitle" as="span" className="min-w-0 text-[var(--text-primary)]">
+            {rotuloExibicao}
+          </Text>
+        )}
+        <Badge variant="neutral">
+          {contagemRotulo}
+        </Badge>
+      </div>
+
+      <div className="flex items-center gap-2">
+        {onNovo ? (
+          <button
+            type="button"
+            onClick={onNovo}
+            className="text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] hover:underline"
+          >
+            <Text variant="button" as="span">{textoAcaoNovo}</Text>
+          </button>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={aberto}
+          aria-controls={controla}
+          aria-label={aberto ? 'Recolher' : 'Mostrar'}
+          className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+        >
+          {aberto ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
+
+        {menu.length > 0 ? (
+          <MoreMenu size="sm" items={menu} label={`Mais opções de ${grupo.rotulo}`} />
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -365,25 +404,15 @@ export function SeriesGruposLista({
   const unico = grupos.length === 1 && grupos[0].id === 'direto';
 
   return (
-    <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)]">
-      {celular ? null : (
-        <div aria-hidden className="flex items-center gap-3 border-b border-[var(--border-color)] py-2 pl-6 pr-2">
-          <span className="w-4 shrink-0" />
-          <span className="w-4 shrink-0" />
-          <Text variant="label" as="span" className="flex-1 text-[var(--text-tertiary)]">Título</Text>
-          <Text variant="label" as="span" className="w-36 shrink-0 text-[var(--text-tertiary)]">Etapa</Text>
-          <Text variant="label" as="span" className="w-48 shrink-0 text-[var(--text-tertiary)] lg:w-56">Redes</Text>
-          <span className="w-8 shrink-0" />
-        </div>
-      )}
+    <div className="stack-md">
       {grupos.map((grupo, indice) => {
-        const padrao = indice === primeiraComConteudo;
+        const padrao = true;
         return (
           <Grupo
             key={grupo.id}
             grupo={grupo}
             primeiro={indice === 0}
-            semCabecalho={unico}
+            semCabecalho={false}
             aberto={unico || filtrando || estaAberta(grupo.id, padrao)}
             onToggle={() => alternar(grupo.id, padrao)}
             tipoDoFilho={grupo.filhoId ? tipos.get(grupo.filhoId) ?? 'quadro' : null}
@@ -396,7 +425,7 @@ export function SeriesGruposLista({
         );
       })}
       {rodape ? (
-        <div className="flex flex-wrap items-center gap-2 border-t border-[var(--border-color)] px-3 py-2">{rodape}</div>
+        <div className="flex flex-wrap items-center gap-2 pt-2">{rodape}</div>
       ) : null}
     </div>
   );
@@ -446,13 +475,17 @@ function Grupo({
   const vazio = grupo.contents.length === 0 && grupo.blocos.length === 0;
 
   return (
-    <section className={cn(!primeiro && 'border-t border-[var(--border-color)]')} aria-label={grupo.rotulo}>
+    <section
+      className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-sm"
+      aria-label={grupo.rotulo}
+    >
       {semCabecalho ? null : (
         <CabecalhoDoGrupo
           grupo={grupo}
           aberto={aberto}
           controla={corpoId}
           onToggle={onToggle}
+          onNovo={recebeConteudo ? () => acoes.onNovo(grupo.serieId, grupo.temporadaId) : undefined}
           tipoDoFilho={tipoDoFilho}
           filtrando={filtrando}
           serieDaPagina={serieDaPagina}
@@ -460,25 +493,19 @@ function Grupo({
         />
       )}
       {aberto ? (
-        <div id={corpoId} className={cn(semCabecalho && '[&>ul:first-child>li:first-child]:border-t-0')}>
+        <div id={corpoId}>
           {grupo.foraDoEscopo ? (
             <Text variant="meta" as="p" className="border-t border-[var(--border-color)] py-2 pl-4 pr-3 sm:pl-6">
               Estes conteúdos estão numa temporada de outro agrupamento. Mova para uma temporada desta série.
             </Text>
           ) : null}
           {vazio ? (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[var(--border-color)] py-2 pl-4 pr-3 sm:pl-6">
-              <Text variant="secondary" as="span">Nenhum conteúdo aqui ainda.</Text>
-              {recebeConteudo ? (
-                <AppButton
-                  variant="ghost"
-                  size="sm"
-                  leftIcon={<Plus className="h-4 w-4" />}
-                  onClick={() => acoes.onNovo(grupo.serieId, grupo.temporadaId)}
-                >
-                  Novo conteúdo aqui
-                </AppButton>
-              ) : null}
+            <div className="border-t border-[var(--border-color)] p-4 sm:p-6">
+              <div className="rounded-[var(--radius-input)] bg-[var(--surface-subtle)] p-6 text-center">
+                <Text variant="secondary" as="p" className="italic">
+                  Nenhum episódio encontrado nesta temporada com o filtro ativo.
+                </Text>
+              </div>
             </div>
           ) : null}
           <Lista contents={grupo.contents} {...linha} />
