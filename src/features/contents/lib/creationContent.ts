@@ -1,4 +1,4 @@
-import type {Content, FuncaoPadraoSerie, Idea, RedeSocial} from '../../../lib/database.ts';
+import type {Content, ContentPlataforma, FuncaoPadraoSerie, Idea, RedeSocial} from '../../../lib/database.ts';
 import {htmlToReadableText} from '../../../lib/utils.ts';
 import {generateUUID, isUUID} from '../../../utils/uuid.ts';
 import { passaNoFiltroData, type FiltroData } from '../../editorial/lib/datasNaGrade.ts';
@@ -48,8 +48,8 @@ export interface CreationFilters {
   /** Data na grade, pela mesma regra do Editorial. Precisa de `datasNaGrade`. */
   filtroData?: FiltroData | null;
   datasNaGrade?: ReadonlyMap<string, readonly string[]>;
-  /** Rede (`instagram`, `blog`…) ou `sem-rede`. Precisa de `redesPorConteudo`. */
-  rede?: string;
+  /** Redes marcadas; passa quem sai só nelas. Precisa de `redesPorConteudo`. */
+  redes?: readonly RedeSocial[];
   redesPorConteudo?: ReadonlyMap<string, readonly RedeSocial[]>;
 }
 
@@ -81,6 +81,18 @@ export function createScriptContent(
     status: CONTENT_STATUS.ROTEIRO,
     ...overrides,
   });
+}
+
+/** Roteiro novo com as publicações escolhidas ao criar, cada uma já ligada ao id dele. */
+export function createScriptWithPublications(
+  plataformas: readonly ContentPlataforma[],
+  overrides: Partial<Content> = {},
+): Content {
+  const content = createScriptContent(overrides);
+  return {
+    ...content,
+    plataformas: plataformas.map(plataforma => ({...plataforma, contentId: content.id})),
+  };
 }
 
 /**
@@ -322,7 +334,7 @@ export function filterCreationContents(
     .filter(content => matchesTemaFilter(content.temaIds, filters.temaIds ?? [], filters.temas))
     .filter(content => !filters.originId || livroIdsEfetivos(content).includes(filters.originId))
     .filter(content => passaNoFiltroData(filters.datasNaGrade?.get(content.id), filters.filtroData ?? null))
-    .filter(content => passaNoFiltroRede(filters.redesPorConteudo?.get(content.id), filters.rede))
+    .filter(content => passaNoFiltroRede(filters.redesPorConteudo?.get(content.id), filters.redes))
     .filter(content => {
       if (!filters.funcao || !isFuncaoEditorial(filters.funcao)) return true;
       const serie = filters.series?.find(item => item.id === content.seriesId) ?? null;

@@ -5,11 +5,12 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
-import { createScriptContent } from '../../features/contents/lib/creationContent';
+import { createScriptWithPublications } from '../../features/contents/lib/creationContent';
 import { buildContentDetailRoute } from '../../features/contents/lib/contentDetailRoute';
+import { ScriptComposer } from '../../features/creation/components/ScriptComposer';
 import { BookAnnotationComposerSheet } from '../../features/library/components/modals/BookAnnotationComposerSheet';
 import { getModuleFlags } from '../../features/settings/lib/moduleFlags';
-import { fetchBibliotecaItemById, type BibliotecaItem } from '../../lib/database';
+import { fetchBibliotecaItemById, type BibliotecaItem, type ContentPlataforma } from '../../lib/database';
 import { buildDetailBackState } from '../../lib/navigation/detailBack';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { IconButton } from '../../components/ui/IconButton';
@@ -27,6 +28,7 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isBookComposerOpen, setIsBookComposerOpen] = useState(false);
+  const [isScriptComposerOpen, setIsScriptComposerOpen] = useState(false);
   const [fetchedBook, setFetchedBook] = useState<BibliotecaItem | null>(null);
 
   const preferredBookId = typeof state.preferences.mobile_notes_primary_book_id === 'string'
@@ -91,14 +93,20 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
     onClose();
   };
 
+  // Novo roteiro passa antes pela escolha das redes, como na Criação.
   const handleNewContent = () => {
-    const content = createScriptContent({ title: 'Novo roteiro' });
+    setIsScriptComposerOpen(true);
+    onClose();
+  };
+
+  const handleCreateScript = (plataformas: ContentPlataforma[]) => {
+    setIsScriptComposerOpen(false);
+    const content = createScriptWithPublications(plataformas, { title: 'Novo roteiro' });
     void dispatch({ type: 'ADD_CONTENT', payload: content });
     navigate(
       `${buildContentDetailRoute(content.id)}&focus=script`,
       buildDetailBackState('/criacao?tab=roteiros'),
     );
-    onClose();
   };
 
   const handleNewLibraryItem = () => {
@@ -225,6 +233,12 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
           </>
         ) : null}
       </AnimatePresence>
+
+      <ScriptComposer
+        open={isScriptComposerOpen}
+        onClose={() => setIsScriptComposerOpen(false)}
+        onCreate={handleCreateScript}
+      />
 
       {currentBook ? (
         <BookAnnotationComposerSheet

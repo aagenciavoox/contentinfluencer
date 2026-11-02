@@ -5,6 +5,7 @@ import {
   applyStatusChange,
   archiveCreation,
   contentFromLegacyIdea,
+  createScriptWithPublications,
   demoteContentToIdea,
   filterCreationContents,
   filterContentsByCreationTab,
@@ -340,7 +341,24 @@ function testStatusChangeIsTheSameRuleEverywhere() {
   assert.equal(applyStatusChange(same, 'Edição', now), same);
 }
 
+function testNewScriptCarriesChosenPublications() {
+  const escolhidas = [
+    {id: 'pub-ig', contentId: '', platformId: 'conta-ig', legenda: '', hashtags: ''},
+    {id: 'pub-tt', contentId: '', platformId: 'conta-tt', legenda: '', hashtags: ''},
+  ] as Content['plataformas'];
+  const script = createScriptWithPublications(escolhidas, {title: 'Novo roteiro'});
+
+  assert.equal(script.status, 'Roteiro');
+  assert.equal(script.title, 'Novo roteiro');
+  assert.deepEqual(script.plataformas.map(item => item.platformId), ['conta-ig', 'conta-tt']);
+  assert.ok(script.plataformas.every(item => item.contentId === script.id));
+
+  // Sem rede escolhida, o roteiro nasce sem publicação, como antes.
+  assert.deepEqual(createScriptWithPublications([]).plataformas, []);
+}
+
 const tests: Array<[string, () => void]> = [
+  ['new script carries the networks chosen at creation', testNewScriptCarriesChosenPublications],
   ['status change is the same rule everywhere', testStatusChangeIsTheSameRuleEverywhere],
   ['creation pipeline transitions keep the same id', testStablePipelineTransitions],
   ['promotion preserves an existing script', testPromotionKeepsAnExistingScript],

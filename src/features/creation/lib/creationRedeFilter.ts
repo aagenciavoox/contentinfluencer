@@ -1,21 +1,24 @@
 import type {RedeSocial} from '../../../lib/database.ts';
-import {REDE_ROTULO, redeDaConta, redeDaRef, type ContaRef} from '../../contas/lib/contas.ts';
-import {normalizarRedesPostIt, REDES_DO_POSTIT} from '../../planejamento/lib/redesPostIt.ts';
+import {contasAtivas, redeDaConta, redeDaRef, type ContaRef} from '../../contas/lib/contas.ts';
+import {normalizarRedesPostIt} from '../../planejamento/lib/redesPostIt.ts';
 
-/** Query param do filtro de rede na tela Criação. */
+/** Query param do filtro de rede na tela Criação: uma ou mais redes, separadas por vírgula. */
 export const REDE_FILTER_PARAM = 'rede';
-/** Valor do filtro para roteiros e ideias sem nenhuma plataforma. */
-export const SEM_REDE = 'sem-rede';
 
-export type CreationRedeFilter = RedeSocial | typeof SEM_REDE;
+/** Lê `?rede=instagram,tiktok`: só redes conhecidas, sem repetir, na ordem do app. */
+export function parseRedesFilter(value: string | null | undefined): RedeSocial[] {
+  return normalizarRedesPostIt((value ?? '').split(','));
+}
 
-/** As redes que sempre aparecem no filtro, na ordem do app. */
-const REDES_FIXAS: readonly RedeSocial[] = ['instagram', 'tiktok', 'youtube', 'blog'];
+export function serializeRedesFilter(redes: readonly RedeSocial[]): string {
+  return normalizarRedesPostIt(redes).join(',');
+}
 
-export function parseRedeFilter(value: string | null | undefined): CreationRedeFilter | '' {
-  const normalized = (value ?? '').trim().toLowerCase();
-  if (normalized === SEM_REDE) return SEM_REDE;
-  return (REDES_DO_POSTIT as readonly string[]).includes(normalized) ? normalized as RedeSocial : '';
+/** Marca ou desmarca uma rede no filtro rápido. */
+export function alternarRedeNoFiltro(atual: readonly RedeSocial[], rede: RedeSocial): RedeSocial[] {
+  return atual.includes(rede)
+    ? atual.filter(item => item !== rede)
+    : normalizarRedesPostIt([...atual, rede]);
 }
 
 type ConteudoComRedes = {
@@ -58,33 +61,28 @@ export function mapaDeRedesDaCriacao(
   return new Map(contents.map(content => [content.id, redesDoItemDeCriacao(content, contas, comConteudo)]));
 }
 
+/**
+ * Passa quem sai só nas redes marcadas: com Instagram e TikTok, entram os só de Instagram,
+ * os só de TikTok e os dos dois, mas não os que também vão para o YouTube. Item sem rede
+ * não passa. Sem rede marcada, passa tudo.
+ */
 export function passaNoFiltroRede(
   redes: readonly RedeSocial[] | undefined,
-  filtro: string | null | undefined,
+  filtro: readonly RedeSocial[] | null | undefined,
 ): boolean {
-  if (!filtro) return true;
+  if (!filtro || filtro.length === 0) return true;
   const lista = redes ?? [];
-  if (filtro === SEM_REDE) return lista.length === 0;
-  return lista.includes(filtro as RedeSocial);
+  return lista.length > 0 && lista.every(rede => filtro.includes(rede));
 }
 
 /**
- * Opções do filtro: Instagram, TikTok, YouTube e Blog/site sempre; "Outra plataforma"
- * só quando a pessoa tem conta fora dessas redes (ou com plataforma a definir).
+ * Ícones do filtro rápido: as redes em que a pessoa tem conta ativa, na ordem do app.
+ * Uma rede marcada que saiu das contas continua ali, para poder ser desmarcada.
  */
-export function opcoesDoFiltroRede(
+export function redesDoFiltroRapido(
   contas: readonly ContaRef[],
-  atual: string = '',
-): {label: string; value: string}[] {
-  const temOutra = contas.some(conta => {
-    const rede = redeDaConta(conta);
-    return rede === 'outra' || rede === null;
-  });
-  const redes: RedeSocial[] = [...REDES_FIXAS];
-  if (temOutra || atual === 'outra') redes.push('outra');
-  return [
-    {label: 'Todas as redes', value: ''},
-    ...redes.map(rede => ({label: REDE_ROTULO[rede], value: rede})),
-    {label: 'Sem rede', value: SEM_REDE},
-  ];
+  marcadas: readonly RedeSocial[] = [],
+): RedeSocial[] {
+  const cadastradas = contasAtivas(contas).map(conta => redeDaConta(conta) ?? 'outra');
+  return normalizarRedesPostIt([...cadastradas, ...marcadas]);
 }

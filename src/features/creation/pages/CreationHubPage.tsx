@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Columns3,
   FileText,
@@ -37,6 +37,8 @@ import {
   permanentlyDeleteContent,
   restoreContent,
   type Content,
+  type ContentPlataforma,
+  type RedeSocial,
 } from '../../../lib/database';
 import { buildDetailBackState } from '../../../lib/navigation/detailBack';
 import { getErrorDetail, notifySaveFeedback, UserFacingError } from '../../../lib/saveFeedback';
@@ -55,7 +57,7 @@ import {
   archiveCreation,
   CREATION_PAGE_SIZE,
   createIdeaContent,
-  createScriptContent,
+  createScriptWithPublications,
   CREATION_TABS,
   filterCreationContents,
   getCreationTabCounts,
@@ -75,7 +77,9 @@ import { CreationGridView } from '../components/CreationGridView';
 import { CreationKanbanView } from '../components/CreationKanbanView';
 import { CreationListView } from '../components/CreationListView';
 import { CreationOverflowMenu } from '../components/CreationOverflowMenu';
+import { CreationRedeQuickFilter } from '../components/CreationRedeQuickFilter';
 import { CreationSelectionBar } from '../components/CreationSelectionBar';
+import { ScriptComposer } from '../components/ScriptComposer';
 import {
   canExportCreation,
   downloadCreationsDocx,
@@ -93,8 +97,9 @@ import type { CreationItemActionHandlers } from '../lib/creationItemActions';
 import {
   REDE_FILTER_PARAM,
   mapaDeRedesDaCriacao,
-  opcoesDoFiltroRede,
-  parseRedeFilter,
+  parseRedesFilter,
+  redesDoFiltroRapido,
+  serializeRedesFilter,
 } from '../lib/creationRedeFilter';
 import {
   etiquetasVisiveis,
@@ -153,7 +158,7 @@ export function CreationHubPage() {
   const [unpublishTarget, setUnpublishTarget] = useState<{content: Content; tab: CreationKanbanTab} | null>(null);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [persistingIds, setPersistingIds] = useState<Set<string>>(new Set());
-  const handledComposeRef = useRef<string | null>(null);
+  const [scriptComposerOpen, setScriptComposerOpen] = useState(false);
   const isMobile = useIsMobile();
 
   const legacyType = searchParams.get('tipo');
@@ -169,7 +174,9 @@ export function CreationHubPage() {
     () => parseTemaFilterParam(temasParam, legacyTemaParam),
     [legacyTemaParam, temasParam],
   );
-  const redeFilter = parseRedeFilter(searchParams.get(REDE_FILTER_PARAM));
+  const redeParam = searchParams.get(REDE_FILTER_PARAM);
+  const redesFilter = useMemo(() => parseRedesFilter(redeParam), [redeParam]);
+  const temFiltroRede = redesFilter.length > 0;
   const originId = searchParams.get('origem') ?? '';
   const funcaoId = searchParams.get('funcao') ?? '';
   const filtroData = useMemo(() => lerFiltroData(searchParams), [searchParams]);
@@ -233,13 +240,13 @@ export function CreationHubPage() {
 
   // As redes anotadas nos post-its só são carregadas quando o filtro de rede é usado.
   useEffect(() => {
-    if (redeFilter) void ensureDataDomains(['planejamento']);
-  }, [ensureDataDomains, redeFilter]);
+    if (temFiltroRede) void ensureDataDomains(['planejamento']);
+  }, [ensureDataDomains, temFiltroRede]);
 
   // Rede de cada item pelas contas das publicações; sem publicação, pelas redes do post-it ligado.
   const redesPorConteudo = useMemo(
-    () => (redeFilter ? mapaDeRedesDaCriacao(canonicalContents, state.platforms, state.postIts ?? []) : undefined),
-    [canonicalContents, redeFilter, state.platforms, state.postIts],
+    () => (temFiltroRede ? mapaDeRedesDaCriacao(canonicalContents, state.platforms, state.postIts ?? []) : undefined),
+    [canonicalContents, temFiltroRede, state.platforms, state.postIts],
   );
 
   const filteredContents = useMemo(
@@ -254,14 +261,14 @@ export function CreationHubPage() {
         funcao: funcaoId,
         filtroData,
         datasNaGrade: datas,
-        rede: redeFilter,
+        redes: redesFilter,
         redesPorConteudo,
         series: state.series,
         temas: state.temas,
       }),
       sort,
     ),
-    [activeTab, canonicalContents, datas, filtroData, funcaoId, originId, pilarId, redeFilter, redesPorConteudo, search, seriesId, sort, state.series, state.temas, temaFilter],
+    [activeTab, canonicalContents, datas, filtroData, funcaoId, originId, pilarId, redesFilter, redesPorConteudo, search, seriesId, sort, state.series, state.temas, temaFilter],
   );
 
   // No kanban, as colunas são as etapas; a aba de etapa só destaca a coluna.
@@ -278,14 +285,14 @@ export function CreationHubPage() {
         funcao: funcaoId,
         filtroData,
         datasNaGrade: datas,
-        rede: redeFilter,
+        redes: redesFilter,
         redesPorConteudo,
         series: state.series,
         temas: state.temas,
       }),
       sort,
     );
-  }, [activeTab, canonicalContents, datas, filteredContents, filtroData, funcaoId, originId, pilarId, redeFilter, redesPorConteudo, search, seriesId, sort, state.series, state.temas, temaFilter, viewMode]);
+  }, [activeTab, canonicalContents, datas, filteredContents, filtroData, funcaoId, originId, pilarId, redesFilter, redesPorConteudo, search, seriesId, sort, state.series, state.temas, temaFilter, viewMode]);
 
   // "Mostrar mais" acumula páginas em vez de trocar de página: a coleção é pequena.
   const pageData = useMemo(
@@ -520,31 +527,27 @@ export function CreationHubPage() {
       });
   }, [archivedContents, dispatch, selectedContents, selectedCopy]);
 
-  const createScript = useCallback((replace = false) => {
-    const content = createScriptContent({ title: 'Novo roteiro' });
+  // Novo roteiro passa antes pela escolha das redes; cada rede marcada já leva a legenda para a Gestão.
+  const createScript = useCallback((plataformas: ContentPlataforma[]) => {
+    setScriptComposerOpen(false);
+    const content = createScriptWithPublications(plataformas, { title: 'Novo roteiro' });
     void dispatch({ type: 'ADD_CONTENT', payload: content });
     navigate(
       `${buildContentDetailRoute(content.id)}&focus=script`,
-      {
-        ...buildDetailBackState('/criacao?tab=roteiros'),
-        replace,
-      },
+      buildDetailBackState('/criacao?tab=roteiros'),
     );
   }, [dispatch, navigate]);
 
+  // Link de outra tela (?compose=script) abre a escolha e sai da URL: voltar do roteiro não reabre o modal.
   useEffect(() => {
-    const compose = searchParams.get('compose');
-    if (compose !== 'script') {
-      if (handledComposeRef.current === 'script') {
-        handledComposeRef.current = null;
-      }
-      return;
-    }
-    if (handledComposeRef.current === compose) return;
-
-    handledComposeRef.current = compose;
-    createScript(true);
-  }, [createScript, searchParams]);
+    if (searchParams.get('compose') !== 'script') return;
+    setScriptComposerOpen(true);
+    setSearchParams(previous => {
+      const next = new URLSearchParams(previous);
+      next.delete('compose');
+      return next;
+    }, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const openIdeaComposer = useCallback(() => {
     updateSearchParam('compose', 'idea', '', false);
@@ -851,7 +854,7 @@ export function CreationHubPage() {
         variant="primary"
         size="sm"
         leftIcon={<FileText className="h-4 w-4" />}
-        onClick={() => createScript()}
+        onClick={() => setScriptComposerOpen(true)}
       >
         Novo roteiro
       </AppButton>
@@ -931,6 +934,22 @@ export function CreationHubPage() {
     />
   );
 
+  const redesRapidas = useMemo(
+    () => redesDoFiltroRapido(state.platforms, redesFilter),
+    [redesFilter, state.platforms],
+  );
+  const setRedesFilter = useCallback((redes: RedeSocial[]) => {
+    updateSearchParam(REDE_FILTER_PARAM, serializeRedesFilter(redes));
+  }, [updateSearchParam]);
+  // Com uma rede só, filtrar por ela não separa nada.
+  const redeQuickFilter = redesRapidas.length > 1 ? (
+    <CreationRedeQuickFilter
+      redes={redesRapidas}
+      value={redesFilter}
+      onChange={setRedesFilter}
+    />
+  ) : null;
+
   const filterDefinitions = useMemo(() => [
     {
       id: 'pilar',
@@ -951,13 +970,6 @@ export function CreationHubPage() {
         { label: 'Todas as séries', value: '' },
         ...state.series.map(series => ({ label: series.name, value: series.id })),
       ],
-    },
-    {
-      id: 'rede',
-      label: 'Rede',
-      value: redeFilter,
-      onChange: (value: string) => updateSearchParam(REDE_FILTER_PARAM, value),
-      options: opcoesDoFiltroRede(state.platforms, redeFilter),
     },
     {
       id: 'origem',
@@ -996,10 +1008,8 @@ export function CreationHubPage() {
     valorFiltroData,
     originId,
     pilarId,
-    redeFilter,
     seriesId,
     state.bibliotecaItems,
-    state.platforms,
     state.temas,
     state.pilares,
     state.series,
@@ -1050,6 +1060,7 @@ export function CreationHubPage() {
       searchValue={search}
       onSearchChange={value => updateSearchParam('q', value)}
       searchPlaceholder="Buscar por título, nota ou tema…"
+      leading={redeQuickFilter}
       filters={filterDefinitions}
       panelExtra={temaFilterField}
       extraActiveCount={temaFilter.length > 0 ? 1 : 0}
@@ -1075,14 +1086,17 @@ export function CreationHubPage() {
   );
 
   const mobileFilters = (
-    <MobileSearchBar
-      value={search}
-      onChange={value => updateSearchParam('q', value)}
-      placeholder="Buscar por título, nota ou tema"
-      onFilterClick={() => setMobileFiltersOpen(true)}
-      rounded="tight"
-      trailing={selectionMenu ?? undefined}
-    />
+    <div className="stack-sm">
+      <MobileSearchBar
+        value={search}
+        onChange={value => updateSearchParam('q', value)}
+        placeholder="Buscar por título, nota ou tema"
+        onFilterClick={() => setMobileFiltersOpen(true)}
+        rounded="tight"
+        trailing={selectionMenu ?? undefined}
+      />
+      {redeQuickFilter}
+    </div>
   );
 
   const mobileFilterSheet = (
@@ -1151,7 +1165,7 @@ export function CreationHubPage() {
     />
   ) : null;
 
-  const hasFilters = Boolean(search || pilarId || seriesId || redeFilter || temaFilter.length > 0 || originId || funcaoId || filtroData);
+  const hasFilters = Boolean(search || pilarId || seriesId || temFiltroRede || temaFilter.length > 0 || originId || funcaoId || filtroData);
   const shownCount = viewMode === 'kanban' ? kanbanContents.length : pageData.items.length;
   const totalCount = viewMode === 'kanban' ? kanbanContents.length : filteredContents.length;
   const hiddenCount = totalCount - shownCount;
@@ -1170,7 +1184,7 @@ export function CreationHubPage() {
             actions={activeTab === 'Lixeira' ? trashActions : (
               <CreateMenuButton
                 onCreateIdea={openIdeaComposer}
-                onCreateScript={() => createScript()}
+                onCreateScript={() => setScriptComposerOpen(true)}
               />
             )}
           />
@@ -1277,6 +1291,12 @@ export function CreationHubPage() {
         initialOriginId={searchParams.get('itemId') ?? originId}
         onClose={closeIdeaComposer}
         onSave={saveIdea}
+      />
+
+      <ScriptComposer
+        open={scriptComposerOpen}
+        onClose={() => setScriptComposerOpen(false)}
+        onCreate={createScript}
       />
 
       <Dialog

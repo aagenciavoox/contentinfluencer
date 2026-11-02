@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { addDays, format } from 'date-fns';
 import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
+import type { ContentPlataforma } from '../../../lib/database';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import { useAppContext } from '../../../context/AppContext';
@@ -10,11 +11,10 @@ import { useDomainsReady } from '../../../hooks/useDomainsReady';
 import { DashboardMobileScreen } from '../../../mobile/screens/dashboard/DashboardMobileScreen';
 import type { MobileChromeOutletContext } from '../../../mobile/components/shell';
 import { getModuleFlags } from '../../settings/lib/moduleFlags';
-import { CONTENT_STATUS } from '../../contents/lib/contentPipeline';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import { buildDetailBackState } from '../../../lib/navigation/detailBack';
-import { createContentDraft } from '../../contents/lib/createContentDraft';
-import { createIdeaContent } from '../../contents/lib/creationContent';
+import { createIdeaContent, createScriptWithPublications } from '../../contents/lib/creationContent';
+import { ScriptComposer } from '../../creation/components/ScriptComposer';
 import { aplicarEscolhasDaSerie } from '../../editorial/lib/escolhasSerie';
 import { getGentleExperienceSettings } from '../../settings/lib/gentleExperience';
 import { CreateMenuButton } from '../../../components/ui/CreateMenuButton';
@@ -58,6 +58,7 @@ export function DashboardPage() {
   const weekdayLabel = formatWeekdayShort(today);
 
   const [ideaTitle, setIdeaTitle] = useState('');
+  const [scriptComposerOpen, setScriptComposerOpen] = useState(false);
   const [ideaNotes, setIdeaNotes] = useState('');
   const [ideaPilarId, setIdeaPilarId] = useState('');
   const [ideaSeriesId, setIdeaSeriesId] = useState('');
@@ -120,11 +121,23 @@ export function DashboardPage() {
     dataReady: pulseReady,
   });
 
-  const handleNovoRoteiro = () => {
-    const newContent = createContentDraft({ title: 'Novo roteiro', status: CONTENT_STATUS.ROTEIRO });
+  // Novo roteiro passa antes pela escolha das redes, como na Criação.
+  const handleNovoRoteiro = () => setScriptComposerOpen(true);
+
+  const criarRoteiro = (plataformas: ContentPlataforma[]) => {
+    setScriptComposerOpen(false);
+    const newContent = createScriptWithPublications(plataformas, { title: 'Novo roteiro' });
     void dispatch({ type: 'ADD_CONTENT', payload: newContent });
     navigate(`${buildContentDetailRoute(newContent.id)}&focus=script`, detailBackState);
   };
+
+  const scriptComposer = (
+    <ScriptComposer
+      open={scriptComposerOpen}
+      onClose={() => setScriptComposerOpen(false)}
+      onCreate={criarRoteiro}
+    />
+  );
 
   const saveIdea = () => {
     const title = ideaTitle.trim();
@@ -237,6 +250,7 @@ export function DashboardPage() {
         >
           {home}
         </DashboardMobileScreen>
+        {scriptComposer}
       </div>
     );
   }
@@ -261,6 +275,7 @@ export function DashboardPage() {
       <DayPulse segments={pulseSegments} />
       {pause}
       {home}
+      {scriptComposer}
     </PageLayout>
   );
 }

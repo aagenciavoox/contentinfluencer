@@ -1,16 +1,17 @@
 import assert from 'node:assert/strict';
 import type {Platform} from '../../../lib/database.ts';
 import {
+  alternarRedeNoFiltro,
   mapaDeRedesDaCriacao,
-  opcoesDoFiltroRede,
-  parseRedeFilter,
+  parseRedesFilter,
   passaNoFiltroRede,
+  redesDoFiltroRapido,
   redesDoItemDeCriacao,
-  SEM_REDE,
+  serializeRedesFilter,
 } from './creationRedeFilter.ts';
 
-function conta(id: string, nome: string, rede?: Platform['rede']): Platform {
-  return {id, userId: 'u1', nome, ativo: true, createdAt: '2026-10-17T10:00:00.000Z', ...(rede ? {rede} : {})};
+function conta(id: string, nome: string, rede?: Platform['rede'], ativo = true): Platform {
+  return {id, userId: 'u1', nome, ativo, createdAt: '2026-10-17T10:00:00.000Z', ...(rede ? {rede} : {})};
 }
 
 const contas = [
@@ -22,12 +23,20 @@ const contas = [
   conta('p-news', 'Newsletter', 'outra'),
 ];
 
-assert.equal(parseRedeFilter('Blog'), 'blog');
-assert.equal(parseRedeFilter(' instagram '), 'instagram');
-assert.equal(parseRedeFilter(SEM_REDE), SEM_REDE);
-assert.equal(parseRedeFilter('facebook'), '');
-assert.equal(parseRedeFilter(null), '');
-console.log('ok - rede filter: reads the query param safely');
+assert.deepEqual(parseRedesFilter('Blog'), ['blog']);
+assert.deepEqual(parseRedesFilter(' tiktok , instagram,tiktok '), ['instagram', 'tiktok']);
+assert.deepEqual(parseRedesFilter('facebook,youtube'), ['youtube']);
+// Link antigo com "Sem rede" vira filtro vazio.
+assert.deepEqual(parseRedesFilter('sem-rede'), []);
+assert.deepEqual(parseRedesFilter(null), []);
+assert.equal(serializeRedesFilter(['tiktok', 'instagram']), 'instagram,tiktok');
+assert.equal(serializeRedesFilter([]), '');
+console.log('ok - rede filter: reads and writes several networks in the query param');
+
+assert.deepEqual(alternarRedeNoFiltro([], 'tiktok'), ['tiktok']);
+assert.deepEqual(alternarRedeNoFiltro(['tiktok'], 'instagram'), ['instagram', 'tiktok']);
+assert.deepEqual(alternarRedeNoFiltro(['instagram', 'tiktok'], 'instagram'), ['tiktok']);
+console.log('ok - rede filter: toggles one network at a time');
 
 const item = (id: string, platformIds: string[]) => ({id, plataformas: platformIds.map(platformId => ({platformId}))});
 
@@ -51,17 +60,38 @@ assert.deepEqual(mapa.get('c1'), ['instagram']);
 assert.deepEqual(mapa.get('c8'), []);
 console.log('ok - rede filter: falls back to linked post-its when there is no publication');
 
-assert.equal(passaNoFiltroRede(['instagram'], ''), true);
-assert.equal(passaNoFiltroRede(['instagram', 'blog'], 'blog'), true);
-assert.equal(passaNoFiltroRede(['instagram'], 'blog'), false);
-assert.equal(passaNoFiltroRede([], SEM_REDE), true);
-assert.equal(passaNoFiltroRede(undefined, SEM_REDE), true);
-assert.equal(passaNoFiltroRede(['tiktok'], SEM_REDE), false);
-console.log('ok - rede filter: Todas, uma rede e Sem rede');
+// Sem filtro, passa tudo, inclusive quem não tem rede.
+assert.equal(passaNoFiltroRede(['instagram'], []), true);
+assert.equal(passaNoFiltroRede([], []), true);
+assert.equal(passaNoFiltroRede(undefined, null), true);
+// TikTok e Instagram: só TikTok, só Instagram e os dois passam; quem também vai pro YouTube, não.
+const curtos = ['instagram', 'tiktok'] as const;
+assert.equal(passaNoFiltroRede(['tiktok'], curtos), true);
+assert.equal(passaNoFiltroRede(['instagram'], curtos), true);
+assert.equal(passaNoFiltroRede(['instagram', 'tiktok'], curtos), true);
+assert.equal(passaNoFiltroRede(['youtube'], curtos), false);
+assert.equal(passaNoFiltroRede(['instagram', 'youtube'], curtos), false);
+assert.equal(passaNoFiltroRede(['instagram', 'tiktok', 'youtube'], curtos), false);
+assert.equal(passaNoFiltroRede([], curtos), false);
+// Só YouTube: só quem sai apenas no YouTube.
+assert.equal(passaNoFiltroRede(['youtube'], ['youtube']), true);
+assert.equal(passaNoFiltroRede(['instagram', 'youtube'], ['youtube']), false);
+assert.equal(passaNoFiltroRede(['instagram', 'tiktok'], ['youtube']), false);
+// As três: todo item com rede entre elas passa; sem rede, não.
+const tres = ['instagram', 'tiktok', 'youtube'] as const;
+assert.equal(passaNoFiltroRede(['instagram', 'tiktok', 'youtube'], tres), true);
+assert.equal(passaNoFiltroRede(['youtube'], tres), true);
+assert.equal(passaNoFiltroRede([], tres), false);
+console.log('ok - rede filter: passes items only on the marked networks');
 
-const semOutra = opcoesDoFiltroRede([conta('p-ig', 'Instagram', 'instagram'), conta('p-blog', 'Blog', 'outra')]);
-assert.deepEqual(semOutra.map(option => option.label), ['Todas as redes', 'Instagram', 'TikTok', 'YouTube', 'Blog/site', 'Sem rede']);
-assert.deepEqual(semOutra.map(option => option.value), ['', 'instagram', 'tiktok', 'youtube', 'blog', SEM_REDE]);
-const comOutra = opcoesDoFiltroRede(contas);
-assert.ok(comOutra.some(option => option.value === 'outra'));
-console.log('ok - rede filter: options list Blog/site and only show Outra when needed');
+assert.deepEqual(
+  redesDoFiltroRapido([conta('a', 'TikTok', 'tiktok'), conta('b', 'Instagram', 'instagram'), conta('c', 'Insta 2', 'instagram')]),
+  ['instagram', 'tiktok'],
+);
+// Conta desativada não entra; rede marcada fora das contas continua para ser desmarcada.
+assert.deepEqual(
+  redesDoFiltroRapido([conta('a', 'Instagram', 'instagram'), conta('b', 'YouTube', 'youtube', false)], ['youtube']),
+  ['instagram', 'youtube'],
+);
+assert.deepEqual(redesDoFiltroRapido(contas), ['instagram', 'tiktok', 'youtube', 'blog', 'outra']);
+console.log('ok - rede filter: quick icons follow the active accounts');
