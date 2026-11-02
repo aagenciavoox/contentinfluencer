@@ -84,7 +84,7 @@ export function BookAnnotationCard({
       layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-5 py-4"
+      className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-6 py-4"
     >
       <div className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">

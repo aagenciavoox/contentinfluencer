@@ -14,6 +14,7 @@ export interface PlanejamentoReservaCardProps {
   pilar?: Pilar | null;
   onOpen: () => void;
   onDesenvolver: () => void;
+  onMove?: () => void;
   onDelete?: () => void;
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
@@ -27,6 +28,7 @@ export function PlanejamentoReservaCard({
   pilar,
   onOpen,
   onDesenvolver,
+  onMove,
   onDelete,
   draggable = false,
   onDragStart,
@@ -47,6 +49,15 @@ export function PlanejamentoReservaCard({
       label: 'Editar reserva',
       onClick: onOpen,
     },
+    ...(onMove
+      ? [
+          {
+            id: 'move',
+            label: 'Mover para outro dia…',
+            onClick: onMove,
+          },
+        ]
+      : []),
     ...(onDelete
       ? [
           {
@@ -132,7 +143,7 @@ export function PlanejamentoReservaCard({
             ) : null}
           </div>
 
-          <div onClick={e => e.stopPropagation()}>
+          <div onClick={e => e.stopPropagation()} onDragStart={e => e.stopPropagation()}>
             <MoreMenu
               items={menuItems}
               size="sm"

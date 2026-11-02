@@ -1,6 +1,7 @@
 import {useState, type ReactNode} from 'react';
 import type {Editor} from '@tiptap/react';
-import {ChevronDown} from 'lucide-react';
+import {ChevronDown, Clapperboard, Heading2} from 'lucide-react';
+import {insertSectionAfterCursor} from '../../../../components/editors/scriptSections';
 import {RichTextEditor} from '../../../../components/editors/RichTextEditor';
 import type {CommentPatch} from '../../../../components/editors/commentModel';
 import {useAuth} from '../../../../context/AuthContext';
@@ -12,11 +13,14 @@ import {Skeleton} from '../../../../components/ui/Skeleton';
 import {Text} from '../../../../components/ui/Text';
 import type {Content} from '../../../../lib/database';
 import {cn} from '../../../../lib/utils';
+import {templateSectionsHtml} from '../../lib/youtubeScript';
 import {
   ScriptBlockToolbar,
   appendScriptBlock,
   type ScriptBlockLabel,
+  type ScriptInsertItem,
 } from './ScriptBlockToolbar';
+import {ScriptStructurePanel} from './ScriptStructurePanel';
 
 interface ContentScriptWorkspaceProps {
   script: string | null;
@@ -49,6 +53,11 @@ interface ContentScriptWorkspaceProps {
   onRemoveAnnotation?: (id: string) => void;
   onUpdateAnnotation?: (id: string, comment: string, color?: string) => void;
   onPatchAnnotation?: (id: string, patch: CommentPatch) => void;
+  /** Modo YouTube: seções, blocos "Na tela" e fala estimada em faixa. */
+  youtube?: boolean;
+  /** Painel Estrutura à esquerda (só no modo YouTube). */
+  structurePanelOpen?: boolean;
+  onStructurePanelChange?: (open: boolean) => void;
 }
 
 export function ContentScriptWorkspace({
@@ -80,8 +89,40 @@ export function ContentScriptWorkspace({
   onRemoveAnnotation,
   onUpdateAnnotation,
   onPatchAnnotation,
+  youtube = false,
+  structurePanelOpen = false,
+  onStructurePanelChange,
 }: ContentScriptWorkspaceProps) {
   const [refsOpen, setRefsOpen] = useState(() => (referencias?.trim().length ?? 0) > 0);
+  const [scriptEditor, setScriptEditor] = useState<Editor | null>(null);
+  const [focusMode, setFocusMode] = useState(false);
+  const showStructure = youtube && structurePanelOpen && !bodyLoading && !bodyError;
+  // No modo foco o painel vai junto para dentro do editor (a página fica coberta).
+  const structurePanel = (panelClassName: string) => (
+    <ScriptStructurePanel
+      editor={scriptEditor}
+      onClose={() => onStructurePanelChange?.(false)}
+      className={panelClassName}
+    />
+  );
+
+  // No YouTube o "Inserir" põe o bloco onde está o cursor, não no fim.
+  const youtubeInsertItems: ScriptInsertItem[] | undefined = youtube ? [
+    {
+      id: 'na-tela',
+      label: 'Na tela',
+      icon: <Clapperboard className="h-3.5 w-3.5 text-[var(--text-secondary)]" aria-hidden />,
+      onSelect: () => scriptEditor?.chain().focus().insertOnScreenNote().run(),
+    },
+    {
+      id: 'secao',
+      label: 'Seção',
+      icon: <Heading2 className="h-3.5 w-3.5 text-[var(--text-secondary)]" aria-hidden />,
+      onSelect: () => {
+        if (scriptEditor) insertSectionAfterCursor(scriptEditor);
+      },
+    },
+  ] : undefined;
 
   const handleInsertBlock = (label: ScriptBlockLabel) => {
     onScriptChange(appendScriptBlock(script, label));
@@ -141,11 +182,18 @@ export function ContentScriptWorkspace({
             ) : null}
           </div>
         ) : (
+          <div className={cn('flex min-h-0 flex-1', showStructure ? 'flex-row' : 'flex-col')}>
+          {showStructure && !focusMode ? (
+            <div className="w-64 shrink-0 border-r border-[var(--border-color)] xl:w-72">
+              {structurePanel('sticky top-0 h-[calc(100dvh-9rem)] max-h-full')}
+            </div>
+          ) : null}
           <div className="roteiro-typography contents" style={roteiroTypographyStyle(typography)}>
           <RichTextEditor
             variant="workspace"
             formatBar={writingToolbar ? 'writing' : 'full'}
-            meter="spoken"
+            meter={youtube ? 'spoken-range' : 'spoken'}
+            onEditorReady={setScriptEditor}
             content={script || ''}
             onChange={onScriptChange}
             placeholder="Escreva o roteiro…"
@@ -162,6 +210,8 @@ export function ContentScriptWorkspace({
                 neutral={writingToolbar}
                 onInsertBlock={handleInsertBlock}
                 onApplyTemplate={handleApplyTemplate}
+                items={youtubeInsertItems}
+                templateHtml={youtube ? template => templateSectionsHtml(template.estrutura) : undefined}
               />
               </>
             }
@@ -169,17 +219,25 @@ export function ContentScriptWorkspace({
             typographySlot={<RoteiroTypographyControls variant="panel" typography={typography} onChange={setTypography} />}
             saveState={saveState}
             fullscreenAside={fullscreenAside}
-            onFullscreenChange={onFullscreenChange}
+            focusStart={showStructure ? structurePanel('h-full') : undefined}
+            onFullscreenChange={open => {
+              setFocusMode(open);
+              onFullscreenChange?.(open);
+            }}
             notesPanelOpen={notesPanelOpen}
             onNotesPanelChange={onNotesPanelChange}
             draftEditor={draftEditor}
             focusedPane={focusedPane}
             onFocusedPaneChange={onFocusedPaneChange}
             onRegisterInsertHandler={onRegisterInsertHandler}
-            className={writingToolbar
-              ? 'min-h-[calc(100dvh-18rem)] border-0 bg-[var(--bg-elevated)] shadow-none'
-              : 'h-full min-h-0 border-0 bg-[var(--bg-elevated)] shadow-none'}
+            className={cn(
+              writingToolbar
+                ? 'min-h-[calc(100dvh-18rem)] border-0 bg-[var(--bg-elevated)] shadow-none'
+                : 'h-full min-h-0 border-0 bg-[var(--bg-elevated)] shadow-none',
+              showStructure && 'min-w-0 flex-1 rounded-l-none',
+            )}
           />
+          </div>
           </div>
         )}
       </div>

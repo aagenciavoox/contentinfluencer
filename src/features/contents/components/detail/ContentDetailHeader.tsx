@@ -1,12 +1,22 @@
-import {useEffect, useRef, useState, type ReactNode} from 'react';
+import {useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode} from 'react';
 import {Link, useLocation} from 'react-router-dom';
-import {ArrowRight, ChevronLeft, MoreHorizontal, Pencil, Trash2} from 'lucide-react';
+import {
+  AlignLeft,
+  ArrowRight,
+  Check,
+  CopyPlus,
+  GalleryHorizontalEnd,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Youtube,
+} from 'lucide-react';
 import {AppButton} from '../../../../components/ui/AppButton';
 import {Badge} from '../../../../components/ui/Badge';
-import {Surface} from '../../../../components/ui/Surface';
 import {Text} from '../../../../components/ui/Text';
 import {cn} from '../../../../lib/utils';
-import type {Content, Pilar} from '../../../../lib/database';
+import type {Content, Pilar, WritingMode} from '../../../../lib/database';
+import {WRITING_MODE_HINTS, WRITING_MODE_LABELS, WRITING_MODES} from '../../lib/carouselSlides';
 import type {ContentPrimaryAction, ContentPrimaryActionId} from '../../lib/contentPipeline';
 import {getDisplayStatus} from '../../lib/contentPipeline';
 import {ContentTemaChips} from '../ContentTemaChips';
@@ -41,9 +51,28 @@ interface ContentDetailHeaderProps {
    * de avançar ficam na área de escrita (aba Roteiro com Escrita/Gestão, no computador).
    */
   variant?: 'default' | 'document';
-  /** Itens extras no menu ⋯ (ex.: modo Texto/Carrossel). */
-  overflowExtra?: React.ReactNode;
+  /** Escolha do modo de escrita no topo do menu ⋯. */
+  writingModes?: WritingModeMenu;
 }
+
+export type WritingModeMenu = {
+  value: WritingMode;
+  onChange: (mode: WritingMode) => void;
+  /** Modos que o banco ainda não aceita, com o motivo no lugar da descrição. */
+  unavailable?: Partial<Record<WritingMode, string>>;
+};
+
+const WRITING_MODE_ICONS: Record<WritingMode, typeof AlignLeft> = {
+  texto: AlignLeft,
+  youtube: Youtube,
+  carrossel: GalleryHorizontalEnd,
+};
+
+const MENU_ITEM_CLASS = cn(
+  'flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left transition-colors',
+  'hover:bg-[var(--bg-hover)] focus-visible:bg-[var(--bg-hover)] focus-visible:outline-none',
+  'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent',
+);
 
 /**
  * Botão principal do fluxo (ex.: "Avançar para gravação"), com o rótulo de cada etapa.
@@ -102,7 +131,7 @@ export function ContentDetailHeader({
   saveState = 'idle',
   contentKind = 'script',
   variant = 'default',
-  overflowExtra,
+  writingModes,
 }: ContentDetailHeaderProps) {
   const location = useLocation();
   const displayTitle = title ?? content.title;
@@ -128,14 +157,45 @@ export function ContentDetailHeader({
     titleInputRef.current?.select();
   }, [titleEditing]);
 
+  const menuItems = () => Array.from(
+    menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menu"] button:not(:disabled)') ?? [],
+  );
+
   useEffect(() => {
     if (!menuOpen) return;
     const handleClick = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) setMenuOpen(false);
     };
     document.addEventListener('pointerdown', handleClick);
+    // Abre com o foco no modo atual (ou no primeiro item), para as setas funcionarem logo.
+    const items = menuItems();
+    (items.find(item => item.getAttribute('aria-checked') === 'true') ?? items[0])?.focus();
     return () => document.removeEventListener('pointerdown', handleClick);
   }, [menuOpen]);
+
+  const closeMenu = (returnFocus = false) => {
+    setMenuOpen(false);
+    if (returnFocus) menuRef.current?.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')?.focus();
+  };
+
+  const handleMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape' || event.key === 'Tab') {
+      if (event.key === 'Escape') event.preventDefault();
+      closeMenu(event.key === 'Escape');
+      return;
+    }
+    const items = menuItems();
+    if (items.length === 0) return;
+    const index = items.indexOf(document.activeElement as HTMLButtonElement);
+    const next = event.key === 'ArrowDown' ? (index + 1) % items.length
+      : event.key === 'ArrowUp' ? (index - 1 + items.length) % items.length
+        : event.key === 'Home' ? 0
+          : event.key === 'End' ? items.length - 1
+            : null;
+    if (next === null) return;
+    event.preventDefault();
+    items[next]?.focus();
+  };
 
   const saveIndicator = saveHint ? (
     <div className="inline-flex min-w-0 items-center gap-1.5">
@@ -173,7 +233,8 @@ export function ContentDetailHeader({
     </div>
   ) : null;
 
-  const overflowMenu = onDelete || onDerivar || overflowExtra ? (
+  // Menu ⋯ em três grupos: como escrever (escolha única), criar a partir deste e, por último, a lixeira.
+  const overflowMenu = onDelete || onDerivar || writingModes ? (
     <div ref={menuRef} className="relative">
       <AppButton
         variant="secondary"
@@ -181,55 +242,98 @@ export function ContentDetailHeader({
         onClick={() => setMenuOpen(prev => !prev)}
         disabled={isSaving}
         aria-label={`Mais opções ${contentReference}`}
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
         leftIcon={<MoreHorizontal className="h-4 w-4" />}
       >
         Mais opções
       </AppButton>
       {menuOpen ? (
-        <Surface
-          variant="elevated"
-          padding="none"
-          className="absolute right-0 top-full z-50 mt-1 min-w-[200px] p-1"
+        <div
+          role="menu"
+          aria-label={`Opções ${contentReference}`}
+          onKeyDown={handleMenuKeyDown}
+          className="absolute right-0 top-full z-50 mt-1 w-[17rem] rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-1 shadow-[var(--shadow-dropdown)]"
         >
-          {overflowExtra ? (
-            <div
-              className="border-b border-[var(--border-color)] p-1"
-              onClick={() => setMenuOpen(false)}
-              onKeyDown={event => {
-                if (event.key === 'Enter' || event.key === ' ') setMenuOpen(false);
-              }}
-            >
-              {overflowExtra}
+          {writingModes ? (
+            <div role="group" aria-labelledby="content-menu-writing-mode">
+              <Text
+                id="content-menu-writing-mode"
+                variant="meta"
+                as="p"
+                className="px-2.5 pb-1 pt-1.5 text-[var(--text-tertiary)]"
+              >
+                Modo de escrita
+              </Text>
+              {WRITING_MODES.map(mode => {
+                const Icon = WRITING_MODE_ICONS[mode];
+                const selected = writingModes.value === mode;
+                const blockedReason = selected ? undefined : writingModes.unavailable?.[mode];
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={selected}
+                    disabled={Boolean(blockedReason)}
+                    onClick={() => {
+                      closeMenu(true);
+                      if (!selected) writingModes.onChange(mode);
+                    }}
+                    className={MENU_ITEM_CLASS}
+                  >
+                    <Icon
+                      className={cn(
+                        'h-4 w-4 shrink-0',
+                        selected ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]',
+                      )}
+                      aria-hidden
+                    />
+                    <span className="min-w-0 flex-1">
+                      <Text as="span" variant={selected ? 'bodyStrong' : 'body'} className="block text-[var(--text-primary)]">
+                        {WRITING_MODE_LABELS[mode]}
+                      </Text>
+                      <Text as="span" variant="meta" className="block text-[var(--text-tertiary)]">
+                        {blockedReason ?? WRITING_MODE_HINTS[mode]}
+                      </Text>
+                    </span>
+                    {selected ? <Check className="h-4 w-4 shrink-0 text-[var(--text-primary)]" aria-hidden /> : null}
+                  </button>
+                );
+              })}
             </div>
           ) : null}
+          {writingModes && onDerivar ? <MenuSeparator /> : null}
           {onDerivar ? (
-            <AppButton
-              variant="ghost"
-              fullWidth
+            <button
+              type="button"
+              role="menuitem"
               onClick={() => {
+                closeMenu();
                 onDerivar();
-                setMenuOpen(false);
               }}
-              className="justify-start"
+              className={MENU_ITEM_CLASS}
             >
-              Novo a partir deste
-            </AppButton>
+              <CopyPlus className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" aria-hidden />
+              <Text as="span" variant="body" className="text-[var(--text-primary)]">Novo a partir deste</Text>
+            </button>
           ) : null}
+          {onDelete && (writingModes || onDerivar) ? <MenuSeparator /> : null}
           {onDelete ? (
-            <AppButton
-              variant="ghost"
-              fullWidth
-              leftIcon={<Trash2 className="h-4 w-4" />}
+            <button
+              type="button"
+              role="menuitem"
               onClick={() => {
+                closeMenu();
                 onDelete();
-                setMenuOpen(false);
               }}
-              className="justify-start text-[var(--accent-red)] hover:text-[var(--accent-red)]"
+              className={cn(MENU_ITEM_CLASS, 'text-[var(--accent-red)]')}
             >
-              Mover para a lixeira
-            </AppButton>
+              <Trash2 className="h-4 w-4 shrink-0" aria-hidden />
+              <Text as="span" variant="body" className="text-inherit">Mover para a lixeira</Text>
+            </button>
           ) : null}
-        </Surface>
+        </div>
       ) : null}
     </div>
   ) : null;
@@ -352,4 +456,8 @@ export function ContentDetailHeader({
       )}
     />
   );
+}
+
+function MenuSeparator() {
+  return <div role="separator" className="mx-1 my-1 h-px bg-[var(--border-color)]" />;
 }

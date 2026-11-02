@@ -13,7 +13,7 @@ import {useAppContext} from '../../../../../context/AppContext';
 import type {CarouselSlide, Content, ContentPlataforma, Pilar, Serie, WritingMode} from '../../../../../lib/database';
 import {cn, htmlToReadableText} from '../../../../../lib/utils';
 import {shouldOpenDraftByDefault} from '../../../../settings/lib/writingWorkspace';
-import {WRITING_MODE_LABELS, normalizeWritingMode, slidesForCarouselMode} from '../../../lib/carouselSlides';
+import {WRITING_MODE_LABELS, WRITING_MODES, normalizeWritingMode, writingModeChange} from '../../../lib/carouselSlides';
 import {
   CONTENT_STATUS,
   getStatusOptions,
@@ -34,6 +34,7 @@ import {
   type ScriptBlockLabel,
 } from '../ScriptBlockToolbar';
 import {WritingNotesPane} from '../WritingNotesPane';
+import {YoutubeScriptHeader} from '../YoutubeScriptHeader';
 
 export type ScriptDraft = {
   title: string;
@@ -59,6 +60,8 @@ export type ScriptDraft = {
   /** Ausente vale como texto. */
   writingMode?: WritingMode;
   carouselSlides?: CarouselSlide[];
+  /** Proposta do vídeo (modo YouTube). Ausente sem a migração ou antes do corpo carregar. */
+  proposta?: string | null;
   status: Content['status'];
   recordingDate: string | null;
   recordingTime?: string | null;
@@ -99,6 +102,8 @@ interface RoteiroSectionProps {
   contentId?: string;
   /** Falso enquanto o banco não tem as colunas do carrossel (migration pendente). */
   carouselAvailable?: boolean;
+  /** Falso quando o banco ainda recusa o modo YouTube (migração pendente). */
+  youtubeAvailable?: boolean;
   /** Botão de avançar na linha de controles (Escrita/Gestão no computador). */
   primaryAction?: ContentPrimaryAction;
   onPrimaryAction?: (actionId?: ContentPrimaryActionId) => void;
@@ -126,6 +131,7 @@ export function RoteiroSection({
   writingWorkspace = false,
   contentId = '',
   carouselAvailable = true,
+  youtubeAvailable = true,
   title,
   onTitleChange,
   primaryAction,
@@ -140,6 +146,7 @@ export function RoteiroSection({
   const isPosted = draft.status === CONTENT_STATUS.POSTADO;
   const writingMode = normalizeWritingMode(draft.writingMode);
   const isCarousel = writingMode === 'carrossel';
+  const isYoutube = writingMode === 'youtube';
   const [mobilePaneChoice, setMobilePaneChoice] = useState<{
     contentId: string;
     pane: MobilePane;
@@ -149,6 +156,7 @@ export function RoteiroSection({
     pane: 'write' | 'manage';
   } | null>(null);
   const [notesChoice, setNotesChoice] = useState<{contentId: string; open: boolean} | null>(null);
+  const [structureChoice, setStructureChoice] = useState<{contentId: string; open: boolean} | null>(null);
   const [draftEditor, setDraftEditor] = useState<Editor | null>(null);
   const [focusedPane, setFocusedPane] = useState<'script' | 'draft'>('script');
   const [draftScrollTop, setDraftScrollTop] = useState(0);
@@ -160,6 +168,9 @@ export function RoteiroSection({
   const notesOpen = notesChoice?.contentId === contentId
     ? notesChoice.open
     : false;
+  // Estrutura começa aberta no YouTube; fechar vale só para este roteiro.
+  const structureOpen = structureChoice?.contentId === contentId ? structureChoice.open : true;
+  const setStructureOpen = (open: boolean) => setStructureChoice({contentId, open});
   const setNotesOpen = useCallback((open: boolean) => {
     notesUserOverrideRef.current = true;
     setNotesChoice({contentId, open});
@@ -230,15 +241,11 @@ export function RoteiroSection({
       }),
   };
 
-  // Texto -> Carrossel: o texto vira a Tela 1 (ou volta às telas já salvas).
-  // Carrossel -> Texto: as telas ficam guardadas; nada é apagado nos dois sentidos.
+  // Texto/YouTube -> Carrossel: o texto vira a Tela 1 (ou volta às telas já salvas).
+  // Os outros sentidos só trocam o modo; nada é apagado.
   const handleWritingModeChange = (mode: WritingMode) => {
     if (mode === writingMode) return;
-    if (mode === 'carrossel') {
-      onChange({writingMode: 'carrossel', carouselSlides: slidesForCarouselMode(draft.script, draft.carouselSlides)});
-      return;
-    }
-    onChange({writingMode: 'texto'});
+    onChange(writingModeChange(mode, draft));
   };
 
   const writingModeSelect = (
@@ -246,6 +253,7 @@ export function RoteiroSection({
       value={writingMode}
       disabled={bodyLoading || Boolean(bodyError)}
       carouselAvailable={carouselAvailable}
+      youtubeAvailable={youtubeAvailable}
       onChange={handleWritingModeChange}
     />
   );
@@ -284,31 +292,22 @@ export function RoteiroSection({
     && !notesOpen
     && !draftSessionHintDismissed;
 
-  // Botão simples mostrar/ocultar; ponto indica painel aberto.
   const notesButton = writingWorkspace && workspacePane === 'write' ? (
-    <button
-      type="button"
-      onMouseDown={event => event.preventDefault()}
-      onClick={() => setNotesOpen(!notesOpen)}
-      aria-pressed={notesOpen}
+    <PaneToggleButton
+      label="Rascunho"
+      open={notesOpen}
+      onToggle={() => setNotesOpen(!notesOpen)}
       title={notesOpen ? 'Fechar rascunho (Ctrl+Shift+N)' : 'Abrir rascunho (Ctrl+Shift+N)'}
-      className={cn(
-        'flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-2.5 t-label transition',
-        'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-        notesOpen
-          ? 'border-[var(--border-strong)] bg-[var(--bg-elevated)] text-[var(--text-primary)]'
-          : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
-      )}
-    >
-      <span
-        aria-hidden
-        className={cn(
-          'h-2 w-2 rounded-full',
-          notesOpen ? 'bg-[var(--brand-accent)]' : 'bg-[var(--text-tertiary)]',
-        )}
-      />
-      <span>Rascunho</span>
-    </button>
+    />
+  ) : null;
+
+  const structureButton = isYoutube && layout === 'workspace' && !mobileComposer && workspacePane === 'write' ? (
+    <PaneToggleButton
+      label="Estrutura"
+      open={structureOpen}
+      onToggle={() => setStructureOpen(!structureOpen)}
+      title={structureOpen ? 'Fechar estrutura' : 'Abrir estrutura'}
+    />
   ) : null;
 
   const scriptWorkspace = (fullscreenAside?: ReactNode) => (
@@ -336,7 +335,10 @@ export function RoteiroSection({
       onRegisterInsertHandler={handler => {
         insertIntoScriptRef.current = handler;
       }}
-      toolbarEnd={notesButton}
+      toolbarEnd={structureButton || notesButton ? <>{structureButton}{notesButton}</> : undefined}
+      youtube={isYoutube}
+      structurePanelOpen={structureOpen}
+      onStructurePanelChange={setStructureOpen}
       {...annotationHandlers}
     />
   );
@@ -418,7 +420,22 @@ export function RoteiroSection({
             </div>
           </div>
 
-          {/* Título editável sem caixa: tamanho moderado, lápis só no hover/foco. */}
+          {isYoutube ? (
+            <div className="min-w-0 stack-sm">
+              <YoutubeScriptHeader
+                contentId={contentId}
+                title={titleValue}
+                onTitleChange={changeTitle}
+                onTitleEnter={() => {
+                  if (workspacePane === 'write') focusWritingArea();
+                }}
+                proposta={draft.proposta ?? ''}
+                onPropostaChange={proposta => onChange({proposta})}
+              />
+              <ContentTemaChips temaIds={draft.temaIds} max={6} />
+            </div>
+          ) : (
+          /* Título editável sem caixa: tamanho moderado, lápis só no hover/foco. */
           <div className="min-w-0 stack-sm">
             <label className="group relative block min-w-0">
               <span className="sr-only">Título do roteiro</span>
@@ -448,6 +465,7 @@ export function RoteiroSection({
             </label>
             <ContentTemaChips temaIds={draft.temaIds} max={6} />
           </div>
+          )}
 
           {workspacePane === 'manage' ? (
             <ContentManageWorkspace
@@ -644,19 +662,25 @@ function hasWritingNotesText(value: string | null | undefined) {
   return text.length > 0;
 }
 
-/** "Modo: Texto | Carrossel". Antes da migration, Carrossel aparece indisponível. */
+/** "Modo: Texto | YouTube | Carrossel". Antes da migração, o modo aparece indisponível. */
 function WritingModeSelect({
   value,
   disabled,
   carouselAvailable,
+  youtubeAvailable,
   onChange,
 }: {
   value: WritingMode;
   disabled: boolean;
   carouselAvailable: boolean;
+  youtubeAvailable: boolean;
   onChange: (mode: WritingMode) => void;
 }) {
-  const carouselBlocked = !carouselAvailable && value !== 'carrossel';
+  const available: Record<WritingMode, boolean> = {
+    texto: true,
+    youtube: youtubeAvailable,
+    carrossel: carouselAvailable,
+  };
   return (
     <SelectField
       ariaLabel="Modo de escrita"
@@ -664,15 +688,54 @@ function WritingModeSelect({
       value={value}
       disabled={disabled}
       onChange={next => onChange(normalizeWritingMode(next))}
-      options={[
-        {value: 'texto', label: WRITING_MODE_LABELS.texto},
-        {
-          value: 'carrossel',
-          label: carouselBlocked ? `${WRITING_MODE_LABELS.carrossel} (indisponível)` : WRITING_MODE_LABELS.carrossel,
-          disabled: carouselBlocked,
-        },
-      ]}
+      options={WRITING_MODES.map(mode => {
+        const blocked = !available[mode] && value !== mode;
+        return {
+          value: mode,
+          label: blocked ? `${WRITING_MODE_LABELS[mode]} (indisponível)` : WRITING_MODE_LABELS[mode],
+          disabled: blocked,
+        };
+      })}
     />
+  );
+}
+
+/** Mostrar/ocultar um painel da escrita; o ponto rosa indica painel aberto. */
+function PaneToggleButton({
+  label,
+  open,
+  onToggle,
+  title,
+}: {
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+  title: string;
+}) {
+  return (
+    <button
+      type="button"
+      onMouseDown={event => event.preventDefault()}
+      onClick={onToggle}
+      aria-pressed={open}
+      title={title}
+      className={cn(
+        'flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-2.5 t-label transition',
+        'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+        open
+          ? 'border-[var(--border-strong)] bg-[var(--bg-elevated)] text-[var(--text-primary)]'
+          : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
+      )}
+    >
+      <span
+        aria-hidden
+        className={cn(
+          'h-2 w-2 rounded-full',
+          open ? 'bg-[var(--brand-accent)]' : 'bg-[var(--text-tertiary)]',
+        )}
+      />
+      <span>{label}</span>
+    </button>
   );
 }
 

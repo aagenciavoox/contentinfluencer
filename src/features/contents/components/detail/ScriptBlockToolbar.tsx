@@ -1,9 +1,10 @@
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useRef, useState, type ReactNode} from 'react';
 import {ChevronDown, Layout, Plus} from 'lucide-react';
 import {Dialog} from '../../../../components/overlays/Dialog';
 import {OverlayHeader} from '../../../../components/overlays/OverlayHeader';
 import {OverlayBody} from '../../../../components/overlays/OverlayBody';
 import {useAppContext} from '../../../../context/AppContext';
+import type {Template} from '../../../../lib/database';
 import {Text} from '../../../../components/ui/Text';
 import {cn} from '../../../../lib/utils';
 import {templateToHtml} from '../../lib/seriesScriptTemplate';
@@ -19,12 +20,24 @@ export function appendScriptBlock(script: string | null, label: string) {
   return trimmed ? `${trimmed}${blockHtml}` : blockHtml;
 }
 
+/** Item próprio do modo de escrita (ex.: "Na tela" no YouTube), no lugar dos blocos. */
+export type ScriptInsertItem = {
+  id: string;
+  label: string;
+  icon?: ReactNode;
+  onSelect: () => void;
+};
+
 interface ScriptBlockToolbarProps {
   onInsertBlock: (label: ScriptBlockLabel) => void;
   onApplyTemplate: (html: string) => void;
   menuPlacement?: 'bottom' | 'top';
   /** Neutral controls for the gray Escrita bar. */
   neutral?: boolean;
+  /** Troca os blocos Gancho/Fato/Virada/Veredito por estes itens. */
+  items?: ScriptInsertItem[];
+  /** Como o template vira texto. Padrão: blocos em negrito. */
+  templateHtml?: (template: Template) => string;
 }
 
 /** Menu "+ Inserir": blocos do roteiro e atalho para templates. */
@@ -33,6 +46,8 @@ export function ScriptBlockToolbar({
   onApplyTemplate,
   menuPlacement = 'bottom',
   neutral = false,
+  items,
+  templateHtml = templateToHtml,
 }: ScriptBlockToolbarProps) {
   const [open, setOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
@@ -89,7 +104,22 @@ export function ScriptBlockToolbar({
             <Text variant="bodyStrong" as="p" className="px-2.5 py-1 text-[length:var(--font-size-caption)] text-[var(--text-tertiary)]">
               Blocos
             </Text>
-            {SCRIPT_BLOCKS.map(label => (
+            {items ? items.map(item => (
+              <button
+                key={item.id}
+                type="button"
+                role="menuitem"
+                onMouseDown={event => event.preventDefault()}
+                onClick={() => {
+                  setOpen(false);
+                  item.onSelect();
+                }}
+                className="flex w-full items-center gap-2 rounded-[var(--radius-sm)] px-2.5 py-2 text-left t-meta text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
+              >
+                {item.icon}
+                {item.label}
+              </button>
+            )) : SCRIPT_BLOCKS.map(label => (
               <button
                 key={label}
                 type="button"
@@ -141,7 +171,7 @@ export function ScriptBlockToolbar({
                   key={template.id}
                   type="button"
                   onClick={() => {
-                    onApplyTemplate(templateToHtml(template));
+                    onApplyTemplate(templateHtml(template));
                     setTemplatesOpen(false);
                   }}
                   className="flex flex-col gap-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-3 text-left transition-colors hover:border-[var(--border-strong)]"

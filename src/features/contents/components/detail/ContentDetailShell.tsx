@@ -8,7 +8,7 @@ import {SendToRecordingSheet} from '../../../../mobile/components/SendToRecordin
 import {ConfirmModal} from '../../../../components/feedback/modals/ConfirmModal';
 import {useAppContext} from '../../../../context/AppContext';
 import {useAuth} from '../../../../context/AuthContext';
-import {isCarouselStorageAvailable, type Content} from '../../../../lib/database';
+import {isCarouselStorageAvailable, isYoutubeStorageAvailable, type Content, type WritingMode} from '../../../../lib/database';
 import {cn} from '../../../../lib/utils';
 import {PageLayout} from '../../../../layouts/page/PageLayout';
 import {ContentDetailMobileScreen} from '../../../../mobile/screens/contents/ContentDetailMobileScreen';
@@ -52,11 +52,8 @@ import {buildContentDetailRoute} from '../../lib/contentDetailRoute';
 import {
   isCarouselContent,
   normalizeWritingMode,
-  slidesForCarouselMode,
-  WRITING_MODE_LABELS,
+  writingModeChange,
 } from '../../lib/carouselSlides';
-import {AppButton} from '../../../../components/ui/AppButton';
-import {Text} from '../../../../components/ui/Text';
 
 interface ContentDetailShellProps {
   content: Content;
@@ -94,6 +91,7 @@ function draftFromContent(content: Content): ContentDraft {
     // Ausente = banco sem a coluna ou lista leve; vale como texto e não é gravado.
     writingMode: content.writingMode,
     carouselSlides: content.carouselSlides,
+    proposta: content.proposta,
     status: content.status,
     publishDate: content.publishDate,
     publishTime: content.publishTime,
@@ -111,7 +109,7 @@ function draftFromContent(content: Content): ContentDraft {
 
 function mergeLoadedBody(draft: ContentDraft, live: Content): ContentDraft {
   let next = draft;
-  const assignIfMissing = <K extends 'script' | 'notes' | 'referencias' | 'writingNotes' | 'writingMode' | 'carouselSlides'>(key: K, value: ContentDraft[K]) => {
+  const assignIfMissing = <K extends 'script' | 'notes' | 'referencias' | 'writingNotes' | 'writingMode' | 'carouselSlides' | 'proposta'>(key: K, value: ContentDraft[K]) => {
     if (draft[key] !== undefined || value === undefined) return;
     if (next === draft) next = {...draft};
     next[key] = value;
@@ -122,6 +120,7 @@ function mergeLoadedBody(draft: ContentDraft, live: Content): ContentDraft {
   assignIfMissing('writingNotes', live.writingNotes);
   assignIfMissing('writingMode', live.writingMode);
   assignIfMissing('carouselSlides', live.carouselSlides);
+  assignIfMissing('proposta', live.proposta);
   return next;
 }
 
@@ -324,6 +323,7 @@ export function ContentDetailShell({
     liveContent.writingNotes,
     liveContent.writingMode,
     liveContent.carouselSlides,
+    liveContent.proposta,
     liveContent.publishDate,
     liveContent.publishTime,
     liveContent.recordingDate,
@@ -568,7 +568,7 @@ export function ContentDetailShell({
   draftRef.current = draft;
   liveContentRef.current = liveContent;
 
-  const textKey = JSON.stringify([draft.title, draft.script, draft.notes, draft.writingNotes, draft.referencias, draft.carouselSlides]);
+  const textKey = JSON.stringify([draft.title, draft.script, draft.notes, draft.writingNotes, draft.referencias, draft.carouselSlides, draft.proposta]);
   const lastTextKeyRef = useRef(textKey);
 
   useEffect(() => {
@@ -611,6 +611,7 @@ export function ContentDetailShell({
     draft.writingNotes,
     draft.writingMode,
     draft.carouselSlides,
+    draft.proposta,
     draft.script,
     draft.scriptNotes,
     draft.seriesId,
@@ -815,45 +816,19 @@ export function ContentDetailShell({
   const documentHeader = activeTab === 'roteiro' && !isIdea && writingWorkspace;
   const writingMode = normalizeWritingMode(draft.writingMode);
   const carouselAvailable = isCarouselStorageAvailable();
-  const carouselBlocked = !carouselAvailable && writingMode !== 'carrossel';
-  const setWritingMode = (modeNext: 'texto' | 'carrossel') => {
+  const youtubeAvailable = isYoutubeStorageAvailable();
+  const setWritingMode = (modeNext: WritingMode) => {
     if (modeNext === writingMode) return;
-    if (modeNext === 'carrossel') {
-      handleDraftChange({
-        writingMode: 'carrossel',
-        carouselSlides: slidesForCarouselMode(draft.script, draft.carouselSlides),
-      });
-      return;
-    }
-    handleDraftChange({writingMode: 'texto'});
+    handleDraftChange(writingModeChange(modeNext, draft));
   };
-  const writingModeMenu = documentHeader ? (
-    <div className="stack-sm p-1">
-      <Text variant="meta" className="px-2 pt-1">Modo de escrita</Text>
-      {([
-        {id: 'texto' as const, label: WRITING_MODE_LABELS.texto, disabled: false},
-        {
-          id: 'carrossel' as const,
-          label: carouselBlocked ? `${WRITING_MODE_LABELS.carrossel} (indisponível)` : WRITING_MODE_LABELS.carrossel,
-          disabled: carouselBlocked,
-        },
-      ]).map(option => (
-        <AppButton
-          key={option.id}
-          variant="ghost"
-          fullWidth
-          disabled={option.disabled}
-          onClick={() => setWritingMode(option.id)}
-          className={cn(
-            'justify-start',
-            writingMode === option.id && 'bg-[var(--bg-hover)] ',
-          )}
-        >
-          {option.label}
-        </AppButton>
-      ))}
-    </div>
-  ) : null;
+  const writingModesMenu = documentHeader ? {
+    value: writingMode,
+    onChange: setWritingMode,
+    unavailable: {
+      ...(carouselAvailable ? {} : {carrossel: 'Precisa atualizar o banco'}),
+      ...(youtubeAvailable ? {} : {youtube: 'Precisa atualizar o banco'}),
+    },
+  } : undefined;
   const trashConfirmMessage = isIdea
     ? `Mover esta ideia para a lixeira — ${draft.title || 'Ideia sem título'}? Você pode restaurá-la depois.`
     : `Mover este roteiro para a lixeira — ${draft.title || 'Roteiro sem título'}? Você pode restaurá-lo depois.`;
@@ -895,7 +870,8 @@ export function ContentDetailShell({
           onPrimaryAction={documentHeader ? actionId => void handlePrimaryAction(actionId) : undefined}
           primaryBusy={isDeleting}
           contentId={mergedContent.id}
-          carouselAvailable={isCarouselStorageAvailable()}
+          carouselAvailable={carouselAvailable}
+          youtubeAvailable={youtubeAvailable}
           title={draft.title}
           onTitleChange={value => handleDraftChange({title: value})}
           saveState={editorSaveState}
@@ -1109,7 +1085,7 @@ export function ContentDetailShell({
             saveState={editorSaveState}
             contentKind={isIdea ? 'idea' : 'script'}
             variant={documentHeader ? 'document' : 'default'}
-            overflowExtra={writingModeMenu}
+            writingModes={writingModesMenu}
           />
         )}
         navigation={

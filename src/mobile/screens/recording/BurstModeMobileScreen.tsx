@@ -4,11 +4,14 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Clapperboard,
   FileText,
   Gauge,
+  Layers,
   Palette,
   Pause,
   Play,
+  RotateCcw,
   Settings,
   Settings2,
   SkipForward,
@@ -24,7 +27,15 @@ import { useHydrateContentBodies } from '../../../hooks/useHydrateContentBodies'
 import type { Content, RecordingBlock } from '../../../lib/database';
 import { cn, htmlToReadableText } from '../../../lib/utils';
 import { isContentBodyLoaded } from '../../../features/contents/lib/contentBody';
-import { buildPrompterLines, EMPTY_SCRIPT_LINE } from '../../../features/contents/lib/prompterLines';
+import {
+  buildPrompterLines,
+  EMPTY_SCRIPT_LINE,
+  parsePrompterScript,
+  type PrompterLineItem,
+  type PrompterSection,
+} from '../../../features/contents/lib/prompterLines';
+import { stripOnScreenNotes } from '../../../features/contents/lib/youtubeScript';
+import { TeleprompterSectionsDialog } from '../../../features/contents/components/burst-mode/TeleprompterSectionsDialog';
 import {
   CardDivider,
   type ChoiceOption,
@@ -51,6 +62,8 @@ type MobileBurstSettings = {
   wpm: number;
   countdown: number;
   highlightCurrentLine: boolean;
+  showOnScreenNotes: boolean;
+  pauseAtSectionEnd: boolean;
 };
 
 type BurstModeMobileEntry = {
@@ -82,6 +95,8 @@ const DEFAULT_SETTINGS: MobileBurstSettings = {
   wpm: 120,
   countdown: 2,
   highlightCurrentLine: true,
+  showOnScreenNotes: false,
+  pauseAtSectionEnd: true,
 };
 
 const BURST_PRESETS: Record<string, Partial<MobileBurstSettings>> = {
@@ -143,6 +158,14 @@ function normalizeMobileBurstSettings(value: unknown): MobileBurstSettings {
       typeof parsed.highlightCurrentLine === 'boolean'
         ? parsed.highlightCurrentLine
         : DEFAULT_SETTINGS.highlightCurrentLine,
+    showOnScreenNotes:
+      typeof parsed.showOnScreenNotes === 'boolean'
+        ? parsed.showOnScreenNotes
+        : DEFAULT_SETTINGS.showOnScreenNotes,
+    pauseAtSectionEnd:
+      typeof parsed.pauseAtSectionEnd === 'boolean'
+        ? parsed.pauseAtSectionEnd
+        : DEFAULT_SETTINGS.pauseAtSectionEnd,
   };
 }
 
@@ -203,6 +226,8 @@ export function BurstModeMobileScreen({
   const [isPlaying, setIsPlaying] = useState(false);
   const [countdownRemaining, setCountdownRemaining] = useState<number | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSectionsOpen, setIsSectionsOpen] = useState(false);
+  const [pausedAtSectionEnd, setPausedAtSectionEnd] = useState<number | null>(null);
   const persistedSettings = useMemo(
     () => normalizeMobileBurstSettings(state.preferences[BURST_SETTINGS_PREFERENCE_KEY]),
     [state.preferences]
@@ -211,7 +236,7 @@ export function BurstModeMobileScreen({
   const [controlsVisible, setControlsVisible] = useState(true);
   const hideControlsTimerRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const lineRefs = useRef<Array<HTMLParagraphElement | null>>([]);
+  const lineRefs = useRef<Array<HTMLElement | null>>([]);
   const [playhead, setPlayhead] = useState(0);
   const lastPersistedSettings = useRef(JSON.stringify(persistedSettings));
 
@@ -258,6 +283,8 @@ export function BurstModeMobileScreen({
           wpm: settings.wpm,
           countdown: settings.countdown,
           highlightCurrentLine: settings.highlightCurrentLine,
+          showOnScreenNotes: settings.showOnScreenNotes,
+          pauseAtSectionEnd: settings.pauseAtSectionEnd,
         },
       },
     });
@@ -271,7 +298,9 @@ export function BurstModeMobileScreen({
 
   const currentEntry = liveEntries[currentIndex] ?? null;
   const currentContent = currentEntry?.content ?? null;
-  const currentScript = useMemo(() => {
+  const isYouTube = currentContent?.writingMode === 'youtube';
+
+  const rawScript = useMemo(() => {
     if (!currentContent) return EMPTY_SCRIPT_LINE;
     if (!isContentBodyLoaded(currentContent)) {
       if (hasHydrationError(currentContent.id)) {
@@ -279,17 +308,38 @@ export function BurstModeMobileScreen({
       }
       return 'Carregando roteiro…';
     }
-    return htmlToReadableText(currentContent.script) || EMPTY_SCRIPT_LINE;
+    return currentContent.script ?? '';
   }, [currentContent, hasHydrationError]);
-  const scriptLines = useMemo(() => buildPrompterLines(currentScript, PROMPTER_LINE_MAX_WORDS), [currentScript]);
-  const totalWords = useMemo(() => scriptLines.reduce((sum, line) => sum + countWords(line), 0), [scriptLines]);
-  const totalEstimatedSeconds = useMemo(() => (totalWords > 0 ? (totalWords / settings.wpm) * 60 : 0), [settings.wpm, totalWords]);
-  const currentLineIndex = clamp(Math.round(playhead), 0, Math.max(scriptLines.length - 1, 0));
-  const elapsedRatio = scriptLines.length <= 1 ? 0 : clamp(playhead / Math.max(scriptLines.length - 1, 1), 0, 1);
+
+  const parsedScript = useMemo(() => {
+    return parsePrompterScript(rawScript, {
+      isYouTube,
+      maxWords: PROMPTER_LINE_MAX_WORDS,
+      wpm: settings.wpm,
+      fallbackTitle: currentContent?.title ?? 'Roteiro',
+    });
+  }, [rawScript, isYouTube, settings.wpm, currentContent?.title]);
+
+  const prompterItems = parsedScript.items;
+  const sections = parsedScript.sections;
+  const totalWords = parsedScript.totalWords;
+  const totalEstimatedSeconds = parsedScript.totalEstimatedSeconds;
+  const currentLineIndex = clamp(Math.round(playhead), 0, Math.max(prompterItems.length - 1, 0));
+  const elapsedRatio = prompterItems.length <= 1 ? 0 : clamp(playhead / Math.max(prompterItems.length - 1, 1), 0, 1);
   const elapsedSeconds = totalEstimatedSeconds * elapsedRatio;
   const recordedCount = liveEntries.filter(entry => entry.gravado).length;
   const progressPercentage = liveEntries.length === 0 ? 0 : Math.round((recordedCount / liveEntries.length) * 100);
   const theme = THEME_CLASSNAMES[settings.theme];
+
+  const activeSection = useMemo(() => {
+    const currentItem = prompterItems[currentLineIndex];
+    const secIndex = currentItem?.sectionIndex ?? 0;
+    return sections.find(s => s.index === secIndex) ?? sections[0] ?? null;
+  }, [prompterItems, currentLineIndex, sections]);
+
+  const currentScript = useMemo(() => {
+    return htmlToReadableText(stripOnScreenNotes(rawScript)) || EMPTY_SCRIPT_LINE;
+  }, [rawScript]);
 
   useBodyScrollLock(true);
 
@@ -302,6 +352,7 @@ export function BurstModeMobileScreen({
     setPlayhead(0);
     setIsPlaying(false);
     setCountdownRemaining(null);
+    setPausedAtSectionEnd(null);
     lineRefs.current = [];
     containerRef.current?.scrollTo({top: 0, behavior: 'auto'});
   }, [currentContent?.id]);
@@ -323,11 +374,11 @@ export function BurstModeMobileScreen({
   }, [countdownRemaining, teleprompterEnabled]);
 
   useEffect(() => {
-    if (!teleprompterEnabled || !isPlaying || scriptLines.length <= 1) return;
+    if (!teleprompterEnabled || !isPlaying || prompterItems.length <= 1) return;
 
     let frameId = 0;
     let previousTime = performance.now();
-    const averageWordsPerLine = totalWords > 0 ? totalWords / Math.max(scriptLines.length, 1) : 8;
+    const averageWordsPerLine = totalWords > 0 ? totalWords / Math.max(prompterItems.length, 1) : 8;
     const linesPerMs = (settings.wpm / Math.max(averageWordsPerLine, 1)) / 60000;
 
     const animate = (time: number) => {
@@ -335,9 +386,20 @@ export function BurstModeMobileScreen({
       previousTime = time;
 
       setPlayhead(previous => {
-        const next = Math.min(previous + delta * linesPerMs, scriptLines.length - 1);
-        if (next >= scriptLines.length - 1) {
+        const next = Math.min(previous + delta * linesPerMs, prompterItems.length - 1);
+        if (next >= prompterItems.length - 1) {
           setIsPlaying(false);
+        }
+        if (
+          settings.pauseAtSectionEnd &&
+          activeSection &&
+          activeSection.index < sections.length - 1 &&
+          previous < activeSection.lastSpokenIndex &&
+          next >= activeSection.lastSpokenIndex
+        ) {
+          setIsPlaying(false);
+          setPausedAtSectionEnd(activeSection.index);
+          return activeSection.lastSpokenIndex;
         }
         return next;
       });
@@ -347,10 +409,10 @@ export function BurstModeMobileScreen({
 
     frameId = window.requestAnimationFrame(animate);
     return () => window.cancelAnimationFrame(frameId);
-  }, [isPlaying, scriptLines.length, settings.wpm, teleprompterEnabled, totalWords]);
+  }, [isPlaying, prompterItems.length, settings.wpm, teleprompterEnabled, totalWords, activeSection, sections.length, settings.pauseAtSectionEnd]);
 
   useEffect(() => {
-    if (!teleprompterEnabled || !containerRef.current || scriptLines.length === 0) return;
+    if (!teleprompterEnabled || !containerRef.current || prompterItems.length === 0) return;
 
     const currentLine = lineRefs.current[Math.floor(playhead)];
     if (!currentLine) return;
@@ -358,7 +420,7 @@ export function BurstModeMobileScreen({
     const container = containerRef.current;
     const offset = currentLine.offsetTop - container.clientHeight * READING_POSITION;
     container.scrollTo({ top: Math.max(0, offset), behavior: 'smooth' });
-  }, [playhead, scriptLines.length, teleprompterEnabled]);
+  }, [playhead, prompterItems.length, teleprompterEnabled]);
 
   const revealControls = useCallback(() => {
     setControlsVisible(true);
@@ -388,12 +450,13 @@ export function BurstModeMobileScreen({
     if (!container) return null;
     const readingY = container.scrollTop + container.clientHeight * READING_POSITION + 1;
     let index = 0;
-    for (let lineIndex = 0; lineIndex < scriptLines.length; lineIndex++) {
+    for (let lineIndex = 0; lineIndex < prompterItems.length; lineIndex++) {
       const element = lineRefs.current[lineIndex];
       if (!element) continue;
       if (element.offsetTop > readingY) break;
       index = lineIndex;
     }
+    while (index < prompterItems.length - 1 && prompterItems[index].kind !== 'spoken') index++;
     return index;
   };
 
@@ -406,13 +469,27 @@ export function BurstModeMobileScreen({
       return;
     }
 
+    if (pausedAtSectionEnd !== null) {
+      const nextSection = sections[pausedAtSectionEnd + 1];
+      setPausedAtSectionEnd(null);
+      if (nextSection) {
+        setPlayhead(nextSection.firstSpokenIndex);
+      }
+      if (settings.countdown > 0) {
+        setCountdownRemaining(settings.countdown);
+      } else {
+        setIsPlaying(true);
+      }
+      return;
+    }
+
     if (isPlaying) {
       setIsPlaying(false);
       return;
     }
 
     // Retoma de onde a pessoa arrastou o texto; no fim do roteiro, recomeça do início.
-    const maxPlayhead = Math.max(0, scriptLines.length - 1);
+    const maxPlayhead = Math.max(0, prompterItems.length - 1);
     const scrolledLine = getLineAtReadingPosition();
     const resumeFrom = scrolledLine !== null && Math.abs(scrolledLine - playhead) >= 1.5 ? scrolledLine : playhead;
     if (resumeFrom >= maxPlayhead) {
@@ -427,6 +504,14 @@ export function BurstModeMobileScreen({
     }
 
     setIsPlaying(true);
+  };
+
+  const handleRedoSection = () => {
+    if (!activeSection) return;
+    setPausedAtSectionEnd(null);
+    setPlayhead(activeSection.firstSpokenIndex);
+    setIsPlaying(false);
+    setCountdownRemaining(settings.countdown > 0 ? settings.countdown : 2);
   };
 
   const handleMarkRecorded = () => {
@@ -516,6 +601,11 @@ export function BurstModeMobileScreen({
             <div className="min-w-0 flex-1">
               <Text variant="label" as="p" className={cn('t-label-uppercase', theme.muted)}>Modo gravação</Text>
               <Text variant="label" as="p" className="truncate text-inherit">{currentContent.title || 'Roteiro sem título'}</Text>
+              {activeSection && sections.length > 1 && (
+                <Text variant="secondary" as="p" className={cn('truncate', theme.muted)}>
+                  Seção {activeSection.number} de {sections.length} · {activeSection.title}
+                </Text>
+              )}
               <Text variant="label" as="p" className={cn('t-label-uppercase', theme.muted)}>
                 {playbackState === 'preparing'
                   ? 'Preparar'
@@ -526,6 +616,22 @@ export function BurstModeMobileScreen({
                 {formatSeconds(elapsedSeconds)} / {formatSeconds(totalEstimatedSeconds)}
               </Text>
             </div>
+
+            {sections.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setIsSectionsOpen(true)}
+                disabled={isPreparing}
+                className={cn(
+                  'flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border disabled:opacity-40',
+                  theme.border
+                )}
+                aria-label="Lista de seções"
+                title="Lista de seções"
+              >
+                <Layers className="h-4 w-4" />
+              </button>
+            )}
 
             <button
               type="button"
@@ -547,7 +653,56 @@ export function BurstModeMobileScreen({
               className="h-full overflow-y-auto px-4 py-4"
             >
               <div style={fullTextStyle}>
-                {scriptLines.map((line, index) => {
+                {prompterItems.map((item, index) => {
+                  if (item.kind === 'section-divider') {
+                    return (
+                      <div
+                        key={item.id}
+                        ref={element => {
+                          lineRefs.current[index] = element;
+                        }}
+                        className={cn('my-6 flex items-center gap-2', theme.muted)}
+                      >
+                        <span className={cn('h-px flex-1 border-b', theme.border)} />
+                        <Text variant="eyebrow" as="span" className="shrink-0 opacity-80 text-inherit">
+                          Seção {item.sectionNumber} · {item.text}
+                        </Text>
+                        <span className={cn('h-px flex-1 border-b', theme.border)} />
+                      </div>
+                    );
+                  }
+
+                  if (item.kind === 'on-screen-note') {
+                    return (
+                      <div
+                        key={item.id}
+                        ref={element => {
+                          lineRefs.current[index] = element;
+                        }}
+                        className={cn('my-3 flex justify-center', !settings.showOnScreenNotes && 'hidden')}
+                      >
+                        <span className={cn('inline-flex items-center gap-1.5 rounded-full border px-3 py-0.5', theme.border, theme.card)}>
+                          <Clapperboard className="h-3 w-3 shrink-0" />
+                          <Text variant="meta" as="span" className={theme.muted}>{item.text}</Text>
+                        </span>
+                      </div>
+                    );
+                  }
+
+                  if (item.kind === 'blank') {
+                    return (
+                      <p
+                        key={item.id}
+                        ref={element => {
+                          lineRefs.current[index] = element;
+                        }}
+                        className="h-4 select-none"
+                      >
+                        &nbsp;
+                      </p>
+                    );
+                  }
+
                   const isActive = index === currentLineIndex;
                   const distance = Math.abs(index - currentLineIndex);
                   const opacity = settings.highlightCurrentLine
@@ -558,19 +713,19 @@ export function BurstModeMobileScreen({
 
                   return (
                     <p
-                      key={`${currentContent.id}-${index}`}
+                      key={item.id}
                       ref={element => {
                         lineRefs.current[index] = element;
                       }}
-                      className={cn('transition-all duration-200', line === '' ? 'h-4' : '')}
+                      className="transition-all duration-200"
                       style={{
                         opacity,
                         transform: isActive ? 'scale(1.01)' : 'scale(1)',
                         fontWeight: isActive ? 900 : 700,
-                        marginBottom: line === '' ? 0 : '0.55em',
+                        marginBottom: '0.55em',
                       }}
                     >
-                      {line === '' ? '\u00A0' : line}
+                      {item.text}
                     </p>
                   );
                 })}
@@ -632,8 +787,38 @@ export function BurstModeMobileScreen({
         )}
         style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 12px)' }}
       >
+        {pausedAtSectionEnd !== null && (
+          <div
+            className={cn(
+              'pointer-events-auto mx-auto mb-2 flex items-center justify-between gap-2 rounded-[var(--radius-card-mobile)] border px-3 py-2 shadow-lg',
+              theme.card,
+              theme.border
+            )}
+          >
+            <Text variant="secondary" as="span" className="text-inherit">
+              Fim da seção. Toque em Iniciar ou Refazer.
+            </Text>
+            <button
+              type="button"
+              onClick={handleRedoSection}
+              className={cn(
+                'inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1',
+                theme.border
+              )}
+            >
+              <RotateCcw className="h-3 w-3" />
+              <Text variant="button" as="span" className="text-inherit">Refazer</Text>
+            </button>
+          </div>
+        )}
+
         <div
-          className={cn('pointer-events-auto mx-auto grid grid-cols-4 gap-2 rounded-[var(--radius-overlay)] border p-2 shadow-[var(--shadow-dropdown)]', theme.card, theme.border)}
+          className={cn(
+            'pointer-events-auto mx-auto grid gap-2 rounded-[var(--radius-overlay)] border p-2 shadow-[var(--shadow-dropdown)]',
+            sections.length > 1 ? 'grid-cols-5' : 'grid-cols-4',
+            theme.card,
+            theme.border
+          )}
           onClick={event => {
             event.stopPropagation();
             revealControls();
@@ -653,10 +838,19 @@ export function BurstModeMobileScreen({
             onClick={handleTogglePlayback}
             disabled={!teleprompterEnabled}
           />
+          {sections.length > 1 && (
+            <ActionIconButton
+              textClassName={theme.text}
+              icon={<RotateCcw className="h-5 w-5" />}
+              label="Refazer"
+              onClick={handleRedoSection}
+              disabled={!teleprompterEnabled}
+            />
+          )}
           <ActionIconButton
             textClassName={theme.text}
             icon={<CheckCircle2 className="h-5 w-5" />}
-            label={currentEntry.gravado ? 'Gravado' : 'Marcar como gravado'}
+            label={currentEntry.gravado ? 'Gravado' : sections.length > 1 ? 'Marcar' : 'Marcar como gravado'}
             onClick={handleMarkRecorded}
             disabled={currentEntry.gravado}
             active={currentEntry.gravado}
@@ -765,10 +959,36 @@ export function BurstModeMobileScreen({
                 checked={settings.highlightCurrentLine}
                 onChange={() => updateSetting('highlightCurrentLine', !settings.highlightCurrentLine)}
               />
+              <CardDivider />
+              <SwitchRow
+                label="Lembretes &quot;Na tela&quot;"
+                description="Exibe etiquetas de tela entre as falas (sem contar tempo)."
+                checked={settings.showOnScreenNotes}
+                onChange={() => updateSetting('showOnScreenNotes', !settings.showOnScreenNotes)}
+              />
+              <CardDivider />
+              <SwitchRow
+                label="Pausa no fim da seção"
+                description="Pausa a leitura ao terminar cada seção para respirar ou refazer."
+                checked={settings.pauseAtSectionEnd}
+                onChange={() => updateSetting('pauseAtSectionEnd', !settings.pauseAtSectionEnd)}
+              />
             </SettingsCard>
           </div>
         </section>
       </Dialog>
+
+      <TeleprompterSectionsDialog
+        open={isSectionsOpen && !isPreparing}
+        onClose={() => setIsSectionsOpen(false)}
+        sections={sections}
+        activeSectionIndex={activeSection?.index ?? 0}
+        zIndex="z-[220]"
+        onSelectSection={firstSpokenIndex => {
+          setPausedAtSectionEnd(null);
+          setPlayhead(firstSpokenIndex);
+        }}
+      />
     </div>
   );
 

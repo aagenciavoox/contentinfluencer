@@ -282,9 +282,10 @@ export function WritingNotesPane({
             Inserir no roteiro
           </button>
         ) : null}
+        {/* script-sheet: o mesmo respiro do roteiro entre parágrafos e nas linhas vazias. */}
         <EditorContent
           editor={editor}
-          className="block h-full min-h-full max-w-none cursor-text [&_.tiptap]:min-h-full [&_.ProseMirror]:min-h-full"
+          className="script-sheet block h-full min-h-full max-w-none cursor-text [&_.tiptap]:min-h-full [&_.ProseMirror]:min-h-full"
         />
       </div>
     </section>

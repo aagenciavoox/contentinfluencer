@@ -11,7 +11,11 @@ export interface PlanejamentoContentCardProps {
   content?: Content | null;
   serie?: Serie | null;
   onOpen: () => void;
+  onMove?: () => void;
+  onRemoveFromDate?: () => void;
   onDelete?: () => void;
+  draggable?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
   className?: string;
 }
 
@@ -20,13 +24,18 @@ export function PlanejamentoContentCard({
   content,
   serie,
   onOpen,
+  onMove,
+  onRemoveFromDate,
   onDelete,
+  draggable = false,
+  onDragStart,
   className,
 }: PlanejamentoContentCardProps) {
   const posted = publicacao.estado === 'postado';
   const scheduled = !posted && Boolean(publicacao.time || publicacao.estado === 'programado');
   const stage = (content?.status || (publicacao as any).etapa || (scheduled ? 'producao' : 'roteiro')).toLowerCase();
   const cor = serie?.cor || null;
+  const onTirar = onRemoveFromDate ?? onDelete;
 
   const menuItems: MoreMenuItem[] = [
     {
@@ -34,12 +43,21 @@ export function PlanejamentoContentCard({
       label: 'Abrir roteiro',
       onClick: onOpen,
     },
-    ...(onDelete
+    ...(onMove
       ? [
           {
-            id: 'delete',
-            label: 'Remover da data',
-            onClick: onDelete,
+            id: 'move',
+            label: 'Mover para outro dia…',
+            onClick: onMove,
+          },
+        ]
+      : []),
+    ...(onTirar
+      ? [
+          {
+            id: 'remove-date',
+            label: 'Tirar do planejamento',
+            onClick: onTirar,
             tone: 'danger' as const,
           },
         ]
@@ -95,6 +113,8 @@ export function PlanejamentoContentCard({
     <div
       role="button"
       tabIndex={0}
+      draggable={draggable}
+      onDragStart={onDragStart}
       onClick={onOpen}
       onKeyDown={e => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -105,6 +125,7 @@ export function PlanejamentoContentCard({
       style={cor ? { borderLeft: `3.5px solid ${cor}` } : undefined}
       className={cn(
         'group flex flex-col justify-between rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-2.5 shadow-[var(--shadow-soft)] hover:border-[var(--border-strong)] hover:shadow-md transition-all text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]',
+        draggable && 'cursor-grab active:cursor-grabbing',
         className,
       )}
     >
@@ -113,7 +134,7 @@ export function PlanejamentoContentCard({
         <div className="flex items-center justify-between gap-1">
           {renderStageBadge()}
 
-          <div onClick={e => e.stopPropagation()}>
+          <div onClick={e => e.stopPropagation()} onDragStart={e => e.stopPropagation()}>
             <MoreMenu
               items={menuItems}
               size="sm"

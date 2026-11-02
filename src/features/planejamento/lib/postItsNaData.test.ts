@@ -114,6 +114,24 @@ function testRoteiroSemContaGanhaODia() {
   assert.equal(movido.publishDate?.slice(0, 10), '2026-11-10');
 }
 
+function testPrevistoMudaDeDiaELimpaAoTirar() {
+  const content = roteiro({
+    publishDate: '2026-11-04T12:00:00.000Z',
+    plataformas: [conta('ig', '2026-11-04T12:00:00.000Z', {status: 'prevista'})],
+  });
+  // Mover para outro dia
+  const movido = levarRoteiroAoDia(content, '2026-11-15');
+  assert.ok(movido);
+  assert.equal(movido.publishDate?.slice(0, 10), '2026-11-15');
+  assert.equal(movido.plataformas[0].publishDate?.slice(0, 10), '2026-11-15');
+
+  // Tirar do planejamento (sem data)
+  const semData = levarRoteiroAoDia(movido, null);
+  assert.ok(semData);
+  assert.equal(semData.publishDate, null);
+  assert.equal(semData.plataformas[0].publishDate, null);
+}
+
 const tests = [
   ['linked post-it sits on the roteiro day', testPostItFicaNoDiaDoRoteiro],
   ['undated roteiro keeps the post-it day', testRoteiroSemDataMantemODiaDoPostIt],
@@ -124,6 +142,7 @@ const tests = [
   ['same day writes nothing', testMesmoDiaNaoGrava],
   ['no day clears the planned dates', testSemDiaRetiraAPrevisao],
   ['roteiro without accounts gets the day', testRoteiroSemContaGanhaODia],
+  ['previsto moves to new day and clears when removing date', testPrevistoMudaDeDiaELimpaAoTirar],
 ] as const;
 
 for (const [name, test] of tests) {

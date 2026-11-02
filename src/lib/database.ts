@@ -371,8 +371,8 @@ export interface ScriptNote {
   resolvedAt?: string | null;
 }
 
-/** Como o roteiro é escrito: texto corrido ou telas de carrossel. */
-export type WritingMode = 'texto' | 'carrossel';
+/** Como o roteiro é escrito: texto corrido, vídeo do YouTube (seções e "Na tela") ou telas de carrossel. */
+export type WritingMode = 'texto' | 'youtube' | 'carrossel';
 
 /** Link (URL) ou nota livre de imagem de uma tela, para usar depois no design. */
 export interface CarouselImageRef {
@@ -500,6 +500,8 @@ export interface Content {
   writingNotes?: string | null;
   /** Modo de escrita. Ausente quando o banco ainda não tem a coluna (vale como texto). */
   writingMode?: WritingMode;
+  /** Proposta do vídeo (modo YouTube). Ausente enquanto o corpo não foi carregado ou sem a migração. */
+  proposta?: string | null;
   /** Telas do modo Carrossel. Ausente enquanto o corpo não foi carregado. */
   carouselSlides?: CarouselSlide[];
   createdAt: string;
@@ -954,6 +956,32 @@ export class CarrosselMigracaoPendenteError extends Error {
   }
 }
 
+/** Migração que aceita o modo YouTube e cria a proposta do vídeo. */
+export const MIGRACAO_MODO_YOUTUBE = '20261102120000_modo_youtube';
+
+export class YoutubeMigracaoPendenteError extends Error {
+  constructor() {
+    super(`Para guardar o modo YouTube, aplique a migração ${MIGRACAO_MODO_YOUTUBE}. O texto do roteiro foi salvo.`);
+    this.name = 'YoutubeMigracaoPendenteError';
+  }
+}
+
+/** `null` = ainda não se sabe; `false` = o banco recusou o modo YouTube ou não tem a proposta. */
+let contentYoutubeColumnsAvailable: boolean | null = null;
+
+/** O banco aceita o modo YouTube? Enquanto não se sabe, conta como sim. */
+export function isYoutubeStorageAvailable(): boolean {
+  return contentYoutubeColumnsAvailable !== false;
+}
+
+function isYoutubeModeRejected(error: {message?: string} | null | undefined) {
+  return !!error?.message?.includes('contents_writing_mode_check');
+}
+
+function isMissingPropostaColumn(error: {message?: string} | null | undefined) {
+  return !!error?.message && isMissingNamedColumn(error.message, 'proposta');
+}
+
 export class BlogMigracaoPendenteError extends Error {
   constructor() {
     super(`Para usar Blog/site como plataforma, aplique a migração ${MIGRACAO_CARROSSEL_BLOG}.`);
@@ -988,6 +1016,13 @@ function readCarouselColumns(row: Row): Pick<Content, 'writingMode' | 'carouselS
     out.carouselSlides = readCarouselSlides(row.carousel_slides);
   }
   return out;
+}
+
+/** Só a consulta completa traz a proposta; sem ela fica ausente e o salvar não a apaga. */
+function readPropostaColumn(row: Row): Pick<Content, 'proposta'> {
+  if (!row || !('proposta' in row)) return {};
+  contentYoutubeColumnsAvailable = true;
+  return {proposta: typeof row.proposta === 'string' ? row.proposta : null};
 }
 
 function readLivroIds(row: Row): string[] {
@@ -1368,6 +1403,7 @@ const mp = {
     notes: r.notes, referencias: r.referencias,
     writingNotes: r.writing_notes,
     ...readCarouselColumns(r),
+    ...readPropostaColumn(r),
     createdAt: r.created_at, updatedAt: r.updated_at, deletedAt: r.deleted_at,
     archivedAt: r.archived_at ?? null,
     legacyIdeaId: r.legacy_idea_id ?? null,
@@ -3365,6 +3401,7 @@ export async function saveContent(
     // Só grava o que veio carregado: lista leve não traz as telas e não pode apagá-las.
     ...(content.writingMode !== undefined ? {writing_mode: content.writingMode} : {}),
     ...(content.carouselSlides !== undefined ? {carousel_slides: content.carouselSlides} : {}),
+    ...(content.proposta !== undefined ? {proposta: content.proposta} : {}),
     archived_at: content.archivedAt ?? null,
     legacy_idea_id: content.legacyIdeaId ?? null,
     updated_at: new Date().toISOString(),
@@ -3372,12 +3409,30 @@ export async function saveContent(
 
   // Sem a migração do carrossel, o resto do roteiro é salvo e o carrossel avisa que não foi.
   let carouselDropped = false;
+  // Sem a migração do YouTube, o roteiro fica salvo como Texto (o texto é o mesmo) e avisa.
+  let youtubeDropped = false;
 
-  for (let attempt = 0; attempt < 16; attempt += 1) {
+  for (let attempt = 0; attempt < 18; attempt += 1) {
     const {error} = await supabase.from('contents').upsert(row);
     if (!error) {
       if (carouselDropped) throw new CarrosselMigracaoPendenteError();
+      if (youtubeDropped) throw new YoutubeMigracaoPendenteError();
       return;
+    }
+
+    if (isYoutubeModeRejected(error) && row.writing_mode === 'youtube') {
+      contentYoutubeColumnsAvailable = false;
+      youtubeDropped = true;
+      row = {...row, writing_mode: 'texto'};
+      continue;
+    }
+
+    if (isMissingPropostaColumn(error) && 'proposta' in row) {
+      contentYoutubeColumnsAvailable = false;
+      youtubeDropped = youtubeDropped || (typeof row.proposta === 'string' && row.proposta.trim().length > 0);
+      const {proposta: _proposta, ...rowWithoutProposta} = row;
+      row = rowWithoutProposta;
+      continue;
     }
 
     if (isMissingCarouselColumns(error) && ('writing_mode' in row || 'carousel_slides' in row)) {

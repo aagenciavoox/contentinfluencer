@@ -4,10 +4,12 @@ import { CSSProperties, ReactNode } from 'react';
 import {
   CheckCircle2,
   Hand,
+  Layers,
   Minus,
   Pause,
   Play,
   Plus,
+  RotateCcw,
   SkipBack,
   SkipForward,
   SlidersHorizontal,
@@ -140,6 +142,13 @@ function Divider({ className }: { className?: string }) {
   return <span aria-hidden="true" className={cn('h-10 w-px shrink-0 bg-[var(--tp-border)]', className)} />;
 }
 
+function formatClock(totalSeconds: number) {
+  const safe = Math.max(0, Math.round(totalSeconds));
+  const minutes = Math.floor(safe / 60);
+  const seconds = safe % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
 type TeleprompterHeaderProps = {
   title: string;
   position: number;
@@ -148,6 +157,8 @@ type TeleprompterHeaderProps = {
   totalWords: number;
   onOpenSettings: () => void;
   onExit: () => void;
+  activeSection?: { number: number; total: number; title: string; estimatedSeconds: number } | null;
+  onOpenSections?: () => void;
 };
 
 export function TeleprompterHeader({
@@ -158,6 +169,8 @@ export function TeleprompterHeader({
   totalWords,
   onOpenSettings,
   onExit,
+  activeSection,
+  onOpenSections,
 }: TeleprompterHeaderProps) {
   return (
     <header className="flex shrink-0 items-center gap-4 border-b border-[var(--tp-border)] bg-[var(--tp-surface)] px-4 py-3 md:gap-6 md:px-8 md:py-4">
@@ -170,9 +183,16 @@ export function TeleprompterHeader({
 
       <Divider className="hidden md:block" />
 
-      <Text variant="sectionTitle" as="p" className="min-w-0 flex-1 truncate tracking-tight text-inherit" title={title}>
-        {title}
-      </Text>
+      <div className="min-w-0 flex-1 truncate">
+        <Text variant="sectionTitle" as="p" className="truncate tracking-tight text-inherit" title={title}>
+          {title}
+        </Text>
+        {activeSection && activeSection.total > 1 && (
+          <Text variant="secondary" as="p" className="mt-0.5 truncate text-[var(--tp-muted)]">
+            Seção {activeSection.number} de {activeSection.total} · {activeSection.title} ({formatClock(activeSection.estimatedSeconds)})
+          </Text>
+        )}
+      </div>
 
       <div className="hidden shrink-0 items-center gap-6 lg:flex">
         <Divider />
@@ -187,6 +207,18 @@ export function TeleprompterHeader({
       </div>
 
       <div className="flex shrink-0 items-center gap-2 md:gap-3">
+        {onOpenSections && activeSection && activeSection.total > 1 && (
+          <button
+            type="button"
+            onClick={onOpenSections}
+            title="Ver lista de seções do roteiro"
+            className={cn(OUTLINE_BUTTON, 'h-11 gap-2 px-3 md:px-4')}
+          >
+            <Layers className="h-4 w-4" />
+            <span className="hidden sm:inline">Seções</span>
+            <Kbd>{activeSection.total}</Kbd>
+          </button>
+        )}
         <button type="button" onClick={onOpenSettings} className={cn(OUTLINE_BUTTON, 'h-11 px-4')}>
           <SlidersHorizontal className="h-4 w-4" />
           Configurações
@@ -270,16 +302,25 @@ function Stepper({ label, value, decreaseLabel, increaseLabel, onDecrease, onInc
   );
 }
 
+export type SectionMarker = {
+  index: number;
+  number: number;
+  title: string;
+  ratio: number;
+  targetIndex: number;
+};
+
 type ProgressSeekProps = {
   value: number;
   max: number;
   disabled: boolean;
   valueText: string;
   onSeek: (value: number) => void;
+  sections?: SectionMarker[];
 };
 
 /** Trilho desenhado em div, com um range nativo invisível por cima para arrastar e usar o teclado. */
-function ProgressSeek({ value, max, disabled, valueText, onSeek }: ProgressSeekProps) {
+function ProgressSeek({ value, max, disabled, valueText, onSeek, sections }: ProgressSeekProps) {
   const ratio = max > 0 ? Math.min(1, Math.max(0, value / max)) : 0;
   const knobLeft = `calc(8px + (100% - 16px) * ${ratio})`;
 
@@ -298,13 +339,35 @@ function ProgressSeek({ value, max, disabled, valueText, onSeek }: ProgressSeekP
         onPointerUp={event => event.currentTarget.blur()}
         className="peer absolute inset-0 z-10 m-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-default"
       />
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--tp-track)]">
+      <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-[var(--tp-track)]">
         <div className="h-full rounded-full bg-[var(--tp-marker)]" style={{ width: knobLeft }} />
       </div>
+
+      {/* Risquinhos de início de cada seção na barra de progresso (clicáveis para pular direto) */}
+      {sections && sections.length > 1 && sections.map(sec => {
+        const tickPos = `calc(8px + (100% - 16px) * ${sec.ratio})`;
+        return (
+          <button
+            key={sec.index}
+            type="button"
+            title={`Pular para Seção ${sec.number}: ${sec.title}`}
+            disabled={disabled}
+            onClick={e => {
+              e.stopPropagation();
+              onSeek(sec.targetIndex);
+            }}
+            className="group/tick absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-20 flex h-6 w-3 items-center justify-center cursor-pointer disabled:cursor-default"
+            style={{ left: tickPos }}
+          >
+            <span className="h-2.5 w-0.5 rounded-full bg-[var(--tp-border)] transition-all group-hover/tick:h-4 group-hover/tick:w-1 group-hover/tick:bg-[var(--tp-marker)]" />
+          </button>
+        );
+      })}
+
       <span
         aria-hidden="true"
         className={cn(
-          'pointer-events-none absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full transition-colors peer-focus-visible:shadow-[var(--focus-ring)]',
+          'pointer-events-none absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full transition-colors peer-focus-visible:shadow-[var(--focus-ring)] z-30',
           ratio > 0 ? 'bg-[var(--tp-marker)]' : 'bg-[var(--tp-knob)]'
         )}
         style={{ left: knobLeft }}
@@ -337,6 +400,9 @@ type TeleprompterControlsProps = {
   canGoPrevious: boolean;
   onPrevious: () => void;
   onNext: () => void;
+  sections?: SectionMarker[];
+  onRedoSection?: () => void;
+  pausedAtSectionEnd?: number | null;
 };
 
 export function TeleprompterControls({
@@ -362,10 +428,20 @@ export function TeleprompterControls({
   canGoPrevious,
   onPrevious,
   onNext,
+  sections,
+  onRedoSection,
+  pausedAtSectionEnd,
 }: TeleprompterControlsProps) {
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 px-4 pb-4 xl:px-8 xl:pb-6">
       <div className="pointer-events-auto rounded-[var(--radius-card)] border border-[var(--tp-border)] bg-[var(--tp-surface)] shadow-[0_12px_40px_rgba(0,0,0,0.08)]">
+        {pausedAtSectionEnd !== null && pausedAtSectionEnd !== undefined && (
+          <div className="border-b border-[var(--tp-border)] bg-[var(--tp-subtle)] px-4 py-2 text-center text-[var(--tp-text)]">
+            <Text variant="secondary" as="p">
+              Fim da seção. Pressione <strong>Espaço</strong> para continuar para a próxima seção ou <strong>R</strong> para refazer.
+            </Text>
+          </div>
+        )}
         {/* Abaixo de 1280px a primeira linha ainda cabe inteira: sem divisores, espaços menores e sem as dicas de tecla. */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-4 xl:gap-x-6 xl:px-6">
           {manualScroll && teleprompterEnabled ? (
@@ -390,6 +466,21 @@ export function TeleprompterControls({
             </button>
           )}
 
+          {onRedoSection && sections && sections.length > 1 && (
+            <button
+              type="button"
+              onClick={onRedoSection}
+              disabled={!teleprompterEnabled}
+              aria-keyshortcuts="R"
+              title="Refazer a seção atual com contagem regressiva (R)"
+              className={cn(OUTLINE_BUTTON, 'h-12 gap-2 px-3 xl:px-4')}
+            >
+              <RotateCcw className="h-4 w-4" />
+              <span className="hidden xl:inline">Refazer seção</span>
+              <Kbd className="hidden xl:inline-block">R</Kbd>
+            </button>
+          )}
+
           <Divider className="hidden xl:block" />
 
           <div className="flex min-w-[11rem] flex-1 items-center gap-3 xl:min-w-[14rem] xl:gap-4">
@@ -402,6 +493,7 @@ export function TeleprompterControls({
               disabled={!teleprompterEnabled}
               valueText={`${elapsedLabel} de ${totalLabel}`}
               onSeek={onSeek}
+              sections={sections}
             />
           </div>
 

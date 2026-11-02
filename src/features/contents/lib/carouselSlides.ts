@@ -10,11 +10,37 @@ import {generateUUID} from '../../../utils/uuid.ts';
 
 export const WRITING_MODE_LABELS: Record<WritingMode, string> = {
   texto: 'Texto',
+  youtube: 'YouTube',
   carrossel: 'Carrossel',
 };
 
+/** Ordem dos modos nos menus: os dois que usam o texto corrido ficam juntos. */
+export const WRITING_MODES: readonly WritingMode[] = ['texto', 'youtube', 'carrossel'];
+
+/** Uma linha sobre cada modo, embaixo do nome no menu ⋯. */
+export const WRITING_MODE_HINTS: Record<WritingMode, string> = {
+  texto: 'Texto corrido',
+  youtube: 'Seções, "Na tela" e tempo de fala',
+  carrossel: 'Uma tela por vez',
+};
+
 export function normalizeWritingMode(value: unknown): WritingMode {
-  return value === 'carrossel' ? 'carrossel' : 'texto';
+  return value === 'carrossel' || value === 'youtube' ? value : 'texto';
+}
+
+/**
+ * O que muda no roteiro ao trocar de modo. Texto e YouTube usam o mesmo `script`;
+ * entrar no Carrossel transforma o texto na Tela 1 (ou volta às telas guardadas).
+ * Nada é apagado em nenhum sentido.
+ */
+export function writingModeChange(
+  next: WritingMode,
+  current: Pick<Content, 'script'> & Partial<Pick<Content, 'carouselSlides'>>,
+): Pick<Content, 'writingMode'> & Partial<Pick<Content, 'carouselSlides'>> {
+  if (next === 'carrossel') {
+    return {writingMode: 'carrossel', carouselSlides: slidesForCarouselMode(current.script, current.carouselSlides)};
+  }
+  return {writingMode: next};
 }
 
 export function isCarouselContent(content: Pick<Content, 'writingMode'> | null | undefined): boolean {

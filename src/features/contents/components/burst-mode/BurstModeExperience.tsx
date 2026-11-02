@@ -2,6 +2,7 @@ import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from
 import { createPortal } from 'react-dom';
 import {
   CheckCircle2,
+  Clapperboard,
 } from 'lucide-react';
 import { Text } from '../../../../components/ui/Text';
 import { useAppContext } from '../../../../context/AppContext';
@@ -10,9 +11,16 @@ import { Content, RecordingBlock } from '../../../../lib/database';
 import { cn, hexContrastRatio, htmlToReadableText } from '../../../../lib/utils';
 import { isContentBodyLoaded } from '../../lib/contentBody';
 import { isCarouselContent } from '../../lib/carouselSlides';
-import { buildPrompterLines, EMPTY_SCRIPT_LINE } from '../../lib/prompterLines';
+import {
+  EMPTY_SCRIPT_LINE,
+  parsePrompterScript,
+  type PrompterLineItem,
+  type PrompterSection,
+} from '../../lib/prompterLines';
+import { stripOnScreenNotes } from '../../lib/youtubeScript';
 import { isRecordingBlockTeleprompterEnabled } from '../../../recording/lib/recordingWorkflow';
 import { TeleprompterSettingsDialog } from './TeleprompterSettingsDialog';
+import { TeleprompterSectionsDialog } from './TeleprompterSectionsDialog';
 import {
   ReadingMarker,
   TELEPROMPTER_COLUMN_CLASS,
@@ -47,6 +55,8 @@ export type BurstModeSettings = {
   wpm: number;
   countdown: number;
   highlightCurrentLine: boolean;
+  showOnScreenNotes: boolean;
+  pauseAtSectionEnd: boolean;
 };
 
 type BurstModeExperienceProps = {
@@ -73,6 +83,8 @@ const DEFAULT_SETTINGS: BurstModeSettings = {
   wpm: 120,
   countdown: 3,
   highlightCurrentLine: true,
+  showOnScreenNotes: false,
+  pauseAtSectionEnd: true,
 };
 
 const THEME_STYLES: Record<BurstTheme, { shell: string; panel: string; panelBorder: string; muted: string; accent: string; accentSoft: string; text: string; controls: string; glow: string; cursor: string }> = {
@@ -186,6 +198,8 @@ export function BurstModeExperience({
   const [readingLineIndex, setReadingLineIndex] = useState(0);
   const [countdownRemaining, setCountdownRemaining] = useState<number | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSectionsOpen, setIsSectionsOpen] = useState(false);
+  const [pausedAtSectionEnd, setPausedAtSectionEnd] = useState<number | null>(null);
   const persistedSettings = useMemo(
     () => normalizeBurstSettings(state.preferences[BURST_SETTINGS_PREFERENCE_KEY]),
     [state.preferences]
@@ -207,7 +221,11 @@ export function BurstModeExperience({
   const {hasHydrationError} = useHydrateContentBodies(readyContentIds);
 
   const currentContent = readyContents[currentIndex] ?? null;
-  const scriptText = useMemo(() => {
+  const isYouTube = currentContent?.writingMode === 'youtube';
+  // A sensibilidade só muda o passo do + e − (getSpeedStep): a velocidade é a mesma do painel e do celular.
+  const effectiveWpm = Math.max(60, settings.wpm);
+
+  const rawScript = useMemo(() => {
     if (!currentContent) return EMPTY_SCRIPT_LINE;
     if (!isContentBodyLoaded(currentContent)) {
       if (hasHydrationError(currentContent.id)) {
@@ -215,25 +233,47 @@ export function BurstModeExperience({
       }
       return 'Carregando roteiro…';
     }
-    return getScriptLabel(currentContent.script, EMPTY_SCRIPT_LINE);
+    return currentContent.script ?? '';
   }, [currentContent, hasHydrationError]);
-  const scriptLines = useMemo(() => buildPrompterLines(scriptText, PROMPTER_LINE_MAX_WORDS), [scriptText]);
-  const lineWordCounts = useMemo(() => scriptLines.map(line => Math.max(1, countWords(line))), [scriptLines]);
-  // Conta só palavras de verdade: lineWordCounts dá 1 às linhas vazias entre parágrafos (para o ritmo).
-  const totalWords = useMemo(
-    () => scriptLines.reduce((sum, line) => sum + countWords(line), 0),
-    [scriptLines]
-  );
-  // A sensibilidade só muda o passo do + e − (getSpeedStep): a velocidade é a mesma do painel e do celular.
-  const effectiveWpm = Math.max(60, settings.wpm);
-  const totalEstimatedSeconds = totalWords > 0 ? (totalWords / effectiveWpm) * 60 : 0;
-  const maxPlayhead = Math.max(0, scriptLines.length - 1);
+
+  const parsedScript = useMemo(() => {
+    return parsePrompterScript(rawScript, {
+      isYouTube,
+      maxWords: PROMPTER_LINE_MAX_WORDS,
+      wpm: effectiveWpm,
+      fallbackTitle: currentContent?.title ?? 'Roteiro',
+    });
+  }, [rawScript, isYouTube, effectiveWpm, currentContent?.title]);
+
+  const prompterItems = parsedScript.items;
+  const sections = parsedScript.sections;
+  const lineWordCounts = useMemo(() => prompterItems.map(item => item.wordCount), [prompterItems]);
+  const totalWords = parsedScript.totalWords;
+  const totalEstimatedSeconds = parsedScript.totalEstimatedSeconds;
+  const maxPlayhead = Math.max(0, prompterItems.length - 1);
   const playheadLine = clamp(Math.floor(playhead), 0, maxPlayhead);
   const isManualScroll = !settings.autoScroll;
   // Sem rolagem assistida, o tempo e a barra seguem a linha sob a guia: quem rola o texto é a pessoa.
   const progressPosition = isManualScroll ? readingLineIndex : playhead;
   const elapsedRatio = maxPlayhead === 0 ? 0 : clamp(progressPosition / maxPlayhead, 0, 1);
   const elapsedSeconds = totalEstimatedSeconds * elapsedRatio;
+
+  const activeSection = useMemo(() => {
+    const currentItem = prompterItems[readingLineIndex] ?? prompterItems[playheadLine];
+    const secIndex = currentItem?.sectionIndex ?? 0;
+    return sections.find(s => s.index === secIndex) ?? sections[0] ?? null;
+  }, [prompterItems, readingLineIndex, playheadLine, sections]);
+
+  const sectionMarkers = useMemo(() => {
+    return sections.map(sec => ({
+      index: sec.index,
+      number: sec.number,
+      title: sec.title,
+      targetIndex: sec.firstSpokenIndex,
+      ratio: maxPlayhead > 0 ? sec.firstSpokenIndex / maxPlayhead : 0,
+    }));
+  }, [sections, maxPlayhead]);
+
   const isCurrentCompleted = currentContent ? recordedIds.has(currentContent.id) : false;
   const teleprompterEnabled = isRecordingBlockTeleprompterEnabled(block);
   // Posição no bloco inteiro (gravados incluídos), para "Roteiro 2 de 5" não mudar ao marcar como gravado.
@@ -243,7 +283,7 @@ export function BurstModeExperience({
 
   const themeStyle = THEME_STYLES[settings.theme];
   const teleprompterViewportRef = useRef<HTMLDivElement>(null);
-  const lineRefs = useRef<Array<HTMLParagraphElement | null>>([]);
+  const lineRefs = useRef<Array<HTMLElement | null>>([]);
   const handleKeyDownRef = useRef<(event: KeyboardEvent) => void>(() => {});
   const readingLineRef = useRef(0);
   const lastScrolledPlayheadRef = useRef<number | null>(null);
@@ -273,6 +313,7 @@ export function BurstModeExperience({
     setPlayhead(0);
     setIsPlaying(false);
     setCountdownRemaining(null);
+    setPausedAtSectionEnd(null);
   }, [currentContent?.id]);
 
   useEffect(() => {
@@ -282,15 +323,15 @@ export function BurstModeExperience({
   }, [currentIndex, readyContents.length]);
 
   useEffect(() => {
-    // Com as configurações abertas, Esc fecha só o painel e Espaço/setas ficam com os controles dele.
-    if (!currentContent || !settings.shortcutsEnabled || isSettingsOpen) return;
+    // Com as configurações ou seções abertas, Esc fecha só o painel e Espaço/setas ficam com os controles dele.
+    if (!currentContent || !settings.shortcutsEnabled || isSettingsOpen || isSectionsOpen) return;
 
     // Chama sempre o handler mais novo (ref atualizado a cada render): assim o Espaço vê o estado atual
     // (tocando, posição, linha rolada) e não o do momento em que o ouvinte foi registrado.
     const listener = (event: KeyboardEvent) => handleKeyDownRef.current(event);
     window.addEventListener('keydown', listener);
     return () => window.removeEventListener('keydown', listener);
-  }, [currentContent, isSettingsOpen, settings.shortcutsEnabled]);
+  }, [currentContent, isSectionsOpen, isSettingsOpen, settings.shortcutsEnabled]);
 
   useEffect(() => {
     if (!teleprompterEnabled || countdownRemaining === null) return;
@@ -309,7 +350,7 @@ export function BurstModeExperience({
   }, [countdownRemaining, teleprompterEnabled]);
 
   useEffect(() => {
-    if (!teleprompterEnabled || !isPlaying || !settings.autoScroll || scriptLines.length <= 1) return;
+    if (!teleprompterEnabled || !isPlaying || !settings.autoScroll || prompterItems.length <= 1) return;
 
     if (settings.advanceType === 'line') {
       const currentWords = lineWordCounts[playheadLine] ?? 8;
@@ -317,9 +358,20 @@ export function BurstModeExperience({
 
       const timer = window.setTimeout(() => {
         setPlayhead(previous => {
-          const next = Math.min(previous + 1, scriptLines.length - 1);
-          if (next >= scriptLines.length - 1) {
+          const next = Math.min(previous + 1, prompterItems.length - 1);
+          if (next >= prompterItems.length - 1) {
             setIsPlaying(false);
+          }
+          if (
+            settings.pauseAtSectionEnd &&
+            activeSection &&
+            activeSection.index < sections.length - 1 &&
+            previous < activeSection.lastSpokenIndex &&
+            next >= activeSection.lastSpokenIndex
+          ) {
+            setIsPlaying(false);
+            setPausedAtSectionEnd(activeSection.index);
+            return activeSection.lastSpokenIndex;
           }
           return next;
         });
@@ -330,7 +382,7 @@ export function BurstModeExperience({
 
     let frameId = 0;
     let previousTime = performance.now();
-    const averageWordsPerLine = totalWords > 0 ? totalWords / Math.max(scriptLines.length, 1) : 8;
+    const averageWordsPerLine = totalWords > 0 ? totalWords / Math.max(prompterItems.length, 1) : 8;
     const linesPerMs = (effectiveWpm / Math.max(averageWordsPerLine, 1)) / 60000;
 
     const animate = (time: number) => {
@@ -338,9 +390,20 @@ export function BurstModeExperience({
       previousTime = time;
 
       setPlayhead(previous => {
-        const next = Math.min(previous + delta * linesPerMs, scriptLines.length - 1);
-        if (next >= scriptLines.length - 1) {
+        const next = Math.min(previous + delta * linesPerMs, prompterItems.length - 1);
+        if (next >= prompterItems.length - 1) {
           setIsPlaying(false);
+        }
+        if (
+          settings.pauseAtSectionEnd &&
+          activeSection &&
+          activeSection.index < sections.length - 1 &&
+          previous < activeSection.lastSpokenIndex &&
+          next >= activeSection.lastSpokenIndex
+        ) {
+          setIsPlaying(false);
+          setPausedAtSectionEnd(activeSection.index);
+          return activeSection.lastSpokenIndex;
         }
         return next;
       });
@@ -355,9 +418,12 @@ export function BurstModeExperience({
     effectiveWpm,
     isPlaying,
     lineWordCounts,
-    scriptLines.length,
+    prompterItems.length,
+    activeSection,
+    sections.length,
     settings.advanceType,
     settings.autoScroll,
+    settings.pauseAtSectionEnd,
     teleprompterEnabled,
     totalWords,
   ]);
@@ -365,29 +431,29 @@ export function BurstModeExperience({
   // Linha acesa = a que está sob a guia, medida na rolagem real (contínua, por linha ou com o mouse).
   const syncReadingLine = useCallback(() => {
     const container = teleprompterViewportRef.current;
-    if (!container || scriptLines.length === 0) return;
+    if (!container || prompterItems.length === 0) return;
 
     const guideY =
       container.scrollTop +
       container.clientHeight * (settings.verticalMargin / 100) +
       (settings.fontSize * settings.lineHeight) / 2;
     let index = 0;
-    for (let lineIndex = 0; lineIndex < scriptLines.length; lineIndex++) {
+    for (let lineIndex = 0; lineIndex < prompterItems.length; lineIndex++) {
       const element = lineRefs.current[lineIndex];
       if (!element) continue;
       if (element.offsetTop > guideY) break;
       index = lineIndex;
     }
-    // Na linha em branco entre parágrafos, acende a frase seguinte.
-    while (index < scriptLines.length - 1 && scriptLines[index] === '') index++;
+    // Na divisória, nota em tela ou linha em branco, acende a fala seguinte
+    while (index < prompterItems.length - 1 && prompterItems[index].kind !== 'spoken') index++;
 
     readingLineRef.current = index;
     setReadingLineIndex(index);
-  }, [scriptLines, settings.fontSize, settings.lineHeight, settings.verticalMargin]);
+  }, [prompterItems, settings.fontSize, settings.lineHeight, settings.verticalMargin]);
 
   useEffect(() => {
     const container = teleprompterViewportRef.current;
-    if (!teleprompterEnabled || !container || scriptLines.length === 0) return;
+    if (!teleprompterEnabled || !container || prompterItems.length === 0) return;
 
     // Na rolagem manual, mudar fonte/largura mantém a linha sob a guia em vez de voltar ao playhead.
     const playheadChanged = lastScrolledPlayheadRef.current !== playhead;
@@ -397,7 +463,7 @@ export function BurstModeExperience({
     const currentEl = lineRefs.current[Math.floor(target)];
     if (!currentEl) return;
 
-    const nextIndex = Math.min(Math.floor(target) + 1, scriptLines.length - 1);
+    const nextIndex = Math.min(Math.floor(target) + 1, prompterItems.length - 1);
     const nextEl = lineRefs.current[nextIndex];
     const fraction = target - Math.floor(target);
     const currentTop = currentEl.offsetTop;
@@ -410,7 +476,7 @@ export function BurstModeExperience({
       behavior: settings.advanceType === 'line' ? 'smooth' : 'auto',
     });
     syncReadingLine();
-  }, [isManualScroll, playhead, scriptLines.length, settings.advanceType, settings.verticalMargin, settings.fontSize, settings.lineHeight, settings.textWidth, syncReadingLine, teleprompterEnabled]);
+  }, [isManualScroll, playhead, prompterItems.length, settings.advanceType, settings.verticalMargin, settings.fontSize, settings.lineHeight, settings.textWidth, syncReadingLine, teleprompterEnabled]);
 
   const speedStep = getSpeedStep(settings.speedSensitivity);
 
@@ -426,6 +492,7 @@ export function BurstModeExperience({
   const handleNextVideo = () => {
     setIsPlaying(false);
     setCountdownRemaining(null);
+    setPausedAtSectionEnd(null);
     setPlayhead(0);
     setCurrentIndex(previous => Math.min(previous + 1, readyContents.length));
   };
@@ -433,8 +500,39 @@ export function BurstModeExperience({
   const handlePreviousVideo = () => {
     setIsPlaying(false);
     setCountdownRemaining(null);
+    setPausedAtSectionEnd(null);
     setPlayhead(0);
     setCurrentIndex(previous => Math.max(previous - 1, 0));
+  };
+
+  const handleRedoSection = () => {
+    if (!activeSection) return;
+    setPausedAtSectionEnd(null);
+    setPlayhead(activeSection.firstSpokenIndex);
+    setIsPlaying(false);
+    setCountdownRemaining(settings.countdown > 0 ? settings.countdown : 3);
+  };
+
+  const handleNextSection = () => {
+    if (!activeSection) return;
+    const nextSection = sections[activeSection.index + 1];
+    if (nextSection) {
+      setPausedAtSectionEnd(null);
+      setPlayhead(nextSection.firstSpokenIndex);
+    }
+  };
+
+  const handlePreviousSection = () => {
+    if (!activeSection) return;
+    setPausedAtSectionEnd(null);
+    if (playhead > activeSection.firstSpokenIndex + 1) {
+      setPlayhead(activeSection.firstSpokenIndex);
+    } else if (activeSection.index > 0) {
+      const prevSection = sections[activeSection.index - 1];
+      if (prevSection) setPlayhead(prevSection.firstSpokenIndex);
+    } else {
+      setPlayhead(activeSection.firstSpokenIndex);
+    }
   };
 
   const togglePlayback = () => {
@@ -444,6 +542,20 @@ export function BurstModeExperience({
     if (countdownRemaining !== null) {
       setCountdownRemaining(null);
       setIsPlaying(false);
+      return;
+    }
+
+    if (pausedAtSectionEnd !== null) {
+      const nextSection = sections[pausedAtSectionEnd + 1];
+      setPausedAtSectionEnd(null);
+      if (nextSection) {
+        setPlayhead(nextSection.firstSpokenIndex);
+      }
+      if (settings.countdown > 0) {
+        setCountdownRemaining(settings.countdown);
+      } else {
+        setIsPlaying(true);
+      }
       return;
     }
 
@@ -497,6 +609,24 @@ export function BurstModeExperience({
       if (currentContent) {
         toggleComplete(currentContent.id);
       }
+      return;
+    }
+
+    if (event.key.toLowerCase() === 'r' && teleprompterEnabled) {
+      event.preventDefault();
+      handleRedoSection();
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      handleNextSection();
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      handlePreviousSection();
       return;
     }
 
@@ -608,6 +738,17 @@ export function BurstModeExperience({
           totalWords={totalWords}
           onOpenSettings={() => setIsSettingsOpen(previous => !previous)}
           onExit={handleFinishBlock}
+          activeSection={
+            activeSection
+              ? {
+                  number: activeSection.number,
+                  total: sections.length,
+                  title: activeSection.title,
+                  estimatedSeconds: activeSection.estimatedSeconds,
+                }
+              : null
+          }
+          onOpenSections={() => setIsSectionsOpen(true)}
         />
 
         <main className="relative min-h-0 flex-1 overflow-hidden">
@@ -622,7 +763,57 @@ export function BurstModeExperience({
                 <div aria-hidden="true" style={{ height: `${settings.verticalMargin}%` }} />
                 <div className={TELEPROMPTER_COLUMN_CLASS}>
                   <div className="mx-auto" style={{ maxWidth: `${settings.textWidth}%` }}>
-                    {scriptLines.map((line, index) => {
+                    {prompterItems.map((item, index) => {
+                      if (item.kind === 'section-divider') {
+                        return (
+                          <div
+                            key={item.id}
+                            ref={element => {
+                              lineRefs.current[index] = element;
+                            }}
+                            className="my-10 flex items-center gap-4 text-[var(--tp-muted)]"
+                          >
+                            <span className="h-px flex-1 bg-[var(--tp-border)]" />
+                            <Text variant="eyebrow" as="span" className="shrink-0 opacity-80 text-inherit">
+                              Seção {item.sectionNumber} · {item.text}
+                            </Text>
+                            <span className="h-px flex-1 bg-[var(--tp-border)]" />
+                          </div>
+                        );
+                      }
+
+                      if (item.kind === 'on-screen-note') {
+                        return (
+                          <div
+                            key={item.id}
+                            ref={element => {
+                              lineRefs.current[index] = element;
+                            }}
+                            className={cn('my-4 flex justify-center', !settings.showOnScreenNotes && 'hidden')}
+                          >
+                            <span className="inline-flex items-center gap-2 rounded-full border border-[var(--tp-border)] bg-[var(--tp-subtle)] px-3.5 py-1 shadow-sm">
+                              <Clapperboard className="h-3.5 w-3.5 shrink-0 text-[var(--tp-marker)]" />
+                              <Text variant="meta" as="span" className="text-[var(--tp-muted)]">{item.text}</Text>
+                            </span>
+                          </div>
+                        );
+                      }
+
+                      if (item.kind === 'blank') {
+                        return (
+                          <p
+                            key={item.id}
+                            ref={element => {
+                              lineRefs.current[index] = element;
+                            }}
+                            className="mb-6 select-none opacity-0"
+                            style={textStyle}
+                          >
+                            &nbsp;
+                          </p>
+                        );
+                      }
+
                       const distance = Math.abs(index - readingLineIndex);
                       const opacity = settings.highlightCurrentLine
                         ? distance === 0
@@ -638,14 +829,14 @@ export function BurstModeExperience({
 
                       return (
                         <p
-                          key={`${index}-${line}`}
+                          key={item.id}
                           ref={element => {
                             lineRefs.current[index] = element;
                           }}
-                          className={cn('mb-3 break-words transition-opacity duration-300', line === '' && 'mb-6')}
-                          style={{ ...textStyle, opacity: line === '' ? 0 : opacity }}
+                          className="mb-3 break-words transition-opacity duration-300"
+                          style={{ ...textStyle, opacity }}
                         >
-                          {line === '' ? ' ' : line}
+                          {item.text}
                         </p>
                       );
                     })}
@@ -691,7 +882,7 @@ export function BurstModeExperience({
                       textAlign: settings.textAlign,
                     }}
                   >
-                    {scriptText}
+                    {htmlToReadableText(stripOnScreenNotes(currentContent.script)) || EMPTY_SCRIPT_LINE}
                   </Text>
                 </div>
               </div>
@@ -718,7 +909,10 @@ export function BurstModeExperience({
           totalLabel={formatSeconds(totalEstimatedSeconds)}
           playhead={progressPosition}
           maxPlayhead={maxPlayhead}
-          onSeek={value => setPlayhead(clamp(value, 0, maxPlayhead))}
+          onSeek={value => {
+            setPausedAtSectionEnd(null);
+            setPlayhead(clamp(value, 0, maxPlayhead));
+          }}
           wpm={effectiveWpm}
           onSlower={() => updateSetting('wpm', clamp(settings.wpm - speedStep, 60, 280))}
           onFaster={() => updateSetting('wpm', clamp(settings.wpm + speedStep, 60, 280))}
@@ -732,6 +926,9 @@ export function BurstModeExperience({
           canGoPrevious={currentIndex > 0}
           onPrevious={handlePreviousVideo}
           onNext={handleNextVideo}
+          sections={sectionMarkers}
+          onRedoSection={handleRedoSection}
+          pausedAtSectionEnd={pausedAtSectionEnd}
         />
 
         <TeleprompterSettingsDialog
@@ -741,6 +938,17 @@ export function BurstModeExperience({
           onChange={updateSetting}
           onReset={resetSettings}
           teleprompterEnabled={teleprompterEnabled}
+        />
+
+        <TeleprompterSectionsDialog
+          open={isSectionsOpen}
+          onClose={() => setIsSectionsOpen(false)}
+          sections={sections}
+          activeSectionIndex={activeSection?.index ?? 0}
+          onSelectSection={firstSpokenIndex => {
+            setPausedAtSectionEnd(null);
+            setPlayhead(firstSpokenIndex);
+          }}
         />
       </div>
     </div>,

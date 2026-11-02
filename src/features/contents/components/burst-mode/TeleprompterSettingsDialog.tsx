@@ -40,6 +40,9 @@ const ADVANCE_OPTIONS: ChoiceOption<AdvanceType>[] = [
 
 const SHORTCUTS: Array<{ key: string; spokenKey?: string; label: string }> = [
   { key: 'Espaço', label: 'Iniciar / pausar' },
+  { key: 'R', label: 'Refazer seção com contagem' },
+  { key: '↑', spokenKey: 'Seta para cima', label: 'Início da seção / seção anterior' },
+  { key: '↓', spokenKey: 'Seta para baixo', label: 'Próxima seção' },
   { key: '→', spokenKey: 'Seta para a direita', label: 'Próximo roteiro' },
   { key: '←', spokenKey: 'Seta para a esquerda', label: 'Roteiro anterior' },
   { key: '+', spokenKey: 'Mais', label: 'Aumentar fonte' },
@@ -262,6 +265,19 @@ export function TeleprompterSettingsDialog({
                 description="Reduz o destaque das linhas acima e abaixo."
                 checked={settings.highlightCurrentLine}
                 onChange={() => onChange('highlightCurrentLine', !settings.highlightCurrentLine)}
+              />
+              <CardDivider />
+              <SwitchRow
+                label="Lembretes 'Na tela'"
+                description="Exibe etiquetas para elementos visuais entre as falas."
+                checked={settings.showOnScreenNotes}
+                onChange={() => onChange('showOnScreenNotes', !settings.showOnScreenNotes)}
+              />
+              <SwitchRow
+                label="Pausa no fim da seção"
+                description="Pausa automaticamente a rolagem ao concluir cada seção."
+                checked={settings.pauseAtSectionEnd}
+                onChange={() => onChange('pauseAtSectionEnd', !settings.pauseAtSectionEnd)}
               />
             </SettingsCard>
 

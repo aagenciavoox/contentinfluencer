@@ -218,6 +218,135 @@
   background: color-mix(in srgb, var(--success) 24%, var(--bg-elevated));
 }
 
+/* Painel Estrutura: o título da seção não fica embaixo da barra presa ao topo. */
+.script-sheet .tiptap h1,
+.script-sheet .tiptap h2 {
+  scroll-margin-top: 6rem;
+}
+
+/* Bloco "Na tela" (modo YouTube): o que aparece no vídeo, fora da fala. */
+.script-on-screen-view {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin: 1.25em 0;
+  padding: 0.6rem 0.5rem 0.6rem 0.9rem;
+  border-radius: var(--radius-input);
+  background: var(--bg-hover);
+  line-height: 1.5;
+}
+
+.script-sheet .tiptap > .script-on-screen-view:first-child {
+  margin-top: 0;
+}
+
+.script-on-screen-view.is-selected {
+  box-shadow: var(--focus-ring);
+}
+
+.script-on-screen-label {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  color: var(--text-primary);
+  user-select: none;
+}
+
+.script-on-screen-label svg {
+  width: 1rem;
+  height: 1rem;
+  color: var(--text-secondary);
+}
+
+.script-on-screen-body {
+  position: relative;
+  min-width: 0;
+  flex: 1;
+  font-size: 0.875em;
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.script-on-screen-placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.script-on-screen-actions {
+  position: relative;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.script-on-screen-more {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+}
+
+.script-on-screen-more:hover,
+.script-on-screen-more[aria-expanded='true'] {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.script-on-screen-more:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.script-on-screen-more svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.script-on-screen-menu {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  z-index: 20;
+  display: flex;
+  min-width: 11rem;
+  flex-direction: column;
+  padding: 0.25rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-input);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-dropdown);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-body);
+  font-style: normal;
+}
+
+.script-on-screen-menu button {
+  padding: 0.5rem 0.625rem;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  color: var(--text-primary);
+}
+
+.script-on-screen-menu button:hover,
+.script-on-screen-menu button:focus-visible {
+  outline: none;
+  background: var(--bg-hover);
+}
+
+.script-on-screen-menu button.is-danger {
+  color: var(--accent-red);
+}
+
 @media (max-width: 1023px) {
   .tiptap {
     line-height: 1.5;

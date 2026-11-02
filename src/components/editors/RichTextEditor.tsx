@@ -29,6 +29,7 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { useVisualViewportKeyboard } from '../../hooks/useVisualViewportKeyboard';
 import { countScriptWords, formatSpokenDuration } from '../../features/contents/lib/spokenDuration';
+import { countSpokenWords, formatSpokenRange } from '../../features/contents/lib/youtubeScript';
 import {
   clampDraftSplitRatio,
   readDraftSplitRatio,
@@ -36,6 +37,7 @@ import {
 } from '../../features/contents/lib/writingDraftLayout';
 import { DraftSplitDivider } from '../../features/contents/components/detail/DraftSplitDivider';
 import { EditorShortcuts, ReadableHighlight, SelectionClicks } from './editorExtensions';
+import { OnScreenNote } from './onScreenNote';
 import { EditorColorMenu } from './EditorColorMenu';
 import { EditorToolbar } from './EditorToolbar';
 import { FindReplaceBar } from './FindReplaceBar';
@@ -81,7 +83,8 @@ export interface RichTextEditorProps {
   autoFocus?: boolean;
   variant?: 'default' | 'workspace';
   formatBar?: 'full' | 'writing';
-  meter?: 'reading' | 'spoken' | 'none';
+  /** `spoken-range`: modo YouTube, faixa de minutos sem contar os blocos "Na tela". */
+  meter?: 'reading' | 'spoken' | 'spoken-range' | 'none';
   toolbarStart?: ReactNode;
   toolbarEnd?: ReactNode;
   typographySlot?: ReactNode;
@@ -90,6 +93,8 @@ export interface RichTextEditorProps {
   saveAction?: ReactNode;
   onRetrySave?: () => void;
   fullscreenAside?: ReactNode;
+  /** Painel à esquerda do texto no modo foco (ex.: Estrutura do modo YouTube). */
+  focusStart?: ReactNode;
   onFullscreenChange?: (open: boolean) => void;
   notesPanelOpen?: boolean;
   onNotesPanelChange?: (open: boolean) => void;
@@ -99,6 +104,8 @@ export interface RichTextEditorProps {
   onFocusedPaneChange?: (pane: 'script' | 'draft') => void;
   /** Registra inserção de texto na última posição do cursor do roteiro. */
   onRegisterInsertHandler?: (handler: ((text: string) => void) | null) => void;
+  /** Editor TipTap do roteiro, para painéis de fora (ex.: Estrutura do modo YouTube). */
+  onEditorReady?: (editor: Editor | null) => void;
 }
 
 const EMPTY_ANNOTATIONS: Annotation[] = [];
@@ -558,9 +565,9 @@ function RichTextEditorInstance({
   onRemoveAnnotation, onUpdateAnnotation, onPatchAnnotation, authorName = 'Você',
   documentTitle = 'Novo roteiro', compactMobileComposer = false, autoFocus = false,
   variant = 'default', formatBar = 'full', meter = 'reading', toolbarStart, toolbarEnd,
-  typographySlot, saveState = 'idle', saveAction, onRetrySave, fullscreenAside,
+  typographySlot, saveState = 'idle', saveAction, onRetrySave, fullscreenAside, focusStart,
   onFullscreenChange, notesPanelOpen = false, onNotesPanelChange,
-  draftEditor = null, focusedPane = 'script', onFocusedPaneChange, onRegisterInsertHandler,
+  draftEditor = null, focusedPane = 'script', onFocusedPaneChange, onRegisterInsertHandler, onEditorReady,
 }: RichTextEditorProps) {
   const isMobile = useIsMobile();
   const isWorkspace = variant === 'workspace';
@@ -578,7 +585,11 @@ function RichTextEditorInstance({
   const [annotationPositions, setAnnotationPositions] = useState<AnnotationPosition[]>([]);
   const [draftTop, setDraftTop] = useState<number | null>(null);
   const [wideLayout, setWideLayout] = useState(false);
-  const [wordCount, setWordCount] = useState(() => countScriptWords(content));
+  // Fala nunca conta os blocos "Na tela", em nenhum modo: eles não são lidos.
+  const countWords = meter === 'spoken' || meter === 'spoken-range' ? countSpokenWords : countScriptWords;
+  const countWordsRef = useRef(countWords);
+  countWordsRef.current = countWords;
+  const [wordCount, setWordCount] = useState(() => countWords(content));
   const [localDirty, setLocalDirty] = useState(false);
   const [findMode, setFindMode] = useState<'find' | 'replace' | null>(null);
   const [findToken, setFindToken] = useState(0);
@@ -598,8 +609,8 @@ function RichTextEditorInstance({
   placeholderRef.current = placeholder;
   const appearanceRef = useRef({ notes: annotations, activeId: expandedNoteId });
   appearanceRef.current = { notes: annotations, activeId: expandedNoteId };
-  const callbacksRef = useRef({ onFullscreenChange, onRetrySave, onRegisterInsertHandler });
-  callbacksRef.current = { onFullscreenChange, onRetrySave, onRegisterInsertHandler };
+  const callbacksRef = useRef({ onFullscreenChange, onRetrySave, onRegisterInsertHandler, onEditorReady });
+  callbacksRef.current = { onFullscreenChange, onRetrySave, onRegisterInsertHandler, onEditorReady };
   const fullscreenRef = useRef(false);
   const publishRef = useRef<(html: string) => void>(() => {});
   const commentShortcutRef = useRef<() => void>(() => {});
@@ -693,7 +704,7 @@ function RichTextEditorInstance({
       onComment: () => commentShortcutRef.current(), onFind: openFind,
       onLink: () => linkShortcutRef.current(),
     }),
-    FindReplace, CommentAnchor,
+    FindReplace, CommentAnchor, OnScreenNote,
     createCommentUIExtension(() => appearanceRef.current),
     Placeholder.configure({ placeholder: () => placeholderRef.current ?? '' }),
   ], [openFind]);
@@ -734,6 +745,18 @@ function RichTextEditorInstance({
   });
 
   const sync = useEditorContentSync(editor, content, contentRevision, onChange, localDirty);
+
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    callbacksRef.current.onEditorReady?.(editor);
+    return () => callbacksRef.current.onEditorReady?.(null);
+  }, [editor]);
+
+  // Trocar Texto <-> YouTube muda o que conta como fala sem recriar o editor.
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    setWordCount(countWordsRef.current(editor.getHTML()));
+  }, [editor, meter]);
   publishRef.current = sync.publish;
   const activeToolbarEditor = focusedPane === 'draft' && draftEditor && !draftEditor.isDestroyed
     ? draftEditor
@@ -817,7 +840,7 @@ function RichTextEditorInstance({
         setCommentRanges(current => sameRanges(current, ui.ranges) ? current : ui.ranges);
         setActiveDraft(current => sameDraft(current, ui.draft) ? current : ui.draft);
       }
-      if (changed) setWordCount(countScriptWords(editor.getHTML()));
+      if (changed) setWordCount(countWordsRef.current(editor.getHTML()));
     };
     refresh(editor.state);
     // Mantém o listener tipado pelo evento concreto, sem depender de onUpdate.
@@ -1044,7 +1067,8 @@ function RichTextEditorInstance({
       onColor={onUpdateAnnotation ? color => onUpdateAnnotation(note.id, note.comment, color) : undefined} />
   );
 
-  const durationLabel = meter === 'spoken' ? formatSpokenDuration(wordCount) : formatReadingDuration(wordCount, isWorkspace);
+  const durationLabel = meter === 'spoken-range' ? `Fala estimada: ${formatSpokenRange(wordCount)}`
+    : meter === 'spoken' ? formatSpokenDuration(wordCount) : formatReadingDuration(wordCount, isWorkspace);
   const status = saveState === 'error' ? 'Não salvou'
     : saveState === 'saving' ? 'Salvando…'
       : localDirty || saveState === 'dirty' ? 'Alterações não salvas'
@@ -1257,6 +1281,11 @@ function RichTextEditorInstance({
       <FormattingBubble editor={editor} blocked={isMobile || !!activeDraft || !!linkRequest || commentsPanelOpen}
         onComment={onAddAnnotation ? startCommenting : undefined} onLink={requestLink} />
 
+      {/* Fora do modo foco este invólucro não existe para o layout (contents). */}
+      <div className={isFullscreen ? 'flex min-h-0 min-w-0 flex-1' : 'contents'}>
+      {isFullscreen && focusStart && !isMobile ? (
+        <div className="w-64 shrink-0 border-r border-[var(--border-color)] xl:w-72">{focusStart}</div>
+      ) : null}
       <div
         ref={splitRowRef}
         className={cn(
@@ -1339,9 +1368,10 @@ function RichTextEditorInstance({
           </div>
         ) : null}
       </div>
+      </div>
 
       {(!compactMobileComposer || isFullscreen) ? <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-2.5 t-meta text-[var(--text-secondary)]">
-        {meter !== 'none' ? <span className="ml-auto inline-flex items-baseline gap-1"><TextCount as="span" count={wordCount} mode="words" /> · {durationLabel}</span> : <span />}
+        {meter !== 'none' ? <span className="ml-auto inline-flex items-baseline gap-1"><TextCount as="span" count={wordCount} mode="words" />{meter === 'spoken-range' ? <span aria-hidden className="px-1 text-[var(--border-strong)]">|</span> : ' · '}{durationLabel}</span> : <span />}
         <div className="flex min-w-0 flex-wrap items-center gap-3">{!isFullscreen ? saveStatus : null}{saveAction}</div>
       </div> : saveAction || status ? <div className="flex flex-wrap items-center gap-3 pb-20 pt-3">{saveStatus}{saveAction}</div> : null}
     </div>

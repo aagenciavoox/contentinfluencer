@@ -273,8 +273,9 @@ export function PlanejamentoPage() {
       platforms: state.platforms,
       series: state.series,
       redeReferenciaId: state.editorial.redeReferenciaId,
+      postIts,
     }),
-    [contents, state.platforms, state.series, state.editorial],
+    [contents, state.platforms, state.series, state.editorial, postIts],
   );
 
   const assuntosDoPlanejamento = useMemo(
@@ -381,12 +382,27 @@ export function PlanejamentoPage() {
     setMoveId(postIt.id);
   };
 
+  const abrirMoverPublicacao = (publicacao: PublicacaoNoDia) => {
+    const content = contentById(contents, publicacao.contentId);
+    const dia = content?.publishDate ? content.publishDate.slice(0, 10) : null;
+    setMoveDate(dia);
+    setMoveId(`content:${publicacao.contentId}`);
+  };
+
   const fecharMover = () => setMoveId(null);
 
   const confirmarMover = () => {
     const id = moveId;
     setMoveId(null);
     if (!id) return;
+    if (id.startsWith('content:')) {
+      const cId = id.slice(8);
+      const content = contentById(contents, cId);
+      const currentDia = content?.publishDate ? content.publishDate.slice(0, 10) : null;
+      if (!content || currentDia === moveDate) return;
+      moveMany([id], moveDate);
+      return;
+    }
     const postIt = postIts.find(item => item.id === id);
     if (!postIt || (postIt.date ?? null) === moveDate) return;
     // moveMany mantém os avisos de "Passa do editorial".
@@ -394,9 +410,13 @@ export function PlanejamentoPage() {
   };
 
   const removePostItById = (id: string) => {
+    const postIt = postIts.find(p => p.id === id);
     const removal = deletePostIt({postIts, contents, id});
     if (removal.postIts.length !== postIts.length) {
       dispatch({type: 'DELETE_POST_IT', payload: id});
+      if (postIt?.contentId) {
+        levarRoteiroDoPostIt(postIt.contentId, null);
+      }
     }
     setSelectedIds(current => {
       if (!current.has(id)) return current;
@@ -521,21 +541,56 @@ export function PlanejamentoPage() {
 
   const moveMany = (ids: readonly string[], date: string | null) => {
     const targets: PlanejamentoPostIt[] = [];
+    const contentTargets: Content[] = [];
+
     for (const id of ids) {
-      if (targets.some(item => item.id === id)) continue;
+      if (id.startsWith('content:')) {
+        const cId = id.slice(8);
+        const content = contentById(contents, cId);
+        if (content && !roteiroPublicado(content) && !contentTargets.some(c => c.id === cId)) {
+          contentTargets.push(content);
+        }
+        continue;
+      }
+
       const postIt = postIts.find(item => item.id === id);
-      if (!postIt || postIt.date === date) continue;
-      // Publicado fica no dia em que saiu.
-      const content = contentById(contents, postIt.contentId);
-      if (content && roteiroPublicado(content)) continue;
-      targets.push(postIt);
+      if (postIt) {
+        if (targets.some(item => item.id === id) || postIt.date === date) continue;
+        const content = contentById(contents, postIt.contentId);
+        if (content && roteiroPublicado(content)) continue;
+        targets.push(postIt);
+        continue;
+      }
+
+      const content = contentById(contents, id);
+      if (content && !roteiroPublicado(content) && !contentTargets.some(c => c.id === id)) {
+        contentTargets.push(content);
+      }
     }
-    if (targets.length === 0) return;
-    dispatch({
-      type: 'UPDATE_POST_ITS',
-      payload: targets.map(postIt => movePostIt(postIt, date)),
-    });
-    targets.forEach(postIt => levarRoteiroDoPostIt(postIt.contentId, date));
+
+    if (targets.length > 0) {
+      dispatch({
+        type: 'UPDATE_POST_ITS',
+        payload: targets.map(postIt => movePostIt(postIt, date)),
+      });
+      targets.forEach(postIt => levarRoteiroDoPostIt(postIt.contentId, date));
+    }
+
+    if (contentTargets.length > 0) {
+      for (const content of contentTargets) {
+        const movido = levarRoteiroAoDia(content, date);
+        if (movido) {
+          void dispatch({type: 'UPDATE_CONTENT', payload: movido});
+        }
+        const linkedPostIts = postIts.filter(p => p.contentId === content.id && p.date !== date);
+        if (linkedPostIts.length > 0) {
+          dispatch({
+            type: 'UPDATE_POST_ITS',
+            payload: linkedPostIts.map(p => movePostIt(p, date)),
+          });
+        }
+      }
+    }
   };
 
   const readDragIds = (event: DragEvent) => {
@@ -807,18 +862,30 @@ export function PlanejamentoPage() {
           const serie = content?.seriesId
             ? state.series.find(s => s.id === content.seriesId)
             : null;
+          const posted = publicacao.estado === 'postado';
+
           return (
             <PlanejamentoContentCard
               key={publicacao.id}
               publicacao={publicacao}
               content={content}
               serie={serie}
+              draggable={!isMobile && !posted}
+              onDragStart={event => {
+                if (isMobile || posted) return;
+                const payload = `content:${publicacao.contentId}`;
+                event.dataTransfer.setData(POST_IT_MIME, payload);
+                event.dataTransfer.setData('text/plain', payload);
+                event.dataTransfer.effectAllowed = 'move';
+              }}
               onOpen={() => {
                 navigate(
                   buildContentDetailRoute(publicacao.contentId, 'publicacao'),
                   buildDetailBackState('/planejamento'),
                 );
               }}
+              onMove={posted ? undefined : () => abrirMoverPublicacao(publicacao)}
+              onRemoveFromDate={posted ? undefined : () => moveMany([`content:${publicacao.contentId}`], null)}
             />
           );
         };
@@ -857,6 +924,7 @@ export function PlanejamentoPage() {
                 setOpenId(postIt.id);
               }}
               onDesenvolver={() => desenvolverReserva(postIt)}
+              onMove={() => abrirMover(postIt)}
               onDelete={() => removePostItById(postIt.id)}
             />
           );
@@ -1341,9 +1409,9 @@ export function PlanejamentoPage() {
         ) : null}
       </Dialog>
 
-      <Dialog open={moveId !== null} onClose={fecharMover} desktopMaxW="max-w-sm" zIndex="z-[140]" ariaLabel="Mover post-it">
+      <Dialog open={moveId !== null} onClose={fecharMover} desktopMaxW="max-w-sm" zIndex="z-[140]" ariaLabel={moveId?.startsWith('content:') ? 'Mover publicação' : 'Mover post-it'}>
         <div className="flex h-full min-h-0 flex-col bg-[var(--bg-elevated)]">
-          <OverlayHeader title="Mover post-it" onClose={fecharMover} />
+          <OverlayHeader title={moveId?.startsWith('content:') ? 'Mover publicação' : 'Mover post-it'} onClose={fecharMover} />
           <OverlayBody>
             <div className="stack-sm">
               <label className="stack-sm">
