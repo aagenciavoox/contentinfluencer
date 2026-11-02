@@ -1,6 +1,6 @@
 import {eachDayOfInterval, endOfWeek, format, isSameDay, startOfWeek} from 'date-fns';
 import {ptBR} from 'date-fns/locale';
-import {Plus} from 'lucide-react';
+import {ArrowDownToLine, Plus} from 'lucide-react';
 import type {ReactNode} from 'react';
 import {AppButton} from '../../../components/ui/AppButton';
 import {Badge} from '../../../components/ui/Badge';
@@ -9,15 +9,15 @@ import {cn} from '../../../lib/utils';
 import type {PublicacaoNoDia} from '../lib/publicacoesDoMes';
 import type {PlanejamentoPostIt} from '../lib/postIt';
 
-const WEEK_STARTS_ON = 0;
+const WEEK_STARTS_ON = 1;
+const WEEKDAYS_SHORT_PT = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'] as const;
 
 function dateKey(day: Date) {
   return format(day, 'yyyy-MM-dd');
 }
 
 function weekdayLabel(day: Date) {
-  const full = format(day, 'EEEE', {locale: ptBR}).split('-')[0];
-  return full.charAt(0).toUpperCase() + full.slice(1);
+  return WEEKDAYS_SHORT_PT[day.getDay()];
 }
 
 export function PlanejamentoWeekGrid({
@@ -31,6 +31,7 @@ export function PlanejamentoWeekGrid({
   renderPostIt,
   renderPublicacao,
   onAddPauta,
+  onPuxarConteudo,
 }: {
   anchorDate: Date;
   byDate: ReadonlyMap<string, PlanejamentoPostIt[]>;
@@ -42,6 +43,7 @@ export function PlanejamentoWeekGrid({
   renderPostIt: (postIt: PlanejamentoPostIt, compact: boolean) => ReactNode;
   renderPublicacao: (publicacao: PublicacaoNoDia) => ReactNode;
   onAddPauta: (dateKey: string) => void;
+  onPuxarConteudo?: (dateKey: string) => void;
 }) {
   const today = new Date();
   const days = eachDayOfInterval({
@@ -55,21 +57,34 @@ export function PlanejamentoWeekGrid({
       className="w-full min-w-0 overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-strong)] bg-[var(--bg-elevated)] shadow-[var(--shadow-raised)]"
     >
       <div role="row" className="grid grid-cols-7 border-b border-[var(--border-color)]">
-        {days.map(day => (
-          <div
-            key={dateKey(day)}
-            role="columnheader"
-            className="border-r border-[var(--border-color)] px-2 py-2 last:border-r-0"
-          >
-            <Text variant="meta" as="span" className="block uppercase tracking-wide text-[var(--text-secondary)]">
-              {weekdayLabel(day)}
-            </Text>
-            <span className="mt-0.5 flex items-center gap-1.5">
-              <Text variant="sectionTitle" as="span">{format(day, 'd')}</Text>
-              {isSameDay(day, today) ? <Badge variant="neutral">Hoje</Badge> : null}
-            </span>
-          </div>
-        ))}
+        {days.map(day => {
+          const isToday = isSameDay(day, today);
+          return (
+            <div
+              key={dateKey(day)}
+              role="columnheader"
+              className="border-r border-[var(--border-color)] px-2 py-2 last:border-r-0"
+            >
+              <Text variant="label" as="span" className="block text-center uppercase tracking-wide text-[var(--text-secondary)]">
+                {weekdayLabel(day)}
+              </Text>
+              <div className="mt-1 flex items-center justify-center">
+                <Text
+                  variant="bodyStrong"
+                  as="span"
+                  className={cn(
+                    'flex h-6 w-6 items-center justify-center rounded-full',
+                    isToday
+                      ? 'bg-[#ec4899] text-white shadow-sm'
+                      : 'text-[var(--text-primary)]',
+                  )}
+                >
+                  {format(day, 'd')}
+                </Text>
+              </div>
+            </div>
+          );
+        })}
       </div>
       {/* Sem items-start: as colunas esticam até o dia mais cheio e as linhas da grade vão até o fim. */}
       <div role="row" className="grid grid-cols-7">
@@ -99,18 +114,30 @@ export function PlanejamentoWeekGrid({
               <div className="stack-sm">
                 {dayPubs.map(renderPublicacao)}
                 {dayPostIts.map(postIt => renderPostIt(postIt, false))}
-                <AppButton
-                  variant="ghost"
-                  size="xs"
-                  className="mt-0.5 justify-start px-2 text-[var(--text-secondary)]"
-                  leftIcon={<Plus className="h-3.5 w-3.5" />}
-                  aria-label={`Adicionar pauta em ${weekdayLabel(day).toLowerCase()}, ${format(day, 'd')}`}
-                  onClick={() => onAddPauta(key)}
-                >
-                  {/* Coluna estreita: "Adicionar pauta" virava "+ Adici…". */}
-                  <span className="@[9rem]:hidden">Pauta</span>
-                  <span className="hidden @[9rem]:inline">Adicionar pauta</span>
-                </AppButton>
+                <div className="mt-1 flex items-center gap-1 opacity-70 transition-opacity md:opacity-0 md:group-hover/day:opacity-100 md:focus-within:opacity-100 pointer-coarse:opacity-100">
+                  <AppButton
+                    variant="ghost"
+                    size="xs"
+                    className="px-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    leftIcon={<Plus className="h-3 w-3" />}
+                    aria-label={`Criar post-it em ${weekdayLabel(day).toLowerCase()}, ${format(day, 'd')}`}
+                    onClick={() => onAddPauta(key)}
+                  >
+                    Post-it
+                  </AppButton>
+                  {onPuxarConteudo ? (
+                    <AppButton
+                      variant="ghost"
+                      size="xs"
+                      className="px-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                      leftIcon={<ArrowDownToLine className="h-3 w-3" />}
+                      aria-label={`Puxar conteúdo em ${weekdayLabel(day).toLowerCase()}, ${format(day, 'd')}`}
+                      onClick={() => onPuxarConteudo(key)}
+                    >
+                      Puxar
+                    </AppButton>
+                  ) : null}
+                </div>
               </div>
             </div>
           );

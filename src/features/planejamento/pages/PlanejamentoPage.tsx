@@ -2,7 +2,7 @@ import {useEffect, useMemo, useRef, useState, type DragEvent} from 'react';
 import {useNavigate, useSearchParams} from 'react-router-dom';
 import {format} from 'date-fns';
 import {ptBR} from 'date-fns/locale';
-import {CalendarDays, ChevronDown, ChevronRight, LayoutGrid, Pencil, Plus, StickyNote, Trash2} from 'lucide-react';
+import {ArrowDownToLine, CalendarDays, ChevronDown, ChevronRight, LayoutGrid, Pencil, Plus, StickyNote, Trash2} from 'lucide-react';
 import {
   calendarEntryPillStyle,
   CalendarEventPill,
@@ -38,6 +38,9 @@ import {sortPilares} from '../../settings/lib/activePilares';
 import {EncaixeDialog} from '../components/EncaixeDialog';
 import {PlanejamentoResumo} from '../components/PlanejamentoResumo';
 import {PlanejamentoWeekGrid} from '../components/PlanejamentoWeekGrid';
+import {SaudeEditorialPanel} from '../components/SaudeEditorialPanel';
+import {PlanejamentoContentCard} from '../components/PlanejamentoContentCard';
+import {PlanejamentoReservaCard} from '../components/PlanejamentoReservaCard';
 import {PostItRapidoDialog} from '../components/PostItRapidoDialog';
 import {PuxarConteudoDialog} from '../components/PuxarConteudoDialog';
 import {PlanejamentoMobileView} from '../components/PlanejamentoMobileView';
@@ -156,8 +159,20 @@ export function PlanejamentoPage() {
   const {state, dispatch} = useAppContext();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialVista = (searchParams.get('vista') as VistaPlanejamento) || 'mes';
   const [month, setMonth] = useState(new Date());
-  const [vista, setVista] = useState<VistaPlanejamento>('semana');
+  const [vista, setVistaRaw] = useState<VistaPlanejamento>(initialVista);
+
+  const setVista = (novaVista: VistaPlanejamento) => {
+    setVistaRaw(novaVista);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('vista', novaVista);
+      return next;
+    }, {replace: true});
+  };
+
   const [dragOverDay, setDragOverDay] = useState<string | null>(null);
   const [pileOver, setPileOver] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -168,7 +183,6 @@ export function PlanejamentoPage() {
   const [dateDraft, setDateDraft] = useState<string | null>(null);
   const [classeDraft, setClasseDraft] = useState<PostItEdit>({texto: '', date: null});
   const [encaixeId, setEncaixeId] = useState<string | null>(null);
-  const [searchParams, setSearchParams] = useSearchParams();
   const [assuntoFiltroId, setAssuntoFiltroId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [destaqueIds, setDestaqueIds] = useState<Set<string>>(() => new Set());
@@ -660,6 +674,32 @@ export function PlanejamentoPage() {
     }
   };
 
+  const desenvolverReserva = (postIt: PlanejamentoPostIt) => {
+    const result = transformPostIt({
+      postIt,
+      contents,
+      target: 'roteiro',
+    });
+    if (!result.ok) {
+      setEditing(false);
+      setOpenId(postIt.id);
+      return;
+    }
+    void (async () => {
+      await dispatch({
+        type: result.mode === 'create' ? 'ADD_CONTENT' : 'UPDATE_CONTENT',
+        payload: result.content,
+      });
+      await dispatch({type: 'UPDATE_POST_IT', payload: result.postIt});
+    })();
+    if (result.openScript) {
+      navigate(
+        buildContentDetailRoute(result.content.id, 'roteiro'),
+        buildDetailBackState('/planejamento'),
+      );
+    }
+  };
+
   const pulledContentIds = useMemo(
     () => new Set(postIts.flatMap(postIt => postIt.contentId ? [postIt.contentId] : [])),
     [postIts],
@@ -693,17 +733,27 @@ export function PlanejamentoPage() {
         <DesktopPageHeader
           section="Produção"
           title="Planejamento"
+          subtitle="Distribua suas pautas e encontre espaço para novas ideias."
           actions={(
-            <AppButton
-              variant="primary"
-              leftIcon={<Plus className="h-4 w-4" />}
-              onClick={() => {
-                setPullDate(null);
-                setPullOpen(true);
-              }}
-            >
-              Puxar da Criação
-            </AppButton>
+            <>
+              <AppButton
+                variant="primary"
+                leftIcon={<Plus className="h-4 w-4" />}
+                onClick={() => addEmpty(format(new Date(), 'yyyy-MM-dd'))}
+              >
+                Criar post-it
+              </AppButton>
+              <AppButton
+                variant="secondary"
+                leftIcon={<ArrowDownToLine className="h-4 w-4" />}
+                onClick={() => {
+                  setPullDate(null);
+                  setPullOpen(true);
+                }}
+              >
+                Adicionar conteúdo
+              </AppButton>
+            </>
           )}
         />
       )}
@@ -715,8 +765,8 @@ export function PlanejamentoPage() {
           onViewModeChange={mode => setVista(mode)}
           weekViewId="semana"
           views={[
-            {id: 'semana' as const, label: 'Semana'},
             {id: 'mes' as const, label: 'Mês'},
+            {id: 'semana' as const, label: 'Semana'},
           ]}
         />
       )}
@@ -751,212 +801,294 @@ export function PlanejamentoPage() {
         />
       )}
     >
-      {isMobile ? (
-        // Sem padding próprio: o <main> do MobileAppShell já dá 16px dos dois lados.
-        <PlanejamentoMobileView
-            month={month}
-            onMonthChange={setMonth}
-            vista={vista}
-            onVistaChange={setVista}
-            byDate={byDate}
-            publicacoesDoDia={publicacoesDoDia}
-            undated={undated}
-            contents={contents}
-            series={state.series}
-            temas={assuntosDoPlanejamento}
-            renderPostIt={renderMobilePostIt}
-            renderPublicacao={renderPublicacaoMobile}
-            onNovoPostIt={addEmpty}
-            onPuxar={date => {
-              setPullDate(date);
-              setPullOpen(true);
-            }}
-            onEditorial={() => navigate('/editorial')}
-            resumo={
-              <PlanejamentoResumo
+      {(() => {
+        const renderPlanejamentoContentCard = (publicacao: PublicacaoNoDia) => {
+          const content = contentById(contents, publicacao.contentId);
+          const serie = content?.seriesId
+            ? state.series.find(s => s.id === content.seriesId)
+            : null;
+          return (
+            <PlanejamentoContentCard
+              key={publicacao.id}
+              publicacao={publicacao}
+              content={content}
+              serie={serie}
+              onOpen={() => {
+                navigate(
+                  buildContentDetailRoute(publicacao.contentId, 'publicacao'),
+                  buildDetailBackState('/planejamento'),
+                );
+              }}
+            />
+          );
+        };
+
+        const renderPlanejamentoReservaCard = (postIt: PlanejamentoPostIt) => {
+          const content = contentById(contents, postIt.contentId);
+          const serie = (postIt.serieId || content?.seriesId)
+            ? state.series.find(s => s.id === (postIt.serieId || content?.seriesId))
+            : null;
+          const pilarId = postIt.pilarId || content?.pilarId || serie?.pilarPrincipalId;
+          const pilar =
+            state.pilares.find(p => p.id === pilarId) ??
+            (state.pilares.length > 0 ? state.pilares[0] : null);
+
+          return (
+            <PlanejamentoReservaCard
+              key={postIt.id}
+              postIt={postIt}
+              content={content}
+              serie={serie}
+              pilar={pilar}
+              draggable={!isMobile}
+              onDragStart={event => {
+                if (isMobile) return;
+                const ids =
+                  selectedIds.has(postIt.id) && selectedIds.size > 0
+                    ? [...selectedIds]
+                    : [postIt.id];
+                const payload = ids.join('\n');
+                event.dataTransfer.setData(POST_IT_MIME, payload);
+                event.dataTransfer.setData('text/plain', payload);
+                event.dataTransfer.effectAllowed = 'move';
+              }}
+              onOpen={() => {
+                setEditing(false);
+                setOpenId(postIt.id);
+              }}
+              onDesenvolver={() => desenvolverReserva(postIt)}
+              onDelete={() => removePostItById(postIt.id)}
+            />
+          );
+        };
+
+        if (isMobile) {
+          return (
+            <div className="stack-md pb-8">
+              <SaudeEditorialPanel
+                currentDate={month}
                 counts={monthHealth.counts}
-                entries={monthHealth.counts.entries}
                 series={state.series}
                 pilares={state.pilares}
-                temas={state.temas}
-                obras={state.bibliotecaItems}
-                contents={contents}
-                temDistribuicao={monthHealth.temDistribuicao}
-                outrasRedes={monthHealth.counts.outrasRedes}
-                vista={vista}
-                avisos={avisosOrientacao}
-                avisoAtivoId={avisoAtivoId}
-                onVerPautas={verPautasDoAviso}
-                onLimparDestaque={limparDestaque}
+                onAddReserva={() => addEmpty(format(new Date(), 'yyyy-MM-dd'))}
+                onOpenGravacao={() => navigate('/gravacao')}
               />
-            }
-            assuntoFiltroId={assuntoFiltroId}
-            onAssuntoFiltroChange={setAssuntoFiltroId}
-          />
-      ) : (
-        // Sem padding lateral próprio: o frame já dá a margem, e assim o conteúdo alinha com o título.
-        <div className="stack-md pt-4 pb-8">
-        {direcaoAberta ? (
-          <div id="direcao-periodo-planejamento" className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-4">
-            <PeriodoPanel
-              periodo={periodoEditorial}
-              onPeriodoChange={salvarPeriodoEditorial}
-              onAbrirAjustes={() => navigate('/editorial?aba=direcao')}
-            />
-          </div>
-        ) : null}
-
-        <PlanejamentoResumo
-          layout="faixa"
-          redeReferencia={redeReferencia}
-          atalhos={(
-            <AppButton
-              variant="ghost"
-              size="sm"
-              leftIcon={<LayoutGrid className="h-4 w-4" />}
-              onClick={() => navigate('/editorial')}
-            >
-              Editorial
-            </AppButton>
-          )}
-          counts={monthHealth.counts}
-          entries={monthHealth.counts.entries}
-          series={state.series}
-          pilares={state.pilares}
-          temas={state.temas}
-          obras={state.bibliotecaItems}
-          contents={contents}
-          temDistribuicao={monthHealth.temDistribuicao}
-          outrasRedes={monthHealth.counts.outrasRedes}
-          vista={vista}
-          avisos={avisosOrientacao}
-          avisoAtivoId={avisoAtivoId}
-          onVerPautas={verPautasDoAviso}
-          onLimparDestaque={limparDestaque}
-        />
-
-        {selectedIds.size > 0 ? (
-          <Surface variant="outlined" padding="sm" className="flex flex-wrap items-center justify-between gap-3">
-            <Text variant="meta" className="text-[var(--text-secondary)]">
-              {selectedIds.size === 1 ? '1 post-it selecionado.' : `${selectedIds.size} post-its selecionados.`} Arraste um deles para mover todos.
-            </Text>
-            <div className="flex flex-wrap items-center gap-2">
-              <AppButton
-                variant="secondary"
-                size="sm"
-                leftIcon={<Trash2 className="h-4 w-4" />}
-                onClick={removeSelected}
-              >
-                {selectedIds.size === 1 ? 'Apagar 1' : `Apagar ${selectedIds.size}`}
-              </AppButton>
-              <AppButton variant="ghost" size="sm" onClick={clearSelection}>
-                Sair da seleção
-              </AppButton>
-            </div>
-          </Surface>
-        ) : null}
-
-        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_17rem] xl:items-start 2xl:grid-cols-[minmax(0,1fr)_20rem]">
-          <div className="stack-md min-w-0">
-            {vista === 'semana' ? (
-              <PlanejamentoWeekGrid
-                anchorDate={month}
+              <PlanejamentoMobileView
+                month={month}
+                onMonthChange={setMonth}
+                vista={vista}
+                onVistaChange={setVista}
                 byDate={byDate}
                 publicacoesDoDia={publicacoesDoDia}
-                dragOverDay={dragOverDay}
-                onDayDragOver={(key) => {
-                  setDragOverDay(key);
-                  setPileOver(false);
+                undated={undated}
+                contents={contents}
+                series={state.series}
+                temas={assuntosDoPlanejamento}
+                renderPostIt={renderPlanejamentoReservaCard}
+                renderPublicacao={renderPlanejamentoContentCard}
+                onNovoPostIt={addEmpty}
+                onPuxar={date => {
+                  setPullDate(date);
+                  setPullOpen(true);
                 }}
-                onDayDragLeave={() => setDragOverDay(null)}
-                onDayDrop={(key, event) => {
-                  setDragOverDay(null);
-                  const ids = readDragIds(event);
-                  if (ids.length > 0) moveMany(ids, key);
-                }}
-                renderPostIt={(postIt, compact) => renderPostIt(postIt, compact)}
-                renderPublicacao={publicacao => renderPublicacao(publicacao, 'expanded')}
-                onAddPauta={addEmpty}
+                onEditorial={() => navigate('/editorial')}
+                resumo={
+                  <PlanejamentoResumo
+                    counts={monthHealth.counts}
+                    entries={monthHealth.counts.entries}
+                    series={state.series}
+                    pilares={state.pilares}
+                    temas={state.temas}
+                    obras={state.bibliotecaItems}
+                    contents={contents}
+                    temDistribuicao={monthHealth.temDistribuicao}
+                    outrasRedes={monthHealth.counts.outrasRedes}
+                    vista={vista}
+                    avisos={avisosOrientacao}
+                    avisoAtivoId={avisoAtivoId}
+                    onVerPautas={verPautasDoAviso}
+                    onLimparDestaque={limparDestaque}
+                  />
+                }
+                assuntoFiltroId={assuntoFiltroId}
+                onAssuntoFiltroChange={setAssuntoFiltroId}
               />
-            ) : (
-              <CalendarMonthGrid
-                anchorDate={month}
-                weekStartsOn={0}
-                minCellHeight={96}
-                expandContent
-                tone="elevated"
-                getDayClassName={day => cn(
-                  'group/day',
-                  dragOverDay === day.dateKey && 'bg-[color-mix(in_srgb,var(--accent-orange)_12%,transparent)]',
-                )}
-                onDayDragOver={(day, event) => {
-                  event.preventDefault();
-                  setDragOverDay(day.dateKey);
-                  setPileOver(false);
-                }}
-                onDayDragLeave={() => setDragOverDay(null)}
-                onDayDrop={(day, event) => {
-                  event.preventDefault();
-                  setDragOverDay(null);
-                  const ids = readDragIds(event);
-                  if (ids.length > 0) moveMany(ids, day.dateKey);
-                }}
-                renderDayContent={day => {
-                  const dayPostIts = byDate.get(day.dateKey) ?? [];
-                  return (
-                    <div className="@container stack-sm">
-                      {(publicacoesDoDia.get(day.dateKey) ?? []).map(publicacao => renderPublicacao(publicacao))}
-                      {dayPostIts.map(postIt => renderPostIt(postIt, true))}
-                      <AppButton
-                        variant="ghost"
-                        size="xs"
-                        className="justify-start px-2 text-[var(--text-secondary)] opacity-70 transition-opacity md:opacity-0 md:group-hover/day:opacity-100 md:focus-within:opacity-100 pointer-coarse:opacity-100"
-                        leftIcon={<Plus className="h-3.5 w-3.5" />}
-                        aria-label={`Adicionar pauta no dia ${format(day.day, 'd')}`}
-                        onClick={event => {
-                          event.stopPropagation();
-                          addEmpty(day.dateKey);
-                        }}
-                      >
-                        <span className="@[9rem]:hidden">Pauta</span>
-                        <span className="hidden @[9rem]:inline">Adicionar pauta</span>
-                      </AppButton>
-                    </div>
-                  );
-                }}
-              />
-            )}
-          </div>
+            </div>
+          );
+        }
 
-          <SemDataPanel
-            undated={undated}
-            contents={contents}
-            series={state.series}
-            temas={state.temas}
-            pileOver={pileOver}
-            // top-32: abaixo do cabeçalho fixo da página (com top-4 o título e a busca ficavam por baixo dele).
-            className="xl:sticky xl:top-32 xl:max-h-[calc(100vh-9rem)] xl:overflow-y-auto"
-            onDragOver={event => {
-              event.preventDefault();
-              setPileOver(true);
-              setDragOverDay(null);
-            }}
-            onDragLeave={event => {
-              const next = event.relatedTarget;
-              if (next instanceof Node && event.currentTarget.contains(next)) return;
-              setPileOver(false);
-            }}
-            onDrop={event => {
-              event.preventDefault();
-              setPileOver(false);
-              const ids = readDragIds(event);
-              if (ids.length > 0) moveMany(ids, null);
-            }}
-            renderPostIt={postIt => renderPostIt(postIt, false)}
-          />
-        </div>
-      </div>
-      )}
+        return (
+          // Sem padding lateral próprio: o frame já dá a margem, e assim o conteúdo alinha com o título.
+          <div className="stack-md pt-4 pb-8">
+            {direcaoAberta ? (
+              <div id="direcao-periodo-planejamento" className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-4">
+                <PeriodoPanel
+                  periodo={periodoEditorial}
+                  onPeriodoChange={salvarPeriodoEditorial}
+                  onAbrirAjustes={() => navigate('/editorial?aba=direcao')}
+                />
+              </div>
+            ) : null}
+
+            <SaudeEditorialPanel
+              currentDate={month}
+              counts={monthHealth.counts}
+              series={state.series}
+              pilares={state.pilares}
+              onAddReserva={() => addEmpty(format(new Date(), 'yyyy-MM-dd'))}
+              onOpenGravacao={() => navigate('/gravacao')}
+            />
+
+            {selectedIds.size > 0 ? (
+              <Surface variant="outlined" padding="sm" className="flex flex-wrap items-center justify-between gap-3">
+                <Text variant="meta" className="text-[var(--text-secondary)]">
+                  {selectedIds.size === 1 ? '1 post-it selecionado.' : `${selectedIds.size} post-its selecionados.`} Arraste um deles para mover todos.
+                </Text>
+                <div className="flex flex-wrap items-center gap-2">
+                  <AppButton
+                    variant="secondary"
+                    size="sm"
+                    leftIcon={<Trash2 className="h-4 w-4" />}
+                    onClick={removeSelected}
+                  >
+                    {selectedIds.size === 1 ? 'Apagar 1' : `Apagar ${selectedIds.size}`}
+                  </AppButton>
+                  <AppButton variant="ghost" size="sm" onClick={clearSelection}>
+                    Sair da seleção
+                  </AppButton>
+                </div>
+              </Surface>
+            ) : null}
+
+            <div className={cn(
+              vista === 'semana'
+                ? 'grid gap-3 xl:grid-cols-[minmax(0,1fr)_17rem] xl:items-start 2xl:grid-cols-[minmax(0,1fr)_20rem]'
+                : 'w-full min-w-0'
+            )}>
+              <div className="stack-md min-w-0">
+                {vista === 'semana' ? (
+                  <PlanejamentoWeekGrid
+                    anchorDate={month}
+                    byDate={byDate}
+                    publicacoesDoDia={publicacoesDoDia}
+                    dragOverDay={dragOverDay}
+                    onDayDragOver={(key) => {
+                      setDragOverDay(key);
+                      setPileOver(false);
+                    }}
+                    onDayDragLeave={() => setDragOverDay(null)}
+                    onDayDrop={(key, event) => {
+                      setDragOverDay(null);
+                      const ids = readDragIds(event);
+                      if (ids.length > 0) moveMany(ids, key);
+                    }}
+                    renderPostIt={renderPlanejamentoReservaCard}
+                    renderPublicacao={renderPlanejamentoContentCard}
+                    onAddPauta={addEmpty}
+                    onPuxarConteudo={key => {
+                      setPullDate(key);
+                      setPullOpen(true);
+                    }}
+                  />
+                ) : (
+                  <CalendarMonthGrid
+                    anchorDate={month}
+                    weekStartsOn={1}
+                    headerFormat="short"
+                    dayNumberAlign="start"
+                    minCellHeight={110}
+                    expandContent
+                    tone="elevated"
+                    getDayClassName={day => cn(
+                      'group/day',
+                      dragOverDay === day.dateKey && 'bg-[color-mix(in_srgb,var(--accent-orange)_12%,transparent)]',
+                    )}
+                    onDayDragOver={(day, event) => {
+                      event.preventDefault();
+                      setDragOverDay(day.dateKey);
+                      setPileOver(false);
+                    }}
+                    onDayDragLeave={() => setDragOverDay(null)}
+                    onDayDrop={(day, event) => {
+                      event.preventDefault();
+                      setDragOverDay(null);
+                      const ids = readDragIds(event);
+                      if (ids.length > 0) moveMany(ids, day.dateKey);
+                    }}
+                    renderDayContent={day => {
+                      const dayPostIts = byDate.get(day.dateKey) ?? [];
+                      const dayPublicacoes = publicacoesDoDia.get(day.dateKey) ?? [];
+                      return (
+                        <div className="@container stack-sm">
+                          {dayPublicacoes.map(renderPlanejamentoContentCard)}
+                          {dayPostIts.map(renderPlanejamentoReservaCard)}
+                          <div className="mt-1 flex items-center gap-1 opacity-70 transition-opacity md:opacity-0 md:group-hover/day:opacity-100 md:focus-within:opacity-100 pointer-coarse:opacity-100">
+                            <AppButton
+                              variant="ghost"
+                              size="xs"
+                              className="px-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                              leftIcon={<Plus className="h-3 w-3" />}
+                              aria-label={`Criar post-it no dia ${format(day.day, 'd')}`}
+                              onClick={event => {
+                                event.stopPropagation();
+                                addEmpty(day.dateKey);
+                              }}
+                            >
+                              Post-it
+                            </AppButton>
+                            <AppButton
+                              variant="ghost"
+                              size="xs"
+                              className="px-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                              leftIcon={<ArrowDownToLine className="h-3 w-3" />}
+                              aria-label={`Puxar da criação para o dia ${format(day.day, 'd')}`}
+                              onClick={event => {
+                                event.stopPropagation();
+                                setPullDate(day.dateKey);
+                                setPullOpen(true);
+                              }}
+                            >
+                              Puxar
+                            </AppButton>
+                          </div>
+                        </div>
+                      );
+                    }}
+                  />
+                )}
+              </div>
+
+              {vista === 'semana' && (
+                <SemDataPanel
+                  undated={undated}
+                  contents={contents}
+                  series={state.series}
+                  temas={state.temas}
+                  pileOver={pileOver}
+                  className="xl:sticky xl:top-32 xl:max-h-[calc(100vh-9rem)] xl:overflow-y-auto"
+                  onDragOver={event => {
+                    event.preventDefault();
+                    setPileOver(true);
+                    setDragOverDay(null);
+                  }}
+                  onDragLeave={event => {
+                    const next = event.relatedTarget;
+                    if (next instanceof Node && event.currentTarget.contains(next)) return;
+                    setPileOver(false);
+                  }}
+                  onDrop={event => {
+                    event.preventDefault();
+                    setPileOver(false);
+                    const ids = readDragIds(event);
+                    if (ids.length > 0) moveMany(ids, null);
+                  }}
+                  renderPostIt={renderPlanejamentoReservaCard}
+                />
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       <Dialog open={Boolean(openPostIt)} onClose={closePostIt} desktopMaxW="max-w-lg" ariaLabel="Post-it">
         {openPostIt ? (
@@ -1086,24 +1218,11 @@ export function PlanejamentoPage() {
                       Objetivo, série e pilar vêm do roteiro ligado.
                     </Text>
                   ) : (
-                    <section className="stack-sm" aria-labelledby="postit-espaco">
-                      <Text variant="label" as="h3"><span id="postit-espaco">Para que é este espaço</span></Text>
-                      <TagSelect
-                        id="postit-objetivo"
-                        label="Objetivo"
-                        placeholder="Sem objetivo"
-                        maxSelections={1}
-                        values={classeDraft.objetivo ? [classeDraft.objetivo] : []}
-                        options={FUNCOES.map(funcao => ({value: funcao, label: FUNCAO_LABELS[funcao]}))}
-                        onChange={values => setClasseDraft(atual => ({
-                          ...atual,
-                          objetivo: isFuncaoEditorial(values[0]) ? values[0] : null,
-                        }))}
-                      />
+                    <div className="stack-sm">
                       <TagSelect
                         id="postit-serie"
-                        label="Série"
-                        placeholder="Sem série"
+                        label="Série ou quadro"
+                        placeholder="Sem série (cor neutra)"
                         searchable
                         maxSelections={1}
                         values={classeDraft.serieId ? [classeDraft.serieId] : []}
@@ -1113,27 +1232,16 @@ export function PlanejamentoPage() {
                           state.series.find(serie => serie.id === values[0]) ?? null,
                         ))}
                       />
-                      <TagSelect
-                        id="postit-pilar"
-                        label="Pilar"
-                        placeholder="Sem pilar"
-                        maxSelections={1}
-                        values={classeDraft.pilarId ? [classeDraft.pilarId] : []}
-                        options={opcoesDePilar}
-                        onChange={values => setClasseDraft(atual => ({...atual, pilarId: values[0] ?? null}))}
-                      />
-                      <Text variant="meta" className="text-[var(--text-secondary)]">
-                        Escolher a série preenche pilar e objetivo vazios.
-                      </Text>
-                    </section>
+                    </div>
                   )
                 ) : null}
                 {editing ? (
                   <div className="stack-sm">
-                    <Text variant="label" as="span">Rede</Text>
+                    <Text variant="label" as="span">Conta de publicação</Text>
                     <RedeChips
                       value={classeDraft.redes ?? []}
                       onChange={redes => setClasseDraft(atual => ({...atual, redes}))}
+                      platforms={state.platforms}
                     />
                   </div>
                 ) : null}
@@ -1274,9 +1382,9 @@ export function PlanejamentoPage() {
         date={rapidoDate ?? null}
         series={state.series}
         pilares={state.pilares}
+        platforms={state.platforms}
         onClose={fecharRapido}
         onSalvar={salvarRapido}
-        onMaisOpcoes={maisOpcoesDoRapido}
       />
 
       <EncaixeDialog postIt={encaixePostIt} onClose={() => setEncaixeId(null)} zIndex="z-[140]" />

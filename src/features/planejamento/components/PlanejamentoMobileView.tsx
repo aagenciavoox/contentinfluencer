@@ -10,7 +10,7 @@ import {
   startOfWeek,
 } from 'date-fns';
 import {ptBR} from 'date-fns/locale';
-import {LayoutGrid, Plus, StickyNote} from 'lucide-react';
+import {ArrowDownToLine, LayoutGrid, Plus, StickyNote} from 'lucide-react';
 import {CalendarPeriodNav} from '../../../components/calendar';
 import {AppButton} from '../../../components/ui/AppButton';
 import {Badge} from '../../../components/ui/Badge';
@@ -26,7 +26,7 @@ import type {VistaPlanejamento} from '../lib/periodoPlanejamento';
 import {SemDataPanel} from './SemDataPanel';
 
 const TODOS_OS_ASSUNTOS = '__todos';
-const WEEK_STARTS_ON = 0;
+const WEEK_STARTS_ON = 1;
 
 interface PlanejamentoMobileViewProps {
   month: Date;
@@ -99,6 +99,7 @@ function DayList({
   renderPostIt,
   renderPublicacao,
   onNovoPostIt,
+  onPuxar,
   showEmptyDays,
 }: {
   days: Date[];
@@ -109,6 +110,7 @@ function DayList({
   renderPostIt: (postIt: PlanejamentoPostIt) => ReactNode;
   renderPublicacao: (publicacao: PublicacaoNoDia) => ReactNode;
   onNovoPostIt: (date: string | null) => void;
+  onPuxar: (date: string | null) => void;
   showEmptyDays: boolean;
 }) {
   const entries = days
@@ -147,9 +149,14 @@ function DayList({
                 {dayLabel(item.day)}
                 {isToday ? <Badge variant="neutral">Hoje</Badge> : null}
               </Text>
-              <AppButton variant="ghost" size="xs" leftIcon={<Plus className="h-3.5 w-3.5" />} onClick={() => onNovoPostIt(item.key)}>
-                Adicionar
-              </AppButton>
+              <div className="flex items-center gap-1">
+                <AppButton variant="ghost" size="xs" leftIcon={<Plus className="h-3 w-3" />} onClick={() => onNovoPostIt(item.key)}>
+                  Post-it
+                </AppButton>
+                <AppButton variant="ghost" size="xs" leftIcon={<ArrowDownToLine className="h-3 w-3" />} onClick={() => onPuxar(item.key)}>
+                  Puxar
+                </AppButton>
+              </div>
             </div>
             {item.publicacoes.length > 0 ? (
               <div className="stack-sm min-w-0">
@@ -276,8 +283,8 @@ export function PlanejamentoMobileView({
           onViewModeChange={mode => onVistaChange(mode)}
           weekViewId="semana"
           views={[
-            {id: 'semana' as const, label: 'Semana'},
             {id: 'mes' as const, label: 'Mês'},
+            {id: 'semana' as const, label: 'Semana'},
           ]}
         />
         <AppButton variant="secondary" size="sm" leftIcon={<LayoutGrid className="h-4 w-4" />} onClick={onEditorial}>
@@ -306,6 +313,7 @@ export function PlanejamentoMobileView({
           renderPostIt={renderPostIt}
           renderPublicacao={renderPublicacao}
           onNovoPostIt={onNovoPostIt}
+          onPuxar={onPuxar}
           showEmptyDays
         />
       ) : (
@@ -358,6 +366,7 @@ export function PlanejamentoMobileView({
                   renderPostIt={renderPostIt}
                   renderPublicacao={renderPublicacao}
                   onNovoPostIt={onNovoPostIt}
+                  onPuxar={onPuxar}
                   showEmptyDays={false}
                 />
               </section>
