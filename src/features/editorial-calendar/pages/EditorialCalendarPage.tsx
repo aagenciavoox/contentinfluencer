@@ -880,6 +880,8 @@ function getEntryLabel(entry: CalendarEntry) {
         : 'Evento';
 }
 
+const WEEKDAYS_SHORT_PT = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'] as const;
+
 function CalendarWeekView({
   weekDate,
   selectedDate,
@@ -901,9 +903,10 @@ function CalendarWeekView({
   onDayDragLeave?: () => void;
   onDayDrop?: (dateKey: string, event: DragEvent) => void;
 }) {
+  const today = new Date();
   const days = eachDayOfInterval({
-    start: startOfWeek(weekDate, {weekStartsOn: 0}),
-    end: endOfWeek(weekDate, {weekStartsOn: 0}),
+    start: startOfWeek(weekDate, {weekStartsOn: 1}),
+    end: endOfWeek(weekDate, {weekStartsOn: 1}),
   });
 
   return (
@@ -911,22 +914,27 @@ function CalendarWeekView({
       <div className="grid grid-cols-7 border-b border-[var(--border-color)] bg-[color-mix(in_srgb,var(--surface-subtle),transparent_10%)]">
         {days.map(day => {
           const active = isSameDay(day, selectedDate);
+          const isToday = isSameDay(day, today);
           return (
             <button
               key={day.toISOString()}
               type="button"
               onClick={() => onSelectDate(day)}
               className={cn(
-                'flex flex-col items-center gap-1 border-r border-[var(--border-color)] py-4 text-center last:border-r-0 transition-colors',
+                'flex flex-col items-center gap-1 border-r border-[var(--border-color)] py-3 text-center last:border-r-0 transition-colors',
                 active && 'bg-[color-mix(in_srgb,var(--accent-blue),transparent_94%)]'
               )}
             >
               <Text variant="label" as="span" className="uppercase text-[var(--text-tertiary)]">
-                {format(day, 'EEE', {locale: ptBR})}
+                {WEEKDAYS_SHORT_PT[day.getDay()]}
               </Text>
               <Text variant="bodyStrong" as="span" className={cn(
-                'flex h-9 w-9 items-center justify-center rounded-full text-[var(--text-primary)]',
-                active && 'bg-[var(--accent-blue)] text-[var(--text-on-accent-color)]'
+                'flex h-8 w-8 items-center justify-center rounded-full text-[var(--text-primary)]',
+                isToday
+                  ? 'bg-[#ec4899] text-white shadow-sm'
+                  : active
+                    ? 'bg-[var(--accent-blue)] text-[var(--text-on-accent-color)]'
+                    : ''
               )}>
                 {format(day, 'd')}
               </Text>

@@ -19,7 +19,7 @@ import {diasCobertos, papelNoIntervalo} from '../../projects/lib/agendaEventos';
 import {calendarEntryIcon} from './CalendarNetworkIcons';
 import {rotuloDaRef} from '../../contas/lib/contas';
 
-const WEEK_STARTS_ON = 0 as const;
+const WEEK_STARTS_ON = 1 as const;
 
 type MonthlyCalendarViewProps = {
   contents: Content[];
@@ -290,6 +290,8 @@ export function MonthlyCalendarView({
           selectedDate={selectedDate}
           onSelectDate={onSelectDate}
           weekStartsOn={WEEK_STARTS_ON}
+          headerFormat="short"
+          dayNumberAlign="start"
           minCellHeight={120}
           getDayClassName={dayProps => cn(
             dragOverDateKey === dayProps.dateKey && 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]',

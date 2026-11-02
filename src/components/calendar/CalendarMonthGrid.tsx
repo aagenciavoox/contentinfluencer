@@ -26,6 +26,8 @@ interface CalendarMonthGridProps {
   selectedDate?: Date;
   onSelectDate?: (date: Date) => void;
   weekStartsOn?: 0 | 1;
+  headerFormat?: 'full' | 'short' | 'compact';
+  dayNumberAlign?: 'start' | 'end';
   minCellHeight?: number;
   expandContent?: boolean;
   stickyHeader?: boolean;
@@ -42,14 +44,18 @@ interface CalendarMonthGridProps {
   renderWeekAside?: (weekStart: Date) => ReactNode;
 }
 
+const WEEKDAYS_SHORT_PT = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'] as const;
+
 /**
  * Rótulo da coluna de um calendário mensal: só o dia da semana, sem data,
  * porque a linha de cabeçalho vale para todas as semanas da grade.
  */
 export function weekdayHeaderLabel(day: Date) {
   const full = format(day, 'EEEE', {locale: ptBR}).split('-')[0];
+  const shortName = WEEKDAYS_SHORT_PT[day.getDay()];
   return {
     compact: format(day, 'EEEEE', {locale: ptBR}).toUpperCase(),
+    short: shortName,
     full: full.charAt(0).toUpperCase() + full.slice(1),
   };
 }
@@ -59,6 +65,8 @@ export function CalendarMonthGrid({
   selectedDate,
   onSelectDate,
   weekStartsOn = 0,
+  headerFormat = 'full',
+  dayNumberAlign = 'end',
   minCellHeight = 120,
   expandContent = false,
   stickyHeader = false,
@@ -122,16 +130,27 @@ export function CalendarMonthGrid({
             </span>
           </div>
         ) : null}
-        {headerDays.map(day => (
-          <div
-            key={`header-${day.toISOString()}`}
-            role="columnheader"
-            className="min-w-0 border-r border-[var(--border-color)] px-1 py-2.5 text-center last:border-r-0 sm:px-2"
-          >
-            <span className={cn(headerLabelClass, 'sm:hidden')}>{weekdayHeaderLabel(day).compact}</span>
-            <span className={cn(headerLabelClass, 'hidden sm:inline')}>{weekdayHeaderLabel(day).full}</span>
-          </div>
-        ))}
+        {headerDays.map(day => {
+          const labels = weekdayHeaderLabel(day);
+          const headerText =
+            headerFormat === 'short'
+              ? labels.short
+              : headerFormat === 'compact'
+              ? labels.compact
+              : labels.full;
+
+          return (
+            <div
+              key={`header-${day.toISOString()}`}
+              role="columnheader"
+              className="min-w-0 border-r border-[var(--border-color)] px-1 py-2 text-center last:border-r-0 sm:px-2"
+            >
+              <Text variant="label" as="span" className={cn(headerLabelClass)}>
+                {headerText}
+              </Text>
+            </div>
+          );
+        })}
       </div>
 
       {weeks.map(week => (
@@ -182,7 +201,7 @@ export function CalendarMonthGrid({
                 onDragLeave={() => onDayDragLeave?.(dayProps)}
                 onDrop={event => onDayDrop?.(dayProps, event)}
                 className={cn(
-                  'flex min-w-0 flex-col border-b border-r border-[var(--border-color)] p-1 transition-colors last:border-r-0 sm:p-2',
+                  'flex min-w-0 flex-col border-b border-r border-[var(--border-color)] p-1.5 transition-colors last:border-r-0 sm:p-2',
                   interactive && 'cursor-pointer hover:bg-[color-mix(in_srgb,var(--surface-subtle),transparent_30%)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent-blue)]',
                   expandContent && 'h-auto',
                   // Fora do mês: fundo da página e número apagado, sem opacidade (o texto mantém contraste).
@@ -192,12 +211,12 @@ export function CalendarMonthGrid({
                   extraClass,
                 )}
               >
-                <div className="mb-1 flex shrink-0 justify-end">
+                <div className={cn('mb-1.5 flex shrink-0', dayNumberAlign === 'start' ? 'justify-start' : 'justify-end')}>
                   <Text variant="bodyStrong" as="span"
                     className={cn(
-                      'flex h-7 w-7 items-center justify-center rounded-full ',
+                      'flex h-6 w-6 items-center justify-center rounded-full',
                       isToday
-                        ? 'bg-[var(--accent)] text-[var(--bg-primary)]'
+                        ? 'bg-[#ec4899] text-white shadow-sm'
                         : isSelected
                           ? 'bg-[color-mix(in_srgb,var(--accent),transparent_88%)] text-[var(--text-primary)]'
                           : inMonth
