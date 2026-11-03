@@ -45,11 +45,11 @@ export function ChoiceChips<T extends string>({
                 : 'border-[var(--border-color)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)]',
             )}
           >
-            <Text variant="meta" className=" text-[var(--text-primary)]">
+            <Text variant="meta" className="block text-[var(--text-primary)]">
               {option.label}
             </Text>
             {option.description ? (
-              <Text variant="meta" className="mt-0.5 text-[var(--text-secondary)]">
+              <Text variant="meta" className="mt-0.5 block text-[var(--text-secondary)]">
                 {option.description}
               </Text>
             ) : null}

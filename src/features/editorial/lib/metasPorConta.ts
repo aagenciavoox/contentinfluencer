@@ -71,6 +71,55 @@ export function linhaDaContaEm(linhas: readonly MetaDaContaVigencia[], dia: stri
   return vale;
 }
 
+/** A linha da conta que vale nesta semana; null quando a conta ainda não tem meta. */
+export function metaDaContaHoje(
+  linhas: readonly MetaDaContaVigencia[],
+  platformId: string,
+  hoje: string,
+): MetaDaContaVigencia | null {
+  return linhaDaContaEm(linhasDaConta(linhas, platformId), semanaDe(hoje).inicio);
+}
+
+/** Mudança da conta já agendada para depois desta semana (a primeira). */
+export function proximaMudancaDaConta(
+  linhas: readonly MetaDaContaVigencia[],
+  platformId: string,
+  hoje: string,
+): MetaDaContaVigencia | null {
+  const estaSemana = semanaDe(hoje).inicio;
+  return linhasDaConta(linhas, platformId).find(linha => linha.vigenteDesde > estaSemana) ?? null;
+}
+
+/**
+ * Ritmo da conta a partir de um domingo escolhido, nunca antes desta semana. Outro valor no mesmo
+ * domingo é trocado; as linhas anteriores ficam como histórico. Limite vazio = a conta fica sem meta dali em diante.
+ */
+export function agendarMetaDaConta(
+  linhas: readonly MetaDaContaVigencia[],
+  platformId: string,
+  desde: string,
+  valores: Pick<MetaDaContaVigencia, 'limiteSemanal' | 'proporcaoFuncoes' | 'parcelasFormato'>,
+  hoje: string,
+): MetaDaContaVigencia[] {
+  const estaSemana = semanaDe(hoje).inicio;
+  const domingo = semanaDe(desde < estaSemana ? estaSemana : desde).inicio;
+  return [
+    ...linhas.filter(linha => !(linha.platformId === platformId && linha.vigenteDesde === domingo)),
+    { platformId, vigenteDesde: domingo, ...valores },
+  ];
+}
+
+/** Desfaz uma mudança da conta ainda agendada. A que já vale fica: mudar de novo cria outra linha. */
+export function desfazerMudancaDaConta(
+  linhas: readonly MetaDaContaVigencia[],
+  platformId: string,
+  vigenteDesde: string,
+  hoje: string,
+): MetaDaContaVigencia[] {
+  if (vigenteDesde <= semanaDe(hoje).inicio) return [...linhas];
+  return linhas.filter(linha => !(linha.platformId === platformId && linha.vigenteDesde === vigenteDesde));
+}
+
 function parcelasLimpas(parcelas: Record<string, number> | null | undefined): Array<{ formato: string; porSemana: number }> {
   if (!parcelas) return [];
   return Object.entries(parcelas)
@@ -97,7 +146,8 @@ export function metaDaConta(input: {
   const linhas = linhasDaConta(input.linhas, input.platformId);
   const hoje = input.hoje ?? new Date().toISOString().slice(0, 10);
   const vigente = periodoVigente(input.periodo, hoje);
-  const atual = linhaDaContaEm(linhas, semanaDe(hoje).inicio);
+  const estaSemana = semanaDe(hoje).inicio;
+  const atual = linhaDaContaEm(linhas, estaSemana);
   // A linha que manda na proporção e nas parcelas: a de hoje no período vigente, a do início no encerrado.
   const referencia = vigente ? atual : linhaDaContaEm(linhas, semanaDe(input.periodo.inicio).inicio);
 
@@ -109,7 +159,11 @@ export function metaDaConta(input: {
     hoje,
     diasPausados: diasDePausa(input.pausas ?? [], { tipo: 'conta', platformId: input.platformId }, input.periodo),
     limiteDaSemana: vigente
-      ? () => atual?.limiteSemanal ?? null
+      // Vigente: o ritmo de hoje, e nas semanas futuras a mudança da conta já agendada.
+      ? inicioSemana => {
+        const agendada = inicioSemana > estaSemana ? linhaDaContaEm(linhas, inicioSemana) : null;
+        return agendada && agendada.vigenteDesde > estaSemana ? agendada.limiteSemanal : atual?.limiteSemanal ?? null;
+      }
       : inicioSemana => linhaDaContaEm(linhas, inicioSemana)?.limiteSemanal ?? null,
   });
 

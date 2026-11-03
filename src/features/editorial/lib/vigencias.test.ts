@@ -2,7 +2,23 @@ import assert from 'node:assert/strict';
 import { atualizarPreferencias, atualizarProporcao, DEFAULT_EDITORIAL_SETTINGS, type EditorialSettings } from './editorialSettings.ts';
 import { contarPeriodo } from './gradeCounts.ts';
 import { limiteDoIntervalo } from './periodoEditorial.ts';
-import { limiteSemanalDoPeriodo, limiteSemanalNaSemana, metaComAjuste, periodoVigente, proporcaoDoIntervalo, registrarVigencia, vigenciaNaSemana } from './vigencias.ts';
+import {
+  agendarVigencia,
+  desfazerMudanca,
+  diretrizNoDomingo,
+  alinharComVigenciaAgendada,
+  domingosParaVigencia,
+  limiteDaSemanaNoPeriodo,
+  limiteSemanalDoPeriodo,
+  limiteSemanalNaSemana,
+  metaComAjuste,
+  mudancasAgendadas,
+  periodoVigente,
+  proporcaoDoIntervalo,
+  proximaMudanca,
+  registrarVigencia,
+  vigenciaNaSemana,
+} from './vigencias.ts';
 
 // Sexta, 30/10/2026. A semana começa no domingo 25/10.
 const HOJE = new Date(2026, 9, 30, 12);
@@ -143,3 +159,55 @@ for (const [name, test] of tests) {
   assert.equal(cp.limite, 8 + 4);
   console.log('vigencias (período vigente): ok');
 }
+
+// --- Mudança com data escolhida: desta semana vale já; de um domingo futuro fica agendada.
+{
+  const hoje = '2026-11-03';
+  const base = { ...comLimite(10, [{ vigenteDesde: '2000-01-02', limiteSemanal: 10, proporcaoFuncoes: null }]) };
+  const { estaSemana, proxima } = domingosParaVigencia(hoje);
+  assert.deepEqual([estaSemana, proxima], ['2026-11-01', '2026-11-08']);
+
+  const agora = agendarVigencia(base, estaSemana, { limiteSemanal: 14, proporcaoFuncoes: null }, hoje);
+  assert.equal(agora.preferencias.limiteSemanal, 14, 'desta semana: vale já');
+
+  const agendada = agendarVigencia(base, proxima, { limiteSemanal: 14, proporcaoFuncoes: null }, hoje);
+  assert.equal(agendada.preferencias.limiteSemanal, 10, 'agendada: o ritmo de hoje continua');
+  assert.equal(proximaMudanca(agendada.vigencias, hoje)?.vigenteDesde, '2026-11-08');
+  // Nunca volta para um domingo passado.
+  assert.equal(agendarVigencia(base, '2026-10-18', { limiteSemanal: 14, proporcaoFuncoes: null }, hoje).vigencias?.at(-1)?.vigenteDesde, '2026-11-01');
+
+  // Período vigente: esta semana pelo ritmo de hoje; as semanas a partir de 08/11 pelo agendado.
+  const settings = { limiteSemanal: 10, vigencias: agendada.vigencias };
+  assert.equal(limiteDaSemanaNoPeriodo(settings, { fim: '2026-11-30' }, '2026-11-01', hoje), 10);
+  assert.equal(limiteDaSemanaNoPeriodo(settings, { fim: '2026-11-30' }, '2026-11-15', hoje), 14);
+  // O registro automático não desfaz o agendamento.
+  assert.equal(registrarVigencia(agendada, new Date(2026, 10, 3, 12)), agendada);
+
+  // Ao carregar depois do domingo agendado, o ritmo de hoje passa a ser o agendado.
+  const depois = alinharComVigenciaAgendada(agendada, '2026-11-03T12:00:00Z', '2026-11-10');
+  assert.equal(depois.preferencias.limiteSemanal, 14);
+  // Mudança gravada para a semana em curso já estava em dia: nada muda.
+  assert.equal(alinharComVigenciaAgendada(agora, '2026-11-03T12:00:00Z', '2026-11-04'), agora);
+}
+
+console.log('vigencias agendadas: ok');
+
+// --- Desfazer só uma parte da mudança agendada.
+{
+  const hoje = '2026-11-03';
+  const p1 = { atrair: 50, converter: 50 };
+  const p2 = { atrair: 30, converter: 70 };
+  const base = { ...comLimite(10, [{ vigenteDesde: '2000-01-02', limiteSemanal: 10, proporcaoFuncoes: p1 }]), proporcaoFuncoes: p1 };
+  const agendada = agendarVigencia(base, '2026-11-08', { limiteSemanal: 14, proporcaoFuncoes: p2 }, hoje);
+  assert.deepEqual(diretrizNoDomingo(agendada, '2026-11-15', hoje), { limiteSemanal: 14, proporcaoFuncoes: p2 });
+  assert.deepEqual(diretrizNoDomingo(agendada, '2026-11-01', hoje), { limiteSemanal: 10, proporcaoFuncoes: p1 });
+  const semLimite = desfazerMudanca(agendada, '2026-11-08', 'limite', hoje);
+  assert.deepEqual(semLimite.vigencias?.at(-1), { vigenteDesde: '2026-11-08', limiteSemanal: 10, proporcaoFuncoes: p2 });
+  assert.deepEqual(mudancasAgendadas(agendada, hoje), [{ vigenteDesde: '2026-11-08', limite: { de: 10, para: 14 }, proporcao: { de: p1, para: p2 } }]);
+  assert.deepEqual(mudancasAgendadas(semLimite, hoje).map(item => item.limite), [null]);
+  const nada = desfazerMudanca(semLimite, '2026-11-08', 'proporcao', hoje);
+  assert.deepEqual(mudancasAgendadas(nada, hoje), []);
+  assert.equal(nada.vigencias?.some(item => item.vigenteDesde === '2026-11-08'), false, 'sem diferença, a linha sai');
+}
+
+console.log('vigencias (desfazer): ok');

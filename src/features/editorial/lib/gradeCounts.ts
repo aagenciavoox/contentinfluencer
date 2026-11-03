@@ -8,9 +8,9 @@ import { FUNCAO_LABELS, FUNCOES, isFuncaoEditorial } from './funcoes.ts';
 import { objetivoHerdadoDaSerie, pilarHerdadoDaSerie, type SerieClassificacao } from './herancaSerie.ts';
 import { postItTemPauta } from './pautaConteudo.ts';
 import { metaDoPeriodo, type MetaDoPeriodo } from './metaDoPeriodo.ts';
-import { decisaoDoPeriodo, semanasNoIntervalo } from './periodoEditorial.ts';
+import { decisaoDoPeriodo } from './periodoEditorial.ts';
 import { metasDoPeriodo, type ProporcaoFuncoes } from './proporcaoObjetivos.ts';
-import { periodoVigente, limiteSemanalNaSemana, proporcaoDoIntervalo } from './vigencias.ts';
+import { proporcaoDoPeriodo } from './vigencias.ts';
 
 export type PeriodoGrade = {
   /** Inclusivo, `aaaa-mm-dd`. */
@@ -373,12 +373,8 @@ export function contarPeriodo({
 }): GradeCounts {
   const limiteSemanal = limiteSemanalDe(settings);
   const ajustesSemana = ajustesDe(settings);
-  // Período vigente (inclui hoje ou ainda vai começar): ritmo atual em todas as semanas.
+  // Período vigente: ritmo de hoje (e a mudança agendada nas semanas futuras).
   // Período encerrado: cada semana com o limite que valia nela; mudar hoje não reescreve outubro.
-  const temVigencias = (settings.vigencias?.length ?? 0) > 0 && !periodoVigente(periodo, hoje);
-  const limiteDaSemana = temVigencias
-    ? (inicioSemana: string) => limiteSemanalNaSemana({ limiteSemanal, vigencias: settings.vigencias }, inicioSemana)
-    : undefined;
   const decisao = decisaoDoPeriodo(settings.periodos ?? [], periodo.inicio, periodo.fim);
   const meta = metaDoPeriodo({
     periodo,
@@ -389,15 +385,12 @@ export function contarPeriodo({
     hoje,
   });
   const limite = meta.valor;
-  const proporcao = proporcaoDoIntervalo({
-    semanas: temVigencias
-      ? semanasNoIntervalo(periodo.inicio, periodo.fim).map(semana => ({
-        inicio: semana.inicio,
-        limite: limiteDaSemana?.(semana.inicio) ?? null,
-      }))
-      : [],
+  const proporcao = proporcaoDoPeriodo({
+    periodo,
+    limiteSemanal,
     proporcaoAtual: settings.proporcaoFuncoes ?? null,
     vigencias: settings.vigencias,
+    hoje,
   });
   const itens = montarItens(entries, postIts, periodo, series);
 

@@ -12,10 +12,9 @@ import {
 } from '../../editorial/lib/apuracaoSerie.ts';
 import { FUNCAO_LABELS, FUNCOES, isFuncaoEditorial } from '../../editorial/lib/funcoes.ts';
 import { objetivoDoConteudo, type ConteudoHeranca, type SerieClassificacao } from '../../editorial/lib/herancaSerie.ts';
-import { semanasNoIntervalo } from '../../editorial/lib/periodoEditorial.ts';
 import type { MetaDoObjetivo, ProporcaoFuncoes } from '../../editorial/lib/proporcaoObjetivos.ts';
 import type { VigenciaEditorial } from '../../editorial/lib/editorialSettings.ts';
-import { limiteSemanalNaSemana, periodoVigente, proporcaoDoIntervalo } from '../../editorial/lib/vigencias.ts';
+import { proporcaoDoPeriodo } from '../../editorial/lib/vigencias.ts';
 
 export { intervalosDaFrequencia, janelaDaContinuidade, situacaoDaFrequencia } from '../../editorial/lib/apuracaoSerie.ts';
 export type { SituacaoFrequencia } from '../../editorial/lib/apuracaoSerie.ts';
@@ -65,7 +64,7 @@ export function objetivoEfetivo(
 
 /**
  * Proporção desejada do período, igual à usada nas metas do Editorial:
- * período vigente usa a atual; período encerrado pesa cada semana pela vigência dela.
+ * período vigente usa a atual (e a agendada nas semanas futuras); encerrado pesa cada semana pela vigência dela.
  */
 export function proporcaoDesejadaDoPeriodo(input: {
   periodo: Intervalo;
@@ -74,18 +73,12 @@ export function proporcaoDesejadaDoPeriodo(input: {
   vigencias?: readonly VigenciaEditorial[] | null;
   hoje?: string;
 }): ProporcaoFuncoes | null {
-  const { periodo, limiteSemanal, proporcaoFuncoes, vigencias } = input;
-  const hoje = input.hoje ?? format(new Date(), FORMATO);
-  const temVigencias = (vigencias?.length ?? 0) > 0 && !periodoVigente(periodo, hoje);
-  return proporcaoDoIntervalo({
-    semanas: temVigencias
-      ? semanasNoIntervalo(periodo.inicio, periodo.fim).map(semana => ({
-        inicio: semana.inicio,
-        limite: limiteSemanalNaSemana({ limiteSemanal, vigencias }, semana.inicio),
-      }))
-      : [],
-    proporcaoAtual: proporcaoFuncoes,
-    vigencias,
+  return proporcaoDoPeriodo({
+    periodo: input.periodo,
+    limiteSemanal: input.limiteSemanal,
+    proporcaoAtual: input.proporcaoFuncoes,
+    vigencias: input.vigencias,
+    hoje: input.hoje ?? format(new Date(), FORMATO),
   });
 }
 

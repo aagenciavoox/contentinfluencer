@@ -10,12 +10,13 @@ import { normalizeWritingMode, readCarouselSlides, slidesHaveContent } from '../
 import { nomeIndicaBlog } from '../features/contas/lib/contas.ts';
 import { readAvisoDias } from '../features/projects/lib/evento.ts';
 import { DEFAULT_EDITORIAL_SETTINGS, lerMetodoCalculo, METODO_CALCULO_PADRAO, type EditorialSettings } from '../features/editorial/lib/editorialSettings.ts';
-import { lerLimitesConcentracao, type ExcecaoConcentracao } from '../features/editorial/lib/concentracao.ts';
+import { LIMITES_CONCENTRACAO_PADRAO, lerLimitesConcentracao, type ExcecaoConcentracao, type LimitesConcentracao } from '../features/editorial/lib/concentracao.ts';
 import type { AcompanhamentoSerie, MetaDaSerieNoEscopo } from '../features/editorial/lib/continuidadeEscopo.ts';
 import type { MetaDaContaVigencia } from '../features/editorial/lib/metasPorConta.ts';
 import type { EscopoDaPausa, PausaEditorial } from '../features/editorial/lib/pausas.ts';
 import { readProporcao } from '../features/editorial/lib/proporcaoObjetivos.ts';
 import type { PeriodoSelecionado } from '../features/editorial/lib/periodoEditorial.ts';
+import { alinharComVigenciaAgendada, domingosParaVigencia } from '../features/editorial/lib/vigencias.ts';
 import { lerAvaliacaoCriterios, type AvaliacaoCriterios } from '../features/library/lib/avaliacaoCriterios.ts';
 
 // ============================================================================
@@ -2317,12 +2318,14 @@ export async function fetchDataDomains(
         // Sem a migração 20261030130000 a tabela não existe: conta com os valores de hoje.
         vigenciasResult.error ? [] : (vigenciasResult.data || []),
         // Sem a migração 20261103120000 as tabelas não existem: nada por conta, sem pausas nem exceções.
+        // Outro erro para o carregamento: lida vazia, a próxima gravação apagaria o que está no banco.
         {
-          metasContas: metasContaResult.error ? [] : (metasContaResult.data || []),
-          pausas: pausasResult.error ? [] : (pausasResult.data || []),
-          excecoes: excecoesResult.error ? [] : (excecoesResult.data || []),
+          metasContas: linhasDeTabelaNova('editorial_conta_meta fetch', metasContaResult),
+          pausas: linhasDeTabelaNova('editorial_pausa fetch', pausasResult),
+          excecoes: linhasDeTabelaNova('concentracao_excecao fetch', excecoesResult),
         },
       );
+      lembrarGravadoPorConta(uid, payload.editorial);
       payload.editorialVisao = visaoDaLinha(assertQuerySuccess('editorial_visao fetch', visaoResult));
     })());
   }
@@ -2734,7 +2737,7 @@ function editorialDasLinhas(
 
   const rede = typeof conta.rede_referencia_id === 'string' ? conta.rede_referencia_id : null;
   const reservaProntos = inteiroOpcional(conta.reserva_prontos) ?? null;
-  return {
+  const montado: EditorialSettings = {
     versao: DEFAULT_EDITORIAL_SETTINGS.versao,
     quickSeriesCreate: conta.quick_series_create !== false,
     openInfoNotices: conta.open_info_notices !== false,
@@ -2758,6 +2761,19 @@ function editorialDasLinhas(
     ...daConta,
     concentracao: lerLimitesConcentracao(conta.concentracao),
   };
+  // Mudança agendada que passou a valer depois da última gravação: o ritmo de hoje passa a ser o dela.
+  return alinharComVigenciaAgendada(montado, typeof conta.updated_at === 'string' ? conta.updated_at : null);
+}
+
+/** Tabela (ou coluna) de uma migração ainda não aplicada. */
+function tabelaAusente(error: { code?: string; message?: string }): boolean {
+  return error.code === '42P01' || error.code === 'PGRST205' || /does not exist|schema cache/i.test(error.message ?? '');
+}
+
+function linhasDeTabelaNova(label: string, result: { data: Row[] | null; error: { code?: string; message?: string } | null }): Row[] {
+  if (!result.error) return result.data || [];
+  if (tabelaAusente(result.error)) return [];
+  throw new Error(`${label}: ${result.error.message || 'unknown database error'}`);
 }
 
 const ESCOPOS_DA_PAUSA = new Set<EscopoDaPausa>(['publicacao', 'producao', 'gravacao', 'conta', 'serie']);
@@ -2890,13 +2906,14 @@ export async function saveEditorial(settings: EditorialSettings): Promise<void> 
     open_info_notices: settings.openInfoNotices,
     proporcao_funcoes: settings.proporcaoFuncoes,
     limite_gravacoes_dia: preferencias.limiteGravacoesDia ?? null,
+    concentracao: concentracaoParaGravar(settings.concentracao),
     updated_at: new Date().toISOString(),
   };
   // Sem a migração da coluna, o resto grava e o valor fica só nesta sessão
-  // (proporção: 20261016220000; gravações por dia: 20261030130000).
+  // (proporção: 20261016220000; gravações por dia: 20261030130000; concentração: 20261103120000).
   let linhaConta = contaRow;
   let { error: contaError } = await supabase.from('editorial_conta').upsert(linhaConta, { onConflict: 'user_id' });
-  for (const coluna of ['proporcao_funcoes', 'limite_gravacoes_dia']) {
+  for (const coluna of ['proporcao_funcoes', 'limite_gravacoes_dia', 'concentracao']) {
     if (!contaError || !contaError.message.includes(coluna)) continue;
     const { [coluna]: _removida, ...semColuna } = linhaConta;
     linhaConta = semColuna;
@@ -2918,7 +2935,18 @@ export async function saveEditorial(settings: EditorialSettings): Promise<void> 
     if (vigenciaError && !vigenciaError.message.includes('editorial_vigencia')) {
       throw new Error(`editorial_vigencia: ${vigenciaError.message}`);
     }
+    // Mudança agendada desfeita no Editorial sai do banco. Desta semana para trás é histórico e fica.
+    if (!vigenciaError) {
+      const { estaSemana } = domingosParaVigencia();
+      const futuras = settings.vigencias.filter(vigencia => vigencia.vigenteDesde > estaSemana).map(vigencia => vigencia.vigenteDesde);
+      let desfeitas = supabase.from('editorial_vigencia').delete().eq('user_id', uid).gt('vigente_desde', estaSemana);
+      if (futuras.length > 0) desfeitas = desfeitas.not('vigente_desde', 'in', `(${futuras.join(',')})`);
+      const { error } = await desfeitas;
+      if (error) throw new Error(`editorial_vigencia: ${error.message}`);
+    }
   }
+
+  await gravarTabelasPorConta(uid, settings);
 
   const { error: destinosDeleteError } = await supabase.from('editorial_destino_padrao').delete().eq('user_id', uid);
   if (destinosDeleteError) throw new Error(`editorial_destino_padrao: ${destinosDeleteError.message}`);
@@ -2993,6 +3021,107 @@ export async function saveEditorial(settings: EditorialSettings): Promise<void> 
   if (ajustes.length === 0) return;
   const { error: ajustesError } = await supabase.from('ajuste_semana').insert(ajustes);
   if (ajustesError) throw new Error(`ajuste_semana: ${ajustesError.message}`);
+}
+
+/** Nulo quando são os limites padrão: se o padrão mudar, quem nunca mexeu acompanha. */
+function concentracaoParaGravar(limites: LimitesConcentracao | undefined): LimitesConcentracao | null {
+  if (!limites) return null;
+  const padrao = LIMITES_CONCENTRACAO_PADRAO;
+  const igual = limites.obraRepeticoes === padrao.obraRepeticoes
+    && limites.obraJanelaDias === padrao.obraJanelaDias
+    && limites.assuntoFracaoMax === padrao.assuntoFracaoMax
+    && limites.assuntoMinPautas === padrao.assuntoMinPautas;
+  return igual ? null : limites;
+}
+
+type LinhasPorConta = { metas: Row[]; pausas: Row[]; excecoes: Row[] };
+
+function linhasPorConta(uid: string, settings: EditorialSettings): Partial<LinhasPorConta> {
+  return {
+    metas: settings.metasDasContas?.map(meta => ({
+      user_id: uid,
+      platform_id: meta.platformId,
+      vigente_desde: meta.vigenteDesde,
+      limite_semanal: meta.limiteSemanal,
+      proporcao_funcoes: meta.proporcaoFuncoes,
+      parcelas_formato: meta.parcelasFormato,
+    })),
+    pausas: settings.pausas?.map(pausa => ({
+      id: pausa.id,
+      user_id: uid,
+      inicio: pausa.inicio,
+      fim: pausa.fim,
+      escopo: pausa.escopo,
+      platform_id: pausa.platformId,
+      serie_id: pausa.serieId,
+      nota: pausa.nota,
+    })),
+    excecoes: settings.excecoesConcentracao?.map(excecao => ({
+      id: excecao.id,
+      user_id: uid,
+      tipo: excecao.tipo,
+      alvo_id: excecao.alvoId,
+      platform_id: excecao.platformId,
+      inicio: excecao.inicio,
+      fim: excecao.fim,
+      nota: excecao.nota,
+    })),
+  };
+}
+
+/** O que está no banco, por tabela, nesta sessão: sem mudança, a gravação do Editorial não reescreve. */
+const gravadoPorConta = new Map<keyof LinhasPorConta, string>();
+
+function lembrarGravadoPorConta(uid: string, settings: EditorialSettings): void {
+  const linhas = linhasPorConta(uid, settings);
+  for (const chave of ['metas', 'pausas', 'excecoes'] as const) {
+    if (linhas[chave]) gravadoPorConta.set(chave, JSON.stringify(linhas[chave]));
+  }
+}
+
+/** Grava apagando as linhas que saíram; linhas com id são atualizadas no lugar. */
+async function sincronizarPorId(tabela: string, uid: string, linhas: Row[]) {
+  if (!supabase) return { error: null };
+  if (linhas.length > 0) {
+    const { error } = await supabase.from(tabela).upsert(linhas, { onConflict: 'id' });
+    if (error) return { error };
+  }
+  let saiu = supabase.from(tabela).delete().eq('user_id', uid);
+  if (linhas.length > 0) saiu = saiu.not('id', 'in', `(${linhas.map(linha => linha.id).join(',')})`);
+  return saiu;
+}
+
+/**
+ * Ritmo das contas, pausas e exceções de concentração. Sem a migração 20261103120000 as tabelas
+ * não existem: o valor fica só nesta sessão, como nas colunas novas da conta.
+ */
+async function gravarTabelasPorConta(uid: string, settings: EditorialSettings): Promise<void> {
+  if (!supabase) return;
+  const linhas = linhasPorConta(uid, settings);
+  const gravar: Record<keyof LinhasPorConta, (rows: Row[]) => PromiseLike<{ error: { code?: string; message: string } | null }>> = {
+    // Sem id próprio: a conta inteira é regravada, como as decisões de período.
+    metas: async rows => {
+      const apagou = await supabase!.from('editorial_conta_meta').delete().eq('user_id', uid);
+      if (apagou.error || rows.length === 0) return apagou;
+      return supabase!.from('editorial_conta_meta').insert(rows);
+    },
+    pausas: rows => sincronizarPorId('editorial_pausa', uid, rows),
+    excecoes: rows => sincronizarPorId('concentracao_excecao', uid, rows),
+  };
+  const tabelas: Record<keyof LinhasPorConta, string> = {
+    metas: 'editorial_conta_meta',
+    pausas: 'editorial_pausa',
+    excecoes: 'concentracao_excecao',
+  };
+  for (const chave of ['metas', 'pausas', 'excecoes'] as const) {
+    const rows = linhas[chave];
+    if (!rows) continue;
+    const json = JSON.stringify(rows);
+    if (gravadoPorConta.get(chave) === json) continue;
+    const { error } = await gravar[chave](rows);
+    if (error && !tabelaAusente(error)) throw new Error(`${tabelas[chave]}: ${error.message}`);
+    if (!error) gravadoPorConta.set(chave, json);
+  }
 }
 
 export async function saveEditorialVisao(visao: PeriodoSelecionado): Promise<void> {

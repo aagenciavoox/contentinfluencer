@@ -1,7 +1,7 @@
 import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns';
 import type { AjusteSemana, DecisaoPeriodo, VigenciaEditorial } from './editorialSettings.ts';
 import { semanasNoIntervalo } from './periodoEditorial.ts';
-import { limiteSemanalNaSemana, periodoVigente } from './vigencias.ts';
+import { limiteDaSemanaNoPeriodo } from './vigencias.ts';
 
 /**
  * Meta de publicação do período: uma conta só para o Editorial, a Saúde e o painel do Planejamento.
@@ -267,8 +267,9 @@ export function metaDoPeriodo(input: {
     if (dia >= periodo.inicio && dia <= periodo.fim) pausados.add(dia);
   }
   const totalDias = differenceInCalendarDays(parseISO(periodo.fim), parseISO(periodo.inicio)) + 1;
-  // Período vigente usa o ritmo atual em todas as semanas; encerrado, o que valia em cada semana.
-  const porSemana = (input.vigencias?.length ?? 0) > 0 && !periodoVigente(periodo, input.hoje);
+  // Encerrado: o que valia em cada semana. Vigente: o ritmo de hoje, e nas semanas futuras
+  // a mudança agendada com data, se houver.
+  const comVigencias = (input.vigencias?.length ?? 0) > 0;
   const ajustes = input.ajustesSemana ?? [];
 
   let bruto: number | null = 0;
@@ -283,8 +284,8 @@ export function metaDoPeriodo(input: {
     }
     const limite = input.limiteDaSemana
       ? input.limiteDaSemana(semana.inicio)
-      : porSemana
-        ? limiteSemanalNaSemana({ limiteSemanal: input.limiteSemanal, vigencias: input.vigencias }, semana.inicio)
+      : comVigencias
+        ? limiteDaSemanaNoPeriodo({ limiteSemanal: input.limiteSemanal, vigencias: input.vigencias }, periodo, semana.inicio, input.hoje)
         : input.limiteSemanal;
     if (limite == null) {
       bruto = null;

@@ -44,6 +44,15 @@ function proporcaoDoRascunho(rascunho: Rascunho): ProporcaoFuncoes | null {
   return algum ? proporcao : null;
 }
 
+/** "Atrair 30% · Converter 20%", só os objetivos com valor. */
+export function proporcaoEmTexto(proporcao: ProporcaoFuncoes | null): string {
+  if (!proporcao) return '';
+  return FUNCOES
+    .filter(funcao => (proporcao[funcao] ?? 0) > 0)
+    .map(funcao => `${FUNCAO_CURTA[funcao]} ${proporcao[funcao]}%`)
+    .join(' · ');
+}
+
 /** Exibição visual da proporção com barra segmentada e mini-cards por objetivo. */
 export function ResumoDaProporcao({ proporcao }: { proporcao: ProporcaoFuncoes | null }) {
   if (!proporcao) {
@@ -119,11 +128,13 @@ export function ProporcaoObjetivosEditor({
   valor,
   onSalvar,
   onCancelar,
+  rotuloSalvar = 'Salvar proporção',
 }: {
   idBase: string;
   valor: ProporcaoFuncoes | null;
   onSalvar: (proporcao: ProporcaoFuncoes | null) => void;
   onCancelar: () => void;
+  rotuloSalvar?: string;
 }) {
   const [rascunho, setRascunho] = useState<Rascunho>(() => rascunhoDe(valor));
   const proporcao = proporcaoDoRascunho(rascunho);
@@ -249,7 +260,7 @@ export function ProporcaoObjetivosEditor({
             disabledReason={podeSalvar ? undefined : 'A soma precisa fechar em 100%.'}
             onClick={() => onSalvar(proporcao)}
           >
-            Salvar proporção
+            {rotuloSalvar}
           </AppButton>
         </div>
       </div>

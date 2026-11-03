@@ -30,6 +30,31 @@ export type FormatoPublicacao =
   | 'sem-classificacao'
   | `outro:${string}`;
 
+/** Formatos que dividem a meta de uma conta, por rede. Stories ficam fora: não contam nas metas. */
+export const FORMATOS_DA_REDE: Partial<Record<RedeSocial, readonly FormatoPublicacao[]>> = {
+  youtube: ['short', 'video-longo'],
+  instagram: ['reels', 'carrossel', 'post-estatico'],
+  tiktok: ['reels', 'carrossel'],
+};
+
+const ROTULO_FORMATO: Record<string, string> = {
+  reels: 'Reels',
+  short: 'Shorts',
+  'video-longo': 'Vídeo longo',
+  carrossel: 'Carrossel',
+  'post-estatico': 'Post estático',
+  stories: 'Stories',
+  live: 'Live',
+  'sem-classificacao': 'Sem formato',
+};
+
+/** Nome do formato na rede: no TikTok o vídeo curto não se chama Reels. */
+export function rotuloDoFormato(formato: string, rede?: RedeSocial | null): string {
+  if (formato === 'reels' && rede === 'tiktok') return 'Vídeo';
+  if (formato.startsWith('outro:')) return formato.slice('outro:'.length);
+  return ROTULO_FORMATO[formato] ?? formato;
+}
+
 /**
  * - realizada: publicada na conta (data real quando registrada).
  * - prevista: data futura (ou hoje, ainda sem passar do horário).

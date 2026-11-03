@@ -1,6 +1,7 @@
 import { ValorVazio } from '../../../../components/ui/ValorVazio';
 import { useState } from 'react';
-import { CalendarDays, Clock, Hash, Pencil, Share2, Target, UserRound } from 'lucide-react';
+import { format } from 'date-fns';
+import { CalendarDays, Clock, Hash, Pencil, Share2, Target, Undo2, UserRound } from 'lucide-react';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { SidePanel } from '../../../../components/layout/SidePanel';
 import { Badge } from '../../../../components/ui/Badge';
@@ -11,9 +12,13 @@ import type { Platform, PostingTimeEntry } from '../../../../lib/database';
 import { iconeDaConta, rotuloConta } from '../../../contas/lib/contas';
 import { PostingTimesEditor } from '../../../settings/components/PostingTimesEditor';
 import { CampoStepper, CampoTexto, CardConfiguracao, inteiroOuNull } from './campos';
-import { ProporcaoObjetivosEditor, ResumoDaProporcao } from './ProporcaoObjetivosEditor';
+import { atualizarPreferencias } from '../../lib/editorialSettings';
+import { agendarVigencia, desfazerMudanca, diretrizNoDomingo, domingosParaVigencia, mudancasAgendadas } from '../../lib/vigencias';
+import { ProporcaoObjetivosEditor, proporcaoEmTexto, ResumoDaProporcao } from './ProporcaoObjetivosEditor';
+import { ContasEFormatosCard } from './ContasEFormatosCard';
 import { ContinuidadeSeriesCard } from './ContinuidadeSeriesCard';
 import { useEditorialPlano } from './useEditorialPlano';
+import { diaMes, ValeAPartirDe } from './ValeAPartirDe';
 
 function resumoHorarios(entries: readonly PostingTimeEntry[], platforms: readonly Platform[]): string {
   const ids = new Set(entries.flatMap(entry => (entry.platformId ? [entry.platformId] : [])));
@@ -106,21 +111,40 @@ function ValorDoRitmo({
   );
 }
 
+/** Aviso de uma mudança agendada, com o botão de desfazer só aquela parte. */
+function MudancaAgendadaAviso({ texto, onDesfazer }: { texto: string; onDesfazer: () => void }) {
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-2 rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-subtle)] px-3 py-2">
+      <Text variant="meta" as="p" className="min-w-[12rem] flex-1 text-[var(--text-primary)]">{texto}</Text>
+      <AppButton variant="ghost" size="sm" leftIcon={<Undo2 className="h-4 w-4" />} onClick={onDesfazer}>
+        Desfazer
+      </AppButton>
+    </div>
+  );
+}
+
 /**
  * Aba Ajustes: o que vale para todos os períodos. Não tem seletor de período; o que muda
  * de um período para outro fica na aba Período.
  */
 export function AjustesEditorialPanel() {
-  const { state, settings, salvarPreferencias, salvarProporcao } = useEditorialPlano();
+  const { state, settings, gravar, salvarPreferencias } = useEditorialPlano();
   const preferencias = settings.preferencias;
+  const hoje = format(new Date(), 'yyyy-MM-dd');
+  const { estaSemana } = domingosParaVigencia(hoje);
   const [horariosAbertos, setHorariosAbertos] = useState(false);
   const [editandoRitmo, setEditandoRitmo] = useState(false);
   const [editandoProporcao, setEditandoProporcao] = useState(false);
   const [ritmo, setRitmo] = useState<RitmoDraft>(() => ritmoSalvo(preferencias));
+  const [desdeRitmo, setDesdeRitmo] = useState(estaSemana);
+  const [desdeProporcao, setDesdeProporcao] = useState(estaSemana);
   const reservaInvalida = !reservaCabeNoLimite(ritmo);
+  const limiteMudou = ritmo.limite !== textoNumero(preferencias.limiteSemanal);
+  const mudancas = mudancasAgendadas(settings, hoje);
 
   const abrirRitmo = () => {
     setRitmo(ritmoSalvo(preferencias));
+    setDesdeRitmo(estaSemana);
     setEditandoRitmo(true);
   };
 
@@ -137,15 +161,30 @@ export function AjustesEditorialPanel() {
       || ritmo.prontos !== salvo.prontos
       || ritmo.gravacoes !== salvo.gravacoes;
     if (mudou) {
-      salvarPreferencias({
-        limiteSemanal: inteiroOuNull(ritmo.limite),
+      // Reserva, prontos e gravações valem já; o limite vale a partir do domingo escolhido.
+      let proximo = atualizarPreferencias(settings, {
         reservaForaSeriesSemanal: inteiroOuNull(ritmo.reserva),
         reservaProntos: inteiroOuNull(ritmo.prontos),
         // Zero é "sem limite": não há aviso de gravação.
         limiteGravacoesDia: inteiroOuNull(ritmo.gravacoes) || null,
       });
+      if (limiteMudou) {
+        proximo = agendarVigencia(proximo, desdeRitmo, {
+          limiteSemanal: inteiroOuNull(ritmo.limite),
+          proporcaoFuncoes: diretrizNoDomingo(settings, desdeRitmo, hoje).proporcaoFuncoes,
+        }, hoje);
+      }
+      gravar(proximo);
     }
     setEditandoRitmo(false);
+  };
+
+  const salvarProporcaoDesde = (proporcao: Parameters<typeof proporcaoEmTexto>[0]) => {
+    gravar(agendarVigencia(settings, desdeProporcao, {
+      limiteSemanal: diretrizNoDomingo(settings, desdeProporcao, hoje).limiteSemanal,
+      proporcaoFuncoes: proporcao,
+    }, hoje));
+    setEditandoProporcao(false);
   };
 
   const ativas = state.platforms.filter(platform => platform.ativo);
@@ -191,7 +230,7 @@ export function AjustesEditorialPanel() {
               id="limite-semanal"
               label="Publicações por semana"
               unidade="roteiros"
-              hint="Cada roteiro conta uma vez, na publicação original. Reposts e roteiros fora das metas não entram. Mudar vale a partir desta semana."
+              hint="Cada roteiro conta uma vez, na publicação original. Reposts e roteiros fora das metas não entram. Você escolhe a partir de quando vale."
               value={ritmo.limite}
               onChange={limite => setRitmo(atual => ({ ...atual, limite }))}
             />
@@ -226,6 +265,11 @@ export function AjustesEditorialPanel() {
                 onChange={gravacoes => setRitmo(atual => ({ ...atual, gravacoes }))}
               />
             </div>
+            {limiteMudou ? (
+              <div className="md:col-span-2 xl:col-span-4">
+                <ValeAPartirDe id="limite-desde" valor={desdeRitmo} onChange={setDesdeRitmo} hoje={hoje} />
+              </div>
+            ) : null}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
@@ -259,32 +303,56 @@ export function AjustesEditorialPanel() {
             />
           </div>
         )}
+        {!editandoRitmo ? mudancas.filter(mudanca => mudanca.limite).map(mudanca => (
+          <MudancaAgendadaAviso
+            key={mudanca.vigenteDesde}
+            texto={`A partir de dom, ${diaMes(mudanca.vigenteDesde)}: ${mudanca.limite!.para == null ? 'sem limite de publicações' : `${mudanca.limite!.para} roteiros por semana`}.`}
+            onDesfazer={() => gravar(desfazerMudanca(settings, mudanca.vigenteDesde, 'limite', hoje))}
+          />
+        )) : null}
       </CardConfiguracao>
 
       <CardConfiguracao
         icone={<Target className="h-5 w-5" />}
         titulo="Proporção por objetivo"
-        descricao="Quanto do limite vai para cada objetivo, em %. A meta de cada período sai daqui. Mudar vale a partir desta semana; os períodos passados mantêm a proporção que tinham."
+        descricao="Quanto do limite vai para cada objetivo, em %. A meta de cada período sai daqui. Você escolhe a partir de quando vale; os períodos passados mantêm a proporção que tinham."
         acao={editandoProporcao ? undefined : (
-          <AppButton variant="secondary" size="sm" leftIcon={<Pencil className="h-4 w-4" />} onClick={() => setEditandoProporcao(true)}>
+          <AppButton
+            variant="secondary"
+            size="sm"
+            leftIcon={<Pencil className="h-4 w-4" />}
+            onClick={() => {
+              setDesdeProporcao(estaSemana);
+              setEditandoProporcao(true);
+            }}
+          >
             {settings.proporcaoFuncoes ? 'Editar proporção' : 'Definir proporção'}
           </AppButton>
         )}
       >
         {editandoProporcao ? (
-          <ProporcaoObjetivosEditor
-            idBase="proporcao-ajustes"
-            valor={settings.proporcaoFuncoes}
-            onCancelar={() => setEditandoProporcao(false)}
-            onSalvar={proporcao => {
-              salvarProporcao(proporcao);
-              setEditandoProporcao(false);
-            }}
-          />
+          <div className="stack-lg">
+            <ValeAPartirDe id="proporcao-desde" valor={desdeProporcao} onChange={setDesdeProporcao} hoje={hoje} />
+            <ProporcaoObjetivosEditor
+              idBase="proporcao-ajustes"
+              valor={settings.proporcaoFuncoes}
+              onCancelar={() => setEditandoProporcao(false)}
+              onSalvar={salvarProporcaoDesde}
+            />
+          </div>
         ) : (
           <ResumoDaProporcao proporcao={settings.proporcaoFuncoes} />
         )}
+        {!editandoProporcao ? mudancas.filter(mudanca => mudanca.proporcao).map(mudanca => (
+          <MudancaAgendadaAviso
+            key={mudanca.vigenteDesde}
+            texto={`A partir de dom, ${diaMes(mudanca.vigenteDesde)}: ${mudanca.proporcao!.para ? proporcaoEmTexto(mudanca.proporcao!.para) : 'sem proporção definida'}.`}
+            onDesfazer={() => gravar(desfazerMudanca(settings, mudanca.vigenteDesde, 'proporcao', hoje))}
+          />
+        )) : null}
       </CardConfiguracao>
+
+      <ContasEFormatosCard />
 
       <ContinuidadeSeriesCard />
 
