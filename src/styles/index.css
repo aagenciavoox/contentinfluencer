@@ -1741,7 +1741,8 @@ textarea.property-input {
   box-shadow: var(--shadow-focus);
 }
 
-.filter-bar-search--fluid {
+.filter-bar-search--fluid,
+.filter-bar-search.filter-bar-search--fluid {
   flex: 1 1 auto;
   width: 100%;
   max-width: none;
@@ -2759,4 +2760,101 @@ html.mobile-app-shell .segment-tabs--full .segment-tabs-item-active {
 .filter-bar-panel.filter-bar-panel--dropdown {
   width: min(40rem, calc(100vw - 2rem));
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* ── Cards do Planejamento ───────────────────────────────────────────────
+   Conteúdo (ideia, roteiro...): fundo quase branco e só a borda leva a cor da série ou do pilar.
+   Reserva (post-it sem conteúdo): quadrada, com a ponta inferior direita dobrada. */
+.planner-card {
+  --card-accent: var(--border-strong);
+  border: 1.5px solid color-mix(in srgb, var(--card-accent) 85%, var(--border-subtle));
+  background: color-mix(in srgb, var(--card-accent) 4%, var(--bg-elevated));
+  border-radius: var(--radius-card);
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+.planner-card:hover {
+  border-color: var(--card-accent);
+}
+
+.planner-card:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.post-it-card {
+  --card-accent: var(--accent-orange);
+  --card-fill-share: 9%;
+  --card-edge: color-mix(in srgb, var(--card-accent) 80%, var(--border-subtle));
+  --card-fill: color-mix(in srgb, var(--card-accent) var(--card-fill-share), var(--bg-elevated));
+  --card-fold-size: 14px;
+  --card-edge-width: 1.5px;
+  position: relative;
+  isolation: isolate;
+  background: var(--card-edge);
+  /* O recorte também some com a borda e a sombra; por isso a borda é o fundo e o papel fica num ::before recuado. */
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--card-fold-size)),
+    calc(100% - var(--card-fold-size)) 100%,
+    0 100%
+  );
+  transition: background-color 120ms ease;
+}
+
+.post-it-card--serie {
+  --card-fill-share: 5%;
+}
+
+.post-it-card::before {
+  content: '';
+  position: absolute;
+  inset: var(--card-edge-width);
+  z-index: -1;
+  background: var(--card-fill);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--card-fold-size) + 0.9px),
+    calc(100% - var(--card-fold-size) + 0.9px) 100%,
+    0 100%
+  );
+}
+
+/* Dobra: triângulo na ponta recortada, um tom acima do papel. */
+.post-it-card::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: var(--card-fold-size);
+  height: var(--card-fold-size);
+  pointer-events: none;
+  background: linear-gradient(
+    315deg,
+    transparent 50%,
+    var(--card-edge) 50% 58%,
+    color-mix(in srgb, var(--card-accent) 28%, var(--bg-elevated)) 58%
+  );
+}
+
+.post-it-card:hover {
+  --card-edge: var(--card-accent);
+}
+
+.post-it-card:focus-visible,
+.post-it-card--active {
+  --card-edge: var(--brand-accent);
+  outline: none;
+}
+
+.post-it-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--card-accent) 55%, var(--text-primary));
 }

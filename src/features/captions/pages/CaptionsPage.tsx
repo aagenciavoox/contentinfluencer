@@ -205,13 +205,12 @@ export function CaptionsPage() {
       header={
         <DesktopPageHeader
           section="Criação"
-          title="Visão de Trabalho de Legendas"
+          title="Legendas"
           titleAside={
             <Badge variant="neutral">
               {`${items.length} roteiro(s)`}
             </Badge>
           }
-          subtitle="Redija, aplique padrões de série, insira hashtags sem duplicação e copie copys para postagem."
           backLabel="Criação"
           backTo="/criacao"
         />

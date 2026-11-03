@@ -592,36 +592,8 @@ export function ContentDetailShell({
         autosaveTimerRef.current = null;
       }
     };
-  }, [
-    draft.energiaNecessaria,
-    draft.funcao,
-    draft.funcaoOrigem,
-    draft.classificacaoCongeladaEm,
-    draft.contaNaGrade,
-    draft.formatoVisual,
-    draft.bibliotecaItemId,
-    draft.livroIds,
-    draft.notes,
-    draft.pilarId,
-    draft.plataformas,
-    draft.publishDate,
-    draft.publishTime,
-    draft.recordingDate,
-    draft.recordingTime,
-    draft.referencias,
-    draft.writingNotes,
-    draft.writingMode,
-    draft.carouselSlides,
-    draft.proposta,
-    draft.script,
-    draft.scriptNotes,
-    draft.seriesId,
-    draft.temaIds,
-    draft.tags,
-    draft.slotType,
-    draft.title,
-    liveContent,
-  ]);
+  // Qualquer campo do rascunho (Escrita ou Gestão) agenda o autosave; listar campo a campo deixava Gestão de fora.
+  }, [draft, liveContent, textKey]);
 
   useEffect(() => {
     const flush = () => {

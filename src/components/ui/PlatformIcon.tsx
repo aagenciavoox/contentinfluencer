@@ -45,6 +45,8 @@ export function PlatformIcon({ platform, className, colored = false }: PlatformI
   if (rede === 'instagram') return <Instagram className={cn(cor, className)} aria-hidden />;
   if (rede === 'youtube') return <Youtube className={cn(cor, className)} aria-hidden />;
   if (rede === 'tiktok') return <TikTokIcon className={cn(cor, className)} />;
+  // Id de conta (uuid) não é rótulo: sem ícone, em vez de duas letras soltas.
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(platform.trim())) return null;
   return (
     <Text variant="label" as="span" className={cn('', className)} aria-hidden>
       {platform.trim().slice(0, 2)}

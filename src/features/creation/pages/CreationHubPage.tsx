@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronLeft,
   Columns3,
@@ -214,21 +214,30 @@ export function CreationHubPage() {
   const requestedPage = Math.max(1, Number.parseInt(searchParams.get('page') ?? '1', 10) || 1);
   const composerOpen = searchParams.get('compose') === 'idea';
 
+  // O setSearchParams não enfileira: "Limpar filtros" troca vários de uma vez no mesmo clique.
+  const paramsRef = useRef(searchParams);
+  paramsRef.current = searchParams;
+  const mutateSearchParams = useCallback((updater: (previous: URLSearchParams) => URLSearchParams) => {
+    const next = updater(paramsRef.current);
+    paramsRef.current = next;
+    setSearchParams(next, { replace: true });
+  }, [setSearchParams]);
+
   const updateSearchParam = useCallback((
     key: string,
     value: string,
     defaultValue = '',
     resetPage = true,
   ) => {
-    setSearchParams(previous => {
+    mutateSearchParams(previous => {
       const next = new URLSearchParams(previous);
       if (!value || value === defaultValue) next.delete(key);
       else next.set(key, value);
       if (key === 'tab') next.delete('tipo');
       if (resetPage && key !== 'page') next.delete('page');
       return next;
-    }, { replace: true });
-  }, [setSearchParams]);
+    });
+  }, [mutateSearchParams]);
 
   const setViewMode = useCallback((value: CreationViewMode) => {
     storeCreationViewMode(value);
@@ -625,25 +634,25 @@ export function CreationHubPage() {
   useEffect(() => {
     if (searchParams.get('compose') !== 'script') return;
     setScriptComposerOpen(true);
-    setSearchParams(previous => {
+    mutateSearchParams(previous => {
       const next = new URLSearchParams(previous);
       next.delete('compose');
       return next;
-    }, { replace: true });
-  }, [searchParams, setSearchParams]);
+    });
+  }, [mutateSearchParams, searchParams]);
 
   const openIdeaComposer = useCallback(() => {
     updateSearchParam('compose', 'idea', '', false);
   }, [updateSearchParam]);
 
   const closeIdeaComposer = useCallback(() => {
-    setSearchParams(previous => {
+    mutateSearchParams(previous => {
       const next = new URLSearchParams(previous);
       next.delete('compose');
       next.delete('itemId');
       return next;
-    }, { replace: true });
-  }, [setSearchParams]);
+    });
+  }, [mutateSearchParams]);
 
   const saveIdea = useCallback(async (input: CreationIdeaInput) => {
     const serie = input.seriesId
@@ -659,7 +668,7 @@ export function CreationHubPage() {
     // Fecha o modal e vai para Ideias antes do await, como o roteiro faz: o
     // `previous` é a URL do render em que o modal abriu, então navegar depois
     // do await trazia o compose=idea de volta e reabria o modal.
-    setSearchParams(previous => {
+    mutateSearchParams(previous => {
       const next = new URLSearchParams(previous);
       next.delete('compose');
       next.delete('itemId');
@@ -667,9 +676,9 @@ export function CreationHubPage() {
       next.delete('page');
       next.set('tab', 'ideias');
       return next;
-    }, { replace: true });
+    });
     await dispatch({ type: 'ADD_CONTENT', payload: content });
-  }, [dispatch, setSearchParams, state.series]);
+  }, [dispatch, mutateSearchParams, state.series]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -1018,7 +1027,10 @@ export function CreationHubPage() {
   useEffect(() => {
     if (searchParams.has(LEGACY_TAGS_PARAM) && state.temas.length === 0) return;
     const next = migrateLegacyTemaParams(searchParams, state.temas);
-    if (next) setSearchParams(next, { replace: true });
+    if (next) {
+      paramsRef.current = next;
+      setSearchParams(next, { replace: true });
+    }
   }, [searchParams, setSearchParams, state.temas]);
 
   const temaOptions = useMemo(
@@ -1028,16 +1040,17 @@ export function CreationHubPage() {
     [state.temas],
   );
   const setTemaFilter = useCallback((ids: string[]) => {
-    setSearchParams(previous => {
+    mutateSearchParams(previous => {
       const next = new URLSearchParams(previous);
       next.delete('tema');
+      next.delete(LEGACY_TAGS_PARAM);
       const value = serializeTemaFilterParam(ids);
       if (value) next.set(TEMA_FILTER_PARAM, value);
       else next.delete(TEMA_FILTER_PARAM);
       next.delete('page');
       return next;
-    }, { replace: true });
-  }, [setSearchParams]);
+    });
+  }, [mutateSearchParams]);
   const temaFilterField = (
     <TagSelect
       id="criacao-filtro-temas"
@@ -1115,13 +1128,13 @@ export function CreationHubPage() {
       id: 'data',
       label: 'Data',
       value: valorFiltroData,
-      onChange: (value: string) => setSearchParams(previous => aplicarFiltroData(previous, value), { replace: true }),
+      onChange: (value: string) => mutateSearchParams(previous => aplicarFiltroData(previous, value)),
       options: opcoesDoFiltroData(new Date(), filtroData),
     },
   ], [
     filtroData,
     funcaoId,
-    setSearchParams,
+    mutateSearchParams,
     valorFiltroData,
     originId,
     pilarId,
@@ -1134,13 +1147,13 @@ export function CreationHubPage() {
   ]);
 
   const clearMobileFilters = useCallback(() => {
-    setSearchParams(previous => {
+    mutateSearchParams(previous => {
       const next = new URLSearchParams(previous);
       CREATION_FILTER_QUERY_KEYS.forEach(key => next.delete(key));
       return next;
-    }, { replace: true });
+    });
     setMobileFiltersOpen(false);
-  }, [setSearchParams]);
+  }, [mutateSearchParams]);
 
   const selectionMenu = activeTab === 'Lixeira' ? null : (
     <CreationOverflowMenu
@@ -1183,7 +1196,10 @@ export function CreationHubPage() {
       panelExtra={temaFilterField}
       extraActiveCount={temaFilter.length > 0 ? 1 : 0}
       extraActiveChips={activeTemaChips}
-      onClearExtra={() => setTemaFilter([])}
+      onClearExtra={() => {
+        if (temaFilter.length > 0) setTemaFilter([]);
+        if (temFiltroRede) setRedesFilter([]);
+      }}
     />
   );
 
