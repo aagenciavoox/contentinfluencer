@@ -42,6 +42,8 @@ export type PublicacaoNaAgenda = {
   /** Id da linha de content_plataformas. */
   id: string;
   contentId: string;
+  /** Série ou quadro do conteúdo. */
+  serieId: string | null;
   platformId: string;
   rede: RedeSocial | null;
   ciclo: number;
@@ -181,6 +183,7 @@ export function publicacoesDaAgenda(input: {
       lista.push({
         id: publicacao.id,
         contentId: content.id,
+        serieId: content.seriesId ?? null,
         platformId: publicacao.platformId,
         rede,
         ciclo: cicloDaPublicacao(publicacao),
