@@ -450,6 +450,8 @@ export function PeriodoPanel({
     periodo: { inicio: periodo.inicio, fim: periodo.fim },
     itensSerie: itensJanela,
     limiteGravacoesDia: settings.preferencias.limiteGravacoesDia,
+    concentracao: settings.concentracao,
+    excecoesConcentracao: settings.excecoesConcentracao,
   })) {
     avisos.push({
       id: aviso.id,

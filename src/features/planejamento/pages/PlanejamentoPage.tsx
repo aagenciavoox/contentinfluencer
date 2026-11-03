@@ -536,6 +536,8 @@ export function PlanejamentoPage() {
         platforms: state.platforms,
       }).itens,
       limiteGravacoesDia: state.editorial.preferencias.limiteGravacoesDia,
+      concentracao: state.editorial.concentracao,
+      excecoesConcentracao: state.editorial.excecoesConcentracao,
     }),
     [postIts, contents, state.series, state.pilares, state.platforms, state.editorial, state.temas, state.bibliotecaItems, periodo],
   );

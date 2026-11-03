@@ -10,6 +10,10 @@ import { normalizeWritingMode, readCarouselSlides, slidesHaveContent } from '../
 import { nomeIndicaBlog } from '../features/contas/lib/contas.ts';
 import { readAvisoDias } from '../features/projects/lib/evento.ts';
 import { DEFAULT_EDITORIAL_SETTINGS, lerMetodoCalculo, METODO_CALCULO_PADRAO, type EditorialSettings } from '../features/editorial/lib/editorialSettings.ts';
+import { lerLimitesConcentracao, type ExcecaoConcentracao } from '../features/editorial/lib/concentracao.ts';
+import type { AcompanhamentoSerie, MetaDaSerieNoEscopo } from '../features/editorial/lib/continuidadeEscopo.ts';
+import type { MetaDaContaVigencia } from '../features/editorial/lib/metasPorConta.ts';
+import type { EscopoDaPausa, PausaEditorial } from '../features/editorial/lib/pausas.ts';
 import { readProporcao } from '../features/editorial/lib/proporcaoObjetivos.ts';
 import type { PeriodoSelecionado } from '../features/editorial/lib/periodoEditorial.ts';
 import { lerAvaliacaoCriterios, type AvaliacaoCriterios } from '../features/library/lib/avaliacaoCriterios.ts';
@@ -198,6 +202,12 @@ export interface Serie {
   semPilar?: boolean;
   /** Entra na Continuidade da Saúde. Ausente antes da migração 20261102240000: vale falso. */
   acompanharContinuidade?: boolean;
+  /** Quadro com "Usar da série": a cor vem da série na hora (migração 20261103120000). */
+  usaCorDaSerie?: boolean;
+  /** Acompanhamentos da série por escopo (serie_acompanhamento). */
+  acompanhamentos?: AcompanhamentoSerie[];
+  /** Frequência da série numa conta ou formato (serie_meta). A geral fica nas colunas acima. */
+  metasPorEscopo?: MetaDaSerieNoEscopo[];
   createdAt: string;
   updatedAt: string;
   pilarIds: string[];
@@ -665,6 +675,8 @@ export interface PlanejamentoPostIt {
   objetivo?: FuncaoEditorial | null;
   /** Redes onde vai sair. Só a plataforma, sem conta. */
   redes?: RedeSocial[];
+  /** Contas onde vai sair. Vazio = só a rede. */
+  contaIds?: string[];
   /** true/false manda; null herda do texto. */
   pautaDefinida?: boolean | null;
   createdAt: string;
@@ -1325,6 +1337,9 @@ const mp = {
     tipoAgrupamento: readTipoAgrupamento(r.tipo_agrupamento),
     semPilar: r.sem_pilar === true,
     acompanharContinuidade: r.acompanhar_continuidade === true,
+    usaCorDaSerie: r.usa_cor_da_serie === true,
+    acompanhamentos: Array.isArray(r.serie_acompanhamento) ? r.serie_acompanhamento.flatMap(acompanhamentoDaLinha) : [],
+    metasPorEscopo: Array.isArray(r.serie_meta) ? r.serie_meta.flatMap(metaDaSerieDaLinha) : [],
     createdAt: r.created_at, updatedAt: r.updated_at,
     pilarIds: (r.serie_pilares || []).map((sp: Row) => sp.pilar_id),
     plataformas: (r.serie_plataformas || []).map((sp: Row) => ({
@@ -1497,6 +1512,7 @@ const mp = {
     pilarId: typeof r.pilar_id === 'string' && r.pilar_id ? r.pilar_id : null,
     objetivo: readFuncaoEditorial(r.objetivo),
     redes: normalizarRedesPostIt(r.redes),
+    contaIds: Array.isArray(r.conta_ids) ? r.conta_ids.filter((id: unknown): id is string => typeof id === 'string' && id.length > 0) : [],
     pautaDefinida: typeof r.pauta_definida === 'boolean' ? r.pauta_definida : null,
     createdAt: r.created_at,
     updatedAt: r.updated_at ?? r.created_at,
@@ -2271,7 +2287,7 @@ export async function fetchDataDomains(
 
   if (requested.has('bootstrap')) {
     tasks.push((async () => {
-      const [platformsResult, prefsResult, contaResult, visaoResult, destinosResult, limitesResult, decisoesResult, ajustesResult, vigenciasResult] = await Promise.all([
+      const [platformsResult, prefsResult, contaResult, visaoResult, destinosResult, limitesResult, decisoesResult, ajustesResult, vigenciasResult, metasContaResult, pausasResult, excecoesResult] = await Promise.all([
         platformsPromise!,
         supabase.from('user_preferences').select('*').eq('user_id', uid),
         supabase.from('editorial_conta').select('*').eq('user_id', uid).maybeSingle(),
@@ -2281,6 +2297,9 @@ export async function fetchDataDomains(
         supabase.from('decisao_periodo').select('*').eq('user_id', uid),
         supabase.from('ajuste_semana').select('decisao_id, inicio, fim, limite').eq('user_id', uid),
         supabase.from('editorial_vigencia').select('vigente_desde, limite_semanal, proporcao_funcoes').eq('user_id', uid),
+        supabase.from('editorial_conta_meta').select('platform_id, vigente_desde, limite_semanal, proporcao_funcoes, parcelas_formato').eq('user_id', uid),
+        supabase.from('editorial_pausa').select('id, inicio, fim, escopo, platform_id, serie_id, nota').eq('user_id', uid),
+        supabase.from('concentracao_excecao').select('id, tipo, alvo_id, platform_id, inicio, fim, nota').eq('user_id', uid),
       ]);
       const platforms = assertQuerySuccess('platforms fetch', platformsResult) || [];
       const prefs = assertQuerySuccess('preferences fetch', prefsResult) || [];
@@ -2297,6 +2316,12 @@ export async function fetchDataDomains(
         assertQuerySuccess('ajuste_semana fetch', ajustesResult) || [],
         // Sem a migração 20261030130000 a tabela não existe: conta com os valores de hoje.
         vigenciasResult.error ? [] : (vigenciasResult.data || []),
+        // Sem a migração 20261103120000 as tabelas não existem: nada por conta, sem pausas nem exceções.
+        {
+          metasContas: metasContaResult.error ? [] : (metasContaResult.data || []),
+          pausas: pausasResult.error ? [] : (pausasResult.data || []),
+          excecoes: excecoesResult.error ? [] : (excecoesResult.data || []),
+        },
       );
       payload.editorialVisao = visaoDaLinha(assertQuerySuccess('editorial_visao fetch', visaoResult));
     })());
@@ -2316,7 +2341,7 @@ export async function fetchDataDomains(
     tasks.push((async () => {
       const [pilaresResult, seriesResult, cenariosResult, looksResult] = await Promise.all([
         supabase.from('pilares').select('*, pilar_plataformas(*)').eq('user_id', uid).is('deleted_at', null),
-        supabase.from('series').select('*, serie_pilares(pilar_id), serie_plataformas(*)').eq('user_id', uid).is('deleted_at', null),
+        lerSeriesComAcompanhamento(uid),
         supabase.from('cenarios').select('*').eq('user_id', uid).is('deleted_at', null),
         supabase.from('looks').select('*').eq('user_id', uid).is('deleted_at', null).order('numero'),
       ]);
@@ -2623,7 +2648,13 @@ function editorialDasLinhas(
   decisoes: Row[],
   ajustes: Row[],
   vigenciasRows: Row[] = [],
+  porConta: { metasContas: Row[]; pausas: Row[]; excecoes: Row[] } = { metasContas: [], pausas: [], excecoes: [] },
 ): EditorialSettings {
+  const daConta = {
+    metasDasContas: porConta.metasContas.flatMap(metaDaContaDaLinha),
+    pausas: porConta.pausas.flatMap(pausaDaLinha),
+    excecoesConcentracao: porConta.excecoes.flatMap(excecaoDaLinha),
+  };
   const limitesHashtags: Record<string, number> = {};
   for (const limite of limites) {
     const quantidade = inteiroOpcional(limite.limite);
@@ -2697,6 +2728,7 @@ function editorialDasLinhas(
       limitesHashtags,
       periodos,
       vigencias,
+      ...daConta,
     };
   }
 
@@ -2723,8 +2755,114 @@ function editorialDasLinhas(
     },
     periodos,
     vigencias,
+    ...daConta,
+    concentracao: lerLimitesConcentracao(conta.concentracao),
   };
 }
+
+const ESCOPOS_DA_PAUSA = new Set<EscopoDaPausa>(['publicacao', 'producao', 'gravacao', 'conta', 'serie']);
+
+function textoOuNull(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null;
+}
+
+/** editorial_conta_meta → ritmo da conta com vigência. */
+function metaDaContaDaLinha(row: Row): MetaDaContaVigencia[] {
+  const vigenteDesde = diaDaLinha(row.vigente_desde);
+  const platformId = textoOuNull(row.platform_id);
+  if (!vigenteDesde || !platformId) return [];
+  const parcelas: Record<string, number> = {};
+  if (row.parcelas_formato && typeof row.parcelas_formato === 'object' && !Array.isArray(row.parcelas_formato)) {
+    for (const [formato, valor] of Object.entries(row.parcelas_formato as Record<string, unknown>)) {
+      const quantidade = inteiroOpcional(valor);
+      if (formato.trim() && quantidade != null && quantidade > 0) parcelas[formato] = quantidade;
+    }
+  }
+  return [{
+    platformId,
+    vigenteDesde,
+    limiteSemanal: inteiroOpcional(row.limite_semanal) ?? null,
+    proporcaoFuncoes: readProporcao(row.proporcao_funcoes),
+    parcelasFormato: Object.keys(parcelas).length > 0 ? parcelas : null,
+  }];
+}
+
+/** editorial_pausa → pausa com datas e escopo. */
+function pausaDaLinha(row: Row): PausaEditorial[] {
+  const inicio = diaDaLinha(row.inicio);
+  const fim = diaDaLinha(row.fim);
+  if (!inicio || !fim || inicio > fim || !ESCOPOS_DA_PAUSA.has(row.escopo)) return [];
+  return [{
+    id: String(row.id),
+    inicio,
+    fim,
+    escopo: row.escopo as EscopoDaPausa,
+    platformId: textoOuNull(row.platform_id),
+    serieId: textoOuNull(row.serie_id),
+    nota: typeof row.nota === 'string' ? row.nota : '',
+  }];
+}
+
+/** concentracao_excecao → concentração intencional com validade. */
+function excecaoDaLinha(row: Row): ExcecaoConcentracao[] {
+  const inicio = diaDaLinha(row.inicio);
+  const fim = diaDaLinha(row.fim);
+  const alvoId = textoOuNull(row.alvo_id);
+  if (!inicio || !fim || inicio > fim || !alvoId || (row.tipo !== 'obra' && row.tipo !== 'assunto')) return [];
+  return [{
+    id: String(row.id),
+    tipo: row.tipo,
+    alvoId,
+    platformId: textoOuNull(row.platform_id),
+    inicio,
+    fim,
+    nota: typeof row.nota === 'string' ? row.nota : '',
+  }];
+}
+
+/** serie_acompanhamento → acompanhamento da série por escopo. */
+function acompanhamentoDaLinha(row: Row): AcompanhamentoSerie[] {
+  const escopo = row.escopo === 'geral' || row.escopo === 'conta' || row.escopo === 'formato' ? row.escopo : null;
+  if (!escopo || typeof row.serie_id !== 'string') return [];
+  const distancia = inteiroOpcional(row.distancia_max_dias);
+  return [{
+    id: String(row.id),
+    serieId: row.serie_id,
+    escopo,
+    platformId: textoOuNull(row.platform_id),
+    formato: textoOuNull(row.formato),
+    ativo: row.ativo !== false,
+    inicio: diaDaLinha(row.inicio),
+    termino: diaDaLinha(row.termino),
+    distanciaMaxDias: distancia && distancia > 0 ? distancia : null,
+    evitarDiasSeguidos: row.evitar_dias_seguidos === true,
+  }];
+}
+
+/** serie_meta → frequência da série numa conta ou formato. */
+function metaDaSerieDaLinha(row: Row): MetaDaSerieNoEscopo[] {
+  const vezes = inteiroOpcional(row.vezes);
+  const unidade = row.unidade === 'semana' || row.unidade === 'quinzena' || row.unidade === 'mes' ? row.unidade : null;
+  if (typeof row.serie_id !== 'string' || !vezes || !unidade) return [];
+  return [{
+    serieId: row.serie_id,
+    platformId: textoOuNull(row.platform_id),
+    formato: textoOuNull(row.formato),
+    vezes,
+    unidade,
+    aPartirDe: diaDaLinha(row.a_partir_de),
+  }];
+}
+
+/** Séries com acompanhamentos e metas por escopo; sem a migração 20261103120000, sem eles. */
+async function lerSeriesComAcompanhamento(uid: string) {
+  const completo = await supabase.from('series')
+    .select('*, serie_pilares(pilar_id), serie_plataformas(*), serie_acompanhamento(*), serie_meta(*)')
+    .eq('user_id', uid).is('deleted_at', null);
+  if (!completo.error || !/serie_acompanhamento|serie_meta|relationship/i.test(completo.error.message)) return completo;
+  return supabase.from('series').select('*, serie_pilares(pilar_id), serie_plataformas(*)').eq('user_id', uid).is('deleted_at', null);
+}
+
 
 function visaoDaLinha(row: Row | null): PeriodoSelecionado | null {
   if (!row) return null;

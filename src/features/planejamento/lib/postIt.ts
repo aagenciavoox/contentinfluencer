@@ -28,6 +28,8 @@ export interface PlanejamentoPostIt {
   objetivo?: FuncaoEditorial | null;
   /** Redes onde vai sair. Só a plataforma, sem conta. */
   redes?: RedeSocial[];
+  /** Contas onde vai sair. Vazio = só a rede: a reserva não cobre meta de uma conta. */
+  contaIds?: string[];
   /** true/false manda; null herda do texto. */
   pautaDefinida?: boolean | null;
   createdAt: string;

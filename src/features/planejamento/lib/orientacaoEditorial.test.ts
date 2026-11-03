@@ -62,10 +62,34 @@ function testObraApareceDuasVezesNaSemana() {
   });
   const obra = avisos.find(aviso => aviso.tipo === 'obra-repetida');
   assert.ok(obra);
-  assert.match(obra!.texto, /2 pautas da mesma obra: Sanderson/);
+  assert.equal(obra!.texto, '2 pautas da mesma obra em 7 dias: Sanderson (avisa a partir de 2).');
   assert.deepEqual(obra!.postItIds.sort(), ['p1', 'p2']);
   assert.equal(obra!.severidade, 'info');
   assert.deepEqual(obra!.intervalo, {inicio:'2026-11-02', fim:'2026-11-08'});
+}
+
+// Limites de Ritmo & Regras Gerais e exceção intencional (só no período dela).
+function testLimitesEExcecaoDeObra() {
+  const c1 = createContentDraft({id: 'c1', status: CONTENT_STATUS.IDEIA, bibliotecaItemId: obraSanderson.id});
+  const c2 = createContentDraft({id: 'c2', status: CONTENT_STATUS.IDEIA, bibliotecaItemId: obraSanderson.id});
+  const base = {
+    postIts: [
+      postIt({id: 'p1', date: '2026-11-02', contentId: c1.id}),
+      postIt({id: 'p2', date: '2026-11-05', contentId: c2.id}),
+    ],
+    contents: [c1, c2],
+    series: [],
+    temas: [],
+    obras: [obraSanderson],
+    periodo: {inicio: '2026-11-01', fim: '2026-11-07'},
+  };
+  const limiteMaior = {obraRepeticoes: 3, obraJanelaDias: 7, assuntoFracaoMax: 1 / 3, assuntoMinPautas: 3};
+  assert.equal(avisosDeOrientacao({...base, concentracao: limiteMaior}).some(aviso => aviso.tipo === 'obra-repetida'), false);
+  const excecao = {id: 'e', tipo: 'obra' as const, alvoId: obraSanderson.id, platformId: null, inicio: '2026-11-01', fim: '2026-11-30', nota: 'maratona'};
+  assert.equal(avisosDeOrientacao({...base, excecoesConcentracao: [excecao]}).some(aviso => aviso.tipo === 'obra-repetida'), false);
+  // Exceção vencida (antes do período) não cala o aviso.
+  const vencida = {...excecao, inicio: '2026-10-01', fim: '2026-10-31'};
+  assert.ok(avisosDeOrientacao({...base, excecoesConcentracao: [vencida]}).some(aviso => aviso.tipo === 'obra-repetida'));
 }
 
 function testSequenciaIntencionalSuprimeObra() {
@@ -217,6 +241,7 @@ function testPostItVinculadoNaoDuplicaObra() {
 
 testObraApareceDuasVezesNaSemana();
 testSequenciaIntencionalSuprimeObra();
+testLimitesEExcecaoDeObra();
 testTemaConcentrado();
 testQuadroEmDiasSeguidos();
 testSerieAcimaDaFrequencia();

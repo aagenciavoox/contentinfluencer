@@ -5,6 +5,13 @@ import {CONTENT_STATUS, isReadyToPublish, normalizeContentStatus} from '../../co
 import type {PeriodoGrade} from '../../editorial/lib/gradeCounts.ts';
 import type {GradeEntry} from '../../editorial/lib/gradeEntries.ts';
 import {apurarSerie, ehReserva, type ItemDaApuracao} from '../../editorial/lib/apuracaoSerie.ts';
+import {
+  excecaoCobre,
+  LIMITES_CONCENTRACAO_PADRAO,
+  rotuloFracao,
+  type ExcecaoConcentracao,
+  type LimitesConcentracao,
+} from '../../editorial/lib/concentracao.ts';
 import {contarSerieAgrupada} from '../../editorial/lib/frequenciaAgrupada.ts';
 import {idsDeObras} from './assuntosObras.ts';
 import type {PlanejamentoPostIt} from './postIt.ts';
@@ -12,14 +19,9 @@ import type {PlanejamentoPostIt} from './postIt.ts';
 /**
  * Heurísticas da orientação editorial (Fase 5).
  * Não bloqueiam. Sequência intencional só suprime avisos daquela sequência
- * quando `sequenciaPorConteudo` estiver preenchido.
+ * quando `sequenciaPorConteudo` estiver preenchido. Os limites de obra e assunto vêm de
+ * Ritmo & Regras Gerais (`LimitesConcentracao`); sem nada gravado, os de antes.
  */
-export const ORIENTACAO = {
-  obraEm7Dias: 2,
-  temaFracaoMax: 1 / 3,
-  /** Evita alerta de tema em períodos com poucos previstos. */
-  temaMinPrevistos: 3,
-} as const;
 
 export type TipoAvisoOrientacao =
   | 'obra-repetida'
@@ -119,6 +121,8 @@ function avisosDeObra(
   pautas: readonly PautaNoDia[],
   periodo: PeriodoGrade,
   obras: readonly Pick<BibliotecaItem, 'id' | 'titulo'>[],
+  limites: LimitesConcentracao,
+  excecoes: readonly ExcecaoConcentracao[],
 ): AvisoOrientacao[] {
   const noRecorte = pautas.filter(pauta => noPeriodo(pauta.date, periodo) && pauta.obraIds.length > 0);
   if (noRecorte.length === 0) return [];
@@ -134,16 +138,18 @@ function avisosDeObra(
 
     for (let i = 0; i < comObra.length; i += 1) {
       const base = comObra[i];
-      const janelaFim = format(addDays(parseISO(base.date), 6), 'yyyy-MM-dd');
+      const janelaFim = format(addDays(parseISO(base.date), limites.obraJanelaDias - 1), 'yyyy-MM-dd');
       const grupo = comObra.filter(item => item.date >= base.date && item.date <= janelaFim);
       const semSequencia = grupo.filter((item, index, list) => {
         if (index === 0) return true;
         const prev = list[index - 1];
         return !mesmaSequencia(item.sequenciaId, prev.sequenciaId);
       });
-      if (semSequencia.length < ORIENTACAO.obraEm7Dias) continue;
+      if (semSequencia.length < limites.obraRepeticoes) continue;
       // Só avisa se a janela toca o período visível.
       if (janelaFim < periodo.inicio || base.date > periodo.fim) continue;
+      // Concentração marcada como intencional para esta obra nestas datas: sem aviso.
+      if (excecaoCobre(excecoes, {tipo: 'obra', alvoId: obraId}, {inicio: base.date, fim: janelaFim})) continue;
       const chave = `obra:${obraId}:${base.date}`;
       if (vistos.has(obraId)) continue;
       vistos.add(obraId);
@@ -152,7 +158,7 @@ function avisosDeObra(
       avisos.push({
         id: chave,
         tipo: 'obra-repetida',
-        texto: `${grupo.length} pautas da mesma obra: ${nome}.`,
+        texto: `${grupo.length} pautas da mesma obra em ${limites.obraJanelaDias} dias: ${nome} (avisa a partir de ${limites.obraRepeticoes}).`,
         intervalo: {inicio: base.date, fim: janelaFim},
         postItIds: envolvidos.flatMap(item => item.postItId ? [item.postItId] : []),
         contentIds: envolvidos.flatMap(item => item.contentId ? [item.contentId] : []),
@@ -169,9 +175,11 @@ function avisosDeTema(
   pautas: readonly PautaNoDia[],
   periodo: PeriodoGrade,
   temas: readonly Pick<Tema, 'id' | 'nome'>[],
+  limites: LimitesConcentracao,
+  excecoes: readonly ExcecaoConcentracao[],
 ): AvisoOrientacao[] {
   const noRecorte = pautas.filter(pauta => noPeriodo(pauta.date, periodo));
-  if (noRecorte.length < ORIENTACAO.temaMinPrevistos) return [];
+  if (noRecorte.length < limites.assuntoMinPautas) return [];
 
   const nomeTema = new Map(temas.map(tema => [tema.id, tema.nome.trim()]));
   const porTema = new Map<string, PautaNoDia[]>();
@@ -184,14 +192,15 @@ function avisosDeTema(
   }
 
   const avisos: AvisoOrientacao[] = [];
-  const limite = noRecorte.length * ORIENTACAO.temaFracaoMax;
+  const limite = noRecorte.length * limites.assuntoFracaoMax;
   for (const [temaId, lista] of porTema) {
     if (lista.length <= limite) continue;
+    if (excecaoCobre(excecoes, {tipo: 'assunto', alvoId: temaId}, periodo)) continue;
     const nome = nomeTema.get(temaId) ?? 'Assunto';
     avisos.push({
       id: `tema:${temaId}`,
       tipo: 'tema-concentrado',
-      texto: `${nome} concentra ${lista.length} de ${noRecorte.length} pautas do intervalo.`,
+      texto: `${nome} concentra ${lista.length} de ${noRecorte.length} pautas do intervalo (avisa acima de ${rotuloFracao(limites.assuntoFracaoMax)}).`,
       intervalo: periodo,
       postItIds: lista.flatMap(item => item.postItId ? [item.postItId] : []),
       contentIds: lista.flatMap(item => item.contentId ? [item.contentId] : []),
@@ -398,6 +407,8 @@ export function avisosDeOrientacao({
   itensSerie,
   sequenciaPorConteudo = {},
   limiteGravacoesDia = null,
+  concentracao = LIMITES_CONCENTRACAO_PADRAO,
+  excecoesConcentracao = [],
   hoje = new Date(),
 }: {
   postIts: readonly PlanejamentoPostIt[];
@@ -416,6 +427,10 @@ export function avisosDeOrientacao({
   sequenciaPorConteudo?: Readonly<Record<string, string>>;
   /** Editorial › Ajustes. Sem número, não há aviso de gravação. */
   limiteGravacoesDia?: number | null;
+  /** Variedade e concentração; sem nada gravado, os limites de antes. */
+  concentracao?: LimitesConcentracao;
+  /** Concentrações marcadas como intencionais. */
+  excecoesConcentracao?: readonly ExcecaoConcentracao[];
   hoje?: Date;
 }): AvisoOrientacao[] {
   // Período + 14 dias anteriores (obra em 7 dias) + margem à frente nas bordas.
@@ -433,8 +448,8 @@ export function avisosDeOrientacao({
   return [
     ...avisosDeVespera(postIts, contents, periodo, hoje),
     ...avisosDeGravacao(postIts, contents, periodo, limiteGravacoesDia),
-    ...avisosDeObra(pautas, periodo, obras),
-    ...avisosDeTema(pautas, periodo, temas),
+    ...avisosDeObra(pautas, periodo, obras, concentracao, excecoesConcentracao),
+    ...avisosDeTema(pautas, periodo, temas, concentracao, excecoesConcentracao),
     ...avisosDeFrequenciaSerie(itensSerie ?? itensDasPautas(pautas), periodo, series),
   ];
 }

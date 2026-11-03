@@ -2,6 +2,9 @@ import { platformKey } from '../../../components/ui/platformName.ts';
 import type { FuncaoEditorial } from '../../../lib/database.ts';
 import { FUNCOES } from './funcoes.ts';
 import { readProporcao, type ProporcaoFuncoes } from './proporcaoObjetivos.ts';
+import { LIMITES_CONCENTRACAO_PADRAO, type ExcecaoConcentracao, type LimitesConcentracao } from './concentracao.ts';
+import type { MetaDaContaVigencia } from './metasPorConta.ts';
+import type { PausaEditorial } from './pausas.ts';
 
 export const EDITORIAL_SETTINGS_PREFERENCE_KEY = 'editorial_settings';
 
@@ -111,6 +114,14 @@ export interface EditorialSettings {
   periodos: DecisaoPeriodo[];
   /** Histórico do limite e da proporção, do mais antigo ao mais novo. Vazio usa os valores de hoje. */
   vigencias?: VigenciaEditorial[];
+  /** Ritmo de cada conta, com vigência (editorial_conta_meta). Conta sem linha não tem meta. */
+  metasDasContas?: MetaDaContaVigencia[];
+  /** Pausas com datas e escopo (editorial_pausa). */
+  pausas?: PausaEditorial[];
+  /** Limites de variedade e concentração; sem nada gravado, os de antes. */
+  concentracao?: LimitesConcentracao;
+  /** Concentrações marcadas como intencionais, com validade. */
+  excecoesConcentracao?: ExcecaoConcentracao[];
 }
 
 const PREFERENCIAS_PADRAO: PreferenciasGerais = {
@@ -136,6 +147,10 @@ export const DEFAULT_EDITORIAL_SETTINGS: EditorialSettings = {
   preferencias: PREFERENCIAS_PADRAO,
   periodos: [],
   vigencias: [],
+  metasDasContas: [],
+  pausas: [],
+  concentracao: LIMITES_CONCENTRACAO_PADRAO,
+  excecoesConcentracao: [],
 };
 
 const DATA_ISO = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -294,7 +309,7 @@ function versaoNova(value: unknown): boolean {
 
 function montar(
   base: Pick<EditorialSettings, 'quickSeriesCreate' | 'openInfoNotices' | 'destinosPadrao' | 'limitesHashtags'>
-    & Partial<Pick<EditorialSettings, 'proporcaoFuncoes' | 'vigencias'>>,
+    & Partial<Pick<EditorialSettings, 'proporcaoFuncoes' | 'vigencias' | 'metasDasContas' | 'pausas' | 'concentracao' | 'excecoesConcentracao'>>,
   preferencias: PreferenciasGerais,
   periodos: DecisaoPeriodo[],
 ): EditorialSettings {
@@ -311,6 +326,11 @@ function montar(
     preferencias,
     periodos,
     vigencias: base.vigencias ?? [],
+    // Lidos de tabelas próprias: mudar uma preferência não pode apagá-los do estado.
+    metasDasContas: base.metasDasContas ?? [],
+    pausas: base.pausas ?? [],
+    concentracao: base.concentracao ?? LIMITES_CONCENTRACAO_PADRAO,
+    excecoesConcentracao: base.excecoesConcentracao ?? [],
   };
 }
 
