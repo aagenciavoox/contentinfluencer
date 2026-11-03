@@ -254,9 +254,9 @@ const serieFields = {
   usa_temporadas: z.boolean().optional().describe('Só série. Os quadros dela usam as mesmas temporadas'),
   frequencia_vezes: z.number().int().min(1).max(60).nullable().optional().describe('Meta de episódios por período. null tira a meta'),
   frequencia_unidade: z.enum(UNIDADES_FREQUENCIA).nullable().optional().describe(
-    'semana, quinzena ou mes; sob-demanda (ou null) tira a meta. Sem unidade e com vezes, o app usa semana',
+    'semana, quinzena (a cada 14 dias, exige frequencia_a_partir_de) ou mes; sob-demanda (ou null) tira a meta. Sem unidade e com vezes, o app usa semana',
   ),
-  frequencia_a_partir_de: dateSchema.nullable().optional().describe('Início da meta (AAAA-MM-DD). Só vale com meta'),
+  frequencia_a_partir_de: dateSchema.nullable().optional().describe('Início da meta (AAAA-MM-DD). Só vale com meta; obrigatório na meta a cada 14 dias, onde marca o início do primeiro ciclo'),
   acompanhar_continuidade: z.boolean().optional().describe(
     'Entra na Continuidade da Saúde. Família não entra; sem frequência definida aparece como pendência',
   ),
@@ -575,7 +575,7 @@ export function registerEditorial(server: McpServer) {
         'formato e energia são copiados para os roteiros criados por ela. Bordão e estrutura do roteiro ficam só como referência. ' +
         'pilar_principal é o pilar que o app mostra; sem a lista pilares, a série fica ligada só a ele. ' +
         'Para criar um quadro, envie parent_id com a série (o tipo vira quadro); para uma família, tipo_agrupamento=familia. ' +
-        'Frequência detalhada: frequencia_vezes + frequencia_unidade (semana, quinzena, mes, sob-demanda) + frequencia_a_partir_de. ' +
+        'Frequência detalhada: frequencia_vezes + frequencia_unidade (semana, quinzena = a cada 14 dias, mes, sob-demanda) + frequencia_a_partir_de (obrigatória na quinzena). ' +
         'usa_temporadas liga as temporadas (só série); legenda_base e hashtags[].legenda guardam a legenda da série e a versão por conta.',
       inputSchema: {nome: z.string().min(1), ...serieFields},
     },

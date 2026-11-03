@@ -66,6 +66,10 @@ assert.deepEqual(colunasDaFrequencia({unidade: 'sob-demanda'}, vazia, 'serie'), 
 assert.equal((colunasDaFrequencia({unidade: null}, vazia, 'quadro') as {colunas: Record<string, unknown>}).colunas.frequencia_recomendada, 'Sob demanda');
 assert.equal((colunasDaFrequencia({unidade: null}, vazia, 'serie') as {colunas: Record<string, unknown>}).colunas.frequencia_recomendada, null);
 assert.ok('erro' in (colunasDaFrequencia({a_partir_de: '2026-01-01'}, vazia, 'serie') ?? {}));
+// A cada 14 dias sem data de início: o ciclo não tem âncora, então não grava (como no formulário do app).
+assert.ok('erro' in (colunasDaFrequencia({vezes: 1, unidade: 'quinzena'}, vazia, 'serie') ?? {}));
+assert.ok('erro' in (colunasDaFrequencia({vezes: 2}, {vezes: 1, unidade: 'quinzena', aPartirDe: null}, 'serie') ?? {}));
+assert.ok('colunas' in (colunasDaFrequencia({vezes: 1, unidade: 'quinzena', a_partir_de: '2026-11-08'}, vazia, 'serie') ?? {}));
 
 // Continuidade: família não; sem frequência vira pendência.
 assert.ok(avisoDaContinuidade(true, 'familia', true).erro);

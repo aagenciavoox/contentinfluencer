@@ -12,6 +12,7 @@ const serieA = {
   frequenciaRecomendada: 'Semanal',
   frequenciaVezes: 1,
   frequenciaUnidade: 'semana',
+  acompanharContinuidade: true,
 } as Serie;
 
 const serieB = {
@@ -151,6 +152,28 @@ function testSerieAcimaDaFrequencia() {
   assert.ok(avisos.some(aviso => aviso.tipo === 'serie-acima'));
 }
 
+// Acompanhamento desligado não gera cobrança, mesmo com meta e acima dela.
+function testSemAcompanhamentoNaoCobra() {
+  const solta = {...serieA, id: 'serie-solta', acompanharContinuidade: false} as Serie;
+  const contents = [1, 2].map(n => createContentDraft({
+    id: `s${n}`,
+    status: CONTENT_STATUS.IDEIA,
+    seriesId: solta.id,
+  }, solta));
+  const avisos = avisosDeOrientacao({
+    postIts: [
+      postIt({id: 'p1', date: '2026-11-02', contentId: contents[0].id}),
+      postIt({id: 'p2', date: '2026-11-05', contentId: contents[1].id}),
+    ],
+    contents,
+    series: [solta],
+    temas: [],
+    obras: [],
+    periodo: {inicio: '2026-11-01', fim: '2026-11-14'},
+  });
+  assert.equal(avisos.some(aviso => aviso.id.startsWith('serie-')), false);
+}
+
 function testSobDemandaNaoCobra() {
   const content = createContentDraft({
     id: 'c1',
@@ -197,6 +220,7 @@ testSequenciaIntencionalSuprimeObra();
 testTemaConcentrado();
 testQuadroEmDiasSeguidos();
 testSerieAcimaDaFrequencia();
+testSemAcompanhamentoNaoCobra();
 testSobDemandaNaoCobra();
 testPeriodoDaSemanaDomingoASabado();
 testPostItVinculadoNaoDuplicaObra();

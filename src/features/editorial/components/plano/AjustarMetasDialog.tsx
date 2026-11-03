@@ -10,7 +10,7 @@ import { OverlayFooter } from '../../../../components/overlays/OverlayFooter';
 import { OverlayHeader } from '../../../../components/overlays/OverlayHeader';
 import type { FuncaoEditorial, Platform } from '../../../../lib/database';
 import type { AjusteSemana, DecisaoPeriodo, MetasPeriodo } from '../../lib/editorialSettings';
-import type { OrigemDaMeta } from '../../lib/proporcaoObjetivos';
+import { metasDaProporcao, type OrigemDaMeta, type ProporcaoFuncoes } from '../../lib/proporcaoObjetivos';
 import { rotuloDoPeriodo, type PeriodoSelecionado } from './PeriodoEditorialControl';
 
 /** Uma linha do objetivo no editor: a meta que vale, o que a proporção daria e de onde veio. */
@@ -81,6 +81,9 @@ export function AjustarMetasDialog({
     Record<string, { producao?: number; publicacao?: number; ritmoSemanal?: string }>
   >({});
   const [metasObjetivo, setMetasObjetivo] = useState<Record<string, string>>({});
+  // Como a distribuição e a meta estavam ao abrir: só o que a pessoa mudar precisa fechar a conta agora.
+  const [metasObjetivoIniciais, setMetasObjetivoIniciais] = useState<Record<string, string>>({});
+  const [metaPublicacaoInicial, setMetaPublicacaoInicial] = useState('');
   const [ajustesSemana, setAjustesSemana] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -90,13 +93,17 @@ export function AjustarMetasDialog({
       setPausaEditorial(decisao?.pausaEditorial ?? '');
       // Campo vazio segue o ritmo; só um número escrito vira meta ajustada.
       setMetasProducao(decisao?.metasProducao != null ? String(decisao.metasProducao) : '');
-      setMetasPublicacao(decisao?.metasPublicacao != null ? String(decisao.metasPublicacao) : '');
+      const publicacao = decisao?.metasPublicacao != null ? String(decisao.metasPublicacao) : '';
+      setMetasPublicacao(publicacao);
+      setMetaPublicacaoInicial(publicacao);
       setMetasPorConta(decisao?.metasPorConta ?? {});
       // Só o número digitado para este período aparece; vazio segue a proporção.
-      setMetasObjetivo(Object.fromEntries(objetivos.map(linha => [
+      const iniciais = Object.fromEntries(objetivos.map(linha => [
         linha.funcao,
         linha.origem === 'ajustada' && linha.meta != null ? String(linha.meta) : '',
-      ])));
+      ]));
+      setMetasObjetivo(iniciais);
+      setMetasObjetivoIniciais(iniciais);
       setAjustesSemana(Object.fromEntries(semanasParciais.map(semana => {
         const ajuste = decisao?.ajustesSemana.find(item => item.inicio === semana.inicio && item.fim === semana.fim);
         return [semana.inicio, ajuste == null ? '' : String(ajuste.limite)];
@@ -110,8 +117,8 @@ export function AjustarMetasDialog({
     for (const linha of objetivos) {
       const n = inteiro(metasObjetivo[linha.funcao] ?? '');
       if (n == null) continue;
-      // Digitar o mesmo número da proporção não cria ajuste.
-      if (linha.origem !== 'ajustada' && n === linha.calculada) continue;
+      // Digitar o mesmo número da proporção não cria ajuste (se a meta não mudou, a proporção dá o mesmo).
+      if (!metaMudou && linha.origem !== 'ajustada' && n === linha.calculada) continue;
       metas[linha.funcao] = n;
     }
     return metas;
@@ -128,7 +135,28 @@ export function AjustarMetasDialog({
     return [...outros, ...novos];
   };
 
+  // Distribuição em quantidades: algum objetivo com número digitado para este período.
+  const modoQuantidade = objetivos.some(linha => inteiro(metasObjetivo[linha.funcao] ?? '') != null);
+  const distribuicaoMudou = objetivos.some(linha => (metasObjetivo[linha.funcao] ?? '') !== (metasObjetivoIniciais[linha.funcao] ?? ''));
+  const metaMudou = metasPublicacao !== metaPublicacaoInicial;
+  const metaPublicacaoDigitada = inteiro(metasPublicacao);
+  // Meta absoluta digitada, senão a calculada pelo ritmo (sem a absoluta antiga, se ela foi apagada).
+  const metaParaConferir = metaPublicacaoDigitada ?? (metaMudou ? publicacaoCalculada : metaDoPeriodo);
+  // Objetivo em branco vale a proporção sobre a meta que vai valer, pelo maior resto.
+  const proporcaoDosObjetivos = Object.fromEntries(objetivos.flatMap(linha => (
+    linha.percentual == null ? [] : [[linha.funcao, linha.percentual]]
+  ))) as ProporcaoFuncoes;
+  const pelaProporcao = metasDaProporcao(metaParaConferir, proporcaoDosObjetivos);
+  const somaObjetivos = objetivos.reduce((soma, linha) => {
+    const digitado = inteiro(metasObjetivo[linha.funcao] ?? '');
+    return soma + (digitado ?? pelaProporcao[linha.funcao] ?? 0);
+  }, 0);
+  const somaDiverge = modoQuantidade && metaParaConferir != null && somaObjetivos !== metaParaConferir;
+  // Só bloqueia o que a pessoa mexeu agora; distribuição antiga que não fecha fica como pendência.
+  const bloqueiaDistribuicao = somaDiverge && (distribuicaoMudou || metaMudou);
+
   const handleSave = () => {
+    if (bloqueiaDistribuicao) return;
     const prod = parseInt(metasProducao, 10);
     const pub = parseInt(metasPublicacao, 10);
     onSalvar({
@@ -138,7 +166,8 @@ export function AjustarMetasDialog({
       metasProducao: Number.isFinite(prod) ? prod : undefined,
       metasPublicacao: Number.isFinite(pub) ? pub : undefined,
       metasPorConta,
-      ...(objetivos.length > 0 ? { metas: metasDoRascunho() } : {}),
+      // Distribuição que ninguém mexeu continua exatamente como estava.
+      ...(objetivos.length > 0 && distribuicaoMudou ? { metas: metasDoRascunho() } : {}),
       ...(semanasParciais.length > 0 ? { ajustesSemana: ajustesDoRascunho() } : {}),
     });
     onClose();
@@ -146,15 +175,6 @@ export function AjustarMetasDialog({
 
   const placeholderMeta = (calculada: number | null) =>
     calculada == null ? 'Sem meta' : `${calculada} pelo ritmo`;
-
-  // Soma do que vai valer por objetivo: o digitado ou o da proporção.
-  const somaObjetivos = objetivos.reduce((soma, linha) => {
-    const digitado = inteiro(metasObjetivo[linha.funcao] ?? '');
-    return soma + (digitado ?? (linha.origem === 'ajustada' ? 0 : linha.calculada ?? 0));
-  }, 0);
-  const metaPublicacaoDigitada = inteiro(metasPublicacao);
-  const metaParaConferir = metaPublicacaoDigitada ?? metaDoPeriodo;
-  const algumObjetivoComNumero = objetivos.some(linha => inteiro(metasObjetivo[linha.funcao] ?? '') != null || linha.calculada != null);
 
   return (
     <Dialog open={open} onClose={onClose} desktopMaxW="md:max-w-[680px]" ariaLabel="Ajustar Metas do Período">
@@ -294,10 +314,31 @@ export function AjustarMetasDialog({
                 );
               })}
             </div>
-            {algumObjetivoComNumero && metaParaConferir != null && somaObjetivos !== metaParaConferir ? (
-              <Text variant="meta" as="p" role="status" className="text-[#92400e] dark:text-[#fde68a]">
-                As metas por objetivo somam {somaObjetivos}; a meta de publicação do período é {metaParaConferir}. Revise antes de usar a distribuição.
-              </Text>
+            {modoQuantidade ? (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Text
+                  variant="meta"
+                  as="p"
+                  role="status"
+                  className={somaDiverge ? 'text-[#92400e] dark:text-[#fde68a]' : 'text-[var(--text-secondary)]'}
+                >
+                  {metaParaConferir == null
+                    ? `As metas por objetivo somam ${somaObjetivos}. Sem meta de publicação no período, a soma não é conferida.`
+                    : !somaDiverge
+                      ? `As metas por objetivo somam ${somaObjetivos}, a meta do período.`
+                      : somaObjetivos < metaParaConferir
+                        ? `Faltam ${metaParaConferir - somaObjetivos} para distribuir: as metas por objetivo somam ${somaObjetivos} e a meta do período é ${metaParaConferir}.`
+                        : `Passaram ${somaObjetivos - metaParaConferir}: as metas por objetivo somam ${somaObjetivos} e a meta do período é ${metaParaConferir}.`}
+                  {somaDiverge && !bloqueiaDistribuicao ? ' Pendência de antes: o resto pode ser salvo.' : ''}
+                </Text>
+                <AppButton
+                  variant="secondary"
+                  size="xs"
+                  onClick={() => setMetasObjetivo(Object.fromEntries(objetivos.map(linha => [linha.funcao, ''])))}
+                >
+                  Voltar à proporção
+                </AppButton>
+              </div>
             ) : null}
           </div>
         ) : null}
@@ -312,8 +353,8 @@ export function AjustarMetasDialog({
               {semanasParciais.map(semana => {
                 const id = `ajuste-dialog-${semana.inicio}`;
                 return (
-                  <div key={semana.inicio} className="flex flex-wrap items-center gap-3">
-                    <label htmlFor={id} className="min-w-0 flex-1">
+                  <div key={semana.inicio} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+                    <label htmlFor={id} className="min-w-0">
                       <Text variant="body" as="span">Semana de {rotuloDaSemana(semana.inicio, semana.fim)}</Text>
                     </label>
                     <input
@@ -321,7 +362,8 @@ export function AjustarMetasDialog({
                       type="text"
                       inputMode="numeric"
                       autoComplete="off"
-                      className="input w-20 py-1 text-center tabular-nums"
+                      style={{ width: '5rem' }}
+                      className="input py-1 text-center tabular-nums"
                       placeholder={limiteSemanal == null ? '—' : 'ritmo'}
                       value={ajustesSemana[semana.inicio] ?? ''}
                       onChange={event => {
@@ -432,7 +474,12 @@ export function AjustarMetasDialog({
         <AppButton variant="secondary" onClick={onClose}>
           Cancelar
         </AppButton>
-        <AppButton variant="primary" onClick={handleSave}>
+        <AppButton
+          variant="primary"
+          onClick={handleSave}
+          disabled={bloqueiaDistribuicao}
+          disabledReason={bloqueiaDistribuicao ? 'As metas por objetivo precisam somar a meta do período.' : undefined}
+        >
           Salvar Metas
         </AppButton>
       </OverlayFooter>

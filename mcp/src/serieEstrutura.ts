@@ -200,6 +200,10 @@ export function colunasDaFrequencia(
   const vezesPedidas = pedido.vezes !== undefined ? pedido.vezes : atual.vezes;
   const vezes = vezesPedidas && vezesPedidas > 0 ? vezesPedidas : 1;
   const aPartirDe = pedido.a_partir_de !== undefined ? pedido.a_partir_de : atual.aPartirDe;
+  // Como no formulário do app: ciclo de 14 dias só existe com a data em que o primeiro ciclo começa.
+  if (unidade === 'quinzena' && !aPartirDe) {
+    return {erro: 'Meta a cada 14 dias precisa de frequencia_a_partir_de: é a data em que o primeiro ciclo começa.'};
+  }
   return {colunas: {
     frequencia_vezes: vezes,
     frequencia_unidade: unidade,

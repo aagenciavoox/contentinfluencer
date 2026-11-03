@@ -221,6 +221,7 @@ function itensDasPautas(pautas: readonly PautaNoDia[]): ItemDaApuracao[] {
 /**
  * Frequência das séries com a apuração comum (`apurarSerie`): janelas inteiras,
  * reposts fora, post-it como reserva. Sobra numa janela não cobre falta em outra.
+ * Só cobra quem está marcado para acompanhar, como a Continuidade da Saúde.
  */
 function avisosDeFrequenciaSerie(
   itens: readonly ItemDaApuracao[],
@@ -231,10 +232,26 @@ function avisosDeFrequenciaSerie(
 
   for (const serie of series) {
     if (serie.ativa === false) continue;
+    const nome = serie.name.trim() || 'Quadro';
+    // Metas dos quadros somando menos que a da série não é erro: o resto fica para os outros episódios.
+    // É configuração, não cobrança: aparece mesmo sem acompanhamento.
+    const agrupada = contarSerieAgrupada({serie, series, itens: [], inicio: periodo.inicio, fim: periodo.fim});
+    if (agrupada.recorteIncompativel && agrupada.somaRecortesFilhos != null && agrupada.expectativa != null) {
+      avisos.push({
+        id: `serie-recorte:${serie.id}`,
+        tipo: 'serie-acima',
+        texto: `${nome}: as metas dos quadros somam ${agrupada.somaRecortesFilhos} e passam da meta da série (${agrupada.expectativa}).`,
+        postItIds: [],
+        contentIds: [],
+        severidade: 'info',
+      });
+    }
+
+    // Acompanhamento desligado não gera cobrança de frequência.
+    if (serie.acompanharContinuidade !== true) continue;
     const apuracao = apurarSerie({serie, series, itens, periodo});
     if (apuracao.situacao.tipo !== 'definida' || apuracao.inicioFuturo || apuracao.janelas.length === 0) continue;
 
-    const nome = serie.name.trim() || 'Quadro';
     const postItIds = apuracao.itens.flatMap(item => item.postItId ? [item.postItId] : []);
     const contentIds = apuracao.itens.flatMap(item => ehReserva(item) ? [] : [item.contentId]);
     const acima = apuracao.janelas.filter(janela => janela.episodios + janela.reservas > janela.meta);
@@ -274,18 +291,6 @@ function avisosDeFrequenciaSerie(
           ? `${nome}: 1 janela coberta só por post-it, conteúdo a desenvolver.`
           : `${nome}: ${n} janelas cobertas só por post-it, conteúdo a desenvolver.`,
         postItIds,
-        contentIds: [],
-        severidade: 'info',
-      });
-    }
-    // Metas dos quadros somando menos que a da série não é erro: o resto fica para os outros episódios.
-    const agrupada = contarSerieAgrupada({serie, series, itens: [], inicio: periodo.inicio, fim: periodo.fim});
-    if (agrupada.recorteIncompativel && agrupada.somaRecortesFilhos != null && agrupada.expectativa != null) {
-      avisos.push({
-        id: `serie-recorte:${serie.id}`,
-        tipo: 'serie-acima',
-        texto: `${nome}: as metas dos quadros somam ${agrupada.somaRecortesFilhos} e passam da meta da série (${agrupada.expectativa}).`,
-        postItIds: [],
         contentIds: [],
         severidade: 'info',
       });

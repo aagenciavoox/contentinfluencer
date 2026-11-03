@@ -86,9 +86,12 @@ function testFaltaReservarEpisodio() {
     frequenciaRecomendada: 'Semanal',
     frequenciaVezes: 1,
     frequenciaUnidade: 'semana',
+    acompanharContinuidade: true,
   } as Serie;
   const aviso = avisos({series: [serie]}).find(item => item.tipo === 'serie-abaixo');
   assert.equal(aviso?.texto, 'Faltam reservar 2 episódios de Descomplicando neste período.');
+  // Sem acompanhamento, a mesma série não é cobrada.
+  assert.equal(avisos({series: [{...serie, acompanharContinuidade: false}]}).some(item => item.tipo === 'serie-abaixo'), false);
 }
 
 function testPreparoSeparaDePreenchimento() {
