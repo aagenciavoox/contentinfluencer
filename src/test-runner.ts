@@ -73,6 +73,7 @@ await import('./features/editorial/lib/periodoEditorial.test.ts');
 await import('./features/editorial/lib/metaDoPeriodo.test.ts');
 await import('./features/editorial/lib/publicacoes.test.ts');
 await import('./features/editorial/lib/metasPorConta.test.ts');
+await import('./features/editorial/lib/trecho.test.ts');
 await import('./features/editorial/lib/referenciaPublicacao.test.ts');
 await import('./features/editorial/lib/pautaConteudo.test.ts');
 await import('./features/editorial/lib/contaNaGradeOrigem.test.ts');

@@ -217,6 +217,8 @@ export type MetaDoPeriodo = {
   valor: number | null;
   /** Pelo ritmo e pelos ajustes das semanas, sem a meta absoluta. */
   calculada: number | null;
+  /** A calculada antes de arredondar: quem soma trechos arredonda uma vez só, no total. */
+  bruto: number | null;
   origem: OrigemDaMetaDoPeriodo;
   /** Dias descontados por pausa com data inequívoca. */
   diasDePausa: number;
@@ -249,15 +251,21 @@ export function metaDoPeriodo(input: {
    * Null numa semana = sem meta naquela semana, e o período fica sem meta calculada.
    */
   limiteDaSemana?: (inicioSemana: string) => number | null;
+  /** Dias de pausa com data (pausas estruturadas). Somam com a pausa escrita sem descontar duas vezes. */
+  diasPausados?: readonly string[];
 }): MetaDoPeriodo {
   const { periodo } = input;
   const vazio: MetaDoPeriodo = {
-    valor: null, calculada: null, origem: null, diasDePausa: 0, pendenciaDePausa: null, semanasAjustadas: 0, diasElegiveis: 0,
+    valor: null, calculada: null, bruto: null, origem: null, diasDePausa: 0, pendenciaDePausa: null, semanasAjustadas: 0, diasElegiveis: 0,
   };
   if (!diaIso(periodo.inicio) || !diaIso(periodo.fim) || periodo.fim < periodo.inicio) return vazio;
 
   const pausa = resolverPausa(input.decisao?.pausaEditorial, periodo);
+  // O mesmo dia em duas pausas conta uma vez.
   const pausados = new Set(pausa.dias);
+  for (const dia of input.diasPausados ?? []) {
+    if (dia >= periodo.inicio && dia <= periodo.fim) pausados.add(dia);
+  }
   const totalDias = differenceInCalendarDays(parseISO(periodo.fim), parseISO(periodo.inicio)) + 1;
   // Período vigente usa o ritmo atual em todas as semanas; encerrado, o que valia em cada semana.
   const porSemana = (input.vigencias?.length ?? 0) > 0 && !periodoVigente(periodo, input.hoje);
@@ -294,10 +302,11 @@ export function metaDoPeriodo(input: {
   return {
     valor: temAbsoluta ? absoluta : calculada,
     calculada,
+    bruto,
     origem: temAbsoluta ? 'absoluta' : calculada != null ? 'ritmo' : null,
-    diasDePausa: pausa.dias.length,
+    diasDePausa: pausados.size,
     pendenciaDePausa: pausa.pendencia,
     semanasAjustadas,
-    diasElegiveis: totalDias - pausa.dias.length,
+    diasElegiveis: totalDias - pausados.size,
   };
 }

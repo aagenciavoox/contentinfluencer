@@ -3,6 +3,7 @@ import { distribuirEspacos } from './distribuirEspacos.ts';
 import type { DecisaoPeriodo } from './editorialSettings.ts';
 import { FUNCOES } from './funcoes.ts';
 import { metaDoPeriodo, type MetaDoPeriodo } from './metaDoPeriodo.ts';
+import { diasDePausa, type PausaEditorial } from './pausas.ts';
 import { semanaDe } from './periodoEditorial.ts';
 import { metasDaProporcao, readProporcao, type ProporcaoFuncoes } from './proporcaoObjetivos.ts';
 import { periodoVigente } from './vigencias.ts';
@@ -89,6 +90,8 @@ export function metaDaConta(input: {
   decisao?: Pick<DecisaoPeriodo, 'metasPorConta' | 'pausaEditorial'> | null;
   /** Proporção geral do período (a do Editorial), para a conta sem proporção própria. */
   proporcaoGeral: ProporcaoFuncoes | null;
+  /** Pausas com data: valem as de publicação e as desta conta. */
+  pausas?: readonly PausaEditorial[];
   hoje?: string;
 }): MetaDaConta {
   const linhas = linhasDaConta(input.linhas, input.platformId);
@@ -104,6 +107,7 @@ export function metaDaConta(input: {
     limiteSemanal: atual?.limiteSemanal ?? null,
     decisao: { metasPublicacao: absoluta, pausaEditorial: input.decisao?.pausaEditorial },
     hoje,
+    diasPausados: diasDePausa(input.pausas ?? [], { tipo: 'conta', platformId: input.platformId }, input.periodo),
     limiteDaSemana: vigente
       ? () => atual?.limiteSemanal ?? null
       : inicioSemana => linhaDaContaEm(linhas, inicioSemana)?.limiteSemanal ?? null,
@@ -192,6 +196,7 @@ export function metasDasContas(input: {
   periodo: Intervalo;
   decisao?: Pick<DecisaoPeriodo, 'metasPorConta' | 'pausaEditorial'> | null;
   proporcaoGeral: ProporcaoFuncoes | null;
+  pausas?: readonly PausaEditorial[];
   hoje?: string;
 }): MetasConsolidadas {
   return consolidarMetas(input.platformIds.map(platformId => metaDaConta({ ...input, platformId })));
