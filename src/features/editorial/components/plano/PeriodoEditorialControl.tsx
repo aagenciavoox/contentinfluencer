@@ -7,6 +7,7 @@ import { Surface } from '../../../../components/ui/Surface';
 import { ChoiceChips } from '../../../../components/ui/ChoiceChips';
 import { Text } from '../../../../components/ui/Text';
 import { useAppContext } from '../../../../context/AppContext';
+import { janelaDaContinuidade } from '../../lib/apuracaoSerie';
 import { buildGradeEntries } from '../../lib/gradeEntries';
 import { contarPeriodo, type GradeCounts } from '../../lib/gradeCounts';
 import { usePostItsNaData } from '../../../planejamento/hooks/usePostItsNaData';
@@ -85,6 +86,15 @@ export function rotuloDoPeriodo(periodo: PeriodoSelecionado): string {
   return periodo.modo === 'semana' ? `Semana de ${texto}` : capitalizar(texto);
 }
 
+/**
+ * Itens da grade nas janelas inteiras que tocam o período (`janelaDaContinuidade`):
+ * a apuração das séries confere semanas, ciclos e meses das pontas inteiros.
+ */
+export function useItensDaJanela(inicio: string, fim: string): GradeCounts['itens'] {
+  const janela = useMemo(() => janelaDaContinuidade({ inicio, fim }), [inicio, fim]);
+  return useContagemDoPeriodo(janela.inicio, janela.fim).itens;
+}
+
 export function useContagemDoPeriodo(inicio: string, fim: string): GradeCounts {
   const { state } = useAppContext();
   const postIts = usePostItsNaData();
@@ -101,6 +111,7 @@ export function useContagemDoPeriodo(inicio: string, fim: string): GradeCounts {
       entries,
       pilares: state.pilares,
       postIts,
+      series: state.series,
       settings: {
         preferencias: settings.preferencias,
         proporcaoFuncoes: settings.proporcaoFuncoes,

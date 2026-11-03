@@ -33,7 +33,7 @@ import { ExcluirEstruturaDialog, type AlvoExclusao } from '../components/series-
 import { TemporadaDialogs, type EdicaoTemporada } from '../components/series-detail/TemporadaDialogs';
 import { rotaParaCriarFilho } from '../lib/serieHierarquia';
 import { metaDoCabecalho, totaisDoCabecalho } from '../lib/serieCabecalho';
-import { hojeIso, periodoInicial, useContagemDoPeriodo } from '../../editorial/components/plano/PeriodoEditorialControl';
+import { hojeIso, periodoInicial, useItensDaJanela } from '../../editorial/components/plano/PeriodoEditorialControl';
 import { lerPeriodoSalvo } from '../../editorial/lib/periodoEditorial';
 import { verificarMoverEpisodios } from '../../../lib/database';
 import {
@@ -293,12 +293,12 @@ export function SeriesScriptsPage() {
     () => (state.editorialVisao ? lerPeriodoSalvo(state.editorialVisao) : null) ?? periodoInicial(),
     [state.editorialVisao],
   );
-  const contagemDoPeriodo = useContagemDoPeriodo(periodoDaMeta.inicio, periodoDaMeta.fim);
+  // Janelas inteiras nas pontas, como no Editorial e na Saúde.
+  const itensDaJanela = useItensDaJanela(periodoDaMeta.inicio, periodoDaMeta.fim);
   const meta = useMemo(() => {
     if (!serie) return null;
-    const itens = contagemDoPeriodo.itens.map(item => ({ serieId: item.serieId, espacoId: item.id, contentId: item.contentId }));
-    return metaDoCabecalho({ serie, series: state.series, itens, periodo: periodoDaMeta, hoje: hojeIso() });
-  }, [contagemDoPeriodo, periodoDaMeta, serie, state.series]);
+    return metaDoCabecalho({ serie, series: state.series, itens: itensDaJanela, periodo: periodoDaMeta, hoje: hojeIso() });
+  }, [itensDaJanela, periodoDaMeta, serie, state.series]);
 
   const escopoTemporada = useMemo(
     () => (serie ? escopoTemporadas(serie.id, state.series) : null),

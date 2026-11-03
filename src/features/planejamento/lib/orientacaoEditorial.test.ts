@@ -115,6 +115,7 @@ function testTemaConcentrado() {
   assert.ok(avisos.some(aviso => aviso.tipo === 'tema-concentrado'));
 }
 
+// Dias seguidos não avisa sozinho: vira regra opcional do acompanhamento, desligada por padrão.
 function testQuadroEmDiasSeguidos() {
   const avisos = avisosDeOrientacao({
     postIts: [
@@ -127,7 +128,7 @@ function testQuadroEmDiasSeguidos() {
     obras: [],
     periodo: {inicio: '2026-11-01', fim: '2026-11-07'},
   });
-  assert.ok(avisos.some(aviso => aviso.tipo === 'quadro-seguido'));
+  assert.equal(avisos.some(aviso => /dias seguidos/.test(aviso.texto)), false);
 }
 
 function testSerieAcimaDaFrequencia() {

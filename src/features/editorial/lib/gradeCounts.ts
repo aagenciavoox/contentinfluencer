@@ -5,8 +5,10 @@ import type { GradeEntry } from './gradeEntries.ts';
 import { percentuaisFechamEm100, percentuaisNaOrdem } from './distribuirEspacos.ts';
 import { contagemPorEtapaVazia, type ContagemPorEtapa, type Etapa } from './etapas.ts';
 import { FUNCAO_LABELS, FUNCOES, isFuncaoEditorial } from './funcoes.ts';
+import { objetivoHerdadoDaSerie, pilarHerdadoDaSerie, type SerieClassificacao } from './herancaSerie.ts';
 import { postItTemPauta } from './pautaConteudo.ts';
-import { decisaoDoPeriodo, limiteDoIntervalo, semanasNoIntervalo } from './periodoEditorial.ts';
+import { metaDoPeriodo, type MetaDoPeriodo } from './metaDoPeriodo.ts';
+import { decisaoDoPeriodo, semanasNoIntervalo } from './periodoEditorial.ts';
 import { metasDoPeriodo, type ProporcaoFuncoes } from './proporcaoObjetivos.ts';
 import { periodoVigente, limiteSemanalNaSemana, proporcaoDoIntervalo } from './vigencias.ts';
 
@@ -77,9 +79,11 @@ export type GradeCounts = {
   semanas: number;
   /** Limite semanal declarado. Não é a meta do período. */
   espacosPorSemana: number;
-  /** Limite do intervalo. Null quando não há limite — não vira 0. */
+  /** Meta do período (absoluta, ajustes ou ritmo). Null quando não há — não vira 0. */
   totalMeta: number | null;
   limite: number | null;
+  /** De onde veio o limite, a pausa descontada e o que ficou para revisar. */
+  meta: MetaDoPeriodo;
   /** A janela de 4 semanas saiu da conta. Fica falso para quem ainda lê o campo. */
   gradePequena: boolean;
   periodo: PeriodoGrade;
@@ -162,6 +166,15 @@ function objetivoDe(valor: FuncaoEditorial | string | null | undefined): FuncaoE
   return isFuncaoEditorial(valor) ? valor : null;
 }
 
+/** Post-it sem conteúdo: o pilar anotado vale; vazio sobe quadro → série, como no conteúdo. */
+function pilarDoPostIt(postIt: PostItContagem, series: readonly SerieClassificacao[]): string | null {
+  return postIt.pilarId?.trim() || pilarHerdadoDaSerie(postIt.serieId, series);
+}
+
+function objetivoDoPostIt(postIt: PostItContagem, series: readonly SerieClassificacao[]): FuncaoEditorial | null {
+  return objetivoDe(postIt.objetivo) ?? objetivoHerdadoDaSerie(postIt.serieId, series);
+}
+
 type ItemContado = {
   entry: GradeEntry;
   temPauta: boolean;
@@ -185,6 +198,7 @@ function montarItens(
   entries: readonly GradeEntry[],
   postIts: readonly PostItContagem[],
   periodo: PeriodoGrade,
+  series: readonly SerieClassificacao[],
 ): ItemContado[] {
   const originais = entries.filter(entry => entry.tipo === 'original');
   const reposts = entries.filter(entry => entry.tipo === 'repost');
@@ -255,9 +269,9 @@ function montarItens(
       contaNaGrade: true,
       // Com conteúdo ligado, vale a classificação do conteúdo, mesmo vazia.
       // A do post-it só vale enquanto ele é planejamento (conteúdo que sumiu da lista).
-      pilarId: entry ? entry.pilarId : escolhido.pilarId ?? null,
+      pilarId: entry ? entry.pilarId : pilarDoPostIt(escolhido, series),
       serieId: entry ? entry.serieId : escolhido.serieId ?? null,
-      funcao: entry ? entry.funcao : objetivoDe(escolhido.objetivo),
+      funcao: entry ? entry.funcao : objetivoDoPostIt(escolhido, series),
       realizada: publicado,
       realizadaEm: publicado ? entry?.realizadaEm ?? null : null,
       temPauta,
@@ -276,9 +290,9 @@ function montarItens(
       data: postIt.date,
       hora: null,
       contaNaGrade: true,
-      pilarId: postIt.pilarId ?? null,
+      pilarId: pilarDoPostIt(postIt, series),
       serieId: postIt.serieId ?? null,
-      funcao: objetivoDe(postIt.objetivo),
+      funcao: objetivoDoPostIt(postIt, series),
       realizada: false,
       realizadaEm: null,
       temPauta,
@@ -335,7 +349,7 @@ function contaGrupo(grupo: readonly ItemContado[]): {
 
 /**
  * Conta o intervalo uma vez.
- * O limite vem de `limiteDoIntervalo`. Null continua null.
+ * O limite é a meta do período (`metaDoPeriodo`): absoluta, ajustes das semanas, ritmo. Null continua null.
  * Excesso fica registrado e não apaga item.
  */
 export function contarPeriodo({
@@ -344,6 +358,7 @@ export function contarPeriodo({
   settings,
   periodo,
   postIts = [],
+  series = [],
   hoje,
 }: {
   entries: readonly GradeEntry[];
@@ -351,6 +366,8 @@ export function contarPeriodo({
   settings: GradeCountSettings;
   periodo: PeriodoGrade;
   postIts?: readonly PostItContagem[];
+  /** Para o post-it sem pilar ou objetivo herdar da série, como o conteúdo. */
+  series?: readonly SerieClassificacao[];
   /** yyyy-MM-dd; padrão, hoje. */
   hoje?: string;
 }): GradeCounts {
@@ -362,13 +379,16 @@ export function contarPeriodo({
   const limiteDaSemana = temVigencias
     ? (inicioSemana: string) => limiteSemanalNaSemana({ limiteSemanal, vigencias: settings.vigencias }, inicioSemana)
     : undefined;
-  const limite = limiteDoIntervalo({
+  const decisao = decisaoDoPeriodo(settings.periodos ?? [], periodo.inicio, periodo.fim);
+  const meta = metaDoPeriodo({
+    periodo,
     limiteSemanal,
-    inicio: periodo.inicio,
-    fim: periodo.fim,
+    vigencias: settings.vigencias,
     ajustesSemana,
-    limiteDaSemana,
+    decisao,
+    hoje,
   });
+  const limite = meta.valor;
   const proporcao = proporcaoDoIntervalo({
     semanas: temVigencias
       ? semanasNoIntervalo(periodo.inicio, periodo.fim).map(semana => ({
@@ -379,8 +399,7 @@ export function contarPeriodo({
     proporcaoAtual: settings.proporcaoFuncoes ?? null,
     vigencias: settings.vigencias,
   });
-  const decisao = decisaoDoPeriodo(settings.periodos ?? [], periodo.inicio, periodo.fim);
-  const itens = montarItens(entries, postIts, periodo);
+  const itens = montarItens(entries, postIts, periodo, series);
 
   let comPauta = 0;
   let publicado = 0;
@@ -447,6 +466,7 @@ export function contarPeriodo({
     espacosPorSemana: limiteSemanal ?? 0,
     totalMeta: limite,
     limite,
+    meta,
     gradePequena: false,
     periodo: { inicio: periodo.inicio, fim: periodo.fim },
     pilares: linhasPilar,

@@ -1,13 +1,24 @@
-import { addDays, differenceInCalendarDays, endOfMonth, format, parseISO, startOfMonth } from 'date-fns';
-import type { FuncaoEditorial, Serie } from '../../../lib/database.ts';
+import { format, parseISO } from 'date-fns';
+import type { FuncaoEditorial } from '../../../lib/database.ts';
+import {
+  apurarSerie,
+  ehReserva,
+  situacaoDaFrequencia,
+  TEXTO_SEM_ANCORA,
+  textoFrequencia,
+  type ItemDaApuracao,
+  type JanelaApurada,
+  type SerieDaApuracao,
+} from '../../editorial/lib/apuracaoSerie.ts';
 import { FUNCAO_LABELS, FUNCOES, isFuncaoEditorial } from '../../editorial/lib/funcoes.ts';
-import { resolverFuncaoHerdada, type ConteudoHeranca, type SerieHeranca } from '../../editorial/lib/herancaSerie.ts';
-import { lerFrequencia, type FrequenciaSerie } from '../../editorial/lib/frequenciaSerie.ts';
-import { semanaDe, semanasNoIntervalo } from '../../editorial/lib/periodoEditorial.ts';
-import type { ProporcaoFuncoes } from '../../editorial/lib/proporcaoObjetivos.ts';
-import { idsDaSubarvore } from '../../editorial/lib/serieArvore.ts';
+import { objetivoDoConteudo, type ConteudoHeranca, type SerieClassificacao } from '../../editorial/lib/herancaSerie.ts';
+import { semanasNoIntervalo } from '../../editorial/lib/periodoEditorial.ts';
+import type { MetaDoObjetivo, ProporcaoFuncoes } from '../../editorial/lib/proporcaoObjetivos.ts';
 import type { VigenciaEditorial } from '../../editorial/lib/editorialSettings.ts';
 import { limiteSemanalNaSemana, periodoVigente, proporcaoDoIntervalo } from '../../editorial/lib/vigencias.ts';
+
+export { intervalosDaFrequencia, janelaDaContinuidade, situacaoDaFrequencia } from '../../editorial/lib/apuracaoSerie.ts';
+export type { SituacaoFrequencia } from '../../editorial/lib/apuracaoSerie.ts';
 
 /**
  * Os três indicadores da Saúde: objetivos, continuidade das séries e pilares.
@@ -17,14 +28,9 @@ import { limiteSemanalNaSemana, periodoVigente, proporcaoDoIntervalo } from '../
 type Intervalo = { inicio: string; fim: string };
 
 /** O mínimo de um item do período (GradeEntry serve). */
-export type ItemSaude = {
-  id: string;
-  contentId: string;
-  data: string | null;
-  serieId: string | null;
+export type ItemSaude = ItemDaApuracao & {
   pilarId: string | null;
   funcao: FuncaoEditorial | null;
-  postItId?: string | null;
 };
 
 export type ConteudoDaSaude = ConteudoHeranca & { id: string };
@@ -42,17 +48,17 @@ function plural(n: number, um: string, varios: string): string {
 // ---------------------------------------------------------------- Objetivos
 
 /**
- * Objetivo do item: o do conteúdo (escolhido ou herdado da série, subindo a árvore);
- * post-it sem conteúdo usa o objetivo do post-it. Nada é preenchido.
+ * Objetivo do item, com a mesma regra da ficha e do Editorial (`objetivoDoConteudo`):
+ * post-it sem conteúdo usa o objetivo do próprio item. Nada é preenchido.
  */
 export function objetivoEfetivo(
   item: ItemSaude,
   contentById: ReadonlyMap<string, ConteudoDaSaude>,
-  series: readonly SerieHeranca[],
+  series: readonly SerieClassificacao[],
 ): FuncaoEditorial | null {
   const content = contentById.get(item.contentId);
   if (content) {
-    return resolverFuncaoHerdada({ ...content, seriesId: content.seriesId ?? item.serieId }, series).funcao;
+    return objetivoDoConteudo({ ...content, seriesId: content.seriesId ?? item.serieId }, series);
   }
   return isFuncaoEditorial(item.funcao) ? item.funcao : null;
 }
@@ -90,6 +96,10 @@ export type LinhaObjetivoSaude<T> = {
   /** Sobre todos os itens do período, "sem objetivo" incluído. */
   previstoPct: number;
   desejadoPct: number | null;
+  /** Meta em número do período: a digitada no editor ou a proporção × meta do período. */
+  metaQuantidade: number | null;
+  /** O número foi digitado para este período. */
+  metaAjustada: boolean;
   itens: T[];
 };
 
@@ -109,8 +119,10 @@ function pct(parte: number, total: number): number {
 export function distribuicaoPorObjetivo<T extends ItemSaude>(input: {
   itens: readonly T[];
   contents: readonly ConteudoDaSaude[];
-  series: readonly SerieHeranca[];
+  series: readonly SerieClassificacao[];
   proporcao: ProporcaoFuncoes | null;
+  /** Metas do período por objetivo (as mesmas do editor do Editorial). */
+  metas?: Partial<Record<FuncaoEditorial, Pick<MetaDoObjetivo, 'meta' | 'origem'>>> | null;
 }): DistribuicaoObjetivos<T> {
   const contentById = new Map(input.contents.map(content => [content.id, content]));
   const grupos = new Map<FuncaoEditorial, T[]>();
@@ -125,16 +137,19 @@ export function distribuicaoPorObjetivo<T extends ItemSaude>(input: {
     .map(funcao => {
       const itens = grupos.get(funcao) ?? [];
       const desejado = input.proporcao?.[funcao];
+      const meta = input.metas?.[funcao];
       return {
         funcao,
         rotulo: FUNCAO_LABELS[funcao],
         quantidade: itens.length,
         previstoPct: pct(itens.length, total),
         desejadoPct: desejado == null ? null : Math.round(desejado),
+        metaQuantidade: meta?.meta ?? null,
+        metaAjustada: meta?.origem === 'ajustada',
         itens,
       };
     })
-    .filter(linha => linha.quantidade > 0 || linha.desejadoPct != null);
+    .filter(linha => linha.quantidade > 0 || linha.desejadoPct != null || linha.metaQuantidade != null);
   return {
     total,
     linhas,
@@ -152,105 +167,14 @@ export function textoSemObjetivo(dist: Pick<DistribuicaoObjetivos<unknown>, 'tot
 
 // ------------------------------------------------------------- Continuidade
 
-export type SerieDaSaude = Pick<
-  Serie,
-  'id' | 'name' | 'parentId' | 'frequenciaRecomendada' | 'frequenciaVezes' | 'frequenciaUnidade' | 'frequenciaAPartirDe'
-> & Partial<Pick<Serie, 'tipoAgrupamento' | 'ativa' | 'acompanharContinuidade'>>;
+export type SerieDaSaude = SerieDaApuracao;
 
-export type SituacaoFrequencia =
-  | { tipo: 'definida'; freq: FrequenciaSerie & { unidade: 'semana' | 'quinzena' | 'mes' } }
-  | { tipo: 'sem-frequencia' }
-  | { tipo: 'incompleta' }
-  | { tipo: 'sob-demanda' };
-
-function chave(value: string | null | undefined): string {
-  return (value ?? '').trim().toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
-    .replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
-}
-
-const UNIDADES = new Set(['semana', 'semanal', 'quinzena', 'quinzenal', 'mes', 'mensal', 'sob demanda']);
-
-/**
- * Lê a frequência como lerFrequencia, mas separa o que falta configurar:
- * número sem unidade é "incompleta"; nada cadastrado é "sem frequência".
- */
-export function situacaoDaFrequencia(serie: SerieDaSaude): SituacaoFrequencia {
-  const unidade = chave(serie.frequenciaUnidade);
-  const vezes = serie.frequenciaVezes;
-  const temVezes = typeof vezes === 'number' && Number.isFinite(vezes) && vezes > 0;
-  if (temVezes && !UNIDADES.has(unidade)) return { tipo: 'incompleta' };
-  const legado = chave(serie.frequenciaRecomendada);
-  if (unidade === 'sob demanda' || (!unidade && legado === 'sob demanda')) return { tipo: 'sob-demanda' };
-  const freq = lerFrequencia({
-    frequenciaRecomendada: serie.frequenciaRecomendada,
-    vezes: serie.frequenciaVezes,
-    unidade: serie.frequenciaUnidade,
-    aPartirDe: serie.frequenciaAPartirDe,
-  });
-  if (freq.unidade === 'sob-demanda') return { tipo: 'sem-frequencia' };
-  return { tipo: 'definida', freq: freq as FrequenciaSerie & { unidade: 'semana' | 'quinzena' | 'mes' } };
-}
-
-export type IntervaloAvaliado = {
-  inicio: string;
-  fim: string;
+export type IntervaloAvaliado = JanelaApurada & {
+  /** Compatível com a leitura antiga: episódios + reservas. */
   quantidade: number;
-  meta: number;
+  /** Falta mesmo contando reservas. */
   abaixo: boolean;
-  /** "semana 28/09–04/10 avaliada inteira (começa antes do período)". */
-  nota: string | null;
 };
-
-const NOME_UNIDADE = { semana: 'semana', quinzena: 'quinzena', mes: 'mês' } as const;
-
-function notaDoIntervalo(unidade: 'semana' | 'quinzena' | 'mes', intervalo: Intervalo, periodo: Intervalo): string | null {
-  const motivos: string[] = [];
-  if (intervalo.inicio < periodo.inicio) motivos.push('começa antes do período');
-  if (intervalo.fim > periodo.fim) motivos.push('termina depois do período');
-  if (unidade !== 'mes' && intervalo.inicio.slice(0, 7) !== intervalo.fim.slice(0, 7)) motivos.push('atravessa dois meses');
-  if (motivos.length === 0) return null;
-  const inteira = unidade === 'mes' ? 'avaliado inteiro' : 'avaliada inteira';
-  return `${NOME_UNIDADE[unidade]} ${curta(intervalo.inicio)}–${curta(intervalo.fim)} ${inteira} (${motivos.join(', ')})`;
-}
-
-/**
- * Intervalos inteiros que tocam o período: semanas domingo-sábado, meses do calendário,
- * quinzenas de 14 dias a partir do início da meta (ou do período). Antes do início da meta, nada.
- */
-export function intervalosDaFrequencia(freq: SituacaoFrequencia & { tipo: 'definida' }, periodo: Intervalo): Intervalo[] {
-  const aPartirDe = freq.freq.aPartirDe;
-  const inicio = aPartirDe && aPartirDe > periodo.inicio ? aPartirDe : periodo.inicio;
-  const fim = periodo.fim;
-  if (inicio > fim) return [];
-  let lista: Intervalo[] = [];
-  if (freq.freq.unidade === 'semana') {
-    lista = semanasNoIntervalo(inicio, fim).map(semana => ({ inicio: semana.inicio, fim: semana.fim }));
-  } else if (freq.freq.unidade === 'mes') {
-    let cursor = startOfMonth(parseISO(inicio));
-    while (format(cursor, FORMATO) <= fim) {
-      lista.push({ inicio: format(cursor, FORMATO), fim: format(endOfMonth(cursor), FORMATO) });
-      cursor = addDays(endOfMonth(cursor), 1);
-    }
-  } else {
-    const ancora = parseISO(aPartirDe ?? periodo.inicio);
-    const passos = Math.floor(differenceInCalendarDays(parseISO(inicio), ancora) / 14);
-    let cursor = addDays(ancora, passos * 14);
-    while (format(cursor, FORMATO) <= fim) {
-      lista.push({ inicio: format(cursor, FORMATO), fim: format(addDays(cursor, 13), FORMATO) });
-      cursor = addDays(cursor, 14);
-    }
-  }
-  return aPartirDe ? lista.filter(intervalo => intervalo.inicio >= aPartirDe) : lista;
-}
-
-/** Janela de datas que os intervalos inteiros podem alcançar: buscar os itens nela. */
-export function janelaDaContinuidade(periodo: Intervalo): Intervalo {
-  const ini = [semanaDe(periodo.inicio).inicio, format(startOfMonth(parseISO(periodo.inicio)), FORMATO),
-    format(addDays(parseISO(periodo.inicio), -13), FORMATO)].sort()[0];
-  const fim = [semanaDe(periodo.fim).fim, format(endOfMonth(parseISO(periodo.fim)), FORMATO),
-    format(addDays(parseISO(periodo.fim), 13), FORMATO)].sort().reverse()[0];
-  return { inicio: ini, fim };
-}
 
 export type LinhaContinuidade<T> = {
   serieId: string;
@@ -259,11 +183,16 @@ export type LinhaContinuidade<T> = {
   paiNome: string | null;
   frequencia: string;
   intervalos: IntervaloAvaliado[];
+  /** Janelas com falta, mesmo contando reservas. */
   abaixo: IntervaloAvaliado[];
+  /** Janelas que só chegam à meta por post-it: reservadas, conteúdo a desenvolver. */
+  reservadas: IntervaloAvaliado[];
   /** Mais que a meta num intervalo enquanto outro ficou vazio. */
   concentrada: boolean;
-  /** Nenhum episódio em nenhum intervalo avaliado: aparece como "Sem episódios no período". */
+  /** Nenhum episódio nem reserva em nenhum intervalo avaliado: aparece como "Sem episódios no período". */
   semEpisodios: boolean;
+  /** Episódios e reservas fora do período que ajudaram alguma janela. */
+  foraDoPeriodo: number;
   precisaAtencao: boolean;
   itens: T[];
 };
@@ -272,7 +201,7 @@ export type PendenciaFrequencia = {
   serieId: string;
   nome: string;
   tipo: 'serie' | 'quadro';
-  motivo: 'sem-frequencia' | 'incompleta';
+  motivo: 'sem-frequencia' | 'incompleta' | 'sem-ancora';
   texto: string;
 };
 
@@ -293,12 +222,6 @@ export type Continuidade<T> = {
   nenhumaAcompanhada: boolean;
 };
 
-function textoFrequencia(freq: FrequenciaSerie): string {
-  const vezes = freq.vezes ?? 1;
-  const nome = freq.unidade === 'semana' ? 'semana' : freq.unidade === 'quinzena' ? 'quinzena' : 'mês';
-  return `${vezes}× por ${nome}`;
-}
-
 function tipoDe(serie: SerieDaSaude): 'serie' | 'quadro' | 'familia' {
   if (serie.tipoAgrupamento === 'familia') return 'familia';
   if (serie.tipoAgrupamento === 'quadro') return 'quadro';
@@ -306,9 +229,18 @@ function tipoDe(serie: SerieDaSaude): 'serie' | 'quadro' | 'familia' {
   return serie.parentId ? 'quadro' : 'serie';
 }
 
+function avaliado(janela: JanelaApurada): IntervaloAvaliado {
+  return {
+    ...janela,
+    quantidade: janela.episodios + janela.reservas,
+    abaixo: janela.estado === 'abaixo' || janela.estado === 'vazia',
+  };
+}
+
 /**
- * Continuidade: cada série (e quadro com meta própria) conferida intervalo a intervalo.
- * Episódio de quadro conta para a série acima, uma vez só. Sobra não compensa falta.
+ * Continuidade: cada série (e quadro com meta própria) marcada, conferida janela a janela
+ * pela apuração comum (`apurarSerie`). Episódio de quadro conta para a série acima, uma vez só.
+ * Repost não é episódio novo. Post-it é reserva. Sobra não compensa falta.
  * `itens` pode ir além do período: os intervalos das pontas são avaliados inteiros.
  */
 export function continuidadeDasSeries<T extends ItemSaude>(input: {
@@ -330,8 +262,8 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
     acompanhadas += 1;
     const tipo = tipoDe(serie);
     const nome = serie.name?.trim() || (tipo === 'quadro' ? 'Quadro' : 'Série');
-    const situacao = situacaoDaFrequencia(serie);
     const tipoLinha = tipo === 'quadro' ? 'quadro' : 'serie';
+    const situacao = situacaoDaFrequencia(serie);
     if (situacao.tipo === 'incompleta') {
       pendencias.push({ serieId: serie.id, nome, tipo: tipoLinha, motivo: 'incompleta', texto: 'Frequência incompleta: escolha a unidade' });
       continue;
@@ -341,45 +273,30 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
       pendencias.push({ serieId: serie.id, nome, tipo: tipoLinha, motivo: 'sem-frequencia', texto: 'Sem frequência definida' });
       continue;
     }
+    if (situacao.tipo === 'sem-ancora') {
+      // Só a avaliação desta frequência fica suspensa; os conteúdos seguem nas outras contagens.
+      pendencias.push({ serieId: serie.id, nome, tipo: tipoLinha, motivo: 'sem-ancora', texto: TEXTO_SEM_ANCORA });
+      continue;
+    }
     if (situacao.tipo === 'sob-demanda') {
       naoAvaliadas.push({ serieId: serie.id, nome, motivo: 'sob-demanda', texto: 'Sob demanda: não avaliada' });
       continue;
     }
-    const aPartirDe = situacao.freq.aPartirDe;
-    if (aPartirDe && aPartirDe > periodo.fim) {
-      naoAvaliadas.push({ serieId: serie.id, nome, motivo: 'inicio-futuro', texto: `Meta começa em ${format(parseISO(aPartirDe), 'dd/MM/yyyy')}: ainda não avaliada` });
+
+    const apuracao = apurarSerie({ serie, series, itens, periodo });
+    if (apuracao.inicioFuturo) {
+      naoAvaliadas.push({
+        serieId: serie.id,
+        nome,
+        motivo: 'inicio-futuro',
+        texto: `Meta começa em ${format(parseISO(apuracao.inicioFuturo), 'dd/MM/yyyy')}: ainda não avaliada`,
+      });
       continue;
     }
 
-    const ids = idsDaSubarvore(serie.id, series);
-    ids.add(serie.id);
-    const daSerie = new Map<string, T>();
-    for (const item of itens) {
-      if (item.serieId && ids.has(item.serieId) && item.data) daSerie.set(item.id, item);
-    }
-    const meta = situacao.freq.vezes ?? 1;
-    const intervalos: IntervaloAvaliado[] = intervalosDaFrequencia(situacao, periodo).map(intervalo => {
-      let quantidade = 0;
-      for (const item of daSerie.values()) {
-        const data = item.data!.slice(0, 10);
-        if (data >= intervalo.inicio && data <= intervalo.fim) quantidade += 1;
-      }
-      return {
-        ...intervalo,
-        quantidade,
-        meta,
-        abaixo: quantidade < meta,
-        nota: notaDoIntervalo(situacao.freq.unidade, intervalo, periodo),
-      };
-    });
+    const intervalos = apuracao.janelas.map(avaliado);
     const abaixo = intervalos.filter(intervalo => intervalo.abaixo);
-    const semEpisodios = intervalos.length > 0 && intervalos.every(i => i.quantidade === 0);
-    const concentrada = intervalos.some(i => i.quantidade > meta) && intervalos.some(i => i.quantidade === 0);
     const pai = serie.parentId ? porId.get(serie.parentId) : undefined;
-    const doPeriodo = [...daSerie.values()].filter(item => {
-      const data = item.data!.slice(0, 10);
-      return intervalos.some(i => data >= i.inicio && data <= i.fim);
-    });
     linhas.push({
       serieId: serie.id,
       nome,
@@ -388,10 +305,12 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
       frequencia: textoFrequencia(situacao.freq),
       intervalos,
       abaixo,
-      concentrada,
-      semEpisodios,
-      precisaAtencao: abaixo.length > 0 || concentrada,
-      itens: doPeriodo.sort((a, b) => (a.data ?? '').localeCompare(b.data ?? '')),
+      reservadas: intervalos.filter(intervalo => intervalo.estado === 'reservada'),
+      concentrada: apuracao.concentrada,
+      semEpisodios: apuracao.semEpisodios,
+      foraDoPeriodo: apuracao.foraDoPeriodo,
+      precisaAtencao: abaixo.length > 0 || apuracao.concentrada || apuracao.reservadas.length > 0,
+      itens: apuracao.itens,
     });
   }
 
@@ -410,7 +329,8 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
   };
 }
 
-type LinhaResumo = Pick<LinhaContinuidade<unknown>, 'tipo' | 'precisaAtencao' | 'semEpisodios' | 'abaixo'>;
+type LinhaResumo = Pick<LinhaContinuidade<unknown>, 'tipo' | 'precisaAtencao' | 'semEpisodios' | 'abaixo' | 'concentrada'>
+  & Partial<Pick<LinhaContinuidade<unknown>, 'reservadas'>>;
 
 function seriesEQuadros(linhas: readonly LinhaResumo[]): { texto: string; total: number } {
   const series = linhas.filter(l => l.tipo === 'serie').length;
@@ -430,10 +350,12 @@ export function resumoDaContinuidade(linhas: readonly LinhaResumo[]): string {
   }
   const semEpisodios = seriesEQuadros(atencao.filter(l => l.semEpisodios));
   const abaixo = seriesEQuadros(atencao.filter(l => !l.semEpisodios && l.abaixo.length > 0));
-  const concentradas = seriesEQuadros(atencao.filter(l => !l.semEpisodios && l.abaixo.length === 0));
+  const concentradas = seriesEQuadros(atencao.filter(l => !l.semEpisodios && l.abaixo.length === 0 && l.concentrada));
+  const reservadas = seriesEQuadros(atencao.filter(l => !l.semEpisodios && l.abaixo.length === 0 && !l.concentrada && (l.reservadas?.length ?? 0) > 0));
   return [
     abaixo.total > 0 ? `${abaixo.texto} abaixo da frequência` : null,
     concentradas.total > 0 ? `${concentradas.texto} com episódios concentrados` : null,
+    reservadas.total > 0 ? `${reservadas.texto} só com reserva em post-it, conteúdo a desenvolver` : null,
     semEpisodios.total > 0 ? `${semEpisodios.texto} sem episódios no período` : null,
   ].filter(Boolean).join(' · ');
 }
@@ -441,3 +363,6 @@ export function resumoDaContinuidade(linhas: readonly LinhaResumo[]): string {
 export function rotuloIntervalo(intervalo: Intervalo): string {
   return `${curta(intervalo.inicio)}–${curta(intervalo.fim)}`;
 }
+
+/** Reserva em post-it entre os itens: para a lista mostrar "post-it" e não episódio. */
+export { ehReserva };

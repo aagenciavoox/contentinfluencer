@@ -2,8 +2,15 @@ import { format, parseISO } from 'date-fns';
 import type { Content, Serie } from '../../../lib/database.ts';
 import { isActiveCreation } from '../../contents/lib/contentWorkflow.ts';
 import { etapaDoStatus, type Etapa } from '../../editorial/lib/etapas.ts';
-import { contarSerieAgrupada, type ItemContagemSerie, type SerieFrequencia } from '../../editorial/lib/frequenciaAgrupada.ts';
-import { lerFrequencia } from '../../editorial/lib/frequenciaSerie.ts';
+import {
+  apurarSerie,
+  TEXTO_SEM_ANCORA,
+  textoDaFrequencia,
+  textoDoVolume,
+  textoFrequencia,
+  type ItemDaApuracao,
+  type SerieDaApuracao,
+} from '../../editorial/lib/apuracaoSerie.ts';
 import type { ModoPeriodo } from '../../editorial/lib/periodoEditorial.ts';
 import { idsDaSubarvore } from '../../editorial/lib/serieArvore.ts';
 
@@ -58,17 +65,13 @@ export type MetaDoCabecalho =
     estado: 'ativa';
     texto: string;
     regra: string;
+    /** Janelas atendidas (episódios bastam; reserva em post-it não conta como atendida). */
     previstos: number;
+    /** Janelas conferidas no período. */
     esperado: number;
-    /** 0 a 100, só para a barra. O número real fica em `previstos`. */
+    /** 0 a 100, só para a barra. */
     barra: number;
   };
-
-const UNIDADE: Record<'semana' | 'quinzena' | 'mes', string> = {
-  semana: 'semana',
-  quinzena: 'quinzena',
-  mes: 'mês',
-};
 
 function noPeriodo(modo: ModoPeriodo, dentro: boolean): string {
   if (!dentro) return 'no período selecionado';
@@ -79,8 +82,9 @@ function noPeriodo(modo: ModoPeriodo, dentro: boolean): string {
 }
 
 /**
- * Meta de planejamento da série com o cálculo atual (contarSerieAgrupada):
- * conta episódios previstos na grade do período, não publicações.
+ * Meta de planejamento da série com a apuração comum (`apurarSerie`), a mesma do Editorial e da Saúde:
+ * episódios e reservas com data no período, e a frequência conferida janela a janela.
+ * `itens` deve cobrir `janelaDaContinuidade(periodo)`.
  */
 export function metaDoCabecalho({
   serie,
@@ -89,31 +93,26 @@ export function metaDoCabecalho({
   periodo,
   hoje,
 }: {
-  serie: SerieFrequencia;
-  series: readonly SerieFrequencia[];
-  itens: readonly ItemContagemSerie[];
+  serie: SerieDaApuracao;
+  series: readonly SerieDaApuracao[];
+  itens: readonly ItemDaApuracao[];
   periodo: { modo: ModoPeriodo; inicio: string; fim: string };
   hoje: string;
 }): MetaDoCabecalho {
-  const freq = lerFrequencia({
-    frequenciaRecomendada: serie.frequenciaRecomendada,
-    vezes: serie.frequenciaVezes,
-    unidade: serie.frequenciaUnidade,
-    aPartirDe: serie.frequenciaAPartirDe,
-  });
-  if (freq.unidade === 'sob-demanda') return { estado: 'sem-meta', texto: 'Sem meta definida' };
-  const vezes = freq.vezes ?? 1;
-  const regra = `Meta: ${vezes} por ${UNIDADE[freq.unidade]}`;
-  if (freq.aPartirDe && freq.aPartirDe > hoje) {
-    return { estado: 'futura', texto: `Começa em ${format(parseISO(freq.aPartirDe), 'dd/MM/yyyy')}`, regra };
+  const apuracao = apurarSerie({ serie, series, itens, periodo });
+  const { situacao } = apuracao;
+  if (situacao.tipo === 'sem-ancora') return { estado: 'sem-meta', texto: TEXTO_SEM_ANCORA };
+  if (situacao.tipo !== 'definida') return { estado: 'sem-meta', texto: 'Sem meta definida' };
+  const regra = `Meta: ${textoFrequencia(situacao.freq)}`;
+  const aPartirDe = situacao.freq.aPartirDe;
+  if (aPartirDe && aPartirDe > hoje) {
+    return { estado: 'futura', texto: `Começa em ${format(parseISO(aPartirDe), 'dd/MM/yyyy')}`, regra };
   }
-  const agrupada = contarSerieAgrupada({ serie, series, itens, inicio: periodo.inicio, fim: periodo.fim });
-  const esperado = agrupada.expectativa ?? 0;
-  const previstos = agrupada.total;
   const onde = noPeriodo(periodo.modo, hoje >= periodo.inicio && hoje <= periodo.fim);
-  const texto = esperado > 0
-    ? `${previstos} de ${esperado} ${esperado === 1 ? 'episódio previsto' : 'episódios previstos'} ${onde}`
-    : `${previstos} ${previstos === 1 ? 'episódio previsto' : 'episódios previstos'} ${onde} · a meta não pede nenhum`;
+  const volume = `${textoDoVolume(apuracao.noPeriodo)} ${onde}`;
+  const esperado = apuracao.janelas.length;
+  const previstos = apuracao.janelas.filter(janela => janela.estado === 'atendida').length;
+  const texto = esperado > 0 ? `${volume} · ${textoDaFrequencia(apuracao)}` : volume;
   const barra = esperado > 0 ? Math.min(100, Math.round((previstos / esperado) * 100)) : 0;
   return { estado: 'ativa', texto, regra, previstos, esperado, barra };
 }

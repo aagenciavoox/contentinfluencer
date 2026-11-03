@@ -14,6 +14,7 @@ import type {Pilar, Serie} from '../../../../lib/database';
 import {cn} from '../../../../lib/utils';
 import {CONTENT_STATUS, getStatusOptions, normalizeContentStatus} from '../../lib/contentPipeline';
 import {aplicarEscolhasDaSerie, marcarEscolhaManual} from '../../../editorial/lib/escolhasSerie';
+import {pilarDoConteudo} from '../../../editorial/lib/herancaSerie';
 import {caminhoDaSerie, filhosDaSerie} from '../../../editorial/lib/serieArvore';
 import {escopoTemporadas, temporadaNoEscopo, temporadasDoEscopo} from '../../../editorial/lib/temporadas';
 import {tipoDaSerie} from '../../../settings/lib/serieAgrupamento';
@@ -143,7 +144,8 @@ export function ContentManageWorkspace({
 }: ContentManageWorkspaceProps) {
   const {state, ensureDataDomains} = useAppContext();
   const navigate = useNavigate();
-  const linkedPilar = draft.pilarId ? pilares.find(item => item.id === draft.pilarId) ?? null : null;
+  const pilarEfetivoId = pilarDoConteudo(draft, series);
+  const linkedPilar = pilarEfetivoId ? pilares.find(item => item.id === pilarEfetivoId) ?? null : null;
   const linkedSerie = draft.seriesId ? series.find(item => item.id === draft.seriesId) ?? null : null;
   const tipoLinked = linkedSerie ? tipoDaSerie(linkedSerie.id, series) : null;
   const seriePrincipal = tipoLinked === 'quadro' && linkedSerie?.parentId

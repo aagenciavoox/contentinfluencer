@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ArrowRight, CalendarRange, Flag, Layers, RotateCcw, Target } from 'lucide-react';
+import { ArrowRight, CalendarRange, Flag, Layers, Target } from 'lucide-react';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { Badge } from '../../../../components/ui/Badge';
 import { DisclosureButton } from '../../../../components/ui/DisclosureButton';
@@ -15,11 +15,10 @@ import { BREAKPOINTS } from '../../../../shared/breakpoints';
 import { reservaPronta, rotuloCapacidadeSeries, textoEstoque } from '../../lib/estoque';
 import { listarSoEmOutrasRedes } from '../../lib/soEmOutrasRedes';
 import { avisosDeOrientacao } from '../../../planejamento/lib/orientacaoEditorial';
-import type { MetasPeriodo } from '../../lib/editorialSettings';
 import { ETAPA_LABEL, ETAPAS, ETAPAS_DE_CONTEUDO, contagemPorEtapaVazia, somaDasEtapas, type ContagemPorEtapa, type Etapa } from '../../lib/etapas';
-import { contarSerieAgrupada, textoDaContagemSerie } from '../../lib/frequenciaAgrupada';
+import { apurarSerie, textoDaFrequencia, textoDoVolume } from '../../lib/apuracaoSerie';
 import { FUNCAO_CURTA, FUNCOES } from '../../lib/funcoes';
-import { decisaoDoPeriodo, semanaDe } from '../../lib/periodoEditorial';
+import { decisaoDoPeriodo } from '../../lib/periodoEditorial';
 import {
   frasesDoResumo,
   metasDoPeriodo,
@@ -28,15 +27,16 @@ import {
   type OrigemDaMeta,
 } from '../../lib/proporcaoObjetivos';
 import { sortPilares } from '../../../settings/lib/activePilares';
-import { CAMPO_BASE, CampoTexto, CardConfiguracao, digitos, inteiroOuNull } from './campos';
+import { CardConfiguracao } from './campos';
+import type { ObjetivoNoEditor } from './AjustarMetasDialog';
 import { ItensDoPeriodoDialog, type FiltroDosItens } from './ItensDoPeriodoDialog';
 import { PlanoVigenteView } from './PlanoVigenteView';
 import { ProporcaoObjetivosEditor } from './ProporcaoObjetivosEditor';
 import {
   PeriodoEditorialControl,
-  rotuloSemanaAjustada,
   semanasParciais,
   useContagemDoPeriodo,
+  useItensDaJanela,
   type PeriodoSelecionado,
 } from './PeriodoEditorialControl';
 import { useEditorialPlano } from './useEditorialPlano';
@@ -57,14 +57,6 @@ function celula(valor: number | null): string {
   return valor == null ? '—' : String(valor);
 }
 
-
-/** `metas` do período guarda só os ajustes. Null tira o ajuste e volta à proporção. */
-function metasCom(metas: MetasPeriodo, funcao: FuncaoEditorial, quantidade: number | null): MetasPeriodo {
-  const next = { ...metas };
-  if (quantidade == null) delete next[funcao];
-  else next[funcao] = quantidade;
-  return next;
-}
 
 /** "27 de set. a 3 de out.": a semana parcial no cartão; o rótulo longo fica para o leitor de tela. */
 function rotuloCurtoDaSemana(inicio: string, fim: string): string {
@@ -101,78 +93,14 @@ function chaveDaLinha(linha: LinhaObjetivo): string {
   return linha.funcao ?? 'sem-objetivo';
 }
 
-/**
- * Meta do objetivo neste período. Grava ao sair do campo ou no Enter; vazio volta à proporção.
- * Digitar o mesmo número da proporção não cria ajuste.
- */
-function CampoMeta({
-  linha,
-  onChange,
-}: {
-  linha: LinhaObjetivo;
-  onChange: (quantidade: number | null) => void;
-}) {
-  const salvo = linha.meta == null ? '' : String(linha.meta);
-  const [draft, setDraft] = useState(salvo);
-  const [editando, setEditando] = useState(false);
-  useEffect(() => {
-    if (!editando) setDraft(salvo);
-  }, [salvo, editando]);
-
-  const commit = () => {
-    setEditando(false);
-    const quantidade = inteiroOuNull(draft);
-    if (quantidade == null) {
-      if (linha.origem === 'ajustada') onChange(null);
-      else setDraft(salvo);
-      return;
-    }
-    if (linha.origem !== 'ajustada' && quantidade === linha.calculada) return;
-    if (linha.origem === 'ajustada' && quantidade === linha.meta) return;
-    onChange(quantidade);
-  };
-
+/** A meta que vale, só para ler. Mudar fica no editor de metas do período. */
+function ValorDaMeta({ linha }: { linha: LinhaObjetivo }) {
   return (
-    <input
-      id={`meta-${chaveDaLinha(linha)}`}
-      type="text"
-      inputMode="numeric"
-      autoComplete="off"
-      placeholder="—"
-      value={draft}
-      onFocus={() => setEditando(true)}
-      onChange={event => {
-        setEditando(true);
-        setDraft(digitos(event.target.value));
-      }}
-      onBlur={commit}
-      onKeyDown={event => {
-        if (event.key === 'Enter') event.currentTarget.blur();
-      }}
-      aria-label={`Meta de ${linha.nome} neste período`}
-      className={`${CAMPO_BASE} block min-h-9 w-16 py-1 text-center tabular-nums pointer-coarse:min-h-11`}
-    />
-  );
-}
-
-/** "ajustado" e o atalho de volta. Só aparece quando o número deste período foi digitado. */
-function AjusteDaMeta({ linha, onVoltar }: { linha: LinhaObjetivo; onVoltar: () => void }) {
-  if (linha.origem !== 'ajustada') return null;
-  const temProporcao = linha.calculada != null;
-  return (
-    <span className="flex flex-wrap items-center gap-1.5">
-      <Badge variant="neutral">ajustado</Badge>
-      <AppButton
-        variant="secondary"
-        size="xs"
-        leftIcon={<RotateCcw className="h-3.5 w-3.5" />}
-        onClick={onVoltar}
-        aria-label={temProporcao
-          ? `Voltar ${linha.nome} à proporção (${linha.calculada})`
-          : `Tirar a meta de ${linha.nome} deste período`}
-      >
-        {temProporcao ? 'Voltar à proporção' : 'Tirar meta'}
-      </AppButton>
+    <span className="flex flex-col items-center gap-1">
+      <Text variant="body" as="span" className={`tabular-nums ${linha.meta == null ? 'text-[var(--text-tertiary)]' : ''}`}>
+        {linha.meta == null ? '—' : linha.meta}
+      </Text>
+      {linha.origem === 'ajustada' ? <Badge variant="neutral">ajustado</Badge> : null}
     </span>
   );
 }
@@ -251,13 +179,12 @@ function rotuloDoNumero(valor: number, linha: LinhaObjetivo, etapa: Etapa | null
  * Tabela no computador; no celular, uma linha por objetivo com as etapas que têm item.
  * Cada número abre a lista do que está nele.
  */
+/** Só leitura: mudar a meta de um objetivo fica no editor de metas do período. */
 function MetasPorObjetivo({
   linhas,
-  onMetaChange,
   onAbrir,
 }: {
   linhas: LinhaObjetivo[];
-  onMetaChange: (funcao: FuncaoEditorial, quantidade: number | null) => void;
   onAbrir: (filtro: FiltroDosItens) => void;
 }) {
   const estreito = useMediaQuery(`(max-width: ${BREAKPOINTS.sm - 1}px)`);
@@ -292,11 +219,10 @@ function MetasPorObjetivo({
                 {funcao ? (
                   <span className="flex shrink-0 items-center gap-2">
                     <Text variant="label" as="span" aria-hidden>Meta</Text>
-                    <CampoMeta linha={linha} onChange={quantidade => onMetaChange(funcao, quantidade)} />
+                    <ValorDaMeta linha={linha} />
                   </span>
                 ) : null}
               </div>
-              {funcao ? <AjusteDaMeta linha={linha} onVoltar={() => onMetaChange(funcao, null)} /> : null}
               {linha.previsto === 0 && linha.meta == null ? (
                 <Text variant="meta" as="p" className="text-[var(--text-secondary)]">Nada previsto</Text>
               ) : (
@@ -377,10 +303,7 @@ function MetasPorObjetivo({
                 <td className="px-2 py-1.5">
                   <span className="flex flex-col items-center gap-1">
                     {funcao ? (
-                      <>
-                        <CampoMeta linha={linha} onChange={quantidade => onMetaChange(funcao, quantidade)} />
-                        <AjusteDaMeta linha={linha} onVoltar={() => onMetaChange(funcao, null)} />
-                      </>
+                      <ValorDaMeta linha={linha} />
                     ) : (
                       <Text variant="body" as="span" className="text-[var(--text-tertiary)]">—</Text>
                     )}
@@ -441,10 +364,13 @@ export function PeriodoPanel({
   periodo,
   onPeriodoChange,
   onAbrirAjustes,
+  planoRecolhivel = true,
 }: {
   periodo: PeriodoSelecionado;
   onPeriodoChange: (periodo: PeriodoSelecionado) => void;
   onAbrirAjustes: () => void;
+  /** No Planejamento as metas abrem fechadas; no Editorial ficam abertas. */
+  planoRecolhivel?: boolean;
 }) {
   const navigate = useNavigate();
   const { state, settings, salvarDecisao, salvarProporcao } = useEditorialPlano();
@@ -452,7 +378,10 @@ export function PeriodoPanel({
   const [editandoProporcao, setEditandoProporcao] = useState(false);
   const [semanasAbertas, setSemanasAbertas] = useState(false);
   const [detalhesAvancados, setDetalhesAvancados] = useState(false);
+  // Um editor de metas só, aberto do card de metas ou das seções abaixo.
+  const [ajustarAberto, setAjustarAberto] = useState(false);
   const contagem = useContagemDoPeriodo(periodo.inicio, periodo.fim);
+  const itensJanela = useItensDaJanela(periodo.inicio, periodo.fim);
   const postIts = usePostItsNaData();
   const decisao = decisaoDoPeriodo(settings.periodos, periodo.inicio, periodo.fim);
   const parciais = semanasParciais(periodo.inicio, periodo.fim);
@@ -519,6 +448,7 @@ export function PeriodoPanel({
     temas: state.temas,
     obras: state.bibliotecaItems,
     periodo: { inicio: periodo.inicio, fim: periodo.fim },
+    itensSerie: itensJanela,
     limiteGravacoesDia: settings.preferencias.limiteGravacoesDia,
   })) {
     avisos.push({
@@ -593,39 +523,29 @@ export function PeriodoPanel({
       };
     });
 
-  const itensContagem = contagem.itens.map(item => ({
-    serieId: item.serieId,
-    espacoId: item.id,
-    contentId: item.contentId,
-  }));
+  // Mesma apuração das séries em todas as telas: episódios + reservas no período, frequência por janela.
   const series: LinhaDoPeriodo[] = state.series
     .filter(serie => serie.ativa)
     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
     .map(serie => {
-      const agrupada = contarSerieAgrupada({
-        serie,
-        series: state.series,
-        itens: itensContagem,
-        inicio: periodo.inicio,
-        fim: periodo.fim,
-      });
-      const avisoRecorte = agrupada.recorteIncompativel
-        ? ` · recortes dos filhos: ${agrupada.somaRecortesFilhos}`
-        : '';
+      const apuracao = apurarSerie({ serie, series: state.series, itens: itensJanela, periodo });
       return {
         id: serie.id,
         nome: serie.name,
         cor: serie.cor,
-        texto: `${textoDaContagemSerie(agrupada)}${avisoRecorte}`,
+        texto: `${textoDoVolume(apuracao.noPeriodo)} · ${textoDaFrequencia(apuracao)}`,
       };
     });
+  const objetivosDoEditor: ObjetivoNoEditor[] = linhasObjetivo.flatMap(linha => (linha.funcao
+    ? [{ funcao: linha.funcao, nome: linha.nome, meta: linha.meta, calculada: linha.calculada, percentual: linha.percentual, origem: linha.origem }]
+    : []));
 
 
   const notaCapacidade = semLimite
     ? null
     : periodo.modo === 'semana'
       ? `Limite semanal de ${limiteSemanal}, salvo um ajuste desta semana.`
-      : `Soma das semanas inteiras; nas semanas cortadas, ${limiteSemanal} × dias ÷ 7, arredondado.`;
+      : `Ritmo de ${limiteSemanal} por semana nos dias do período, sem as pausas com data, arredondado uma vez no total. Semanas ajustadas entram como estão.`;
 
   return (
     <div className="stack-lg">
@@ -638,8 +558,14 @@ export function PeriodoPanel({
         series={state.series}
         pilares={state.pilares}
         limiteSemanal={limiteSemanal}
+        contagem={contagem}
+        itensSerie={itensJanela}
+        objetivos={objetivosDoEditor}
+        semanasParciais={parciais}
+        ajustarAberto={ajustarAberto}
+        onAjustarAbertoChange={setAjustarAberto}
         onSalvarDecisao={patch => salvarDecisao(periodo, patch)}
-        recolhivel
+        recolhivel={planoRecolhivel}
       />
 
       <div className="pt-2">
@@ -695,19 +621,14 @@ export function PeriodoPanel({
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <CardConfiguracao icone={<Flag className="h-5 w-5" />} titulo="Prioridade do período">
-          <CampoTexto
-            key={`${periodo.inicio}:${periodo.fim}`}
-            id="prioridade-periodo"
-            nome="Prioridade do período"
-            rows={4}
-            placeholder={'O que merece atenção neste período?\nEx.: lançar a série Leia comigo e testar o horário das 19h.'}
-            value={decisao?.prioridade ?? ''}
-            onSave={prioridade => {
-              if (prioridade === (decisao?.prioridade ?? '')) return;
-              salvarDecisao(periodo, { prioridade });
-            }}
-          />
+        <CardConfiguracao
+          icone={<Flag className="h-5 w-5" />}
+          titulo="Prioridade do período"
+          acao={<AppButton variant="secondary" size="sm" onClick={() => setAjustarAberto(true)}>Ajustar metas</AppButton>}
+        >
+          <Text variant={decisao?.prioridade?.trim() ? 'body' : 'secondary'} as="p" className="whitespace-pre-wrap">
+            {decisao?.prioridade?.trim() || 'Nenhuma prioridade escrita para este período.'}
+          </Text>
         </CardConfiguracao>
 
         <CardConfiguracao
@@ -738,7 +659,7 @@ export function PeriodoPanel({
       <CardConfiguracao
         icone={<Target className="h-5 w-5" />}
         titulo="Distribuição por objetivo"
-        descricao="A meta de cada objetivo vem da proporção × limite do período. Ajuste um número só para este período, se quiser."
+        descricao="A meta de cada objetivo vem da proporção × meta do período. Um número só para este período fica em Ajustar metas."
         acao={editandoProporcao ? undefined : (
           <AppButton variant="secondary" size="sm" onClick={() => setEditandoProporcao(true)}>
             {proporcao ? 'Editar proporção' : 'Definir proporção'}
@@ -773,16 +694,13 @@ export function PeriodoPanel({
             <p role="status"><Text variant="body" as="span">{frasesDasMetas.join(' · ')}</Text></p>
           </Surface>
         ) : null}
-        <MetasPorObjetivo
-          linhas={linhasObjetivo}
-          onMetaChange={(funcao, quantidade) => salvarDecisao(periodo, {
-            metas: metasCom(decisao?.metas ?? {}, funcao, quantidade),
-          })}
-          onAbrir={setFiltroItens}
-        />
-        <Text variant="secondary">
-          Planejamento conta os post-its com data. As outras colunas seguem a etapa de cada roteiro.
-        </Text>
+        <MetasPorObjetivo linhas={linhasObjetivo} onAbrir={setFiltroItens} />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Text variant="secondary">
+            Planejamento conta os post-its com data. As outras colunas seguem a etapa de cada roteiro.
+          </Text>
+          <AppButton variant="secondary" size="sm" onClick={() => setAjustarAberto(true)}>Ajustar metas</AppButton>
+        </div>
       </CardConfiguracao>
 
       <ItensDoPeriodoDialog
@@ -801,48 +719,34 @@ export function PeriodoPanel({
           >
             <CalendarRange className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" aria-hidden />
             <Text variant="bodyStrong" as="span">Semanas que cruzam o período</Text>
-            <Text variant="secondary" as="span">Ajuste a capacidade das semanas parciais.</Text>
+            <Text variant="secondary" as="span">Capacidade das semanas parciais.</Text>
           </DisclosureButton>
           {semanasAbertas ? (
-            <ul id="semanas-parciais" className="stack-sm">
-              {parciais.map(semana => {
-                const ajuste = decisao?.ajustesSemana.find(
-                  item => item.inicio === semana.inicio && item.fim === semana.fim,
-                );
-                const id = `ajuste-${semana.inicio}`;
-                return (
-                  <li
-                    key={`${semana.inicio}:${semana.fim}`}
-                    className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[var(--radius-input)] bg-[var(--surface-subtle)] px-4 py-2.5"
-                  >
-                    <Text variant="bodyStrong" as="span">{rotuloCurtoDaSemana(semana.inicio, semana.fim)}</Text>
-                    <Text variant="secondary" as="span" aria-hidden>Limite ajustado</Text>
-                    <input
-                      id={id}
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="off"
-                      placeholder={semLimite ? '—' : String(limiteSemanal)}
-                      aria-label={rotuloSemanaAjustada(semana.inicio, semana.fim)}
-                      value={ajuste == null ? '' : String(ajuste.limite)}
-                      onChange={event => {
-                        const quantidade = inteiroOuNull(digitos(event.target.value));
-                        const outros = (decisao?.ajustesSemana ?? []).filter(
-                          item => !(item.inicio === semana.inicio && item.fim === semana.fim),
-                        );
-                        salvarDecisao(periodo, {
-                          ajustesSemana: quantidade == null ? outros : [...outros, { ...semana, limite: quantidade }],
-                        });
-                      }}
-                      className={`${CAMPO_BASE} min-h-9 w-16 py-1 text-center tabular-nums pointer-coarse:min-h-11`}
-                    />
-                    <Text variant="secondary" as="span">
-                      {semLimite ? 'Domingo a sábado.' : `Domingo a sábado. Vazio usa o limite de sempre (${limiteSemanal}).`}
-                    </Text>
-                  </li>
-                );
-              })}
-            </ul>
+            <div id="semanas-parciais" className="stack-sm">
+              <ul className="stack-sm">
+                {parciais.map(semana => {
+                  const ajuste = decisao?.ajustesSemana.find(
+                    item => item.inicio === semana.inicio && item.fim === semana.fim,
+                  );
+                  return (
+                    <li
+                      key={`${semana.inicio}:${semana.fim}`}
+                      className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[var(--radius-input)] bg-[var(--surface-subtle)] px-4 py-2.5"
+                    >
+                      <Text variant="bodyStrong" as="span">{rotuloCurtoDaSemana(semana.inicio, semana.fim)}</Text>
+                      <Text variant="secondary" as="span">
+                        {ajuste != null
+                          ? `Ajustada: ${ajuste.limite}`
+                          : semLimite ? 'Sem ritmo definido' : `Pelo ritmo de ${limiteSemanal} por semana, proporcional aos dias`}
+                      </Text>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div>
+                <AppButton variant="secondary" size="sm" onClick={() => setAjustarAberto(true)}>Ajustar metas</AppButton>
+              </div>
+            </div>
           ) : null}
         </Surface>
       ) : null}

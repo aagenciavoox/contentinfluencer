@@ -100,7 +100,7 @@ assert.equal(situacaoDaFrequencia(serie({ id: 'x', frequenciaRecomendada: 'Sob d
   const s = serie({ id: 'sem', frequenciaVezes: 1, frequenciaUnidade: 'semana' });
   const situacao = situacaoDaFrequencia(s);
   assert.equal(situacao.tipo, 'definida');
-  const semanas = intervalosDaFrequencia(situacao as never, PERIODO);
+  const semanas = intervalosDaFrequencia((situacao as unknown as { freq: never }).freq, PERIODO);
   assert.deepEqual(semanas[0], { inicio: '2026-09-27', fim: '2026-10-03' });
   assert.deepEqual(semanas.at(-1), { inicio: '2026-12-27', fim: '2027-01-02' });
   assert.equal(semanas.length, 14);
@@ -125,13 +125,14 @@ assert.equal(situacaoDaFrequencia(serie({ id: 'x', frequenciaRecomendada: 'Sob d
 // --- Mensal mês a mês; quinzenal ancorado no início da meta.
 {
   const mensal = situacaoDaFrequencia(serie({ id: 'm', frequenciaVezes: 1, frequenciaUnidade: 'mes' }));
-  assert.deepEqual(intervalosDaFrequencia(mensal as never, PERIODO).map(i => i.inicio), ['2026-10-01', '2026-11-01', '2026-12-01']);
+  assert.deepEqual(intervalosDaFrequencia((mensal as unknown as { freq: never }).freq, PERIODO).map(i => i.inicio), ['2026-10-01', '2026-11-01', '2026-12-01']);
   const quinzenal = situacaoDaFrequencia(serie({ id: 'q', frequenciaVezes: 1, frequenciaUnidade: 'quinzena', frequenciaAPartirDe: '2026-10-07' }));
-  const janelas = intervalosDaFrequencia(quinzenal as never, PERIODO);
+  const janelas = intervalosDaFrequencia((quinzenal as unknown as { freq: never }).freq, PERIODO);
   assert.deepEqual(janelas[0], { inicio: '2026-10-07', fim: '2026-10-20' });
   assert.deepEqual(janelas.at(-1), { inicio: '2026-12-30', fim: '2027-01-12' });
   const semAncora = situacaoDaFrequencia(serie({ id: 'q2', frequenciaVezes: 1, frequenciaUnidade: 'quinzena' }));
-  assert.deepEqual(intervalosDaFrequencia(semAncora as never, PERIODO)[0], { inicio: '2026-10-03', fim: '2026-10-16' });
+  // Sem data de início não há âncora: a avaliação fica suspensa, sem ciclo inventado pelo período.
+  assert.equal(semAncora.tipo, 'sem-ancora');
 }
 
 // --- Início da meta no futuro: não avaliada, não conta como abaixo.
@@ -242,6 +243,71 @@ assert.deepEqual(janelaDaContinuidade(PERIODO), { inicio: '2026-09-20', fim: '20
   assert.equal(cont.linhas.find(l => l.serieId === 'vazia1')!.semEpisodios, true);
   assert.equal(cont.linhas.find(l => l.serieId === 'pouca')!.semEpisodios, false);
   assert.equal(cont.resumo, '1 série abaixo da frequência · 2 séries sem episódios no período');
+}
+
+// --- Post-it é reserva: janela coberta só por ele fica "reservada", não atendida.
+{
+  const s = serie({ id: 'res', name: 'Resenha', frequenciaVezes: 1, frequenciaUnidade: 'mes' });
+  const cont = continuidadeDasSeries({
+    series: [s],
+    itens: [
+      item('ep1', '2026-10-10', { serieId: 'res', etapa: 'roteiro' }),
+      item('post-it:p1', '2026-11-10', { serieId: 'res', contentId: 'p1', postItId: 'p1', etapa: 'planejamento' }),
+    ],
+    periodo: PERIODO,
+  });
+  const linha = cont.linhas[0];
+  assert.deepEqual(linha.intervalos.map(i => i.estado), ['atendida', 'reservada', 'vazia']);
+  assert.equal(linha.reservadas.length, 1);
+  assert.equal(linha.abaixo.length, 1, 'só dezembro falta');
+}
+
+// --- Repost não é episódio novo; o mesmo conteúdo conta uma vez.
+{
+  const s = serie({ id: 'rp', name: 'Repost', frequenciaVezes: 1, frequenciaUnidade: 'mes' });
+  const cont = continuidadeDasSeries({
+    series: [s],
+    itens: [
+      item('c1:original', '2026-10-05', { serieId: 'rp', contentId: 'c1', tipo: 'original' }),
+      item('c1:ciclo:2', '2026-11-05', { serieId: 'rp', contentId: 'c1', tipo: 'repost' }),
+    ],
+    periodo: PERIODO,
+  });
+  assert.deepEqual(cont.linhas[0].intervalos.map(i => i.episodios), [1, 0, 0]);
+}
+
+// --- Ciclo de 14 dias sem data de início: pendência, não "abaixo".
+{
+  const cont = continuidadeDasSeries({
+    series: [serie({ id: 'q', name: 'Quinzenal', frequenciaVezes: 1, frequenciaUnidade: 'quinzena' })],
+    itens: [],
+    periodo: PERIODO,
+  });
+  assert.equal(cont.linhas.length, 0);
+  assert.deepEqual(cont.pendencias.map(p => [p.motivo, p.texto]), [['sem-ancora', 'Defina o início dos ciclos de 14 dias']]);
+}
+
+// --- Episódio fora do período ajuda a janela, mas aparece à parte.
+{
+  const s = serie({ id: 'fora', name: 'Fora', frequenciaVezes: 1, frequenciaUnidade: 'semana' });
+  const cont = continuidadeDasSeries({ series: [s], itens: [item('e0', '2026-09-29', { serieId: 'fora' })], periodo: PERIODO });
+  assert.equal(cont.linhas[0].foraDoPeriodo, 1);
+  assert.equal(cont.linhas[0].intervalos[0].foraDoPeriodo, 1);
+}
+
+// --- Metas numéricas por objetivo chegam à Saúde.
+{
+  const dist = distribuicaoPorObjetivo({
+    itens: [item('a', '2026-10-10')],
+    contents: [{ id: 'a', funcao: 'atrair', funcaoOrigem: 'escolhida', seriesId: null }] as never,
+    series: [],
+    proporcao: { atrair: 50 },
+    metas: { atrair: { meta: 7, origem: 'ajustada' }, converter: { meta: 3, origem: 'proporcao' } },
+  });
+  const atrair = dist.linhas.find(l => l.funcao === 'atrair')!;
+  assert.equal(atrair.metaQuantidade, 7);
+  assert.equal(atrair.metaAjustada, true);
+  assert.equal(dist.linhas.find(l => l.funcao === 'converter')!.metaQuantidade, 3);
 }
 
 console.log('saudeIndicadores: ok');

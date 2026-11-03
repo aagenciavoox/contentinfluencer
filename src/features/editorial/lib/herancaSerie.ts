@@ -45,7 +45,7 @@ export type ConteudoHeranca = {
   seriesId?: string | null;
 };
 
-function seriePorId(series: readonly SerieHeranca[]): Map<string, SerieHeranca> {
+function seriePorId<S extends SerieNo>(series: readonly S[]): Map<string, S> {
   return new Map(series.map(serie => [serie.id, serie]));
 }
 
@@ -57,14 +57,81 @@ function cadeia(serieId: string, series: readonly SerieHeranca[]): SerieHeranca[
 }
 
 /** Da própria série aos ancestrais (próxima primeiro na subida), ignorando famílias. */
-function propriaEAncestrais(serieId: string, series: readonly SerieHeranca[]): SerieHeranca[] {
+function propriaEAncestrais<S extends SerieNo & { tipoAgrupamento?: SerieTipoAgrupamento | null }>(
+  serieId: string,
+  series: readonly S[],
+): S[] {
   const porId = seriePorId(series);
   const propria = porId.get(serieId);
   const acima = ancestraisDaSerie(serieId, series)
     .map(no => porId.get(no.id))
-    .filter((serie): serie is SerieHeranca => Boolean(serie));
+    .filter((serie): serie is S => Boolean(serie));
   const lista = propria ? [propria, ...acima] : acima;
   return lista.filter(serie => serie.tipoAgrupamento !== 'familia');
+}
+
+/** O mínimo da série para resolver pilar e objetivo de um conteúdo. */
+export type SerieClassificacao = SerieNo & Partial<Pick<
+  Serie,
+  'funcaoPadrao' | 'pilarPrincipalId' | 'semPilar' | 'tipoAgrupamento'
+>> & { pilarIds?: readonly string[] | null };
+
+/** Pilar herdado pela subida quadro → série. "Sem pilar" de propósito para a subida. */
+export function pilarHerdadoDaSerie(serieId: string | null | undefined, series: readonly SerieClassificacao[]): string | null {
+  const id = serieId?.trim();
+  if (!id) return null;
+  for (const serie of propriaEAncestrais(id, series)) {
+    const pilar = pilarPrincipalDaSerie(serie);
+    if (pilar) return pilar;
+    if (serie.semPilar) return null;
+  }
+  return null;
+}
+
+/** Objetivo herdado pela subida quadro → série. "Varia" para a subida sem objetivo. */
+export function objetivoHerdadoDaSerie(serieId: string | null | undefined, series: readonly SerieClassificacao[]): FuncaoEditorial | null {
+  const id = serieId?.trim();
+  if (!id) return null;
+  for (const serie of propriaEAncestrais(id, series)) {
+    if (serie.funcaoPadrao === 'varia') return null;
+    const herdavel = padraoHerdavel(serie.funcaoPadrao);
+    if (herdavel) return herdavel;
+  }
+  return null;
+}
+
+/**
+ * Pilar do conteúdo em todas as telas (ficha, Saúde, calendário, encaixe, puxar).
+ * Congelado mantém o que foi gravado, mesmo vazio. "Nenhum pilar" escolhido continua nenhum.
+ * Pilar gravado vale. Só o campo vazio sem escolha sobe quadro → série.
+ */
+export function pilarDoConteudo(
+  content: Pick<ConteudoHeranca, 'pilarId' | 'classificacaoCongeladaEm' | 'seriesId'> & { pilarOrigem?: string | null },
+  series: readonly SerieClassificacao[],
+): string | null {
+  const gravado = content.pilarId?.trim() || null;
+  if (content.classificacaoCongeladaEm) return gravado;
+  if (content.pilarOrigem === 'nenhuma') return null;
+  if (gravado) return gravado;
+  return pilarHerdadoDaSerie(content.seriesId, series);
+}
+
+/**
+ * Objetivo do conteúdo, com a mesma regra do pilar.
+ * Congelado mantém o gravado; "nenhum" continua nenhum; escolhido, aplicado ou migrado vale.
+ * Origem herdada lê a cadeia agora; campo vazio sem escolha também sobe quadro → série.
+ */
+export function objetivoDoConteudo(
+  content: Pick<ConteudoHeranca, 'funcao' | 'funcaoOrigem' | 'classificacaoCongeladaEm' | 'seriesId'>,
+  series: readonly SerieClassificacao[],
+): FuncaoEditorial | null {
+  const gravado = isFuncaoEditorial(content.funcao) ? content.funcao : null;
+  const origem = content.funcaoOrigem ?? null;
+  if (content.classificacaoCongeladaEm) return origem === 'nenhuma' ? null : gravado;
+  if (origem === 'nenhuma') return null;
+  if (origem === 'herdada') return objetivoHerdadoDaSerie(content.seriesId, series);
+  if (gravado) return gravado;
+  return objetivoHerdadoDaSerie(content.seriesId, series);
 }
 
 export type PilarResolvido = {

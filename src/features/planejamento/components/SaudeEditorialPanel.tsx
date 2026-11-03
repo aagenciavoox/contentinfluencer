@@ -12,6 +12,7 @@ import { distribuicaoPorPilar } from '../lib/periodoDaSaude';
 import { cn } from '../../../lib/utils';
 import type { GradeEntry } from '../../editorial/lib/gradeEntries';
 import { rotuloIntervalo, textoSemObjetivo, type Continuidade, type DistribuicaoObjetivos } from '../lib/saudeIndicadores';
+import { textoDaJanela } from '../../editorial/lib/apuracaoSerie';
 import { ItensDaSaudeDialog, type ListaDaSaude } from './ItensDaSaudeDialog';
 
 const STORAGE_EXPANDED_KEY = 'content-os:saude-editorial-expanded';
@@ -64,21 +65,26 @@ export function SaudeEditorialPanel({
 
 
   const preenchidos = counts.previsto ?? counts.somaPlanejado ?? 0;
-  const metaTotal = counts.limite ?? (counts.totalMeta && counts.totalMeta > 0 ? counts.totalMeta : 12);
-  const percentualGeral = metaTotal > 0 ? Math.min(100, Math.round((preenchidos / metaTotal) * 100)) : 0;
+  // Sem ritmo nem meta absoluta não há meta: nada de número inventado.
+  const metaTotal = counts.limite ?? null;
+  const percentualGeral = metaTotal != null && metaTotal > 0 ? Math.min(100, Math.round((preenchidos / metaTotal) * 100)) : 0;
+  const meta = counts.meta;
 
   const preparo = counts.preparo;
   const gravacao = preparo?.gravacao ?? 0;
   const escrita = preparo?.escrita ?? 0;
   const edicao = preparo?.edicao ?? 0;
-  const prontosOuProgramados = preparo ? preparo.prontas + preparo.publicadas : Math.max(0, preenchidos - (counts.postIts ?? 0));
-  const reservasEmPostIt = counts.postIts ?? Math.max(0, preenchidos - prontosOuProgramados);
+  const prontosOuPublicados = preparo ? preparo.prontas + preparo.publicadas : 0;
+  // Reserva é o post-it que ainda não virou conteúdo.
+  const reservasEmPostIt = counts.porEtapa?.planejamento ?? 0;
 
-  const pilaresAtivos = pilares.filter(p => p.ativo !== false);
+  // Pilar inativo com item no período continua na conta, identificado; não vira "sem pilar".
+  const previstosPorPilar = new Map(counts.pilares.map(linha => [linha.id, linha.planejado]));
+  const pilaresNaConta = pilares.filter(p => p.ativo !== false || (previstosPorPilar.get(p.id) ?? 0) > 0);
   const itensSemPilar = counts.itens.filter(item => !item.pilarId);
-  const faltamParaMeta = Math.max(0, metaTotal - preenchidos);
+  const faltamParaMeta = metaTotal == null ? 0 : Math.max(0, metaTotal - preenchidos);
   // Atual: fatia entre os itens do período que têm pilar (soma 100%); sem pilar fica à parte.
-  const distribuicao = distribuicaoPorPilar(pilaresAtivos.map(p => p.id), counts.pilares, preenchidos);
+  const distribuicao = distribuicaoPorPilar(pilaresNaConta.map(p => p.id), counts.pilares, preenchidos);
 
   return (
     <Surface
@@ -97,7 +103,9 @@ export function SaudeEditorialPanel({
             Saúde Editorial — {rotuloPeriodo}
           </Text>
           <span className="inline-flex items-center px-2 py-0.5 rounded-[var(--radius-pill)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
-            <Text variant="meta" as="span">{preenchidos}/{metaTotal} espaços</Text>
+            <Text variant="meta" as="span">
+              {metaTotal == null ? `${preenchidos} previstos · meta não definida` : `${preenchidos}/${metaTotal} espaços`}
+            </Text>
           </span>
         </div>
 
@@ -122,27 +130,45 @@ export function SaudeEditorialPanel({
                   <Text variant="label" as="span" className="tracking-wider text-[var(--text-tertiary)] uppercase">
                     1. Volume Editorial
                   </Text>
-                  <Text variant="bodyStrong" as="span" className="text-[var(--text-secondary)]">
-                    {percentualGeral}%
-                  </Text>
+                  {metaTotal != null ? (
+                    <Text variant="bodyStrong" as="span" className="text-[var(--text-secondary)]">
+                      {percentualGeral}%
+                    </Text>
+                  ) : null}
                 </div>
                 <div className="mt-1.5">
                   <Text variant="sectionTitle" as="div" className="text-[var(--text-primary)]">
-                    {preenchidos} de {metaTotal} espaços
+                    {metaTotal == null ? `${preenchidos} previstos` : `${preenchidos} de ${metaTotal} espaços`}
                   </Text>
                 </div>
-                <div className="mt-0.5">
+                <div className="mt-0.5 stack-xs">
                   <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-                    {prontosOuProgramados} prontos ou programados · {reservasEmPostIt} reserva(s) em post-it
+                    {prontosOuPublicados} prontos ou publicados · {reservasEmPostIt} {reservasEmPostIt === 1 ? 'reserva' : 'reservas'} em post-it
                   </Text>
+                  {metaTotal == null ? (
+                    <button type="button" onClick={() => navigate('/editorial?aba=ajustes')} className="w-fit text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] rounded-[var(--radius-sm)]">
+                      <Text variant="meta" as="span" className="text-[var(--text-secondary)]">Meta não definida: defina o ritmo no Editorial</Text>
+                    </button>
+                  ) : meta?.origem === 'absoluta' ? (
+                    <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">Meta ajustada para este período</Text>
+                  ) : meta && meta.diasDePausa > 0 ? (
+                    <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
+                      Pelo ritmo, sem {meta.diasDePausa} {meta.diasDePausa === 1 ? 'dia' : 'dias'} de pausa
+                    </Text>
+                  ) : null}
+                  {meta?.pendenciaDePausa ? (
+                    <Text variant="meta" as="p" className="text-[#92400e] dark:text-[#fde68a]">{meta.pendenciaDePausa}</Text>
+                  ) : null}
                 </div>
               </div>
-              <div className="h-1.5 w-full bg-[var(--border-subtle)] rounded-[var(--radius-pill)] mt-3 overflow-hidden">
-                <div
-                  className="h-full bg-[var(--text-primary)] rounded-[var(--radius-pill)] transition-all duration-300"
-                  style={{ width: `${percentualGeral}%` }}
-                />
-              </div>
+              {metaTotal != null ? (
+                <div className="h-1.5 w-full bg-[var(--border-subtle)] rounded-[var(--radius-pill)] mt-3 overflow-hidden">
+                  <div
+                    className="h-full bg-[var(--text-primary)] rounded-[var(--radius-pill)] transition-all duration-300"
+                    style={{ width: `${percentualGeral}%` }}
+                  />
+                </div>
+              ) : null}
             </div>
 
             {/* Card 2: Preparo das Peças */}
@@ -208,7 +234,10 @@ export function SaudeEditorialPanel({
                         >
                           <Text variant="body" as="span" className="text-[var(--text-primary)] truncate">{linha.rotulo}</Text>
                           <Text variant="meta" as="span" className="text-[var(--text-secondary)] shrink-0 tabular-nums">
-                            {linha.previstoPct}% previstos{linha.desejadoPct != null ? ` · meta ${linha.desejadoPct}%` : ''}
+                            {linha.metaQuantidade != null
+                              ? `${linha.quantidade} de ${linha.metaQuantidade}${linha.metaAjustada ? ' (ajustada)' : ''} · ${linha.previstoPct}%`
+                              : `${linha.previstoPct}% previstos`}
+                            {linha.desejadoPct != null ? ` · meta ${linha.desejadoPct}%` : ''}
                           </Text>
                         </button>
                       </li>
@@ -288,6 +317,11 @@ export function SaudeEditorialPanel({
                               {linha.abaixo.length} de {linha.intervalos.length} abaixo: {datas}{mais}
                             </Text>
                           ) : null}
+                          {linha.reservadas.length > 0 ? (
+                            <Text variant="meta" as="span" className="block text-[var(--text-secondary)]">
+                              {linha.reservadas.length === 1 ? '1 intervalo reservado' : `${linha.reservadas.length} intervalos reservados`} só com post-it, conteúdo a desenvolver
+                            </Text>
+                          ) : null}
                           {linha.concentrada ? (
                             <Text variant="meta" as="span" className="block text-[var(--text-secondary)]">Episódios concentrados: um intervalo passa da meta enquanto outro fica vazio</Text>
                           ) : null}
@@ -298,13 +332,18 @@ export function SaudeEditorialPanel({
                             {linha.intervalos.map(intervalo => (
                               <li key={intervalo.inicio}>
                                 <Text variant="meta" as="span" className={cn('tabular-nums', intervalo.abaixo ? 'text-[#b45309]' : 'text-[var(--text-secondary)]')}>
-                                  {rotuloIntervalo(intervalo)}: {intervalo.quantidade} de {intervalo.meta}{intervalo.abaixo ? ' · abaixo' : ''}
+                                  {textoDaJanela(intervalo)}
                                 </Text>
                               </li>
                             ))}
                           </ul>
                           {notas.length > 0 ? (
                             <Text variant="meta" as="p" className="mt-1 text-[var(--text-tertiary)]">{notas.join('; ')}.</Text>
+                          ) : null}
+                          {linha.foraDoPeriodo > 0 ? (
+                            <Text variant="meta" as="p" className="mt-1 text-[var(--text-tertiary)]">
+                              {linha.foraDoPeriodo === 1 ? '1 item fora do período ajudou' : `${linha.foraDoPeriodo} itens fora do período ajudaram`} a conferir os intervalos das pontas; não entram nos totais do período.
+                            </Text>
                           ) : null}
                         </details>
                       </li>
@@ -343,7 +382,7 @@ export function SaudeEditorialPanel({
             <section className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-4 stack-sm" aria-label="Pilares">
               <Text variant="label" as="h3" className="tracking-wider text-[var(--text-tertiary)] uppercase">Pilares</Text>
               <div className="stack-sm">
-                {pilaresAtivos.map((pilar, index) => {
+                {pilaresNaConta.map((pilar, index) => {
                   const pautas = distribuicao.linhas[index]?.pautas ?? 0;
                   const atualPct = distribuicao.linhas[index]?.atualPct ?? 0;
                   const barColor = pilar.cor || (index === 0 ? '#84cc16' : index === 1 ? '#ec4899' : '#374151');
@@ -352,7 +391,9 @@ export function SaudeEditorialPanel({
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: barColor }} aria-hidden />
-                          <Text variant="body" as="span" className="text-[var(--text-primary)] truncate">{pilar.nome}</Text>
+                          <Text variant="body" as="span" className="text-[var(--text-primary)] truncate">
+                            {pilar.nome}{pilar.ativo === false ? ' (inativo)' : ''}
+                          </Text>
                         </div>
                         <Text variant="meta" as="span" className="text-[var(--text-secondary)] shrink-0 tabular-nums">
                           {pautas} · {atualPct}%
@@ -391,7 +432,7 @@ export function SaudeEditorialPanel({
                 <div className="flex items-center gap-2 text-[#92400e] dark:text-[#fde68a]">
                   <AlertCircle className="h-4 w-4 shrink-0 text-[#d97706]" />
                   <Text variant="body" as="span" className="text-[#92400e] dark:text-[#fde68a]">
-                    {preenchidos} de {metaTotal} espaços preenchidos ({faltamParaMeta} reserva(s) necessária(s) para atingir a meta do período).
+                    {preenchidos} de {metaTotal} espaços preenchidos: {faltamParaMeta === 1 ? 'falta 1 publicação a planejar' : `faltam ${faltamParaMeta} publicações a planejar`} para a meta do período.
                   </Text>
                 </div>
                 <AppButton
@@ -411,7 +452,7 @@ export function SaudeEditorialPanel({
                 <div className="flex items-center gap-2 text-[#9d174d] dark:text-[#fbcfe8]">
                   <AlertCircle className="h-4 w-4 shrink-0 text-[#db2777]" />
                   <Text variant="body" as="span" className="text-[#9d174d] dark:text-[#fbcfe8]">
-                    {gravacao} roteiro(s) agendado(s) para este mês aguardam sessão de gravação.
+                    {gravacao === 1 ? '1 roteiro com data neste período aguarda' : `${gravacao} roteiros com data neste período aguardam`} sessão de gravação.
                   </Text>
                 </div>
                 <AppButton

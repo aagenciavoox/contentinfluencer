@@ -48,6 +48,7 @@ import {derivarConteudo} from '../../lib/derivarConteudo';
 import {origemDoRoteiro, resolveSeriesScriptTemplate} from '../../lib/seriesScriptTemplate';
 import {livroIdsEfetivos} from '../../../../lib/livroIds';
 import {rotuloDaRef} from '../../../contas/lib/contas';
+import {pilarDoConteudo} from '../../../editorial/lib/herancaSerie';
 import {buildContentDetailRoute} from '../../lib/contentDetailRoute';
 import {
   isCarouselContent,
@@ -446,7 +447,8 @@ export function ContentDetailShell({
     }
   }, [draft.script, draft.seriesId, draft.status, handleDraftChange, state.templates, templatesReady]);
 
-  const pillar = state.pilares.find(item => item.id === draft.pilarId) || null;
+  const pilarEfetivoId = pilarDoConteudo(draft, state.series);
+  const pillar = pilarEfetivoId ? state.pilares.find(item => item.id === pilarEfetivoId) || null : null;
   const serie = state.series.find(item => item.id === draft.seriesId) || null;
   const primaryAction = getPrimaryAction(mergedContent, {block: blockSummary?.block});
   const postingAlerts = useMemo(

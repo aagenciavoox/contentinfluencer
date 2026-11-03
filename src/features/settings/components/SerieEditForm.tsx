@@ -51,7 +51,7 @@ const SERIE_DEFAULT_COR = '#6366f1';
 
 const UNIDADES_FREQUENCIA = [
   { value: 'semana', label: 'Semana' },
-  { value: 'quinzena', label: 'Quinzena' },
+  { value: 'quinzena', label: 'A cada 14 dias' },
   { value: 'mes', label: 'Mês' },
 ] as const;
 
@@ -88,7 +88,7 @@ function formatarFrequenciaRecomendada(vezes: number | null, unidade: string): s
 function formatarResumoMeta(vezes: number | null, unidade: string, aPartirDe: string): string {
   const qtd = vezes && vezes > 0 ? vezes : 1;
   const ep = qtd === 1 ? '1 episódio' : `${qtd} episódios`;
-  const periodo = unidade === 'quinzena' ? 'por quinzena' : unidade === 'mes' ? 'por mês' : 'por semana';
+  const periodo = unidade === 'quinzena' ? 'a cada 14 dias' : unidade === 'mes' ? 'por mês' : 'por semana';
   let dataLabel = '';
   if (aPartirDe && /^\d{4}-\d{2}-\d{2}$/.test(aPartirDe)) {
     try {
@@ -401,7 +401,16 @@ export function SerieEditForm({
     form.cor,
   );
   const erroVinculo = erroDoVinculo(tipo, form.parentId, form.id, series);
-  const valido = Boolean(form.name.trim()) && !colorTaken && !erroVinculo;
+  // Ciclo de 14 dias precisa de início para saber onde cada ciclo começa.
+  // Só cobra ao configurar ou mudar a meta: registro antigo pendente segue editável no resto.
+  const metaInicial = initialSnapshot.current.form;
+  const metaMudou = form.temMeta !== metaInicial.temMeta
+    || form.frequenciaVezes !== metaInicial.frequenciaVezes
+    || form.frequenciaUnidade !== metaInicial.frequenciaUnidade
+    || form.frequenciaAPartirDe !== metaInicial.frequenciaAPartirDe;
+  const quinzenaSemInicio = form.temMeta && form.frequenciaUnidade === 'quinzena' && !form.frequenciaAPartirDe;
+  const faltaInicioQuinzena = quinzenaSemInicio && metaMudou;
+  const valido = Boolean(form.name.trim()) && !colorTaken && !erroVinculo && !faltaInicioQuinzena;
   const erroNome = tentouSalvar && !form.name.trim() ? `Dê um nome para identificar ${NOME_DO_TIPO[tipo].artigo}.` : null;
   const erroCor = colorTaken ? 'Esta cor já está em outra série. Escolha outra.' : null;
 
@@ -575,14 +584,14 @@ export function SerieEditForm({
   ]);
 
   const handleSave = useCallback(() => {
-    if (!form.name.trim() || colorTaken || erroVinculo) {
+    if (!form.name.trim() || colorTaken || erroVinculo || faltaInicioQuinzena) {
       setTentouSalvar(true);
       const alvo = !form.name.trim() ? 'serie-nome' : 'serie-principal';
       document.getElementById(alvo)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
       return;
     }
     onSave(buildPayload());
-  }, [buildPayload, colorTaken, erroVinculo, form.name, onSave]);
+  }, [buildPayload, colorTaken, erroVinculo, faltaInicioQuinzena, form.name, onSave]);
 
   useUnsavedChangesRegistration(!inModal && isDirty, () => {
     if (valido) handleSaveRef.current();
@@ -689,17 +698,29 @@ export function SerieEditForm({
           />
         </div>
         <div>
-          <FieldLabel optional>Data de início</FieldLabel>
+          <FieldLabel optional={form.frequenciaUnidade !== 'quinzena'} required={form.frequenciaUnidade === 'quinzena'}>Data de início</FieldLabel>
           <input
             type="date"
             aria-label="Data de início"
+            aria-invalid={faltaInicioQuinzena ? true : undefined}
+            aria-describedby={quinzenaSemInicio ? 'serie-inicio-ciclo' : undefined}
             value={form.frequenciaAPartirDe}
             onChange={event => setForm(previous => ({
               ...previous,
               frequenciaAPartirDe: event.target.value,
             }))}
             className={inputClass}
+            style={faltaInicioQuinzena && tentouSalvar ? { borderColor: 'var(--danger)' } : undefined}
           />
+          {quinzenaSemInicio ? (
+            <p
+              id="serie-inicio-ciclo"
+              className="mt-1.5 t-meta"
+              style={{ color: faltaInicioQuinzena && tentouSalvar ? 'var(--danger)' : 'var(--text-secondary)' }}
+            >
+              Defina o início dos ciclos de 14 dias.
+            </p>
+          ) : null}
         </div>
       </div>
       <Text variant="meta" as="p" className="text-[var(--text-secondary)]">

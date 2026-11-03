@@ -3,11 +3,10 @@ import { CONTENT_STATUS, normalizeContentStatus } from '../../contents/lib/conte
 import { cicloDaPublicacao } from './cicloPublicacao.ts';
 import { contaNaGradeEfetiva, type ContaNaGradeOrigem } from './contaNaGradeOrigem.ts';
 import { type DestinoPlataforma, mesmoDestino, resolverRedeReferencia } from './destinations.ts';
-import { resolveFuncao } from './funcoes.ts';
 import { etapaDoStatus, type Etapa } from './etapas.ts';
+import { objetivoDoConteudo, pilarDoConteudo } from './herancaSerie.ts';
 import { dataRealizada } from './markPublished.ts';
 import { roteiroTemPauta } from './pautaConteudo.ts';
-import { pilarPrincipalDaSerie } from './pilarDaSerie.ts';
 import { referenciaPublicacao } from './referenciaPublicacao.ts';
 
 export type GradeEntry = {
@@ -55,7 +54,8 @@ export type GradeContent = Pick<
   pilarOrigem?: string | null;
 };
 
-export type GradeSerie = Pick<Serie, 'id' | 'funcaoPadrao'> & Partial<Pick<Serie, 'pilarPrincipalId' | 'pilarIds'>>;
+export type GradeSerie = Pick<Serie, 'id' | 'funcaoPadrao'>
+  & Partial<Pick<Serie, 'pilarPrincipalId' | 'pilarIds' | 'parentId' | 'semPilar' | 'tipoAgrupamento' | 'name'>>;
 
 function dia(value: string | null | undefined): string | null {
   if (!value) return null;
@@ -129,24 +129,23 @@ export function buildGradeEntries({
   /** Resolve a rede de referência por id ou nome. Sem ela, só casa publicações já gravadas com o mesmo id. */
   platforms?: readonly DestinoPlataforma[];
 }): GradeEntry[] {
-  const seriePorId = new Map(series.map(serie => [serie.id, serie]));
   const entradas: GradeEntry[] = [];
 
   for (const content of contents) {
     if (content.deletedAt || content.archivedAt) continue;
 
-    const serie = content.seriesId ? seriePorId.get(content.seriesId) : undefined;
-    const resolvida = resolveFuncao(content, serie);
+    // Mesma resolução da ficha e da Saúde: gravado vale, campo vazio sobe quadro → série.
+    const funcao = objetivoDoConteudo(content, series);
     const contaNaGrade = contaNaGradeEfetiva({
       contaNaGrade: content.contaNaGrade !== false,
       contaNaGradeOrigem: content.contaNaGradeOrigem,
       formato: content.formatoVisual,
-      funcao: resolvida.funcao,
+      funcao,
     });
     const classificacao = {
-      pilarId: content.pilarId || pilarPrincipalDaSerie(serie),
+      pilarId: pilarDoConteudo(content, series),
       serieId: content.seriesId ?? null,
-      funcao: resolvida.funcao,
+      funcao,
       contaNaGrade,
       temPauta: roteiroTemPauta(content.scriptOrigem, content.script, content.pautaDefinida),
     };

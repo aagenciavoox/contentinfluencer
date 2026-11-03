@@ -1,12 +1,11 @@
-import {addDays, differenceInCalendarDays, format, parseISO} from 'date-fns';
+import {addDays, format, parseISO} from 'date-fns';
 import {ptBR} from 'date-fns/locale';
 import type {BibliotecaItem, Content, Serie, Tema} from '../../../lib/database.ts';
 import {CONTENT_STATUS, isReadyToPublish, normalizeContentStatus} from '../../contents/lib/contentPipeline.ts';
 import type {PeriodoGrade} from '../../editorial/lib/gradeCounts.ts';
 import type {GradeEntry} from '../../editorial/lib/gradeEntries.ts';
+import {apurarSerie, ehReserva, type ItemDaApuracao} from '../../editorial/lib/apuracaoSerie.ts';
 import {contarSerieAgrupada} from '../../editorial/lib/frequenciaAgrupada.ts';
-import {expectativaNoIntervalo, lerFrequencia} from '../../editorial/lib/frequenciaSerie.ts';
-import {idsDaSubarvore} from '../../editorial/lib/serieArvore.ts';
 import {idsDeObras} from './assuntosObras.ts';
 import type {PlanejamentoPostIt} from './postIt.ts';
 
@@ -25,9 +24,9 @@ export const ORIENTACAO = {
 export type TipoAvisoOrientacao =
   | 'obra-repetida'
   | 'tema-concentrado'
-  | 'quadro-seguido'
   | 'serie-acima'
   | 'serie-abaixo'
+  | 'serie-reservada'
   | 'vespera-sem-pronto'
   | 'gravacoes-no-dia';
 
@@ -202,116 +201,90 @@ function avisosDeTema(
   return avisos;
 }
 
-function avisosDeQuadroSeguido(
-  pautas: readonly PautaNoDia[],
-  periodo: PeriodoGrade,
-  series: readonly Pick<Serie, 'id' | 'name'>[],
-): AvisoOrientacao[] {
-  const noRecorte = pautas
-    .filter(pauta => noPeriodo(pauta.date, periodo) && pauta.serieId)
-    .sort((a, b) => a.date.localeCompare(b.date) || (a.postItId ?? '').localeCompare(b.postItId ?? ''));
-  if (noRecorte.length < 2) return [];
-
-  const nomeSerie = new Map(series.map(serie => [serie.id, serie.name.trim() || 'Quadro']));
-  const avisos: AvisoOrientacao[] = [];
-  const vistos = new Set<string>();
-
-  for (let i = 1; i < noRecorte.length; i += 1) {
-    const prev = noRecorte[i - 1];
-    const curr = noRecorte[i];
-    if (!prev.serieId || prev.serieId !== curr.serieId) continue;
-    if (mesmaSequencia(prev.sequenciaId, curr.sequenciaId)) continue;
-    const dias = differenceInCalendarDays(parseISO(curr.date), parseISO(prev.date));
-    if (dias !== 1) continue;
-    const chave = prev.serieId;
-    if (vistos.has(chave)) continue;
-    vistos.add(chave);
-    const nome = nomeSerie.get(chave) ?? 'Quadro';
-    const envolvidos = noRecorte.filter(item => item.serieId === chave);
-    avisos.push({
-      id: `quadro:${chave}:${prev.date}`,
-      tipo: 'quadro-seguido',
-      texto: `${nome} aparece em dias seguidos.`,
-      postItIds: [prev, curr].flatMap(item => item.postItId ? [item.postItId] : []),
-      contentIds: [prev, curr].flatMap(item => item.contentId ? [item.contentId] : []),
-      // Inclui os demais do quadro no destaque amplo quando o usuário pede Ver pautas.
-      severidade: 'revisar',
-    });
-    // Amplia destaque aos do mesmo quadro no período.
-    const aviso = avisos[avisos.length - 1];
-    aviso.postItIds = [...new Set(envolvidos.flatMap(item => item.postItId ? [item.postItId] : []))];
-    aviso.contentIds = [...new Set(envolvidos.flatMap(item => item.contentId ? [item.contentId] : []))];
-  }
-
-  return avisos;
+/** Itens da apuração montados das pautas, quando a grade do período não vem pronta. */
+function itensDasPautas(pautas: readonly PautaNoDia[]): ItemDaApuracao[] {
+  return pautas.flatMap(pauta => {
+    if (!pauta.serieId) return [];
+    const reserva = !pauta.contentId;
+    return [{
+      id: pauta.contentId ? `${pauta.contentId}:original` : `post-it:${pauta.postItId ?? `${pauta.date}:${pauta.serieId}`}`,
+      contentId: pauta.contentId ?? pauta.postItId ?? `${pauta.date}:${pauta.serieId}`,
+      data: pauta.date,
+      serieId: pauta.serieId,
+      tipo: 'original' as const,
+      etapa: reserva ? 'planejamento' : 'roteiro',
+      postItId: pauta.postItId,
+    }];
+  });
 }
 
+/**
+ * Frequência das séries com a apuração comum (`apurarSerie`): janelas inteiras,
+ * reposts fora, post-it como reserva. Sobra numa janela não cobre falta em outra.
+ */
 function avisosDeFrequenciaSerie(
-  pautas: readonly PautaNoDia[],
+  itens: readonly ItemDaApuracao[],
   periodo: PeriodoGrade,
   series: readonly Serie[],
 ): AvisoOrientacao[] {
-  const noRecorte = pautas.filter(pauta => noPeriodo(pauta.date, periodo) && pauta.serieId);
-  const itens = noRecorte.map(pauta => ({
-    serieId: pauta.serieId,
-    espacoId: pauta.contentId
-      ? `${pauta.contentId}:original`
-      : (pauta.postItId ? `postit:${pauta.postItId}` : `${pauta.date}:${pauta.serieId}`),
-    contentId: pauta.contentId || pauta.postItId || `${pauta.date}:${pauta.serieId}`,
-  }));
   const avisos: AvisoOrientacao[] = [];
 
   for (const serie of series) {
-    const freq = lerFrequencia({
-      frequenciaRecomendada: serie.frequenciaRecomendada,
-      vezes: serie.frequenciaVezes,
-      unidade: serie.frequenciaUnidade,
-      aPartirDe: serie.frequenciaAPartirDe,
-    });
-    if (freq.unidade === 'sob-demanda') continue;
-    const expectativa = expectativaNoIntervalo(freq, periodo.inicio, periodo.fim);
-    if (expectativa == null || expectativa <= 0) continue;
+    if (serie.ativa === false) continue;
+    const apuracao = apurarSerie({serie, series, itens, periodo});
+    if (apuracao.situacao.tipo !== 'definida' || apuracao.inicioFuturo || apuracao.janelas.length === 0) continue;
 
-    const agrupada = contarSerieAgrupada({
-      serie,
-      series,
-      itens,
-      inicio: periodo.inicio,
-      fim: periodo.fim,
-    });
-    const total = agrupada.total;
-    const lista = noRecorte.filter(pauta => {
-      const sub = idsDaSubarvore(serie.id, series);
-      return Boolean(pauta.serieId && sub.has(pauta.serieId));
-    });
     const nome = serie.name.trim() || 'Quadro';
-    if (total > expectativa) {
+    const postItIds = apuracao.itens.flatMap(item => item.postItId ? [item.postItId] : []);
+    const contentIds = apuracao.itens.flatMap(item => ehReserva(item) ? [] : [item.contentId]);
+    const acima = apuracao.janelas.filter(janela => janela.episodios + janela.reservas > janela.meta);
+    if (acima.length > 0) {
+      const pautas = acima.reduce((soma, janela) => soma + janela.episodios + janela.reservas, 0);
+      const pede = acima.reduce((soma, janela) => soma + janela.meta, 0);
       avisos.push({
         id: `serie-acima:${serie.id}`,
         tipo: 'serie-acima',
-        texto: `${nome} tem ${total} pautas; a frequência pede ${expectativa}.`,
-        postItIds: lista.flatMap(item => item.postItId ? [item.postItId] : []),
-        contentIds: lista.flatMap(item => item.contentId ? [item.contentId] : []),
+        texto: acima.length === 1
+          ? `${nome} tem ${pautas} pautas em ${rotuloDaJanela(acima[0])}; a frequência pede ${pede}.`
+          : `${nome} passa da frequência em ${acima.length} janelas: ${pautas} pautas onde a frequência pede ${pede}.`,
+        postItIds,
+        contentIds,
         severidade: 'revisar',
       });
-    } else if (total < expectativa) {
-      const faltam = expectativa - total;
+    }
+    const faltam = apuracao.faltas.reduce((soma, janela) => soma + janela.meta - janela.episodios - janela.reservas, 0);
+    if (faltam > 0) {
       avisos.push({
         id: `serie-abaixo:${serie.id}`,
         tipo: 'serie-abaixo',
         texto: faltam === 1
           ? `Falta reservar 1 episódio de ${nome} neste período.`
           : `Faltam reservar ${faltam} episódios de ${nome} neste período.`,
-        postItIds: lista.flatMap(item => item.postItId ? [item.postItId] : []),
-        contentIds: lista.flatMap(item => item.contentId ? [item.contentId] : []),
+        postItIds,
+        contentIds,
         severidade: 'info',
       });
     }
+    if (apuracao.reservadas.length > 0) {
+      const n = apuracao.reservadas.length;
+      avisos.push({
+        id: `serie-reservada:${serie.id}`,
+        tipo: 'serie-reservada',
+        texto: n === 1
+          ? `${nome}: 1 janela coberta só por post-it, conteúdo a desenvolver.`
+          : `${nome}: ${n} janelas cobertas só por post-it, conteúdo a desenvolver.`,
+        postItIds,
+        contentIds: [],
+        severidade: 'info',
+      });
+    }
+    // Metas dos quadros somando menos que a da série não é erro: o resto fica para os outros episódios.
+    const agrupada = contarSerieAgrupada({serie, series, itens: [], inicio: periodo.inicio, fim: periodo.fim});
     if (agrupada.recorteIncompativel && agrupada.somaRecortesFilhos != null && agrupada.expectativa != null) {
       avisos.push({
         id: `serie-recorte:${serie.id}`,
         tipo: 'serie-acima',
-        texto: `${nome}: a soma dos recortes dos filhos (${agrupada.somaRecortesFilhos}) diverge da meta (${agrupada.expectativa}).`,
+        texto: `${nome}: as metas dos quadros somam ${agrupada.somaRecortesFilhos} e passam da meta da série (${agrupada.expectativa}).`,
         postItIds: [],
         contentIds: [],
         severidade: 'info',
@@ -319,6 +292,10 @@ function avisosDeFrequenciaSerie(
     }
   }
   return avisos;
+}
+
+function rotuloDaJanela(janela: {inicio: string; fim: string}): string {
+  return `${format(parseISO(janela.inicio), 'dd/MM')}–${format(parseISO(janela.fim), 'dd/MM')}`;
 }
 
 /** O que falta para a publicação ficar pronta, pela etapa. Pronta ou publicada devolve null. */
@@ -413,6 +390,7 @@ export function avisosDeOrientacao({
   obras,
   periodo,
   entries,
+  itensSerie,
   sequenciaPorConteudo = {},
   limiteGravacoesDia = null,
   hoje = new Date(),
@@ -424,6 +402,11 @@ export function avisosDeOrientacao({
   obras: readonly Pick<BibliotecaItem, 'id' | 'titulo'>[];
   periodo: PeriodoGrade;
   entries?: readonly GradeEntry[];
+  /**
+   * Itens da grade em `janelaDaContinuidade(periodo)`, para a frequência das séries usar
+   * a mesma apuração da Saúde. Sem eles, a conta sai das pautas dos post-its.
+   */
+  itensSerie?: readonly ItemDaApuracao[];
   /** Id de sequência intencional por contentId. Sem campo no banco, fica vazio. */
   sequenciaPorConteudo?: Readonly<Record<string, string>>;
   /** Editorial › Ajustes. Sem número, não há aviso de gravação. */
@@ -441,13 +424,13 @@ export function avisosDeOrientacao({
     periodo: {inicio: margemInicio, fim: margemFim},
   });
 
+  // "Quadro em dias seguidos" não avisa sozinho: vira regra opcional do acompanhamento, desligada por padrão.
   return [
     ...avisosDeVespera(postIts, contents, periodo, hoje),
     ...avisosDeGravacao(postIts, contents, periodo, limiteGravacoesDia),
     ...avisosDeObra(pautas, periodo, obras),
     ...avisosDeTema(pautas, periodo, temas),
-    ...avisosDeQuadroSeguido(pautas, periodo, series),
-    ...avisosDeFrequenciaSerie(pautas, periodo, series),
+    ...avisosDeFrequenciaSerie(itensSerie ?? itensDasPautas(pautas), periodo, series),
   ];
 }
 

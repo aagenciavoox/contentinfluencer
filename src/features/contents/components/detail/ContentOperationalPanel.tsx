@@ -18,6 +18,7 @@ import {
   rotuloDaSerie,
 } from '../../../editorial/lib/funcoes';
 import { aplicarEscolhasDaSerie, marcarEscolhaManual } from '../../../editorial/lib/escolhasSerie';
+import { pilarDoConteudo } from '../../../editorial/lib/herancaSerie';
 import type {Weekday} from '../../../settings/lib/postingTimes';
 import {cn} from '../../../../lib/utils';
 import {useAppContext} from '../../../../context/AppContext';
@@ -492,7 +493,15 @@ export function ContentOperationalPanel({
   }, [ensureDataDomains]);
   const publishDateOnly = draft.publishDate ? draft.publishDate.slice(0, 10) : '';
   const linkedSerie = draft.seriesId ? series.find(serie => serie.id === draft.seriesId) ?? null : null;
-  const linkedPilar = draft.pilarId ? pilares.find(pilar => pilar.id === draft.pilarId) ?? null : null;
+  // Mesma regra da Saúde e do calendário: gravado vale; vazio sem escolha herda quadro → série.
+  const pilarEfetivoId = pilarDoConteudo(draft, series);
+  const linkedPilar = pilarEfetivoId ? pilares.find(pilar => pilar.id === pilarEfetivoId) ?? null : null;
+  const pilarHerdado = !draft.pilarId && linkedPilar ? linkedPilar : null;
+  const rotuloSemPilar = pilarHerdado
+    ? `Da série: ${pilarHerdado.nome}`
+    : draft.pilarOrigem === 'nenhuma' ? 'Nenhum pilar' : 'Selecionar pilar…';
+  // Pilar inativo continua aparecendo para quem já usa; só não entra como escolha nova.
+  const opcoesDePilar = pilares.filter(pilar => pilar.ativo || pilar.id === draft.pilarId);
   const temporadas = (state.temporadas ?? []) as readonly Temporada[];
   const escopoTemp = draft.seriesId ? escopoTemporadas(draft.seriesId, series) : null;
   const tempsDoEscopo = escopoTemp ? temporadasDoEscopo(escopoTemp.id, temporadas) : [];
@@ -661,17 +670,15 @@ export function ContentOperationalPanel({
         <ColoredSelect
           value={draft.pilarId ?? ''}
           onChange={event => onChange(marcarEscolhaManual(draft, 'pilar', event.target.value || null))}
-          empty={!draft.pilarId}
+          empty={!draft.pilarId && !pilarHerdado}
           dotColor={linkedPilar?.cor ?? null}
         >
-          <option value="">Selecionar pilar…</option>
-          {pilares
-            .filter(pilar => pilar.ativo)
-            .map(pilar => (
-              <option key={pilar.id} value={pilar.id}>
-                {pilar.nome}
-              </option>
-            ))}
+          <option value="">{rotuloSemPilar}</option>
+          {opcoesDePilar.map(pilar => (
+            <option key={pilar.id} value={pilar.id}>
+              {pilar.ativo ? pilar.nome : `${pilar.nome} (inativo)`}
+            </option>
+          ))}
         </ColoredSelect>
       </PropertyRow>
 
@@ -964,14 +971,12 @@ export function ContentOperationalPanel({
               onChange={event => onChange(marcarEscolhaManual(draft, 'pilar', event.target.value || null))}
               dotColor={linkedPilar?.cor ?? null}
             >
-              <option value="">Selecionar pilar…</option>
-              {pilares
-                .filter(pilar => pilar.ativo)
-                .map(pilar => (
-                  <option key={pilar.id} value={pilar.id}>
-                    {pilar.nome}
-                  </option>
-                ))}
+              <option value="">{rotuloSemPilar}</option>
+              {opcoesDePilar.map(pilar => (
+                <option key={pilar.id} value={pilar.id}>
+                  {pilar.ativo ? pilar.nome : `${pilar.nome} (inativo)`}
+                </option>
+              ))}
             </RoteiroSelect>
           </RoteiroField>
 

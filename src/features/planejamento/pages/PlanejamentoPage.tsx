@@ -32,8 +32,9 @@ import {CONTENT_STATUS, DISPLAY_STATUS, normalizeContentStatus} from '../../cont
 import {calendarEntryIcon, CalendarNetworkIcons} from '../../editorial-calendar/components/CalendarNetworkIcons';
 import {buildDetailBackState} from '../../../lib/navigation/detailBack';
 import {getCreationCardTags} from '../../creation/lib/creationItemPresentation';
-import {readProporcao} from '../../editorial/lib/proporcaoObjetivos';
-import {FUNCAO_CURTA, FUNCAO_LABELS, FUNCOES, FUNIL_DA_FUNCAO, isFuncaoEditorial, resolveFuncao} from '../../editorial/lib/funcoes';
+import {metasDoPeriodo, readProporcao} from '../../editorial/lib/proporcaoObjetivos';
+import {FUNCAO_CURTA, FUNCAO_LABELS, FUNCOES, FUNIL_DA_FUNCAO, isFuncaoEditorial} from '../../editorial/lib/funcoes';
+import {objetivoDoConteudo, objetivoHerdadoDaSerie, pilarDoConteudo, pilarHerdadoDaSerie} from '../../editorial/lib/herancaSerie';
 import {sortPilares} from '../../settings/lib/activePilares';
 import {CampoDia} from '../components/CampoDia';
 import {EncaixeDialog} from '../components/EncaixeDialog';
@@ -54,7 +55,7 @@ import {DivisoriaRede} from '../components/DivisoriaRede';
 import {redeDaRef} from '../../contas/lib/contas';
 import {REDE_ROTULO, rotuloDaRef} from '../../contas/lib/contas';
 import {saudeDoMes} from '../lib/monthHealth';
-import {avisoDoCalendario, comMetaDoPeriodo, rotuloDoPeriodo} from '../lib/periodoDaSaude';
+import {avisoDoCalendario, rotuloDoPeriodo} from '../lib/periodoDaSaude';
 import {continuidadeDasSeries, distribuicaoPorObjetivo, janelaDaContinuidade, proporcaoDesejadaDoPeriodo} from '../lib/saudeIndicadores';
 import {usePostItsNaData} from '../hooks/usePostItsNaData';
 import {levarRoteiroAoDia, roteiroPublicado} from '../lib/postItsNaData';
@@ -65,7 +66,7 @@ import {periodoDaVista, type VistaPlanejamento} from '../lib/periodoPlanejamento
 import {publicacoesPorDia, type PublicacaoNoDia} from '../lib/publicacoesDoMes';
 import {PeriodoPanel} from '../../editorial/components/plano/PeriodoPanel';
 import {periodoInicial, type PeriodoSelecionado} from '../../editorial/components/plano/PeriodoEditorialControl';
-import {lerPeriodoSalvo} from '../../editorial/lib/periodoEditorial';
+import {decisaoDoPeriodo, lerPeriodoSalvo} from '../../editorial/lib/periodoEditorial';
 import {SelectField} from '../../../components/ui/SelectField';
 import {
   canPullContent,
@@ -111,9 +112,14 @@ function postItAppearance(
   if (!content && !postIt) return {seriesColor: null, marks: [], assuntos: []};
   const serieId = content ? content.seriesId : postIt?.serieId ?? null;
   const serie = serieId ? series.find(item => item.id === serieId) ?? null : null;
-  const pilarId = content ? content.pilarId || serie?.pilarPrincipalId || null : postIt?.pilarId ?? null;
+  // Mesma resolução da ficha e da Saúde: gravado vale, campo vazio sobe quadro → série.
+  const pilarId = content
+    ? pilarDoConteudo(content, series)
+    : postIt?.pilarId || pilarHerdadoDaSerie(postIt?.serieId, series);
   const pilar = pilarId ? pilares.find(item => item.id === pilarId) ?? null : null;
-  const funcao = content ? resolveFuncao(content, serie).funcao : postIt?.objetivo ?? null;
+  const funcao = content
+    ? objetivoDoConteudo(content, series)
+    : postIt?.objetivo ?? objetivoHerdadoDaSerie(postIt?.serieId, series);
   const etapa = funcao ? FUNIL_DA_FUNCAO[funcao] : null;
   const marks: PostItMark[] = [];
   if (serie?.name?.trim()) {
@@ -482,7 +488,13 @@ export function PlanejamentoPage() {
       proporcaoFuncoes: readProporcao(settings.proporcaoFuncoes),
       vigencias: settings.vigencias,
     });
-    const objetivos = distribuicaoPorObjetivo({itens: counts.itens, contents, series: state.series, proporcao});
+    // As mesmas metas em número do editor do Editorial: o ajuste do período, senão proporção × meta.
+    const metasObjetivo = metasDoPeriodo({
+      limite: counts.limite,
+      proporcao,
+      ajustes: decisaoDoPeriodo(settings.periodos ?? [], periodoDaSaude.inicio, periodoDaSaude.fim)?.metas,
+    });
+    const objetivos = distribuicaoPorObjetivo({itens: counts.itens, contents, series: state.series, proporcao, metas: metasObjetivo});
     // Semanas e meses das pontas são avaliados inteiros: busca os itens além do período.
     const estendido = saudeDoMes({
       postIts,
@@ -495,7 +507,8 @@ export function PlanejamentoPage() {
     });
     const continuidade = continuidadeDasSeries({series: state.series, itens: estendido.itens, periodo: periodoDaSaude});
     return {
-      counts: comMetaDoPeriodo(counts, settings.periodos ?? [], periodoDaSaude),
+      // A meta absoluta do período já vem na contagem (`metaDoPeriodo`).
+      counts,
       temDistribuicao: readProporcao(settings.proporcaoFuncoes) != null,
       objetivos,
       continuidade,
@@ -512,9 +525,19 @@ export function PlanejamentoPage() {
       temas: state.temas,
       obras: state.bibliotecaItems,
       periodo,
+      // Frequência das séries com a mesma apuração da Saúde: janelas inteiras nas pontas.
+      itensSerie: saudeDoMes({
+        postIts,
+        contents,
+        series: state.series,
+        pilares: state.pilares,
+        settings: state.editorial,
+        periodo: janelaDaContinuidade(periodo),
+        platforms: state.platforms,
+      }).itens,
       limiteGravacoesDia: state.editorial.preferencias.limiteGravacoesDia,
     }),
-    [postIts, contents, state.series, state.temas, state.bibliotecaItems, periodo, state.editorial.preferencias.limiteGravacoesDia],
+    [postIts, contents, state.series, state.pilares, state.platforms, state.editorial, state.temas, state.bibliotecaItems, periodo],
   );
 
   const verPautasDoAviso = (aviso: AvisoOrientacao) => {
@@ -908,7 +931,7 @@ export function PlanejamentoPage() {
           const serie = content?.seriesId
             ? state.series.find(s => s.id === content.seriesId)
             : null;
-          const pilarId = content?.pilarId || serie?.pilarPrincipalId;
+          const pilarId = content ? pilarDoConteudo(content, state.series) : null;
           const pilar = pilarId ? state.pilares.find(p => p.id === pilarId) ?? null : null;
           const posted = publicacao.estado === 'postado';
 
@@ -944,7 +967,10 @@ export function PlanejamentoPage() {
           const serie = (postIt.serieId || content?.seriesId)
             ? state.series.find(s => s.id === (postIt.serieId || content?.seriesId))
             : null;
-          const pilarId = postIt.pilarId || content?.pilarId || serie?.pilarPrincipalId;
+          // Com conteúdo ligado vale o pilar do conteúdo, como na contagem; sem conteúdo, o do post-it ou o herdado da série.
+          const pilarId = content
+            ? pilarDoConteudo(content, state.series)
+            : postIt.pilarId || pilarHerdadoDaSerie(postIt.serieId, state.series);
           // Sem pilar escolhido não há pilar: o cartão fica com a cor de post-it, não com o primeiro da lista.
           const pilar = pilarId ? state.pilares.find(p => p.id === pilarId) ?? null : null;
 
@@ -1396,6 +1422,7 @@ export function PlanejamentoPage() {
                         onChange={values => setClasseDraft(atual => escolherSerieNoPostIt(
                           atual,
                           state.series.find(serie => serie.id === values[0]) ?? null,
+                          state.series,
                         ))}
                       />
                     </div>

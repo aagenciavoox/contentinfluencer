@@ -6,7 +6,7 @@ import {countGrade, type GradeCounts, type PeriodoGrade, type PostItContagem} fr
 import type {EditorialSettings} from '../../editorial/lib/editorialSettings.ts';
 import {contarSerieAgrupada} from '../../editorial/lib/frequenciaAgrupada.ts';
 import {resolveFuncao} from '../../editorial/lib/funcoes.ts';
-import {pilarPrincipalDaSerie} from '../../editorial/lib/pilarDaSerie.ts';
+import {pilarHerdadoDaSerie} from '../../editorial/lib/herancaSerie.ts';
 import type {DestinoPlataforma} from '../../editorial/lib/destinations.ts';
 import type {PlanejamentoPostIt} from './postIt.ts';
 
@@ -194,7 +194,7 @@ export function seriesDoPilarNoMes(
   const linhas: SerieNoPilar[] = [];
   for (const serie of series) {
     const contagem = quantidade.get(serie.id) ?? 0;
-    const dentro = pilarPrincipalDaSerie(serie) === pilarId;
+    const dentro = pilarHerdadoDaSerie(serie.id, series) === pilarId;
     if (!dentro && contagem === 0) continue;
     if (serie.ativa === false && contagem === 0) continue;
     linhas.push({
@@ -319,6 +319,7 @@ export function saudeDoMes({
     pilares,
     settings,
     periodo,
+    series,
   });
   return {
     ...contagem,

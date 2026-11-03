@@ -42,7 +42,10 @@ export type ContagemSerieAgrupada = {
    * Compara com a meta do pai; null se nenhum filho tem número.
    */
   somaRecortesFilhos: number | null;
-  /** True quando a soma dos recortes dos filhos diverge da meta do pai. */
+  /**
+   * True quando as metas dos filhos passam da meta do pai: conflito de distribuição.
+   * Somar menos não é erro: o resto fica para episódios diretos ou outros quadros.
+   */
   recorteIncompativel: boolean;
 };
 
@@ -134,7 +137,7 @@ export function contarSerieAgrupada({
   const somaRecortesFilhos = recortes.length > 0 ? recortes.reduce((a, b) => a + b, 0) : null;
   const recorteIncompativel = expectativa != null
     && somaRecortesFilhos != null
-    && somaRecortesFilhos !== expectativa;
+    && somaRecortesFilhos > expectativa;
 
   return {
     serieId: serie.id,

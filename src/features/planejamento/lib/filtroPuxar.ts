@@ -1,9 +1,11 @@
 import type {Content, Pilar, RedeSocial, Serie, Tema} from '../../../lib/database.ts';
 import {etiquetasVisiveis} from '../../creation/lib/creationItemPresentation.ts';
 import {passaNoFiltroRede} from '../../creation/lib/creationRedeFilter.ts';
+import {pilarDoConteudo, type SerieClassificacao} from '../../editorial/lib/herancaSerie.ts';
 
-type ConteudoFiltravel = Pick<Content, 'seriesId' | 'pilarId' | 'tags' | 'temaIds'>;
-type SerieRef = Pick<Serie, 'id' | 'name' | 'pilarPrincipalId'>;
+type ConteudoFiltravel = Pick<Content, 'seriesId' | 'pilarId' | 'tags' | 'temaIds'>
+  & Partial<Pick<Content, 'pilarOrigem' | 'classificacaoCongeladaEm'>>;
+type SerieRef = Pick<Serie, 'id' | 'name'> & SerieClassificacao;
 type PilarRef = Pick<Pilar, 'id' | 'nome'>;
 type TemaRef = Pick<Tema, 'id' | 'nome'>;
 
@@ -29,11 +31,9 @@ export function chaveDaTag(tag: string): string {
   return tag.trim().replace(/\s+/g, ' ').toLocaleLowerCase('pt-BR');
 }
 
-/** O mesmo pilar que o post-it mostra: o do conteúdo ou, sem ele, o principal da série. */
+/** O mesmo pilar da ficha e da Saúde: o gravado ou, vazio sem escolha, o herdado quadro → série. */
 export function pilarEfetivo(content: ConteudoFiltravel, series: readonly SerieRef[]): string | null {
-  if (content.pilarId) return content.pilarId;
-  const serie = content.seriesId ? series.find(item => item.id === content.seriesId) : null;
-  return serie?.pilarPrincipalId || null;
+  return pilarDoConteudo(content, series);
 }
 
 export function filtroPuxarAtivo(filtro: FiltroPuxar): boolean {

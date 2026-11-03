@@ -67,7 +67,8 @@ assert.equal(branbran?.quantidade, 3); // 2 comece + 1 branbran
 assert.equal(tolkien?.quantidade, 1);
 assert.equal(familia.total, 4);
 assert.equal(familia.somaRecortesFilhos, 1); // só Tolkien tem número
-assert.equal(familia.recorteIncompativel, true);
+// Metas dos filhos somando menos que a do pai não é conflito: o resto fica livre.
+assert.equal(familia.recorteIncompativel, false);
 
 const texto = textoDaContagemSerie(familia);
 assert.equal(texto, '4 de 3');

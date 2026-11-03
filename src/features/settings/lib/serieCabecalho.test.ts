@@ -42,31 +42,36 @@ assert.deepEqual(totaisDoCabecalho({ serieId: 'q2', series, contents }), { total
 const base = { id: 's', name: 'S', parentId: null, frequenciaRecomendada: null, frequenciaVezes: null, frequenciaUnidade: null, frequenciaAPartirDe: null };
 const semana = { modo: 'semana' as const, inicio: '2026-11-01', fim: '2026-11-07' };
 const itens = [
-  { serieId: 's', espacoId: 'd1:original', contentId: 'd1' },
-  { serieId: 'q1', espacoId: 'q1a:original', contentId: 'q1a' },
+  { id: 'd1:original', contentId: 'd1', serieId: 's', data: '2026-11-03', tipo: 'original' as const, etapa: 'ideia' },
+  { id: 'q1a:original', contentId: 'q1a', serieId: 'q1', data: '2026-11-04', tipo: 'original' as const, etapa: 'producao' },
 ];
 const lista = [base, { ...base, id: 'q1', parentId: 's' }];
 
 assert.deepEqual(metaDoCabecalho({ serie: base, series: lista, itens, periodo: semana, hoje: '2026-11-02' }), { estado: 'sem-meta', texto: 'Sem meta definida' });
 
+// Mesma apuração do Editorial e da Saúde: o quadro soma na série, a semana é conferida inteira.
 const comMeta = { ...base, frequenciaVezes: 3, frequenciaUnidade: 'semana' };
 const m = metaDoCabecalho({ serie: comMeta, series: [comMeta, lista[1]], itens, periodo: semana, hoje: '2026-11-02' });
 assert.equal(m.estado, 'ativa');
-assert.equal(m.texto, '2 de 3 episódios previstos nesta semana');
+assert.equal(m.texto, '2 episódios nesta semana · meta de 3 · 0 de 1 semana atendida');
 if (m.estado === 'ativa') {
-  assert.equal(m.regra, 'Meta: 3 por semana');
-  assert.equal(m.barra, 67);
+  assert.equal(m.regra, 'Meta: 3× por semana');
+  assert.equal(m.barra, 0);
 }
 
-// Mais previstos que a meta: barra para em 100, número real fica.
+// Episódios bastam: semana atendida.
 const umaVez = { ...base, frequenciaVezes: 1, frequenciaUnidade: 'semana' };
 const acima = metaDoCabecalho({ serie: umaVez, series: [umaVez, lista[1]], itens, periodo: semana, hoje: '2026-11-02' });
-assert.equal(acima.texto, '2 de 1 episódio previsto nesta semana');
+assert.equal(acima.texto, '2 episódios nesta semana · meta de 1 · 1 de 1 semana atendida');
 if (acima.estado === 'ativa') assert.equal(acima.barra, 100);
 
 // Frase antiga continua valendo.
 const legado = { ...base, frequenciaRecomendada: 'Semanal' };
-assert.equal(metaDoCabecalho({ serie: legado, series: [legado], itens: [], periodo: semana, hoje: '2026-11-02' }).texto, '0 de 1 episódio previsto nesta semana');
+assert.equal(metaDoCabecalho({ serie: legado, series: [legado], itens: [], periodo: semana, hoje: '2026-11-02' }).texto, '0 episódios nesta semana · meta de 1 · 0 de 1 semana atendida');
+
+// Ciclo de 14 dias sem início: pendência, sem meta inventada.
+const quinzenal = { ...base, frequenciaVezes: 1, frequenciaUnidade: 'quinzena' };
+assert.deepEqual(metaDoCabecalho({ serie: quinzenal, series: [quinzenal], itens: [], periodo: semana, hoje: '2026-11-02' }), { estado: 'sem-meta', texto: 'Defina o início dos ciclos de 14 dias' });
 
 const futura = { ...comMeta, frequenciaAPartirDe: '2026-12-01' };
 const f = metaDoCabecalho({ serie: futura, series: [futura], itens, periodo: semana, hoje: '2026-11-02' });

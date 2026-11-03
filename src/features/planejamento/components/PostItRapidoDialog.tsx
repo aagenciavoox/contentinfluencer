@@ -111,7 +111,7 @@ export function PostItRapidoDialog({
                 options={opcoesDeSerie}
                 onChange={values => {
                   const serieEscolhida = series.find(s => s.id === values[0]) ?? null;
-                  setDraft(atual => escolherSerieNoPostIt(atual, serieEscolhida));
+                  setDraft(atual => escolherSerieNoPostIt(atual, serieEscolhida, series));
                 }}
               />
             </div>

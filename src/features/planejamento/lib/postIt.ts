@@ -7,8 +7,8 @@ import {placeContentOnDay} from '../../editorial-calendar/lib/scheduleContent.ts
 import {contasAtivas, redeDaConta, type ContaRef} from '../../contas/lib/contas.ts';
 import {criarPublicacaoAgendada} from '../../editorial/lib/destinations.ts';
 import {aplicarEscolhasHerdadas} from '../../editorial/lib/escolhasSerie.ts';
-import {contaNaGradePadrao, funcaoHerdavelDaSerie} from '../../editorial/lib/funcoes.ts';
-import {pilarPrincipalDaSerie} from '../../editorial/lib/pilarDaSerie.ts';
+import {contaNaGradePadrao} from '../../editorial/lib/funcoes.ts';
+import {objetivoHerdadoDaSerie, pilarHerdadoDaSerie, type SerieClassificacao} from '../../editorial/lib/herancaSerie.ts';
 
 /** Nota de planejamento. Existe antes da ideia e não é um Content. */
 export interface PlanejamentoPostIt {
@@ -188,7 +188,8 @@ export function postItEditDraft(postIt: PlanejamentoPostIt): PostItEdit {
 }
 
 /**
- * Escolher a série preenche pilar e objetivo que ainda estão vazios, como no roteiro.
+ * Escolher a série preenche pilar e objetivo que ainda estão vazios, como no roteiro:
+ * com a lista de séries, quadro sem pilar ou objetivo próprio herda da série acima.
  * O que já foi escolhido não muda.
  */
 export function escolherSerieNoPostIt(
@@ -199,13 +200,15 @@ export function escolherSerieNoPostIt(
     pilarPrincipalId?: string | null;
     pilarIds?: readonly string[] | null;
   } | null,
+  series: readonly SerieClassificacao[] = [],
 ): PostItEdit {
   if (!serie) return {...edit, serieId: null};
+  const cadeia = series.some(item => item.id === serie.id) ? series : [serie, ...series];
   return {
     ...edit,
     serieId: serie.id,
-    pilarId: edit.pilarId || pilarPrincipalDaSerie(serie),
-    objetivo: edit.objetivo ?? funcaoHerdavelDaSerie(serie),
+    pilarId: edit.pilarId || pilarHerdadoDaSerie(serie.id, cadeia),
+    objetivo: edit.objetivo ?? objetivoHerdadoDaSerie(serie.id, cadeia),
   };
 }
 

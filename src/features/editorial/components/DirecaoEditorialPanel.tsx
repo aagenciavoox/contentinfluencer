@@ -13,11 +13,9 @@ import type { Pilar } from '../../../lib/database';
 import { CONFIRM, type ConfirmState } from '../../../lib/uiCopy';
 import { sortPilares } from '../../settings/lib/activePilares';
 import { AjustesEditorialPanel } from './plano/AjustesEditorialPanel';
-import { PlanoVigenteView } from './plano/PlanoVigenteView';
-import { PeriodoEditorialControl, periodoInicial, type PeriodoSelecionado } from './plano/PeriodoEditorialControl';
-import { useEditorialPlano } from './plano/useEditorialPlano';
-import { decisaoDoPeriodo, lerPeriodoSalvo, semanaDe } from '../lib/periodoEditorial';
-import { limiteSemanalDoPeriodo } from '../lib/vigencias';
+import { PeriodoPanel } from './plano/PeriodoPanel';
+import { periodoInicial, type PeriodoSelecionado } from './plano/PeriodoEditorialControl';
+import { lerPeriodoSalvo } from '../lib/periodoEditorial';
 
 function linhaDeSeries(nomes: string[]) {
   if (nomes.length === 0) return 'Sem séries ligadas';
@@ -54,13 +52,6 @@ export function DirecaoEditorialPanel({ abaAtiva: abaAtivaProp }: DirecaoEditori
   };
 
   const pilares = useMemo(() => sortPilares(state.pilares), [state.pilares]);
-  const { settings, salvarDecisao } = useEditorialPlano();
-  const decisao = decisaoDoPeriodo(settings.periodos, periodo.inicio, periodo.fim);
-  // Período vigente usa o ritmo atual; período encerrado, o que valia nele.
-  const limiteSemanal = limiteSemanalDoPeriodo(
-    { limiteSemanal: settings.preferencias.limiteSemanal, vigencias: settings.vigencias },
-    periodo,
-  );
 
   const abaOptions: SegmentTabOption<EditorialAba>[] = [
     { id: 'plano', label: 'Plano Vigente', icon: <Target className="h-4 w-4" /> },
@@ -116,19 +107,14 @@ export function DirecaoEditorialPanel({ abaAtiva: abaAtivaProp }: DirecaoEditori
         />
       ) : null}
 
+      {/* O mesmo painel do "Prioridade e metas" do Planejamento: mesmos campos, mesmo editor. */}
       {abaAtiva === 'plano' && (
-        <div className="stack-md">
-          <PeriodoEditorialControl periodo={periodo} onChange={salvarPeriodo} />
-          <PlanoVigenteView
-            periodo={periodo}
-            decisao={decisao}
-            platforms={state.platforms}
-            series={state.series}
-            pilares={state.pilares}
-            limiteSemanal={limiteSemanal}
-            onSalvarDecisao={patch => salvarDecisao(periodo, patch)}
-          />
-        </div>
+        <PeriodoPanel
+          periodo={periodo}
+          onPeriodoChange={salvarPeriodo}
+          onAbrirAjustes={() => handleAbaChange('ajustes')}
+          planoRecolhivel={false}
+        />
       )}
 
       {abaAtiva === 'pilares' && (

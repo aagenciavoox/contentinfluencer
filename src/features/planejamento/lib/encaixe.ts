@@ -1,8 +1,8 @@
 import type { Content, FuncaoEditorial } from '../../../lib/database.ts';
 import { etapaDoStatus, type Etapa } from '../../editorial/lib/etapas.ts';
-import { FUNCAO_CURTA, resolveFuncao } from '../../editorial/lib/funcoes.ts';
+import { FUNCAO_CURTA } from '../../editorial/lib/funcoes.ts';
 import type { GradeSerie } from '../../editorial/lib/gradeEntries.ts';
-import { pilarPrincipalDaSerie } from '../../editorial/lib/pilarDaSerie.ts';
+import { objetivoDoConteudo, pilarDoConteudo } from '../../editorial/lib/herancaSerie.ts';
 import { canPullContent, type PlanejamentoPostIt } from './postIt.ts';
 
 export type MotivoEncaixe = 'objetivo' | 'serie' | 'pilar';
@@ -28,13 +28,13 @@ function peso(motivos: readonly MotivoEncaixe[]): number {
 function motivosDoConteudo(
   postIt: Pick<PlanejamentoPostIt, 'serieId' | 'pilarId' | 'objetivo'>,
   content: Content,
-  serie: GradeSerie | null,
+  series: readonly GradeSerie[],
   objetivo: FuncaoEditorial | null,
 ): MotivoEncaixe[] {
   const motivos: MotivoEncaixe[] = [];
   if (postIt.objetivo && objetivo === postIt.objetivo) motivos.push('objetivo');
   if (postIt.serieId && content.seriesId === postIt.serieId) motivos.push('serie');
-  const pilar = content.pilarId || pilarPrincipalDaSerie(serie);
+  const pilar = pilarDoConteudo(content, series);
   if (postIt.pilarId && pilar === postIt.pilarId) motivos.push('pilar');
   return motivos;
 }
@@ -59,20 +59,19 @@ export function candidatosDoEncaixe({
   datas: ReadonlyMap<string, readonly string[]>;
 }): { combinam: CandidatoEncaixe[]; outros: CandidatoEncaixe[] } {
   const ligados = new Set(postIts.flatMap(item => item.id !== postIt.id && item.contentId ? [item.contentId] : []));
-  const seriePorId = new Map(series.map(item => [item.id, item]));
 
   const candidatos = contents
     .filter(canPullContent)
     .filter(content => !ligados.has(content.id))
     .filter(content => (datas.get(content.id)?.length ?? 0) === 0)
     .map(content => {
-      const serie = content.seriesId ? seriePorId.get(content.seriesId) ?? null : null;
-      const objetivo = resolveFuncao(content, serie).funcao;
+      // O mesmo objetivo e pilar com que ele vai contar na Saúde.
+      const objetivo = objetivoDoConteudo(content, series);
       return {
         content,
         etapa: etapaDoStatus(content.status),
         objetivo,
-        motivos: motivosDoConteudo(postIt, content, serie, objetivo),
+        motivos: motivosDoConteudo(postIt, content, series, objetivo),
       };
     })
     .sort((a, b) => {

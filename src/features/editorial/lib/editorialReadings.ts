@@ -160,6 +160,7 @@ export function computeReadings(
       periodos: settings.periodos,
     },
     periodo: semana,
+    series: state.series,
   });
   const livros = new Map(state.bibliotecaItems.filter(item => !item.deletedAt).map(item => [item.id, item]));
   const leituras: Leitura[] = [];

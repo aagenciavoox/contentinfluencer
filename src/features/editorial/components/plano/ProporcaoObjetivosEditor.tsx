@@ -104,7 +104,7 @@ export function ResumoDaProporcao({ proporcao }: { proporcao: ProporcaoFuncoes |
 
       {soma !== 100 ? (
         <Text variant="meta" as="p" className="text-[var(--accent-orange)]">
-          A soma está em {soma}%. As metas são calculadas sobre esse total; para ficar exato, ajuste para 100%.
+          Pendência: a proporção salva soma {soma}%. Nada foi ajustado sozinho; as metas usam esse total até você editar e fechar em 100%.
         </Text>
       ) : null}
     </div>

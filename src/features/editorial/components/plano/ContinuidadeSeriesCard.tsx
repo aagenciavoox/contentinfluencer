@@ -2,15 +2,14 @@ import { Activity } from 'lucide-react';
 import { Text } from '../../../../components/ui/Text';
 import { useAppContext } from '../../../../context/AppContext';
 import type { Serie } from '../../../../lib/database';
-import { situacaoDaFrequencia } from '../../../planejamento/lib/saudeIndicadores';
+import { situacaoDaFrequencia, TEXTO_SEM_ANCORA, textoFrequencia } from '../../lib/apuracaoSerie';
 import { CardConfiguracao } from './campos';
 
 function textoDaSituacao(serie: Serie): { texto: string; pode: boolean } {
   const situacao = situacaoDaFrequencia(serie);
-  if (situacao.tipo === 'definida') {
-    const nome = situacao.freq.unidade === 'semana' ? 'semana' : situacao.freq.unidade === 'quinzena' ? 'quinzena' : 'mês';
-    return { texto: `${situacao.freq.vezes ?? 1}× por ${nome}`, pode: true };
-  }
+  if (situacao.tipo === 'definida') return { texto: textoFrequencia(situacao.freq), pode: true };
+  // Tem frequência, falta o início dos ciclos: pode marcar, a Saúde mostra a pendência.
+  if (situacao.tipo === 'sem-ancora') return { texto: TEXTO_SEM_ANCORA, pode: true };
   if (situacao.tipo === 'incompleta') return { texto: 'Frequência incompleta: escolha a unidade', pode: false };
   if (situacao.tipo === 'sob-demanda') return { texto: 'Sob demanda', pode: false };
   return { texto: 'Sem frequência definida', pode: false };
