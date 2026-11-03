@@ -234,7 +234,7 @@ export function AjustarMetasDialog({
               onChange={e => setPausaEditorial(e.target.value)}
             />
             <Text id="pausa-editorial-ajuda" variant="meta" as="p" className="text-[var(--text-tertiary)]">
-              Só pausa com data certa é descontada da meta. Sem data, fica para revisão.
+              Texto livre. Para tirar dias da meta, use Pausas no plano; data escrita aqui pode ser convertida lá.
             </Text>
           </div>
         </div>

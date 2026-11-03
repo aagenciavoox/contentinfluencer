@@ -76,3 +76,37 @@ export function excecaoCobre(
     && excecao.fim >= intervalo.fim
   )) ?? null;
 }
+
+/** Faixas aceitas na tela, as mesmas da leitura (fora delas vale o padrão). */
+export const FAIXAS_CONCENTRACAO = {
+  obraRepeticoes: { min: 2, max: 30 },
+  obraJanelaDias: { min: 1, max: 90 },
+  /** Em %, só inteiros: 1/3 aparece como 33%. */
+  assuntoPercentual: { min: 5, max: 95 },
+  assuntoMinPautas: { min: 1, max: 100 },
+} as const;
+
+/** Os limites são os padrão? (então nada precisa ser gravado). */
+export function limitesPadrao(limites: LimitesConcentracao): boolean {
+  const padrao = LIMITES_CONCENTRACAO_PADRAO;
+  return limites.obraRepeticoes === padrao.obraRepeticoes
+    && limites.obraJanelaDias === padrao.obraJanelaDias
+    && limites.assuntoFracaoMax === padrao.assuntoFracaoMax
+    && limites.assuntoMinPautas === padrao.assuntoMinPautas;
+}
+
+/** Exceções que ainda valem ou vão valer, pela data de início; as vencidas ficam de fora. */
+export function excecoesEmVigor(excecoes: readonly ExcecaoConcentracao[], hoje: string): ExcecaoConcentracao[] {
+  return excecoes
+    .filter(excecao => excecao.fim >= hoje)
+    .sort((a, b) => a.inicio.localeCompare(b.inicio) || a.fim.localeCompare(b.fim));
+}
+
+/** O que falta para gravar a exceção; null quando está pronta. */
+export function problemaDaExcecao(excecao: Omit<ExcecaoConcentracao, 'id'>): string | null {
+  if (!excecao.alvoId) return excecao.tipo === 'obra' ? 'Escolha a obra.' : 'Escolha o assunto.';
+  const data = /^\d{4}-\d{2}-\d{2}$/;
+  if (!data.test(excecao.inicio) || !data.test(excecao.fim)) return 'Escolha o início e o fim.';
+  if (excecao.inicio > excecao.fim) return 'O fim vem depois do início.';
+  return null;
+}

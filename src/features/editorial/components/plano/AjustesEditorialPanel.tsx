@@ -17,6 +17,7 @@ import { agendarVigencia, desfazerMudanca, diretrizNoDomingo, domingosParaVigenc
 import { ProporcaoObjetivosEditor, proporcaoEmTexto, ResumoDaProporcao } from './ProporcaoObjetivosEditor';
 import { ContasEFormatosCard } from './ContasEFormatosCard';
 import { ContinuidadeSeriesCard } from './ContinuidadeSeriesCard';
+import { VariedadeConcentracaoCard } from './VariedadeConcentracaoCard';
 import { useEditorialPlano } from './useEditorialPlano';
 import { diaMes, ValeAPartirDe } from './ValeAPartirDe';
 
@@ -355,6 +356,8 @@ export function AjustesEditorialPanel() {
       <ContasEFormatosCard />
 
       <ContinuidadeSeriesCard />
+
+      <VariedadeConcentracaoCard />
 
       <CardConfiguracao icone={<Share2 className="h-5 w-5" />} titulo="Redes e horários">
         <div className="grid-form">

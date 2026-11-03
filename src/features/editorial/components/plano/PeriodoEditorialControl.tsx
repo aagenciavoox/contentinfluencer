@@ -117,6 +117,7 @@ export function useContagemDoPeriodo(inicio: string, fim: string): GradeCounts {
         proporcaoFuncoes: settings.proporcaoFuncoes,
         periodos: settings.periodos,
         vigencias: settings.vigencias,
+        pausas: settings.pausas,
       },
       periodo: { inicio, fim },
     });

@@ -74,6 +74,7 @@ await import('./features/editorial/lib/metaDoPeriodo.test.ts');
 await import('./features/editorial/lib/publicacoes.test.ts');
 await import('./features/editorial/lib/metasPorConta.test.ts');
 await import('./features/editorial/lib/trecho.test.ts');
+await import('./features/editorial/lib/pausas.test.ts');
 await import('./features/editorial/lib/continuidadeEscopo.test.ts');
 await import('./features/editorial/lib/concentracao.test.ts');
 await import('./features/editorial/lib/referenciaPublicacao.test.ts');

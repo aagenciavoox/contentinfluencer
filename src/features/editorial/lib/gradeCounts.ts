@@ -8,6 +8,7 @@ import { FUNCAO_LABELS, FUNCOES, isFuncaoEditorial } from './funcoes.ts';
 import { objetivoHerdadoDaSerie, pilarHerdadoDaSerie, type SerieClassificacao } from './herancaSerie.ts';
 import { postItTemPauta } from './pautaConteudo.ts';
 import { metaDoPeriodo, type MetaDoPeriodo } from './metaDoPeriodo.ts';
+import { diasDePausa, type PausaEditorial } from './pausas.ts';
 import { decisaoDoPeriodo } from './periodoEditorial.ts';
 import { metasDoPeriodo, type ProporcaoFuncoes } from './proporcaoObjetivos.ts';
 import { proporcaoDoPeriodo } from './vigencias.ts';
@@ -51,6 +52,8 @@ export type GradeCountSettings = {
   limiteSemanal?: number | null;
   reservaForaSeriesSemanal?: number | null;
   ajustesSemana?: readonly AjusteSemana[];
+  /** Pausas com data. Só as de publicação tiram dias da meta de conteúdos. */
+  pausas?: readonly PausaEditorial[];
 };
 
 export type LinhaContagem = {
@@ -383,6 +386,7 @@ export function contarPeriodo({
     ajustesSemana,
     decisao,
     hoje,
+    diasPausados: diasDePausa(settings.pausas ?? [], { tipo: 'publicacao' }, periodo),
   });
   const limite = meta.valor;
   const proporcao = proporcaoDoPeriodo({

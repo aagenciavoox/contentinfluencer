@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { excecaoCobre, LIMITES_CONCENTRACAO_PADRAO, lerLimitesConcentracao, rotuloFracao } from './concentracao.ts';
+import { excecaoCobre, excecoesEmVigor, LIMITES_CONCENTRACAO_PADRAO, lerLimitesConcentracao, limitesPadrao, problemaDaExcecao, rotuloFracao } from './concentracao.ts';
 
 // Sem nada gravado: os limites de antes.
 assert.deepEqual(lerLimitesConcentracao(null), LIMITES_CONCENTRACAO_PADRAO);
@@ -21,3 +21,18 @@ assert.equal(excecaoCobre(excecoes, { tipo: 'assunto', alvoId: 't1' }, { inicio:
 assert.ok(excecaoCobre(excecoes, { tipo: 'assunto', alvoId: 't1' }, { inicio: '2026-11-02', fim: '2026-11-08' }, 'ig'));
 
 console.log('concentracao: ok');
+
+// --- Exceções em vigor e o que falta para gravar.
+{
+  const excecoes = [
+    { id: 'velha', tipo: 'obra' as const, alvoId: 'l1', platformId: null, inicio: '2026-10-01', fim: '2026-10-31', nota: '' },
+    { id: 'nova', tipo: 'assunto' as const, alvoId: 't1', platformId: null, inicio: '2026-11-01', fim: '2026-11-30', nota: '' },
+  ];
+  assert.deepEqual(excecoesEmVigor(excecoes, '2026-11-03').map(item => item.id), ['nova']);
+  assert.equal(problemaDaExcecao({ tipo: 'obra', alvoId: '', platformId: null, inicio: '2026-11-01', fim: '2026-11-30', nota: '' }), 'Escolha a obra.');
+  assert.equal(problemaDaExcecao({ tipo: 'assunto', alvoId: 't1', platformId: null, inicio: '2026-11-30', fim: '2026-11-01', nota: '' }), 'O fim vem depois do início.');
+  assert.equal(limitesPadrao(LIMITES_CONCENTRACAO_PADRAO), true);
+  assert.equal(limitesPadrao({ ...LIMITES_CONCENTRACAO_PADRAO, obraJanelaDias: 10 }), false);
+}
+
+console.log('concentracao (exceções): ok');

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle, ChevronDown, ChevronRight, ChevronUp, Pencil } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp, Pencil } from 'lucide-react';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { PlatformIcon } from '../../../../components/ui/PlatformIcon';
 import { Surface } from '../../../../components/ui/Surface';
@@ -13,6 +13,7 @@ import type { DecisaoPeriodo } from '../../lib/editorialSettings';
 import type { GradeCounts } from '../../lib/gradeCounts';
 import { pilarHerdadoDaSerie } from '../../lib/herancaSerie';
 import { AjustarMetasDialog, type ObjetivoNoEditor } from './AjustarMetasDialog';
+import { PausasDoPeriodo } from './PausasDoPeriodo';
 import type { PeriodoSelecionado } from './PeriodoEditorialControl';
 import { metaComAjuste } from '../../lib/vigencias';
 
@@ -109,7 +110,6 @@ export function PlanoVigenteView({
   const aberto = !recolhivel || expanded;
 
   const prioridadeTexto = decisao?.prioridade?.trim() ?? '';
-  const pausaTexto = decisao?.pausaEditorial?.trim() ?? '';
 
   // A meta comum do período (a mesma da Saúde): absoluta, ajustes das semanas, ritmo nos dias elegíveis.
   const meta = contagem.meta;
@@ -250,19 +250,7 @@ export function PlanoVigenteView({
       {aberto ? (
         <div className={recolhivel ? 'stack-md pt-2 border-t border-[var(--border-subtle)]' : 'stack-md'}>
           {/* A pausa muda todas as contas abaixo, então vem antes delas. */}
-          {pausaTexto ? (
-            <div className="flex items-start gap-2 rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-subtle)] p-2.5">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent-orange)]" aria-hidden />
-              <span className="stack-xs">
-                <Text variant="body" as="span">
-                  <strong>Pausa:</strong> {pausaTexto}
-                </Text>
-                {meta.pendenciaDePausa ? (
-                  <Text variant="meta" as="span" className="block text-[#92400e] dark:text-[#fde68a]">{meta.pendenciaDePausa}</Text>
-                ) : null}
-              </span>
-            </div>
-          ) : null}
+          <PausasDoPeriodo periodo={periodo} decisao={decisao} pendencia={meta.pendenciaDePausa} />
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className={cardMetrica}>
