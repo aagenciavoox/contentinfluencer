@@ -82,8 +82,10 @@ export interface Pilar {
   descricao: string;
   cor: string;
   ativo: boolean;
-  frequenciaSemanal: number | null;
-  metaCiclo: number | null;
+  /** Legado: a coluna existe, mas o app não grava nem usa. */
+  frequenciaSemanal?: number | null;
+  /** Legado: a coluna existe, mas o app não grava nem usa. */
+  metaCiclo?: number | null;
   createdAt: string;
   updatedAt: string;
   plataformas: PilarPlataforma[];
@@ -2951,8 +2953,6 @@ export async function savePilar(pilar: Omit<Pilar, 'plataformas' | 'createdAt' |
   const { error } = await supabase.from('pilares').upsert({
     id: pilar.id, user_id: pilar.userId, nome: pilar.nome,
     descricao: pilar.descricao, cor: pilar.cor, ativo: pilar.ativo,
-    frequencia_semanal: pilar.frequenciaSemanal,
-    meta_ciclo: pilar.metaCiclo,
   });
   if (error) throw new Error(`pilares: ${error.message}`);
 }

@@ -28,7 +28,7 @@ function baseState(partial: Partial<ReadingsState> = {}): ReadingsState {
   return {
     contents: [],
     series: [],
-    pilares: [{ id: 'pilar-1', nome: 'Literatura', ativo: true, frequenciaSemanal: 14 }],
+    pilares: [{ id: 'pilar-1', nome: 'Literatura', ativo: true }],
     projetos: [],
     bibliotecaItems: [],
     pauseMode: false,

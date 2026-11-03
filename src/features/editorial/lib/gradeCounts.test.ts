@@ -34,8 +34,8 @@ function entrada(partial: Partial<GradeEntry> & Pick<GradeEntry, 'id'>): GradeEn
 }
 
 const pilaresGrandes: PilarContagem[] = [
-  { id: 'pilar-a', nome: 'Literatura', ativo: true, frequenciaSemanal: 8 },
-  { id: 'pilar-b', nome: 'Bastidores', ativo: true, frequenciaSemanal: 6 },
+  { id: 'pilar-a', nome: 'Literatura', ativo: true },
+  { id: 'pilar-b', nome: 'Bastidores', ativo: true },
 ];
 
 function testContaCicloDeRepostEIgnoraFora() {
@@ -99,7 +99,7 @@ function testSemanaParcialUsaLimiteDoIntervalo() {
     ajustesSemana,
   });
   const resultado = countGrade({
-    pilares: [{ id: 'pilar-a', nome: 'Literatura', ativo: true, frequenciaSemanal: 3 }],
+    pilares: [{ id: 'pilar-a', nome: 'Literatura', ativo: true }],
     settings: {
       distribuicaoFuncoes: PERCENTUAIS,
       preferencias: {
@@ -127,7 +127,7 @@ function testSemanaParcialUsaLimiteDoIntervalo() {
 
 function testGradePequenaNaoAlargaOPeriodo() {
   const resultado = countGrade({
-    pilares: [{ id: 'pilar-a', nome: 'Literatura', ativo: true, frequenciaSemanal: 3 }],
+    pilares: [{ id: 'pilar-a', nome: 'Literatura', ativo: true }],
     settings: { distribuicaoFuncoes: PERCENTUAIS, preferencias: {
       limiteSemanal: null,
       reservaForaSeriesSemanal: null,
@@ -151,7 +151,7 @@ function testGradePequenaNaoAlargaOPeriodo() {
 
 function testFrequenciaNaoCortaOItem() {
   const resultado = countGrade({
-    pilares: [{ id: 'pilar-a', nome: 'Literatura', ativo: true, frequenciaSemanal: 1 }],
+    pilares: [{ id: 'pilar-a', nome: 'Literatura', ativo: true }],
     settings: {
       preferencias: {
         limiteSemanal: 2,

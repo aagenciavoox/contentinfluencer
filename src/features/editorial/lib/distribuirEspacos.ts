@@ -13,18 +13,6 @@ export function rotuloEspacos(valor: number): string {
   return `${quantidade} ${quantidade === 1 ? 'espaço' : 'espaços'}`;
 }
 
-/** Soma os espaços por semana dos pilares ativos. Pilar inativo fica de fora. */
-export function somaEspacosSemana(
-  pilares: ReadonlyArray<{ ativo?: boolean; frequenciaSemanal?: number | null }>,
-): number {
-  return pilares.reduce((soma, pilar) => {
-    if (pilar.ativo === false) return soma;
-    const valor = pilar.frequenciaSemanal;
-    if (typeof valor !== 'number' || !Number.isFinite(valor) || valor <= 0) return soma;
-    return soma + Math.floor(valor);
-  }, 0);
-}
-
 export function gradePequena(espacosPorSemana: number): boolean {
   return Number.isFinite(espacosPorSemana) && espacosPorSemana > 0 && espacosPorSemana < LIMITE_GRADE_PEQUENA;
 }

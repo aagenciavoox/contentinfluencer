@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
-import { checkEditorialConfig, excedentesDosPilares, formatarPeso, pesoSemanalSerie, type PilarConfig, type SerieConfig } from './checkEditorialConfig.ts';
+import { checkEditorialConfig, type PilarConfig, type SerieConfig } from './checkEditorialConfig.ts';
 
-const PILAR: PilarConfig = { id: 'pilar-1', nome: 'Literatura', ativo: true, frequenciaSemanal: 2 };
+const PILAR: PilarConfig = { id: 'pilar-1', nome: 'Literatura', ativo: true };
 
 function serie(partial: Partial<SerieConfig> & Pick<SerieConfig, 'id'>): SerieConfig {
   return {
@@ -22,14 +22,6 @@ const FECHADA = {
   acao: 0,
   reter: 0,
 };
-
-function testPesos() {
-  assert.equal(pesoSemanalSerie('Semanal'), 1);
-  assert.equal(pesoSemanalSerie('quinzenal'), 0.5);
-  assert.equal(pesoSemanalSerie('Mensal'), 0.25);
-  assert.equal(pesoSemanalSerie('Sob demanda'), 0);
-  assert.equal(pesoSemanalSerie(null), 0);
-}
 
 function testDistribuicaoForaDe100() {
   // Fase 4: só as 5 funções da grade entram na soma — Reter não conta aqui.
@@ -87,7 +79,7 @@ function testSeriesAcimaDoPilarNaoViraErroDeCapacidade() {
 
 function testSeriesCabemNoPilar() {
   const notas = checkEditorialConfig({
-    pilares: [{ ...PILAR, frequenciaSemanal: 2 }],
+    pilares: [{ ...PILAR }],
     series: [
       serie({ id: 'q1', frequenciaRecomendada: 'Quinzenal' }),
       serie({ id: 'q2', frequenciaRecomendada: 'Quinzenal' }),
@@ -102,7 +94,7 @@ function testSeriesCabemNoPilar() {
 
 function testFuncaoComEspacoSemSerieNaoViraErro() {
   const notas = checkEditorialConfig({
-    pilares: [{ id: 'pilar-1', nome: 'Literatura', ativo: true, frequenciaSemanal: 8 }],
+    pilares: [{ id: 'pilar-1', nome: 'Literatura', ativo: true }],
     series: [
       serie({ id: 's1', funcaoPadrao: 'atrair' }),
       serie({ id: 'varia', funcaoPadrao: 'varia' }),
@@ -143,8 +135,8 @@ function testRedeDeReferencia() {
 function testSerieContaNoPilarPrincipal() {
   const notas = checkEditorialConfig({
     pilares: [
-      { id: 'pilar-1', nome: 'Literatura', ativo: true, frequenciaSemanal: 1 },
-      { id: 'pilar-2', nome: 'Bastidores', ativo: true, frequenciaSemanal: 1 },
+      { id: 'pilar-1', nome: 'Literatura', ativo: true },
+      { id: 'pilar-2', nome: 'Bastidores', ativo: true },
     ],
     series: [
       serie({
@@ -162,25 +154,6 @@ function testSerieContaNoPilarPrincipal() {
   assert.equal(notas.some(nota => nota.chave === 'pilar-capacidade:pilar-2'), false);
 }
 
-function testExcedentesDosPilares() {
-  assert.equal(formatarPeso(2.5), '2,5');
-  assert.equal(formatarPeso(2), '2');
-  const rows = excedentesDosPilares(
-    [PILAR, { id: 'pilar-2', nome: 'Psicologia', ativo: true, frequenciaSemanal: 1 }],
-    [
-      serie({ id: 's1' }),
-      serie({ id: 's2' }),
-      serie({ id: 's3', frequenciaRecomendada: 'Quinzenal' }),
-      serie({ id: 'cabe', pilarIds: ['pilar-2'], frequenciaRecomendada: 'Quinzenal' }),
-    ],
-  );
-  assert.equal(rows.length, 1);
-  assert.equal(rows[0]?.id, 'pilar-1');
-  assert.equal(rows[0]?.ocupado, 2.5);
-  assert.equal(rows[0]?.previsto, 2);
-}
-
-testPesos();
 testDistribuicaoForaDe100();
 testReterLegadoNaoGeraAvisoDeCapacidade();
 testDistribuicaoVaziaNaoApontaSoma();
@@ -189,6 +162,5 @@ testSeriesCabemNoPilar();
 testFuncaoComEspacoSemSerieNaoViraErro();
 testRedeDeReferencia();
 testSerieContaNoPilarPrincipal();
-testExcedentesDosPilares();
 
 console.log('checkEditorialConfig tests passed');

@@ -81,8 +81,6 @@ type PilarFormState = Pick<
   | 'descricao'
   | 'cor'
   | 'ativo'
-  | 'frequenciaSemanal'
-  | 'metaCiclo'
   | 'plataformas'
 >;
 
@@ -158,8 +156,6 @@ export function PilarEditForm({
       descricao: initial.descricao || '',
       cor: initial.cor || PILAR_DEFAULT_COR,
       ativo: initial.ativo ?? true,
-      frequenciaSemanal: initial.frequenciaSemanal ?? null,
-      metaCiclo: initial.metaCiclo ?? null,
       plataformas: normalizePlataformas(initial.plataformas),
     },
     linkedSerieIds: [...initialLinkedSerieIds],
@@ -293,8 +289,6 @@ export function PilarEditForm({
         descricao: form.descricao.trim(),
         cor: form.cor,
         ativo: form.ativo,
-        frequenciaSemanal: initial.frequenciaSemanal ?? null,
-        metaCiclo: initial.metaCiclo ?? null,
         plataformas: [
           ...platformNames.map(platformId => form.plataformas.find(item => item.platformId === platformId)),
           // Contas inativas não aparecem nas abas, mas o que já estava guardado nelas fica.
@@ -307,7 +301,7 @@ export function PilarEditForm({
       },
       linkedSerieIds,
     });
-  }, [form, initial.createdAt, initial.frequenciaSemanal, initial.metaCiclo, linkedSerieIds, onSave, platformNames]);
+  }, [form, initial.createdAt, linkedSerieIds, onSave, platformNames]);
 
   const onChromeChangeRef = useRef(onChromeChange);
   const handleSaveRef = useRef(handleSave);

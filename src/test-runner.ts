@@ -1,4 +1,3 @@
-await import('./utils/pilarRhythm.test.ts');
 await import('./context/persistAction.test.ts');
 await import('./context/realtimeSync.test.ts');
 await import('./lib/tableWrites.test.ts');
@@ -57,7 +56,6 @@ await import('./features/creation/lib/creationRedeFilter.test.ts');
 await import('./features/contents/lib/carouselSlides.test.ts');
 await import('./features/settings/lib/gentleExperience.test.ts');
 await import('./features/settings/lib/writingWorkspace.test.ts');
-await import('./features/recommendations/recommendDailyAction.test.ts');
 await import('./features/settings/lib/pilarPostingSchedule.test.ts');
 await import('./features/settings/lib/pilarConstants.test.ts');
 await import('./features/settings/lib/serieColors.test.ts');

@@ -3,7 +3,6 @@ import {
   distribuirEspacos,
   percentuaisFechamEm100,
   semanasDaContagem,
-  somaEspacosSemana,
   totalDaContagem,
 } from './distribuirEspacos.ts';
 
@@ -49,19 +48,8 @@ function testSomaIgualAoTotal() {
   assert.equal(percentuaisFechamEm100([]), false);
 }
 
-function testSomaDosPilares() {
-  assert.equal(somaEspacosSemana([
-    { ativo: true, frequenciaSemanal: 3 },
-    { ativo: true, frequenciaSemanal: 2 },
-    { ativo: false, frequenciaSemanal: 9 },
-    { ativo: true, frequenciaSemanal: null },
-    { ativo: true, frequenciaSemanal: 0 },
-  ]), 5);
-}
-
 testQuatorzeEspacos();
 testGradePequena();
 testSomaIgualAoTotal();
-testSomaDosPilares();
 
 console.log('distribuirEspacos tests passed');

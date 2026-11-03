@@ -21,7 +21,6 @@ export type PilarContagem = {
   id: string;
   nome: string;
   ativo?: boolean;
-  frequenciaSemanal?: number | null;
 };
 
 export type PostItContagem = {
@@ -337,7 +336,6 @@ function contaGrupo(grupo: readonly ItemContado[]): {
 /**
  * Conta o intervalo uma vez.
  * O limite vem de `limiteDoIntervalo`. Null continua null.
- * A frequência do pilar e o percentual antigo não entram na conta.
  * Excesso fica registrado e não apaga item.
  */
 export function contarPeriodo({

@@ -27,7 +27,6 @@ const pilar = {
   id: 'pilar-1',
   nome: 'Literatura',
   ativo: true,
-  frequenciaSemanal: 2,
   cor: '#336699',
 } as Pilar;
 
@@ -197,7 +196,6 @@ function testTomDaSaude() {
 function testFrequenciaDoPilarNaoFechaOMes() {
   const cheio = {
     ...pilar,
-    frequenciaSemanal: 1,
   } as Pilar;
   const contents = [0, 1, 2, 3, 4].map(index => createContentDraft({
     id: `ideia-${index}`,
