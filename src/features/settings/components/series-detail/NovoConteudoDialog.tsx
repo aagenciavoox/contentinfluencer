@@ -16,6 +16,8 @@ export type PedidoNovoConteudo = {
   titulo: string;
   /** HTML do editor; vazio quando nada foi colado. */
   texto: string;
+  /** true: abre a página do conteúdo; false: fica na série. */
+  abrir: boolean;
 };
 
 const inputClass =
@@ -52,12 +54,13 @@ export function NovoConteudoDialog({
     setErro(null);
   }, [open]);
 
-  const criar = () => {
+  // Enter continua criando e abrindo.
+  const criar = (abrir = true) => {
     if (!titulo.trim()) {
       setErro('Dê um título ao conteúdo.');
       return;
     }
-    onCreate({ id, modo, titulo: titulo.trim(), texto });
+    onCreate({ id, modo, titulo: titulo.trim(), texto, abrir });
   };
 
   return (
@@ -116,7 +119,8 @@ export function NovoConteudoDialog({
       </OverlayBody>
       <OverlayFooter>
         <AppButton variant="secondary" onClick={onClose}>Cancelar</AppButton>
-        <AppButton variant="primary" onClick={criar}>Criar e abrir</AppButton>
+        <AppButton variant="secondary" onClick={() => criar(false)}>Criar</AppButton>
+        <AppButton variant="primary" onClick={() => criar(true)}>Criar e abrir</AppButton>
       </OverlayFooter>
     </BottomSheetModal>
   );

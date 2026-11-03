@@ -45,6 +45,8 @@ export type AppAction =
   | { type: 'SET_CONTENT_STATUS'; payload: { contentIds: string[]; status: string } }
   | { type: 'ARCHIVE_CONTENTS'; payload: string[] }
   | { type: 'RESTORE_CONTENTS'; payload: string[] }
+  /** Só a posição na série. Não mexe em updatedAt nem em nenhum outro campo. */
+  | { type: 'MOVER_EPISODIOS'; payload: { conteudos: Content[]; ordem: string[] | null } }
 
   // ─── Ideias ─────────────────────────────────────────────────────────────────
   | { type: 'ADD_IDEA';    payload: Idea & { canonicalContentId?: string } }
@@ -243,6 +245,19 @@ export function appReducer(state: AppState, action: AppAction): AppState {
               content.id === action.payload.id ? action.payload : content
             )
           : [action.payload, ...state.contents],
+      };
+    }
+    case 'MOVER_EPISODIOS': {
+      // Troca só os movidos e numera a ordem (1, 2, 3…); o resto fica igual.
+      const movidos = new Map(action.payload.conteudos.map(content => [content.id, content]));
+      const posicao = new Map((action.payload.ordem ?? []).map((id, indice) => [id, indice + 1]));
+      return {
+        ...state,
+        contents: state.contents.map(content => {
+          const base = movidos.get(content.id) ?? content;
+          const nova = posicao.get(content.id);
+          return nova === undefined ? base : { ...base, ordemEpisodio: nova };
+        }),
       };
     }
     case 'DELETE_CONTENT':

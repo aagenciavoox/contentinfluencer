@@ -68,6 +68,7 @@ export type PersistenceApi = Pick<DatabaseModule,
   | 'deleteGoldenRule'
   | 'savePlatform'
   | 'deletePlatform'
+  | 'moverEpisodios'
 >;
 
 interface PersistActionParams {
@@ -165,6 +166,10 @@ export async function persistAction({ action, userId, state, api }: PersistActio
     case 'ADD_CONTENT':
     case 'UPDATE_CONTENT':
       await persistContentRecord(action.payload, userId, persistenceApi);
+      return;
+
+    case 'MOVER_EPISODIOS':
+      await persistenceApi.moverEpisodios(action.payload.conteudos, action.payload.ordem);
       return;
 
     case 'SET_CONTENT_STATUS': {

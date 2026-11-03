@@ -69,6 +69,7 @@ function createMockApi(contentsById: Content[] = []) {
     deleteGoldenRule: record('deleteGoldenRule'),
     savePlatform: record('savePlatform'),
     deletePlatform: record('deletePlatform'),
+    moverEpisodios: record('moverEpisodios'),
   };
 
   return { api, calls };

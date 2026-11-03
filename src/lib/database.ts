@@ -194,6 +194,8 @@ export interface Serie {
   tipoAgrupamento?: SerieTipoAgrupamento | null;
   /** Sem pilar de propósito: não herda o pilar do agrupamento superior. */
   semPilar?: boolean;
+  /** Entra na Continuidade da Saúde. Ausente antes da migração 20261102240000: vale falso. */
+  acompanharContinuidade?: boolean;
   createdAt: string;
   updatedAt: string;
   pilarIds: string[];
@@ -494,6 +496,8 @@ export interface Content {
   origemConteudoId?: string | null;
   /** Temporada do escopo ativo. Ausente no banco antigo. */
   temporadaId?: string | null;
+  /** Posição do episódio na temporada ou na lista da série. Ausente sem a migração ou quando não foi carregado. */
+  ordemEpisodio?: number | null;
   notes: string | null;
   referencias: string | null;
   /** Notas livres ao lado do roteiro. Ausente enquanto o corpo não foi carregado. */
@@ -920,12 +924,19 @@ const SERIE_OPTIONAL_COLUMNS = [
   'usa_temporadas',
   'tipo_agrupamento',
   'sem_pilar',
+  'acompanhar_continuidade',
 ] as const;
+
+/** Migração da escolha "Acompanhar continuidade na Saúde". */
+export const MIGRACAO_SERIE_CONTINUIDADE = '20261102240000_serie_acompanhar_continuidade';
 
 /** Migração do tipo de agrupamento e do "sem pilar" das séries. */
 export const MIGRACAO_SERIE_TIPO = '20261030120000_serie_tipo_agrupamento';
 
 const CONTENT_AGRUPAMENTO_COLUMNS = ['origem_conteudo_id', 'temporada_id'] as const;
+
+/** Migração 20261102210000_ordem_episodio. Sem ela, a lista segue a ordem de criação. */
+const CONTENT_ORDEM_EPISODIO_COLUMN = 'ordem_episodio';
 
 const MIGRACAO_CONTAS = '20261015120000_contas_legendas_metricas';
 
@@ -1311,6 +1322,7 @@ const mp = {
     usaTemporadas: r.usa_temporadas === true,
     tipoAgrupamento: readTipoAgrupamento(r.tipo_agrupamento),
     semPilar: r.sem_pilar === true,
+    acompanharContinuidade: r.acompanhar_continuidade === true,
     createdAt: r.created_at, updatedAt: r.updated_at,
     pilarIds: (r.serie_pilares || []).map((sp: Row) => sp.pilar_id),
     plataformas: (r.serie_plataformas || []).map((sp: Row) => ({
@@ -1400,6 +1412,8 @@ const mp = {
       ? r.origem_conteudo_id
       : null,
     temporadaId: typeof r.temporada_id === 'string' && r.temporada_id ? r.temporada_id : null,
+    // Sem a coluna na leitura fica undefined: gravar não apaga a ordem do servidor.
+    ordemEpisodio: typeof r.ordem_episodio === 'number' ? r.ordem_episodio : r.ordem_episodio === null ? null : undefined,
     notes: r.notes, referencias: r.referencias,
     writingNotes: r.writing_notes,
     ...readCarouselColumns(r),
@@ -1622,6 +1636,7 @@ function buildContentScheduleSelect(
   includeWritingMode = true,
   includeEdicao = true,
   includeAgrupamento = true,
+  includeOrdemEpisodio = true,
 ): string {
   let columns: readonly string[] = includeMilestones
     ? [
@@ -1659,6 +1674,10 @@ function buildContentScheduleSelect(
     const relation = columns[columns.length - 1];
     columns = [...columns.slice(0, -1), ...CONTENT_AGRUPAMENTO_COLUMNS, relation];
   }
+  if (includeOrdemEpisodio) {
+    const relation = columns[columns.length - 1];
+    columns = [...columns.slice(0, -1), CONTENT_ORDEM_EPISODIO_COLUMN, relation];
+  }
   if (includeWritingMode) {
     // Leve: só o modo. As telas vêm com o corpo, como o roteiro.
     const relation = columns[columns.length - 1];
@@ -1695,8 +1714,9 @@ async function runContentScheduleSelect<T>(
   let includeWritingMode = true;
   let includeEdicao = true;
   let includeAgrupamento = true;
+  let includeOrdemEpisodio = true;
 
-  for (let attempt = 0; attempt < 14; attempt += 1) {
+  for (let attempt = 0; attempt < 15; attempt += 1) {
     const result = await run(
       buildContentScheduleSelect(
         includeMilestones,
@@ -1711,9 +1731,14 @@ async function runContentScheduleSelect<T>(
         includeWritingMode,
         includeEdicao,
         includeAgrupamento,
+        includeOrdemEpisodio,
       ),
     );
     if (!result.error) return result;
+    if (includeOrdemEpisodio && isMissingNamedColumn(result.error?.message ?? '', CONTENT_ORDEM_EPISODIO_COLUMN)) {
+      includeOrdemEpisodio = false;
+      continue;
+    }
     if (includeEdicao && isMissingEdicaoColumns(result.error)) {
       includeEdicao = false;
       continue;
@@ -3004,6 +3029,7 @@ export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 
   if ('usaTemporadas' in serie) row.usa_temporadas = serie.usaTemporadas === true;
   if ('tipoAgrupamento' in serie) row.tipo_agrupamento = serie.tipoAgrupamento ?? null;
   if ('semPilar' in serie) row.sem_pilar = serie.semPilar === true;
+  if ('acompanharContinuidade' in serie) row.acompanhar_continuidade = serie.acompanharContinuidade === true;
 
   for (let attempt = 0; attempt < 16; attempt += 1) {
     const { error } = await supabase.from('series').upsert(row);
@@ -3021,6 +3047,10 @@ export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 
       if ((missing === 'tipo_agrupamento' && row.tipo_agrupamento != null)
         || (missing === 'sem_pilar' && row.sem_pilar === true)) {
         throw new Error(`Para guardar o tipo e o pilar da série, aplique a migração ${MIGRACAO_SERIE_TIPO}.`);
+      }
+      // Marcar para acompanhar sem a coluna não pode parecer salvo.
+      if (missing === 'acompanhar_continuidade' && row.acompanhar_continuidade === true) {
+        throw new Error(`Para acompanhar a continuidade da série, aplique a migração ${MIGRACAO_SERIE_CONTINUIDADE}.`);
       }
       const {[missing]: _removed, ...rest} = row;
       row = rest;
@@ -3442,6 +3472,7 @@ export async function saveContent(
     notes: content.notes, referencias: content.referencias,
     ...('origemConteudoId' in content ? {origem_conteudo_id: content.origemConteudoId ?? null} : {}),
     ...('temporadaId' in content ? {temporada_id: content.temporadaId ?? null} : {}),
+    ...(content.ordemEpisodio !== undefined ? {ordem_episodio: content.ordemEpisodio} : {}),
     funcao: content.funcao ?? null,
     funcao_origem: content.funcaoOrigem ?? null,
     classificacao_congelada_em: content.classificacaoCongeladaEm ?? null,
@@ -3534,6 +3565,12 @@ export async function saveContent(
     if (missingAgrupamento) {
       const {[missingAgrupamento]: _removed, ...rowWithoutAgrupamento} = row;
       row = rowWithoutAgrupamento;
+      continue;
+    }
+
+    if (CONTENT_ORDEM_EPISODIO_COLUMN in row && !!error.message && isMissingNamedColumn(error.message, CONTENT_ORDEM_EPISODIO_COLUMN)) {
+      const {[CONTENT_ORDEM_EPISODIO_COLUMN]: _ordem, ...rowWithoutOrdem} = row;
+      row = rowWithoutOrdem;
       continue;
     }
 
@@ -3713,6 +3750,44 @@ export async function deleteContent(id: string): Promise<void> {
     .eq('id', id)
     .is('deleted_at', null);
   if (error) throw new Error(`delete content: ${error.message}`);
+}
+
+/**
+ * Move e reordena episódios numa operação só do banco (função mover_episodios, migration
+ * 20261102230000). Tudo ou nada: se algo falhar, nenhuma linha muda.
+ * - conteudos: só série, temporada e pilar/objetivo (com a origem) de cada um; textos, datas,
+ *   publicações e etapa não vão.
+ * - ordem: ids na nova ordem; grava só ordem_episodio (sem updated_at).
+ */
+export async function moverEpisodios(conteudos: readonly Content[], ordem: readonly string[] | null): Promise<void> {
+  if (!supabase) return;
+  const p_itens = conteudos.map(content => ({
+    id: content.id,
+    series_id: content.seriesId ?? null,
+    temporada_id: content.temporadaId ?? null,
+    pilar_id: content.pilarId ?? null,
+    pilar_origem: content.pilarOrigem ?? null,
+    funcao: content.funcao ?? null,
+    funcao_origem: content.funcaoOrigem ?? null,
+  }));
+  const {error} = await supabase.rpc('mover_episodios', {p_itens, p_ordem: ordem ? [...ordem] : null});
+  if (error) throw new Error(`mover episodios: ${error.message}`);
+}
+
+let moverEpisodiosDisponivel: Promise<boolean> | null = null;
+
+/**
+ * Confere uma vez se o banco já tem mover_episodios. Chamar sem itens não grava nada.
+ * Função inexistente (PGRST202/42883) ou falha de rede = indisponível: setas e ações em massa ficam desligadas.
+ * Outro erro (ex.: sessão ainda não pronta) prova que a função existe.
+ */
+export function verificarMoverEpisodios(): Promise<boolean> {
+  if (!supabase) return Promise.resolve(false);
+  const client = supabase;
+  moverEpisodiosDisponivel ??= Promise.resolve(client.rpc('mover_episodios', {p_itens: [], p_ordem: null}))
+    .then(({error}) => !error || !['PGRST202', '42883'].includes(error.code ?? ''))
+    .catch(() => false);
+  return moverEpisodiosDisponivel;
 }
 
 export async function restoreContent(id: string, userId: string): Promise<void> {

@@ -297,6 +297,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         || actionType === 'SET_CONTENT_STATUS'
         || actionType === 'ARCHIVE_CONTENTS'
         || actionType === 'RESTORE_CONTENTS'
+        || actionType === 'MOVER_EPISODIOS'
       )
     ) {
       patchContentsInDomainCaches(userId, stateRef.current.contents);

@@ -13,8 +13,11 @@ import { cn } from '../../../../lib/utils';
 import { getDisplayStatus, getDisplayStatusLabel } from '../../../contents/lib/contentPipeline';
 import { REDE_ROTULO } from '../../../contas/lib/contas';
 import { TIPO_AGRUPAMENTO_LABEL, ehIdeia, textoConteudos } from '../../lib/serieAgrupamento';
-import type { AgruparPor, BlocoRede, GrupoConteudos } from '../../lib/seriesGrupos';
+import type { BlocoRede, GrupoConteudos } from '../../lib/seriesGrupos';
+import { contagemDoGrupo, exibidosDoGrupo, type AgruparLista } from '../../lib/seriesLista';
 import { destinoDoConteudo } from '../../lib/seriesSecoes';
+import { estadoDaMarcacao, type EstadoMarcacao } from '../../lib/selecaoEpisodios';
+import { CaixaMarcacao } from './SeriesAcoesEmMassa';
 
 export type AcoesDosGrupos = {
   /** Endereço do conteúdo, com a volta para esta página. */
@@ -25,6 +28,8 @@ export type AcoesDosGrupos = {
   onConfigurar: (serieId: string) => void;
   onEditarTemporada: (temporada: Temporada) => void;
   onExcluirTemporada: (temporada: Temporada) => void;
+  /** Setas de ordem. Ausente quando a lista não está na ordem dos episódios (filtro ou outra ordenação). */
+  onMoverEpisodio?: (lista: readonly Content[], content: Content, direcao: 'subir' | 'descer') => void;
 };
 
 export type SelecaoDaLista = {
@@ -33,6 +38,8 @@ export type SelecaoDaLista = {
   alternar: (id: string) => void;
   /** Entra no modo seleção; com id, já marca o conteúdo. */
   entrar: (id?: string) => void;
+  /** Marca todos os ids dados ou, se já estavam todos, desmarca só eles. */
+  alternarVarios: (ids: readonly string[]) => void;
 };
 
 /** Segurar o dedo por este tempo entra no modo seleção. */
@@ -80,7 +87,7 @@ function BotaoRecolher({ aberta, controla, onToggle }: { aberta: boolean; contro
 
 type PropsDaLinha = {
   grupo: GrupoConteudos;
-  agruparPor: AgruparPor;
+  agruparPor: AgruparLista;
   series: readonly Serie[];
   temporadas: readonly Temporada[];
   contas: readonly Platform[];
@@ -103,7 +110,9 @@ function LinhaConteudo({
   acoes,
   selecao,
   redesForaDoPadrao,
-}: PropsDaLinha & { content: Content; noBloco: boolean }) {
+  lista,
+  indice,
+}: PropsDaLinha & { content: Content; noBloco: boolean; lista: readonly Content[]; indice: number }) {
   const titulo = content.title?.trim() || 'Sem título';
   const etapa = getDisplayStatusLabel(content);
   const destino = destinoDoConteudo(content, contas);
@@ -211,6 +220,32 @@ function LinhaConteudo({
 
       {/* Lado Direito: Formato + Data + Ações */}
       <div className="relative z-[2] flex shrink-0 items-center gap-4">
+        {acoes.onMoverEpisodio && !selecao.ativa && lista.length > 1 ? (
+          <div className="flex items-center gap-0.5">
+            <AppButton
+              variant="ghost"
+              size="sm"
+              iconOnly
+              aria-label="Subir episódio"
+              title="Subir episódio"
+              disabled={indice === 0}
+              onClick={() => acoes.onMoverEpisodio?.(lista, content, 'subir')}
+            >
+              <ChevronUp className="h-4 w-4" aria-hidden />
+            </AppButton>
+            <AppButton
+              variant="ghost"
+              size="sm"
+              iconOnly
+              aria-label="Descer episódio"
+              title="Descer episódio"
+              disabled={indice === lista.length - 1}
+              onClick={() => acoes.onMoverEpisodio?.(lista, content, 'descer')}
+            >
+              <ChevronDown className="h-4 w-4" aria-hidden />
+            </AppButton>
+          </div>
+        ) : null}
         {content.formatoVisual ? (
           <Badge variant="neutral" className="hidden sm:inline-flex uppercase">
             {content.formatoVisual}
@@ -237,8 +272,8 @@ function Lista({ contents, noBloco = false, ...props }: PropsDaLinha & { content
   if (contents.length === 0) return null;
   return (
     <ul>
-      {contents.map(content => (
-        <LinhaConteudo key={content.id} content={content} noBloco={noBloco} {...props} />
+      {contents.map((content, indice) => (
+        <LinhaConteudo key={content.id} content={content} noBloco={noBloco} lista={contents} indice={indice} {...props} />
       ))}
     </ul>
   );
@@ -281,6 +316,7 @@ function CabecalhoDoGrupo({
   filtrando,
   serieDaPagina,
   menu,
+  marcacao,
 }: {
   grupo: GrupoConteudos;
   aberto: boolean;
@@ -291,6 +327,7 @@ function CabecalhoDoGrupo({
   filtrando: boolean;
   serieDaPagina: string;
   menu: MoreMenuItem[];
+  marcacao?: { estado: EstadoMarcacao; onToggle: () => void };
 }) {
   const linkDoTitulo = grupo.temporada
     ? `/series/${serieDaPagina}/temporadas/${grupo.temporada.id}`
@@ -300,19 +337,18 @@ function CabecalhoDoGrupo({
     ? 'CONTEÚDOS DIRETOS DA SÉRIE (SEM TEMPORADA)'
     : grupo.rotulo.toUpperCase();
 
-  const textoAcaoNovo = grupo.temporada
-    ? '+ Episódio nesta temporada'
-    : grupo.id === 'temp:none'
-      ? '+ Novo Conteúdo Direto'
-      : '+ Novo conteúdo';
+  // Criar daqui já deixa o episódio nesta divisão (temporada, quadro ou direto na série).
+  const textoAcaoNovo = 'Novo episódio';
 
-  const contagemRotulo = grupo.temporada
-    ? `${grupo.total} episódio(s)`
-    : `${grupo.total} conteúdo(s)`;
+  // Com filtro: "3 de 8 episódios".
+  const contagemRotulo = contagemDoGrupo(grupo.visiveis, grupo.total, filtrando);
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-3">
+        {marcacao ? (
+          <CaixaMarcacao estado={marcacao.estado} rotulo={`Selecionar os episódios exibidos de ${grupo.rotulo}`} onToggle={marcacao.onToggle} className="-ml-2" />
+        ) : null}
         {linkDoTitulo ? (
           <Link
             to={linkDoTitulo}
@@ -334,13 +370,9 @@ function CabecalhoDoGrupo({
 
       <div className="flex items-center gap-2">
         {onNovo ? (
-          <button
-            type="button"
-            onClick={onNovo}
-            className="text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] hover:underline"
-          >
-            <Text variant="button" as="span">{textoAcaoNovo}</Text>
-          </button>
+          <AppButton variant="secondary" size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={onNovo}>
+            {textoAcaoNovo}
+          </AppButton>
         ) : null}
 
         <button
@@ -384,7 +416,7 @@ export function SeriesGruposLista({
   rodape,
 }: {
   grupos: readonly GrupoConteudos[];
-  agruparPor: AgruparPor;
+  agruparPor: AgruparLista;
   serieDaPagina: string;
   series: readonly Serie[];
   tipos: ReadonlyMap<string, SerieTipoAgrupamento>;
@@ -401,7 +433,7 @@ export function SeriesGruposLista({
   rodape?: ReactNode;
 }) {
   const primeiraComConteudo = grupos.findIndex(grupo => grupo.total > 0);
-  const unico = grupos.length === 1 && grupos[0].id === 'direto';
+  const unico = grupos.length === 1 && (grupos[0].id === 'direto' || grupos[0].id === 'todos');
 
   return (
     <div className="stack-md">
@@ -457,9 +489,8 @@ function Grupo({
   linha: PropsDaLinha;
 }) {
   const corpoId = useId();
-  const { acoes, selecao, celular, agruparPor } = linha;
-  // Por rede, conteúdo novo não cairia no grupo: o menu fica só com o que faz sentido.
-  const recebeConteudo = agruparPor !== 'rede' && !grupo.foraDoEscopo;
+  const { acoes, selecao, celular } = linha;
+  const recebeConteudo = !grupo.foraDoEscopo;
   const menu: MoreMenuItem[] = [
     ...(recebeConteudo ? [
       { label: 'Novo conteúdo aqui', onClick: () => acoes.onNovo(grupo.serieId, grupo.temporadaId) },
@@ -490,6 +521,10 @@ function Grupo({
           filtrando={filtrando}
           serieDaPagina={serieDaPagina}
           menu={menu}
+          marcacao={(!celular || selecao.ativa) && exibidosDoGrupo(grupo).length > 0 ? {
+            estado: estadoDaMarcacao(exibidosDoGrupo(grupo).map(content => content.id), selecao.ids),
+            onToggle: () => selecao.alternarVarios(exibidosDoGrupo(grupo).map(content => content.id)),
+          } : undefined}
         />
       )}
       {aberto ? (
@@ -503,7 +538,7 @@ function Grupo({
             <div className="border-t border-[var(--border-color)] p-4 sm:p-6">
               <div className="rounded-[var(--radius-input)] bg-[var(--surface-subtle)] p-6 text-center">
                 <Text variant="secondary" as="p" className="italic">
-                  Nenhum episódio encontrado nesta temporada com o filtro ativo.
+                  {filtrando ? 'Nenhum episódio encontrado aqui com o filtro ativo.' : 'Nenhum episódio ainda.'}
                 </Text>
               </div>
             </div>

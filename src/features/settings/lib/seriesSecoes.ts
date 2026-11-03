@@ -5,6 +5,7 @@ import { cicloDaPublicacao } from '../../editorial/lib/cicloPublicacao.ts';
 import { progressoPublicacao, publicacaoAtiva } from '../../editorial/lib/publicacaoSituacao.ts';
 import { idsDaSubarvore } from '../../editorial/lib/serieArvore.ts';
 import { contarConteudos, ehIdeia, type ContagemConteudos } from './serieAgrupamento.ts';
+import { compararOrdemEpisodio } from './ordemEpisodios.ts';
 
 export type FiltroTipoConteudo = 'todos' | 'ideias' | 'roteiros';
 export type OrdemConteudos = 'criacao' | 'recentes' | 'titulo';
@@ -40,7 +41,7 @@ export function passaNoFiltro(
   return true;
 }
 
-export function ordenarConteudos<T extends Pick<Content, 'id' | 'title' | 'createdAt' | 'updatedAt'>>(
+export function ordenarConteudos<T extends Pick<Content, 'id' | 'title' | 'createdAt' | 'updatedAt'> & Partial<Pick<Content, 'ordemEpisodio'>>>(
   lista: readonly T[],
   ordem: OrdemConteudos,
 ): T[] {
@@ -51,7 +52,9 @@ export function ordenarConteudos<T extends Pick<Content, 'id' | 'title' | 'creat
       return (b.updatedAt || b.createdAt || '').localeCompare(a.updatedAt || a.createdAt || '')
         || porTitulo(a, b) || a.id.localeCompare(b.id);
     }
-    return (a.createdAt || '').localeCompare(b.createdAt || '') || porTitulo(a, b) || a.id.localeCompare(b.id);
+    // Ordem definida pelas setas vem primeiro; sem ela, a de criação.
+    return compararOrdemEpisodio(a, b)
+      || (a.createdAt || '').localeCompare(b.createdAt || '') || porTitulo(a, b) || a.id.localeCompare(b.id);
   });
 }
 

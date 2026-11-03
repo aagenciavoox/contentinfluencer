@@ -1,16 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowDownUp, Filter, Layers, Plus } from 'lucide-react';
+import { Layers, Plus } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
 import { EmptyState } from '../../../components/ui/EmptyState';
-import { FilterChips } from '../../../components/ui/FilterChips';
-import { PageToolbar } from '../../../components/ui/PageToolbar';
+import { Text } from '../../../components/ui/Text';
 import { QueryViewState } from '../../../components/ui/QueryViewState';
 import { resolveQueryViewStatus } from '../../../components/ui/queryViewStatus';
-import { SegmentTabs } from '../../../components/ui/SegmentTabs';
-import { SelectField } from '../../../components/ui/SelectField';
-import { Text } from '../../../components/ui/Text';
-import { ToolbarSearchInput } from '../../../components/ui/ToolbarSearchInput';
 import { useAppContext } from '../../../context/AppContext';
 import { resolveDomainStatus } from '../../../context/domainLoading';
 import { useDomainsReady } from '../../../hooks/useDomainsReady';
@@ -21,11 +16,9 @@ import type { AppDataDomain, Content, RedeSocial, Temporada } from '../../../lib
 import { withDetailBack } from '../../../lib/navigation/detailBack';
 import { notifySaveFeedback } from '../../../lib/saveFeedback';
 import { broadcastDataSync } from '../../../lib/syncBroadcast';
-import { cn } from '../../../lib/utils';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import { OpenInfoNotice } from '../../editorial/components/OpenInfoNotice';
 import { destinosPadraoAtivos, publicacoesDosDestinos } from '../../editorial/lib/destinations';
-import { ETAPA_LABEL, ETAPAS_DE_CONTEUDO } from '../../editorial/lib/etapas';
 import { FUNCAO_LABELS, isFuncaoEditorial } from '../../editorial/lib/funcoes';
 import { formatOpenItems, getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
 import { ancestraisDaSerie, filhosDaSerie } from '../../editorial/lib/serieArvore';
@@ -35,82 +28,128 @@ import { NovoConteudoDialog, type PedidoNovoConteudo } from '../components/serie
 import { SeriesBulkDrawer, type PedidoMassa } from '../components/series-detail/SeriesBulkDrawer';
 import { SeriesDetailHeader } from '../components/series-detail/SeriesDetailHeader';
 import { SeriesGruposLista, type AcoesDosGrupos, type SelecaoDaLista } from '../components/series-detail/SeriesGruposLista';
-import { MoverConteudosSheet, SeriesSelectionBar } from '../components/series-detail/SeriesSelecao';
+import { BarraDeAcoes, CaixaMarcacao, DefinirQuadroSheet, DefinirTemporadaSheet } from '../components/series-detail/SeriesAcoesEmMassa';
+import { ExcluirEstruturaDialog, type AlvoExclusao } from '../components/series-detail/ExcluirEstruturaDialog';
 import { TemporadaDialogs, type EdicaoTemporada } from '../components/series-detail/TemporadaDialogs';
 import { rotaParaCriarFilho } from '../lib/serieHierarquia';
+import { metaDoCabecalho, totaisDoCabecalho } from '../lib/serieCabecalho';
+import { hojeIso, periodoInicial, useContagemDoPeriodo } from '../../editorial/components/plano/PeriodoEditorialControl';
+import { lerPeriodoSalvo } from '../../editorial/lib/periodoEditorial';
+import { verificarMoverEpisodios } from '../../../lib/database';
+import {
+  alternarVarios,
+  chaveDaSelecao,
+  depoisDoEnvio,
+  destinosDeQuadro,
+  estadoDaMarcacao,
+  ordemAposSetaNaSecao,
+  ordemFinalNoFim,
+  planoDefinirQuadro,
+  planoDefinirTemporada,
+  temporadasComuns,
+  textoQuantidade,
+} from '../lib/selecaoEpisodios';
+import { SeriesListaToolbar } from '../components/series-detail/SeriesListaToolbar';
+import {
+  ETAPAS_DO_FILTRO,
+  FILTROS_LISTA_PADRAO,
+  colunaDeOrdemDisponivel,
+  episodiosDaPagina,
+  filtrosListaAtivos,
+  exibidosDoGrupo,
+  filtrosValidos,
+  montarLista,
+  opcoesDeAgrupar,
+  opcoesDeOrdem,
+  ordenarLista,
+  resolverAgrupar,
+  resolverOrdem,
+  rotuloDaConta,
+  setasDisponiveis,
+  temporadasDaSerie as temporadasValidasDaSerie,
+  type AgruparLista,
+  type ContextoLista,
+  type FiltrosLista,
+} from '../lib/seriesLista';
 import { generateUUID } from '../../../utils/uuid';
 import {
-  contarConteudos,
   pilarEfetivoDaSerie,
   plural,
-  textoConteudos,
   tipoDaSerie,
   tiposDasSeries,
 } from '../lib/serieAgrupamento';
 import { conteudoDoBloco, criarBloco } from '../lib/seriesBulkDraft';
 import {
-  agruparPadrao,
   conteudosDaPagina,
-  conteudosQueMudam,
-  modosDeAgrupar,
-  montarGrupos,
-  moverConteudo,
+  redeDoBloco,
   redesDeCostume,
   redesDoConteudo,
   redesUsadas,
-  rotuloDoModo,
-  type AgruparPor,
-  type DestinoMover,
 } from '../lib/seriesGrupos';
-import {
-  contagemDoEscopo,
-  FILTROS_PADRAO,
-  filtrosAtivos,
-  type FiltroEtapa,
-  type FiltroTipoConteudo,
-  type FiltrosConteudos,
-  type OrdemConteudos,
-} from '../lib/seriesSecoes';
+import { contagemDoEscopo } from '../lib/seriesSecoes';
 import { useAuth } from '../../../context/AuthContext';
 
 const DOMINIOS_DA_SERIE: readonly AppDataDomain[] = ['production', 'content'];
 
-const ORDENS: Array<{ value: OrdemConteudos; label: string }> = [
-  { value: 'criacao', label: 'Ordem de criação' },
-  { value: 'recentes', label: 'Editados por último' },
-  { value: 'titulo', label: 'Título A–Z' },
-];
-
 type EstadoDaPagina = {
-  filtros: FiltrosConteudos;
+  filtros: FiltrosLista;
   abertas: Record<string, boolean>;
-  /** Null segue o padrão: temporada quando a série usa temporadas, senão quadro. */
-  agruparPor: AgruparPor | null;
 };
 
-const ESTADO_INICIAL: EstadoDaPagina = { filtros: FILTROS_PADRAO, abertas: {}, agruparPor: null };
+const ESTADO_INICIAL: EstadoDaPagina = { filtros: FILTROS_LISTA_PADRAO, abertas: {} };
+
+function texto(valor: unknown, padrao: string): string {
+  return typeof valor === 'string' && valor ? valor : padrao;
+}
 
 function validarEstado(valor: unknown): EstadoDaPagina | null {
   if (!valor || typeof valor !== 'object') return null;
   const bruto = valor as Partial<EstadoDaPagina>;
-  const filtros = (bruto.filtros ?? {}) as Partial<FiltrosConteudos>;
-  const etapas: readonly string[] = ['todas', ...ETAPAS_DE_CONTEUDO];
+  const filtros = (bruto.filtros ?? {}) as Partial<FiltrosLista>;
+  const etapas: readonly string[] = ETAPAS_DO_FILTRO.map(item => item.value);
   return {
     filtros: {
       busca: typeof filtros.busca === 'string' ? filtros.busca : '',
-      tipo: filtros.tipo === 'ideias' || filtros.tipo === 'roteiros' ? filtros.tipo : 'todos',
-      etapa: typeof filtros.etapa === 'string' && etapas.includes(filtros.etapa) ? filtros.etapa as FiltroEtapa : 'todas',
-      ordem: filtros.ordem === 'recentes' || filtros.ordem === 'titulo' ? filtros.ordem : 'criacao',
+      etapa: typeof filtros.etapa === 'string' && etapas.includes(filtros.etapa) ? filtros.etapa : 'todas',
+      quadro: texto(filtros.quadro, 'todos'),
+      conta: texto(filtros.conta, 'todas'),
+      temporada: texto(filtros.temporada, 'todas'),
     },
     abertas: bruto.abertas && typeof bruto.abertas === 'object' ? bruto.abertas as Record<string, boolean> : {},
-    agruparPor: bruto.agruparPor === 'temporada' || bruto.agruparPor === 'quadro' || bruto.agruparPor === 'rede'
-      ? bruto.agruparPor
-      : null,
   };
 }
 
+/** Agrupar e ordenar ficam lembrados por série neste navegador (localStorage), como as preferências da lista de conteúdos. */
+type PreferenciaLista = { agrupar?: string; ordem?: string };
+const chavePreferencia = (id: string) => `criaki:serie-lista:${id}`;
+
+function lerPreferenciaLista(id: string): PreferenciaLista {
+  if (typeof localStorage === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(chavePreferencia(id));
+    const valor: unknown = raw ? JSON.parse(raw) : null;
+    if (!valor || typeof valor !== 'object') return {};
+    const bruto = valor as Record<string, unknown>;
+    return {
+      agrupar: typeof bruto.agrupar === 'string' ? bruto.agrupar : undefined,
+      ordem: typeof bruto.ordem === 'string' ? bruto.ordem : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
+function gravarPreferenciaLista(id: string, preferencia: PreferenciaLista) {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(chavePreferencia(id), JSON.stringify(preferencia));
+  } catch {
+    // Armazenamento bloqueado: a escolha vale só nesta visita.
+  }
+}
+
 /** Links antigos abriam as abas Quadros e Temporadas; hoje viram o agrupamento da lista. */
-function agruparDoLink(aba: string | null): AgruparPor | null {
+function agruparDoLink(aba: string | null): AgruparLista | null {
   if (aba === 'quadros') return 'quadro';
   if (aba === 'temporadas') return 'temporada';
   return null;
@@ -124,20 +163,27 @@ export function SeriesScriptsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { state, dispatch, updateContent, domainStatus, ensureDataDomains } = useAppContext();
+  const { state, dispatch, domainStatus, ensureDataDomains } = useAppContext();
   const { user } = useAuth();
   const celular = useIsMobile();
   const emMassa = location.pathname.endsWith('/criacao-em-massa');
   const [modalTarget, setModalTarget] = useState<SerieCreateModalTarget | null>(null);
   const [novoEm, setNovoEm] = useState<{ serieId: string; temporadaId: string | null } | null>(null);
   const [edicaoTemporada, setEdicaoTemporada] = useState<EdicaoTemporada | null>(null);
-  const [excluirTemporada, setExcluirTemporada] = useState<Temporada | null>(null);
+  const [excluirAlvo, setExcluirAlvo] = useState<AlvoExclusao | null>(null);
   const [selecao, setSelecao] = useState<Selecao>(SEM_SELECAO);
-  const [movendo, setMovendo] = useState(false);
+  const [formulario, setFormulario] = useState<'quadro' | 'temporada' | null>(null);
+  const [salvando, setSalvando] = useState(false);
+  const [erroDoFormulario, setErroDoFormulario] = useState<string | null>(null);
+  // Setas e ações em massa só existem quando o banco tem a operação mover_episodios (migration aplicada).
+  const [rpcDisponivel, setRpcDisponivel] = useState<boolean | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    void verificarMoverEpisodios().then(ok => { if (vivo) setRpcDisponivel(ok); });
+    return () => { vivo = false; };
+  }, []);
 
   const [estado, setEstado] = useSessionState<EstadoDaPagina>(`criaki:serie:${serieId}`, ESTADO_INICIAL, validarEstado);
-  const { filtros } = estado;
-  const filtrando = filtrosAtivos(filtros);
 
   const serie = state.series.find(item => item.id === serieId) ?? null;
   const temporada = temporadaId ? state.temporadas.find(item => item.id === temporadaId) ?? null : null;
@@ -152,43 +198,107 @@ export function SeriesScriptsPage() {
   const filhos = useMemo(() => (serie ? filhosDaSerie(serie.id, state.series) : []), [serie, state.series]);
   const tipo = serie ? tipos.get(serie.id) ?? tipoDaSerie(serie.id, state.series) : 'serie';
 
-  const modos = useMemo<AgruparPor[]>(
-    () => (serie ? modosDeAgrupar({ serieId: serie.id, series: state.series, temporadaId }) : ['quadro']),
-    [serie, state.series, temporadaId],
-  );
-  const pedidoDoLink = agruparDoLink(searchParams.get('aba'));
-  const agruparPor: AgruparPor = [pedidoDoLink, estado.agruparPor].find(
-    (modo): modo is AgruparPor => Boolean(modo && modos.includes(modo)),
-  ) ?? agruparPadrao(modos);
-
-  const grupos = useMemo(
-    () => (serie
-      ? montarGrupos({
-        serieId: serie.id,
-        tipo,
-        series: state.series,
-        temporadas: state.temporadas,
-        contents: state.contents,
-        contas: state.platforms,
-        destinosPadrao: state.editorial.destinosPadrao,
-        filtros,
-        agruparPor,
-        temporadaId,
-      })
-      : []),
-    [agruparPor, filtros, serie, state.contents, state.editorial.destinosPadrao, state.platforms, state.series, state.temporadas, temporadaId, tipo],
-  );
-  const visiveis = useMemo(
-    () => grupos.flatMap(grupo => [...grupo.contents, ...grupo.blocos.flatMap(bloco => bloco.contents)]),
-    [grupos],
-  );
-  // O total é sempre o do escopo inteiro; o filtro só muda quantos aparecem.
-  const total = useMemo(
-    () => (serie
-      ? contagemDoEscopo({ serieId: serie.id, series: state.series, contents: state.contents, temporadaId })
-      : contarConteudos([])),
+  // Lista: busca, filtros, agrupamento e ordem. Só apresentação: nada aqui grava episódio.
+  const episodios = useMemo(
+    () => (serie ? episodiosDaPagina(serie.id, state.series, state.contents, temporadaId) : []),
     [serie, state.contents, state.series, temporadaId],
   );
+  // Filtro e agrupamento de temporada só quando a série usa temporadas (e fora da página de uma temporada).
+  const temporadasValidas = useMemo(
+    () => (serie && !temporadaId ? temporadasValidasDaSerie(serie.id, state.series, state.temporadas) : null),
+    [serie, state.series, state.temporadas, temporadaId],
+  );
+  // Sem a migration de ordem_episodio o banco não devolve o campo: a ordem manual fica indisponível.
+  const ordemDisponivel = useMemo(() => colunaDeOrdemDisponivel(state.contents), [state.contents]);
+  const [preferencia, setPreferencia] = useState<PreferenciaLista>(() => lerPreferenciaLista(serieId));
+  useEffect(() => setPreferencia(lerPreferenciaLista(serieId)), [serieId]);
+  const mudarPreferencia = (patch: PreferenciaLista) => setPreferencia(atual => {
+    const proxima = { ...atual, ...patch };
+    gravarPreferenciaLista(serieId, proxima);
+    return proxima;
+  });
+  const opcoesDaLista = { temQuadros: filhos.length > 0, temTemporadas: Boolean(temporadasValidas) };
+  const opcoesAgrupar = opcoesDeAgrupar(opcoesDaLista);
+  const pedidoDoLink = agruparDoLink(searchParams.get('aba'));
+  const agrupar = resolverAgrupar(pedidoDoLink && opcoesAgrupar.includes(pedidoDoLink) ? pedidoDoLink : preferencia.agrupar, opcoesDaLista);
+  const ordem = resolverOrdem(preferencia.ordem, ordemDisponivel);
+  const contasDaLista = useMemo(
+    () => state.platforms.map(conta => ({ id: conta.id, label: rotuloDaConta(conta) })),
+    [state.platforms],
+  );
+  const filtros = useMemo(
+    () => filtrosValidos(estado.filtros, {
+      quadros: filhos.map(filho => filho.id),
+      contas: state.platforms.map(conta => conta.id),
+      temporadas: temporadasValidas ? temporadasValidas.map(item => item.id) : null,
+    }),
+    [estado.filtros, filhos, state.platforms, temporadasValidas],
+  );
+  const filtrando = filtrosListaAtivos(filtros);
+  // Redes de costume de cada agrupamento (contas dele ou de cima; senão destinos padrão; senão as usadas).
+  const costumeDe = useMemo(() => {
+    const usadas = redesUsadas(conteudosDaPagina(serieId, state.series, state.contents, temporadaId), state.platforms);
+    const costumes = new Map<string, Set<RedeSocial>>();
+    return (id: string) => {
+      let costume = costumes.get(id);
+      if (!costume) {
+        costume = redesDeCostume(id, state.series, state.platforms, state.editorial.destinosPadrao, usadas);
+        costumes.set(id, costume);
+      }
+      return costume;
+    };
+  }, [serieId, state.contents, state.editorial.destinosPadrao, state.platforms, state.series, temporadaId]);
+  // Mesma regra do bloco "Só ..." de antes, restrita ao YouTube.
+  const soYoutube = useCallback(
+    (content: Content) => Boolean(content.seriesId)
+      && redeDoBloco(redesDoConteudo(content, state.platforms), costumeDe(content.seriesId as string)) === 'youtube',
+    [costumeDe, state.platforms],
+  );
+  // Mudar busca ou filtros limpa a seleção; recolher grupos ou trocar o agrupamento não.
+  const chaveFiltros = chaveDaSelecao(filtros);
+  useEffect(() => setSelecao(atual => (atual.ids.size > 0 ? { ...atual, ids: new Set() } : atual)), [chaveFiltros]);
+  const ctxLista = useMemo<ContextoLista>(
+    () => ({ serieId, series: state.series, contas: state.platforms, temporadasValidas: temporadasValidas ?? [] }),
+    [serieId, state.platforms, state.series, temporadasValidas],
+  );
+  const grupos = useMemo(
+    () => montarLista({ episodios, filtros, agrupar, ordem, ctx: ctxLista, temporadas: temporadasValidas ?? [], soYoutube }),
+    [agrupar, ctxLista, episodios, filtros, ordem, temporadasValidas, soYoutube],
+  );
+  const visiveis = useMemo(() => grupos.flatMap(exibidosDoGrupo), [grupos]);
+  // Uma ordem manual só, da série: na página de um quadro vale a da série acima dele.
+  const raizDaOrdem = useMemo(() => {
+    if (!serie) return null;
+    if (tipo !== 'quadro') return serie.id;
+    return ancestraisDaSerie(serie.id, state.series).find(no => tipos.get(no.id) !== 'quadro')?.id ?? serie.id;
+  }, [serie, state.series, tipo, tipos]);
+  const setas = rpcDisponivel === true && setasDisponiveis({ agrupar, ordem, filtros, ordemDisponivel }) && raizDaOrdem === serieId && !temporadaId;
+  const avisoOrdem = !ordemDisponivel
+    ? 'Ordem manual indisponível: o banco ainda não tem a coluna de ordem.'
+    : ordem === 'manual' && rpcDisponivel === false
+      ? 'Mudar a ordem fica disponível depois de atualizar o banco (operação mover_episodios).'
+    : ordem === 'manual' && !setas
+      ? (raizDaOrdem !== serieId || temporadaId
+        ? 'Para mudar a ordem, abra a página da série.'
+        : 'Para mudar a ordem, use Agrupar por: Nenhum, sem busca nem filtros.')
+      : null;
+
+  // Cabeçalho: etapa atual de cada episódio da série e dos quadros, uma vez cada.
+  const totais = useMemo(
+    () => totaisDoCabecalho({ serieId, series: state.series, contents: state.contents }),
+    [serieId, state.contents, state.series],
+  );
+  // Meta: o mesmo período salvo e a mesma conta do painel editorial (episódios previstos, não publicados).
+  const periodoDaMeta = useMemo(
+    () => (state.editorialVisao ? lerPeriodoSalvo(state.editorialVisao) : null) ?? periodoInicial(),
+    [state.editorialVisao],
+  );
+  const contagemDoPeriodo = useContagemDoPeriodo(periodoDaMeta.inicio, periodoDaMeta.fim);
+  const meta = useMemo(() => {
+    if (!serie) return null;
+    const itens = contagemDoPeriodo.itens.map(item => ({ serieId: item.serieId, espacoId: item.id, contentId: item.contentId }));
+    return metaDoCabecalho({ serie, series: state.series, itens, periodo: periodoDaMeta, hoje: hojeIso() });
+  }, [contagemDoPeriodo, periodoDaMeta, serie, state.series]);
 
   const escopoTemporada = useMemo(
     () => (serie ? escopoTemporadas(serie.id, state.series) : null),
@@ -214,32 +324,23 @@ export function SeriesScriptsPage() {
 
   // No celular as redes de cada linha só aparecem quando fogem das de costume.
   const redesForaDoPadrao = useMemo(() => {
-    const usadas = redesUsadas(conteudosDaPagina(serieId, state.series, state.contents, temporadaId), state.platforms);
-    const costumes = new Map<string, Set<RedeSocial>>();
     return (content: Content) => {
       if (!content.seriesId) return false;
-      let costume = costumes.get(content.seriesId);
-      if (!costume) {
-        costume = redesDeCostume(content.seriesId, state.series, state.platforms, state.editorial.destinosPadrao, usadas);
-        costumes.set(content.seriesId, costume);
-      }
+      const costume = costumeDe(content.seriesId);
       const redes = redesDoConteudo(content, state.platforms);
       return redes.length > 0 && (redes.length !== costume.size || redes.some(rede => !costume.has(rede)));
     };
-  }, [serieId, state.contents, state.editorial.destinosPadrao, state.platforms, state.series, temporadaId]);
+  }, [costumeDe, state.platforms]);
 
-  const trocarAgrupamento = (proximo: AgruparPor) => {
-    setEstado(atual => ({ ...atual, agruparPor: proximo }));
+  const trocarAgrupamento = (proximo: AgruparLista) => {
+    mudarPreferencia({ agrupar: proximo });
     if (searchParams.has('aba')) {
       const params = new URLSearchParams(searchParams);
       params.delete('aba');
       setSearchParams(params, { replace: true });
     }
   };
-
-  const atualizarFiltro = <K extends keyof FiltrosConteudos>(chave: K, valor: FiltrosConteudos[K]) => {
-    setEstado(atual => ({ ...atual, filtros: { ...atual.filtros, [chave]: valor } }));
-  };
+  const limparFiltros = () => setEstado(atual => ({ ...atual, filtros: FILTROS_LISTA_PADRAO }));
   const estaAberta = useCallback((id: string, padrao: boolean) => estado.abertas[id] ?? padrao, [estado.abertas]);
   const alternar = useCallback((id: string, padrao: boolean) => {
     setEstado(atual => ({ ...atual, abertas: { ...atual.abertas, [id]: !(atual.abertas[id] ?? padrao) } }));
@@ -256,6 +357,10 @@ export function SeriesScriptsPage() {
       return { ativa: celular || ids.size > 0, ids };
     }),
     entrar: id => setSelecao(atual => ({ ativa: true, ids: id ? new Set([...atual.ids, id]) : atual.ids })),
+    alternarVarios: ids => setSelecao(atual => {
+      const proximos = alternarVarios(atual.ids, ids);
+      return { ativa: celular || proximos.size > 0, ids: proximos };
+    }),
   };
   const selecionados = useMemo(
     () => state.contents.filter(content => selecao.ids.has(content.id)),
@@ -283,7 +388,9 @@ export function SeriesScriptsPage() {
     onBulk: abrirMassa,
     onConfigurar: id => navigate(`/series/${id}/editar`),
     onEditarTemporada: item => setEdicaoTemporada({ modo: 'renomear', temporada: item }),
-    onExcluirTemporada: setExcluirTemporada,
+    onExcluirTemporada: temporada => setExcluirAlvo({ tipo: 'temporada', temporada }),
+    // Só na lista contínua da série, em ordem manual, sem busca nem filtro (setasDisponiveis).
+    onMoverEpisodio: setas ? (lista, content, direcao) => void reordenar(lista, content, direcao) : undefined,
   };
 
   const pedido = useMemo<PedidoMassa | null>(() => {
@@ -326,29 +433,80 @@ export function SeriesScriptsPage() {
     };
     void dispatch({ type: 'ADD_CONTENT', payload: content });
     setNovoEm(null);
+    // "Criar": fica na série; lista e contagens vêm do estado.
+    if (!novo.abrir) return;
     const rota = buildContentDetailRoute(content.id);
     navigate(novo.modo === 'roteiro' ? `${rota}&focus=script` : rota, withDetailBack(caminhoDaPagina));
   };
 
-  const mover = async (destino: DestinoMover) => {
-    const mudam = conteudosQueMudam(selecionados, destino, state.series, state.temporadas);
-    setMovendo(false);
-    setSelecao(SEM_SELECAO);
+  // Uma operação só no banco (mover_episodios): grava apenas ordem_episodio, sem updated_at. Se falhar, a lista volta.
+  const reordenar = async (lista: readonly Content[], content: Content, direcao: 'subir' | 'descer') => {
+    // A seta troca com o vizinho da mesma seção; a ordem completa da série é gravada de uma vez.
+    const global = ordenarLista(episodios, 'manual').map(item => item.id);
+    const ordemNova = ordemAposSetaNaSecao(global, lista, content.id, direcao);
+    if (!ordemNova) return;
+    try {
+      await dispatch({ type: 'MOVER_EPISODIOS', payload: { conteudos: [], ordem: ordemNova } }, { silent: true });
+    } catch {
+      notifySaveFeedback({ status: 'error', message: 'Não foi possível salvar a nova ordem. A lista voltou como estava.' });
+    }
+  };
+
+  // Ações em massa: um envio só, atômico. Erro mantém formulário e seleção.
+  const destinosQuadro = useMemo(
+    () => (raizDaOrdem ? destinosDeQuadro(raizDaOrdem, state.series) : []),
+    [raizDaOrdem, state.series],
+  );
+  const planoQuadro = useCallback(
+    (destinoId: string) => planoDefinirQuadro(selecionados, destinoId, state.series, state.temporadas, new Date().toISOString()),
+    [selecionados, state.series, state.temporadas],
+  );
+  const comuns = useMemo(() => temporadasComuns(selecionados, state.series, state.temporadas), [selecionados, state.series, state.temporadas]);
+  const planoTemporada = useCallback(
+    (destino: string | null) => planoDefinirTemporada(selecionados, destino, new Date().toISOString()),
+    [selecionados],
+  );
+  const abrirFormulario = (qual: 'quadro' | 'temporada') => {
+    setErroDoFormulario(null);
+    setFormulario(qual);
+  };
+  const enviar = async (mudam: Content[], ordemNova: string[] | null, jaLa: number) => {
+    if (salvando) return;
     if (mudam.length === 0) {
+      setFormulario(null);
       notifySaveFeedback({ status: 'success', message: 'Os selecionados já estavam aí' });
       return;
     }
-    notifySaveFeedback({ status: 'saving', message: 'Movendo…' });
+    setSalvando(true);
+    setErroDoFormulario(null);
     try {
-      const agora = new Date().toISOString();
-      for (const content of mudam) {
-        await updateContent(moverConteudo(content, destino, state.series, state.temporadas, agora), { silent: true });
-      }
-      notifySaveFeedback({ status: 'success', message: plural(mudam.length, 'conteúdo movido', 'conteúdos movidos') });
+      await dispatch({ type: 'MOVER_EPISODIOS', payload: { conteudos: mudam, ordem: ordemNova } }, { silent: true });
+      const depois = depoisDoEnvio(true, selecao.ids);
+      setSelecao(atual => ({ ...atual, ids: new Set(depois.selecionados) }));
+      setFormulario(null);
+      const resto = jaLa > 0 ? ` (${textoQuantidade(jaLa, 'já estava', 'já estavam')} aí)` : '';
+      notifySaveFeedback({ status: 'success', message: `${textoQuantidade(mudam.length, 'episódio alterado', 'episódios alterados')}${resto}` });
     } catch {
-      notifySaveFeedback({ status: 'error', message: 'Não foi possível mover todos. Confira a lista e tente de novo.' });
+      setErroDoFormulario('Não foi possível salvar. Nada foi alterado; tente de novo.');
+    } finally {
+      setSalvando(false);
     }
   };
+  const confirmarQuadro = (destinoId: string) => {
+    const plano = planoQuadro(destinoId);
+    const movidos = new Set(plano.mudam.map(content => content.id));
+    // Quem muda vai para o fim da ordem da série, na ordem em que já estava.
+    const ordemNova = ordemDisponivel && raizDaOrdem && movidos.size > 0
+      ? ordemFinalNoFim(episodiosDaPagina(raizDaOrdem, state.series, state.contents), movidos)
+      : null;
+    void enviar(plano.mudam, ordemNova, plano.jaNoDestino.length);
+  };
+  const confirmarTemporada = (destino: string | null) => {
+    const plano = planoTemporada(destino);
+    void enviar(plano.mudam, null, plano.jaNoDestino.length);
+  };
+  const exibidosIds = visiveis.map(content => content.id);
+  const marcacaoGeral = estadoDaMarcacao(exibidosIds, selecao.ids);
 
   if (!serie) {
     const status = resolveQueryViewStatus({
@@ -385,14 +543,6 @@ export function SeriesScriptsPage() {
     objetivo,
   ].filter(Boolean).join(' · ');
   const abertos = tipo === 'familia' ? [] : getSerieOpenItems(serie, { series: state.series, contents: state.contents });
-  const opcoesEtapa = [
-    { value: 'todas', label: 'Todas as etapas' },
-    ...ETAPAS_DE_CONTEUDO
-      .filter(etapa => (filtros.tipo === 'roteiros' ? etapa !== 'ideia' : filtros.tipo === 'ideias' ? etapa === 'ideia' : true))
-      .map(etapa => ({ value: etapa, label: ETAPA_LABEL[etapa] })),
-  ];
-  const ordemAtual = ORDENS.find(item => item.value === filtros.ordem) ?? ORDENS[0];
-  const proximaOrdem = ORDENS[(ORDENS.indexOf(ordemAtual) + 1) % ORDENS.length];
   const rotaCriarFilho = rotaParaCriarFilho(serie.id, tipo);
   const criarFilho = () => {
     if (tipo === 'serie') {
@@ -410,59 +560,29 @@ export function SeriesScriptsPage() {
 
   const ancestrais = ancestraisDaSerie(serie.id, state.series).reverse().map(no => ({ id: no.id, name: no.name ?? '' }));
   const toolbar = (
-    <div className="flex flex-wrap items-center justify-between gap-4 py-2">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-1.5">
-          <Filter className="h-4 w-4" style={{ color: serie.cor || 'var(--brand-accent)' }} />
-          <Text variant="label" as="span" uppercase className="text-[var(--text-secondary)]">
-            FILTRO:
-          </Text>
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          {[
-            { id: 'todos', label: `Todos (${total.conteudos})` },
-            { id: 'ideias', label: `Ideias (${total.ideias})` },
-            { id: 'roteiros', label: `Roteiros & Produção (${total.roteiros})` },
-          ].map(tab => {
-            const ativo = filtros.tipo === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => atualizarFiltro('tipo', tab.id as FiltroTipoConteudo)}
-                className={cn(
-                  'rounded-[var(--radius-sm)] px-3 py-1.5 transition-colors',
-                  ativo
-                    ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-sm'
-                    : 'border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
-                )}
-              >
-                <Text variant="button" as="span">{tab.label}</Text>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2">
-        {serieDasTemporadas && !temporada ? (
-          <AppButton
-            variant="secondary"
-            leftIcon={<Plus className="h-4 w-4" />}
-            onClick={() => setEdicaoTemporada({ modo: 'criar' })}
-          >
-            Nova Temporada
-          </AppButton>
-        ) : null}
-        <AppButton
-          variant="primary"
-          leftIcon={<Plus className="h-4 w-4" />}
-          onClick={() => setNovoEm({ serieId: serie.id, temporadaId: temporadaId ?? null })}
-        >
-          Novo Episódio
+    <SeriesListaToolbar
+      filtros={filtros}
+      onFiltros={patch => setEstado(atual => ({ ...atual, filtros: { ...atual.filtros, ...patch } }))}
+      onLimpar={limparFiltros}
+      agrupar={agrupar}
+      opcoesAgrupar={opcoesAgrupar}
+      onAgrupar={trocarAgrupamento}
+      ordem={ordem}
+      opcoesOrdem={opcoesDeOrdem(ordemDisponivel)}
+      onOrdem={valor => mudarPreferencia({ ordem: valor })}
+      quadros={filhos.map(filho => ({ id: filho.id, label: filho.name?.trim() || 'Sem nome' }))}
+      contas={contasDaLista}
+      temporadas={temporadasValidas ? temporadasValidas.map(item => ({ id: item.id, label: item.nome })) : null}
+      visiveis={visiveis.length}
+      total={episodios.length}
+      celular={celular}
+      avisoOrdem={avisoOrdem}
+      acoes={serieDasTemporadas && !temporada ? (
+        <AppButton variant="secondary" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setEdicaoTemporada({ modo: 'criar' })}>
+          Nova temporada
         </AppButton>
-      </div>
-    </div>
+      ) : undefined}
+    />
   );
   const rodape = (
     <>
@@ -484,7 +604,8 @@ export function SeriesScriptsPage() {
       tipo={tipo}
       ancestrais={ancestrais}
       temporada={temporada}
-      total={total}
+      totais={totais}
+      meta={meta ?? { estado: 'sem-meta', texto: 'Sem meta definida' }}
       celular={noCelular}
       onConfigure={() => navigate(`/series/${serie.id}/editar`)}
       onCreate={() => setNovoEm({ serieId: serie.id, temporadaId: temporadaId ?? null })}
@@ -527,14 +648,11 @@ export function SeriesScriptsPage() {
           ) : grupos.length === 0 && filtrando ? (
             <EmptyState
               compact
-              title={filtros.busca.trim() ? `Nada encontrado para “${filtros.busca.trim()}”` : 'Nenhum conteúdo com estes filtros'}
-              description="Ajuste a busca ou os filtros para ver outros conteúdos."
+              title={filtros.busca.trim() ? `Nada encontrado para “${filtros.busca.trim()}”` : 'Nenhum episódio com estes filtros'}
+              description="Ajuste a busca ou os filtros para ver outros episódios."
               action={(
-                <AppButton
-                  variant="secondary"
-                  onClick={() => setEstado(atual => ({ ...atual, filtros: { ...FILTROS_PADRAO, ordem: atual.filtros.ordem } }))}
-                >
-                  Limpar busca e filtro
+                <AppButton variant="secondary" onClick={limparFiltros}>
+                  Limpar filtros
                 </AppButton>
               )}
             />
@@ -550,9 +668,24 @@ export function SeriesScriptsPage() {
               )}
             />
           ) : (
+            <>
+            {!celular || selecao.ativa ? (
+              <div className="flex items-center gap-1 px-2">
+                <CaixaMarcacao
+                  estado={marcacaoGeral}
+                  rotulo={`Selecionar os ${visiveis.length} exibidos`}
+                  onToggle={() => selecaoDaLista.alternarVarios(exibidosIds)}
+                />
+                <Text variant="meta" as="span">
+                  {marcacaoGeral === 'todos'
+                    ? `Todos os ${textoQuantidade(visiveis.length, 'episódio exibido', 'episódios exibidos')} selecionados`
+                    : `Selecionar os ${textoQuantidade(visiveis.length, 'episódio exibido', 'episódios exibidos')}`}
+                </Text>
+              </div>
+            ) : null}
             <SeriesGruposLista
               grupos={grupos}
-              agruparPor={agruparPor}
+              agruparPor={agrupar}
               serieDaPagina={serie.id}
               series={state.series}
               tipos={tipos}
@@ -567,20 +700,19 @@ export function SeriesScriptsPage() {
               redesForaDoPadrao={redesForaDoPadrao}
               rodape={rotaCriarFilho || (serieDasTemporadas && !temporada) ? rodape : undefined}
             />
+            </>
           )}
         </div>
 
-        {selecao.ativa ? (
-          <SeriesSelectionBar
+        {selecao.ativa || selecao.ids.size > 0 ? (
+          <BarraDeAcoes
             quantidade={selecao.ids.size}
-            disponiveis={visiveis.length}
-            onToggleTodos={() => setSelecao(atual => (
-              visiveis.every(content => atual.ids.has(content.id))
-                ? { ativa: celular, ids: new Set() }
-                : { ativa: true, ids: new Set(visiveis.map(content => content.id)) }
-            ))}
-            onMover={() => setMovendo(true)}
-            onCancelar={() => setSelecao(SEM_SELECAO)}
+            celular={celular}
+            temporadasHabilitadas={Boolean(temporadasValidas)}
+            disponivel={rpcDisponivel === true}
+            onDefinirQuadro={() => abrirFormulario('quadro')}
+            onDefinirTemporada={() => abrirFormulario('temporada')}
+            onLimpar={() => setSelecao(SEM_SELECAO)}
           />
         ) : null}
       </div>
@@ -610,15 +742,26 @@ export function SeriesScriptsPage() {
         onCreate={criarUm}
       />
 
-      <MoverConteudosSheet
-        open={movendo}
+      <DefinirQuadroSheet
+        open={formulario === 'quadro'}
         quantidade={selecao.ids.size}
-        serie={serie}
-        tipo={tipo}
-        series={state.series}
-        temporadas={state.temporadas}
-        onClose={() => setMovendo(false)}
-        onMover={destino => void mover(destino)}
+        destinos={destinosQuadro}
+        plano={planoQuadro}
+        salvando={salvando}
+        erro={erroDoFormulario}
+        onClose={() => { if (!salvando) setFormulario(null); }}
+        onConfirmar={confirmarQuadro}
+      />
+
+      <DefinirTemporadaSheet
+        open={formulario === 'temporada'}
+        quantidade={selecao.ids.size}
+        comuns={comuns}
+        plano={planoTemporada}
+        salvando={salvando}
+        erro={erroDoFormulario}
+        onClose={() => { if (!salvando) setFormulario(null); }}
+        onConfirmar={confirmarTemporada}
       />
 
       {serieDasTemporadas ? (
@@ -627,10 +770,10 @@ export function SeriesScriptsPage() {
           escopoNome={serieDasTemporadas.name ?? ''}
           temporadas={temporadasDoEscopo(serieDasTemporadas.id, state.temporadas)}
           edicao={edicaoTemporada}
-          excluir={excluirTemporada}
+          excluir={null}
           contagem={id => contagemDoEscopo({ serieId: serieDasTemporadas.id, series: state.series, contents: state.contents, temporadaId: id }).conteudos}
           onFecharEdicao={() => setEdicaoTemporada(null)}
-          onFecharExcluir={() => setExcluirTemporada(null)}
+          onFecharExcluir={() => undefined}
           onCriar={(nome, descricao) => {
             const alvo = state.series.find(item => item.id === serieDasTemporadas.id);
             if (!alvo) return;
@@ -645,9 +788,12 @@ export function SeriesScriptsPage() {
             }
           }}
           onRenomear={(item, nome, descricao) => void dispatch({ type: 'UPDATE_TEMPORADA', payload: { ...item, nome, descricao } })}
-          onExcluir={item => void dispatch({ type: 'DELETE_TEMPORADA', payload: item.id })}
+          onExcluir={() => undefined}
         />
       ) : null}
+
+      {/* Excluir temporada: episódios vão antes para outra temporada ou ficam sem; nenhum roteiro é apagado. */}
+      <ExcluirEstruturaDialog alvo={excluirAlvo} onClose={() => setExcluirAlvo(null)} />
 
       <SerieCreateModal
         target={modalTarget}
