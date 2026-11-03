@@ -16,6 +16,7 @@ import {createContentDraft} from './createContentDraft.ts';
 import {matchesTemaFilter} from './temaFilter.ts';
 import {carouselPlainText, contentReadableBody, isCarouselContent} from './carouselSlides.ts';
 import {writingNotesToHtml} from './supportDraft.ts';
+import {ideaTextToScriptHtml, joinIdeaNotes, readableTextToScriptHtml} from './ideaNotes.ts';
 import {passaNoFiltroRede} from '../../creation/lib/creationRedeFilter.ts';
 import {contentPassaFiltroSerie} from '../../editorial/lib/filtroSubarvore.ts';
 
@@ -150,14 +151,6 @@ export function updateContentFromLegacyIdea(
   };
 }
 
-function ideaMarkerHtml(label: string): string {
-  return `<p><strong>${label}</strong></p>`;
-}
-
-function collapsedReadableText(value: string | null | undefined): string {
-  return htmlToReadableText(value).replace(/\s+/g, ' ').trim();
-}
-
 /**
  * Texto da ideia ao voltar para Ideia: o roteiro e o rascunho, cada um debaixo do seu marcador.
  * Os campos do roteiro ficam como estão. O texto que a ideia já tinha só continua (em
@@ -173,18 +166,7 @@ export function ideaNotesFromScript(
     ? readableTextToScriptHtml(slidesText)
     : htmlToReadableText(content.script).trim() ? (content.script ?? '').trim() : '';
   const draftHtml = writingNotesToHtml(content.writingNotes);
-  const hasDraft = htmlToReadableText(draftHtml).trim().length > 0;
-  if (!scriptHtml && !hasDraft) return undefined;
-
-  let joined = '';
-  if (scriptHtml) joined += `${ideaMarkerHtml('ROTEIRO')}${scriptHtml}`;
-  if (hasDraft) joined += `${ideaMarkerHtml('RASCUNHO')}${draftHtml}`;
-
-  const previous = collapsedReadableText(content.notes);
-  if (previous && !collapsedReadableText(joined).includes(previous)) {
-    joined += `${ideaMarkerHtml('IDEIA ANTERIOR')}${ideaTextToScriptHtml(content.notes ?? '')}`;
-  }
-  return joined;
+  return joinIdeaNotes({scriptHtml, draftHtml, notes: content.notes}, htmlToReadableText);
 }
 
 /**
@@ -251,32 +233,7 @@ export function promoteContentToScript(
   return transitionCreationStatus(content, CONTENT_STATUS.ROTEIRO, now);
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-export function readableTextToScriptHtml(value: string): string {
-  const normalized = value.trim();
-  if (!normalized) return '';
-
-  return normalized
-    .split(/\n{2,}/)
-    .map(paragraph => `<p>${escapeHtml(paragraph).replace(/\n/g, '<br>')}</p>`)
-    .join('');
-}
-
-export function ideaTextToScriptHtml(value: string): string {
-  const normalized = value.trim();
-  if (!normalized) return '';
-  return /<([a-z][\w-]*)(?:\s[^>]*)?>/i.test(normalized)
-    ? normalized
-    : readableTextToScriptHtml(normalized);
-}
+export {ideaTextToScriptHtml, readableTextToScriptHtml};
 
 export function demoteContentToIdea(
   content: Content,

@@ -2,6 +2,7 @@ import type {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {z} from 'zod';
 import {FORMATO_DESCRICAO, JANELAS, horaEscolhida, primeiroFormato} from '../campos.ts';
 import {modoEscrita, rascunhoDasNotas, roteiroDoConteudo, scriptEditado, temRoteiroEscrito} from '../carrossel.ts';
+import {notasAoVoltarParaIdeia} from '../ideia.ts';
 import {descreverColunasOmitidas, livrosDoConteudo, unirLivros} from '../editorial.ts';
 import {anexarTemas, gravarTemasDoConteudo, idsComTema, temasDosConteudos} from '../temas.ts';
 import {juntarTemas, separarTags} from '../tagsTemas.ts';
@@ -476,6 +477,7 @@ export function registerConteudos(server: McpServer) {
       description:
         'Move conteúdos no fluxo Ideia → Roteiro → Produção → Edição → Publicado. Dá para pular ou voltar etapas. ' +
         'Ao sair de Ideia, as notas da ideia viram rascunho do roteiro. ' +
+        'Ao voltar para Ideia, o roteiro e o rascunho entram no texto da ideia (o roteiro fica guardado). ' +
         'Produção e Edição exigem título e roteiro escritos (no carrossel, alguma tela com texto ou imagem). Publicado registra a data de publicação e fixa a função editorial da peça.',
       inputSchema: {
         ids: idsSchema,
@@ -503,6 +505,11 @@ export function registerConteudos(server: McpServer) {
         const patch: Row = {status: args.status, archived_at: null};
         const rascunho = from === 'Ideia' && args.status !== 'Ideia' ? rascunhoDasNotas(row) : null;
         if (rascunho) patch.script = rascunho;
+        // Ao voltar para Ideia, o roteiro e o rascunho entram no texto da ideia, como no app. O roteiro fica.
+        if (args.status === 'Ideia' && from !== 'Ideia') {
+          const notas = notasAoVoltarParaIdeia(row);
+          if (notas !== undefined) patch.notes = notas;
+        }
         // Vídeo que chega a Produção vindo da escrita fica marcado para gravar, como no app.
         if (
           args.status === 'Produção'
