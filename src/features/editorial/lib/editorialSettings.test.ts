@@ -5,6 +5,7 @@ import {
   EDITORIAL_SETTINGS_VERSION,
   atualizarPreferencias,
   getEditorialSettings,
+  lerMetodoCalculo,
   upsertDecisaoPeriodo,
 } from './editorialSettings.ts';
 
@@ -262,5 +263,18 @@ testReservaNaoPassaDoLimite();
 testAtualizarPreferenciasEspelhaOTopo();
 testDoisPeriodosMantemPrioridades();
 testEstoqueDesejado();
+
+// Método de cálculo: o que existe hoje conta conteúdos; o método novo não reescreve o antigo.
+{
+  assert.equal(lerMetodoCalculo(undefined), 'conteudos-v1');
+  assert.equal(lerMetodoCalculo('qualquer'), 'conteudos-v1');
+  assert.equal(lerMetodoCalculo('publicacoes-v2'), 'publicacoes-v2');
+  const comNovo = upsertDecisaoPeriodo(DEFAULT_EDITORIAL_SETTINGS, {
+    inicio: '2027-01-01', fim: '2027-01-31', prioridade: '', metas: {}, ajustesSemana: [], metodoCalculo: 'publicacoes-v2',
+  });
+  const comAntigo = upsertDecisaoPeriodo(comNovo, { inicio: '2026-12-01', fim: '2026-12-31', prioridade: '', metas: {}, ajustesSemana: [] });
+  assert.equal(comAntigo.periodos.find(p => p.inicio === '2027-01-01')?.metodoCalculo, 'publicacoes-v2');
+  assert.equal(comAntigo.periodos.find(p => p.inicio === '2026-12-01')?.metodoCalculo, 'conteudos-v1');
+}
 
 console.log('editorialSettings tests passed');

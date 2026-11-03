@@ -55,6 +55,18 @@ export interface VigenciaEditorial {
   proporcaoFuncoes: ProporcaoFuncoes | null;
 }
 
+/**
+ * Como as metas de um período são contadas. `conteudos-v1`: cada roteiro uma vez (tudo até a contagem
+ * por conta). `publicacoes-v2`: por publicação em cada conta. Período antigo não é recalculado no método novo.
+ */
+export type MetodoCalculo = 'conteudos-v1' | 'publicacoes-v2';
+
+export const METODO_CALCULO_PADRAO: MetodoCalculo = 'conteudos-v1';
+
+export function lerMetodoCalculo(value: unknown): MetodoCalculo {
+  return value === 'publicacoes-v2' ? 'publicacoes-v2' : METODO_CALCULO_PADRAO;
+}
+
 /** Decisão de um intervalo fechado. Outubro e novembro são registros diferentes. */
 export interface DecisaoPeriodo {
   inicio: string;
@@ -67,6 +79,8 @@ export interface DecisaoPeriodo {
   metasProducao?: number;
   metasPublicacao?: number;
   metasPorConta?: Record<string, { producao?: number; publicacao?: number; ritmoSemanal?: string }>;
+  /** Ausente = conteudos-v1. */
+  metodoCalculo?: MetodoCalculo;
 }
 
 export interface EditorialSettings {
@@ -256,6 +270,7 @@ function readDecisao(value: unknown): DecisaoPeriodo | null {
     metasProducao: typeof raw.metasProducao === 'number' ? raw.metasProducao : undefined,
     metasPublicacao: typeof raw.metasPublicacao === 'number' ? raw.metasPublicacao : undefined,
     metasPorConta: raw.metasPorConta && typeof raw.metasPorConta === 'object' ? raw.metasPorConta as Record<string, { producao?: number; publicacao?: number; ritmoSemanal?: string }> : undefined,
+    metodoCalculo: lerMetodoCalculo(raw.metodoCalculo),
   };
 }
 

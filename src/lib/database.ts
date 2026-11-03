@@ -9,7 +9,7 @@ import { normalizarRedesPostIt } from '../features/planejamento/lib/redesPostIt.
 import { normalizeWritingMode, readCarouselSlides, slidesHaveContent } from '../features/contents/lib/carouselSlides.ts';
 import { nomeIndicaBlog } from '../features/contas/lib/contas.ts';
 import { readAvisoDias } from '../features/projects/lib/evento.ts';
-import { DEFAULT_EDITORIAL_SETTINGS, type EditorialSettings } from '../features/editorial/lib/editorialSettings.ts';
+import { DEFAULT_EDITORIAL_SETTINGS, lerMetodoCalculo, METODO_CALCULO_PADRAO, type EditorialSettings } from '../features/editorial/lib/editorialSettings.ts';
 import { readProporcao } from '../features/editorial/lib/proporcaoObjetivos.ts';
 import type { PeriodoSelecionado } from '../features/editorial/lib/periodoEditorial.ts';
 import { lerAvaliacaoCriterios, type AvaliacaoCriterios } from '../features/library/lib/avaliacaoCriterios.ts';
@@ -2663,6 +2663,8 @@ function editorialDasLinhas(
     const metasProducao = inteiroOpcional(decisao.meta_producao);
     const metasPublicacao = inteiroOpcional(decisao.meta_publicacao);
     const metasPorConta = metasPorContaDaLinha(decisao.metas_por_conta);
+    // Sem a migração 20261103120000 a coluna não vem: tudo foi decidido contando conteúdos.
+    const metodoCalculo = lerMetodoCalculo(decisao.metodo_calculo);
     return [{
       inicio,
       fim,
@@ -2674,6 +2676,7 @@ function editorialDasLinhas(
       ...(metasProducao != null ? { metasProducao } : {}),
       ...(metasPublicacao != null ? { metasPublicacao } : {}),
       ...(metasPorConta ? { metasPorConta } : {}),
+      metodoCalculo,
     }];
   });
 
@@ -2821,9 +2824,19 @@ export async function saveEditorial(settings: EditorialSettings): Promise<void> 
     plano: planoDaDecisao(periodo),
     ajustes: periodo.ajustesSemana,
   }));
-  let { error: decisoesError } = await supabase.from('decisao_periodo').insert(
-    linhas.map(({ ajustes: _ajustes, plano, ...linha }) => ({ ...linha, ...plano })),
-  );
+  // O método de cálculo volta para a linha a cada gravação: as decisões são apagadas e regravadas.
+  const comMetodo = linhas.map(({ ajustes: _ajustes, plano, ...linha }, index) => ({
+    ...linha,
+    ...plano,
+    metodo_calculo: settings.periodos[index].metodoCalculo ?? METODO_CALCULO_PADRAO,
+  }));
+  let { error: decisoesError } = await supabase.from('decisao_periodo').insert(comMetodo);
+  // Sem a migração 20261103120000, grava sem a coluna do método (o banco assume conteudos-v1).
+  if (decisoesError && decisoesError.message.includes('metodo_calculo')) {
+    ({ error: decisoesError } = await supabase.from('decisao_periodo').insert(
+      comMetodo.map(({ metodo_calculo: _metodo, ...linha }) => linha),
+    ));
+  }
   // As decisões já foram apagadas acima: sem as colunas do plano no banco, grava o resto
   // para não perder prioridade e metas por objetivo.
   if (decisoesError && faltaColunaDoPlano(decisoesError)) {
