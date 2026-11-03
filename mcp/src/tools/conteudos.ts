@@ -32,6 +32,8 @@ import {
   type Row,
 } from '../lib.ts';
 import type {Session} from '../supabase.ts';
+import {erroDaTemporadaDoConteudo, escopoDe, resolverTemporada, temporadaNoEscopo, type Temporada} from '../serieEstrutura.ts';
+import {carregarTemporadas, seriesNo} from './temporadas.ts';
 
 const statusSchema = z.enum(CONTENT_STATUSES);
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use AAAA-MM-DD');
@@ -46,7 +48,48 @@ const funcaoSchema = z.enum([...FUNCOES, 'da_serie', 'nenhuma']).describe(
 );
 
 // writing_mode mostra quais roteiros são carrossel. Sem a coluna no banco, readCompat tira e segue.
-const LIST_COLUMNS = `writing_mode, ${CONTENT_LIST_COLUMNS}`;
+const LIST_COLUMNS = `writing_mode, temporada_id, ordem_episodio, ${CONTENT_LIST_COLUMNS}`;
+const temporadaSchema = z.string().nullable().optional().describe(
+  'Id ou nome da temporada da série do conteúdo (num quadro, as da série dele). null ou vazio tira da temporada',
+);
+const ordemEpisodioSchema = z.number().int().min(1).nullable().optional().describe(
+  'Posição do episódio na ordem manual da série (1, 2, 3...). Para reordenar vários de uma vez, prefira mover_episodios',
+);
+
+/** Temporada e posição do episódio, para listas e detalhe. */
+function episodioView(row: Row, temporadas: readonly Temporada[]) {
+  const temporadaId = typeof row.temporada_id === 'string' && row.temporada_id ? row.temporada_id : null;
+  return {
+    temporada_id: temporadaId,
+    temporada: temporadaId ? temporadas.find(item => item.id === temporadaId)?.nome ?? null : null,
+    ordem_episodio: typeof row.ordem_episodio === 'number' ? row.ordem_episodio : null,
+  };
+}
+
+/**
+ * Temporada pedida para um conteúdo: id ou nome no escopo da série (regra temporadaNoEscopo do app).
+ * undefined = não mexe; null = sem temporada.
+ */
+async function temporadaPedida(
+  session: Session,
+  lookups: Lookups,
+  ref: string | null | undefined,
+  serieId: string | null,
+): Promise<string | null | undefined> {
+  if (ref === undefined) return undefined;
+  if (ref === null || ref === '') return null;
+  const temporadas = await carregarTemporadas(session);
+  if (temporadas.ausente) throw new Error('O banco ainda não tem a tabela de temporadas (migration pendente).');
+  const series = seriesNo(lookups);
+  const escopo = serieId ? escopoDe(serieId, series) : null;
+  const achada = resolverTemporada(ref, escopo?.id ?? null, temporadas.itens);
+  if (!achada) {
+    throw new Error(serieId ? `Temporada não encontrada nesta série: ${ref}` : 'Temporada só existe dentro de uma série: informe a série do conteúdo.');
+  }
+  const erro = erroDaTemporadaDoConteudo(achada.id, serieId, series, temporadas.itens);
+  if (erro) throw new Error(erro);
+  return achada.id;
+}
 
 function sanitizeSearch(value: string): string {
   return value.replace(/[,()*%\\]/g, ' ').trim();
@@ -76,9 +119,10 @@ async function fetchContents(session: Session, ids: string[]): Promise<Row[]> {
   return rows;
 }
 
-function contentDetail(row: Row, lookups: Lookups, roteiroFormato: 'texto' | 'html') {
+function contentDetail(row: Row, lookups: Lookups, roteiroFormato: 'texto' | 'html', temporadas: readonly Temporada[] = []) {
   return {
     ...contentSummary(row, lookups),
+    ...episodioView(row, temporadas),
     ...roteiroDoConteudo(row, roteiroFormato),
     notas: htmlToText(row.notes),
     notas_de_escrita: htmlToText(row.writing_notes),
@@ -126,10 +170,13 @@ export function registerConteudos(server: McpServer) {
         pilar: z.string().optional().describe('Nome ou id do pilar'),
         serie: z.string().optional().describe('Nome ou id da série'),
         tema: z.string().optional().describe('Nome ou id do tema, ex.: Halloween'),
+        temporada: z.string().optional().describe('Id ou nome da temporada (pelo nome, informe também a série)'),
         busca: z.string().optional().describe('Procura no título e nas notas'),
         publicacao_de: dateSchema.optional().describe('Data de publicação a partir de'),
         publicacao_ate: dateSchema.optional().describe('Data de publicação até'),
-        ordem: z.enum(['recentes', 'antigos', 'titulo', 'publicacao']).default('recentes'),
+        ordem: z.enum(['recentes', 'antigos', 'titulo', 'publicacao', 'episodio']).default('recentes').describe(
+          'episodio = ordem manual da série (ordem_episodio; sem posição vai para o fim)',
+        ),
         limite: z.number().int().min(1).max(100).default(30),
         pagina: z.number().int().min(1).default(1),
       },
@@ -151,7 +198,18 @@ export function registerConteudos(server: McpServer) {
         antigos: ['updated_at', true],
         titulo: ['title', true],
         publicacao: ['publish_date', true],
+        episodio: ['ordem_episodio', true],
       } as const;
+      const temporadas = await carregarTemporadas(session);
+      let temporadaId: string | null = null;
+      if (args.temporada) {
+        if (temporadas.ausente) throw new Error('O banco ainda não tem a tabela de temporadas (migration pendente).');
+        const serieRef = resolveSerie(lookups, args.serie);
+        const escopo = serieRef ? escopoDe(serieRef, seriesNo(lookups)) : null;
+        const achada = resolverTemporada(args.temporada, escopo?.id ?? null, temporadas.itens);
+        if (!achada) throw new Error(`Temporada não encontrada: ${args.temporada}${serieRef ? '' : ' (pelo nome, informe a série)'}`);
+        temporadaId = achada.id;
+      }
       const [column, ascending] = order[args.ordem];
       const from = (args.pagina - 1) * args.limite;
       const result = await readCompat('listar conteúdos', LIST_COLUMNS, columns => {
@@ -168,6 +226,7 @@ export function registerConteudos(server: McpServer) {
         }
         if (args.status?.length) query = query.in('status', args.status);
         if (somenteIds) query = query.in('id', somenteIds);
+        if (temporadaId) query = query.eq('temporada_id', temporadaId);
         const pilarId = resolvePilar(lookups, args.pilar);
         if (pilarId) query = query.eq('pilar_id', pilarId);
         const serieId = resolveSerie(lookups, args.serie);
@@ -186,7 +245,7 @@ export function registerConteudos(server: McpServer) {
         ...(result.omitidas.length || comTema.ausente
           ? {colunas_ausentes_no_banco: [...result.omitidas, ...(comTema.ausente ? ['temas'] : [])]}
           : {}),
-        itens: comTema.rows.map(row => ({...contentSummary(row, lookups), modo_escrita: modoEscrita(row)})),
+        itens: comTema.rows.map(row => ({...contentSummary(row, lookups), ...episodioView(row, temporadas.itens), modo_escrita: modoEscrita(row)})),
       });
     }),
   );
@@ -196,7 +255,7 @@ export function registerConteudos(server: McpServer) {
     {
       title: 'Ver conteúdo',
       description:
-        'Abre um conteúdo completo: roteiro, notas, referências, temas, janela, horário de gravação e publicações por plataforma. ' +
+        'Abre um conteúdo completo: roteiro, notas, referências, temas, temporada, posição do episódio, janela, horário de gravação e publicações por plataforma. ' +
         'modo_escrita diz se o roteiro é texto corrido ou carrossel. No carrossel, telas traz cada tela na ordem (Tela 1, Tela 2…) ' +
         'com o texto (ou html, se roteiro_formato for html) e as imagens; roteiro junta o texto das telas.',
       inputSchema: {
@@ -208,7 +267,7 @@ export function registerConteudos(server: McpServer) {
     tool(async (args, session) => {
       const [loaded] = await fetchContents(session, [args.id]);
       const comTema = await anexarTemas(session, [loaded]);
-      const detail = contentDetail(comTema.rows[0], await loadLookups(session), args.roteiro_formato);
+      const detail = contentDetail(comTema.rows[0], await loadLookups(session), args.roteiro_formato, (await carregarTemporadas(session)).itens);
       return json(comTema.ausente ? {...detail, colunas_ausentes_no_banco: ['temas']} : detail);
     }),
   );
@@ -234,6 +293,8 @@ export function registerConteudos(server: McpServer) {
     janela: janelaSchema.nullable().optional().describe('manha = 09:00, tarde = 14:00, noite = 20:00'),
     data_gravacao: dateSchema.nullable().optional(),
     hora_gravacao: timeSchema.nullable().optional(),
+    temporada: temporadaSchema,
+    ordem_episodio: ordemEpisodioSchema,
   };
 
   async function createContent(
@@ -262,6 +323,8 @@ export function registerConteudos(server: McpServer) {
       janela?: z.infer<typeof janelaSchema> | null;
       data_gravacao?: string | null;
       hora_gravacao?: string | null;
+      temporada?: string | null;
+      ordem_episodio?: number | null;
     },
   ) {
     const lookups = await loadLookups(session);
@@ -276,6 +339,7 @@ export function registerConteudos(server: McpServer) {
     const funcaoInicial = escolha === 'da_serie' ? herdada : escolha === 'nenhuma' ? null : escolha;
     const livros = unirLivros(input.livro_ids, input.biblioteca_item_id);
     const horaPublicacao = horaEscolhida(input.hora_publicacao, input.janela);
+    const temporadaId = await temporadaPedida(session, lookups, input.temporada, serieId);
     const now = nowIso();
     const id = newId();
     const tagsSeparadas = separarTags(input.tags);
@@ -311,6 +375,8 @@ export function registerConteudos(server: McpServer) {
       ...funcao,
       conta_na_grade: input.conta_na_grade ?? contaNaGradePadrao(formato, funcaoInicial),
       legenda_base: input.legenda_base ?? null,
+      ...(temporadaId ? {temporada_id: temporadaId} : {}),
+      ...(input.ordem_episodio != null ? {ordem_episodio: input.ordem_episodio} : {}),
       created_at: now,
       updated_at: now,
     }, row => session.client.from('contents').insert(row));
@@ -322,7 +388,8 @@ export function registerConteudos(server: McpServer) {
 
     const [row] = await fetchContents(session, [id]);
     const comTema = await anexarTemas(session, [row]);
-    return comGravadoSem(contentSummary(comTema.rows[0], lookups), omitidas);
+    const temporadasCriadas = temporadaId ? (await carregarTemporadas(session)).itens : [];
+    return comGravadoSem({...contentSummary(comTema.rows[0], lookups), ...episodioView(comTema.rows[0], temporadasCriadas)}, omitidas);
   }
 
   server.registerTool(
@@ -342,7 +409,8 @@ export function registerConteudos(server: McpServer) {
       description:
         'Cria um conteúdo já como roteiro (ou outro status). Se a série tiver formato ou energia padrão, eles são aplicados. ' +
         'O roteiro pode ser texto simples: parágrafos separados por linha em branco. ' +
-        'livro_ids aceita vários itens da biblioteca; o primeiro também fica como origem antiga.',
+        'livro_ids aceita vários itens da biblioteca; o primeiro também fica como origem antiga. ' +
+        'Num episódio de série com temporadas, envie temporada (id ou nome) e, se quiser, ordem_episodio.',
       inputSchema: {
         ...createShape,
         status: statusSchema.default('Roteiro'),
@@ -363,7 +431,8 @@ export function registerConteudos(server: McpServer) {
         'Altera campos de um conteúdo existente. Só os campos enviados mudam. ' +
         'Para limpar pilar, série, data, hora, janela ou livros, envie string vazia, lista vazia ou null. Para mudar status use mudar_status. ' +
         'temas (o agrupamento do roteiro) substitui a lista; nome novo cria o tema. tags é só compatibilidade: o que não for gravar/editar vira tema. janela define manha (09:00), tarde (14:00) ou noite (20:00), a menos que hora_publicacao venha junto. ' +
-        'funcao é o antigo funil; null volta para "sem definição". Mudar formato ou função recalcula conta_na_grade, a menos que ele venha junto.',
+        'funcao é o antigo funil; null volta para "sem definição". Mudar formato ou função recalcula conta_na_grade, a menos que ele venha junto. ' +
+        'temporada (id ou nome) tem de ser da série do conteúdo (num quadro, da série dele); ordem_episodio é a posição na ordem manual. Para mover vários episódios entre quadros ou reordenar, use mover_episodios.',
       inputSchema: {
         id: z.string().min(1),
         titulo: z.string().min(1).optional(),
@@ -390,11 +459,14 @@ export function registerConteudos(server: McpServer) {
         biblioteca_item_id: z.string().nullable().optional(),
         livro_ids: livrosSchema.optional().describe('Substitui a lista de livros. O primeiro vira a origem antiga, se ela não for enviada junto'),
         legenda_base: z.string().nullable().optional(),
+        temporada: temporadaSchema,
+        ordem_episodio: ordemEpisodioSchema,
       },
     },
     tool(async (args, session) => {
       const lookups = await loadLookups(session);
       const [current] = await fetchContents(session, [args.id]);
+      const avisosEpisodio: string[] = [];
       const patch: Row = {};
 
       // Antes de qualquer gravação (temas inclusive): no carrossel a chamada inteira é recusada.
@@ -436,6 +508,19 @@ export function registerConteudos(server: McpServer) {
         patch.status = 'Edição';
       }
       if (args.legenda_base !== undefined) patch.legenda_base = args.legenda_base || null;
+      // Temporada: precisa valer no escopo da série final (temporadaNoEscopo). Trocar de série sem
+      // enviar a temporada mantém a atual só se ela continuar valendo, como o "Mover para..." do app.
+      const serieFinal = (patch.series_id !== undefined ? patch.series_id : current.series_id) ?? null;
+      if (args.temporada !== undefined) {
+        patch.temporada_id = await temporadaPedida(session, lookups, args.temporada, serieFinal);
+      } else if (patch.series_id !== undefined && current.temporada_id) {
+        const temporadas = await carregarTemporadas(session);
+        if (!temporadaNoEscopo(current.temporada_id, serieFinal, seriesNo(lookups), temporadas.itens) || !serieFinal) {
+          patch.temporada_id = null;
+          avisosEpisodio.push('O conteúdo saiu da temporada, porque ela não vale na série nova.');
+        }
+      }
+      if (args.ordem_episodio !== undefined) patch.ordem_episodio = args.ordem_episodio;
       if (args.livro_ids !== undefined || args.biblioteca_item_id !== undefined) {
         const livros = unirLivros(
           args.livro_ids ?? (Array.isArray(current.livro_ids) ? current.livro_ids : livrosDoConteudo(current)),
@@ -466,7 +551,8 @@ export function registerConteudos(server: McpServer) {
       if (temasAusente) omitidas.push('temas');
       const [row] = await fetchContents(session, [args.id]);
       const comTema = await anexarTemas(session, [row]);
-      return json(comGravadoSem(contentDetail(comTema.rows[0], lookups, 'texto'), omitidas));
+      const detalhe = comGravadoSem(contentDetail(comTema.rows[0], lookups, 'texto', (await carregarTemporadas(session)).itens), omitidas);
+      return json(avisosEpisodio.length ? {...detalhe, avisos: avisosEpisodio} : detalhe);
     }),
   );
 

@@ -4,6 +4,7 @@ import {registerBiblioteca} from './tools/biblioteca.ts';
 import {registerConteudos} from './tools/conteudos.ts';
 import {registerEditorial} from './tools/editorial.ts';
 import {registerEstrutura} from './tools/estrutura.ts';
+import {registerTemporadas} from './tools/temporadas.ts';
 
 export function createServer(): McpServer {
   const server = new McpServer(
@@ -21,12 +22,15 @@ export function createServer(): McpServer {
         'Post-its de planejamento vêm antes da ideia e não mudam o status do roteiro. ' +
         'A ficha da biblioteca (editora, indicação, tags) fica em ver_item_biblioteca e em ficha ao criar ou atualizar. ' +
         'Eventos guardam aviso_dias, de 0 a 120. ' +
+        'Séries se organizam em família > série > quadro; temporadas ficam na série e valem para os quadros dela. ' +
+        'Para mover episódios entre quadros ou temporadas, ou mudar a ordem, use mover_episodios (tudo ou nada). ' +
         'Pilares, séries, temas e plataformas aceitam nome ou id. Datas no formato AAAA-MM-DD, horas HH:MM, fuso de São Paulo.',
     },
   );
 
   registerEstrutura(server);
   registerEditorial(server);
+  registerTemporadas(server);
   registerConteudos(server);
   registerAgenda(server);
   registerBiblioteca(server);

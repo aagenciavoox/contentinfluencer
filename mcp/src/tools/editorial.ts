@@ -9,6 +9,7 @@ import {
   FUNCOES,
   FUNIL_DA_FUNCAO,
   check,
+  columnAbsence,
   invalidateLookups,
   isFuncao,
   json,
@@ -24,9 +25,29 @@ import {
   type Row,
 } from '../lib.ts';
 import type {Session} from '../supabase.ts';
+import {
+  MIGRACAO_CONTAS,
+  MIGRACAO_SERIE_CONTINUIDADE,
+  MIGRACAO_SERIE_TIPO,
+  TIPOS_AGRUPAMENTO,
+  UNIDADES_FREQUENCIA,
+  arvore,
+  avisoDaContinuidade,
+  colunasDaFrequencia,
+  erroDoVinculo,
+  frequenciaDaLinha,
+  nomeDeQuadroRepetido,
+  podeTerTemporadas,
+  serieDaLinha,
+  tipoDaSerie,
+  tipoSugeridoParaFilho,
+  type SerieNoMcp,
+  type TipoAgrupamento,
+} from '../serieEstrutura.ts';
 
 const DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'] as const;
 const timeSchema = z.string().regex(/^\d{2}:\d{2}$/, 'Use HH:MM');
+const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use AAAA-MM-DD');
 const colorSchema = z.string().regex(/^#[0-9a-f]{6}$/i, 'Use cor hexadecimal, ex.: #E07A5F');
 const diaSchema = z.union([z.enum([...DIAS, 'sab']), z.number().int().min(0).max(6)]);
 const FREQUENCIAS_SERIE = ['Semanal', 'Quinzenal', 'Mensal', 'Sob demanda'] as const;
@@ -43,16 +64,13 @@ const pilarPlataformaSchema = z.object({
 
 const serieHashtagSchema = z.object({
   plataforma: z.string(),
-  hashtags: z.string().describe('String vazia remove o preset dessa rede'),
+  hashtags: z.string().optional().describe('Preset de hashtags da série nessa conta. String vazia limpa'),
+  legenda: z.string().nullable().optional().describe('Versão da legenda da série para essa conta. null ou vazio limpa'),
 });
 
 function diaNumero(dia: z.infer<typeof diaSchema>): number {
   if (typeof dia === 'number') return dia;
   return dia === 'sab' ? 6 : DIAS.indexOf(dia);
-}
-
-function metaPadrao(frequencia: number | null | undefined): number | null {
-  return frequencia == null ? null : Math.min(60, frequencia * 4);
 }
 
 function avisos(ignorados: string[]) {
@@ -82,8 +100,6 @@ function pilarView(row: Row, lookups: Lookups) {
     descricao: row.descricao || null,
     cor: row.cor,
     ativo: row.ativo,
-    frequencia_semanal: row.frequencia_semanal ?? null,
-    meta_ciclo: row.meta_ciclo ?? null,
     plataformas: (row.pilar_plataformas ?? []).map((p: Row) => ({
       plataforma: lookups.platformName(p.platform_id),
       hashtags: p.hashtags || null,
@@ -115,7 +131,12 @@ function serieView(row: Row, lookups: Lookups) {
     notas: row.notes || null,
     cor: row.cor ?? null,
     capa_url: row.capa_url ?? null,
-    hashtags: (row.serie_plataformas ?? []).map((sp: Row) => ({plataforma: lookups.platformName(sp.platform_id), hashtags: sp.hashtags})),
+    hashtags: (row.serie_plataformas ?? []).map((sp: Row) => ({
+      plataforma: lookups.platformName(sp.platform_id),
+      hashtags: sp.hashtags,
+      legenda: typeof sp.legenda === 'string' && sp.legenda.trim() ? sp.legenda : null,
+    })),
+    ...estruturaView(row, lookups),
   };
 }
 
@@ -149,13 +170,37 @@ async function mergePilarPlataformas(
   }
 }
 
-async function mergeSerieHashtags(session: Session, lookups: Lookups, serieId: string, items: z.infer<typeof serieHashtagSchema>[]) {
+/**
+ * Hashtags e legenda por conta da série (serie_plataformas), como saveSeriePlataformas no app.
+ * Só as redes enviadas mudam; o campo que não vier fica como está. Sem hashtags nem legenda, a linha sai.
+ */
+async function mergeSerieHashtags(
+  session: Session,
+  lookups: Lookups,
+  serieId: string,
+  existing: Row[],
+  items: z.infer<typeof serieHashtagSchema>[],
+) {
   for (const item of items) {
     const platformId = resolvePlatform(lookups, item.plataforma);
-    const hashtags = item.hashtags.trim();
-    check('hashtags da série', hashtags
-      ? await session.client.from('serie_plataformas').upsert({serie_id: serieId, platform_id: platformId, hashtags}, {onConflict: 'serie_id,platform_id'})
-      : await session.client.from('serie_plataformas').delete().eq('serie_id', serieId).eq('platform_id', platformId));
+    const current = existing.find(row => row.platform_id === platformId);
+    const hashtags = (item.hashtags ?? current?.hashtags ?? '').trim();
+    const legendaAtual = typeof current?.legenda === 'string' && current.legenda.trim() ? current.legenda : null;
+    const legenda = item.legenda === undefined ? legendaAtual : item.legenda?.trim() ? item.legenda : null;
+    if (!hashtags && !legenda) {
+      check('hashtags da série', await session.client.from('serie_plataformas').delete().eq('serie_id', serieId).eq('platform_id', platformId));
+      continue;
+    }
+    const row: Row = {serie_id: serieId, platform_id: platformId, hashtags};
+    if (item.legenda !== undefined || legenda !== null) row.legenda = legenda;
+    let result = await session.client.from('serie_plataformas').upsert(row, {onConflict: 'serie_id,platform_id'});
+    if (result.error && columnAbsence(result.error)?.column === 'legenda') {
+      // Igual ao app: a versão da legenda não some calada quando a coluna ainda não existe.
+      if (legenda !== null) throw new Error(`Para guardar as versões da legenda por conta, aplique a migração ${MIGRACAO_CONTAS}.`);
+      const {legenda: _legenda, ...semLegenda} = row;
+      result = await session.client.from('serie_plataformas').upsert(semLegenda, {onConflict: 'serie_id,platform_id'});
+    }
+    check('hashtags da série', result);
   }
 }
 
@@ -198,7 +243,24 @@ const serieFields = {
   notas: z.string().optional(),
   cor: colorSchema.nullable().optional(),
   capa_url: z.string().url().nullable().optional(),
-  hashtags: z.array(serieHashtagSchema).optional().describe('Presets por rede; só as redes enviadas mudam'),
+  hashtags: z.array(serieHashtagSchema).optional().describe('Hashtags e versão da legenda por conta; só as redes enviadas mudam'),
+  tipo_agrupamento: z.enum(TIPOS_AGRUPAMENTO).optional().describe(
+    'familia > serie > quadro. Quadro fica dentro de uma série; série pode ficar dentro de uma família; família não tem pai. ' +
+    'Sem tipo, um agrupamento novo dentro de uma série vira quadro (dentro de família, série).',
+  ),
+  parent_id: z.string().nullable().optional().describe(
+    'Nome ou id do agrupamento pai: a série de um quadro, ou a família de uma série. null tira do pai (quadro não pode ficar sem série).',
+  ),
+  usa_temporadas: z.boolean().optional().describe('Só série. Os quadros dela usam as mesmas temporadas'),
+  frequencia_vezes: z.number().int().min(1).max(60).nullable().optional().describe('Meta de episódios por período. null tira a meta'),
+  frequencia_unidade: z.enum(UNIDADES_FREQUENCIA).nullable().optional().describe(
+    'semana, quinzena ou mes; sob-demanda (ou null) tira a meta. Sem unidade e com vezes, o app usa semana',
+  ),
+  frequencia_a_partir_de: dateSchema.nullable().optional().describe('Início da meta (AAAA-MM-DD). Só vale com meta'),
+  acompanhar_continuidade: z.boolean().optional().describe(
+    'Entra na Continuidade da Saúde. Família não entra; sem frequência definida aparece como pendência',
+  ),
+  legenda_base: z.string().nullable().optional().describe('Legenda base da série, herdada pelos roteiros dela. null limpa'),
 };
 
 function serieColumns(args: Partial<Record<keyof typeof serieFields | 'nome' | 'ativa', unknown>>): Row {
@@ -220,6 +282,131 @@ function serieColumns(args: Partial<Record<keyof typeof serieFields | 'nome' | '
     row[column] = typeof value === 'string' ? value.trim() || (column === 'notes' ? '' : null) : value;
   }
   return row;
+}
+
+
+type SerieArgs = Partial<Record<keyof typeof serieFields | 'nome', unknown>> & {
+  tipo_agrupamento?: TipoAgrupamento;
+  parent_id?: string | null;
+  usa_temporadas?: boolean;
+  frequencia_vezes?: number | null;
+  frequencia_unidade?: (typeof UNIDADES_FREQUENCIA)[number] | null;
+  frequencia_a_partir_de?: string | null;
+  acompanhar_continuidade?: boolean;
+  legenda_base?: string | null;
+};
+
+/**
+ * Tipo, pai, temporadas, frequência, continuidade e legenda da série, com as regras do app
+ * (erroDoVinculo, podeTerTemporadas, buildPayload do formulário). Lança erro em texto quando não vale.
+ */
+function estruturaDaSerie(
+  args: SerieArgs,
+  id: string,
+  atual: Row | null,
+  lookups: Lookups,
+): {patch: Row; avisos: string[]} {
+  const series: SerieNoMcp[] = lookups.series.map(serieDaLinha).filter(item => item.id !== id);
+  const patch: Row = {};
+  const avisosEstrutura: string[] = [];
+  const parentAtual = typeof atual?.parent_id === 'string' && atual.parent_id ? atual.parent_id : null;
+  const parentId = args.parent_id === undefined
+    ? parentAtual
+    : args.parent_id === null || args.parent_id === '' ? null : resolveSerie(lookups, args.parent_id) ?? null;
+  const proprio = {...serieDaLinha(atual ?? {id}), parentId};
+  const comPropria = [...series, proprio];
+  const tipoAtual = atual ? tipoDaSerie(id, [...series, serieDaLinha(atual)]) : null;
+  // Tipo gravado vale; sem tipo gravado, mudar o pai usa a sugestão do app (dentro de série = quadro).
+  const tipoGravado = atual ? serieDaLinha(atual).tipoAgrupamento : null;
+  const tipo: TipoAgrupamento = args.tipo_agrupamento
+    ?? tipoGravado
+    ?? (args.parent_id !== undefined || !tipoAtual ? tipoSugeridoParaFilho(parentId, comPropria) : tipoAtual);
+  const erro = erroDoVinculo(tipo, parentId, id, comPropria);
+  if (erro) throw new Error(erro);
+  if (args.parent_id !== undefined) patch.parent_id = parentId;
+  // Só grava o tipo quando a estrutura muda: criar série solta continua funcionando sem a migração do tipo.
+  if (args.tipo_agrupamento !== undefined || args.parent_id !== undefined) patch.tipo_agrupamento = tipo;
+
+  const nome = typeof args.nome === 'string' ? args.nome : atual?.name;
+  if (tipo === 'quadro' && parentId && typeof nome === 'string' && nomeDeQuadroRepetido(nome, parentId, series, id)) {
+    throw new Error(`Já existe um quadro "${nome.trim()}" nesta série.`);
+  }
+
+  const usaAtual = atual?.usa_temporadas === true;
+  if (args.usa_temporadas === true && !podeTerTemporadas(tipo)) {
+    throw new Error('Só a série tem temporadas; os quadros usam as da série. Ligue usa_temporadas na série.');
+  }
+  if (args.usa_temporadas !== undefined) patch.usa_temporadas = args.usa_temporadas;
+  else if (usaAtual && !podeTerTemporadas(tipo)) patch.usa_temporadas = false;
+
+  const freqAtual = frequenciaDaLinha(atual ?? {});
+  const pedidaFreq = {
+    vezes: args.frequencia_vezes,
+    unidade: args.frequencia_unidade,
+    a_partir_de: args.frequencia_a_partir_de,
+  };
+  if (tipo === 'familia' && (pedidaFreq.vezes != null || (pedidaFreq.unidade && pedidaFreq.unidade !== 'sob-demanda'))) {
+    throw new Error('Família não tem frequência; defina na série ou no quadro.');
+  }
+  const freq = colunasDaFrequencia(pedidaFreq, {
+    vezes: freqAtual.vezes,
+    unidade: freqAtual.unidade,
+    aPartirDe: freqAtual.a_partir_de,
+  }, tipo);
+  if (freq && 'erro' in freq) throw new Error(freq.erro);
+  if (freq) Object.assign(patch, freq.colunas);
+  else if (!atual && tipo === 'quadro' && args.frequencia === undefined) patch.frequencia_recomendada = 'Sob demanda';
+  else if (tipo === 'familia' && !atual) Object.assign(patch, {frequencia_recomendada: null});
+
+  const acompanhar = args.acompanhar_continuidade ?? (atual?.acompanhar_continuidade === true);
+  const definida = frequenciaDaLinha({...(atual ?? {}), ...patch, ...(args.frequencia !== undefined ? {frequencia_recomendada: args.frequencia} : {})}).definida;
+  const continuidade = avisoDaContinuidade(acompanhar, tipo, definida);
+  if (continuidade.erro && args.acompanhar_continuidade !== undefined) throw new Error(continuidade.erro);
+  if (continuidade.aviso && args.acompanhar_continuidade === true) avisosEstrutura.push(continuidade.aviso);
+  if (args.acompanhar_continuidade !== undefined) patch.acompanhar_continuidade = args.acompanhar_continuidade;
+
+  if (args.legenda_base !== undefined) {
+    patch.legenda_base = typeof args.legenda_base === 'string' && args.legenda_base.trim() ? args.legenda_base : null;
+  }
+  return {patch, avisos: avisosEstrutura};
+}
+
+/** Colunas que o app não deixa sumir caladas quando a migração falta (saveSerie em database.ts). */
+function exigeMigracao(row: Row, column: string | undefined): string | null {
+  if (column === 'tipo_agrupamento' && row.tipo_agrupamento != null) return MIGRACAO_SERIE_TIPO;
+  if (column === 'acompanhar_continuidade' && row.acompanhar_continuidade === true) return MIGRACAO_SERIE_CONTINUIDADE;
+  if (column === 'legenda_base' && row.legenda_base != null) return MIGRACAO_CONTAS;
+  if (column === 'parent_id' && row.parent_id != null) return MIGRACAO_SERIE_TIPO;
+  return null;
+}
+
+async function gravarSerie(
+  label: string,
+  payload: Row,
+  run: (row: Row) => PromiseLike<{error: {message?: string} | null}>,
+): Promise<string[]> {
+  return writeCompat(label, payload, async row => {
+    const result = await run(row);
+    const migracao = result.error ? exigeMigracao(row, columnAbsence(result.error)?.column) : null;
+    if (migracao) return {error: {message: `o banco ainda não tem ${columnAbsence(result.error)?.column}. Aplique a migração ${migracao}. Nada foi salvo.`}};
+    return result;
+  });
+}
+
+function estruturaView(row: Row, lookups: Lookups) {
+  const series = lookups.series.map(serieDaLinha);
+  const id = String(row.id);
+  const lista = series.some(item => item.id === id) ? series : [...series, serieDaLinha(row)];
+  const freq = frequenciaDaLinha(row);
+  return {
+    tipo: tipoDaSerie(id, lista),
+    pai: row.parent_id ? {id: row.parent_id, nome: lookups.serieName(row.parent_id)} : null,
+    quadros: arvore<Row>(id, lista, (filhoId, filhos) => ({id: filhoId, nome: lookups.serieName(filhoId), ...(filhos.length ? {quadros: filhos} : {})})).quadros ?? [],
+    usa_temporadas: row.usa_temporadas === true,
+    frequencia_detalhada: {vezes: freq.vezes, unidade: freq.unidade, a_partir_de: freq.a_partir_de, resumo: freq.resumo},
+    acompanhar_continuidade: row.acompanhar_continuidade === true,
+    legenda_base: typeof row.legenda_base === 'string' && row.legenda_base.trim() ? row.legenda_base : null,
+  };
 }
 
 const percentualSchema = z.number().int().min(0).max(100).optional();
@@ -314,14 +501,11 @@ export function registerEditorial(server: McpServer) {
     {
       title: 'Criar pilar',
       description:
-        'Cria um pilar (tema + ritmo). Frequência semanal: meta de posts por semana (0–14). ' +
-        'Meta por ciclo (4 semanas, 0–60): se não vier, vira frequência × 4.',
+        'Cria um pilar (tema). Pilar não tem frequência nem meta própria: as metas vêm do limite semanal e da proporção por função, e o ritmo das séries vem da frequência de cada série.',
       inputSchema: {
         nome: z.string().min(1),
         descricao: z.string().optional(),
         cor: colorSchema.optional(),
-        frequencia_semanal: z.number().int().min(0).max(14).optional(),
-        meta_ciclo: z.number().int().min(0).max(60).optional(),
         plataformas: z.array(pilarPlataformaSchema).optional(),
       },
     },
@@ -338,8 +522,6 @@ export function registerEditorial(server: McpServer) {
         descricao: args.descricao?.trim() ?? '',
         cor: args.cor ?? '#888888',
         ativo: true,
-        frequencia_semanal: args.frequencia_semanal ?? null,
-        meta_ciclo: args.meta_ciclo ?? metaPadrao(args.frequencia_semanal),
       }));
       if (args.plataformas?.length) await mergePilarPlataformas(session, lookups, id, [], args.plataformas);
       invalidateLookups();
@@ -360,8 +542,6 @@ export function registerEditorial(server: McpServer) {
         descricao: z.string().optional(),
         cor: colorSchema.optional(),
         ativo: z.boolean().optional(),
-        frequencia_semanal: z.number().int().min(0).max(14).nullable().optional(),
-        meta_ciclo: z.number().int().min(0).max(60).nullable().optional(),
         plataformas: z.array(pilarPlataformaSchema).optional(),
       },
     },
@@ -375,12 +555,6 @@ export function registerEditorial(server: McpServer) {
       if (args.descricao !== undefined) patch.descricao = args.descricao.trim();
       if (args.cor !== undefined) patch.cor = args.cor;
       if (args.ativo !== undefined) patch.ativo = args.ativo;
-      if (args.frequencia_semanal !== undefined) {
-        patch.frequencia_semanal = args.frequencia_semanal;
-        const metaAutomatica = current.meta_ciclo == null || current.meta_ciclo === metaPadrao(current.frequencia_semanal);
-        if (args.meta_ciclo === undefined && metaAutomatica) patch.meta_ciclo = metaPadrao(args.frequencia_semanal);
-      }
-      if (args.meta_ciclo !== undefined) patch.meta_ciclo = args.meta_ciclo;
 
       if (Object.keys(patch).length > 0) {
         check('atualizar pilar', await session.client.from('pilares').update({...patch, updated_at: nowIso()})
@@ -399,19 +573,30 @@ export function registerEditorial(server: McpServer) {
       description:
         'Cria uma série (formato recorrente). Formato, apresentação, motivos e energia padrão descrevem a série; ' +
         'formato e energia são copiados para os roteiros criados por ela. Bordão e estrutura do roteiro ficam só como referência. ' +
-        'pilar_principal é o pilar que o app mostra; sem a lista pilares, a série fica ligada só a ele.',
+        'pilar_principal é o pilar que o app mostra; sem a lista pilares, a série fica ligada só a ele. ' +
+        'Para criar um quadro, envie parent_id com a série (o tipo vira quadro); para uma família, tipo_agrupamento=familia. ' +
+        'Frequência detalhada: frequencia_vezes + frequencia_unidade (semana, quinzena, mes, sob-demanda) + frequencia_a_partir_de. ' +
+        'usa_temporadas liga as temporadas (só série); legenda_base e hashtags[].legenda guardam a legenda da série e a versão por conta.',
       inputSchema: {nome: z.string().min(1), ...serieFields},
     },
     tool(async (args, session) => {
       const lookups = await loadLookups(session);
-      if (lookups.series.some(s => s.name.trim().toLowerCase() === args.nome.trim().toLowerCase())) {
+      const id = newId();
+      const estrutura = estruturaDaSerie(args, id, null, lookups);
+      // Quadro com o mesmo nome de outro agrupamento vale (o app só barra entre quadros da mesma série).
+      if (estrutura.patch.tipo_agrupamento !== 'quadro'
+        && lookups.series.some(s => s.name.trim().toLowerCase() === args.nome.trim().toLowerCase())) {
         throw new Error(`Já existe uma série chamada "${args.nome}". Use atualizar_serie.`);
       }
-      const id = newId();
-      const row = serieColumns(args);
+      const row = {...serieColumns(args), ...estrutura.patch};
+      // Quadro sem cor própria usa a da série, como o formulário do app.
+      if (row.tipo_agrupamento === 'quadro' && args.cor === undefined && row.parent_id) {
+        const pai = lookups.series.find(item => item.id === row.parent_id);
+        if (pai?.cor) row.cor = pai.cor;
+      }
       if (args.pilar_principal !== undefined) row.pilar_principal_id = idDoPilar(lookups, args.pilar_principal);
       else if (args.pilares?.length) row.pilar_principal_id = idDoPilar(lookups, args.pilares[0]);
-      const ignorados = await writeCompat('criar série', {
+      const ignorados = await gravarSerie('criar série', {
         template: '',
         notes: '',
         ...row,
@@ -425,9 +610,13 @@ export function registerEditorial(server: McpServer) {
       } else if (args.pilares !== undefined) {
         await replaceSeriePilares(session, lookups, id, args.pilares);
       }
-      if (args.hashtags?.length) await mergeSerieHashtags(session, lookups, id, args.hashtags);
+      if (args.hashtags?.length) await mergeSerieHashtags(session, lookups, id, [], args.hashtags);
       invalidateLookups();
-      return json({...serieView(await fetchSerie(session, id), await loadLookups(session)), ...avisos(ignorados)});
+      return json({
+        ...serieView(await fetchSerie(session, id), await loadLookups(session)),
+        ...avisos(ignorados),
+        ...(estrutura.avisos.length ? {avisos_estrutura: estrutura.avisos} : {}),
+      });
     }),
   );
 
@@ -438,7 +627,10 @@ export function registerEditorial(server: McpServer) {
       description:
         'Edita uma série. Só os campos enviados mudam; null limpa. ativa=false desliga a série (conteúdos ligados continuam). ' +
         'pilares substitui a lista e, se pilar_principal não vier, o primeiro vira o principal. ' +
-        'pilar_principal sem pilares deixa a série ligada só a esse pilar. hashtags muda só as redes enviadas.',
+        'pilar_principal sem pilares deixa a série ligada só a esse pilar. hashtags muda só as redes enviadas (hashtags e legenda por conta). ' +
+        'parent_id muda o pai (quadro dentro de série, série dentro de família), sem ciclo. ' +
+        'Frequência: frequencia_vezes/frequencia_unidade/frequencia_a_partir_de; frequencia_unidade=sob-demanda tira a meta. ' +
+        'Não apaga série nem conteúdos; para mover episódios use mover_episodios.',
       inputSchema: {
         serie: z.string().describe('Nome ou id da série'),
         nome: z.string().min(1).optional(),
@@ -450,13 +642,14 @@ export function registerEditorial(server: McpServer) {
       const lookups = await loadLookups(session);
       const id = resolveSerie(lookups, args.serie);
       if (!id) throw new Error('Informe a série.');
-      await fetchSerie(session, id);
-      const patch = serieColumns(args);
+      const atual = await fetchSerie(session, id);
+      const estrutura = estruturaDaSerie(args, id, atual, lookups);
+      const patch = {...serieColumns(args), ...estrutura.patch};
       if (args.pilar_principal !== undefined) patch.pilar_principal_id = idDoPilar(lookups, args.pilar_principal);
       else if (args.pilares !== undefined) patch.pilar_principal_id = idDoPilar(lookups, args.pilares[0]);
       let ignorados: string[] = [];
       if (Object.keys(patch).length > 0) {
-        ignorados = await writeCompat('atualizar série', {...patch, updated_at: nowIso()}, row =>
+        ignorados = await gravarSerie('atualizar série', {...patch, updated_at: nowIso()}, row =>
           session.client.from('series').update(row).eq('id', id).eq('user_id', session.userId));
       }
       if (args.pilar_principal !== undefined && args.pilares === undefined) {
@@ -465,9 +658,13 @@ export function registerEditorial(server: McpServer) {
       } else if (args.pilares !== undefined) {
         await replaceSeriePilares(session, lookups, id, args.pilares);
       }
-      if (args.hashtags?.length) await mergeSerieHashtags(session, lookups, id, args.hashtags);
+      if (args.hashtags?.length) await mergeSerieHashtags(session, lookups, id, atual.serie_plataformas ?? [], args.hashtags);
       invalidateLookups();
-      return json({...serieView(await fetchSerie(session, id), await loadLookups(session)), ...avisos(ignorados)});
+      return json({
+        ...serieView(await fetchSerie(session, id), await loadLookups(session)),
+        ...avisos(ignorados),
+        ...(estrutura.avisos.length ? {avisos_estrutura: estrutura.avisos} : {}),
+      });
     }),
   );
 }

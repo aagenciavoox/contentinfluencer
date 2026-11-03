@@ -21,9 +21,21 @@ import {
   loadLookups,
   normalizeStatus,
   tool,
+  type Lookups,
   type Row,
 } from '../lib.ts';
 import {distribuicaoView} from './editorial.ts';
+import {carregarTemporadas} from './temporadas.ts';
+import {
+  arvore,
+  escopoDe,
+  frequenciaDaLinha,
+  serieDaLinha,
+  temporadasDoEscopo,
+  tipoDaSerie,
+  type SerieNoMcp,
+  type Temporada,
+} from '../serieEstrutura.ts';
 import {carregarTemas} from '../temas.ts';
 
 const DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
@@ -32,13 +44,41 @@ function today(): string {
   return new Intl.DateTimeFormat('en-CA', {timeZone: 'America/Sao_Paulo'}).format(new Date());
 }
 
+
+/** Tipo, pai, quadros (árvore), temporadas, frequência detalhada, continuidade e legenda de uma série. */
+function estruturaDaSerieView(row: Row, series: SerieNoMcp[], temporadas: Temporada[], lookups: Lookups) {
+  const id = String(row.id);
+  const tipo = tipoDaSerie(id, series);
+  const freq = frequenciaDaLinha(row);
+  const escopo = escopoDe(id, series);
+  const quadros = arvore<Row>(id, series, (filhoId, filhos) => ({
+    id: filhoId,
+    nome: lookups.serieName(filhoId),
+    ativa: series.find(item => item.id === filhoId)?.ativa !== false,
+    ...(filhos.length ? {quadros: filhos} : {}),
+  })).quadros ?? [];
+  return {
+    tipo,
+    pai: row.parent_id ? {id: row.parent_id, nome: lookups.serieName(row.parent_id)} : null,
+    quadros,
+    usa_temporadas: row.usa_temporadas === true,
+    temporadas: escopo
+      ? temporadasDoEscopo(escopo.id, temporadas).map(item => ({id: item.id, nome: item.nome, descricao: item.descricao ?? null, ...(escopo.id !== id ? {da_serie: escopo.name} : {})}))
+      : [],
+    frequencia_detalhada: {vezes: freq.vezes, unidade: freq.unidade, a_partir_de: freq.a_partir_de, resumo: freq.resumo},
+    acompanhar_continuidade: row.acompanhar_continuidade === true,
+    legenda_base: typeof row.legenda_base === 'string' && row.legenda_base.trim() ? row.legenda_base : null,
+  };
+}
+
 export function registerEstrutura(server: McpServer) {
   server.registerTool(
     'ver_estrutura_editorial',
     {
       title: 'Ver estrutura editorial',
       description:
-        'Mostra o DNA da voz, os pilares, as séries (com estrutura de roteiro, bordão, função padrão, formato, motivos e pilar principal), ' +
+        'Mostra o DNA da voz, os pilares, as séries (com estrutura de roteiro, bordão, função padrão, formato, motivos e pilar principal; ' +
+        'tipo família/série/quadro, pai, árvore de quadros, temporadas, frequência detalhada, continuidade e legenda), ' +
         'os temas, as opções fechadas (formatos, janelas, energia), as funções editoriais (antigo funil) com a distribuição desejada, ' +
         'as plataformas, as regras de ouro e os ajustes (rede de referência, destinos padrão, distribuição e estoque). ' +
         'Leia antes de escrever roteiros para manter a voz e o formato do perfil.',
@@ -67,8 +107,6 @@ export function registerEstrutura(server: McpServer) {
           ativo: p.ativo !== false,
           cor: p.cor,
           descricao: p.descricao || null,
-          frequencia_semanal: p.frequencia_semanal ?? null,
-          meta_ciclo: p.meta_ciclo ?? null,
           plataformas: (p.pilar_plataformas ?? []).map((pp: Row) => ({
             plataforma: lookups.platformName(pp.platform_id),
             hashtags: pp.hashtags || null,
@@ -78,6 +116,9 @@ export function registerEstrutura(server: McpServer) {
         }));
       }
       if (want.has('series')) {
+        const arvoreSeries = lookups.series.map(serieDaLinha);
+        const temporadas = await carregarTemporadas(session);
+        if (temporadas.ausente) result.temporadas_ausentes_no_banco = true;
         result.series = lookups.series.filter(s => args.incluir_inativos || s.ativa !== false).map(s => ({
           id: s.id,
           nome: s.name,
@@ -96,7 +137,12 @@ export function registerEstrutura(server: McpServer) {
           estrutura_roteiro: s.estrutura_roteiro ?? null,
           modelo: s.template || null,
           notas: s.notes || null,
-          hashtags: (s.serie_plataformas ?? []).map((sp: Row) => ({plataforma: lookups.platformName(sp.platform_id), hashtags: sp.hashtags})),
+          hashtags: (s.serie_plataformas ?? []).map((sp: Row) => ({
+            plataforma: lookups.platformName(sp.platform_id),
+            hashtags: sp.hashtags,
+            legenda: typeof sp.legenda === 'string' && sp.legenda.trim() ? sp.legenda : null,
+          })),
+          ...estruturaDaSerieView(s, arvoreSeries, temporadas.itens, lookups),
         }));
       }
       if (want.has('temas')) {
