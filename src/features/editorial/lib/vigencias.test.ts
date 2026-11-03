@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { atualizarPreferencias, atualizarProporcao, DEFAULT_EDITORIAL_SETTINGS, type EditorialSettings } from './editorialSettings.ts';
 import { contarPeriodo } from './gradeCounts.ts';
 import { limiteDoIntervalo } from './periodoEditorial.ts';
-import { limiteSemanalNaSemana, proporcaoDoIntervalo, registrarVigencia, vigenciaNaSemana } from './vigencias.ts';
+import { limiteSemanalDoPeriodo, limiteSemanalNaSemana, metaComAjuste, periodoVigente, proporcaoDoIntervalo, registrarVigencia, vigenciaNaSemana } from './vigencias.ts';
 
 // Sexta, 30/10/2026. A semana começa no domingo 25/10.
 const HOJE = new Date(2026, 9, 30, 12);
@@ -118,4 +118,28 @@ const tests = [
 for (const [name, test] of tests) {
   test();
   console.log(`ok - ${name}`);
+}
+
+// O período definido manda: vigente usa o ritmo atual; encerrado mantém o histórico; ajuste escrito vence.
+{
+  const ritmo = { limiteSemanal: 10, vigencias: [
+    { vigenteDesde: '2000-01-02', limiteSemanal: 8, proporcaoFuncoes: null },
+    { vigenteDesde: '2026-11-01', limiteSemanal: 10, proporcaoFuncoes: null },
+  ] };
+  const vigente = { inicio: '2026-10-16', fim: '2026-12-30' };
+  assert.equal(periodoVigente(vigente, '2026-11-02'), true);
+  assert.equal(limiteSemanalDoPeriodo(ritmo, vigente, '2026-11-02'), 10);
+  assert.equal(limiteSemanalDoPeriodo(ritmo, { inicio: '2027-01-01', fim: '2027-01-31' }, '2026-11-02'), 10);
+  assert.equal(limiteSemanalDoPeriodo(ritmo, { inicio: '2026-10-01', fim: '2026-10-31' }, '2026-11-02'), 8);
+  assert.equal(metaComAjuste(25, 40), 25);
+  assert.equal(metaComAjuste(undefined, 40), 40);
+  assert.equal(metaComAjuste(null, null), null);
+  // Contagem do Planejamento segue a mesma regra.
+  const base = { ...DEFAULT_EDITORIAL_SETTINGS, preferencias: { ...DEFAULT_EDITORIAL_SETTINGS.preferencias, limiteSemanal: 10 }, vigencias: ritmo.vigencias };
+  const periodo = { inicio: '2026-11-01', fim: '2026-11-14' };
+  const cv = contarPeriodo({ entries: [], pilares: [], settings: base as never, periodo: periodo as never, hoje: '2026-11-02' });
+  const cp = contarPeriodo({ entries: [], pilares: [], settings: { ...base, vigencias: [ritmo.vigencias[0], { vigenteDesde: '2026-11-08', limiteSemanal: 4, proporcaoFuncoes: null }] } as never, periodo: periodo as never, hoje: '2026-12-01' });
+  assert.equal(cv.limite, 20);
+  assert.equal(cp.limite, 8 + 4);
+  console.log('vigencias (período vigente): ok');
 }

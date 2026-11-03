@@ -17,7 +17,7 @@ import { PlanoVigenteView } from './plano/PlanoVigenteView';
 import { PeriodoEditorialControl, periodoInicial, type PeriodoSelecionado } from './plano/PeriodoEditorialControl';
 import { useEditorialPlano } from './plano/useEditorialPlano';
 import { decisaoDoPeriodo, lerPeriodoSalvo, semanaDe } from '../lib/periodoEditorial';
-import { limiteSemanalNaSemana } from '../lib/vigencias';
+import { limiteSemanalDoPeriodo } from '../lib/vigencias';
 
 function linhaDeSeries(nomes: string[]) {
   if (nomes.length === 0) return 'Sem séries ligadas';
@@ -56,9 +56,10 @@ export function DirecaoEditorialPanel({ abaAtiva: abaAtivaProp }: DirecaoEditori
   const pilares = useMemo(() => sortPilares(state.pilares), [state.pilares]);
   const { settings, salvarDecisao } = useEditorialPlano();
   const decisao = decisaoDoPeriodo(settings.periodos, periodo.inicio, periodo.fim);
-  const limiteSemanal = limiteSemanalNaSemana(
+  // Período vigente usa o ritmo atual; período encerrado, o que valia nele.
+  const limiteSemanal = limiteSemanalDoPeriodo(
     { limiteSemanal: settings.preferencias.limiteSemanal, vigencias: settings.vigencias },
-    semanaDe(periodo.inicio).inicio,
+    periodo,
   );
 
   const abaOptions: SegmentTabOption<EditorialAba>[] = [

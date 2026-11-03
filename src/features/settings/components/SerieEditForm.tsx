@@ -319,6 +319,7 @@ export function SerieEditForm({
       usaTemporadas: initial.usaTemporadas === true,
       tipoAgrupamento: initial.tipoAgrupamento ?? null,
       semPilar: initial.semPilar === true,
+      acompanharContinuidade: initial.acompanharContinuidade === true,
       plataformas: initial.plataformas || [],
     },
   });
@@ -371,6 +372,7 @@ export function SerieEditForm({
     if (form.notes !== snap.form.notes) return true;
     if (form.tipoAgrupamento !== snap.form.tipoAgrupamento) return true;
     if (form.semPilar !== snap.form.semPilar) return true;
+    if (form.acompanharContinuidade !== snap.form.acompanharContinuidade) return true;
     if (form.bordao !== snap.form.bordao) return true;
     if (form.cor !== snap.form.cor) return true;
     if (form.capaUrl !== snap.form.capaUrl) return true;
@@ -551,6 +553,7 @@ export function SerieEditForm({
       usaTemporadas: form.usaTemporadas,
       tipoAgrupamento: tipo,
       semPilar: !form.pilarPrincipalId && form.semPilar,
+      acompanharContinuidade: form.acompanharContinuidade,
       pilarIds: form.pilarPrincipalId ? [form.pilarPrincipalId] : [],
       plataformas: plataformasFinal,
       createdAt: initial.createdAt || now,
@@ -703,6 +706,15 @@ export function SerieEditForm({
         {formatarResumoMeta(form.frequenciaVezes, form.frequenciaUnidade || 'semana', form.frequenciaAPartirDe)}
         {notaAdicional ? ` · ${notaAdicional}` : ''}
       </Text>
+      <label className="flex items-center gap-2 w-fit cursor-pointer">
+        <input
+          type="checkbox"
+          checked={form.acompanharContinuidade}
+          onChange={event => setForm(previous => ({ ...previous, acompanharContinuidade: event.target.checked }))}
+          className="h-4 w-4 accent-[var(--brand-accent)]"
+        />
+        <Text variant="body" as="span">Acompanhar continuidade na Saúde</Text>
+      </label>
     </div>
   );
 

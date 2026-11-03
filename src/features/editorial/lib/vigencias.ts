@@ -60,6 +60,31 @@ export function registrarVigencia(
   };
 }
 
+/**
+ * O período que inclui hoje (ou ainda vai começar) manda: usa o ritmo atual no período inteiro,
+ * então mudar a meta semanal ou o período ajusta o plano na hora. Período que já terminou fica
+ * com o ritmo que valia no começo dele.
+ */
+export function periodoVigente(periodo: { fim: string }, hoje: string = format(new Date(), 'yyyy-MM-dd')): boolean {
+  return periodo.fim >= hoje;
+}
+
+/** Ritmo semanal usado nas metas do período (regra acima). */
+export function limiteSemanalDoPeriodo(
+  settings: { limiteSemanal: number | null; vigencias?: readonly VigenciaEditorial[] | null },
+  periodo: { inicio: string; fim: string },
+  hoje?: string,
+): number | null {
+  return periodoVigente(periodo, hoje)
+    ? settings.limiteSemanal
+    : limiteSemanalNaSemana(settings, semanaDe(periodo.inicio).inicio);
+}
+
+/** Número escrito em "Ajustar metas" vale no lugar do calculado. */
+export function metaComAjuste(ajustada: number | null | undefined, calculada: number | null): number | null {
+  return ajustada ?? calculada;
+}
+
 /** Limite semanal daquela semana. Sem histórico, o de hoje. */
 export function limiteSemanalNaSemana(
   settings: { limiteSemanal: number | null; vigencias?: readonly VigenciaEditorial[] | null },

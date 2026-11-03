@@ -8,7 +8,7 @@ import { FUNCAO_LABELS, FUNCOES, isFuncaoEditorial } from './funcoes.ts';
 import { postItTemPauta } from './pautaConteudo.ts';
 import { decisaoDoPeriodo, limiteDoIntervalo, semanasNoIntervalo } from './periodoEditorial.ts';
 import { metasDoPeriodo, type ProporcaoFuncoes } from './proporcaoObjetivos.ts';
-import { limiteSemanalNaSemana, proporcaoDoIntervalo } from './vigencias.ts';
+import { periodoVigente, limiteSemanalNaSemana, proporcaoDoIntervalo } from './vigencias.ts';
 
 export type PeriodoGrade = {
   /** Inclusivo, `aaaa-mm-dd`. */
@@ -346,17 +346,21 @@ export function contarPeriodo({
   settings,
   periodo,
   postIts = [],
+  hoje,
 }: {
   entries: readonly GradeEntry[];
   pilares: readonly PilarContagem[];
   settings: GradeCountSettings;
   periodo: PeriodoGrade;
   postIts?: readonly PostItContagem[];
+  /** yyyy-MM-dd; padrão, hoje. */
+  hoje?: string;
 }): GradeCounts {
   const limiteSemanal = limiteSemanalDe(settings);
   const ajustesSemana = ajustesDe(settings);
-  // Cada semana com o limite que valia nela: mudar a estratégia hoje não reescreve outubro.
-  const temVigencias = (settings.vigencias?.length ?? 0) > 0;
+  // Período vigente (inclui hoje ou ainda vai começar): ritmo atual em todas as semanas.
+  // Período encerrado: cada semana com o limite que valia nela; mudar hoje não reescreve outubro.
+  const temVigencias = (settings.vigencias?.length ?? 0) > 0 && !periodoVigente(periodo, hoje);
   const limiteDaSemana = temVigencias
     ? (inicioSemana: string) => limiteSemanalNaSemana({ limiteSemanal, vigencias: settings.vigencias }, inicioSemana)
     : undefined;

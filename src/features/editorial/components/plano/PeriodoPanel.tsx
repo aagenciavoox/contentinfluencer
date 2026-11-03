@@ -41,7 +41,7 @@ import {
 } from './PeriodoEditorialControl';
 import { useEditorialPlano } from './useEditorialPlano';
 import { usePostItsNaData } from '../../../planejamento/hooks/usePostItsNaData';
-import { limiteSemanalNaSemana } from '../../lib/vigencias';
+import { limiteSemanalDoPeriodo } from '../../lib/vigencias';
 
 /** "3 roteiros e 2 post-its estão sem objetivo; a distribuição está incompleta." */
 function textoSemObjetivo(roteiros: number, reservas: number): string {
@@ -456,10 +456,10 @@ export function PeriodoPanel({
   const postIts = usePostItsNaData();
   const decisao = decisaoDoPeriodo(settings.periodos, periodo.inicio, periodo.fim);
   const parciais = semanasParciais(periodo.inicio, periodo.fim);
-  // O limite que valia no começo do período. Mudar hoje não reescreve meses passados.
-  const limiteSemanal = limiteSemanalNaSemana(
+  // O período definido manda: vigente usa o ritmo atual inteiro; encerrado mantém o que valia nele.
+  const limiteSemanal = limiteSemanalDoPeriodo(
     { limiteSemanal: settings.preferencias.limiteSemanal, vigencias: settings.vigencias },
-    semanaDe(periodo.inicio).inicio,
+    periodo,
   );
   const semLimite = limiteSemanal == null;
   const estoque = reservaPronta(state.contents, {

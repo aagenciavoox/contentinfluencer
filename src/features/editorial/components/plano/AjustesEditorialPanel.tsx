@@ -12,6 +12,7 @@ import { iconeDaConta, rotuloConta } from '../../../contas/lib/contas';
 import { PostingTimesEditor } from '../../../settings/components/PostingTimesEditor';
 import { CampoStepper, CampoTexto, CardConfiguracao, inteiroOuNull } from './campos';
 import { ProporcaoObjetivosEditor, ResumoDaProporcao } from './ProporcaoObjetivosEditor';
+import { ContinuidadeSeriesCard } from './ContinuidadeSeriesCard';
 import { useEditorialPlano } from './useEditorialPlano';
 
 function resumoHorarios(entries: readonly PostingTimeEntry[], platforms: readonly Platform[]): string {
@@ -284,6 +285,8 @@ export function AjustesEditorialPanel() {
           <ResumoDaProporcao proporcao={settings.proporcaoFuncoes} />
         )}
       </CardConfiguracao>
+
+      <ContinuidadeSeriesCard />
 
       <CardConfiguracao icone={<Share2 className="h-5 w-5" />} titulo="Redes e horários">
         <div className="grid-form">

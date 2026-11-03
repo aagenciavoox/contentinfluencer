@@ -13,6 +13,7 @@ import type { DecisaoPeriodo } from '../../lib/editorialSettings';
 import { expectativaNoIntervalo, lerFrequencia, type FrequenciaSerie } from '../../lib/frequenciaSerie';
 import { AjustarMetasDialog } from './AjustarMetasDialog';
 import type { PeriodoSelecionado } from './PeriodoEditorialControl';
+import { metaComAjuste } from '../../lib/vigencias';
 
 export interface PlanoVigenteViewProps {
   periodo: PeriodoSelecionado;
@@ -176,8 +177,8 @@ export function PlanoVigenteView({
   const metaPeloRitmo = limiteSemanal ? Math.round(limiteSemanal * semanasAtivas) : null;
   const producaoCalculada = metaPeloRitmo ?? somaDasContas(contas.map(c => c.producao));
   const publicacaoCalculada = metaPeloRitmo ?? somaDasContas(contas.map(c => c.publicacao));
-  const totalProducao = decisao?.metasProducao ?? producaoCalculada;
-  const totalPublicacao = decisao?.metasPublicacao ?? publicacaoCalculada;
+  const totalProducao = metaComAjuste(decisao?.metasProducao, producaoCalculada);
+  const totalPublicacao = metaComAjuste(decisao?.metasPublicacao, publicacaoCalculada);
 
   const realizadosProducao = conteudosDoPeriodo.length;
   const realizadosPublicacao = conteudosDoPeriodo.filter(c => normalizeContentStatus(c.status) === CONTENT_STATUS.POSTADO).length;
@@ -440,7 +441,7 @@ export function PlanoVigenteView({
           </section>
 
           <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
-            Produção e publicação são o ritmo semanal vezes as semanas do período. Mudar o ritmo depois não altera períodos que já passaram.
+            Produção e publicação são o ritmo semanal vezes as semanas do período. Mudar o ritmo ou o período ajusta o período vigente na hora; períodos encerrados ficam como eram.
           </Text>
         </div>
       ) : null}
