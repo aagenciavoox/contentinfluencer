@@ -60,6 +60,25 @@ assert.equal(hojeNoFuso(new Date('2026-11-04T01:30:00Z'), 'Fuso/Inexistente'), '
   assert.equal(resumo.conteudosUnicos, 1);
   assert.deepEqual([resumo.realizadas, resumo.previstas, resumo.vencidas], [1, 1, 1]);
   assert.equal(resumoDePublicacoes(agenda, { inicio: '2026-11-01', fim: '2026-11-30' }, { platformIds: ['ig'] }).total, 1);
+  // Sem objetivo no conteúdo: as três publicações ficam em "sem objetivo", dentro do total.
+  assert.equal(resumo.semObjetivo, 3);
+}
+
+// --- Objetivo da publicação: a mesma regra da ficha (escolhido vale; vazio herda da série).
+{
+  const series = [{ id: 's', funcaoPadrao: 'atrair' as const }];
+  const agenda = publicacoesDaAgenda({
+    contents: [
+      conteudo('e1', { funcao: 'converter', funcaoOrigem: 'escolhida', seriesId: 's', plataformas: [pub('p1', 'ig', { publishDate: '2026-11-05' })] }),
+      conteudo('e2', { seriesId: 's', plataformas: [pub('p2', 'tt', { publishDate: '2026-11-05' })] }),
+    ],
+    contas,
+    series,
+    agora: AGORA,
+  });
+  const resumo = resumoDePublicacoes(agenda, { inicio: '2026-11-01', fim: '2026-11-30' });
+  assert.deepEqual(resumo.porObjetivo, { converter: 1, atrair: 1 });
+  assert.equal(resumo.semObjetivo, 0);
 }
 
 // --- Repost é outra publicação (outro ciclo); não publicada e removida ficam fora; lixeira também.

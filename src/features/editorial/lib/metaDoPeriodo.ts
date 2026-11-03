@@ -244,6 +244,11 @@ export function metaDoPeriodo(input: {
   /** Decisão gravada para este início e fim. */
   decisao?: Pick<DecisaoPeriodo, 'metasPublicacao' | 'pausaEditorial'> | null;
   hoje?: string;
+  /**
+   * Ritmo de cada semana, quando quem chama tem a própria vigência (a meta de uma conta).
+   * Null numa semana = sem meta naquela semana, e o período fica sem meta calculada.
+   */
+  limiteDaSemana?: (inicioSemana: string) => number | null;
 }): MetaDoPeriodo {
   const { periodo } = input;
   const vazio: MetaDoPeriodo = {
@@ -268,9 +273,11 @@ export function metaDoPeriodo(input: {
       if (bruto != null) bruto += ajuste.limite;
       continue;
     }
-    const limite = porSemana
-      ? limiteSemanalNaSemana({ limiteSemanal: input.limiteSemanal, vigencias: input.vigencias }, semana.inicio)
-      : input.limiteSemanal;
+    const limite = input.limiteDaSemana
+      ? input.limiteDaSemana(semana.inicio)
+      : porSemana
+        ? limiteSemanalNaSemana({ limiteSemanal: input.limiteSemanal, vigencias: input.vigencias }, semana.inicio)
+        : input.limiteSemanal;
     if (limite == null) {
       bruto = null;
       continue;

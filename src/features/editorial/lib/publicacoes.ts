@@ -1,4 +1,4 @@
-import type { Content, ContentPlataforma, RedeSocial } from '../../../lib/database.ts';
+import type { Content, ContentPlataforma, FuncaoEditorial, RedeSocial } from '../../../lib/database.ts';
 import { redeDaConta, type ContaRef } from '../../contas/lib/contas.ts';
 import { cicloDaPublicacao } from './cicloPublicacao.ts';
 import { contaNaGradeEfetiva } from './contaNaGradeOrigem.ts';
@@ -57,6 +57,8 @@ export type PublicacaoNaAgenda = {
   contaNaMeta: boolean;
   /** Etapa do conteúdo; publicada nesta conta vira postado só aqui. */
   etapa: Etapa;
+  /** Objetivo do conteúdo, com a mesma regra da ficha e da Saúde. */
+  objetivo: FuncaoEditorial | null;
 };
 
 const FORMATOS_CONHECIDOS: Record<string, FormatoPublicacao> = {
@@ -147,11 +149,12 @@ export function publicacoesDaAgenda(input: {
 
   for (const content of input.contents) {
     if (content.deletedAt || content.archivedAt) continue;
+    const objetivo = objetivoDoConteudo(content, series);
     const contaNoConteudo = contaNaGradeEfetiva({
       contaNaGrade: content.contaNaGrade !== false,
       contaNaGradeOrigem: content.contaNaGradeOrigem,
       formato: content.formatoVisual,
-      funcao: objetivoDoConteudo(content, series),
+      funcao: objetivo,
     });
     const etapaDoConteudo = etapaDoStatus(content.status);
 
@@ -188,6 +191,7 @@ export function publicacoesDaAgenda(input: {
         programado: publicacaoProgramada({ situacao, etapa, data, hora, agora }),
         contaNaMeta: contaNoConteudo && publicacao.contaNaGrade !== false,
         etapa,
+        objetivo,
       });
     }
   }
@@ -205,6 +209,9 @@ export type ContagemDePublicacoes = {
 export type ResumoDePublicacoes = ContagemDePublicacoes & {
   porConta: Record<string, ContagemDePublicacoes>;
   porFormato: Partial<Record<FormatoPublicacao, ContagemDePublicacoes>>;
+  /** Publicações por objetivo; `semObjetivo` à parte, dentro do total. */
+  porObjetivo: Partial<Record<FuncaoEditorial, number>>;
+  semObjetivo: number;
   /** Conteúdos diferentes entre essas publicações: a medida de produção fica separada. */
   conteudosUnicos: number;
 };
@@ -232,7 +239,7 @@ export function resumoDePublicacoes(
 ): ResumoDePublicacoes {
   const contas = escopo.platformIds && escopo.platformIds.length > 0 ? new Set(escopo.platformIds) : null;
   const formatos = escopo.formatos && escopo.formatos.length > 0 ? new Set(escopo.formatos) : null;
-  const resumo: ResumoDePublicacoes = { ...vazia(), porConta: {}, porFormato: {}, conteudosUnicos: 0 };
+  const resumo: ResumoDePublicacoes = { ...vazia(), porConta: {}, porFormato: {}, porObjetivo: {}, semObjetivo: 0, conteudosUnicos: 0 };
   const conteudos = new Set<string>();
   for (const publicacao of publicacoes) {
     if (!publicacao.contaNaMeta || !publicacao.data) continue;
@@ -242,6 +249,8 @@ export function resumoDePublicacoes(
     somar(resumo, publicacao);
     somar(resumo.porConta[publicacao.platformId] ??= vazia(), publicacao);
     somar(resumo.porFormato[publicacao.formato] ??= vazia(), publicacao);
+    if (publicacao.objetivo) resumo.porObjetivo[publicacao.objetivo] = (resumo.porObjetivo[publicacao.objetivo] ?? 0) + 1;
+    else resumo.semObjetivo += 1;
     conteudos.add(publicacao.contentId);
   }
   resumo.conteudosUnicos = conteudos.size;
