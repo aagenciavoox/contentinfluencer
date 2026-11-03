@@ -75,9 +75,32 @@ function testOpcoesSoTrazemOQueExisteNosConteudos() {
 function testFiltroAtivo() {
   assert.equal(filtroPuxarAtivo(FILTRO_PUXAR_VAZIO), false);
   assert.equal(filtroPuxarAtivo({...FILTRO_PUXAR_VAZIO, tags: ['terror']}), true);
+  assert.equal(filtroPuxarAtivo({...FILTRO_PUXAR_VAZIO, redes: ['instagram']}), true);
+}
+
+function testFiltroRede() {
+  const item = conteudo({seriesId: 's-res'});
+  // Sem filtro de rede, passa com ou sem redes
+  assert.equal(passaNoFiltroPuxar(item, FILTRO_PUXAR_VAZIO, series, temas, ['instagram']), true);
+  assert.equal(passaNoFiltroPuxar(item, FILTRO_PUXAR_VAZIO, series, temas, []), true);
+
+  // Filtrando por Instagram: item só com Instagram passa; com TikTok também, não; sem rede, não
+  const filtroIg = {...FILTRO_PUXAR_VAZIO, redes: ['instagram' as const]};
+  assert.equal(passaNoFiltroPuxar(item, filtroIg, series, temas, ['instagram']), true);
+  assert.equal(passaNoFiltroPuxar(item, filtroIg, series, temas, ['instagram', 'tiktok']), false);
+  assert.equal(passaNoFiltroPuxar(item, filtroIg, series, temas, ['tiktok']), false);
+  assert.equal(passaNoFiltroPuxar(item, filtroIg, series, temas, []), false);
+
+  // Filtrando por Instagram e TikTok: itens só de Instagram, só de TikTok ou de ambos passam
+  const filtroMulti = {...FILTRO_PUXAR_VAZIO, redes: ['instagram' as const, 'tiktok' as const]};
+  assert.equal(passaNoFiltroPuxar(item, filtroMulti, series, temas, ['instagram']), true);
+  assert.equal(passaNoFiltroPuxar(item, filtroMulti, series, temas, ['tiktok']), true);
+  assert.equal(passaNoFiltroPuxar(item, filtroMulti, series, temas, ['instagram', 'tiktok']), true);
+  assert.equal(passaNoFiltroPuxar(item, filtroMulti, series, temas, ['instagram', 'youtube']), false);
 }
 
 testPilarVemDaSerieQuandoOConteudoNaoTem();
 testFiltroCombinaSeriePilarETag();
 testOpcoesSoTrazemOQueExisteNosConteudos();
 testFiltroAtivo();
+testFiltroRede();

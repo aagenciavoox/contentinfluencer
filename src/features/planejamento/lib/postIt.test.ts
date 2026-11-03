@@ -515,7 +515,34 @@ function testEtapasDoPostIt() {
   assert.equal(postItKind(ligado, null), 'vazio');
 }
 
+function testTransformLevaNotaERedes() {
+  const postIt = {
+    ...createEmptyPostIt({id: 'post-redes', texto: 'Vlog indo ao sebo\nlevar a lista de compras', date: '2026-11-03', now: NOW}),
+    redes: ['youtube' as const, 'instagram' as const],
+  };
+  const contas = [
+    {id: 'yt', nome: 'YouTube', rede: 'youtube' as const, ativo: true},
+    {id: 'ig', nome: 'Instagram', rede: 'instagram' as const, ativo: true},
+    {id: 'tt', nome: 'TikTok', rede: 'tiktok' as const, ativo: true},
+    {id: 'yt-velho', nome: 'Canal antigo', rede: 'youtube' as const, ativo: false},
+  ];
+  const result = transformPostIt({postIt, contents: [], target: 'ideia', contas, now: NOW});
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.content.title, 'Vlog indo ao sebo');
+  assert.equal(result.content.notes, 'Vlog indo ao sebo\nlevar a lista de compras');
+  // Só as contas ativas das redes marcadas viram publicação, já no dia do post-it.
+  assert.deepEqual(result.content.plataformas.map(p => p.platformId).sort(), ['ig', 'yt']);
+  assert.ok(result.content.plataformas.every(p => p.contentId === result.content.id));
+  assert.ok(result.content.plataformas.every(p => p.publishDate?.slice(0, 10) === '2026-11-03'));
+
+  // Sem contas informadas, nada de publicação inventada.
+  const semContas = transformPostIt({postIt, contents: [], target: 'ideia', now: NOW});
+  assert.equal(semContas.ok && semContas.content.plataformas.length, 0);
+}
+
 const tests = [
+  ['carries the note and the networks into the new content', testTransformLevaNotaERedes],
   ['moves a post-it to Sem data and undoes the move', testMoverParaSemDataEDesfazer],
   ['maps the linked content stage on the post-it', testEtapasDoPostIt],
   ['creates an empty post-it', testCreateEmptyPostIt],

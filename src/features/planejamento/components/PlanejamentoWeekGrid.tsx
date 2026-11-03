@@ -8,6 +8,16 @@ import {Text} from '../../../components/ui/Text';
 import {cn} from '../../../lib/utils';
 import type {PublicacaoNoDia} from '../lib/publicacoesDoMes';
 import type {PlanejamentoPostIt} from '../lib/postIt';
+import type {RedeSocial} from '../../../lib/database';
+import {DivisoriaRede} from './DivisoriaRede';
+
+export type DiaSeparado = {
+  rede: RedeSocial;
+  pubsAcima: PublicacaoNoDia[];
+  pubsAbaixo: PublicacaoNoDia[];
+  postItsAcima: PlanejamentoPostIt[];
+  postItsAbaixo: PlanejamentoPostIt[];
+};
 
 const WEEK_STARTS_ON = 1;
 const WEEKDAYS_SHORT_PT = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'] as const;
@@ -30,6 +40,7 @@ export function PlanejamentoWeekGrid({
   onDayDrop,
   renderPostIt,
   renderPublicacao,
+  separarDia,
   onAddPauta,
   onPuxarConteudo,
 }: {
@@ -42,6 +53,8 @@ export function PlanejamentoWeekGrid({
   onDayDrop: (dateKey: string, event: React.DragEvent) => void;
   renderPostIt: (postIt: PlanejamentoPostIt, compact: boolean) => ReactNode;
   renderPublicacao: (publicacao: PublicacaoNoDia) => ReactNode;
+  /** Dia de postagem de uma rede: devolve a divisão; null mantém o dia como está. */
+  separarDia?: (dateKey: string) => DiaSeparado | null;
   onAddPauta: (dateKey: string) => void;
   onPuxarConteudo?: (dateKey: string) => void;
 }) {
@@ -112,8 +125,21 @@ export function PlanejamentoWeekGrid({
               }}
             >
               <div className="stack-sm">
-                {dayPubs.map(renderPublicacao)}
-                {dayPostIts.map(postIt => renderPostIt(postIt, false))}
+                {(() => {
+                  const dia = separarDia?.(key) ?? null;
+                  if (!dia) return (<>
+                    {dayPubs.map(renderPublicacao)}
+                    {dayPostIts.map(postIt => renderPostIt(postIt, false))}
+                  </>);
+                  return (<>
+                    {dia.pubsAcima.map(renderPublicacao)}
+                    {dia.postItsAcima.map(postIt => renderPostIt(postIt, false))}
+                    <DivisoriaRede rede={dia.rede}>
+                      {dia.pubsAbaixo.map(renderPublicacao)}
+                      {dia.postItsAbaixo.map(postIt => renderPostIt(postIt, false))}
+                    </DivisoriaRede>
+                  </>);
+                })()}
                 <div className="mt-1 flex items-center gap-1 opacity-70 transition-opacity md:opacity-0 md:group-hover/day:opacity-100 md:focus-within:opacity-100 pointer-coarse:opacity-100">
                   <AppButton
                     variant="ghost"

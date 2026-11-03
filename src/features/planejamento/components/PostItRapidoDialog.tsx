@@ -100,12 +100,11 @@ export function PostItRapidoDialog({
 
             {/* Agrupamento Editorial (Série ou Quadro) */}
             <div className="stack-xs">
-              <label htmlFor="postit-rapido-serie">
-                <Text variant="label" as="span">Série ou quadro</Text>
-              </label>
+              <Text variant="label" as="span" aria-hidden>Série ou quadro</Text>
               <TagSelect
                 id="postit-rapido-serie"
                 label="Série ou quadro"
+                hideLabel
                 placeholder="Sem série (cor neutra)"
                 maxSelections={1}
                 values={draft.serieId ? [draft.serieId] : []}

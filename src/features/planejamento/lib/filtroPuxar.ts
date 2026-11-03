@@ -1,5 +1,6 @@
-import type {Content, Pilar, Serie, Tema} from '../../../lib/database.ts';
+import type {Content, Pilar, RedeSocial, Serie, Tema} from '../../../lib/database.ts';
 import {etiquetasVisiveis} from '../../creation/lib/creationItemPresentation.ts';
+import {passaNoFiltroRede} from '../../creation/lib/creationRedeFilter.ts';
 
 type ConteudoFiltravel = Pick<Content, 'seriesId' | 'pilarId' | 'tags' | 'temaIds'>;
 type SerieRef = Pick<Serie, 'id' | 'name' | 'pilarPrincipalId'>;
@@ -14,6 +15,7 @@ export interface FiltroPuxar {
   serieIds: string[];
   pilarIds: string[];
   tags: string[];
+  redes?: RedeSocial[];
 }
 
 export interface OpcaoFiltro {
@@ -21,7 +23,7 @@ export interface OpcaoFiltro {
   label: string;
 }
 
-export const FILTRO_PUXAR_VAZIO: FiltroPuxar = {serieIds: [], pilarIds: [], tags: []};
+export const FILTRO_PUXAR_VAZIO: FiltroPuxar = {serieIds: [], pilarIds: [], tags: [], redes: []};
 
 export function chaveDaTag(tag: string): string {
   return tag.trim().replace(/\s+/g, ' ').toLocaleLowerCase('pt-BR');
@@ -35,7 +37,12 @@ export function pilarEfetivo(content: ConteudoFiltravel, series: readonly SerieR
 }
 
 export function filtroPuxarAtivo(filtro: FiltroPuxar): boolean {
-  return filtro.serieIds.length > 0 || filtro.pilarIds.length > 0 || filtro.tags.length > 0;
+  return (
+    filtro.serieIds.length > 0 ||
+    filtro.pilarIds.length > 0 ||
+    filtro.tags.length > 0 ||
+    Boolean(filtro.redes && filtro.redes.length > 0)
+  );
 }
 
 export function passaNoFiltroPuxar(
@@ -43,6 +50,7 @@ export function passaNoFiltroPuxar(
   filtro: FiltroPuxar,
   series: readonly SerieRef[],
   temas: readonly TemaRef[],
+  redesDoConteudo?: readonly RedeSocial[],
 ): boolean {
   if (filtro.serieIds.length > 0 && !(content.seriesId && filtro.serieIds.includes(content.seriesId))) return false;
   if (filtro.pilarIds.length > 0) {
@@ -52,6 +60,9 @@ export function passaNoFiltroPuxar(
   if (filtro.tags.length > 0) {
     const chaves = etiquetasVisiveis(content, temas).map(chaveDaTag);
     if (!filtro.tags.some(tag => chaves.includes(tag))) return false;
+  }
+  if (filtro.redes && filtro.redes.length > 0) {
+    if (!passaNoFiltroRede(redesDoConteudo, filtro.redes)) return false;
   }
   return true;
 }

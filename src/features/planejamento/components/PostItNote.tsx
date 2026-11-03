@@ -4,6 +4,7 @@ import {Badge} from '../../../components/ui/Badge';
 import {cn, tintedTextColor} from '../../../lib/utils';
 import type {Content, RedeSocial} from '../../../lib/database';
 import {PlatformIcons} from '../../../components/ui/PlatformIcons';
+import {EtapaBadge} from './EtapaBadge';
 import {postItKind, postItTitle, type PlanejamentoPostIt, type PostItKind} from '../lib/postIt';
 
 export type PostItMark = {
@@ -22,53 +23,6 @@ export const KIND_LABEL: Record<PostItKind, string> = {
   edicao: 'Edição',
   postado: 'Publicado',
 };
-
-/** Cor por etapa — critério acessível e estável (não copia o mock). */
-const KIND_SURFACE = {
-  vazio: cn(
-    'border-[color-mix(in_srgb,var(--status-archived)_55%,var(--border-color))]',
-    'border-l-[color:var(--status-archived)]',
-    'bg-[color-mix(in_srgb,var(--status-archived)_24%,var(--bg-elevated))]',
-    'hover:bg-[color-mix(in_srgb,var(--status-archived)_34%,var(--bg-elevated))]',
-  ),
-  ideia: cn(
-    'border-[color-mix(in_srgb,var(--accent-purple)_30%,var(--border-color))]',
-    'border-l-[color:var(--accent-purple)]',
-    'bg-[color-mix(in_srgb,var(--accent-purple)_12%,var(--bg-elevated))]',
-    'hover:bg-[color-mix(in_srgb,var(--accent-purple)_20%,var(--bg-elevated))]',
-  ),
-  roteiro: cn(
-    'border-[color-mix(in_srgb,var(--accent-green)_30%,var(--border-color))]',
-    'border-l-[color:var(--accent-green)]',
-    'bg-[color-mix(in_srgb,var(--accent-green)_12%,var(--bg-elevated))]',
-    'hover:bg-[color-mix(in_srgb,var(--accent-green)_20%,var(--bg-elevated))]',
-  ),
-  producao: cn(
-    'border-[color-mix(in_srgb,var(--status-production)_30%,var(--border-color))]',
-    'border-l-[color:var(--status-production)]',
-    'bg-[color-mix(in_srgb,var(--status-production)_12%,var(--bg-elevated))]',
-    'hover:bg-[color-mix(in_srgb,var(--status-production)_20%,var(--bg-elevated))]',
-  ),
-  edicao: cn(
-    'border-[color-mix(in_srgb,var(--status-editing)_30%,var(--border-color))]',
-    'border-l-[color:var(--status-editing)]',
-    'bg-[color-mix(in_srgb,var(--status-editing)_12%,var(--bg-elevated))]',
-    'hover:bg-[color-mix(in_srgb,var(--status-editing)_20%,var(--bg-elevated))]',
-  ),
-  postado: cn(
-    'border-[color-mix(in_srgb,var(--status-posted)_30%,var(--border-color))]',
-    'border-l-[color:var(--status-posted)]',
-    'bg-[color-mix(in_srgb,var(--status-posted)_12%,var(--bg-elevated))]',
-    'hover:bg-[color-mix(in_srgb,var(--status-posted)_20%,var(--bg-elevated))]',
-  ),
-} satisfies Record<PostItKind, string>;
-
-const SERIES_SURFACE = cn(
-  'border-[color-mix(in_srgb,var(--post-it-accent)_30%,var(--border-color))]',
-  'border-l-[color:var(--post-it-accent)]',
-  'bg-[color-mix(in_srgb,var(--post-it-accent)_12%,var(--bg-elevated))]',
-  'hover:bg-[color-mix(in_srgb,var(--post-it-accent)_20%,var(--bg-elevated))]',
-);
 
 const TAGS_COMPACTAS = 2;
 
@@ -111,7 +65,8 @@ export function PostItNote({
   className?: string;
 }) {
   const kind = postItKind(postIt, content);
-  const accent = kind === 'vazio' ? null : seriesColor?.trim() || null;
+  const accent = seriesColor?.trim() || null;
+  const reserva = kind === 'vazio';
   const quadro = marks.find(mark => mark.kind === 'serie')?.nome ?? null;
   const assuntosVisiveis = kind === 'vazio' ? [] : (assuntos.length > 0 ? assuntos : temas);
   const obrasVisiveis = kind === 'vazio' ? [] : obras;
@@ -165,17 +120,22 @@ export function PostItNote({
         onOpen();
       }}
       style={{
-        ...(accent ? ({'--post-it-accent': accent} as CSSProperties) : {}),
-        ...(selected ? {boxShadow: 'inset 0 0 0 2px var(--text-primary)'} : {}),
+        ...(accent ? ({'--card-accent': accent} as CSSProperties) : {}),
+        ...(selected
+          ? reserva
+            ? ({'--card-edge': 'var(--text-primary)'} as CSSProperties)
+            : {boxShadow: 'inset 0 0 0 2px var(--text-primary)'}
+          : {}),
       }}
       className={cn(
         // @container: na coluna estreita da semana o cartão esconde a alça e o título fica com a largura toda.
-        '@container flex w-full items-start gap-1.5 rounded-[var(--radius-sm)] border border-l-[3px] px-2 py-2 text-left shadow-[var(--shadow-soft)]',
+        '@container flex w-full items-start gap-1.5 px-2 py-2 text-left',
+        reserva ? cn('post-it-card pb-3.5', accent && 'post-it-card--serie') : 'planner-card',
         draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
-        accent ? SERIES_SURFACE : KIND_SURFACE[kind],
-        'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-        selected && 'bg-[var(--bg-hover)]',
-        highlighted && 'ring-2 ring-[var(--brand-accent)] ring-offset-1 ring-offset-[var(--bg-elevated)]',
+        highlighted &&
+          (reserva
+            ? 'post-it-card--active'
+            : 'ring-2 ring-[var(--brand-accent)] ring-offset-1 ring-offset-[var(--bg-elevated)]'),
         dimmed && 'opacity-40',
         className,
       )}
@@ -206,13 +166,11 @@ export function PostItNote({
         <PostItAssuntosObras assuntos={assuntosVisiveis} obras={obrasVisiveis} compact={compact} />
         {/* Redes no rodapé, junto da etapa: na linha do título elas tomavam o espaço dele. */}
         <span className="flex flex-wrap items-center justify-between gap-1">
-          <Badge
-            variant={kind === 'vazio' ? 'neutral' : 'status'}
-            status={kind === 'vazio' ? undefined : KIND_LABEL[kind]}
-            className={cn(compact && 'px-1.5 py-0 text-2xs')}
-          >
-            {KIND_LABEL[kind]}
-          </Badge>
+          {reserva ? (
+            <span className="post-it-label">Reserva editorial</span>
+          ) : (
+            <EtapaBadge etapa={kind} compact={compact} />
+          )}
           {redes.length > 0 ? <PlatformIcons redes={redes} className="shrink-0" /> : null}
         </span>
       </span>

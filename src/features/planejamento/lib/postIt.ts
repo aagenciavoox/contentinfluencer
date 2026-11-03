@@ -4,6 +4,8 @@ import {generateUUID} from '../../../utils/uuid.ts';
 import {CONTENT_STATUS, normalizeContentStatus} from '../../contents/lib/contentPipeline.ts';
 import {createContentDraft} from '../../contents/lib/createContentDraft.ts';
 import {placeContentOnDay} from '../../editorial-calendar/lib/scheduleContent.ts';
+import {contasAtivas, redeDaConta, type ContaRef} from '../../contas/lib/contas.ts';
+import {criarPublicacaoAgendada} from '../../editorial/lib/destinations.ts';
 import {aplicarEscolhasHerdadas} from '../../editorial/lib/escolhasSerie.ts';
 import {contaNaGradePadrao, funcaoHerdavelDaSerie} from '../../editorial/lib/funcoes.ts';
 import {pilarPrincipalDaSerie} from '../../editorial/lib/pilarDaSerie.ts';
@@ -286,12 +288,33 @@ function conteudoDoPostIt(draft: Content, postIt: PlanejamentoPostIt): Content {
   };
 }
 
+/** Cada rede marcada no post-it vira publicação prevista em todas as contas ativas dela. */
+function publicacoesDasRedes(content: Content, postIt: PlanejamentoPostIt, contas: readonly ContaRef[]): Content {
+  const redes = normalizarRedesPostIt(postIt.redes);
+  if (redes.length === 0) return content;
+  const plataformas = contasAtivas(contas)
+    .filter(conta => {
+      const rede = redeDaConta(conta);
+      return rede !== null && redes.includes(rede);
+    })
+    .map(conta => criarPublicacaoAgendada(content.id, conta.id));
+  return plataformas.length > 0 ? {...content, plataformas: [...content.plataformas, ...plataformas]} : content;
+}
+
+/** A primeira linha da nota vira o título; a nota inteira fica nas anotações. */
+function tituloENotas(texto: string): {title: string; notes: string | null} {
+  const nota = texto.trim();
+  const primeiraLinha = nota.split('\n').map(linha => linha.trim()).find(Boolean);
+  return {title: primeiraLinha || 'Sem título', notes: nota || null};
+}
+
 function ligarPostIt(postIt: PlanejamentoPostIt, contentId: string, now: string): PlanejamentoPostIt {
   return {...postIt, contentId, updatedAt: now};
 }
 
 /**
  * Só a transformação cria ou promove conteúdo.
+ * O conteúdo novo leva nota, série, pilar, objetivo e as redes do post-it (como publicações nas contas).
  * A data do post-it vira previsão quando não existe data no conteúdo.
  * Publicações por conta já definidas são preservadas. Um post-it vazio que vira roteiro abre o editor.
  */
@@ -299,6 +322,8 @@ export function transformPostIt(input: {
   postIt: PlanejamentoPostIt;
   contents: readonly Content[];
   target: PostItTarget;
+  /** Contas cadastradas, para as redes do post-it virarem publicações. */
+  contas?: readonly ContaRef[];
   now?: string;
 }): PostItTransformResult {
   const linked = input.postIt.contentId
@@ -310,15 +335,13 @@ export function transformPostIt(input: {
   }
 
   if (!linked) {
-    const texto = input.postIt.texto.trim();
     const status = input.target === 'ideia' ? CONTENT_STATUS.IDEIA : CONTENT_STATUS.ROTEIRO;
     const now = nowIso(input.now);
     const draft = conteudoDoPostIt(createContentDraft({
-      title: texto || 'Sem título',
+      ...tituloENotas(input.postIt.texto),
       status,
-      notes: texto || null,
     }), input.postIt);
-    const content = stampDay(draft, input.postIt.date);
+    const content = stampDay(publicacoesDasRedes(draft, input.postIt, input.contas ?? []), input.postIt.date);
     return {
       ok: true,
       mode: 'create',

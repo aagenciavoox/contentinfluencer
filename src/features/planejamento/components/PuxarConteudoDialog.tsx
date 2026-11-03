@@ -4,6 +4,7 @@ import {ptBR} from 'date-fns/locale';
 import {Plus} from 'lucide-react';
 import {AppButton} from '../../../components/ui/AppButton';
 import {Badge} from '../../../components/ui/Badge';
+import {PlatformIcons} from '../../../components/ui/PlatformIcons';
 import {TagSelect} from '../../../components/ui/TagSelect';
 import {Text} from '../../../components/ui/Text';
 import {ToolbarSearchInput} from '../../../components/ui/ToolbarSearchInput';
@@ -11,7 +12,12 @@ import {Dialog} from '../../../components/overlays/Dialog';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
 import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
 import {useAppContext} from '../../../context/AppContext';
-import type {Content} from '../../../lib/database';
+import type {Content, RedeSocial} from '../../../lib/database';
+import {CreationRedeQuickFilter} from '../../creation/components/CreationRedeQuickFilter';
+import {
+  mapaDeRedesDaCriacao,
+  redesDoFiltroRapido,
+} from '../../creation/lib/creationRedeFilter';
 import {etiquetasVisiveis} from '../../creation/lib/creationItemPresentation';
 import {normalizeContentStatus} from '../../contents/lib/contentPipeline';
 import {sortPilares} from '../../settings/lib/activePilares';
@@ -23,6 +29,7 @@ import {
   pilarEfetivo,
   type FiltroPuxar,
 } from '../lib/filtroPuxar';
+import {normalizarRedesPostIt} from '../lib/redesPostIt';
 import {PostItTemas} from './PostItNote';
 
 /** Tempo em que um clique na lista ainda é o mesmo gesto que abriu o modal. */
@@ -70,13 +77,32 @@ export function PuxarConteudoDialog({
     [candidatos, state.series, pilaresOrdenados, state.temas],
   );
 
+  const redesPorConteudo = useMemo(
+    () => mapaDeRedesDaCriacao(candidatos, state.platforms, state.postIts ?? []),
+    [candidatos, state.platforms, state.postIts],
+  );
+
+  const redesRapidas = useMemo(() => {
+    const dasContas = redesDoFiltroRapido(state.platforms, filtro.redes);
+    const dosCandidatos = candidatos.flatMap(c => redesPorConteudo.get(c.id) ?? []);
+    return normalizarRedesPostIt([...dasContas, ...dosCandidatos, ...(filtro.redes ?? [])]);
+  }, [state.platforms, filtro.redes, candidatos, redesPorConteudo]);
+
+  const redeQuickFilter = redesRapidas.length > 0 ? (
+    <CreationRedeQuickFilter
+      redes={redesRapidas}
+      value={filtro.redes ?? []}
+      onChange={redes => setFiltro(atual => ({...atual, redes}))}
+    />
+  ) : null;
+
   const lista = useMemo(() => {
     const termo = busca.trim().toLocaleLowerCase('pt-BR');
     return candidatos
-      .filter(content => passaNoFiltroPuxar(content, filtro, state.series, state.temas))
+      .filter(content => passaNoFiltroPuxar(content, filtro, state.series, state.temas, redesPorConteudo.get(content.id)))
       .filter(content => !termo || `${content.title} ${content.status}`.toLocaleLowerCase('pt-BR').includes(termo))
       .sort((left, right) => (left.title || '').localeCompare(right.title || '', 'pt-BR'));
-  }, [busca, candidatos, filtro, state.series, state.temas]);
+  }, [busca, candidatos, filtro, redesPorConteudo, state.series, state.temas]);
 
   const nomeDaSerie = new Map(state.series.map(serie => [serie.id, serie.name.trim()]));
   const nomeDoPilar = new Map(state.pilares.map(pilar => [pilar.id, pilar.nome.trim()]));
@@ -103,7 +129,15 @@ export function PuxarConteudoDialog({
           <Text variant="meta" className="text-[var(--text-secondary)]">
             A ideia ou o roteiro entra no planejamento sem mudar de etapa.
           </Text>
-          <ToolbarSearchInput value={busca} onChange={setBusca} placeholder="Buscar pelo título" size="compact" />
+          <div className="flex items-center gap-2">
+            <ToolbarSearchInput
+              value={busca}
+              onChange={setBusca}
+              placeholder="Buscar pelo título"
+              className="filter-bar-search--fluid min-w-0"
+            />
+            {redeQuickFilter}
+          </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <TagSelect
               id="puxar-serie"
@@ -164,6 +198,7 @@ export function PuxarConteudoDialog({
                 {lista.map(content => {
                   const status = normalizeContentStatus(content.status);
                   const pilarId = pilarEfetivo(content, state.series);
+                  const redesDoItem = redesPorConteudo.get(content.id) ?? [];
                   const classe = [
                     content.seriesId ? nomeDaSerie.get(content.seriesId) : null,
                     pilarId ? nomeDoPilar.get(pilarId) : null,
@@ -186,7 +221,12 @@ export function PuxarConteudoDialog({
                           ) : null}
                           <PostItTemas temas={etiquetasVisiveis(content, state.temas)} />
                         </span>
-                        <Badge variant="status" status={status}>{status}</Badge>
+                        <div className="flex shrink-0 flex-col items-end gap-1.5">
+                          <Badge variant="status" status={status}>{status}</Badge>
+                          {redesDoItem.length > 0 ? (
+                            <PlatformIcons redes={redesDoItem} max={4} className="shrink-0" />
+                          ) : null}
+                        </div>
                       </button>
                     </li>
                   );
