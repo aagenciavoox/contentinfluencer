@@ -105,16 +105,38 @@ const FORMATOS_CONHECIDOS: Record<string, FormatoPublicacao> = {
   live: 'live',
 };
 
+export type OrigemDoFormatoNoYoutube = 'escolhido' | 'conteudo' | 'deduzido';
+
+/**
+ * No YouTube toda publicação é Shorts ou vídeo longo (decisão de 03/11): vale a escolha feita na
+ * publicação; sem ela, o formato escrito no conteúdo; sem nada escrito, o roteiro no modo YouTube é
+ * vídeo longo e o resto é Shorts. A ficha mostra de onde veio, e dá para trocar.
+ */
+export function formatoNoYoutube(
+  content: Pick<Content, 'formatoVisual'> & Partial<Pick<Content, 'writingMode'>>,
+  publicacao?: Pick<ContentPlataforma, 'formatoPublicacao'> | null,
+): { formato: 'short' | 'video-longo'; origem: OrigemDoFormatoNoYoutube } {
+  if (publicacao?.formatoPublicacao) return { formato: publicacao.formatoPublicacao, origem: 'escolhido' };
+  const escrito = normalizarFormato(content.formatoVisual);
+  const conhecido = escrito ? FORMATOS_CONHECIDOS[escrito] : undefined;
+  if (conhecido === 'video-longo') return { formato: 'video-longo', origem: 'conteudo' };
+  if (conhecido === 'reels' || conhecido === 'short') return { formato: 'short', origem: 'conteudo' };
+  return { formato: !escrito && content.writingMode === 'youtube' ? 'video-longo' : 'short', origem: 'deduzido' };
+}
+
 /**
  * Formato pela ficha do conteúdo e pela rede da conta:
  * o formato escrito vale; sem ele, o modo de escrita YouTube é vídeo longo e o modo carrossel é carrossel.
- * Reels publicado no YouTube é Short. Sem nenhum desses dados, sem classificação.
+ * No YouTube é sempre Shorts ou vídeo longo (`formatoNoYoutube`); live continua live.
+ * Nas outras redes, sem nenhum desses dados, sem classificação.
  */
 export function formatoDaPublicacao(
   content: Pick<Content, 'formatoVisual'> & Partial<Pick<Content, 'writingMode'>>,
   rede: RedeSocial | null,
+  publicacao?: Pick<ContentPlataforma, 'formatoPublicacao'> | null,
 ): FormatoPublicacao {
   const escrito = normalizarFormato(content.formatoVisual);
+  if (rede === 'youtube' && FORMATOS_CONHECIDOS[escrito] !== 'live') return formatoNoYoutube(content, publicacao).formato;
   let formato: FormatoPublicacao | null = escrito ? FORMATOS_CONHECIDOS[escrito] ?? `outro:${escrito}` : null;
   if (!formato && content.writingMode === 'youtube') formato = 'video-longo';
   if (!formato && content.writingMode === 'carrossel') formato = 'carrossel';
@@ -212,7 +234,7 @@ export function publicacoesDaAgenda(input: {
         platformId: publicacao.platformId,
         rede,
         ciclo: cicloDaPublicacao(publicacao),
-        formato: formatoDaPublicacao(content, rede),
+        formato: formatoDaPublicacao(content, rede, publicacao),
         data,
         hora,
         situacao,

@@ -450,7 +450,18 @@ export interface ContentPlataforma {
   legendaPropria?: boolean;
   /** Usado em reposts. Ausente no banco antigo conta como verdadeiro. */
   contaNaGrade?: boolean;
+  /**
+   * Formato escolhido para esta publicação (hoje só no YouTube: Shorts ou vídeo longo).
+   * Null = sem escolha: vale o formato do conteúdo ou a dedução. Migração 20261103200000.
+   */
+  formatoPublicacao?: FormatoEscolhidoNaPublicacao | null;
 }
+
+/** Formatos que dá para escolher por publicação. */
+export type FormatoEscolhidoNaPublicacao = 'short' | 'video-longo';
+
+/** Migração do formato por publicação (Shorts ou vídeo longo no YouTube). */
+export const MIGRACAO_FORMATO_PUBLICACAO = '20261103200000_formato_da_publicacao';
 
 export interface Content {
   id: string;
@@ -1160,6 +1171,7 @@ function mapContentPlataforma(p: Row): ContentPlataforma {
     externoId: readTextoOpcional(p.externo_id),
     legendaPropria: p.legenda_propria === true,
     contaNaGrade: p.conta_na_grade === false ? false : true,
+    formatoPublicacao: p.formato_publicacao === 'short' || p.formato_publicacao === 'video-longo' ? p.formato_publicacao : null,
   };
 }
 
@@ -1629,10 +1641,12 @@ const CONTENT_SCHEDULE_SELECT_COLUMNS = [
 
 const CONTENT_PLATAFORMAS_PUBLICACAO_COLUMNS = 'status, realizada_manual_em, realizada_api_em, post_codigo, post_url, legenda_propria, conta_na_grade';
 
-function contentPlataformasSelect(includePublicacaoColumns: boolean, includeExternoId = false): string {
+function contentPlataformasSelect(includePublicacaoColumns: boolean, includeExternoId = false, includeFormatoPublicacao = false): string {
   const base = 'content_plataformas(id, content_id, platform_id, legenda, hashtags, publish_date, publish_time, publish_date_enabled, publication_kind';
   if (!includePublicacaoColumns) return base + ')';
-  return base + ', ' + CONTENT_PLATAFORMAS_PUBLICACAO_COLUMNS + (includeExternoId ? ', externo_id' : '') + ')';
+  return base + ', ' + CONTENT_PLATAFORMAS_PUBLICACAO_COLUMNS
+    + (includeExternoId ? ', externo_id' : '')
+    + (includeFormatoPublicacao ? ', formato_publicacao' : '') + ')';
 }
 
 function isMissingExternoIdColumn(error: {message?: string} | null | undefined) {
@@ -1662,6 +1676,7 @@ function buildContentScheduleSelect(
   includeEdicao = true,
   includeAgrupamento = true,
   includeOrdemEpisodio = true,
+  includeFormatoPublicacao = true,
 ): string {
   let columns: readonly string[] = includeMilestones
     ? [
@@ -1715,7 +1730,7 @@ function buildContentScheduleSelect(
   }
   if (includePublicacaoColumns) {
     columns = columns.map(column => (
-      column.startsWith('content_plataformas(') ? contentPlataformasSelect(true, includeExternoId) : column
+      column.startsWith('content_plataformas(') ? contentPlataformasSelect(true, includeExternoId, includeFormatoPublicacao) : column
     ));
   }
   return columns.join(', ');
@@ -1740,8 +1755,9 @@ async function runContentScheduleSelect<T>(
   let includeEdicao = true;
   let includeAgrupamento = true;
   let includeOrdemEpisodio = true;
+  let includeFormatoPublicacao = true;
 
-  for (let attempt = 0; attempt < 15; attempt += 1) {
+  for (let attempt = 0; attempt < 16; attempt += 1) {
     const result = await run(
       buildContentScheduleSelect(
         includeMilestones,
@@ -1757,9 +1773,15 @@ async function runContentScheduleSelect<T>(
         includeEdicao,
         includeAgrupamento,
         includeOrdemEpisodio,
+        includeFormatoPublicacao,
       ),
     );
     if (!result.error) return result;
+    // Sem a migração 20261103200000: lê sem o formato escolhido (vale a dedução).
+    if (includeFormatoPublicacao && isMissingNamedColumn(result.error?.message ?? '', 'formato_publicacao')) {
+      includeFormatoPublicacao = false;
+      continue;
+    }
     if (includeOrdemEpisodio && isMissingNamedColumn(result.error?.message ?? '', CONTENT_ORDEM_EPISODIO_COLUMN)) {
       includeOrdemEpisodio = false;
       continue;
@@ -4029,6 +4051,7 @@ export async function saveContentPlataformas(
       post_url: plataforma.postUrl ?? null,
       legenda_propria: plataforma.legendaPropria ?? false,
       conta_na_grade: plataforma.contaNaGrade ?? true,
+      formato_publicacao: plataforma.formatoPublicacao ?? null,
       updated_at: new Date().toISOString(),
     })).filter(
       (row): row is typeof row & {platform_id: string} => typeof row.platform_id === 'string',
@@ -4038,6 +4061,7 @@ export async function saveContentPlataformas(
     let includeKind = true;
     let includeCiclo = true;
     let includeTime = true;
+    let includeFormato = true;
     let saved = rows.length === 0;
 
     const upsertRows = async (payload: Array<Record<string, unknown>>) => {
@@ -4061,6 +4085,7 @@ export async function saveContentPlataformas(
         if (!includeKind) delete next.publication_kind;
         if (!includeCiclo) delete next.ciclo;
         if (!includeTime) delete next.publish_time;
+        if (!includeFormato) delete next.formato_publicacao;
         return next;
       });
       const error = await upsertRows(payload);
@@ -4082,6 +4107,17 @@ export async function saveContentPlataformas(
       }
       if (includeTime && isMissingPublishTimeColumn(error)) {
         includeTime = false;
+        continue;
+      }
+      if (includeFormato && isMissingNamedColumn(error.message ?? '', 'formato_publicacao')) {
+        // Shorts ou vídeo longo escolhido sem a coluna não pode parecer salvo.
+        if (rows.some(row => row.formato_publicacao != null)) {
+          includeFormato = false;
+          const semFormato = rows.map(({formato_publicacao: _formato, ...row}) => row);
+          await upsertRows(semFormato);
+          throw new Error(`Para guardar Shorts ou vídeo longo, aplique a migração ${MIGRACAO_FORMATO_PUBLICACAO}.`);
+        }
+        includeFormato = false;
         continue;
       }
       throw new Error(`content_plataformas: ${error.message}`);

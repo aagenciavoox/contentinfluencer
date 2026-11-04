@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import type { ContentPlataforma } from '../../../lib/database.ts';
 import { hojeNoFuso, noFuso } from './fuso.ts';
-import { formatoDaPublicacao, publicacaoProgramada, publicacoesDaAgenda, resumoDePublicacoes } from './publicacoes.ts';
+import { formatoDaPublicacao, formatoNoYoutube, publicacaoProgramada, publicacoesDaAgenda, resumoDePublicacoes } from './publicacoes.ts';
 
 const contas = [
   { id: 'ig', nome: 'Instagram', rede: 'instagram' as const, ativo: true },
@@ -121,13 +121,28 @@ assert.equal(hojeNoFuso(new Date('2026-11-04T01:30:00Z'), 'Fuso/Inexistente'), '
   assert.equal(publicacoesDaAgenda({ contents: [c], contas, agora: AGORA })[0].programado, true);
 }
 
-// --- Formato: o escrito vale; YouTube sem dado não vira vídeo longo.
+// --- Formato: o escrito vale; no YouTube é sempre Shorts ou vídeo longo.
 assert.equal(formatoDaPublicacao({ formatoVisual: 'Vídeo longo' }, 'youtube'), 'video-longo');
 assert.equal(formatoDaPublicacao({ formatoVisual: null, writingMode: 'youtube' }, 'youtube'), 'video-longo');
 assert.equal(formatoDaPublicacao({ formatoVisual: 'Reels' }, 'youtube'), 'short');
 assert.equal(formatoDaPublicacao({ formatoVisual: 'Reels' }, 'instagram'), 'reels');
-assert.equal(formatoDaPublicacao({ formatoVisual: null }, 'youtube'), 'sem-classificacao');
+assert.equal(formatoDaPublicacao({ formatoVisual: null }, 'youtube'), 'short', 'sem nada escrito e sem roteiro de YouTube: Shorts');
+assert.equal(formatoDaPublicacao({ formatoVisual: 'Talking Head' }, 'youtube'), 'short');
+assert.equal(formatoDaPublicacao({ formatoVisual: 'Live' }, 'youtube'), 'live');
+assert.equal(formatoDaPublicacao({ formatoVisual: null }, 'instagram'), 'sem-classificacao');
 assert.equal(formatoDaPublicacao({ formatoVisual: 'Post estático' }, 'instagram'), 'post-estatico');
 assert.equal(formatoDaPublicacao({ formatoVisual: 'Talking Head' }, 'instagram'), 'outro:talking head');
+
+// --- A escolha feita na publicação vale antes de tudo, e a ficha sabe de onde veio.
+assert.equal(formatoDaPublicacao({ formatoVisual: 'Reels' }, 'youtube', { formatoPublicacao: 'video-longo' }), 'video-longo');
+assert.deepEqual(formatoNoYoutube({ formatoVisual: null, writingMode: 'youtube' }), { formato: 'video-longo', origem: 'deduzido' });
+assert.deepEqual(formatoNoYoutube({ formatoVisual: 'Reels' }), { formato: 'short', origem: 'conteudo' });
+assert.deepEqual(formatoNoYoutube({ formatoVisual: null }, { formatoPublicacao: 'short' }), { formato: 'short', origem: 'escolhido' });
+{
+  const c = conteudo('c5', { plataformas: [pub('p1', 'yt', { publishDate: '2026-11-10', formatoPublicacao: 'video-longo' }), pub('p2', 'ig', { publishDate: '2026-11-10' })] });
+  const lista = publicacoesDaAgenda({ contents: [c], contas, agora: AGORA });
+  assert.equal(lista.find(item => item.platformId === 'yt')?.formato, 'video-longo', 'a escolha só vale para a conta dela');
+  assert.equal(lista.find(item => item.platformId === 'ig')?.formato, 'reels', 'o conteúdo é Reels: no Instagram continua Reels');
+}
 
 console.log('publicacoes: ok');

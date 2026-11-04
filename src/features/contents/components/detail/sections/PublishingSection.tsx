@@ -10,14 +10,22 @@ import {cicloDaPublicacao, criarCicloDeRepost} from '../../../../editorial/lib/c
 import {retirarPrevisao} from '../../../../editorial/lib/dataVencida';
 import {progressoPublicacao} from '../../../../editorial/lib/publicacaoSituacao';
 import {PlatformCopyEditor} from '../PlatformCopyEditor';
-import {rotuloConta, rotuloDaRef} from '../../../../contas/lib/contas';
+import {redeDaRef, rotuloConta, rotuloDaRef} from '../../../../contas/lib/contas';
+import {formatoNoYoutube} from '../../../../editorial/lib/publicacoes';
 import {Badge} from '../../../../../components/ui/Badge';
+import {ChoiceChips} from '../../../../../components/ui/ChoiceChips';
 import {Text} from '../../../../../components/ui/Text';
+import type {FormatoEscolhidoNaPublicacao} from '../../../../../lib/database';
 
 type PublishingDraft = Pick<
   Content,
   'status' | 'publishDate' | 'publishDateEnabled' | 'plataformas' | 'notes' | 'legendaBase' | 'title'
-> & Partial<Pick<Content, 'postedAt' | 'edicaoConcluidaEm'>>;
+> & Partial<Pick<Content, 'postedAt' | 'edicaoConcluidaEm' | 'formatoVisual' | 'writingMode'>>;
+
+const ORIGEM_DO_FORMATO = {
+  conteudo: 'pelo formato do conteúdo',
+  deduzido: 'deduzido: roteiro no modo YouTube é vídeo longo; o resto, Shorts',
+} as const;
 
 interface PublishingSectionProps {
   draft: PublishingDraft;
@@ -38,6 +46,17 @@ function updatePlatformDate(
     plataforma.id === publicationId
       ? {...plataforma, publishDate, publishDateEnabled: Boolean(publishDate)}
       : plataforma
+  );
+}
+
+/** Escolha de Shorts ou vídeo longo só nesta publicação; null volta para o formato do conteúdo ou a dedução. */
+function updatePlatformFormato(
+  plataformas: ContentPlataforma[],
+  publicationId: string,
+  formatoPublicacao: FormatoEscolhidoNaPublicacao | null,
+) {
+  return plataformas.map(plataforma =>
+    plataforma.id === publicationId ? {...plataforma, formatoPublicacao} : plataforma
   );
 }
 
@@ -247,6 +266,31 @@ export function PublishingSection({
                     </label>
                   </div>
                 </div>
+                {redeDaRef(plataforma.platformId, state.platforms) === 'youtube' ? (() => {
+                  const noYoutube = formatoNoYoutube({formatoVisual: draft.formatoVisual ?? null, writingMode: draft.writingMode}, plataforma);
+                  return (
+                    <div className="mt-3 stack-xs">
+                      <Text variant="label" as="span" className="text-[var(--text-tertiary)]">Formato no YouTube</Text>
+                      <ChoiceChips<FormatoEscolhidoNaPublicacao>
+                        label="Formato no YouTube"
+                        value={noYoutube.formato}
+                        onChange={formato => onChange({
+                          // Tocar de novo no escolhido desfaz a escolha: volta ao formato do conteúdo ou à dedução.
+                          plataformas: updatePlatformFormato(draft.plataformas, plataforma.id, noYoutube.origem === 'escolhido' ? formato : formato ?? noYoutube.formato),
+                        })}
+                        options={[
+                          {value: 'short', label: 'Shorts'},
+                          {value: 'video-longo', label: 'Vídeo longo'},
+                        ]}
+                      />
+                      <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
+                        {noYoutube.origem === 'escolhido'
+                          ? 'Escolhido nesta publicação. Toque de novo para voltar ao automático.'
+                          : ORIGEM_DO_FORMATO[noYoutube.origem]}
+                      </Text>
+                    </div>
+                  );
+                })() : null}
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <Text variant="label" as="p" className="text-[var(--text-tertiary)]">
                     {rotuloStatusPublicacao(plataforma.status)}
