@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import type { Content, PlanejamentoPostIt, Platform } from './database';
-import { mergeContents, mergeFetchedAppData, mergePlatforms, patchChangedSlices } from './domainCacheMerge.ts';
+import { limparConteudosApagados, marcarConteudoApagado } from './conteudosApagados.ts';
+import { aplicarListaCompletaDeConteudos, mergeContents, mergeFetchedAppData, mergePlatforms, patchChangedSlices } from './domainCacheMerge.ts';
 
 function platform(id: string, nome: string): Platform {
   return {
@@ -110,6 +111,45 @@ function testMergeContentsHelper() {
   assert.equal(merged.length, 1);
 }
 
+function testMergeDropsDeletedContentEvenWhenServerStillReturnsIt() {
+  limparConteudosApagados();
+  marcarConteudoApagado('c1');
+  try {
+    const local = content('c1', 'Apagado', '2026-07-05T13:00:00.000Z');
+    const remote = content('c1', 'Ainda no retorno antigo', '2026-07-05T12:00:00.000Z');
+    const merged = mergeFetchedAppData(
+      { platforms: [], contents: [local, content('c2', 'Fica', '2026-07-05T11:00:00.000Z')] },
+      { contents: [remote, content('c2', 'Fica', '2026-07-05T11:00:00.000Z')] },
+    );
+    assert.deepEqual(merged.contents?.map(item => item.id), ['c2']);
+  } finally {
+    limparConteudosApagados();
+  }
+}
+
+function testFullListDropsGhostAndKeepsFreshLocal() {
+  const ghost = content('apagado', 'Sumiu no servidor', '2026-07-01T12:00:00.000Z');
+  const fresco = {
+    ...content('novo', 'Criado durante a busca', '2026-07-05T12:00:00.000Z'),
+    updatedAt: '2026-07-05T12:00:05.000Z',
+  };
+  const vivo = content('vivo', 'Continua', '2026-07-04T12:00:00.000Z');
+  const arquivado = {
+    ...content('arquivo', 'Fora da lista ativa', '2026-07-02T12:00:00.000Z'),
+    archivedAt: '2026-07-02T12:00:00.000Z',
+  };
+  const falhou = content('falha', 'Gravação que falhou', '2026-07-03T12:00:00.000Z');
+  const lista = aplicarListaCompletaDeConteudos(
+    [ghost, fresco, vivo, arquivado, falhou],
+    [vivo],
+    {
+      manterIds: new Set(['falha']),
+      alteradoDesdeMs: Date.parse('2026-07-05T12:00:02.000Z'),
+    },
+  );
+  assert.deepEqual(lista.map(item => item.id).sort(), ['arquivo', 'falha', 'novo', 'vivo']);
+}
+
 function postIt(id: string, date: string | null): PlanejamentoPostIt {
   return {
     id,
@@ -149,6 +189,8 @@ testMergePrefersLocalVersionOnConflict();
 testMergePrefersNewerServerVersionOverStaleCache();
 testMergePlatformsHelper();
 testMergeContentsHelper();
+testMergeDropsDeletedContentEvenWhenServerStillReturnsIt();
+testFullListDropsGhostAndKeepsFreshLocal();
 testPatchPutsSavedPostItsIntoCachedPhoto();
 testPatchSkipsPhotoWithoutChangedSlice();
 testPatchLeavesContentsToTheirOwnSync();

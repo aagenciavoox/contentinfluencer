@@ -11,7 +11,8 @@ const EPOCH_KEY = 'content-os:domain-epoch';
 // e mostrava o filtro de tema vazio (e podia regravar o roteiro sem os temas).
 // 2026-10-17: roteiros ganharam o modo de escrita (texto/carrossel); a lista guardada antes
 // não tinha o modo e mostraria carrossel como texto (inclusive na fila de gravação).
-const DOMAIN_CACHE_EPOCH = '2026-10-17-modo-carrossel';
+// 2026-11-04: a lista guardada recolocava roteiro já apagado; a próxima abertura busca de novo.
+const DOMAIN_CACHE_EPOCH = '2026-11-04-roteiro-apagado';
 /** Dados persistidos ficam legíveis por até 24h; revalidação em background após 5 min. */
 export const PERSISTENT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 export const PERSISTENT_FRESH_MS = 5 * 60 * 1000;

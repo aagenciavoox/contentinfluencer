@@ -126,10 +126,9 @@ assert.equal(resolverOrdem('manual', false), 'publicacao');
 assert.equal(resolverOrdem('lixo', true), 'manual');
 assert.deepEqual(filtrosValidos(f({ quadro: 'sumiu', temporada: 't1', conta: 'ig' }), { quadros: ['q1'], contas: ['ig'], temporadas: null }), f({ conta: 'ig' }));
 
-// Setas só na lista contínua, ordem manual, sem filtro e com a coluna.
-const base = { agrupar: 'nenhum' as const, ordem: 'manual' as const, filtros: FILTROS_LISTA_PADRAO, ordemDisponivel: true };
+// Setas na ordem manual, sem filtro e com a coluna — também dentro do quadro.
+const base = { ordem: 'manual' as const, filtros: FILTROS_LISTA_PADRAO, ordemDisponivel: true };
 assert.equal(setasDisponiveis(base), true);
-assert.equal(setasDisponiveis({ ...base, agrupar: 'quadro' }), false);
 assert.equal(setasDisponiveis({ ...base, ordem: 'titulo' }), false);
 assert.equal(setasDisponiveis({ ...base, filtros: f({ busca: 'x' }) }), false);
 assert.equal(setasDisponiveis({ ...base, ordemDisponivel: false }), false);

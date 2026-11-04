@@ -133,7 +133,7 @@ assert.equal(depois[1].updatedAt, base[1].updatedAt);
 assert.equal(depois[1].script, base[1].script);
 assert.equal(JSON.stringify(base), antesJson);
 
-// "Só YouTube": separa sem mudar a ordem nem a contagem do grupo; sem regra, não há bloco.
+// "YouTube longo": separa sem mudar a ordem nem a contagem do grupo; sem regra, não há bloco.
 const yt = new Set(['a2', 'b1']);
 const comYt = montarLista({ episodios, filtros: FILTROS_LISTA_PADRAO, agrupar: 'nenhum', ordem: 'criacao', ctx, temporadas, soYoutube: c => yt.has(c.id) });
 assert.equal(comYt.length, 1);

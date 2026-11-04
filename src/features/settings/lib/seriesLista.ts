@@ -196,9 +196,9 @@ export function filtrosValidos(filtros: FiltrosLista, validos: { quadros: readon
   };
 }
 
-/** Só existem setas na lista contínua, em ordem manual, sem busca nem filtro e com a coluna no banco. */
-export function setasDisponiveis(input: { agrupar: AgruparLista; ordem: OrdemLista; filtros: FiltrosLista; ordemDisponivel: boolean }): boolean {
-  return input.ordemDisponivel && input.agrupar === 'nenhum' && input.ordem === 'manual' && !filtrosListaAtivos(input.filtros);
+/** Setas na ordem manual, sem busca nem filtro e com a coluna no banco. Vale no quadro, na temporada e na lista contínua. */
+export function setasDisponiveis(input: { ordem: OrdemLista; filtros: FiltrosLista; ordemDisponivel: boolean }): boolean {
+  return input.ordemDisponivel && input.ordem === 'manual' && !filtrosListaAtivos(input.filtros);
 }
 
 export function temporadasDaSerie(serieId: string, series: readonly Serie[], temporadas: readonly Temporada[]): Temporada[] | null {
@@ -227,7 +227,7 @@ export function montarLista({
   ordem: OrdemLista;
   ctx: ContextoLista;
   temporadas: readonly Temporada[];
-  /** Regra do bloco "Só YouTube" (vai só para o YouTube e a série costuma ir para mais redes). Sem ela, não há bloco. */
+  /** Regra do bloco "YouTube longo" (vai só para o YouTube e a série costuma ir para mais redes). Sem ela, não há bloco. */
   soYoutube?: (content: Content) => boolean;
 }): GrupoConteudos[] {
   let brutos: GrupoBruto[];
@@ -289,7 +289,7 @@ export function montarLista({
     .filter(grupo => grupo.visiveis > 0 || (semFiltro && grupo.total === 0));
 }
 
-export const ROTULO_SO_YOUTUBE = 'Só YouTube';
+export const ROTULO_SO_YOUTUBE = 'YouTube longo';
 
 /**
  * Separa, mantendo a ordem, os que vão só para o YouTube. Só apresentação: nada é gravado.
@@ -308,7 +308,7 @@ export function separarSoYoutube<T>(
   };
 }
 
-/** Episódios exibidos do grupo: os de cima e os do bloco "Só YouTube", na ordem da tela. */
+/** Episódios exibidos do grupo: os de cima e os do bloco "YouTube longo", na ordem da tela. */
 export function exibidosDoGrupo<T>(grupo: { contents: readonly T[]; blocos: ReadonlyArray<{ contents: readonly T[] }> }): T[] {
   return [...grupo.contents, ...grupo.blocos.flatMap(bloco => bloco.contents)];
 }

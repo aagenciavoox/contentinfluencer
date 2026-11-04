@@ -1,3 +1,4 @@
+import { conteudoApagado } from './conteudosApagados.ts';
 import type { AppData, Content, Platform } from './database';
 
 function mergePlatforms(current: Platform[], incoming: Platform[]): Platform[] {
@@ -49,14 +50,40 @@ function mergeContentRecords(local: Content, remote: Content): Content {
   };
 }
 
+function semApagados(lista: readonly Content[]): Content[] {
+  return lista.filter(content => !conteudoApagado(content.id));
+}
+
 function mergeContents(current: Content[], incoming: Content[]): Content[] {
-  if (current.length === 0) return incoming;
-  const byId = new Map(incoming.map(content => [content.id, content]));
-  for (const content of current) {
+  const remotos = semApagados(incoming);
+  if (current.length === 0) return remotos;
+  const byId = new Map(remotos.map(content => [content.id, content]));
+  for (const content of semApagados(current)) {
     const fromIncoming = byId.get(content.id);
     byId.set(content.id, fromIncoming ? mergeContentRecords(content, fromIncoming) : content);
   }
   return [...byId.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+/**
+ * A lista completa do servidor (não o resumo limitado) é a fonte do que ainda existe.
+ * Roteiro que não veio nessa lista sai da tela, menos gravação que falhou, item arquivado
+ * e item alterado depois que a busca começou.
+ */
+export function aplicarListaCompletaDeConteudos(
+  merged: readonly Content[],
+  servidor: readonly Content[],
+  options?: { manterIds?: ReadonlySet<string>; alteradoDesdeMs?: number },
+): Content[] {
+  const vivos = new Set(servidor.map(content => content.id));
+  const manter = options?.manterIds;
+  const desde = options?.alteradoDesdeMs ?? 0;
+  return semApagados(merged).filter(content => {
+    if (vivos.has(content.id)) return true;
+    if (manter?.has(content.id)) return true;
+    if (content.archivedAt && !content.deletedAt) return true;
+    return desde > 0 && updatedAtMs(content) >= desde;
+  });
 }
 
 type MergeSnapshot = Pick<AppData, 'platforms' | 'contents'>;

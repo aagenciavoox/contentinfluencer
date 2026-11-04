@@ -209,6 +209,10 @@ export async function persistAction({ action, userId, state, api }: PersistActio
       await persistenceApi.deleteContent(action.payload);
       return;
 
+    case 'FORGET_CONTENT':
+    case 'APPLY_CONTENT_BODY':
+      return;
+
     case 'ADD_IDEA': {
       const idea = {...action.payload, userId};
       const existing = findContentForLegacyIdea(state.contents, idea.id);

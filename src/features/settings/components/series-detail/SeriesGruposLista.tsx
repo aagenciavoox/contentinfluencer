@@ -1,20 +1,23 @@
-import { useId, useRef, type ReactNode } from 'react';
+import { useId, useMemo, useRef, type ReactNode } from 'react';
 import { Check, ChevronDown, ChevronUp, FileText, Lightbulb, Plus } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { Badge } from '../../../../components/ui/Badge';
 import { MoreMenu, type MoreMenuItem } from '../../../../components/ui/MoreMenu';
 import { PlatformIcon } from '../../../../components/ui/PlatformIcon';
+import { PlatformIcons } from '../../../../components/ui/PlatformIcons';
 import { Text } from '../../../../components/ui/Text';
 import type { Content, Platform, Serie, SerieTipoAgrupamento, Temporada } from '../../../../lib/database';
 import { diaNumerico } from '../../../../lib/dates';
 import { getStatusColorVar } from '../../../../lib/statusClasses';
 import { cn } from '../../../../lib/utils';
 import { getDisplayStatus, getDisplayStatusLabel } from '../../../contents/lib/contentPipeline';
-import { REDE_ROTULO } from '../../../contas/lib/contas';
+import { redesDoItemDeCriacao } from '../../../creation/lib/creationRedeFilter';
+import { cicloDaPublicacao } from '../../../editorial/lib/cicloPublicacao';
+import { publicacaoAtiva } from '../../../editorial/lib/publicacaoSituacao';
 import { TIPO_AGRUPAMENTO_LABEL, ehIdeia, textoConteudos } from '../../lib/serieAgrupamento';
 import type { BlocoRede, GrupoConteudos } from '../../lib/seriesGrupos';
-import { contagemDoGrupo, exibidosDoGrupo, type AgruparLista } from '../../lib/seriesLista';
+import { contagemDoGrupo, exibidosDoGrupo, ordenarLista, type AgruparLista } from '../../lib/seriesLista';
 import { destinoDoConteudo } from '../../lib/seriesSecoes';
 import { estadoDaMarcacao, type EstadoMarcacao } from '../../lib/selecaoEpisodios';
 import { CaixaMarcacao } from './SeriesAcoesEmMassa';
@@ -44,6 +47,14 @@ export type SelecaoDaLista = {
 
 /** Segurar o dedo por este tempo entra no modo seleção. */
 const TOQUE_LONGO_MS = 450;
+
+/** Redes marcadas no ciclo atual. YouTube longo e Shorts ficam com ícones diferentes. */
+function redesSelecionadas(content: Content, contas: readonly Platform[]) {
+  const ativas = (content.plataformas ?? []).filter(publicacaoAtiva);
+  const ciclo = ativas.reduce((maior, item) => Math.max(maior, cicloDaPublicacao(item)), 1);
+  const doCiclo = ativas.filter(item => cicloDaPublicacao(item) === ciclo);
+  return redesDoItemDeCriacao({ ...content, plataformas: doCiclo }, contas);
+}
 
 function CaixaSelecao({ marcada, titulo, onToggle }: { marcada: boolean; titulo: string; onToggle: () => void }) {
   return (
@@ -94,8 +105,8 @@ type PropsDaLinha = {
   celular: boolean;
   acoes: AcoesDosGrupos;
   selecao: SelecaoDaLista;
-  /** No celular as redes só aparecem quando fogem das de costume. */
-  redesForaDoPadrao: (content: Content) => boolean;
+  /** Número da posição na ordem manual. Some nas outras ordenações. */
+  numerar: boolean;
 };
 
 function LinhaConteudo({
@@ -109,10 +120,11 @@ function LinhaConteudo({
   celular,
   acoes,
   selecao,
-  redesForaDoPadrao,
+  numerar,
   lista,
   indice,
-}: PropsDaLinha & { content: Content; noBloco: boolean; lista: readonly Content[]; indice: number }) {
+  numero,
+}: PropsDaLinha & { content: Content; noBloco: boolean; lista: readonly Content[]; indice: number; numero: number }) {
   const titulo = content.title?.trim() || 'Sem título';
   const etapa = getDisplayStatusLabel(content);
   const destino = destinoDoConteudo(content, contas);
@@ -145,7 +157,8 @@ function LinhaConteudo({
     </Badge>
   );
   const dataFormatada = diaNumerico(content.publishDate || content.createdAt);
-  const formatoVisual = content.formatoVisual || 'Padrao';
+  const redes = redesSelecionadas(content, contas);
+  const podeMover = Boolean(acoes.onMoverEpisodio) && !selecao.ativa && lista.length > 1;
 
   return (
     <li
@@ -211,6 +224,12 @@ function LinhaConteudo({
           </span>
         ) : null}
 
+        {numerar ? (
+          <Text variant="meta" as="span" className="min-w-6 shrink-0 text-right tabular-nums text-[var(--text-secondary)]">
+            {numero}.
+          </Text>
+        ) : null}
+
         {pontoEtapa}
 
         <Text variant="bodyStrong" as="span" className="text-[var(--text-primary)] truncate">
@@ -218,10 +237,10 @@ function LinhaConteudo({
         </Text>
       </div>
 
-      {/* Lado Direito: Formato + Data + Ações */}
-      <div className="relative z-[2] flex shrink-0 items-center gap-4">
-        {acoes.onMoverEpisodio && !selecao.ativa && lista.length > 1 ? (
-          <div className="flex items-center gap-0.5">
+      {/* Lado Direito: redes escolhidas, data e ações */}
+      <div className="relative z-[2] flex shrink-0 items-center gap-3 sm:gap-4">
+        {podeMover ? (
+          <div className="hidden items-center gap-0.5 sm:flex">
             <AppButton
               variant="ghost"
               size="sm"
@@ -246,18 +265,16 @@ function LinhaConteudo({
             </AppButton>
           </div>
         ) : null}
-        {content.formatoVisual ? (
-          <Badge variant="neutral" className="hidden sm:inline-flex uppercase">
-            {content.formatoVisual}
-          </Badge>
-        ) : (
-          <Text variant="meta" as="span" className="hidden sm:inline">Padrão</Text>
-        )}
+        {redes.length > 0 ? <PlatformIcons redes={redes} max={5} size="md" className="shrink-0" /> : null}
         <Text variant="meta" as="span">{dataFormatada}</Text>
         <MoreMenu
           size="sm"
           label={`Mais opções de ${titulo}`}
           items={[
+            ...(podeMover ? [
+              { label: 'Subir', disabled: indice === 0, onClick: () => acoes.onMoverEpisodio?.(lista, content, 'subir') },
+              { label: 'Descer', disabled: indice === lista.length - 1, onClick: () => acoes.onMoverEpisodio?.(lista, content, 'descer') },
+            ] : []),
             ...(celular ? [{ label: 'Selecionar', onClick: () => selecao.entrar(content.id) }] : []),
             { label: 'Abrir no editor', onClick: () => navigate(rota.to, { state: rota.state }) },
             { label: 'Copiar link', onClick: () => acoes.onCopiarLink(content) },
@@ -268,12 +285,25 @@ function LinhaConteudo({
   );
 }
 
-function Lista({ contents, noBloco = false, ...props }: PropsDaLinha & { contents: readonly Content[]; noBloco?: boolean }) {
+function Lista({
+  contents,
+  noBloco = false,
+  posicoes,
+  ...props
+}: PropsDaLinha & { contents: readonly Content[]; noBloco?: boolean; posicoes: ReadonlyMap<string, number> }) {
   if (contents.length === 0) return null;
   return (
     <ul>
       {contents.map((content, indice) => (
-        <LinhaConteudo key={content.id} content={content} noBloco={noBloco} lista={contents} indice={indice} {...props} />
+        <LinhaConteudo
+          key={content.id}
+          content={content}
+          noBloco={noBloco}
+          lista={contents}
+          indice={indice}
+          numero={posicoes.get(content.id) ?? indice + 1}
+          {...props}
+        />
       ))}
     </ul>
   );
@@ -284,8 +314,9 @@ function BlocoSoRede({
   aberto,
   onToggle,
   filtrando,
+  posicoes,
   ...props
-}: PropsDaLinha & { bloco: BlocoRede; aberto: boolean; onToggle: () => void; filtrando: boolean }) {
+}: PropsDaLinha & { bloco: BlocoRede; aberto: boolean; onToggle: () => void; filtrando: boolean; posicoes: ReadonlyMap<string, number> }) {
   const corpoId = useId();
   return (
     <div className="border-t border-dashed border-[var(--border-strong)]">
@@ -299,7 +330,7 @@ function BlocoSoRede({
       </div>
       {aberto ? (
         <div id={corpoId}>
-          <Lista contents={bloco.contents} noBloco {...props} />
+          <Lista contents={bloco.contents} noBloco posicoes={posicoes} {...props} />
         </div>
       ) : null}
     </div>
@@ -412,7 +443,7 @@ export function SeriesGruposLista({
   alternar,
   acoes,
   selecao,
-  redesForaDoPadrao,
+  numerar,
   rodape,
 }: {
   grupos: readonly GrupoConteudos[];
@@ -428,7 +459,8 @@ export function SeriesGruposLista({
   alternar: (id: string, padrao: boolean) => void;
   acoes: AcoesDosGrupos;
   selecao: SelecaoDaLista;
-  redesForaDoPadrao: (content: Content) => boolean;
+  /** Numera a posição quando a lista está na ordem manual — a mesma numeração do Puxar. */
+  numerar: boolean;
   /** "+ Nova temporada · + Novo quadro", no fim da lista. */
   rodape?: ReactNode;
 }) {
@@ -452,7 +484,7 @@ export function SeriesGruposLista({
             filtrando={filtrando}
             estaAberta={estaAberta}
             alternar={alternar}
-            linha={{ grupo, agruparPor, series, temporadas, contas, celular, acoes, selecao, redesForaDoPadrao }}
+            linha={{ grupo, agruparPor, series, temporadas, contas, celular, acoes, selecao, numerar }}
           />
         );
       })}
@@ -504,6 +536,14 @@ function Grupo({
     ] : []),
   ];
   const vazio = grupo.contents.length === 0 && grupo.blocos.length === 0;
+  // O número é a posição na ordem manual do grupo, a mesma que o Puxar mostra. O bloco "YouTube longo" não renumera.
+  const posicoes = useMemo(() => {
+    const manual = ordenarLista(
+      [...grupo.contents, ...grupo.blocos.flatMap(bloco => bloco.contents)],
+      'manual',
+    );
+    return new Map(manual.map((item, indice) => [item.id, indice + 1]));
+  }, [grupo]);
 
   return (
     <section
@@ -543,12 +583,12 @@ function Grupo({
               </div>
             </div>
           ) : null}
-          <Lista contents={grupo.contents} {...linha} />
+          <Lista contents={grupo.contents} posicoes={posicoes} {...linha} />
           {grupo.blocos.map(bloco => (
             <BlocoSoRede
               key={bloco.id}
               bloco={bloco}
-              // O bloco começa aberto; se a pessoa fechar, a página lembra.
+              posicoes={posicoes}
               aberto={filtrando || estaAberta(bloco.id, true)}
               onToggle={() => alternar(bloco.id, true)}
               filtrando={filtrando}

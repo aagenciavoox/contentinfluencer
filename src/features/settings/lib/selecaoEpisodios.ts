@@ -145,7 +145,7 @@ export function ordemAposSeta(lista: readonly { id: string }[], id: string, dire
  * numera a ordem (1, 2, 3...). Não duplica e não mexe em outros campos.
  */
 /**
- * Seta dentro de uma seção (episódios de cima ou "Só YouTube"): troca com o vizinho da mesma seção,
+ * Seta dentro de uma seção (episódios de cima ou "YouTube longo"): troca com o vizinho da mesma seção,
  * e os dois trocam de lugar na ordem completa. Quem está entre eles e as outras seções não mexem.
  * Devolve a ordem completa para gravar, ou null nas pontas.
  */

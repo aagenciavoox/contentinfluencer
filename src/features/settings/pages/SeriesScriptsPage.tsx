@@ -244,7 +244,7 @@ export function SeriesScriptsPage() {
     if (tipo !== 'quadro') return serie.id;
     return ancestraisDaSerie(serie.id, state.series).find(no => tipos.get(no.id) !== 'quadro')?.id ?? serie.id;
   }, [serie, state.series, tipo, tipos]);
-  const setas = rpcDisponivel === true && setasDisponiveis({ agrupar, ordem, filtros, ordemDisponivel }) && raizDaOrdem === serieId && !temporadaId;
+  const setas = rpcDisponivel === true && setasDisponiveis({ ordem, filtros, ordemDisponivel }) && raizDaOrdem === serieId && !temporadaId;
   const avisoOrdem = !ordemDisponivel
     ? 'Ordem manual indisponível: o banco ainda não tem a coluna de ordem.'
     : ordem === 'manual' && rpcDisponivel === false
@@ -252,7 +252,7 @@ export function SeriesScriptsPage() {
     : ordem === 'manual' && !setas
       ? (raizDaOrdem !== serieId || temporadaId
         ? 'Para mudar a ordem, abra a página da série.'
-        : 'Para mudar a ordem, use Agrupar por: Nenhum, sem busca nem filtros.')
+        : 'Para mudar a ordem, limpe a busca e os filtros.')
       : null;
 
   // Cabeçalho: etapa atual de cada episódio da série e dos quadros, uma vez cada.
@@ -293,16 +293,6 @@ export function SeriesScriptsPage() {
     params.delete('nova');
     setSearchParams(params, { replace: true });
   }, [searchParams, serieDasTemporadas, setSearchParams]);
-
-  // No celular as redes de cada linha só aparecem quando fogem das de costume.
-  const redesForaDoPadrao = useMemo(() => {
-    return (content: Content) => {
-      if (!content.seriesId) return false;
-      const costume = costumeDe(content.seriesId);
-      const redes = redesDoConteudo(content, state.platforms);
-      return redes.length > 0 && (redes.length !== costume.size || redes.some(rede => !costume.has(rede)));
-    };
-  }, [costumeDe, state.platforms]);
 
   const trocarAgrupamento = (proximo: AgruparLista) => {
     mudarPreferencia({ agrupar: proximo });
@@ -361,7 +351,7 @@ export function SeriesScriptsPage() {
     onConfigurar: id => navigate(`/series/${id}/editar`),
     onEditarTemporada: item => setEdicaoTemporada({ modo: 'renomear', temporada: item }),
     onExcluirTemporada: temporada => setExcluirAlvo({ tipo: 'temporada', temporada }),
-    // Só na lista contínua da série, em ordem manual, sem busca nem filtro (setasDisponiveis).
+    // Ordem manual, sem busca nem filtro: a seta troca com o vizinho da mesma seção.
     onMoverEpisodio: setas ? (lista, content, direcao) => void reordenar(lista, content, direcao) : undefined,
   };
 
@@ -669,7 +659,7 @@ export function SeriesScriptsPage() {
               alternar={alternar}
               acoes={acoes}
               selecao={selecaoDaLista}
-              redesForaDoPadrao={redesForaDoPadrao}
+              numerar={ordem === 'manual' && !filtrando}
               rodape={rotaCriarFilho || (serieDasTemporadas && !temporada) ? rodape : undefined}
             />
             </>

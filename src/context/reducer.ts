@@ -1,5 +1,7 @@
 import type { AppState } from '../app/providers/appState';
 import { comCoresDaSerie, nextFreeSerieColor, serieColorKey } from '../features/settings/lib/serieColors';
+import { conteudoApagado, liberarConteudoApagado, liberarConteudosApagados, marcarConteudoApagado, marcarConteudosApagados } from '../lib/conteudosApagados.ts';
+import { upsertContent } from '../features/contents/lib/contentBody';
 import { removerLivroId } from '../lib/livroIds.ts';
 import { isAppTheme, type AppTheme } from '../lib/themeStorage';
 import {
@@ -40,8 +42,12 @@ export type AppAction =
   // ─── Conteúdos ──────────────────────────────────────────────────────────────
   | { type: 'ADD_CONTENT';              payload: Content }
   | { type: 'UPDATE_CONTENT';           payload: Content }
+  /** Corpo buscado no servidor. Não grava de novo e não reinsere roteiro já apagado. */
+  | { type: 'APPLY_CONTENT_BODY';       payload: Content }
   | { type: 'DELETE_CONTENT';           payload: string }
   | { type: 'DELETE_MULTIPLE_CONTENTS'; payload: string[] }
+  /** Tira da lista um roteiro que o servidor já não devolve. Não grava de novo. */
+  | { type: 'FORGET_CONTENT';           payload: string }
   | { type: 'SET_CONTENT_STATUS'; payload: { contentIds: string[]; status: string } }
   | { type: 'ARCHIVE_CONTENTS'; payload: string[] }
   | { type: 'RESTORE_CONTENTS'; payload: string[] }
@@ -207,9 +213,11 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     // ─── Sincronização ──────────────────────────────────────────────────────
     case 'SET_DATA': {
       const prefs = action.payload.preferences ?? state.preferences;
+      const contents = action.payload.contents?.filter(content => !conteudoApagado(content.id));
       return {
         ...state,
         ...action.payload,
+        ...(contents ? { contents } : {}),
         temporadas: action.payload.temporadas ?? state.temporadas ?? [],
         theme: deriveTheme(prefs, state.theme),
       };
@@ -237,8 +245,10 @@ export function appReducer(state: AppState, action: AppAction): AppState {
 
     // ─── Conteúdos ──────────────────────────────────────────────────────────
     case 'ADD_CONTENT':
+      liberarConteudoApagado(action.payload.id);
       return { ...state, contents: [action.payload, ...state.contents] };
     case 'UPDATE_CONTENT': {
+      liberarConteudoApagado(action.payload.id);
       const exists = state.contents.some(content => content.id === action.payload.id);
       return {
         ...state,
@@ -249,6 +259,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           : [action.payload, ...state.contents],
       };
     }
+    case 'APPLY_CONTENT_BODY':
+      if (conteudoApagado(action.payload.id)) return state;
+      return { ...state, contents: upsertContent(state.contents, action.payload) };
     case 'MOVER_EPISODIOS': {
       // Troca só os movidos e numera a ordem (1, 2, 3…); o resto fica igual.
       const movidos = new Map(action.payload.conteudos.map(content => [content.id, content]));
@@ -263,9 +276,14 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
     }
     case 'DELETE_CONTENT':
+      marcarConteudoApagado(action.payload);
       return { ...state, contents: state.contents.filter(c => c.id !== action.payload) };
     case 'DELETE_MULTIPLE_CONTENTS':
+      marcarConteudosApagados(action.payload);
       return { ...state, contents: state.contents.filter(c => !action.payload.includes(c.id)) };
+    case 'FORGET_CONTENT':
+      marcarConteudoApagado(action.payload);
+      return { ...state, contents: state.contents.filter(c => c.id !== action.payload) };
     case 'SET_CONTENT_STATUS': {
       // Em lote, Publicado fica desativado: só o formulário registra publicação.
       const nextStatus = action.payload.status;
@@ -292,6 +310,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
     }
     case 'RESTORE_CONTENTS': {
+      liberarConteudosApagados(action.payload);
       const contentIds = new Set(action.payload);
       return {
         ...state,

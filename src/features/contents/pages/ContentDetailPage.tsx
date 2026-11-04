@@ -11,7 +11,7 @@ import { fetchContentsByIds } from '../../../lib/database';
 import { resolveContentDetailBack } from '../../../lib/navigation/detailBack';
 import { ERRORS } from '../../../lib/uiCopy';
 import { ContentDetailShell } from '../components/detail/ContentDetailShell';
-import { isContentBodyLoaded, upsertContent } from '../lib/contentBody';
+import { isContentBodyLoaded } from '../lib/contentBody';
 
 const BODY_FETCH_TIMEOUT_MS = 8_000;
 
@@ -139,7 +139,6 @@ function AuthenticatedContentDetail({
       id={id}
       userId={userId}
       content={content}
-      contents={state.contents}
       dispatch={dispatch}
       onBack={onBack}
     />
@@ -150,28 +149,22 @@ function ContentDetailLoader({
   id,
   userId,
   content,
-  contents,
   dispatch,
   onBack,
 }: {
   id: string;
   userId: string;
   content: ContentItem | undefined;
-  contents: Contents;
   dispatch: AppContextValue['dispatch'];
   onBack: () => void;
 }) {
   const isMobile = useIsMobile();
   const bodyLoaded = content ? isContentBodyLoaded(content) : false;
-  const contentsRef = useRef(contents);
   const [fetchState, setFetchState] = useState<FetchState>(() => ({
     status: bodyLoaded ? 'done' : 'loading',
     error: null,
   }));
   const [retryToken, setRetryToken] = useState(0);
-
-  // O merge utiliza os dados do último render confirmado, sem capturar a lista inicial.
-  useEffect(() => { contentsRef.current = contents; }, [contents]);
 
   const retryBodyFetch = useCallback(() => {
     if (bodyLoaded) return;
@@ -209,18 +202,13 @@ function ContentDetailLoader({
 
         const item = fetched.find(candidate => candidate.id === id);
         if (!item) {
-          const summaryExists = contentsRef.current.some(candidate => candidate.id === id);
-          finish({
-            status: 'error',
-            error: summaryExists
-              ? 'Não foi possível carregar o roteiro completo.'
-              : 'Roteiro não encontrado.',
-          });
+          // A lista ainda mostra o resumo, mas o servidor já não devolve o roteiro.
+          dispatch({ type: 'FORGET_CONTENT', payload: id });
+          finish({ status: 'error', error: 'Roteiro não encontrado.' });
           return;
         }
 
-        const nextContents = upsertContent(contentsRef.current, item);
-        dispatch({ type: 'SET_DATA', payload: { contents: nextContents } });
+        dispatch({ type: 'APPLY_CONTENT_BODY', payload: item });
         finish(isContentBodyLoaded(item)
           ? { status: 'done', error: null }
           : { status: 'error', error: 'Não foi possível carregar o roteiro completo.' });

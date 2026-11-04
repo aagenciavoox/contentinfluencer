@@ -18,6 +18,7 @@ import {
 import {
   applyDomainStatus,
   clearDomainStatus,
+  FULL_CONTENT_LIST_DOMAINS,
   isDomainAlreadyLoaded,
   markDomainsLoaded,
   resolveDomainStatus,
@@ -47,7 +48,8 @@ import {
   readPersistedDomain,
   writePersistedDomain,
 } from '../lib/persistentDataCache';
-import { mergeFetchedAppData, patchBibliotecaItemsInDomainCaches, patchChangedSlicesInDomainCaches, patchContentsInDomainCaches, patchEditorialInDomainCaches, patchPlatformsInDomainCaches, patchPreferencesInDomainCaches, patchSeriesInDomainCaches, patchTemasInDomainCaches } from '../lib/domainCacheSync';
+import { aplicarListaCompletaDeConteudos, mergeFetchedAppData } from '../lib/domainCacheMerge';
+import { patchBibliotecaItemsInDomainCaches, patchChangedSlicesInDomainCaches, patchContentsInDomainCaches, patchEditorialInDomainCaches, patchPlatformsInDomainCaches, patchPreferencesInDomainCaches, patchSeriesInDomainCaches, patchTemasInDomainCaches } from '../lib/domainCacheSync';
 import {
   BOOTSTRAP_DATA_DOMAINS,
   CRITICAL_BOOTSTRAP_DOMAINS,
@@ -384,6 +386,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     updateDomainStatus(toFetch, 'loading');
+    const fetchStartedAt = Date.now();
+    const listaCompleta = toFetch.some(domain => FULL_CONTENT_LIST_DOMAINS.includes(domain));
 
     // Uma consulta que falha (ex.: lock de auth quebrado, rede oscilando) derrubava o Promise.all
     // inteiro e a tela (Gravação, Biblioteca) ficava sem dados. Tenta de novo uma vez antes de desistir.
@@ -397,6 +401,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .then(data => {
         const merged = mergeFetchedAppData(mergeSnapshot(), data);
         if (
+          listaCompleta
+          && pendingPersistCount.current === 0
+          && Array.isArray(data.contents)
+        ) {
+          // Lista completa: o que o servidor não devolveu já foi apagado. O resumo limitado não entra aqui.
+          merged.contents = aplicarListaCompletaDeConteudos(merged.contents ?? [], data.contents, {
+            manterIds: failedContentSaves.current,
+            alteradoDesdeMs: fetchStartedAt,
+          });
+        } else if (
           pendingPersistCount.current === 0
           && Array.isArray(data.contents)
           && data.contents.length === 0
@@ -787,7 +801,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const shouldPersist = !['SET_DATA', 'SET_LOADED', 'LOG_ENERGY'].includes(
+    const localOnly = normalizedAction.type === 'FORGET_CONTENT'
+      || normalizedAction.type === 'APPLY_CONTENT_BODY';
+    const shouldPersist = !localOnly && !['SET_DATA', 'SET_LOADED', 'LOG_ENERGY'].includes(
       normalizedAction.type
     );
     // Trocar o tema não mostra "salvando"; só um erro de gravação aparece.
@@ -797,6 +813,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const snapshot = shouldPersist && userId ? stateRef.current : null;
 
     dispatch(normalizedAction);
+
+    if (userId && normalizedAction.type === 'FORGET_CONTENT') {
+      patchContentsInDomainCaches(
+        userId,
+        stateRef.current.contents.filter(content => content.id !== normalizedAction.payload),
+      );
+    }
 
     if (!userId || !shouldPersist) return;
 
