@@ -3,11 +3,12 @@ import { dia as diaVisivel } from '../../../../lib/dates';
 import {Check, Copy, CopyPlus, Lock} from 'lucide-react';
 import {DEFAULT_PLATFORMS} from '../../../../constants';
 import {useAppContext} from '../../../../context/AppContext';
-import type {ContentPlataforma, Pilar, Serie} from '../../../../lib/database';
+import type {Content, ContentPlataforma, FormatoEscolhidoNaPublicacao, Pilar, Serie} from '../../../../lib/database';
 import {generateUUID} from '../../../../utils/uuid';
 import {cn} from '../../../../lib/utils';
 import {ConfirmModal} from '../../../../components/feedback/modals/ConfirmModal';
 import {AppButton} from '../../../../components/ui/AppButton';
+import {ChoiceChips} from '../../../../components/ui/ChoiceChips';
 import {PlatformIcon} from '../../../../components/ui/PlatformIcon';
 import {SegmentTabs} from '../../../../components/ui/SegmentTabs';
 import {Surface} from '../../../../components/ui/Surface';
@@ -18,10 +19,12 @@ import {
   contaDaRef,
   contasAtivas,
   iconeDaConta,
+  redeDaConta,
   redeDaRef,
   rotuloConta,
   rotuloCurtoConta,
 } from '../../../contas/lib/contas';
+import {formatoNoYoutube} from '../../../editorial/lib/publicacoes';
 import {HashtagsField} from '../../../editorial/components/legendas/HashtagsField';
 import {
   adicionarHashtagsAoFim,
@@ -108,6 +111,8 @@ interface PlatformCopyEditorProps {
   onTituloChange?: (value: string) => void;
   /** Status do conteúdo: Postado sem status por publicação conta como realizado. */
   status?: string | null;
+  formatoVisual?: string | null;
+  writingMode?: Content['writingMode'] | null;
 }
 
 /**
@@ -128,6 +133,8 @@ export function PlatformCopyEditor({
   titulo = '',
   onTituloChange,
   status = null,
+  formatoVisual = null,
+  writingMode = null,
 }: PlatformCopyEditorProps) {
   const {state} = useAppContext();
   const editorial = state.editorial;
@@ -139,8 +146,8 @@ export function PlatformCopyEditor({
   // Publicações antigas podem estar numa conta inativa: ela ainda precisa de nome e ícone.
   const contas = state.platforms.length > 0 ? state.platforms : destinos;
   const conteudo = useMemo(
-    () => ({status, legendaBase, plataformas}),
-    [legendaBase, plataformas, status],
+    () => ({status, legendaBase, plataformas, formatoVisual, writingMode}),
+    [formatoVisual, legendaBase, plataformas, status, writingMode],
   );
 
   // Conta inativa que já tem publicação continua na lista, para poder ser desmarcada.
@@ -245,8 +252,14 @@ export function PlatformCopyEditor({
 
   const rotuloDaAba = (item: ContentPlataforma) => {
     const conta = contaDaRef(item.platformId, contas);
+    const rede = redeDaRef(item.platformId, contas);
     const rotulo = conta ? rotuloCurtoConta(conta) : item.platformId;
-    return item.publicationKind === 'repost' ? `${rotulo} · repost` : rotulo;
+    const base = item.publicationKind === 'repost' ? `${rotulo} · repost` : rotulo;
+    if (rede === 'youtube') {
+      const noYt = formatoNoYoutube({ formatoVisual: conteudo?.formatoVisual ?? null, writingMode: conteudo?.writingMode }, item);
+      return `${base} · ${noYt.formato === 'short' ? 'Shorts' : 'Vídeo longo'}`;
+    }
+    return base;
   };
 
   const usarEmTodas = () => {
@@ -294,6 +307,14 @@ export function PlatformCopyEditor({
                 const marcada = destinoMarcado(plataformas, conta);
                 const travada = marcada && contaJaPublicada(conta);
                 const complemento = complementoDoRotulo(conta);
+                const rede = redeDaConta(conta);
+                const pub = marcada ? plataformas.find(p => mesmoDestino(p.platformId, conta) && emDestino(p)) : null;
+                const noYt = rede === 'youtube' && pub
+                  ? formatoNoYoutube({ formatoVisual: conteudo?.formatoVisual ?? null, writingMode: conteudo?.writingMode }, pub)
+                  : null;
+                const icone = noYt && noYt.formato === 'short' ? 'youtube-shorts' : iconeDaConta(conta);
+                const rotuloFormato = noYt ? (noYt.formato === 'short' ? ' · Shorts' : ' · Vídeo longo') : '';
+
                 return (
                   <button
                     key={conta.id}
@@ -302,8 +323,8 @@ export function PlatformCopyEditor({
                     aria-checked={marcada}
                     aria-disabled={travada || undefined}
                     disabled={disabled}
-                    title={travada ? 'Já publicada nesta conta. Fica marcada.' : rotuloConta(conta)}
-                    aria-label={`${rotuloConta(conta)}${complemento ? `, ${complemento}` : ''}${travada ? ', já publicada' : ''}`}
+                    title={travada ? 'Já publicada nesta conta. Fica marcada.' : `${rotuloConta(conta)}${rotuloFormato}`}
+                    aria-label={`${rotuloConta(conta)}${complemento ? `, ${complemento}` : ''}${rotuloFormato}${travada ? ', já publicada' : ''}`}
                     onClick={() => alternarConta(conta)}
                     className={cn(
                       contaButtonClass,
@@ -324,8 +345,8 @@ export function PlatformCopyEditor({
                     >
                       {marcada ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
                     </span>
-                    <PlatformIcon platform={iconeDaConta(conta)} className="h-4 w-4 shrink-0" />
-                    <span className="truncate">{rotuloCurtoConta(conta)}</span>
+                    <PlatformIcon platform={icone} className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{rotuloCurtoConta(conta)}{rotuloFormato}</span>
                     {travada ? <Lock className="h-3 w-3 shrink-0 text-[var(--text-tertiary)]" aria-hidden /> : null}
                   </button>
                 );
@@ -345,12 +366,17 @@ export function PlatformCopyEditor({
                 onChange={setAtivaId}
                 options={abas.map(item => {
                   const conta = contaDaRef(item.platformId, contas);
+                  const rede = redeDaRef(item.platformId, contas);
+                  const noYt = rede === 'youtube'
+                    ? formatoNoYoutube({ formatoVisual: conteudo?.formatoVisual ?? null, writingMode: conteudo?.writingMode }, item)
+                    : null;
+                  const icone = noYt && noYt.formato === 'short' ? 'youtube-shorts' : (conta ? iconeDaConta(conta) : item.platformId);
                   return {
                     id: item.id,
                     label: rotuloDaAba(item),
                     icon: (
                       <PlatformIcon
-                        platform={conta ? iconeDaConta(conta) : item.platformId}
+                        platform={icone}
                         className="h-4 w-4 shrink-0"
                       />
                     ),
@@ -364,6 +390,40 @@ export function PlatformCopyEditor({
                 aria-label={`Legenda de ${rotuloAtiva}`}
                 className="stack-md pt-2"
               >
+                {/* Formato no YouTube quando a conta em edição for do YouTube */}
+                {redeAtiva === 'youtube' && ativa ? (() => {
+                  const noYoutube = formatoNoYoutube(
+                    { formatoVisual: conteudo?.formatoVisual ?? null, writingMode: conteudo?.writingMode },
+                    ativa,
+                  );
+                  return (
+                    <div className="flex flex-wrap items-center gap-2.5 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--surface-subtle)] px-3 py-2">
+                      <Text variant="label" as="span" className="text-[var(--text-secondary)]">Formato no YouTube:</Text>
+                      <ChoiceChips<FormatoEscolhidoNaPublicacao>
+                        label="Formato no YouTube"
+                        value={noYoutube.formato}
+                        onChange={formato => {
+                          onChange(plataformas.map(p =>
+                            p.id === ativa.id
+                              ? { ...p, formatoPublicacao: noYoutube.origem === 'escolhido' ? formato : (formato ?? noYoutube.formato) }
+                              : p
+                          ));
+                        }}
+                        options={[
+                          { value: 'short', label: 'Shorts' },
+                          { value: 'video-longo', label: 'Vídeo longo' },
+                        ]}
+                      />
+                      <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">
+                        {noYoutube.origem === 'escolhido'
+                          ? 'Escolhido nesta publicação (toque de novo para voltar ao automático)'
+                          : (noYoutube.origem === 'conteudo'
+                            ? 'pelo formato do conteúdo'
+                            : 'deduzido: roteiro no modo YouTube é vídeo longo; o resto, Shorts')}
+                      </Text>
+                    </div>
+                  );
+                })() : null}
                 {mostraTitulo ? (
                   <label className="block">
                     <Text variant="secondary" as="span" className="mb-1.5 block text-[var(--text-secondary)]">

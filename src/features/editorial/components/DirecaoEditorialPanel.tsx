@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Palette, Plus, SlidersHorizontal, Target } from 'lucide-react';
+import { AtSign, Palette, Plus, SlidersHorizontal, Target } from 'lucide-react';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { SettingsGridCard, SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/SettingsGridCard';
 import { AppButton } from '../../../components/ui/AppButton';
@@ -12,6 +12,7 @@ import { useAppContext } from '../../../context/AppContext';
 import type { Pilar } from '../../../lib/database';
 import { CONFIRM, type ConfirmState } from '../../../lib/uiCopy';
 import { sortPilares } from '../../settings/lib/activePilares';
+import { ContasHorariosPanel } from '../../contas/components/ContasHorariosPanel';
 import { AjustesEditorialPanel } from './plano/AjustesEditorialPanel';
 import { PeriodoPanel } from './plano/PeriodoPanel';
 import { periodoInicial, type PeriodoSelecionado } from './plano/PeriodoEditorialControl';
@@ -29,7 +30,23 @@ function nomeChave(nome: string): string {
   return nome.trim().toLocaleLowerCase('pt-BR');
 }
 
-export type EditorialAba = 'plano' | 'pilares' | 'ajustes';
+export type EditorialAba = 'plano' | 'pilares' | 'ajustes' | 'contas';
+
+const EDITORIAL_ABAS: readonly EditorialAba[] = ['plano', 'pilares', 'ajustes', 'contas'];
+
+/** Lê `?aba=` da URL; qualquer valor desconhecido cai em Plano Vigente. */
+export function abaEditorialDaUrl(valor: string | null): EditorialAba {
+  return (EDITORIAL_ABAS as readonly string[]).includes(valor ?? '') ? (valor as EditorialAba) : 'plano';
+}
+
+export function opcoesAbasEditorial(): SegmentTabOption<EditorialAba>[] {
+  return [
+    { id: 'plano', label: 'Plano Vigente', icon: <Target className="h-4 w-4" /> },
+    { id: 'pilares', label: 'Pilares & Linhas', icon: <Palette className="h-4 w-4" /> },
+    { id: 'ajustes', label: 'Ritmo & Regras Gerais', icon: <SlidersHorizontal className="h-4 w-4" /> },
+    { id: 'contas', label: 'Contas & Horários', icon: <AtSign className="h-4 w-4" /> },
+  ];
+}
 
 interface DirecaoEditorialPanelProps {
   abaAtiva?: EditorialAba;
@@ -41,7 +58,7 @@ export function DirecaoEditorialPanel({ abaAtiva: abaAtivaProp }: DirecaoEditori
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const abaParam = searchParams.get('aba');
-  const abaAtiva: EditorialAba = abaAtivaProp ?? (abaParam === 'pilares' || abaParam === 'ajustes' ? abaParam : 'plano');
+  const abaAtiva: EditorialAba = abaAtivaProp ?? abaEditorialDaUrl(abaParam);
 
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   // O mesmo período salvo que o Planejamento usa: as metas ficam presas ao início e fim exatos.
@@ -55,11 +72,7 @@ export function DirecaoEditorialPanel({ abaAtiva: abaAtivaProp }: DirecaoEditori
 
   const pilares = useMemo(() => sortPilares(state.pilares), [state.pilares]);
 
-  const abaOptions: SegmentTabOption<EditorialAba>[] = [
-    { id: 'plano', label: 'Plano Vigente', icon: <Target className="h-4 w-4" /> },
-    { id: 'pilares', label: 'Pilares & Linhas', icon: <Palette className="h-4 w-4" /> },
-    { id: 'ajustes', label: 'Ritmo & Regras Gerais', icon: <SlidersHorizontal className="h-4 w-4" /> },
-  ];
+  const abaOptions = opcoesAbasEditorial();
 
   const handleAbaChange = (novaAba: EditorialAba) => {
     setSearchParams(prev => {
@@ -174,6 +187,8 @@ export function DirecaoEditorialPanel({ abaAtiva: abaAtivaProp }: DirecaoEditori
           <AjustesEditorialPanel />
         </div>
       )}
+
+      {abaAtiva === 'contas' && <ContasHorariosPanel />}
 
       <ConfirmModal
         open={Boolean(confirm)}

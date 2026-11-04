@@ -47,6 +47,7 @@ export function LegendaVersaoField({
   publicadaEm = null,
   compact = false,
   semTitulo = false,
+  ocultarCabecalho = false,
   acoes,
 }: {
   id: string;
@@ -71,6 +72,8 @@ export function LegendaVersaoField({
   compact?: boolean;
   /** Sem ícone e sem "Legenda desta publicação": a aba da conta já diz qual é. */
   semTitulo?: boolean;
+  /** Dentro de uma linha que já identifica a conta: sem cartão e sem cabeçalho. */
+  ocultarCabecalho?: boolean;
   /** Copiar e afins, no rodapé. */
   acoes?: ReactNode;
 }) {
@@ -87,7 +90,12 @@ export function LegendaVersaoField({
   const quando = dataCurta(publicadaEm);
 
   return (
-    <div className={cn('stack-sm rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)]', compact ? 'p-3' : 'p-4')}>
+    <div className={cn(
+      'stack-sm',
+      !ocultarCabecalho && 'rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)]',
+      !ocultarCabecalho && (compact ? 'p-3' : 'p-4'),
+    )}>
+      {ocultarCabecalho ? null : (
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           {semTitulo ? null : <PlatformIcon platform={icone} className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" />}
@@ -112,6 +120,7 @@ export function LegendaVersaoField({
           {ROTULO_ESTADO[estado]}
         </Badge>
       </div>
+      )}
 
       {estado === 'propria' ? (
         <textarea

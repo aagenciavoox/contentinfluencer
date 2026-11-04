@@ -3,6 +3,7 @@ import type { MoreMenuItem } from '../../../components/ui/MoreMenu';
 import {
   CREATION_KANBAN_TABS,
   creationTabForContent,
+  isIdeaContent,
   type CreationKanbanTab,
 } from '../lib/creationItemPresentation';
 
@@ -11,6 +12,7 @@ export interface CreationItemActionHandlers {
   onArchive: (content: Content) => void;
   onRestore: (content: Content) => void;
   onPermanentDelete: (content: Content) => void;
+  onDelete: (content: Content) => void;
   onMoveToTab?: (content: Content, tab: CreationKanbanTab) => void;
 }
 
@@ -40,13 +42,17 @@ export function buildCreationItemMenuItems(
     ];
   }
 
+  const deleteItem: MoreMenuItem = {
+    id: 'trash',
+    label: isIdeaContent(content) ? 'Excluir ideia' : 'Excluir roteiro',
+    tone: 'danger',
+    onClick: () => handlers.onDelete(content),
+  };
+
   if (archived) {
     return [
-      {
-        id: 'restore',
-        label: 'Restaurar',
-        onClick: () => handlers.onRestore(content),
-      },
+      { id: 'restore', label: 'Restaurar', onClick: () => handlers.onRestore(content) },
+      deleteItem,
     ];
   }
 
@@ -76,5 +82,6 @@ export function buildCreationItemMenuItems(
     onClick: () => handlers.onArchive(content),
   });
 
+  items.push(deleteItem);
   return items;
 }

@@ -1,11 +1,13 @@
 import type {Content, Pilar, RedeSocial, Serie, Tema} from '../../../lib/database.ts';
 import {etiquetasVisiveis} from '../../creation/lib/creationItemPresentation.ts';
 import {passaNoFiltroRede} from '../../creation/lib/creationRedeFilter.ts';
+import type {RedeDoFiltro} from '../../contas/lib/contas.ts';
 import {pilarDoConteudo, type SerieClassificacao} from '../../editorial/lib/herancaSerie.ts';
+import {caminhoDaSerie, conteudoNaSubarvore} from '../../editorial/lib/serieArvore.ts';
 
 type ConteudoFiltravel = Pick<Content, 'seriesId' | 'pilarId' | 'tags' | 'temaIds'>
   & Partial<Pick<Content, 'pilarOrigem' | 'classificacaoCongeladaEm'>>;
-type SerieRef = Pick<Serie, 'id' | 'name'> & SerieClassificacao;
+type SerieRef = Pick<Serie, 'id' | 'name'> & SerieClassificacao & Partial<Pick<Serie, 'parentId'>>;
 type PilarRef = Pick<Pilar, 'id' | 'nome'>;
 type TemaRef = Pick<Tema, 'id' | 'nome'>;
 
@@ -17,7 +19,7 @@ export interface FiltroPuxar {
   serieIds: string[];
   pilarIds: string[];
   tags: string[];
-  redes?: RedeSocial[];
+  redes?: RedeDoFiltro[];
 }
 
 export interface OpcaoFiltro {
@@ -50,9 +52,10 @@ export function passaNoFiltroPuxar(
   filtro: FiltroPuxar,
   series: readonly SerieRef[],
   temas: readonly TemaRef[],
-  redesDoConteudo?: readonly RedeSocial[],
+  redesDoConteudo?: readonly RedeDoFiltro[],
 ): boolean {
-  if (filtro.serieIds.length > 0 && !(content.seriesId && filtro.serieIds.includes(content.seriesId))) return false;
+  // Escolher a série traz também o que está nos quadros dela.
+  if (filtro.serieIds.length > 0 && !filtro.serieIds.some(id => conteudoNaSubarvore(content.seriesId, id, series))) return false;
   if (filtro.pilarIds.length > 0) {
     const pilarId = pilarEfetivo(content, series);
     if (!pilarId || !filtro.pilarIds.includes(pilarId)) return false;
@@ -81,7 +84,8 @@ export function opcoesDoFiltroPuxar(
   const pilarIds = new Set<string>();
   const tags = new Map<string, string>();
   for (const content of contents) {
-    if (content.seriesId) serieIds.add(content.seriesId);
+    // A série de cima entra mesmo sem conteúdo direto: escolhê-la traz os quadros.
+    if (content.seriesId) for (const no of caminhoDaSerie(content.seriesId, series)) serieIds.add(no.id);
     const pilarId = pilarEfetivo(content, series);
     if (pilarId) pilarIds.add(pilarId);
     for (const tag of etiquetasVisiveis(content, temas)) {
@@ -90,9 +94,10 @@ export function opcoesDoFiltroPuxar(
     }
   }
   return {
+    // Quadro aparece com a série na frente ("Resenhas · Clássicos") e fica logo abaixo dela na lista.
     series: series
       .filter(serie => serieIds.has(serie.id))
-      .map(serie => ({value: serie.id, label: serie.name}))
+      .map(serie => ({value: serie.id, label: caminhoDaSerie(serie.id, series).map(no => no.name?.trim() || 'Sem nome').join(' · ')}))
       .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR')),
     pilares: pilares
       .filter(pilar => pilarIds.has(pilar.id))

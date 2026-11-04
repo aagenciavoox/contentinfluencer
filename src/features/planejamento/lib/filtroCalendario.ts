@@ -1,6 +1,7 @@
 import type { Platform, RedeSocial } from '../../../lib/database.ts';
-import { rotuloConta } from '../../contas/lib/contas.ts';
-import { passaNoFiltroRede } from '../../creation/lib/creationRedeFilter.ts';
+import { rotuloConta, type RedeDoFiltro } from '../../contas/lib/contas.ts';
+import { normalizarRedesDoFiltro, passaNoFiltroRede, redeDoFiltro } from '../../creation/lib/creationRedeFilter.ts';
+import { formatoNoYoutube } from '../../editorial/lib/publicacoes.ts';
 import { normalizarRedesPostIt } from './redesPostIt.ts';
 import {
   FORMATOS_DA_REDE,
@@ -16,7 +17,21 @@ import type { PlanejamentoPostIt } from './postIt.ts';
  * mesma regra (decisão de 03/11): passa o conteúdo que sai só nas redes marcadas; o que sai também em
  * outra rede fica de fora. A Saúde conta o mesmo recorte. Vazio = todas. Formato null = todos.
  */
-export type FiltroCalendario = { redes: RedeSocial[]; formato: string | null };
+export type FiltroCalendario = { redes: RedeDoFiltro[]; formato: string | null };
+
+/**
+ * A conta entra na Saúde filtrada quando a rede dela está marcada. Conta do YouTube entra com
+ * "YouTube" (vídeo longo) ou "Shorts": os conteúdos já vêm recortados pela regra da Criação.
+ */
+export function contaNoFiltro(rede: RedeSocial | null, redes: readonly RedeDoFiltro[]): boolean {
+  if (redes.length === 0) return true;
+  const daConta = rede ?? 'outra';
+  if (redes.includes(daConta)) return true;
+  if (daConta === 'youtube' && redes.includes('youtube-shorts')) return true;
+  if (daConta === 'instagram' && (redes.includes('instagram-video') || redes.includes('instagram-carrossel'))) return true;
+  if (daConta === 'tiktok' && (redes.includes('tiktok-video') || redes.includes('tiktok-carrossel'))) return true;
+  return false;
+}
 
 export function filtroAtivo(filtro: FiltroCalendario): boolean {
   return filtro.redes.length > 0 || Boolean(filtro.formato);
@@ -51,7 +66,8 @@ export function indiceDaAgenda(agenda: readonly PublicacaoNaAgenda[]): IndiceDaA
 /** Regra da Criação: as redes do conteúdo todas dentro das marcadas; o formato, em alguma conta dele. */
 function itensPassam(itens: readonly PublicacaoNaAgenda[], filtro: FiltroCalendario): boolean {
   if (itens.length === 0) return false;
-  const redes = normalizarRedesPostIt(itens.map(item => item.rede ?? 'outra'));
+  // No YouTube, Shorts e vídeo longo pelo formato da publicação (parte A: escolhido ou deduzido).
+  const redes = normalizarRedesDoFiltro(itens.map(item => redeDoFiltro(item.rede ?? 'outra', item.formato)));
   if (!passaNoFiltroRede(redes, filtro.redes)) return false;
   return !filtro.formato || itens.some(item => item.formato === filtro.formato);
 }
@@ -80,7 +96,9 @@ export function postItPassa(indice: IndiceDaAgenda, postIt: PlanejamentoPostIt, 
   if (!filtroAtivo(filtro)) return true;
   if (postIt.contentId) return conteudoPassa(indice, postIt.contentId, filtro);
   if (filtro.formato) return false;
-  return passaNoFiltroRede(normalizarRedesPostIt(postIt.redes ?? []), filtro.redes);
+  // Sem conteúdo, respeita a rede anotada (inclusive Shorts e YouTube longo diretamente).
+  const redes = normalizarRedesPostIt(postIt.redes ?? []);
+  return passaNoFiltroRede(normalizarRedesDoFiltro(redes), filtro.redes);
 }
 
 /** Formatos que podem ser filtrados: os que dividem metas por rede e "Sem formato". */
@@ -91,7 +109,7 @@ export function formatosDoFiltro(): Array<{ value: FormatoPublicacao; label: str
   return [...vistos].map(formato => ({ value: formato, label: rotuloDoFormato(formato) }));
 }
 
-const ROTULO_SITUACAO: Record<SituacaoNaAgenda, string> = {
+export const ROTULO_SITUACAO: Record<SituacaoNaAgenda, string> = {
   realizada: 'publicada',
   prevista: 'prevista',
   vencida: 'data passou sem registro',

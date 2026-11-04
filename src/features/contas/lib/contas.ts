@@ -22,6 +22,45 @@ export const REDE_ROTULO: Record<RedeSocial, string> = {
 };
 
 /**
+ * Item do filtro de redes (Criação e Planejamento): YouTube em longo/Shorts; Instagram e
+ * TikTok em vídeo/carrossel; o chip da rede inteira cobre post estático e stories.
+ */
+export type RedeDoFiltro =
+  | RedeSocial
+  | 'youtube-shorts'
+  | 'instagram-video'
+  | 'instagram-carrossel'
+  | 'tiktok-video'
+  | 'tiktok-carrossel';
+
+export const ROTULO_REDE_DO_FILTRO: Record<RedeDoFiltro, string> = {
+  ...REDE_ROTULO,
+  youtube: 'YouTube (vídeo longo)',
+  'youtube-shorts': 'YouTube Shorts',
+  'instagram-video': 'Instagram (vídeo)',
+  'instagram-carrossel': 'Instagram (carrossel)',
+  'tiktok-video': 'TikTok (vídeo)',
+  'tiktok-carrossel': 'TikTok (carrossel)',
+};
+
+/** Rede social por trás de um item do filtro (ex.: instagram-video → instagram). */
+export function redeBaseDoFiltro(destino: RedeDoFiltro): RedeSocial {
+  if (destino === 'youtube-shorts' || destino === 'youtube') return 'youtube';
+  if (destino === 'instagram-video' || destino === 'instagram-carrossel' || destino === 'instagram') return 'instagram';
+  if (destino === 'tiktok-video' || destino === 'tiktok-carrossel' || destino === 'tiktok') return 'tiktok';
+  return destino;
+}
+
+/** Formato gravado ao escolher o chip de vídeo/carrossel/Shorts. Null no chip da rede inteira. */
+export function formatoDoFiltro(destino: RedeDoFiltro): 'reels' | 'carrossel' | 'short' | 'video-longo' | null {
+  if (destino === 'youtube-shorts') return 'short';
+  if (destino === 'youtube') return 'video-longo';
+  if (destino === 'instagram-video' || destino === 'tiktok-video') return 'reels';
+  if (destino === 'instagram-carrossel' || destino === 'tiktok-carrossel') return 'carrossel';
+  return null;
+}
+
+/**
  * Nomes que indicam a plataforma sem dúvida, já normalizados por `platformKey`
  * (minúsculas, sem acento e sem espaço). A migração 20261017120000 usa a mesma lista.
  */

@@ -20,7 +20,6 @@ const loadPillarEdit = () => importPage(() => import('../../pages/settings/Pilar
 const loadSeries = () => importPage(() => import('../../pages/settings/Series'));
 const loadSeriesEdit = () => importPage(() => import('../../pages/settings/SeriesEditar'));
 const loadSeriesScripts = () => importPage(() => import('../../pages/settings/SeriesRoteiros'));
-const loadPlatforms = () => importPage(() => import('../../pages/settings/Plataformas'));
 const loadAnalises = () => importPage(() => import('../../pages/Analises'));
 const loadProjects = () => importPage(() => import('../../pages/Projetos'));
 const loadProjectDetail = () => importPage(() => import('../../pages/ProjetoDetalhe'));
@@ -46,7 +45,6 @@ export const routeLoaders = {
   series: loadSeries,
   seriesEdit: loadSeriesEdit,
   seriesScripts: loadSeriesScripts,
-  platforms: loadPlatforms,
   analises: loadAnalises,
   projects: loadProjects,
   projectDetail: loadProjectDetail,
@@ -76,7 +74,6 @@ const PRIMARY_LOADERS: RouteLoader[] = [
   loadSettings,
   loadSeries,
   loadAnalises,
-  loadPlatforms,
   loadProjects,
   loadRecording,
   // Abertos pelo clique num card, não pelo menu. Sem isso a primeira abertura espera o chunk.
@@ -117,7 +114,8 @@ function loaderForPath(pathname: string): RouteLoader | null {
   if (path === '/series') return loadSeries;
   if (path.startsWith('/series/') && (path.endsWith('/editar') || path.endsWith('/quadros/novo'))) return loadSeriesEdit;
   if (path.startsWith('/series/')) return loadSeriesScripts;
-  if (path === '/contas' || path.startsWith('/configuracoes/plataformas') || path.startsWith('/configuracoes/horarios')) return loadPlatforms;
+  // Contas e horários é uma aba do Editorial.
+  if (path === '/contas' || path.startsWith('/configuracoes/plataformas') || path.startsWith('/configuracoes/horarios')) return loadEditorial;
   if (path === '/analises') return loadAnalises;
   if (path.startsWith('/configuracoes/templates')) return loadSeries;
   if (path.startsWith('/configuracoes')) return loadSettings;

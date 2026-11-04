@@ -14,7 +14,6 @@ import {datasNaGrade} from '../../editorial/lib/datasNaGrade';
 import {FUNCAO_CURTA} from '../../editorial/lib/funcoes';
 import {candidatosDoEncaixe, descricaoDoCandidato, type CandidatoEncaixe} from '../lib/encaixe';
 import {encaixarConteudo, type PlanejamentoPostIt} from '../lib/postIt';
-import {levarRoteiroAoDia} from '../lib/postItsNaData';
 import {usePostItsNaData} from '../hooks/usePostItsNaData';
 
 function criterioDoPostIt(
@@ -122,9 +121,7 @@ export function EncaixeDialog({
     const resultado = encaixarConteudo({postIts, postItId: postIt.id, content: candidato.content});
     if (!resultado.ok) return;
     void dispatch({type: 'UPDATE_POST_IT', payload: resultado.postIt});
-    // O roteiro ocupa o espaço: ganha o dia do post-it, que passa a valer também no Calendário.
-    const noDia = resultado.postIt.date ? levarRoteiroAoDia(candidato.content, resultado.postIt.date) : null;
-    if (noDia) void dispatch({type: 'UPDATE_CONTENT', payload: noDia});
+    // O vínculo fica no post-it. O dia do Calendário só muda em "Salvar no calendário".
     onEncaixado?.(resultado.postIt);
     fechar();
   };

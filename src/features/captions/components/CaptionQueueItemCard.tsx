@@ -2,9 +2,10 @@ import { Badge } from '../../../components/ui/Badge';
 import { Text } from '../../../components/ui/Text';
 import { cn } from '../../../lib/utils';
 import type { Content, ContentPlataforma } from '../../../lib/database';
-import { contaDaRef, rotuloConta, type ContaRef } from '../../contas/lib/contas';
+import { contaDaRef, redeDaRef, rotuloConta, type ContaRef } from '../../contas/lib/contas';
 import { temLegenda, legendaEfetiva, hashtagsNaLegenda } from '../../editorial/lib/captions';
 import { parseHashtags } from '../../contents/lib/captionHashtags';
+import { formatoNoYoutube } from '../../editorial/lib/publicacoes';
 
 export function getPlatformDotClass(platformId: string, conta?: ContaRef | null): string {
   const p = (conta?.rede || conta?.nome || platformId).toLowerCase();
@@ -14,14 +15,23 @@ export function getPlatformDotClass(platformId: string, conta?: ContaRef | null)
   return 'bg-[var(--text-secondary)]';
 }
 
-export function inferPlatformFormat(platformId: string, visualFormat?: string | null, conta?: ContaRef | null): string {
+export function inferPlatformFormat(
+  platformId: string,
+  visualFormat?: string | null,
+  conta?: ContaRef | null,
+  publicacao?: Partial<Pick<ContentPlataforma, 'formatoPublicacao'>> | null,
+  writingMode?: Content['writingMode'] | null,
+): string {
+  const p = (conta?.rede || conta?.nome || platformId).toLowerCase();
+  if (p.includes('youtube')) {
+    const noYt = formatoNoYoutube({ formatoVisual: visualFormat ?? null, writingMode }, publicacao ?? undefined);
+    return noYt.formato === 'short' ? 'shorts' : 'vídeo longo';
+  }
   if (visualFormat?.trim()) {
     return visualFormat.toLowerCase();
   }
-  const p = (conta?.rede || conta?.nome || platformId).toLowerCase();
   if (p.includes('tiktok')) return 'tiktok';
   if (p.includes('instagram')) return 'reels';
-  if (p.includes('youtube')) return 'video';
   return 'post';
 }
 
@@ -66,6 +76,8 @@ export function CaptionQueueItemCard({
     activePublicacoes[0]?.platformId || '',
     content.formatoVisual,
     contaDaRef(activePublicacoes[0]?.platformId || '', contas),
+    activePublicacoes[0],
+    content.writingMode,
   );
 
   return (
@@ -95,8 +107,14 @@ export function CaptionQueueItemCard({
             <div className="flex items-center -space-x-1 shrink-0">
               {activePublicacoes.slice(0, 4).map(pub => {
                 const conta = contaDaRef(pub.platformId, contas);
+                const rede = redeDaRef(pub.platformId, contas);
+                const noYt = rede === 'youtube'
+                  ? formatoNoYoutube({ formatoVisual: content.formatoVisual ?? null, writingMode: content.writingMode }, pub)
+                  : null;
                 const dotClass = getPlatformDotClass(pub.platformId, conta);
-                const rotulo = conta ? rotuloConta(conta) : pub.platformId;
+                const rotulo = conta
+                  ? `${rotuloConta(conta)}${noYt ? (noYt.formato === 'short' ? ' · Shorts' : ' · Vídeo longo') : ''}`
+                  : pub.platformId;
                 return (
                   <span
                     key={pub.id}
@@ -116,7 +134,12 @@ export function CaptionQueueItemCard({
               ? activePublicacoes
                   .map(p => {
                     const c = contaDaRef(p.platformId, contas);
-                    return c ? rotuloConta(c) : p.platformId;
+                    const rede = redeDaRef(p.platformId, contas);
+                    const noYt = rede === 'youtube'
+                      ? formatoNoYoutube({ formatoVisual: content.formatoVisual ?? null, writingMode: content.writingMode }, p)
+                      : null;
+                    const baseNome = c ? rotuloConta(c) : p.platformId;
+                    return noYt ? `${baseNome} (${noYt.formato === 'short' ? 'Shorts' : 'Vídeo longo'})` : baseNome;
                   })
                   .join(', ')
               : 'Sem redes ativas'}

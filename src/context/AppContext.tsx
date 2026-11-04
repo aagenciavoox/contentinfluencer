@@ -3,7 +3,7 @@ import type { AppState } from '../app/providers/appState';
 import { initialState } from '../app/providers/appState';
 import { supabase } from '../lib/supabase';
 import { onTableWrite } from '../lib/tableWrites';
-import { readStoredTheme, writeStoredTheme } from '../lib/themeStorage';
+import { readStoredTheme, resolveAppTheme, systemThemeQuery, writeStoredTheme } from '../lib/themeStorage';
 import type * as db from '../lib/database';
 import { appReducer, AppAction } from './reducer';
 import { persistAction, persistContentRecord } from './persistAction';
@@ -831,9 +831,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [createContent, finishPersist, refreshFromServer, runPersist, updateContent, userId]);
 
+  // "Sistema" acompanha o sistema operacional, inclusive quando ele troca com o app aberto.
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', state.theme);
     writeStoredTheme(state.theme);
+    const apply = () => {
+      document.documentElement.setAttribute('data-theme', resolveAppTheme(state.theme));
+    };
+    apply();
+    if (state.theme !== 'system') return;
+    const query = systemThemeQuery();
+    query?.addEventListener('change', apply);
+    return () => query?.removeEventListener('change', apply);
   }, [state.theme]);
 
   // Sem backend ou sem sessão não há nada para buscar: as telas não devem esperar.

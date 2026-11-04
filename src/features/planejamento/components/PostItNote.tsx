@@ -3,6 +3,7 @@ import {BookOpen, GripVertical, Tag} from 'lucide-react';
 import {Badge} from '../../../components/ui/Badge';
 import {cn, tintedTextColor} from '../../../lib/utils';
 import type {Content, RedeSocial} from '../../../lib/database';
+import type {RedeDoFiltro} from '../../contas/lib/contas';
 import {PlatformIcons} from '../../../components/ui/PlatformIcons';
 import {EtapaBadge} from './EtapaBadge';
 import {postItKind, postItTitle, type PlanejamentoPostIt, type PostItKind} from '../lib/postIt';
@@ -59,7 +60,7 @@ export function PostItNote({
   assuntos?: readonly string[];
   obras?: readonly string[];
   temas?: readonly string[];
-  redes?: readonly RedeSocial[];
+  redes?: readonly RedeDoFiltro[];
   dimmed?: boolean;
   draggable?: boolean;
   className?: string;

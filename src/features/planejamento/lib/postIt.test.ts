@@ -142,8 +142,9 @@ function testTransformEmptyIntoIdeiaKeepsDay() {
   assert.equal(result.mode, 'create');
   assert.equal(result.content.status, CONTENT_STATUS.IDEIA);
   assert.equal(result.content.title, 'gancho do vídeo');
-  assert.equal(result.content.publishDate?.slice(0, 10), '2026-10-08');
-  assert.equal(result.content.publishDateEnabled, true);
+  // O dia do post-it fica no post-it. O Calendário só recebe data em "Salvar no calendário".
+  assert.equal(result.content.publishDate, null);
+  assert.equal(result.postIt.date, '2026-10-08');
   assert.equal(result.openScript, false);
   assert.equal(result.postIt.id, postIt.id);
   assert.equal(result.postIt.contentId, result.content.id);
@@ -161,7 +162,8 @@ function testTransformEmptyIntoRoteiroKeepsDayAndOpensScript() {
   if (!result.ok) return;
   assert.equal(result.mode, 'create');
   assert.equal(result.content.status, CONTENT_STATUS.ROTEIRO);
-  assert.equal(result.content.publishDate?.slice(0, 10), '2026-10-18');
+  assert.equal(result.content.publishDate, null);
+  assert.equal(result.postIt.date, '2026-10-18');
   assert.equal(result.openScript, true);
   assert.equal(result.postIt.id, postIt.id);
   assert.equal(result.postIt.contentId, result.content.id);
@@ -190,7 +192,8 @@ function testTransformPulledIdeiaIntoRoteiroKeepsPostItDay() {
   assert.equal(result.mode, 'update');
   assert.equal(result.content.id, content.id);
   assert.equal(result.content.status, CONTENT_STATUS.ROTEIRO);
-  assert.equal(result.content.publishDate?.slice(0, 10), '2026-11-02');
+  assert.equal(result.content.publishDate, null);
+  assert.equal(result.postIt.date, '2026-11-02');
   assert.equal(result.openScript, false);
   assert.equal(content.status, CONTENT_STATUS.IDEIA);
   assert.equal(content.publishDate, null);
@@ -214,7 +217,8 @@ function testTransformPulledIdeiaIntoIdeiaKeepsStatusAndDay() {
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.equal(result.content.status, CONTENT_STATUS.IDEIA);
-  assert.equal(result.content.publishDate?.slice(0, 10), '2026-11-03');
+  assert.equal(result.content.publishDate, null);
+  assert.equal(result.postIt.date, '2026-11-03');
   assert.equal(content.publishDate, null);
 }
 
@@ -531,10 +535,32 @@ function testTransformLevaNotaERedes() {
   if (!result.ok) return;
   assert.equal(result.content.title, 'Vlog indo ao sebo');
   assert.equal(result.content.notes, 'Vlog indo ao sebo\nlevar a lista de compras');
-  // Só as contas ativas das redes marcadas viram publicação, já no dia do post-it.
+  // Só as contas ativas das redes marcadas viram publicação. A data fica para "Salvar no calendário".
   assert.deepEqual(result.content.plataformas.map(p => p.platformId).sort(), ['ig', 'yt']);
+  assert.equal(result.content.plataformas.find(p => p.platformId === 'yt')?.formatoPublicacao, 'video-longo');
   assert.ok(result.content.plataformas.every(p => p.contentId === result.content.id));
-  assert.ok(result.content.plataformas.every(p => p.publishDate?.slice(0, 10) === '2026-11-03'));
+  assert.ok(result.content.plataformas.every(p => p.publishDate == null));
+  assert.equal(result.postIt.date, '2026-11-03');
+
+  const postItShorts = {
+    ...createEmptyPostIt({id: 'post-shorts', texto: 'Shorts de dica', date: '2026-11-03', now: NOW}),
+    redes: ['youtube-shorts' as const],
+  };
+  const resultShorts = transformPostIt({postIt: postItShorts, contents: [], target: 'ideia', contas, now: NOW});
+  assert.equal(resultShorts.ok && resultShorts.content.plataformas[0]?.formatoPublicacao, 'short');
+  const postItIgVideo = {
+    ...createEmptyPostIt({id: 'post-ig-video', texto: 'Reels', date: '2026-11-03', now: NOW}),
+    redes: ['instagram-video' as const],
+  };
+  const resultIgVideo = transformPostIt({postIt: postItIgVideo, contents: [], target: 'ideia', contas, now: NOW});
+  assert.equal(resultIgVideo.ok && resultIgVideo.content.plataformas.find(p => p.platformId === 'ig')?.formatoPublicacao, undefined);
+  const postItIgCarr = {
+    ...createEmptyPostIt({id: 'post-ig-carr', texto: 'Carrossel', date: '2026-11-03', now: NOW}),
+    redes: ['instagram-carrossel' as const],
+  };
+  const resultIgCarr = transformPostIt({postIt: postItIgCarr, contents: [], target: 'ideia', contas, now: NOW});
+  assert.equal(resultIgCarr.ok && resultIgCarr.content.writingMode, 'carrossel');
+  assert.equal(resultIgCarr.ok && resultIgCarr.content.plataformas.find(p => p.platformId === 'ig')?.formatoPublicacao, undefined);
 
   // Sem contas informadas, nada de publicação inventada.
   const semContas = transformPostIt({postIt, contents: [], target: 'ideia', now: NOW});

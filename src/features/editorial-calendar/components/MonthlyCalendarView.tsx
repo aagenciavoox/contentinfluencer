@@ -18,6 +18,7 @@ import type {GradeSerie} from '../../editorial/lib/gradeEntries';
 import {diasCobertos, papelNoIntervalo} from '../../projects/lib/agendaEventos';
 import {calendarEntryIcon} from './CalendarNetworkIcons';
 import {rotuloDaRef} from '../../contas/lib/contas';
+import {nomeDaEtapaNaTela, pendenciasDoRoteiro, rotuloDasPendencias} from '../../contents/lib/esteiraDisplay';
 
 const WEEK_STARTS_ON = 1 as const;
 
@@ -135,9 +136,11 @@ export function buildCalendarEntries(
         platformFilter,
         statusFilter,
       })) return;
+      const etapaNaTela = nomeDaEtapaNaTela(content, platforms);
+      const pendencias = rotuloDasPendencias(pendenciasDoRoteiro(content, platforms));
       const networkLabel = platformFilter === ALL_PLATFORMS
-        ? (status || 'Publicação')
-        : [(item.platformNames[0] || platformFilter), status || 'Publicação'].join(' - ');
+        ? [etapaNaTela, pendencias].filter(Boolean).join(' · ') || 'Publicação'
+        : [item.platformNames[0] || platformFilter, etapaNaTela, pendencias].filter(Boolean).join(' · ');
       push(item.date, {
         id: item.id,
         type: 'publish',

@@ -17,9 +17,24 @@ type PatchDecisao = Partial<Omit<DecisaoPeriodo, 'inicio' | 'fim'>>;
  * e na proporção por objetivo (aba Ajustes); o que vale para um intervalo fica numa
  * decisão de período (aba Período).
  */
+function comDiasDeGravacao(settings: EditorialSettings): EditorialSettings {
+  const preferencias = settings.preferencias;
+  if (Array.isArray(preferencias?.diasGravacao) && 'antecedenciaPostagemDias' in (preferencias ?? {})) {
+    return settings;
+  }
+  return {
+    ...settings,
+    preferencias: {
+      ...preferencias,
+      diasGravacao: Array.isArray(preferencias?.diasGravacao) ? preferencias.diasGravacao : [],
+      antecedenciaPostagemDias: preferencias?.antecedenciaPostagemDias ?? null,
+    },
+  };
+}
+
 export function useEditorialPlano() {
   const { state, dispatch } = useAppContext();
-  const settings = state.editorial;
+  const settings = comDiasDeGravacao(state.editorial);
 
   const gravar = (value: EditorialSettings) => {
     dispatch({ type: 'SET_EDITORIAL', payload: value });

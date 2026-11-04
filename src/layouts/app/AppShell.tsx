@@ -4,6 +4,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Sidebar } from '../navigation/Sidebar';
 import { CommandPalette } from '../../components/overlays/CommandPalette';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import { useResolvedTheme } from '../../hooks/useResolvedTheme';
 import { useHideOnScroll } from '../../hooks/useHideOnScroll';
 import { MobileAppShell } from '../../mobile/components/shell';
 import { MobileActionMenu } from '../../mobile/components/shell';
@@ -141,12 +142,13 @@ export function AppShell() {
 
   // A barra de status do PWA segue o tema escolhido no app, não só o do sistema.
   // Mesmas cores das meta tags theme-color de index.html.
+  const resolvedTheme = useResolvedTheme(state.theme);
   useEffect(() => {
-    const color = state.theme === 'dark' ? '#0C0C0C' : '#F6F5F3';
+    const color = resolvedTheme === 'dark' ? '#0C0C0C' : '#F6F5F3';
     document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach(meta => {
       meta.setAttribute('content', color);
     });
-  }, [state.theme]);
+  }, [resolvedTheme]);
 
   const chromeActions: MobileChromeOutletContext = {
     openSearch: () => setIsCommandPaletteOpen(true),

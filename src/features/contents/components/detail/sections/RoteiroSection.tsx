@@ -372,6 +372,8 @@ export function RoteiroSection({
       serie={serie}
       // Cada publicação protege o próprio texto depois de ir ao ar; as pendentes seguem editáveis.
       status={draft.status}
+      formatoVisual={draft.formatoVisual}
+      writingMode={draft.writingMode}
       embedded
       contentId={contentId}
       legendaBase={draft.legendaBase}

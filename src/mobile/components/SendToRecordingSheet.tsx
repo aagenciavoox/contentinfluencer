@@ -10,7 +10,8 @@ import { Text } from '../../components/ui/Text';
 import { TagSelect } from '../../components/ui/TagSelect';
 import type { Content, RecordingBlock } from '../../lib/database';
 import { CONTENT_STATUS, canAdvanceToRecording } from '../../features/contents/lib/contentPipeline';
-import { normalizeRecordingTags, addBlockContent, getOrderedBlockContents } from '../../features/recording/lib/recordingWorkflow';
+import { addBlockContent, getOrderedBlockContents } from '../../features/recording/lib/recordingWorkflow';
+import { montarBlocoDeGravacao } from '../../features/recording/lib/blocoDeGravacao';
 import { getErrorMessage } from '../../lib/saveFeedback';
 import { generateUUID } from '../../utils/uuid';
 
@@ -95,23 +96,11 @@ export function SendToRecordingSheet({
       const name = blockName.trim();
       if (!name) return;
 
-      const blockId = generateUUID();
-      const block: RecordingBlock = {
-        id: blockId,
-        userId: content.userId,
-        name,
-        lookLabel: null,
-        cenarioLabel: null,
-        metadata: {
-          recordingTags: normalizeRecordingTags(content.tags || []),
-          sourceContentIds: [content.id],
-        },
-        createdAt: new Date().toISOString(),
-        contents: [],
-      };
+      // O bloco nasce vazio e o roteiro entra por attachToBlock, que também sobe a etapa.
+      const { block } = montarBlocoDeGravacao({ id: generateUUID(), userId: content.userId, nome: name, contents: [content] });
 
       await onDispatch({ type: 'ADD_RECORDING_BLOCK', payload: block });
-      await attachToBlock(blockId, block);
+      await attachToBlock(block.id, block);
       setBlockName('');
     } catch (error) {
       setAttachedBlockId(null);

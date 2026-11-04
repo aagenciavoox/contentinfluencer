@@ -6,6 +6,7 @@ import {
   archiveCreation,
   contentFromLegacyIdea,
   createScriptWithPublications,
+  writingModeInicial,
   demoteContentToIdea,
   filterCreationContents,
   filterContentsByCreationTab,
@@ -403,6 +404,10 @@ function testNewScriptCarriesChosenPublications() {
 
   // Sem rede escolhida, o roteiro nasce sem publicação, como antes.
   assert.deepEqual(createScriptWithPublications([]).plataformas, []);
+  assert.equal(writingModeInicial([{formatoPublicacao: 'video-longo'}]), 'youtube');
+  assert.equal(writingModeInicial([{formatoPublicacao: 'short'}]), 'texto');
+  assert.equal(writingModeInicial([{}]), 'texto');
+  assert.equal(createScriptWithPublications([{...escolhidas[0], formatoPublicacao: 'video-longo'}]).writingMode, 'youtube');
 }
 
 const tests: Array<[string, () => void]> = [

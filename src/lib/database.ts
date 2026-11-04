@@ -7,7 +7,7 @@ import { aplicarLivros, livroIdsEfetivos } from './livroIds.ts';
 import { generateUUID } from '../utils/uuid.ts';
 import { normalizarRedesPostIt } from '../features/planejamento/lib/redesPostIt.ts';
 import { normalizeWritingMode, readCarouselSlides, slidesHaveContent } from '../features/contents/lib/carouselSlides.ts';
-import { nomeIndicaBlog } from '../features/contas/lib/contas.ts';
+import { nomeIndicaBlog, type RedeDoFiltro } from '../features/contas/lib/contas.ts';
 import { readAvisoDias } from '../features/projects/lib/evento.ts';
 import { DEFAULT_EDITORIAL_SETTINGS, lerMetodoCalculo, METODO_CALCULO_PADRAO, type EditorialSettings } from '../features/editorial/lib/editorialSettings.ts';
 import { LIMITES_CONCENTRACAO_PADRAO, lerLimitesConcentracao, type ExcecaoConcentracao, type LimitesConcentracao } from '../features/editorial/lib/concentracao.ts';
@@ -687,7 +687,7 @@ export interface PlanejamentoPostIt {
   pilarId?: string | null;
   objetivo?: FuncaoEditorial | null;
   /** Redes onde vai sair. Só a plataforma, sem conta. */
-  redes?: RedeSocial[];
+  redes?: RedeDoFiltro[];
   /** Contas onde vai sair. Vazio = só a rede. */
   contaIds?: string[];
   /** true/false manda; null herda do texto. */
@@ -2628,6 +2628,15 @@ function inteiroOpcional(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : undefined;
 }
 
+/** Dias ISO 1–7. Coluna ausente ou valor inválido desliga o lote do dia de gravar. */
+function diasGravacaoDaLinha(value: unknown): number[] {
+  if (!Array.isArray(value)) return [];
+  const dias = value.filter((item): item is number => (
+    typeof item === 'number' && Number.isInteger(item) && item >= 1 && item <= 7
+  ));
+  return [...new Set(dias)].sort((a, b) => a - b);
+}
+
 function diaDaLinha(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const dia = value.slice(0, 10);
@@ -2754,7 +2763,7 @@ function editorialDasLinhas(
   }).sort((a, b) => a.vigenteDesde.localeCompare(b.vigenteDesde));
 
   if (!conta) {
-    return {
+    const semConta = {
       ...DEFAULT_EDITORIAL_SETTINGS,
       destinosPadrao: destinos.map(destino => String(destino.platform_id)),
       limitesHashtags,
@@ -2762,6 +2771,7 @@ function editorialDasLinhas(
       vigencias,
       ...daConta,
     };
+    return semConta;
   }
 
   const rede = typeof conta.rede_referencia_id === 'string' ? conta.rede_referencia_id : null;
@@ -2784,6 +2794,8 @@ function editorialDasLinhas(
       publicoLinguagem: typeof conta.publico_linguagem === 'string' ? conta.publico_linguagem : '',
       hashtagsForaSeries: typeof conta.hashtags_fora_series === 'string' ? conta.hashtags_fora_series : '',
       limiteGravacoesDia: inteiroOpcional(conta.limite_gravacoes_dia) || null,
+      diasGravacao: diasGravacaoDaLinha(conta.dias_gravacao),
+      antecedenciaPostagemDias: inteiroOpcional(conta.antecedencia_postagem_dias) ?? null,
     },
     periodos,
     vigencias,
@@ -2935,16 +2947,22 @@ export async function saveEditorial(settings: EditorialSettings): Promise<void> 
     open_info_notices: settings.openInfoNotices,
     proporcao_funcoes: settings.proporcaoFuncoes,
     limite_gravacoes_dia: preferencias.limiteGravacoesDia ?? null,
+    dias_gravacao: preferencias.diasGravacao ?? [],
+    antecedencia_postagem_dias: preferencias.antecedenciaPostagemDias ?? null,
     concentracao: concentracaoParaGravar(settings.concentracao),
     updated_at: new Date().toISOString(),
   };
-  // Sem a migração da coluna, o resto grava e o valor fica só nesta sessão
-  // (proporção: 20261016220000; gravações por dia: 20261030130000; concentração: 20261103120000).
+  // Sem a migração da coluna, o resto grava e o valor fica só nesta sessão.
+  // O PostgREST avisa uma coluna ausente por vez, então cada falha tira a coluna citada e tenta de novo.
+  // (proporção: 20261016220000; gravações por dia: 20261030130000; concentração: 20261103120000; avisos: 20261104160000).
+  const colunasOpcionais = ['proporcao_funcoes', 'limite_gravacoes_dia', 'concentracao', 'dias_gravacao', 'antecedencia_postagem_dias'];
   let linhaConta = contaRow;
   let { error: contaError } = await supabase.from('editorial_conta').upsert(linhaConta, { onConflict: 'user_id' });
-  for (const coluna of ['proporcao_funcoes', 'limite_gravacoes_dia', 'concentracao']) {
-    if (!contaError || !contaError.message.includes(coluna)) continue;
-    const { [coluna]: _removida, ...semColuna } = linhaConta;
+  while (contaError) {
+    const erro = contaError;
+    const ausente = colunasOpcionais.find(coluna => coluna in linhaConta && erro.message.includes(coluna));
+    if (!ausente) break;
+    const { [ausente]: _removida, ...semColuna } = linhaConta;
     linhaConta = semColuna;
     ({ error: contaError } = await supabase.from('editorial_conta').upsert(linhaConta, { onConflict: 'user_id' }));
   }
@@ -4447,8 +4465,16 @@ export async function savePlanejamentoPostIt(item: PlanejamentoPostIt): Promise<
   for (let attempt = 0; attempt <= POSTIT_OPTIONAL_COLUMNS.length; attempt += 1) {
     const {error} = await supabase.from('planejamento_postits').upsert(row);
     if (!error) return;
-    if (error.message?.includes('planejamento_postits_redes_check') && Array.isArray(row.redes) && row.redes.includes('blog')) {
-      throw new BlogMigracaoPendenteError();
+    if (error.message?.includes('planejamento_postits_redes_check')) {
+      if (Array.isArray(row.redes) && row.redes.includes('blog')) {
+        throw new BlogMigracaoPendenteError();
+      }
+      if (Array.isArray(row.redes) && row.redes.includes('youtube-shorts')) {
+        // Se a migração de youtube-shorts no check constraint ainda não foi aplicada, salva como 'youtube' para não falhar
+        row.redes = (row.redes as string[]).map(r => r === 'youtube-shorts' ? 'youtube' : r);
+        const retry = await supabase.from('planejamento_postits').upsert(row);
+        if (!retry.error) return;
+      }
     }
     const missing = POSTIT_OPTIONAL_COLUMNS.find(column =>
       column in row && !!error.message && isMissingNamedColumn(error.message, column),

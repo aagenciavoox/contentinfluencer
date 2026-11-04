@@ -46,6 +46,9 @@ export function buildDayPulse({
   agendaToday,
   urgentProjects,
   dataReady = true,
+  recordingEnabled = true,
+  calendarEnabled = true,
+  pendencyMode = false,
 }: {
   readyCount: number;
   showCounts: boolean;
@@ -53,16 +56,24 @@ export function buildDayPulse({
   urgentProjects: ProjectPulseItem[];
   /** Sem isto, um 0 de carregamento vira "Nenhum roteiro" / "nada na agenda". */
   dataReady?: boolean;
+  recordingEnabled?: boolean;
+  calendarEnabled?: boolean;
+  /** Lista do que falta para postar no lugar de "roteiros prontos". */
+  pendencyMode?: boolean;
 }): DayPulseSegment[] {
   const canCount = dataReady && showCounts;
-  let readyLabel = 'Roteiros prontos para gravar';
-  if (dataReady && readyCount === 0) readyLabel = 'Nenhum roteiro pronto';
-  else if (canCount && readyCount === 1) readyLabel = '1 roteiro pronto';
-  else if (canCount) readyLabel = `${readyCount} roteiros prontos`;
+  let readyLabel = pendencyMode ? 'O que falta para postar' : 'Roteiros prontos para gravar';
+  if (dataReady && readyCount === 0) readyLabel = pendencyMode ? 'Nada pendente para postar' : 'Nenhum roteiro pronto';
+  else if (canCount && readyCount === 1) readyLabel = pendencyMode ? '1 pendência para postar' : '1 roteiro pronto';
+  else if (canCount) readyLabel = pendencyMode ? `${readyCount} pendências para postar` : `${readyCount} roteiros prontos`;
 
-  const segments: DayPulseSegment[] = [{ label: readyLabel }];
+  const segments: DayPulseSegment[] = (recordingEnabled || pendencyMode)
+    ? [pendencyMode ? { label: readyLabel, to: '/calendario' } : { label: readyLabel }]
+    : [];
 
-  if (!dataReady && agendaToday.length === 0) {
+  if (!calendarEnabled) {
+    // O resumo não oferece atalhos para módulos desligados.
+  } else if (!dataReady && agendaToday.length === 0) {
     segments.push({ label: 'Agenda do dia', to: '/calendario' });
   } else if (agendaToday.length === 0) {
     segments.push({ label: 'nada na agenda', to: '/calendario' });

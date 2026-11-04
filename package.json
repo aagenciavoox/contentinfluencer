@@ -15,7 +15,7 @@
     "fix:encoding": "node scripts/fix-encoding.mjs",
     "voice:audit": "node scripts/audit-product-voice.mjs",
     "check": "npm run voice:audit && npm run lint:design && npm run lint && npm test && npm run build",
-    "test": "node --experimental-strip-types src/test-runner.ts && node --import tsx --test src/components/ui/textPresentation.test.tsx src/context/planningConversion.test.ts src/features/library/lib/annotationDraft.test.ts"
+    "test": "node --experimental-strip-types src/test-runner.ts && node --import tsx --test src/components/ui/textPresentation.test.tsx src/context/planningConversion.test.ts src/features/library/lib/annotationDraft.test.ts src/features/dashboard/components/TodayHome.test.tsx src/features/planejamento/components/saudeFlows.test.tsx"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

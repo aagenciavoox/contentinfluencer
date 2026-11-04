@@ -213,6 +213,8 @@ export function ContentManageWorkspace({
           disabled={disabled}
           contentId={contentId}
           status={draft.status}
+          formatoVisual={draft.formatoVisual}
+          writingMode={draft.writingMode}
           legendaBase={draft.legendaBase}
           titulo={draft.title}
           onTituloChange={title => onChange({title})}

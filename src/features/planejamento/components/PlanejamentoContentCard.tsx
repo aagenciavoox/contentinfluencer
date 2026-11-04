@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { useEffect, useRef, type CSSProperties, type MouseEvent } from 'react';
 import { AlertCircle, Check, Clock, MoreVertical } from 'lucide-react';
 import { MoreMenu, type MoreMenuItem } from '../../../components/ui/MoreMenu';
 import { PlatformIcon } from '../../../components/ui/PlatformIcon';
@@ -17,14 +17,25 @@ export interface PlanejamentoContentCardProps {
   pilar?: Pilar | null;
   /** Contas do mesmo conteúdo, ciclo e dia: um ícone por conta, com a situação de cada uma. */
   contas?: readonly ContaDoCard[];
+  /** Clique simples (pré-visualização) ou Enter/Espaço. */
   onOpen: () => void;
+  /** Duplo clique e "Abrir roteiro" do menu: vai direto à página. Sem ele, o clique abre na hora. */
+  onOpenDireto?: () => void;
+  /** Manda para um bloco de gravação. Só aparece quando o conteúdo pode ser gravado. */
+  onGravacao?: () => void;
   onMove?: () => void;
   onRemoveFromDate?: () => void;
   onDelete?: () => void;
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
+  /** Ctrl/Cmd + clique entra e sai da seleção (desktop). */
+  selected?: boolean;
+  onToggleSelect?: () => void;
   className?: string;
 }
+
+/** Janela em que um segundo clique vira duplo clique. Só vale quando há destino direto. */
+const ESPERA_DUPLO_CLIQUE_MS = 220;
 
 export function PlanejamentoContentCard({
   publicacao,
@@ -33,11 +44,15 @@ export function PlanejamentoContentCard({
   pilar,
   contas,
   onOpen,
+  onOpenDireto,
+  onGravacao,
   onMove,
   onRemoveFromDate,
   onDelete,
   draggable = false,
   onDragStart,
+  selected = false,
+  onToggleSelect,
   className,
 }: PlanejamentoContentCardProps) {
   const posted = publicacao.estado === 'postado';
@@ -45,13 +60,52 @@ export function PlanejamentoContentCard({
   const etapa: EtapaDoCard = posted ? 'postado' : kind === 'vazio' ? 'roteiro' : kind;
   const cor = serie?.cor || pilar?.cor || null;
   const onTirar = onRemoveFromDate ?? onDelete;
+  const cliqueAgendado = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (cliqueAgendado.current !== null) window.clearTimeout(cliqueAgendado.current);
+  }, []);
+
+  const aoClicar = (event: MouseEvent<HTMLDivElement>) => {
+    if ((event.ctrlKey || event.metaKey) && onToggleSelect) {
+      event.preventDefault();
+      onToggleSelect();
+      return;
+    }
+    if (!onOpenDireto) {
+      onOpen();
+      return;
+    }
+    // O primeiro clique espera um pouco: se vier o segundo, é duplo clique e vai direto ao roteiro.
+    if (event.detail >= 2) {
+      if (cliqueAgendado.current !== null) {
+        window.clearTimeout(cliqueAgendado.current);
+        cliqueAgendado.current = null;
+      }
+      onOpenDireto();
+      return;
+    }
+    if (cliqueAgendado.current !== null) window.clearTimeout(cliqueAgendado.current);
+    cliqueAgendado.current = window.setTimeout(() => {
+      cliqueAgendado.current = null;
+      onOpen();
+    }, ESPERA_DUPLO_CLIQUE_MS);
+  };
 
   const menuItems: MoreMenuItem[] = [
     {
       id: 'open',
       label: 'Abrir roteiro',
-      onClick: onOpen,
+      onClick: onOpenDireto ?? onOpen,
     },
+    ...(onGravacao
+      ? [
+          {
+            id: 'gravacao',
+            label: 'Mandar para gravação…',
+            onClick: onGravacao,
+          },
+        ]
+      : []),
     ...(onMove
       ? [
           {
@@ -81,9 +135,17 @@ export function PlanejamentoContentCard({
     <div
       role="button"
       tabIndex={0}
+      aria-pressed={onToggleSelect ? selected : undefined}
       draggable={draggable}
-      onDragStart={onDragStart}
-      onClick={onOpen}
+      onDragStart={event => {
+        // Ctrl/Cmd + arrastar não existe: o gesto é de seleção.
+        if ((event.ctrlKey || event.metaKey) && onToggleSelect) {
+          event.preventDefault();
+          return;
+        }
+        onDragStart?.(event);
+      }}
+      onClick={aoClicar}
       onKeyDown={e => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
@@ -94,6 +156,7 @@ export function PlanejamentoContentCard({
       className={cn(
         'planner-card group relative flex flex-col p-2.5 text-left cursor-pointer',
         draggable && 'cursor-grab active:cursor-grabbing',
+        selected && 'ring-2 ring-[var(--text-primary)]',
         className,
       )}
     >
@@ -113,9 +176,9 @@ export function PlanejamentoContentCard({
       </div>
 
       <div className="leading-snug">
-        <div className="line-clamp-2 pr-5 text-xs font-semibold leading-snug text-[var(--text-primary)]">
+        <Text variant="bodyStrong" as="p" className="planner-card-title line-clamp-2 pr-6 leading-snug text-[var(--text-primary)]">
           {publicacao.titulo}
-        </div>
+        </Text>
       </div>
 
       {serie ? (

@@ -42,6 +42,28 @@ function testMarcarCriaAgendada() {
   assert.equal(next[0]?.status, 'prevista');
   assert.equal(next[0]?.publicationKind, 'post');
   assert.equal(destinoMarcado(next, instagram), true);
+
+  // Com formato escolhido (Shorts ou vídeo longo)
+  const comFormato = alternarDestino({
+    publicacoes: [],
+    plataforma: { id: 'yt-1', nome: 'YouTube' },
+    contentId: 'c1',
+    marcar: true,
+    formatoPublicacao: 'short',
+    criarId,
+  });
+  assert.equal(comFormato[0]?.formatoPublicacao, 'short');
+
+  // Já marcado: passar outro formato atualiza
+  const atualizado = alternarDestino({
+    publicacoes: comFormato,
+    plataforma: { id: 'yt-1', nome: 'YouTube' },
+    contentId: 'c1',
+    marcar: true,
+    formatoPublicacao: 'video-longo',
+    criarId,
+  });
+  assert.equal(atualizado[0]?.formatoPublicacao, 'video-longo');
 }
 
 function testDesmarcarRemoveNaoPublicada() {

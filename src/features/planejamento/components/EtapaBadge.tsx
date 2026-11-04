@@ -23,8 +23,8 @@ export function EtapaBadge({etapa, compact = false, cor, className}: {etapa: Eta
   // Com cor (série ou pilar), o selo acompanha a cor do card.
   if (cor) {
     return (
-      <span
-        className={cn('inline-flex items-center gap-1 rounded-[var(--radius-pill)] border px-1.5 py-0 text-2xs font-medium', className)}
+      <Badge variant="neutral"
+        className={cn('inline-flex items-center gap-1 rounded-[var(--radius-pill)] border px-1.5 py-0', className)}
         style={{
           borderColor: `color-mix(in srgb, ${cor} 45%, transparent)`,
           backgroundColor: `color-mix(in srgb, ${cor} 10%, var(--bg-elevated))`,
@@ -33,7 +33,7 @@ export function EtapaBadge({etapa, compact = false, cor, className}: {etapa: Eta
       >
         <Icon className="h-2.5 w-2.5 shrink-0" aria-hidden />
         {label}
-      </span>
+      </Badge>
     );
   }
   return (

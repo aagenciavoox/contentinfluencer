@@ -16,6 +16,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { AppButton } from '../../../components/ui/AppButton';
 import { FilterBar } from '../../../components/ui/FilterBar';
 import { PageToolbar } from '../../../components/ui/PageToolbar';
+import { PaginationBar } from '../../../components/ui/PaginationBar';
 import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { SelectField } from '../../../components/ui/SelectField';
 import { Text } from '../../../components/ui/Text';
@@ -104,6 +105,7 @@ import {
   parseRedesFilter,
   redesDoFiltroRapido,
   serializeRedesFilter,
+  type RedeDoFiltro,
 } from '../lib/creationRedeFilter';
 import {
   etiquetasVisiveis,
@@ -177,11 +179,13 @@ export function CreationHubPage() {
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [statusValue, setStatusValue] = useState('');
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Content | null>(null);
   const [unpublishTarget, setUnpublishTarget] = useState<{content: Content; tab: CreationKanbanTab} | null>(null);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [persistingIds, setPersistingIds] = useState<Set<string>>(new Set());
   const [scriptComposerOpen, setScriptComposerOpen] = useState(false);
   const isMobile = useIsMobile();
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   const legacyType = searchParams.get('tipo');
   const requestedTab = searchParams.get('tab')
@@ -325,9 +329,8 @@ export function CreationHubPage() {
     );
   }, [activeTab, canonicalContents, datas, filteredContents, filtroData, funcaoId, originId, pilarId, redesFilter, redesPorConteudo, search, seriesId, sort, state.series, state.temas, temaFilter, viewMode]);
 
-  // "Mostrar mais" acumula páginas em vez de trocar de página: a coleção é pequena.
   const pageData = useMemo(
-    () => paginateCreationContents(filteredContents, 1, CREATION_PAGE_SIZE * requestedPage),
+    () => paginateCreationContents(filteredContents, requestedPage, CREATION_PAGE_SIZE),
     [filteredContents, requestedPage],
   );
 
@@ -449,7 +452,7 @@ export function CreationHubPage() {
     () => getCreationExportCopy(selectedContents),
     [selectedContents],
   );
-  // "Selecionar todos" pega o filtro inteiro, inclusive o que "Mostrar mais" ainda não abriu.
+  // "Selecionar todos" pega o filtro inteiro, inclusive os itens de outras páginas.
   const hiddenSelectedCount = useMemo(() => {
     const visibleIds = new Set(visibleContents.map(content => content.id));
     return [...selectedExportIds].filter(id => !visibleIds.has(id)).length;
@@ -578,19 +581,20 @@ export function CreationHubPage() {
     })();
   }, [selectedContents, statusValue, updateContent, user?.id]);
 
-  const confirmBulkDelete = useCallback(() => {
-    if (selectedContents.length === 0) return;
-    const ids = selectedContents.map(content => content.id);
+  const moveToTrash = useCallback((contents: Content[], exitSelection: boolean) => {
+    if (contents.length === 0) return;
+    const copy = getCreationExportCopy(contents);
+    const ids = contents.map(content => content.id);
     const removedAt = new Date().toISOString();
-    const removed = selectedContents.map(content => ({
+    const removed = contents.map(content => ({
       ...content,
       deletedAt: removedAt,
       updatedAt: removedAt,
     }));
-    const final = selectedCopy.feminine ? 'a' : 'o';
+    const final = copy.feminine ? 'a' : 'o';
     const noun = ids.length === 1
-      ? `${selectedCopy.singular[0].toUpperCase()}${selectedCopy.singular.slice(1)} movid${final} para a lixeira`
-      : `${ids.length} ${selectedCopy.plural} movid${final}s para a lixeira`;
+      ? `${copy.singular[0].toUpperCase()}${copy.singular.slice(1)} movid${final} para a lixeira`
+      : `${ids.length} ${copy.plural} movid${final}s para a lixeira`;
     // Arquivados vivem numa lista à parte; sem tirar de lá, a cópia arquivada encobriria a da lixeira.
     const archivedRemoved = archivedContents.filter(item => ids.includes(item.id));
 
@@ -600,8 +604,11 @@ export function CreationHubPage() {
     ]);
     setArchivedContents(previous => previous.filter(item => !ids.includes(item.id)));
     setBulkDeleteOpen(false);
-    setSelectedExportIds(new Set());
-    setExportMode(false);
+    setDeleteTarget(null);
+    if (exitSelection) {
+      setSelectedExportIds(new Set());
+      setExportMode(false);
+    }
     notifySaveFeedback({ status: 'saving', message: 'Salvando alterações…' });
     void dispatch({ type: 'DELETE_MULTIPLE_CONTENTS', payload: ids }, { silent: true })
       .then(() => notifySaveFeedback({ status: 'success', message: noun }))
@@ -617,7 +624,7 @@ export function CreationHubPage() {
           detail: getErrorDetail(error),
         });
       });
-  }, [archivedContents, dispatch, selectedContents, selectedCopy]);
+  }, [archivedContents, dispatch]);
 
   // Novo roteiro passa antes pela escolha das redes; cada rede marcada já leva a legenda para a Gestão.
   const createScript = useCallback((plataformas: ContentPlataforma[]) => {
@@ -907,6 +914,7 @@ export function CreationHubPage() {
     onRestore: content => {
       void (content.deletedAt ? handleRestoreDeleted(content) : handleRestore(content));
     },
+    onDelete: content => setDeleteTarget(content),
     onPermanentDelete: content => {
       setPermanentDeleteTarget(content);
     },
@@ -1001,6 +1009,7 @@ export function CreationHubPage() {
     <div className="flex items-center justify-between gap-3">
       <div className="min-w-0">
         <SegmentTabs
+          className="creation-hub-tabs"
           options={tabOptions}
           value={activeTab}
           onChange={tab => updateSearchParam('tab', TAB_QUERY[tab], 'roteiros')}
@@ -1068,7 +1077,7 @@ export function CreationHubPage() {
     () => redesDoFiltroRapido(state.platforms, redesFilter),
     [redesFilter, state.platforms],
   );
-  const setRedesFilter = useCallback((redes: RedeSocial[]) => {
+  const setRedesFilter = useCallback((redes: RedeDoFiltro[]) => {
     updateSearchParam(REDE_FILTER_PARAM, serializeRedesFilter(redes));
   }, [updateSearchParam]);
   // Com uma rede só, filtrar por ela não separa nada.
@@ -1309,11 +1318,6 @@ export function CreationHubPage() {
   ) : null;
 
   const hasFilters = Boolean(search || pilarId || seriesId || temFiltroRede || temaFilter.length > 0 || originId || funcaoId || filtroData);
-  const shownCount = viewMode === 'kanban' ? kanbanContents.length : pageData.items.length;
-  const totalCount = viewMode === 'kanban' ? kanbanContents.length : filteredContents.length;
-  const hiddenCount = totalCount - shownCount;
-  // Sem filtro escondendo nada, o número já está na aba ativa.
-  const countMeta = hiddenCount > 0 ? `Mostrando ${shownCount} de ${totalCount}` : undefined;
 
   return (
     <>
@@ -1322,7 +1326,7 @@ export function CreationHubPage() {
         contentStack="dense"
         header={isStorageTab ? (
           <DesktopPageHeader
-            section="Criação"
+            section="Produção"
             backLabel="Criação"
             onBack={leaveStorage}
             title={activeTab}
@@ -1331,7 +1335,7 @@ export function CreationHubPage() {
           />
         ) : (
           <DesktopPageHeader
-            section="Criação"
+            section="Produção"
             title="Criação"
             actions={(
               <CreateMenuButton
@@ -1344,6 +1348,7 @@ export function CreationHubPage() {
         navigation={desktopTabs}
         toolbar={(
           <PageToolbar
+            className="creation-hub-toolbar"
             filters={filters}
             view={toolbarView}
           />
@@ -1364,6 +1369,34 @@ export function CreationHubPage() {
           </div>
         ) : mobileTabs}
         mobileToolbar={mobileFilters}
+        footer={exportMode || viewMode !== 'kanban' ? (
+          <div className="creation-hub-footer stack-sm">
+            {exportSelectionToolbar}
+            {viewMode !== 'kanban' ? (
+              <PaginationBar
+                currentPage={pageData.page}
+                totalPages={pageData.totalPages}
+                totalItems={pageData.totalItems}
+                pageSize={pageData.pageSize}
+                variant={isMobile ? 'simple' : 'full'}
+                alwaysVisible
+                className="rounded-none border-0 bg-transparent p-0"
+                onPageChange={page => {
+                  updateSearchParam('page', String(page), '1', false);
+                  requestAnimationFrame(() => {
+                    const results = resultsRef.current;
+                    if (!results) return;
+                    if (!isMobile) {
+                      const controls = document.querySelector('.desktop-header-sticky');
+                      results.style.scrollMarginTop = `calc(${controls?.getBoundingClientRect().height ?? 0}px + var(--space-lg))`;
+                    }
+                    results.scrollIntoView({ block: 'start' });
+                  });
+                }}
+              />
+            ) : null}
+          </div>
+        ) : undefined}
       >
         <QueryViewState
           status={resolveQueryViewStatus({
@@ -1392,7 +1425,7 @@ export function CreationHubPage() {
             ) : undefined
           }
         >
-          <div className={isMobile ? 'stack-md' : 'stack-lg'} aria-live="polite">
+          <div ref={resultsRef} className={isMobile ? 'stack-md scroll-mt-24' : 'stack-lg scroll-mt-4'} aria-live="polite">
             {viewMode === 'grid' ? (
               <CreationGridView
                 items={listItems}
@@ -1429,21 +1462,10 @@ export function CreationHubPage() {
               />
             ) : null}
 
-            {viewMode !== 'kanban' && hiddenCount > 0 ? (
-              <div className="flex justify-center">
-                <AppButton
-                  variant="secondary"
-                  onClick={() => updateSearchParam('page', String(requestedPage + 1), '1', false)}
-                >
-                  Mostrar mais ({Math.min(hiddenCount, CREATION_PAGE_SIZE)})
-                </AppButton>
-              </div>
-            ) : null}
+
           </div>
         </QueryViewState>
 
-        {/* Depois da lista: a barra fica presa ao pé da tela e não empurra os cards. */}
-        {exportSelectionToolbar}
       </PageLayout>
 
       {isMobile ? mobileFilterSheet : null}
@@ -1575,12 +1597,21 @@ export function CreationHubPage() {
       />
 
       <ConfirmModal
+        open={deleteTarget !== null}
+        message={deleteTarget ? CONFIRM.excluirCriacoes(1, getCreationExportCopy([deleteTarget])).message : ''}
+        confirmLabel="Mover para a lixeira"
+        cancelLabel="Cancelar"
+        onConfirm={() => { if (deleteTarget) moveToTrash([deleteTarget], false); }}
+        onCancel={() => setDeleteTarget(null)}
+      />
+
+      <ConfirmModal
         open={bulkDeleteOpen}
         message={CONFIRM.excluirCriacoes(Math.max(selectedExportIds.size, 1), selectedCopy).message}
         confirmLabel={CONFIRM.excluirCriacoes(Math.max(selectedExportIds.size, 1), selectedCopy).confirmLabel}
         cancelLabel="Manter seleção"
         confirmDisabled={selectedExportIds.size === 0}
-        onConfirm={() => void confirmBulkDelete()}
+        onConfirm={() => moveToTrash(selectedContents, true)}
         onCancel={() => setBulkDeleteOpen(false)}
       />
 

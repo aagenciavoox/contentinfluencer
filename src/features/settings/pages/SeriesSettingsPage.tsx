@@ -145,7 +145,7 @@ export function SeriesSettingsPage() {
     <PageLayout
       header={
         <DesktopPageHeader
-          section="Criação"
+          section="Produção"
           title="Séries & Agrupamentos"
           subtitle="Séries periódicas, quadros recorrentes, temporadas e padrões de legendas editoriais."
           actions={[

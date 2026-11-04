@@ -32,7 +32,7 @@ function rotuloDoEscopo(item: Pick<ContinuidadeDoEscopo, 'escopo' | 'platformId'
   return nomeConta ? `${formato} em ${nomeConta}` : `${formato} em todas as contas`;
 }
 
-function textoDoEscopo(resultado: ContinuidadeDoEscopo): { texto: string; atencao: boolean } | null {
+function textoDoEscopo(resultado: ContinuidadeDoEscopo, hoje: string): { texto: string; atencao: boolean } | null {
   if (resultado.estado === 'inativo' || resultado.estado === 'encerrado') return null;
   if (resultado.estado === 'nao-iniciado') return { texto: 'Acompanhamento ainda não começou', atencao: false };
   if (resultado.estado === 'pendente') {
@@ -44,6 +44,16 @@ function textoDoEscopo(resultado: ContinuidadeDoEscopo): { texto: string; atenca
     // Configuração pendente nunca conta como abaixo da meta.
     return { texto, atencao: false };
   }
+  const encerradas = resultado.janelas.filter(janela => janela.fim < hoje);
+  const atuais = resultado.janelas.filter(janela => janela.fim >= hoje);
+  if (encerradas.length > 0 && atuais.length === 0) {
+    return {texto: 'Histórico: ' + encerradas.map(j => dia(j.inicio) + '–' + dia(j.fim) + ': ' + (j.episodios + j.reservas) + ' de ' + j.meta).join(' · '), atencao: false};
+  }
+  resultado = {...resultado, janelas: atuais,
+    faltas: resultado.faltas.filter(j => j.fim >= hoje), reservadas: resultado.reservadas.filter(j => j.fim >= hoje),
+    semEpisodios: atuais.some(j => j.cobrada) && atuais.filter(j => j.cobrada).every(j => j.estado === 'vazia'),
+    concentrada: atuais.some(j => j.cobrada && j.episodios + j.reservas > j.meta) && atuais.some(j => j.cobrada && j.estado === 'vazia'),
+    distancias: resultado.distancias.filter(d => d.fim >= hoje), diasSeguidos: resultado.diasSeguidos.filter(d => d.seguinte >= hoje)};
   const cobradas = resultado.janelas.filter(janela => janela.cobrada).length;
   const partes: string[] = [];
   if (resultado.semEpisodios) partes.push('Sem episódios no período');
@@ -92,7 +102,7 @@ export function linhasDaContinuidadePorEscopo(input: {
   });
   const nomes = new Map(input.series.map(serie => [serie.id, serie.name]));
   return resultados.flatMap(resultado => {
-    const leitura = textoDoEscopo(resultado);
+    const leitura = textoDoEscopo(resultado, input.hoje ?? format(new Date(), 'yyyy-MM-dd'));
     if (!leitura) return [];
     return [{
       id: resultado.acompanhamentoId,

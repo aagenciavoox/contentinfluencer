@@ -1,4 +1,6 @@
-import type { Content, Platform, RedeSocial, Serie } from '../../../lib/database.ts';
+import type { Content, Platform, Serie } from '../../../lib/database.ts';
+import type { RedeDoFiltro } from '../../contas/lib/contas.ts';
+import { contaNoFiltro } from './filtroCalendario.ts';
 import { redeDaConta, rotuloConta } from '../../contas/lib/contas.ts';
 import type { DecisaoPeriodo } from '../../editorial/lib/editorialSettings.ts';
 import { metasDasContas, type MetaDaConta, type MetaDaContaVigencia } from '../../editorial/lib/metasPorConta.ts';
@@ -51,11 +53,11 @@ export function publicacoesNaSaude(input: {
   proporcaoGeral: ProporcaoFuncoes | null;
   pausas: readonly PausaEditorial[];
   /** Filtros do calendário: só a conta e o formato escolhidos. */
-  filtro?: { redes: readonly RedeSocial[]; formato: string | null };
+  filtro?: { redes: readonly RedeDoFiltro[]; formato: string | null };
 }): PublicacoesNaSaude {
   const filtro = input.filtro ?? { redes: [], formato: null };
   const metaForaDoFiltro = filtro.redes.length > 0;
-  const ativas = input.platforms.filter(conta => conta.ativo && (filtro.redes.length === 0 || filtro.redes.includes(redeDaConta(conta) ?? 'outra')));
+  const ativas = input.platforms.filter(conta => conta.ativo && (contaNoFiltro(redeDaConta(conta), filtro.redes)));
   const metas = metasDasContas({
     platformIds: ativas.map(conta => conta.id),
     linhas: input.linhas,

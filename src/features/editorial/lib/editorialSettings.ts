@@ -29,6 +29,16 @@ export interface PreferenciasGerais {
   hashtagsForaSeries: string;
   /** Gravações que cabem em um dia. Null é "sem limite" — não é zero. */
   limiteGravacoesDia: number | null;
+  /**
+   * Dias da semana em que grava (ISO: 1=segunda … 7=domingo).
+   * Vazio desliga o lote do dia de gravar.
+   */
+  diasGravacao: number[];
+  /**
+   * Quantos dias antes da postagem avisar o que falta.
+   * Null desliga a antecedência.
+   */
+  antecedenciaPostagemDias: number | null;
 }
 
 /** Exceção de uma semana fechada, domingo a sábado. */
@@ -124,6 +134,13 @@ export interface EditorialSettings {
   excecoesConcentracao?: ExcecaoConcentracao[];
 }
 
+function readDiasGravacao(value: unknown): number[] {
+  if (!Array.isArray(value)) return [];
+  const dias = value
+    .filter((item): item is number => typeof item === 'number' && Number.isInteger(item) && item >= 1 && item <= 7);
+  return [...new Set(dias)].sort((a, b) => a - b);
+}
+
 const PREFERENCIAS_PADRAO: PreferenciasGerais = {
   limiteSemanal: null,
   reservaForaSeriesSemanal: null,
@@ -132,6 +149,8 @@ const PREFERENCIAS_PADRAO: PreferenciasGerais = {
   publicoLinguagem: '',
   hashtagsForaSeries: '',
   limiteGravacoesDia: null,
+  diasGravacao: [],
+  antecedenciaPostagemDias: null,
 };
 
 export const DEFAULT_EDITORIAL_SETTINGS: EditorialSettings = {
@@ -232,6 +251,8 @@ function preferenciasVersao2(saved: Record<string, unknown>): PreferenciasGerais
     publicoLinguagem: readTexto(fonte.publicoLinguagem),
     hashtagsForaSeries: readTexto(fonte.hashtagsForaSeries),
     limiteGravacoesDia: readInteiroNaoNegativo(fonte.limiteGravacoesDia) || null,
+    diasGravacao: readDiasGravacao(fonte.diasGravacao),
+    antecedenciaPostagemDias: readInteiroNaoNegativo(fonte.antecedenciaPostagemDias),
   });
 }
 

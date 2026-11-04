@@ -1,10 +1,15 @@
 import type {RedeSocial} from '../../../lib/database.ts';
+import type {RedeDoFiltro} from '../../contas/lib/contas.ts';
 
-/** Ordem fixa das redes no post-it. Só a plataforma: conta, formato e horário ficam para depois. */
-export const REDES_DO_POSTIT: readonly RedeSocial[] = ['instagram', 'tiktok', 'youtube', 'blog', 'outra'];
+/** Ordem fixa das redes no post-it: inclui YouTube Shorts e vídeo longo como escolhas distintas. */
+export const REDES_DO_POSTIT: readonly RedeDoFiltro[] = [
+  'instagram', 'instagram-video', 'instagram-carrossel',
+  'tiktok', 'tiktok-video', 'tiktok-carrossel',
+  'youtube', 'youtube-shorts', 'blog', 'outra',
+];
 
 /** Lê `redes` do banco ou do MCP: só valores conhecidos, sem repetir, na ordem fixa. */
-export function normalizarRedesPostIt(value: unknown): RedeSocial[] {
+export function normalizarRedesPostIt(value: unknown): RedeDoFiltro[] {
   if (!Array.isArray(value)) return [];
   const escolhidas = new Set(
     value
@@ -15,7 +20,7 @@ export function normalizarRedesPostIt(value: unknown): RedeSocial[] {
 }
 
 /** Mesmas redes, sem olhar a ordem. */
-export function mesmasRedes(a: readonly RedeSocial[] | null | undefined, b: readonly RedeSocial[] | null | undefined): boolean {
+export function mesmasRedes(a: readonly RedeDoFiltro[] | null | undefined, b: readonly RedeDoFiltro[] | null | undefined): boolean {
   const x = normalizarRedesPostIt(a ?? []);
   const y = normalizarRedesPostIt(b ?? []);
   return x.length === y.length && x.every((rede, index) => rede === y[index]);

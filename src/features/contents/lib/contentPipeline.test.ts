@@ -132,7 +132,8 @@ function testEditingActionsFollowTheStage() {
     writingMode: 'carrossel',
     recordedAt: '2026-10-01T12:00:00.000Z',
   }));
-  assert.equal(carouselPronto.id, 'send_to_edit');
+  assert.equal(carouselPronto.id, 'finish_design');
+  assert.equal(carouselPronto.label, 'Marcar design pronto');
 
   const editing = getPrimaryAction(createContent({status: CONTENT_STATUS.EDICAO, edicaoConcluidaEm: null}));
   assert.equal(editing.id, 'finish_edit');
@@ -251,8 +252,8 @@ function testPublicationTabOpensFromRoteiro() {
 
 function testCarouselMarkProduced() {
   const carousel = createContent({status: CONTENT_STATUS.PRODUCAO, writingMode: 'carrossel', recordedAt: null});
-  assert.equal(getPrimaryAction(carousel).id, 'mark_recorded');
-  assert.equal(getPrimaryAction(carousel).label, 'Marcar como produzido');
+  assert.equal(getPrimaryAction(carousel).id, 'finish_design');
+  assert.equal(getPrimaryAction(carousel).label, 'Marcar design pronto');
 }
 
 const tests: Array<[string, () => void]> = [

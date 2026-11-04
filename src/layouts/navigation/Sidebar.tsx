@@ -20,6 +20,7 @@ import {useAppContext} from '../../context/AppContext';
 import {useAuth} from '../../context/AuthContext';
 import {getModuleFlags} from '../../features/settings/lib/moduleFlags';
 import {useIsMobile} from '../../hooks/useIsMobile';
+import {useResolvedTheme} from '../../hooks/useResolvedTheme';
 import {useNavCounts} from '../../hooks/useNavCounts';
 import {readStoredJson, writeStoredJson} from '../../lib/browserStorage';
 import {cn} from '../../lib/utils';
@@ -42,7 +43,7 @@ const SIDEBAR_WIDTH_COLLAPSED = 72;
 function NavSectionLabel({children, collapsed}: {children: string; collapsed: boolean}) {
   if (collapsed) return null;
   return (
-    <Text variant="label" uppercase className="mb-2 mt-6 px-3 first:mt-0">
+    <Text variant="label" uppercase className="app-sidebar__section-label mb-1 mt-4 px-3 first:mt-0">
       {children}
     </Text>
   );
@@ -146,6 +147,8 @@ export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  // Com "Sistema" escolhido, o botão alterna a partir do tema que está na tela.
+  const resolvedTheme = useResolvedTheme(state.theme);
   const moduleFlags = getModuleFlags(state.preferences);
   const navCounts = useNavCounts(state.bibliotecaItems.length);
   const [isCollapsed, setIsCollapsed] = React.useState(() =>
@@ -174,7 +177,7 @@ export function Sidebar() {
   };
 
   const toggleTheme = () => {
-    dispatch({type: 'SET_THEME', payload: state.theme === 'light' ? 'dark' : 'light'});
+    dispatch({type: 'SET_THEME', payload: resolvedTheme === 'light' ? 'dark' : 'light'});
   };
 
   const openCommandPalette = () => {
@@ -206,8 +209,8 @@ export function Sidebar() {
           cn(
             'group relative flex items-center transition-colors duration-150',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-blue)]',
-            isCollapsed ? 'h-11 w-11 justify-center rounded-[var(--radius-input)]' : 'gap-3 rounded-[var(--radius-input)] px-3 py-2',
-            nested && !isCollapsed && 'py-1.5',
+            isCollapsed ? 'h-11 w-11 justify-center rounded-[var(--radius-input)]' : 'app-sidebar__item gap-3 rounded-[var(--radius-input)] px-3 py-1.5',
+            nested && !isCollapsed && 'app-sidebar__item--nested py-1',
             isActive
               ? isCollapsed
                 ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
@@ -259,7 +262,9 @@ export function Sidebar() {
       </NavLink>
     );
 
-    const nestedItems = !isCollapsed && item.nested?.length ? (
+    // Acordeão: os subitens (Legendas, Transcrição) só aparecem com o pai ou um deles ativo.
+    const nestedOpen = isActive || (item.nested ?? []).some(child => isNavItemActive(child.to, location.pathname));
+    const nestedItems = !isCollapsed && nestedOpen && item.nested?.length ? (
       <div className="ml-5 border-l border-[var(--border-color)] pl-1">
         {item.nested
           .filter(child => !isNavItemHidden(child, moduleFlags))
@@ -275,7 +280,7 @@ export function Sidebar() {
     );
   };
 
-  const themeLabel = state.theme === 'light' ? 'Modo escuro' : 'Modo claro';
+  const themeLabel = resolvedTheme === 'light' ? 'Modo escuro' : 'Modo claro';
   const settingsNavCurrent = isSettingsNavActive(location.pathname);
 
   const userMenuPanel = (
@@ -291,8 +296,8 @@ export function Sidebar() {
         onClick={() => { toggleTheme(); setUserMenuOpen(false); }}
         className="flex items-center gap-2.5 w-full px-3 py-2 t-body text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors"
       >
-        {state.theme === 'light' ? <Moon className="h-4 w-4 shrink-0" /> : <Sun className="h-4 w-4 shrink-0" />}
-        {state.theme === 'light' ? 'Modo escuro' : 'Modo claro'}
+        {resolvedTheme === 'light' ? <Moon className="h-4 w-4 shrink-0" /> : <Sun className="h-4 w-4 shrink-0" />}
+        {resolvedTheme === 'light' ? 'Modo escuro' : 'Modo claro'}
       </button>
       <button
         onClick={() => { signOut(); setUserMenuOpen(false); }}
@@ -307,11 +312,11 @@ export function Sidebar() {
   const sidebarContent = (
     <div
       className={cn(
-        'flex h-full w-full flex-col overflow-hidden border-r border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] transition-[padding] duration-200',
-        isCollapsed ? 'px-2 py-4' : 'p-4'
+        'app-sidebar flex h-full w-full flex-col overflow-hidden border-r border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] transition-[padding] duration-200',
+        isCollapsed ? 'px-2 py-3' : 'px-4 py-3'
       )}
     >
-      <div className={cn('mb-4 flex shrink-0 items-center gap-2', isCollapsed ? 'flex-col' : 'justify-between')}>
+      <div className={cn('mb-3 flex shrink-0 items-center gap-2', isCollapsed ? 'flex-col' : 'justify-between')}>
         {isCollapsed ? (
           <Tooltip label="Criaki">
             <BrandLockup collapsed />
@@ -358,7 +363,7 @@ export function Sidebar() {
       ) : (
         <button
           onClick={openCommandPalette}
-          className="group mb-4 flex w-full items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-left text-[var(--text-tertiary)] transition-colors hover:border-[var(--border-strong)]"
+          className="group mb-3 flex w-full items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 text-left text-[var(--text-tertiary)] transition-colors hover:border-[var(--border-strong)]"
         >
           <Search className="h-4 w-4 shrink-0" />
           <span className="flex-1 t-body">Buscar…</span>
@@ -399,7 +404,7 @@ export function Sidebar() {
       </nav>
 
       {isCollapsed ? <RailDivider /> : null}
-      <div className={cn('shrink-0', isCollapsed ? 'flex flex-col items-center gap-1' : 'mt-4 space-y-0.5 border-t border-[var(--border-color)] pt-4')}>
+      <div className={cn('shrink-0', isCollapsed ? 'flex flex-col items-center gap-1' : 'mt-3 space-y-0.5 border-t border-[var(--border-color)] pt-3')}>
         {isCollapsed ? (
           <Tooltip label={themeLabel} className="w-full justify-center">
             <button
@@ -408,7 +413,7 @@ export function Sidebar() {
               aria-label={themeLabel}
               className={collapsedRailClass(false)}
             >
-              {state.theme === 'light' ? <Moon className="h-5 w-5 stroke-[1.75]" /> : <Sun className="h-5 w-5 stroke-[1.75]" />}
+              {resolvedTheme === 'light' ? <Moon className="h-5 w-5 stroke-[1.75]" /> : <Sun className="h-5 w-5 stroke-[1.75]" />}
             </button>
           </Tooltip>
         ) : null}
@@ -472,7 +477,7 @@ export function Sidebar() {
       </div>
 
       {!isCollapsed ? (
-      <div className="mt-3 shrink-0">
+      <div className="mt-2 shrink-0">
           <div className="relative">
             {userMenuOpen && (
               <div style={{position: 'absolute', bottom: '100%', left: 0, right: 0, marginBottom: '4px', zIndex: 50}}>
@@ -481,10 +486,10 @@ export function Sidebar() {
             )}
             <button
               onClick={e => { e.stopPropagation(); setUserMenuOpen(prev => !prev); }}
-              className="flex w-full items-center gap-3 rounded-[var(--radius-input)] border border-transparent p-2 text-left transition-colors hover:bg-[var(--bg-hover)]"
+              className="app-sidebar__profile flex w-full items-center gap-3 rounded-[var(--radius-input)] border border-transparent p-2 text-left transition-colors hover:bg-[var(--bg-hover)]"
               aria-label="Abrir perfil"
             >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--bg-hover)] t-body-strong text-[var(--text-secondary)]">
+              <div className="app-sidebar__avatar flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--bg-hover)] t-body-strong text-[var(--text-secondary)]">
                 {userInitials}
               </div>
               <div className="flex min-w-0 flex-1 flex-col items-start overflow-hidden">

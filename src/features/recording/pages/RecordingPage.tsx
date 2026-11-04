@@ -5,7 +5,6 @@ import {useAppContext} from '../../../context/AppContext';
 import {useAuth} from '../../../context/AuthContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
 import {useDomainsReady} from '../../../hooks/useDomainsReady';
-import type {RecordingBlock, RecordingBlockContent} from '../../../lib/database';
 import {fetchContentsByIds} from '../../../lib/database';
 import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
 import {buildDetailBackState} from '../../../lib/navigation/detailBack';
@@ -30,6 +29,7 @@ import {
   buildMarkStandaloneContentRecordedTransition,
   normalizeRecordingTags,
 } from '../lib/recordingWorkflow';
+import {montarBlocoDeGravacao, tagsDoTexto} from '../lib/blocoDeGravacao';
 import {contentPassaFiltroSerie} from '../../editorial/lib/filtroSubarvore';
 import {generateUUID} from '../../../utils/uuid';
 
@@ -49,7 +49,14 @@ export function RecordingPage() {
   const isMobile = useIsMobile();
 
   const [activeTab, setActiveTab] = useState<RecordingPageTab>(() => resolveRecordingTab(searchParams.get('tab')));
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => {
+    const idsParam = searchParams.get('ids');
+    if (idsParam) {
+      const list = idsParam.split(',').map(s => s.trim()).filter(Boolean);
+      return new Set(list);
+    }
+    return new Set();
+  });
   const [blockName, setBlockName] = useState('');
   const [showBlockForm, setShowBlockForm] = useState(false);
 
@@ -163,6 +170,22 @@ export function RecordingPage() {
   };
 
   const queueContents = getRecordingQueueContents(state.contents, state.recordingBlocks);
+  const idsPedido = searchParams.get('ids');
+  const pedidoAplicado = useRef<string | null | undefined>(undefined);
+  const filaKey = queueContents.map(c => c.id).sort().join(',');
+  useEffect(() => {
+    if (!recordingReady) return;
+    const elegiveis = new Set(filaKey.split(',').filter(Boolean));
+    if (pedidoAplicado.current !== idsPedido) {
+      pedidoAplicado.current = idsPedido;
+      setSelectedIds(new Set((idsPedido ?? '').split(',').map(id => id.trim()).filter(id => elegiveis.has(id))));
+    } else {
+      setSelectedIds(prev => {
+        const next = new Set([...prev].filter(id => elegiveis.has(id)));
+        return next.size === prev.size ? prev : next;
+      });
+    }
+  }, [idsPedido, filaKey, recordingReady]);
   const queueIds = useMemo(() => queueContents.map(content => content.id), [queueContents]);
   const {isHydrating, hasHydrationError, retryHydration} = useHydrateContentBodies(queueIds);
 
@@ -263,7 +286,8 @@ export function RecordingPage() {
   const handleAddToExistingBlock = async (blockId: string) => {
     if (!blockId || selectedIds.size === 0) return;
 
-    const orderedIds = prontos.filter(content => selectedIds.has(content.id)).map(content => content.id);
+    const orderedIds = queueContents.filter(content => selectedIds.has(content.id)).map(content => content.id);
+    if (orderedIds.length === 0) return;
     await addContentsToExistingBlock(blockId, orderedIds);
 
     handleClearSelection();
@@ -273,32 +297,15 @@ export function RecordingPage() {
   const handleCriarBloco = async () => {
     if (!blockName.trim() || selectedIds.size === 0) return;
 
-    const orderedSelectedContents = prontos.filter(content => selectedIds.has(content.id));
-    const manualTags = blockTags.map(tag => tag.trim()).filter(Boolean);
-    const recordingTags = normalizeRecordingTags(
-      manualTags.length > 0 ? manualTags : orderedSelectedContents.flatMap(content => content.tags || [])
-    );
-
-    const block: RecordingBlock = {
+    const orderedSelectedContents = queueContents.filter(content => selectedIds.has(content.id));
+    if (orderedSelectedContents.length === 0) return;
+    const {block, blockContents} = montarBlocoDeGravacao({
       id: generateUUID(),
       userId: user?.id || '',
-      name: blockName.trim(),
-      lookLabel: null,
-      cenarioLabel: null,
-      metadata: {
-        recordingTags,
-        sourceContentIds: orderedSelectedContents.map(content => content.id),
-      },
-      createdAt: new Date().toISOString(),
-      contents: [],
-    };
-
-    const blockContents: RecordingBlockContent[] = orderedSelectedContents.map((content, index) => ({
-      blockId: block.id,
-      contentId: content.id,
-      ordem: index,
-      gravado: false,
-    }));
+      nome: blockName,
+      tags: blockTags,
+      contents: orderedSelectedContents,
+    });
 
     await dispatch({type: 'ADD_RECORDING_BLOCK', payload: block});
     await dispatch({type: 'UPDATE_BLOCK_CONTENTS', payload: {blockId: block.id, contents: blockContents}});
@@ -321,31 +328,13 @@ export function RecordingPage() {
     const orderedSelectedContents = contentIds
       .map(contentId => state.contents.find(content => content.id === contentId) || null)
       .filter((content): content is (typeof state.contents)[number] => content !== null);
-    const manualTags = tagsText.split(/[,\n]/).map(tag => tag.trim()).filter(Boolean);
-    const recordingTags = normalizeRecordingTags(
-      manualTags.length > 0 ? manualTags : orderedSelectedContents.flatMap(content => content.tags || [])
-    );
-
-    const block: RecordingBlock = {
+    const {block, blockContents} = montarBlocoDeGravacao({
       id: generateUUID(),
       userId: user?.id || '',
-      name: name.trim(),
-      lookLabel: null,
-      cenarioLabel: null,
-      metadata: {
-        recordingTags,
-        sourceContentIds: contentIds,
-      },
-      createdAt: new Date().toISOString(),
-      contents: [],
-    };
-
-    const blockContents: RecordingBlockContent[] = contentIds.map((contentId, index) => ({
-      blockId: block.id,
-      contentId,
-      ordem: index,
-      gravado: false,
-    }));
+      nome: name,
+      tags: tagsDoTexto(tagsText),
+      contents: orderedSelectedContents,
+    });
 
     await dispatch({type: 'ADD_RECORDING_BLOCK', payload: block});
     await dispatch({type: 'UPDATE_BLOCK_CONTENTS', payload: {blockId: block.id, contents: blockContents}});
@@ -357,6 +346,8 @@ export function RecordingPage() {
         <div className="min-h-full bg-[var(--bg-primary)]">
           <RecordingMobileScreen
           readyContents={queueContents}
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
           recordingBlocks={state.recordingBlocks}
           countsReady={recordingReady}
           allContents={state.contents}

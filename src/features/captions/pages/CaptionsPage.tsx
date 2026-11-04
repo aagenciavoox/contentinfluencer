@@ -204,7 +204,7 @@ export function CaptionsPage() {
       contentStack="dense"
       header={
         <DesktopPageHeader
-          section="Criação"
+          section="Produção"
           title="Legendas"
           titleAside={
             <Badge variant="neutral">

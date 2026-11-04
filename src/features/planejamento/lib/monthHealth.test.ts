@@ -238,6 +238,8 @@ function testFrequenciaDoPilarNaoFechaOMes() {
         publicoLinguagem: '',
         hashtagsForaSeries: '',
         limiteGravacoesDia: null,
+        diasGravacao: [],
+        antecedenciaPostagemDias: null,
       },
     },
   });
@@ -395,6 +397,8 @@ function testProporcaoDefineMetaDosObjetivos() {
         publicoLinguagem: '',
         hashtagsForaSeries: '',
         limiteGravacoesDia: null,
+        diasGravacao: [],
+        antecedenciaPostagemDias: null,
       },
     },
     periodo: {inicio: '2026-10-04', fim: '2026-10-10'},

@@ -23,13 +23,15 @@ import type {Content, Serie, Tema} from '../../../lib/database';
 import type {PublicacaoNoDia} from '../lib/publicacoesDoMes';
 import type {PlanejamentoPostIt} from '../lib/postIt';
 import type {VistaPlanejamento} from '../lib/periodoPlanejamento';
+import {diasDoCalendario, type IntervaloSaude} from '../lib/saudeActions';
 import {SemDataPanel} from './SemDataPanel';
 
 const TODOS_OS_ASSUNTOS = '__todos';
-const WEEK_STARTS_ON = 1;
+const WEEK_STARTS_ON = 0;
 
 interface PlanejamentoMobileViewProps {
   month: Date;
+  intervalo?: IntervaloSaude | null;
   onMonthChange: (date: Date) => void;
   vista: VistaPlanejamento;
   onVistaChange: (vista: VistaPlanejamento) => void;
@@ -191,6 +193,7 @@ function DayList({
  */
 export function PlanejamentoMobileView({
   month,
+  intervalo,
   onMonthChange,
   vista,
   onVistaChange,
@@ -221,11 +224,8 @@ export function PlanejamentoMobileView({
   );
 
   const weekDays = useMemo(
-    () => eachDayOfInterval({
-      start: startOfWeek(month, {weekStartsOn: WEEK_STARTS_ON}),
-      end: endOfWeek(month, {weekStartsOn: WEEK_STARTS_ON}),
-    }),
-    [month],
+    () => diasDoCalendario(month, intervalo),
+    [month, intervalo],
   );
 
   const weeks = useMemo(() => {

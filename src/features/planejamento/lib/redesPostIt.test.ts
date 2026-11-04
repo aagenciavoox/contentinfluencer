@@ -9,6 +9,7 @@ function testNormalizaRedes() {
   assert.deepEqual(normalizarRedesPostIt(null), []);
   assert.deepEqual(normalizarRedesPostIt('instagram'), []);
   assert.deepEqual(normalizarRedesPostIt(['youtube', 'Instagram ', 'youtube', 'facebook', 3]), ['instagram', 'youtube']);
+  assert.deepEqual(normalizarRedesPostIt(['youtube-shorts', 'Instagram ']), ['instagram', 'youtube-shorts']);
 }
 
 function testMesmasRedesIgnoraOrdem() {
@@ -48,14 +49,18 @@ const CONTAS = [
 
 function testRedesDoConteudoPelaConta() {
   const content = {plataformas: [{platformId: 'c-yt'}, {platformId: 'c-ig'}, {platformId: 'c-ig'}, {platformId: 'c-x'}]};
-  assert.deepEqual(redesDoConteudo(content, CONTAS), ['instagram', 'youtube']);
+  // Sem formato nem escrita, YouTube deduz para Shorts
+  assert.deepEqual(redesDoConteudo(content, CONTAS), ['instagram-video', 'youtube-shorts']);
+  // Com modo de escrita YouTube ou formato longo, vira YouTube longo
+  assert.deepEqual(redesDoConteudo({...content, writingMode: 'youtube' as const}, CONTAS), ['instagram-video', 'youtube']);
+  assert.deepEqual(redesDoConteudo({plataformas: [{platformId: 'c-yt', formatoPublicacao: 'video-longo' as const}]}, CONTAS), ['youtube']);
   assert.deepEqual(redesDoConteudo({plataformas: [{platformId: 'TikTok'}]}, CONTAS), ['tiktok']);
   assert.deepEqual(redesDoConteudo(null, CONTAS), []);
 }
 
 function testCartaoUsaConteudoAntesDoPostIt() {
   const postIt = {redes: ['tiktok' as const]};
-  assert.deepEqual(redesDoCartao({content: {plataformas: [{platformId: 'c-ig'}]}, postIt, contas: CONTAS}), ['instagram']);
+  assert.deepEqual(redesDoCartao({content: {plataformas: [{platformId: 'c-ig'}]}, postIt, contas: CONTAS}), ['instagram-video']);
   assert.deepEqual(redesDoCartao({content: {plataformas: []}, postIt, contas: CONTAS}), ['tiktok']);
   assert.deepEqual(redesDoCartao({content: {plataformas: [{platformId: 'c-x'}]}, postIt, contas: CONTAS}), ['tiktok']);
   assert.deepEqual(redesDoCartao({content: null, postIt: null, contas: CONTAS}), []);

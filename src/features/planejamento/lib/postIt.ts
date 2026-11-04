@@ -3,8 +3,7 @@ import {mesmasRedes, normalizarRedesPostIt} from './redesPostIt.ts';
 import {generateUUID} from '../../../utils/uuid.ts';
 import {CONTENT_STATUS, normalizeContentStatus} from '../../contents/lib/contentPipeline.ts';
 import {createContentDraft} from '../../contents/lib/createContentDraft.ts';
-import {placeContentOnDay} from '../../editorial-calendar/lib/scheduleContent.ts';
-import {contasAtivas, redeDaConta, type ContaRef} from '../../contas/lib/contas.ts';
+import {contasAtivas, redeDaConta, type ContaRef, type RedeDoFiltro} from '../../contas/lib/contas.ts';
 import {criarPublicacaoAgendada} from '../../editorial/lib/destinations.ts';
 import {aplicarEscolhasHerdadas} from '../../editorial/lib/escolhasSerie.ts';
 import {contaNaGradePadrao} from '../../editorial/lib/funcoes.ts';
@@ -17,7 +16,7 @@ export interface PlanejamentoPostIt {
   texto: string;
   /** yyyy-MM-dd. Null fica na pilha ao lado do mês. */
   date: string | null;
-  /** Ideia ou roteiro ligado. Com data no roteiro, o post-it fica no dia dele (`postItsNaDataDoRoteiro`). */
+  /** Ideia ou roteiro ligado. O dia do post-it é rascunho; o Calendário usa a data do roteiro. */
   contentId: string | null;
   /**
    * Série, pilar e objetivo do espaço, anotados antes de ter conteúdo.
@@ -27,7 +26,7 @@ export interface PlanejamentoPostIt {
   pilarId?: string | null;
   objetivo?: FuncaoEditorial | null;
   /** Redes onde vai sair. Só a plataforma, sem conta. */
-  redes?: RedeSocial[];
+  redes?: RedeDoFiltro[];
   /** Contas onde vai sair. Vazio = só a rede: a reserva não cobre meta de uma conta. */
   contaIds?: string[];
   /** true/false manda; null herda do texto. */
@@ -99,7 +98,7 @@ export function canPullContent(content: Content): boolean {
 
 /**
  * Liga um conteúdo que já existe a um post-it que já existe: o espaço planejado ganha conteúdo.
- * Não muda o status. A tela leva o roteiro ao dia do post-it (`levarRoteiroAoDia`).
+ * Não muda o status nem a data do Calendário.
  * Recusa conteúdo já ligado a outro post-it.
  */
 export function encaixarConteudo(input: {
@@ -118,7 +117,7 @@ export function encaixarConteudo(input: {
 
 /**
  * Puxa uma ideia, um roteiro ou um conteúdo em Produção para o dia (ou para a pilha).
- * O Content devolvido é o mesmo objeto. A tela leva o roteiro ao dia (`levarRoteiroAoDia`).
+ * O Content devolvido é o mesmo objeto. A data do Calendário não muda.
  */
 export function pullExistingContent(input: {
   postIts: readonly PlanejamentoPostIt[];
@@ -175,7 +174,7 @@ export interface PostItEdit {
   serieId?: string | null;
   pilarId?: string | null;
   objetivo?: FuncaoEditorial | null;
-  redes?: RedeSocial[];
+  redes?: RedeDoFiltro[];
 }
 
 export function postItEditDraft(postIt: PlanejamentoPostIt): PostItEdit {
@@ -273,11 +272,6 @@ export function postItTransformOptions(
   return {ideia: false, roteiro: false};
 }
 
-function stampDay(content: Content, date: string | null): Content {
-  if (!date || content.publishDate || content.plataformas.some(publicacao => publicacao.publishDate)) return content;
-  return placeContentOnDay(content, date);
-}
-
 /** Copia série, pilar e objetivo do post-it. A origem fica herdada quando o valor veio dele. */
 function conteudoDoPostIt(draft: Content, postIt: PlanejamentoPostIt): Content {
   const comSerie = postIt.serieId ? {...draft, seriesId: postIt.serieId} : draft;
@@ -297,13 +291,29 @@ function conteudoDoPostIt(draft: Content, postIt: PlanejamentoPostIt): Content {
 function publicacoesDasRedes(content: Content, postIt: PlanejamentoPostIt, contas: readonly ContaRef[]): Content {
   const redes = normalizarRedesPostIt(postIt.redes);
   if (redes.length === 0) return content;
+  const base = redes.includes('instagram-carrossel') || redes.includes('tiktok-carrossel')
+    ? {...content, writingMode: 'carrossel' as const}
+    : content;
   const plataformas = contasAtivas(contas)
     .filter(conta => {
       const rede = redeDaConta(conta);
-      return rede !== null && redes.includes(rede);
+      if (rede === null) return false;
+      if (redes.includes(rede)) return true;
+      if (rede === 'youtube' && redes.includes('youtube-shorts')) return true;
+      if (rede === 'instagram' && (redes.includes('instagram-video') || redes.includes('instagram-carrossel'))) return true;
+      if (rede === 'tiktok' && (redes.includes('tiktok-video') || redes.includes('tiktok-carrossel'))) return true;
+      return false;
     })
-    .map(conta => criarPublicacaoAgendada(content.id, conta.id));
-  return plataformas.length > 0 ? {...content, plataformas: [...content.plataformas, ...plataformas]} : content;
+    .map(conta => {
+      const rede = redeDaConta(conta);
+      const pub = criarPublicacaoAgendada(base.id, conta.id);
+      if (rede === 'youtube') {
+        if (redes.includes('youtube-shorts')) return {...pub, formatoPublicacao: 'short' as const};
+        if (redes.includes('youtube')) return {...pub, formatoPublicacao: 'video-longo' as const};
+      }
+      return pub;
+    });
+  return plataformas.length > 0 ? {...base, plataformas: [...base.plataformas, ...plataformas]} : base;
 }
 
 /** A primeira linha da nota vira o título; a nota inteira fica nas anotações. */
@@ -320,7 +330,7 @@ function ligarPostIt(postIt: PlanejamentoPostIt, contentId: string, now: string)
 /**
  * Só a transformação cria ou promove conteúdo.
  * O conteúdo novo leva nota, série, pilar, objetivo e as redes do post-it (como publicações nas contas).
- * A data do post-it vira previsão quando não existe data no conteúdo.
+ * Não grava o dia do post-it no Calendário: isso fica em "Salvar no calendário".
  * Publicações por conta já definidas são preservadas. Um post-it vazio que vira roteiro abre o editor.
  */
 export function transformPostIt(input: {
@@ -346,7 +356,7 @@ export function transformPostIt(input: {
       ...tituloENotas(input.postIt.texto),
       status,
     }), input.postIt);
-    const content = stampDay(publicacoesDasRedes(draft, input.postIt, input.contas ?? []), input.postIt.date);
+    const content = publicacoesDasRedes(draft, input.postIt, input.contas ?? []);
     return {
       ok: true,
       mode: 'create',
@@ -366,7 +376,6 @@ export function transformPostIt(input: {
   if (input.target === 'roteiro' && status === CONTENT_STATUS.IDEIA) {
     content = {...content, status: CONTENT_STATUS.ROTEIRO, updatedAt: now};
   }
-  content = stampDay(content, input.postIt.date);
 
   return {
     ok: true,

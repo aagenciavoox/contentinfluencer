@@ -1,4 +1,4 @@
-import type {Content, ContentPlataforma, FuncaoPadraoSerie, Idea, RedeSocial} from '../../../lib/database.ts';
+import type {Content, ContentPlataforma, FuncaoPadraoSerie, Idea, RedeSocial, WritingMode} from '../../../lib/database.ts';
 import {htmlToReadableText} from '../../../lib/utils.ts';
 import {generateUUID, isUUID} from '../../../utils/uuid.ts';
 import { passaNoFiltroData, type FiltroData } from '../../editorial/lib/datasNaGrade.ts';
@@ -18,6 +18,7 @@ import {carouselPlainText, contentReadableBody, isCarouselContent} from './carou
 import {writingNotesToHtml} from './supportDraft.ts';
 import {ideaTextToScriptHtml, joinIdeaNotes, readableTextToScriptHtml} from './ideaNotes.ts';
 import {passaNoFiltroRede} from '../../creation/lib/creationRedeFilter.ts';
+import type {RedeDoFiltro} from '../../contas/lib/contas.ts';
 import {contentPassaFiltroSerie} from '../../editorial/lib/filtroSubarvore.ts';
 
 export const CREATION_TABS = [
@@ -51,8 +52,9 @@ export interface CreationFilters {
   filtroData?: FiltroData | null;
   datasNaGrade?: ReadonlyMap<string, readonly string[]>;
   /** Redes marcadas; passa quem sai só nelas. Precisa de `redesPorConteudo`. */
-  redes?: readonly RedeSocial[];
-  redesPorConteudo?: ReadonlyMap<string, readonly RedeSocial[]>;
+  /** Itens do filtro de redes: no YouTube, vídeo longo e Shorts separados. */
+  redes?: readonly RedeDoFiltro[];
+  redesPorConteudo?: ReadonlyMap<string, readonly RedeDoFiltro[]>;
 }
 
 export type CreationSort = 'recent' | 'oldest' | 'title';
@@ -65,7 +67,7 @@ export interface CreationPage {
   totalPages: number;
 }
 
-export const CREATION_PAGE_SIZE = 24;
+export const CREATION_PAGE_SIZE = 30;
 
 export function createIdeaContent(
   overrides: Partial<Content> = {},
@@ -85,14 +87,30 @@ export function createScriptContent(
   });
 }
 
+/**
+ * Modo de escrita inicial pelas publicações escolhidas ao criar o roteiro.
+ * Vídeo longo abre o modo YouTube. Carrossel não cabe no formato da publicação:
+ * quem cria um carrossel escolhe esse modo no conteúdo.
+ */
+export function writingModeInicial(
+  plataformas: readonly Pick<ContentPlataforma, 'formatoPublicacao'>[],
+): WritingMode {
+  if (plataformas.some(item => item.formatoPublicacao === 'video-longo')) return 'youtube';
+  return 'texto';
+}
+
 /** Roteiro novo com as publicações escolhidas ao criar, cada uma já ligada ao id dele. */
 export function createScriptWithPublications(
   plataformas: readonly ContentPlataforma[],
   overrides: Partial<Content> = {},
 ): Content {
-  const content = createScriptContent(overrides);
+  const content = createScriptContent({
+    writingMode: writingModeInicial(plataformas),
+    ...overrides,
+  });
   return {
     ...content,
+    writingMode: overrides.writingMode ?? writingModeInicial(plataformas),
     plataformas: plataformas.map(plataforma => ({...plataforma, contentId: content.id})),
   };
 }

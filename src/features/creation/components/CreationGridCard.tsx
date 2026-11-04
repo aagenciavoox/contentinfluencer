@@ -6,13 +6,11 @@ import { CreationCategoryLabel } from './CreationCategoryLabel';
 import { CreationEntityMarks, creationEntityHint } from './CreationEntityMarks';
 import { CreationItemMenu } from './CreationItemMenu';
 import { CreationSelectCheckbox } from './CreationSelectCheckbox';
-import { getStatusDetail } from '../../contents/lib/contentPipeline';
 import {
   buildCreationItemMenuItems,
   type CreationItemActionHandlers,
 } from '../lib/creationItemActions';
 import {
-  getCreationCardDateMeta,
   getCreationCardTags,
   getCreationNoteExcerpt,
   getCreationTitle,
@@ -50,15 +48,12 @@ export function CreationGridCard({
   const isIdea = isIdeaContent(content);
   const tags = etiquetas ?? getCreationCardTags(content);
   const excerpt = getCreationNoteExcerpt(content);
-  // Só a data no rodapé: o formato vai para a lista, onde há espaço para ele sem cortar.
-  const footerMeta = [getStatusDetail(content), getCreationCardDateMeta(content)].filter(Boolean).join(' · ') || null;
   const canOpen = !content.deletedAt;
   const canActivate = selectionMode ? selectable : canOpen;
   const showSelect = selectable;
   const menuItems = buildCreationItemMenuItems(content, actions);
   const entityHint = creationEntityHint(pillar, series, content.pilarId, content.seriesId);
   const hasMarks = entityHint.length > 0;
-  const cornerReserve = showSelect ? 'pr-16' : 'pr-9';
 
   const handleActivate = () => {
     if (selectionMode) {
@@ -73,11 +68,12 @@ export function CreationGridCard({
       as="article"
       variant="interactive"
       padding="none"
+      style={{ borderTopColor: series?.cor || pillar?.cor || undefined }}
       className={cn(
-        'creation-hub-card group relative flex flex-col transition-[border-color,box-shadow,background-color] duration-200',
+        'creation-hub-card group relative flex flex-col transition-[border-color,box-shadow,background-color,transform] duration-200',
         isIdea && 'creation-hub-card--idea',
         canActivate && 'cursor-pointer',
-        selected && 'ring-1 ring-[var(--text-primary)]',
+        selected && 'creation-hub-card--selected',
         selectionMode && !selectable && 'opacity-55',
       )}
     >
@@ -85,6 +81,7 @@ export function CreationGridCard({
         type="button"
         onClick={handleActivate}
         disabled={!canActivate}
+        title={entityHint || undefined}
         className={cn(
           'absolute inset-0 z-0 rounded-[var(--radius-card)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
           !canActivate && 'cursor-default',
@@ -102,10 +99,41 @@ export function CreationGridCard({
         }
       />
 
-      <div className="relative z-[1] pointer-events-none flex min-h-0 flex-col">
-        <div className="pointer-events-auto absolute top-0 right-0 z-[2] flex items-center justify-end gap-1">
+      <div className="relative z-[1] pointer-events-none flex min-h-0 flex-1 flex-col">
+        <div className="creation-hub-card__header flex items-start gap-2">
+          <Text variant="itemTitle" className="creation-hub-card__title min-w-0 flex-1 line-clamp-2" title={title}>
+            {title}
+          </Text>
+          <span className="pointer-events-auto shrink-0">
+            <CreationItemMenu
+              items={menuItems}
+              label={`Ações de ${title}`}
+              alwaysVisible
+              triggerClassName="h-6 w-6 min-h-0 min-w-0 p-0"
+            />
+          </span>
+        </div>
+
+        {excerpt ? (
+          <Text variant="secondary" className="card-excerpt">
+            {excerpt}
+          </Text>
+        ) : null}
+
+        {hasMarks || showSelect ? (
+          <div className="creation-hub-card__bottom flex min-w-0 items-center gap-2">
+            {hasMarks ? (
+              <CreationEntityMarks
+                pillar={pillar}
+                series={series}
+                pillarId={content.pilarId}
+                seriesId={content.seriesId}
+                display="all"
+                className="min-w-0 flex-1"
+              />
+            ) : <span className="flex-1" aria-hidden />}
             {showSelect ? (
-              <span>
+              <span className="pointer-events-auto flex shrink-0">
                 <CreationSelectCheckbox
                   selected={selected}
                   onToggle={onToggleSelect}
@@ -114,63 +142,12 @@ export function CreationGridCard({
                 />
               </span>
             ) : null}
-            {/* O ⋯ fica sempre visível: é a única ação do card além de abrir. */}
-            <span>
-              <CreationItemMenu
-                items={menuItems}
-                label={`Ações de ${title}`}
-                alwaysVisible
-              />
-            </span>
-        </div>
-
-        {hasMarks ? (
-          <div
-            className={cn('creation-hub-card__header flex min-h-8 items-center', cornerReserve)}
-            onClick={event => {
-              event.stopPropagation();
-              handleActivate();
-            }}
-          >
-            <CreationEntityMarks
-              pillar={pillar}
-              series={series}
-              pillarId={content.pilarId}
-              seriesId={content.seriesId}
-              className="pointer-events-auto relative z-[2]"
-            />
           </div>
         ) : null}
 
-        <div className={cn('card-body', !hasMarks && cornerReserve)}>
-          <Text variant="itemTitle" className="creation-hub-card__title line-clamp-2">
-            {title}
-          </Text>
-
-          {excerpt ? (
-            <Text variant="secondary" className="card-excerpt">
-              {excerpt}
-            </Text>
-          ) : null}
-        </div>
-
-        {tags.length > 0 || footerMeta ? (
-          <div className="creation-hub-card__footer flex min-h-6 items-center justify-between gap-4">
-            {tags.length > 0 ? (
-              <CreationCategoryLabel label={tags[0]} extraCount={tags.length - 1} names={tags} />
-            ) : <span aria-hidden />}
-            {footerMeta ? (
-              <Text
-                variant="meta"
-                as="span"
-                className={cn(
-                  'truncate text-right text-[var(--text-tertiary)]',
-                  tags.length > 0 ? 'max-w-[60%] shrink-0' : 'max-w-full',
-                )}
-              >
-                {footerMeta}
-              </Text>
-            ) : null}
+        {tags.length > 0 ? (
+          <div className="creation-hub-card__footer">
+            <CreationCategoryLabel label={tags[0]} extraCount={tags.length - 1} names={tags} />
           </div>
         ) : null}
       </div>

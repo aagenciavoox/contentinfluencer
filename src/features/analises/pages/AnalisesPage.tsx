@@ -143,7 +143,7 @@ export function AnalisesPage() {
       contentStack="dense"
       header={(
         <DesktopPageHeader
-          section="Criação"
+          section="Estratégia"
           title="Análises"
         />
       )}

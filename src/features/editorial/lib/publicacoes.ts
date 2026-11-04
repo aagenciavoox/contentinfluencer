@@ -137,6 +137,7 @@ export function formatoDaPublicacao(
 ): FormatoPublicacao {
   const escrito = normalizarFormato(content.formatoVisual);
   if (rede === 'youtube' && FORMATOS_CONHECIDOS[escrito] !== 'live') return formatoNoYoutube(content, publicacao).formato;
+  if (publicacao?.formatoPublicacao) return publicacao.formatoPublicacao;
   let formato: FormatoPublicacao | null = escrito ? FORMATOS_CONHECIDOS[escrito] ?? `outro:${escrito}` : null;
   if (!formato && content.writingMode === 'youtube') formato = 'video-longo';
   if (!formato && content.writingMode === 'carrossel') formato = 'carrossel';

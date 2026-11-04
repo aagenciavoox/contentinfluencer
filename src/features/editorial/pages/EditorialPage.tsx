@@ -1,10 +1,11 @@
-import { Palette, Plus, SlidersHorizontal, Target } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { AppButton } from '../../../components/ui/AppButton';
-import { SegmentTabs, type SegmentTabOption } from '../../../components/ui/SegmentTabs';
+import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
-import { DirecaoEditorialPanel, type EditorialAba } from '../components/DirecaoEditorialPanel';
+import { PAGE_SECTION } from '../../../layouts/navigation/navConfig';
+import { abaEditorialDaUrl, DirecaoEditorialPanel, opcoesAbasEditorial, type EditorialAba } from '../components/DirecaoEditorialPanel';
 
 export function EditorialPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -14,13 +15,8 @@ export function EditorialPage() {
     return <Navigate to="/series" replace />;
   }
 
-  const abaAtiva: EditorialAba = abaParam === 'pilares' || abaParam === 'ajustes' ? abaParam : 'plano';
-
-  const abaOptions: SegmentTabOption<EditorialAba>[] = [
-    { id: 'plano', label: 'Plano Vigente', icon: <Target className="h-4 w-4" /> },
-    { id: 'pilares', label: 'Pilares & Linhas', icon: <Palette className="h-4 w-4" /> },
-    { id: 'ajustes', label: 'Ritmo & Regras Gerais', icon: <SlidersHorizontal className="h-4 w-4" /> },
-  ];
+  const abaAtiva = abaEditorialDaUrl(abaParam);
+  const abaOptions = opcoesAbasEditorial();
 
   const novoPilar = (
     <AppButton
@@ -45,7 +41,7 @@ export function EditorialPage() {
     <PageLayout
       header={(
         <DesktopPageHeader
-          section="Criação"
+          section={PAGE_SECTION.estrategia}
           title="Editorial"
           rowAlign="center"
           actions={abaAtiva === 'pilares' ? novoPilar : undefined}

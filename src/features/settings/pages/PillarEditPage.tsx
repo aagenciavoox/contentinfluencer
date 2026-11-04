@@ -198,7 +198,7 @@ export function PillarEditPage() {
         contentStack="dense"
         header={
           <DesktopPageHeader
-            section="Criação"
+            section="Estratégia"
             backLabel="Pilares"
             backTo="/editorial"
             title={pageTitle}

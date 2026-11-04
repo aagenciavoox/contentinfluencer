@@ -25,7 +25,6 @@ import {
 } from '../components/SerieEditForm';
 import {nextFreeSerieColor, takenSerieColorKeys} from '../lib/serieColors';
 import {tipoDaSerie} from '../lib/serieAgrupamento';
-import { QuadrosETemporadasSection } from '../components/series-detail/QuadrosETemporadasSection';
 
 const TITULO_CRIAR: Record<SerieTipoAgrupamento, string> = {
   familia: 'Criar família',
@@ -308,7 +307,7 @@ export function SeriesEditPage() {
         contentStack="dense"
         header={
           <DesktopPageHeader
-            section="Criação"
+            section="Produção"
             backLabel={rotuloVolta}
             backTo={destinoDeVolta}
             title={pageTitle}
@@ -404,7 +403,6 @@ export function SeriesEditPage() {
             </div>
           ) : null}
           {formElement}
-          {editingSerie && tipo === 'serie' ? <QuadrosETemporadasSection serie={editingSerie} /> : null}
         </div>
       </PageLayout>
 

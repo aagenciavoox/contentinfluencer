@@ -72,6 +72,7 @@ export type ContentPrimaryActionId =
   | 'mark_recorded'
   | 'send_to_edit'
   | 'finish_edit'
+  | 'finish_design'
   | 'skip_edit'
   | 'reopen_edit'
   | 'send_to_posting'
@@ -166,9 +167,13 @@ export function recordedPatch(
 }
 
 export function isReadyToPublish(
-  content: Pick<Content, 'status' | 'edicaoConcluidaEm'>,
+  content: Pick<Content, 'status' | 'edicaoConcluidaEm'> & Partial<Pick<Content, 'writingMode'>>,
 ): boolean {
-  return normalizeContentStatus(content.status) === CONTENT_STATUS.EDICAO && Boolean(content.edicaoConcluidaEm);
+  if (!content.edicaoConcluidaEm) return false;
+  const status = normalizeContentStatus(content.status);
+  if (status === CONTENT_STATUS.EDICAO) return true;
+  // Carrossel: design pronto fica em Produção com a conclusão marcada.
+  return status === CONTENT_STATUS.PRODUCAO && isCarouselContent(content);
 }
 
 /** Detalhe que acompanha a etapa, como "Pronto para publicar". */
@@ -484,19 +489,33 @@ export function getPrimaryAction(content: Content, options: StageOptions = {}): 
           : undefined,
       };
     case ContentStage.PRODUCAO:
-      if (isCarouselContent(content) && !content.recordedAt) {
+      if (isCarouselContent(content)) {
+        if (isReadyToPublish(content)) {
+          if (scheduled) {
+            return {
+              id: 'save_schedule',
+              label: 'Salvar agendamento',
+              targetTab: 'publicacao',
+              disabled: !canSchedulePosting(content),
+            };
+          }
+          return {
+            id: 'send_to_posting',
+            label: 'Preparar publicação com calma',
+            targetTab: 'publicacao',
+          };
+        }
         return {
-          id: 'mark_recorded',
-          label: 'Marcar como produzido',
+          id: 'finish_design',
+          label: 'Marcar design pronto',
           targetTab: 'publicacao',
         };
       }
-      // Carrossel pronto, ou vídeo que voltou depois de gravado, segue para a edição.
-      if (content.recordedAt || isCarouselContent(content)) {
+      if (content.recordedAt) {
         return {
           id: 'send_to_edit',
           label: 'Enviar para edição',
-          targetTab: isCarouselContent(content) ? 'publicacao' : 'gravacao',
+          targetTab: 'gravacao',
           secondary: {id: 'skip_edit', label: 'Dispensar edição'},
         };
       }

@@ -85,7 +85,7 @@ export function PillarsSettingsPage() {
       variant="default"
       header={
         <DesktopPageHeader
-          section="Criação"
+          section="Estratégia"
           title="Pilares"
           backLabel="Editorial"
           backTo="/editorial"

@@ -1,78 +1,124 @@
 import {RedeIcon} from '../../../components/ui/PlatformIcons';
-import type {Platform, RedeSocial} from '../../../lib/database';
+import type {Platform} from '../../../lib/database';
 import {cn} from '../../../lib/utils';
-import {REDE_ROTULO} from '../../contas/lib/contas';
-import {normalizarRedesPostIt, REDES_DO_POSTIT} from '../lib/redesPostIt';
+import {redeDaConta, rotuloCurtoConta, type RedeDoFiltro} from '../../contas/lib/contas';
+import {normalizarRedesPostIt} from '../lib/redesPostIt';
 
 export interface RedeChipsProps {
-  value: readonly RedeSocial[];
-  onChange: (redes: RedeSocial[]) => void;
+  value: readonly RedeDoFiltro[];
+  onChange: (redes: RedeDoFiltro[]) => void;
   platforms?: readonly Platform[];
 }
 
+const EXCLUSOES: Partial<Record<RedeDoFiltro, readonly RedeDoFiltro[]>> = {
+  youtube: ['youtube-shorts'],
+  'youtube-shorts': ['youtube'],
+  'instagram-video': ['instagram', 'instagram-carrossel'],
+  'instagram-carrossel': ['instagram', 'instagram-video'],
+};
+
+function alternarRede(atuais: readonly RedeDoFiltro[], clicada: RedeDoFiltro): RedeDoFiltro[] {
+  if (atuais.includes(clicada)) {
+    return atuais.filter(r => r !== clicada);
+  }
+  const exclusoes = EXCLUSOES[clicada] ?? [];
+  const proximas = atuais.filter(r => !exclusoes.includes(r));
+  proximas.push(clicada);
+  return normalizarRedesPostIt(proximas);
+}
+
+const VARIANTES_POR_REDE: Partial<Record<string, Array<{rede: RedeDoFiltro; sufixo: string}>>> = {
+  youtube: [
+    {rede: 'youtube', sufixo: 'Vídeo longo'},
+    {rede: 'youtube-shorts', sufixo: 'Shorts'},
+  ],
+  instagram: [
+    {rede: 'instagram-video', sufixo: 'Vídeo'},
+    {rede: 'instagram-carrossel', sufixo: 'Carrossel'},
+  ],
+};
+
 /**
- * Chips de seleção de contas de publicação.
- * Prioriza exclusivamente as plataformas/contas ativas cadastradas pelo usuário.
+ * Chips de seleção de contas de publicação para post-its.
+ * YouTube, Instagram e TikTok separam vídeo e carrossel/Shorts.
  */
 export function RedeChips({value, onChange, platforms = []}: RedeChipsProps) {
   const ativas = platforms.filter(p => p.ativo);
 
-  // Se o usuário possui contas cadastradas, usa estritamente as redes dessas contas
   if (ativas.length > 0) {
-    const redesDisponiveis = Array.from(
-      new Set(
-        ativas
-          .map(p => p.rede || (p.nome.toLowerCase().includes('instagram') ? 'instagram' : p.nome.toLowerCase().includes('tiktok') ? 'tiktok' : p.nome.toLowerCase().includes('youtube') ? 'youtube' : null))
-          .filter((r): r is RedeSocial => Boolean(r)),
-      ),
-    );
-
     return (
       <div role="group" aria-label="Contas de publicação cadastradas" className="flex flex-wrap gap-2">
-        {ativas.map(conta => {
-          const rede = conta.rede || (conta.nome.toLowerCase().includes('instagram') ? 'instagram' : conta.nome.toLowerCase().includes('tiktok') ? 'tiktok' : 'youtube') as RedeSocial;
-          const active = value.includes(rede);
-          const handleText = conta.handle ? (conta.handle.startsWith('@') ? conta.handle : `@${conta.handle}`) : conta.nome;
+        {ativas.flatMap(conta => {
+          const rede = redeDaConta(conta) ?? (conta.nome.toLowerCase().includes('instagram') ? 'instagram' : conta.nome.toLowerCase().includes('tiktok') ? 'tiktok' : conta.nome.toLowerCase().includes('youtube') ? 'youtube' : 'outra');
+          const rotulo = rotuloCurtoConta(conta);
+          const variantes = VARIANTES_POR_REDE[rede];
+          if (variantes) {
+            return variantes.map(({rede: destino, sufixo}) => {
+              const active = value.includes(destino);
+              return (
+                <button
+                  key={`${conta.id}-${destino}`}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => onChange(alternarRede(value, destino))}
+                  className={cn(
+                    'filter-chip min-h-9 pointer-coarse:min-h-11 flex items-center gap-1.5 px-2.5 py-1 t-secondary',
+                    active && 'filter-chip-active',
+                  )}
+                >
+                  <RedeIcon rede={destino} className="h-4 w-4 shrink-0" />
+                  <span>{rotulo} · {sufixo}</span>
+                </button>
+              );
+            });
+          }
 
-          return (
+          const active = value.includes(rede);
+          return [
             <button
               key={conta.id}
               type="button"
               aria-pressed={active}
-              onClick={() => {
-                const next = active ? value.filter(r => r !== rede) : [...value, rede];
-                onChange(normalizarRedesPostIt(next));
-              }}
+              onClick={() => onChange(alternarRede(value, rede))}
               className={cn(
                 'filter-chip min-h-9 pointer-coarse:min-h-11 flex items-center gap-1.5 px-2.5 py-1 t-secondary',
                 active && 'filter-chip-active',
               )}
             >
               <RedeIcon rede={rede} className="h-4 w-4 shrink-0" />
-              <span>{handleText}</span>
-            </button>
-          );
+              <span>{rotulo}</span>
+            </button>,
+          ];
         })}
       </div>
     );
   }
 
-  // Fallback seguro: apenas as redes sociais principais, sem redes fantasmas
-  const redesPadrao: RedeSocial[] = ['instagram', 'tiktok', 'youtube'];
+  const redesPadrao: Array<{rede: RedeDoFiltro; label: string}> = [
+    {rede: 'instagram-video', label: 'Instagram (vídeo)'},
+    {rede: 'instagram-carrossel', label: 'Instagram (carrossel)'},
+    {rede: 'tiktok', label: 'TikTok'},
+    {rede: 'youtube', label: 'YouTube (vídeo longo)'},
+    {rede: 'youtube-shorts', label: 'YouTube Shorts'},
+  ];
+
   return (
     <div role="group" aria-label="Redes sociais" className="flex flex-wrap gap-2">
-      {redesPadrao.map(rede => {
+      {redesPadrao.map(({rede, label}) => {
         const active = value.includes(rede);
         return (
           <button
             key={rede}
             type="button"
             aria-pressed={active}
-            onClick={() => onChange(normalizarRedesPostIt(active ? value.filter(item => item !== rede) : [...value, rede]))}
-            className={cn('filter-chip min-h-9 pointer-coarse:min-h-11 flex items-center gap-1.5 px-2.5 py-1 t-secondary', active && 'filter-chip-active')}
+            onClick={() => onChange(alternarRede(value, rede))}
+            className={cn(
+              'filter-chip min-h-9 pointer-coarse:min-h-11 flex items-center gap-1.5 px-2.5 py-1 t-secondary',
+              active && 'filter-chip-active',
+            )}
           >
             <RedeIcon rede={rede} className="h-3.5 w-3.5 shrink-0" />
-            <span>{REDE_ROTULO[rede]}</span>
+            <span>{label}</span>
           </button>
         );
       })}

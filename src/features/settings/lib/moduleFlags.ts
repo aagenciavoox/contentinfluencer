@@ -2,7 +2,9 @@ export type ModuleFlagKey =
   | 'library'
   | 'recording'
   | 'calendar'
-  | 'projects';
+  | 'projects'
+  // "analyses" e não "analytics": uma chave antiga com esse nome (ligada) ainda vive nas preferências salvas.
+  | 'analyses';
 
 export type ModuleFlags = Record<ModuleFlagKey, boolean>;
 
@@ -13,6 +15,8 @@ export const DEFAULT_MODULE_FLAGS: ModuleFlags = {
   recording: true,
   calendar: true,
   projects: true,
+  // Análises ainda está em preparação: começa desligada e entra no menu quando ligada.
+  analyses: false,
 };
 
 export function getModuleFlags(preferences: Record<string, unknown> | null | undefined): ModuleFlags {

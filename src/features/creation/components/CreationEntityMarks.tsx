@@ -1,5 +1,6 @@
 import type { Pilar, Serie } from '../../../lib/database';
 import { Text } from '../../../components/ui/Text';
+import { Badge } from '../../../components/ui/Badge';
 import { cn } from '../../../lib/utils';
 
 interface CreationEntityMarksProps {
@@ -8,6 +9,7 @@ interface CreationEntityMarksProps {
   pillarId?: string | null;
   seriesId?: string | null;
   className?: string;
+  display?: 'compact' | 'all';
 }
 
 function markLabel(name: string | null | undefined, fallbackId: string | null | undefined, fallback: string) {
@@ -50,9 +52,40 @@ export function CreationEntityMarks({
   pillarId,
   seriesId,
   className,
+  display = 'compact',
 }: CreationEntityMarksProps) {
-  const marks = resolveEntityMarks(pillar, series, pillarId, seriesId);
+  const marks = display === 'all'
+    ? resolveEntityMarks(pillar, series)
+    : resolveEntityMarks(pillar, series, pillarId, seriesId);
   if (marks.length === 0) return null;
+
+  if (display === 'all') {
+    return (
+      <div className={cn('creation-hub-card__classification', className)}>
+        {marks.map(mark => (
+          <div key={mark.kind} className="creation-hub-card__entity" title={describeMark(mark)}>
+            {mark.kind === 'Pilar' ? (
+              <Badge
+                variant="neutral"
+                className="creation-hub-card__pillar"
+                style={mark.color ? { backgroundColor: `color-mix(in srgb, ${mark.color} 9%, var(--bg-elevated))` } : undefined}
+              >
+                <span className="sr-only">Pilar: </span>
+                <span className="entity-color-dot h-1 w-1 shrink-0 rounded-full" style={{ backgroundColor: mark.color || 'var(--text-tertiary)' }} aria-hidden />
+                <span className="min-w-0 truncate">{mark.label}</span>
+              </Badge>
+            ) : (
+              <Text variant="meta" as="span" className="creation-hub-card__series">
+                <span className="sr-only">Série: </span>
+                <span className="entity-color-dot h-1 w-1 shrink-0 rounded-full" style={{ backgroundColor: mark.color || 'var(--text-tertiary)' }} aria-hidden />
+                <span className="min-w-0 truncate">{mark.label}</span>
+              </Text>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   const [primary, ...rest] = marks;
 

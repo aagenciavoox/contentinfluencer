@@ -20,6 +20,8 @@ export type Leitura = {
   resolver?: { rotulo: string; tipo: 'marcar-lido'; livroId: string };
   /** Frase que aponta o próximo espaço a preencher. No máximo uma por tela. */
   destrava?: boolean;
+  /** Metadados de capacidade quando a leitura trata de sobrecarga/limite. */
+  capacidade?: { atual: number; limite: number };
 };
 
 export type PeriodoLeitura = {
@@ -220,6 +222,7 @@ export function computeReadings(
         ? `Esta semana tem ${contagem.previsto} e o limite é ${contagem.limite}`
         : 'Esta semana passou do limite',
       acao: { rotulo: 'Ver a semana', href: '/planejamento?direcao=1' },
+      capacidade: { atual: contagem.previsto, limite: contagem.limite },
     });
   }
 

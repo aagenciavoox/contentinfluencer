@@ -2,14 +2,16 @@ import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } fr
 import { Link } from 'react-router-dom';
 import { ArrowLeft, ArrowUpRight, Calendar, Check, Copy, Layers, MoreVertical, Plus, Trash2, X } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
+import { ChoiceChips } from '../../../components/ui/ChoiceChips';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
 import { MoreMenu, type MoreMenuItem } from '../../../components/ui/MoreMenu';
 import { PlatformIcon } from '../../../components/ui/PlatformIcon';
 import { cn } from '../../../lib/utils';
-import type { Content, ContentPlataforma, Pilar, Serie } from '../../../lib/database';
+import type { Content, ContentPlataforma, FormatoEscolhidoNaPublicacao, Pilar, Serie } from '../../../lib/database';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import { contaDaRef, iconeDaConta, rotuloConta, redeDaRef, type ContaRef } from '../../contas/lib/contas';
+import { formatoNoYoutube } from '../../editorial/lib/publicacoes';
 import { CopyCaptionToAccountsModal } from './CopyCaptionToAccountsModal';
 import { limiteDoCampo } from '../../editorial/lib/platformFields';
 import { parseHashtags, joinHashtags } from '../../contents/lib/captionHashtags';
@@ -348,6 +350,12 @@ export function CaptionEditorPanel({
           const pubConta = contaDaRef(pub.platformId, contas);
           const pubNome = pubConta ? rotuloConta(pubConta) : pub.platformId;
           const isActive = pub.id === publicacao?.id;
+          const redePub = redeDaRef(pub.platformId, contas);
+          const noYt = redePub === 'youtube'
+            ? formatoNoYoutube({ formatoVisual: content.formatoVisual ?? null, writingMode: content.writingMode }, pub)
+            : null;
+          const iconePub = noYt && noYt.formato === 'short' ? 'youtube-shorts' : (pubConta ? iconeDaConta(pubConta) : pub.platformId);
+          const complementoFormato = noYt ? (noYt.formato === 'short' ? ' · Shorts' : ' · Vídeo longo') : '';
 
           return (
             <div
@@ -366,8 +374,10 @@ export function CaptionEditorPanel({
                 onClick={() => onSelectPublicacaoId(pub.id)}
                 className="inline-flex items-center gap-1.5 py-1.5 pl-3 pr-1.5"
               >
-                <PlatformIcon platform={pubConta ? iconeDaConta(pubConta) : pub.platformId} colored className="h-4 w-4" />
-                <span className={cn('t-label text-current', isActive && 'font-semibold')}>{pubNome}</span>
+                <PlatformIcon platform={iconePub} colored className="h-4 w-4" />
+                <Text variant="label" as="span" className={cn('text-current', isActive && 'font-[var(--font-weight-semibold,600)]')}>
+                  {pubNome}{complementoFormato}
+                </Text>
               </button>
               <button
                 type="button"
@@ -461,6 +471,42 @@ export function CaptionEditorPanel({
               </Link>
             </div>
           </div>
+
+          {/* Formato no YouTube quando a conta em edição for do YouTube */}
+          {publicacao && rede === 'youtube' ? (() => {
+            const noYoutube = formatoNoYoutube(
+              { formatoVisual: content.formatoVisual ?? null, writingMode: content.writingMode },
+              publicacao,
+            );
+            return (
+              <div className="flex flex-wrap items-center gap-2.5 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--surface-subtle)] px-3 py-2">
+                <Text variant="label" as="span" className="text-[var(--text-secondary)]">Formato no YouTube:</Text>
+                <ChoiceChips<FormatoEscolhidoNaPublicacao>
+                  label="Formato no YouTube"
+                  value={noYoutube.formato}
+                  onChange={formato => {
+                    const nextPlataformas = content.plataformas.map(p =>
+                      p.id === publicacao.id
+                        ? { ...p, formatoPublicacao: noYoutube.origem === 'escolhido' ? formato : (formato ?? noYoutube.formato) }
+                        : p
+                    );
+                    void onSaveContent({ ...content, plataformas: nextPlataformas });
+                  }}
+                  options={[
+                    { value: 'short', label: 'Shorts' },
+                    { value: 'video-longo', label: 'Vídeo longo' },
+                  ]}
+                />
+                <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">
+                  {noYoutube.origem === 'escolhido'
+                    ? 'Escolhido nesta publicação (toque de novo para voltar ao automático)'
+                    : (noYoutube.origem === 'conteudo'
+                      ? 'pelo formato do conteúdo'
+                      : 'deduzido: roteiro no modo YouTube é vídeo longo; o resto, Shorts')}
+                </Text>
+              </div>
+            );
+          })() : null}
 
           {/* Textarea */}
           <div className="stack-xs">

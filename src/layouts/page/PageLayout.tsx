@@ -10,6 +10,8 @@ interface PageLayoutProps {
   mobileHeader?: ReactNode;
   mobileToolbar?: ReactNode;
   children: ReactNode;
+  /** Rodapé da página, preso à área de conteúdo durante a rolagem. */
+  footer?: ReactNode;
   className?: string;
   contentClassName?: string;
   contentWidth?: 'narrow' | 'wide' | 'book' | 'full';
@@ -35,6 +37,7 @@ export function PageLayout({
   mobileHeader,
   mobileToolbar,
   children,
+  footer,
   className,
   contentClassName,
   contentWidth = 'wide',
@@ -107,6 +110,20 @@ export function PageLayout({
           {children}
         </PageContainer>
       </main>
+      {footer ? (
+        <footer
+          className={cn(
+            'sticky z-30 border-t border-[var(--border-strong)] bg-[var(--bg-elevated)]',
+            isMobile
+              ? 'bottom-[calc(3.5rem+1px+max(0.25rem,env(safe-area-inset-bottom,0px)))]'
+              : 'bottom-0',
+          )}
+        >
+          <div className={cn(!isMobile && 'desktop-controls-frame', 'py-2')}>
+            {footer}
+          </div>
+        </footer>
+      ) : null}
     </div>
   );
 }

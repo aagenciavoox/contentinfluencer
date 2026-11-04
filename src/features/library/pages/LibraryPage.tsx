@@ -629,7 +629,7 @@ export function LibraryPage() {
       contentWidth="wide"
       header={(
         <DesktopPageHeader
-          section="Criação"
+          section="Biblioteca"
           title="Biblioteca"
           actions={(
             <AppButton

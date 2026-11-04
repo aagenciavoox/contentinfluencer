@@ -24,6 +24,8 @@ function testDisplayNameUsesOfficialSpelling() {
   assert.equal(platformDisplayName('YOUTUBE'), 'YouTube');
   assert.equal(platformDisplayName('instagram'), 'Instagram');
   assert.equal(platformDisplayName(' Tik Tok '), 'TikTok');
+  assert.equal(platformDisplayName('youtube-shorts'), 'YouTube Shorts');
+  assert.equal(platformDisplayName('shorts'), 'YouTube Shorts');
 }
 
 function testDisplayNameKeepsUnknownPlatformsAsSaved() {

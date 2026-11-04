@@ -20,15 +20,18 @@ function rascunhoVazio(date: string | null): PostItEdit {
 export function PostItRapidoDialog({
   open,
   date,
+  initialSerieId,
   series,
   pilares,
   platforms = [],
   onClose,
   onSalvar,
+  onMaisOpcoes,
 }: {
   open: boolean;
   /** Dia clicado. Null fica fora do calendário (Sem data). */
   date: string | null;
+  initialSerieId?: string | null;
   series: readonly Serie[];
   pilares: readonly Pilar[];
   platforms?: readonly Platform[];
@@ -36,11 +39,26 @@ export function PostItRapidoDialog({
   onSalvar: (draft: PostItEdit) => void;
   onMaisOpcoes?: (draft: PostItEdit) => void;
 }) {
-  const [draft, setDraft] = useState<PostItEdit>(() => rascunhoVazio(date));
+  const [draft, setDraft] = useState<PostItEdit>(() => {
+    const base = rascunhoVazio(date);
+    if (initialSerieId) {
+      const serie = series.find(s => s.id === initialSerieId) ?? null;
+      return escolherSerieNoPostIt(base, serie, series);
+    }
+    return base;
+  });
 
   useEffect(() => {
-    if (open) setDraft(rascunhoVazio(date));
-  }, [open, date]);
+    if (open) {
+      const base = rascunhoVazio(date);
+      if (initialSerieId) {
+        const serie = series.find(s => s.id === initialSerieId) ?? null;
+        setDraft(escolherSerieNoPostIt(base, serie, series));
+      } else {
+        setDraft(base);
+      }
+    }
+  }, [open, date, initialSerieId, series]);
 
   const podeSalvar = postItRapidoPodeSalvar(draft);
   const salvar = () => {

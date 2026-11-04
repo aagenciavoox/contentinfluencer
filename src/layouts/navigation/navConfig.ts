@@ -1,6 +1,5 @@
 import type { ElementType } from 'react';
 import {
-  AtSign,
   AudioLines,
   Briefcase,
   CalendarDays,
@@ -35,10 +34,13 @@ export type NavSectionDefinition = {
   items: NavItemDefinition[];
 };
 
+/** Blocos do menu, também usados como rótulo acima do título das páginas. */
 export const PAGE_SECTION = {
   hoje: 'Hoje',
-  criacao: 'Criação',
+  biblioteca: 'Biblioteca',
   producao: 'Produção',
+  agenda: 'Agenda',
+  estrategia: 'Estratégia',
   configuracoes: 'Configurações',
 } as const;
 
@@ -46,6 +48,7 @@ export const STUDIO_ROUTES = [
   '/series',
   '/editorial',
 ] as const;
+
 
 /** Tela Menu do celular: o resto do app, fora das abas da barra inferior. */
 export const MOBILE_MENU_ROUTE = '/menu';
@@ -127,10 +130,6 @@ export function isNavItemActive(to: string, pathname: string): boolean {
     return pathMatches(pathname, '/series');
   }
 
-  if (target === '/contas') {
-    return pathMatches(pathname, '/contas');
-  }
-
   if (target === '/analises') {
     return pathMatches(pathname, '/analises');
   }
@@ -177,16 +176,21 @@ export function buildMobileMenuSections(moduleFlags: ModuleFlags): NavSectionDef
     .filter(section => section.items.length > 0);
 }
 
+/**
+ * Blocos por tipo de trabalho: começar o dia e ler; produzir; cumprir datas; decidir a direção.
+ * Contas e horários vivem dentro do Editorial (aba "Contas & Horários").
+ */
 export function buildSidebarSections(moduleFlags: ModuleFlags): NavSectionDefinition[] {
   return [
     {
       label: null,
       items: [
         { to: '/hoje', label: 'Hoje', icon: SunMedium },
+        { to: '/biblioteca', label: 'Biblioteca', icon: Library, badgeKey: 'library', module: 'library' },
       ],
     },
     {
-      label: 'Criação',
+      label: PAGE_SECTION.producao,
       items: [
         {
           to: '/criacao',
@@ -199,19 +203,23 @@ export function buildSidebarSections(moduleFlags: ModuleFlags): NavSectionDefini
           ],
         },
         { to: '/series', label: 'Séries e quadros', icon: ListVideo, end: false },
-        { to: '/editorial', label: 'Editorial', icon: Columns3 },
-        { to: '/analises', label: 'Análises', icon: ChartColumn },
-        { to: '/contas', label: 'Contas e horários', icon: AtSign },
-        { to: '/biblioteca', label: 'Biblioteca', icon: Library, badgeKey: 'library', module: 'library' },
+        { to: '/gravacao?tab=queue', label: 'Gravação', icon: Clapperboard, module: 'recording' },
       ],
     },
     {
-      label: 'Produção',
+      label: PAGE_SECTION.agenda,
       items: [
-        { to: '/gravacao?tab=queue', label: 'Gravação', icon: Clapperboard, module: 'recording' },
         { to: '/calendario', label: 'Calendário', icon: CalendarDays, module: 'calendar' },
-        { to: '/planejamento', label: 'Planejamento', icon: StickyNote, module: 'calendar' },
         { to: '/projetos', label: 'Projetos', icon: Briefcase, module: 'projects' },
+      ],
+    },
+    {
+      label: PAGE_SECTION.estrategia,
+      items: [
+        { to: '/editorial', label: 'Editorial', icon: Columns3 },
+        { to: '/planejamento', label: 'Planejamento', icon: StickyNote, module: 'calendar' },
+        // Área desligada por padrão (moduleFlags.analyses) enquanto está em preparação.
+        { to: '/analises', label: 'Análises', icon: ChartColumn, module: 'analyses' },
       ],
     },
   ];

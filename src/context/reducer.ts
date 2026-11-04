@@ -28,7 +28,7 @@ export type AppAction =
   // ─── Sincronização ──────────────────────────────────────────────────────────
   | { type: 'SET_DATA';    payload: Partial<AppData> }
   | { type: 'SET_LOADED';  payload?: boolean }
-  | { type: 'SET_THEME';   payload: 'light' | 'dark' }
+  | { type: 'SET_THEME';   payload: AppTheme }
   | { type: 'SET_PREFERENCE'; payload: { key: string; value: any } }
   | { type: 'UPDATE_PREFERENCE'; payload: { key: string; value: any } }
   | { type: 'SET_EDITORIAL'; payload: AppData['editorial'] }

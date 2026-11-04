@@ -8,6 +8,7 @@ import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import { getModuleFlags } from '../../../features/settings/lib/moduleFlags';
 import { useIsMobile } from '../../../hooks/useIsMobile';
+import { useResolvedTheme } from '../../../hooks/useResolvedTheme';
 import { buildMobileMenuSections } from '../../../layouts/navigation/navConfig';
 import { getUserInitials } from '../../../layouts/navigation/userInitials';
 import { cn } from '../../../lib/utils';
@@ -65,7 +66,7 @@ export function MenuMobileScreen() {
   const sections = buildMobileMenuSections(getModuleFlags(state.preferences));
   const userName = user?.user_metadata?.full_name?.trim() || user?.email?.split('@')[0] || 'Usuário';
   const userEmail = user?.email ?? '';
-  const isDark = state.theme === 'dark';
+  const isDark = useResolvedTheme(state.theme) === 'dark';
 
   return (
     <div className="stack-lg pb-2">

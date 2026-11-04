@@ -435,7 +435,7 @@ export function ContentDetailHeader({
 
   return (
     <DesktopPageHeader
-      section={PAGE_SECTION.criacao}
+      section={PAGE_SECTION.producao}
       title={displayTitle || (isIdea ? 'Ideia sem título' : 'Roteiro sem título')}
       titleContent={titleContent}
       backLabel={labelForDetailBack(backTo, listLabel)}

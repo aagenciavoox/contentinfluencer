@@ -80,7 +80,7 @@ export function Tooltip({label, children, side = 'right', className, disabled = 
                 transform: side === 'top' ? 'translate(-50%, -100%)' : 'translateY(-50%)',
                 color: 'var(--text-primary)',
               }}
-              className="pointer-events-none z-[80] whitespace-nowrap rounded-[var(--radius-sm)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-2.5 py-1.5 shadow-[var(--shadow-dropdown)] text-inherit"
+              className="pointer-events-none z-[220] whitespace-nowrap rounded-[var(--radius-sm)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-2.5 py-1.5 shadow-[var(--shadow-dropdown)] text-inherit"
             >
               {label}
             </Text>,

@@ -314,6 +314,61 @@ export function AjustesEditorialPanel() {
       </CardConfiguracao>
 
       <CardConfiguracao
+        icone={<Clock className="h-5 w-5" />}
+        titulo="Avisos do que falta para postar"
+        descricao="No dia em que você grava, ou alguns dias antes da postagem, o Calendário e o Hoje listam o que ainda falta no que já está no Calendário."
+      >
+        <div className="stack-md">
+          <div className="stack-xs">
+            <Text variant="label" as="p">Dias em que grava</Text>
+            <div className="flex flex-wrap gap-2">
+              {([
+                [1, 'Seg'],
+                [2, 'Ter'],
+                [3, 'Qua'],
+                [4, 'Qui'],
+                [5, 'Sex'],
+                [6, 'Sáb'],
+                [7, 'Dom'],
+              ] as const).map(([dia, rotulo]) => {
+                const marcado = preferencias.diasGravacao.includes(dia);
+                return (
+                  <AppButton
+                    key={dia}
+                    variant={marcado ? 'primary' : 'secondary'}
+                    size="xs"
+                    onClick={() => {
+                      const dias = marcado
+                        ? preferencias.diasGravacao.filter(item => item !== dia)
+                        : [...preferencias.diasGravacao, dia].sort((a, b) => a - b);
+                      gravar(atualizarPreferencias(settings, {diasGravacao: dias}));
+                    }}
+                  >
+                    {rotulo}
+                  </AppButton>
+                );
+              })}
+            </div>
+            <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+              Vazio desliga o lote do dia de gravar.
+            </Text>
+          </div>
+          <CampoStepper
+            id="antecedencia-postagem"
+            label="Dias antes da postagem"
+            unidade="dias"
+            hint="Avisa nesse prazo e no dia. Vazio desliga a antecedência."
+            value={textoNumero(preferencias.antecedenciaPostagemDias)}
+            onChange={valor => {
+              gravar(atualizarPreferencias(settings, {
+                antecedenciaPostagemDias: inteiroOuNull(valor),
+              }));
+            }}
+          />
+        </div>
+      </CardConfiguracao>
+
+      <CardConfiguracao
         icone={<Target className="h-5 w-5" />}
         titulo="Proporção por objetivo"
         descricao="Quanto do limite vai para cada objetivo, em %. A meta de cada período sai daqui. Você escolhe a partir de quando vale; os períodos passados mantêm a proporção que tinham."

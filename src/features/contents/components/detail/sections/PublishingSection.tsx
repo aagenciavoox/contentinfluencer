@@ -9,6 +9,10 @@ import {useAppContext} from '../../../../../context/AppContext';
 import {cicloDaPublicacao, criarCicloDeRepost} from '../../../../editorial/lib/cicloPublicacao';
 import {retirarPrevisao} from '../../../../editorial/lib/dataVencida';
 import {progressoPublicacao} from '../../../../editorial/lib/publicacaoSituacao';
+import {
+  salvarRoteiroNoCalendario,
+  tirarRoteiroDoCalendario,
+} from '../../../../planejamento/lib/salvarNoCalendario';
 import {PlatformCopyEditor} from '../PlatformCopyEditor';
 import {redeDaRef, rotuloConta, rotuloDaRef} from '../../../../contas/lib/contas';
 import {formatoNoYoutube} from '../../../../editorial/lib/publicacoes';
@@ -125,17 +129,35 @@ export function PublishingSection({
               ref={dataPrincipalRef}
               type="date"
               value={draft.publishDate ? draft.publishDate.slice(0, 10) : ''}
-              onChange={event =>
+              onChange={event => {
+                const base = {
+                  ...draft,
+                  id: contentId || 'draft',
+                  deletedAt: null,
+                  archivedAt: null,
+                  postedAt: draft.postedAt ?? null,
+                  publishTime: null,
+                } as Content;
+                if (!event.target.value) {
+                  const tirado = tirarRoteiroDoCalendario(base) ?? retirarPrevisao(base);
+                  onChange({
+                    publishDate: tirado.publishDate,
+                    publishDateEnabled: tirado.publishDateEnabled,
+                    plataformas: tirado.plataformas,
+                  });
+                  return;
+                }
+                const movido = salvarRoteiroNoCalendario(base, {
+                  modo: 'mesmo',
+                  date: event.target.value,
+                });
+                if (!movido) return;
                 onChange({
-                  publishDate: event.target.value ? `${event.target.value}T12:00:00.000Z` : null,
-                  publishDateEnabled: Boolean(event.target.value),
-                  plataformas: draft.plataformas.map(plataforma => ({
-                    ...plataforma,
-                    publishDate: event.target.value ? `${event.target.value}T12:00:00.000Z` : null,
-                    publishDateEnabled: Boolean(event.target.value),
-                  })),
-                })
-              }
+                  publishDate: movido.publishDate,
+                  publishDateEnabled: movido.publishDateEnabled,
+                  plataformas: movido.plataformas,
+                });
+              }}
               className="w-full rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 t-body-strong text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--text-primary)]/30 md:rounded-[var(--radius-card)]"
             />
           </label>
@@ -207,6 +229,8 @@ export function PublishingSection({
         serie={serie}
         // Cada publicação protege o próprio texto depois de ir ao ar; as pendentes seguem editáveis.
         status={draft.status}
+        formatoVisual={draft.formatoVisual}
+        writingMode={draft.writingMode}
         contentId={contentId}
         legendaBase={draft.legendaBase ?? null}
         titulo={draft.title}

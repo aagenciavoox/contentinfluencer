@@ -1,5 +1,5 @@
 import type {PostingTimeEntry, RedeSocial} from '../../../lib/database.ts';
-import {redeDaConta, type ContaRef} from '../../contas/lib/contas.ts';
+import {redeDaConta, type ContaRef, type RedeDoFiltro} from '../../contas/lib/contas.ts';
 
 /**
  * Divisória do dia por rede. Regra: só a conta com horário PRÓPRIO naquele dia da
@@ -26,11 +26,16 @@ export function weekdayDaData(dateKey: string): number {
 }
 
 /** O cartão vai para baixo da linha só quando todas as redes dele são a rede da divisória. */
-export function soDaRede(redes: readonly RedeSocial[], rede: RedeSocial): boolean {
-  return redes.length > 0 && redes.every(r => r === rede);
+export function soDaRede(redes: readonly RedeDoFiltro[], rede: RedeSocial): boolean {
+  return redes.length > 0 && redes.every(r =>
+    r === rede
+    || (rede === 'youtube' && r === 'youtube-shorts')
+    || (rede === 'instagram' && (r === 'instagram-video' || r === 'instagram-carrossel'))
+    || (rede === 'tiktok' && (r === 'tiktok-video' || r === 'tiktok-carrossel'))
+  );
 }
 
-export function dividirPorRede<T>(itens: readonly T[], redesDe: (item: T) => readonly RedeSocial[], rede: RedeSocial): {acima: T[]; abaixo: T[]} {
+export function dividirPorRede<T>(itens: readonly T[], redesDe: (item: T) => readonly RedeDoFiltro[], rede: RedeSocial): {acima: T[]; abaixo: T[]} {
   const acima: T[] = [];
   const abaixo: T[] = [];
   for (const item of itens) (soDaRede(redesDe(item), rede) ? abaixo : acima).push(item);

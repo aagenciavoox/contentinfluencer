@@ -14,10 +14,19 @@ export interface PlanejamentoReservaCardProps {
   pilar?: Pilar | null;
   onOpen: () => void;
   onDesenvolver: () => void;
+  /** Abre já no editor. Sem ele, "Editar reserva" só abre o post-it. */
+  onEditar?: () => void;
+  /** Vira ideia sem abrir o post-it. */
+  onVirarIdeia?: () => void;
+  /** "Ver o que encaixa": ideias e roteiros sem data que cabem neste espaço. */
+  onEncaixar?: () => void;
   onMove?: () => void;
   onDelete?: () => void;
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
+  /** Ctrl/Cmd + clique entra e sai da seleção (desktop). */
+  selected?: boolean;
+  onToggleSelect?: () => void;
   className?: string;
 }
 
@@ -28,10 +37,15 @@ export function PlanejamentoReservaCard({
   pilar,
   onOpen,
   onDesenvolver,
+  onEditar,
+  onVirarIdeia,
+  onEncaixar,
   onMove,
   onDelete,
   draggable = false,
   onDragStart,
+  selected = false,
+  onToggleSelect,
   className,
 }: PlanejamentoReservaCardProps) {
   // Cor editorial: vem da série/quadro (ou herda do pilar)
@@ -44,10 +58,16 @@ export function PlanejamentoReservaCard({
       label: 'Desenvolver roteiro',
       onClick: onDesenvolver,
     },
+    ...(onVirarIdeia
+      ? [{ id: 'ideia', label: 'Transformar em ideia', onClick: onVirarIdeia }]
+      : []),
+    ...(onEncaixar
+      ? [{ id: 'encaixar', label: 'Ver o que encaixa…', onClick: onEncaixar }]
+      : []),
     {
       id: 'edit',
       label: 'Editar reserva',
-      onClick: onOpen,
+      onClick: onEditar ?? onOpen,
     },
     ...(onMove
       ? [
@@ -83,20 +103,39 @@ export function PlanejamentoReservaCard({
     <div
       role="button"
       tabIndex={0}
+      aria-pressed={onToggleSelect ? selected : undefined}
       draggable={draggable}
-      onDragStart={onDragStart}
-      onClick={onOpen}
+      onDragStart={event => {
+        // Ctrl/Cmd + arrastar não existe: o gesto é de seleção.
+        if ((event.ctrlKey || event.metaKey) && onToggleSelect) {
+          event.preventDefault();
+          return;
+        }
+        onDragStart?.(event);
+      }}
+      onClick={event => {
+        if ((event.ctrlKey || event.metaKey) && onToggleSelect) {
+          event.preventDefault();
+          onToggleSelect();
+          return;
+        }
+        onOpen();
+      }}
       onKeyDown={e => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           onOpen();
         }
       }}
-      style={styleCustom}
+      style={{
+        ...styleCustom,
+        ...(selected ? ({ '--card-edge': 'var(--text-primary)' } as CSSProperties) : {}),
+      }}
       className={cn(
         'post-it-card group relative flex flex-col justify-between p-2.5 pb-3.5 text-left cursor-pointer',
         cor && 'post-it-card--serie',
         draggable && 'cursor-grab active:cursor-grabbing',
+        selected && 'ring-2 ring-[var(--text-primary)]',
         className,
       )}
     >
@@ -115,9 +154,9 @@ export function PlanejamentoReservaCard({
           </div>
         </div>
 
-        <div className="line-clamp-2 pr-5 text-xs font-semibold leading-snug text-[var(--text-primary)]">
+        <Text variant="bodyStrong" as="p" className="planner-card-title line-clamp-2 pr-6 leading-snug text-[var(--text-primary)]">
           {titulo}
-        </div>
+        </Text>
 
         {/* Descrição / Anotação */}
         {descricao ? (

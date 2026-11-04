@@ -1,15 +1,14 @@
-import type {RedeSocial} from '../../../lib/database';
 import {RedeIcon} from '../../../components/ui/PlatformIcons';
 import {Tooltip} from '../../../components/ui/Tooltip';
 import {cn} from '../../../lib/utils';
-import {REDE_ROTULO} from '../../contas/lib/contas';
+import {ROTULO_REDE_DO_FILTRO, type RedeDoFiltro} from '../../contas/lib/contas';
 import {alternarRedeNoFiltro} from '../lib/creationRedeFilter';
 
 interface CreationRedeQuickFilterProps {
   /** Redes com conta cadastrada, na ordem do app. */
-  redes: readonly RedeSocial[];
-  value: readonly RedeSocial[];
-  onChange: (redes: RedeSocial[]) => void;
+  redes: readonly RedeDoFiltro[];
+  value: readonly RedeDoFiltro[];
+  onChange: (redes: RedeDoFiltro[]) => void;
   className?: string;
 }
 
@@ -22,7 +21,7 @@ export function CreationRedeQuickFilter({redes, value, onChange, className}: Cre
     <div role="group" aria-label="Filtrar por rede" className={cn('inline-flex shrink-0 items-center gap-1', className)}>
       {redes.map(rede => {
         const marcada = value.includes(rede);
-        const nome = REDE_ROTULO[rede];
+        const nome = ROTULO_REDE_DO_FILTRO[rede];
         return (
           <Tooltip key={rede} label={nome} side="top">
             <button

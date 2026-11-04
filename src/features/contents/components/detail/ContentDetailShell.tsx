@@ -31,6 +31,7 @@ import {
   type ContentDetailTab,
   type ContentPrimaryActionId,
 } from '../../lib/contentPipeline';
+import {designProntoPatch} from '../../lib/esteiraDisplay';
 import {ContentDetailHeader} from './ContentDetailHeader';
 import {ContentPipelineStepper} from './ContentPipelineStepper';
 import {PublishingSection} from './sections/PublishingSection';
@@ -731,6 +732,10 @@ export function ContentDetailShell({
         return;
       case 'finish_edit':
         await persist(edicaoPatch('concluir'));
+        return;
+      case 'finish_design':
+        await persist(designProntoPatch());
+        setTab('publicacao');
         return;
       case 'skip_edit':
         await persist(edicaoPatch('dispensar'));

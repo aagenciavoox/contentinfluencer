@@ -253,7 +253,7 @@ export function ProjectsPage() {
     <PageLayout
       header={
         <DesktopPageHeader
-          section="Produção"
+          section="Agenda"
           title="Projetos"
           actions={(
             <AppButton

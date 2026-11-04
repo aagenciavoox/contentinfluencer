@@ -20,7 +20,14 @@ const campoClass =
 const episodios = (n: number) => textoQuantidade(n, 'episódio', 'episódios');
 
 /** "Editar série": criar, renomear e excluir quadros e temporadas, com os fluxos que já existem. */
-export function QuadrosETemporadasSection({ serie }: { serie: Serie }) {
+export function QuadrosETemporadasSection({
+  serie,
+  usaTemporadasMarcado = false,
+}: {
+  serie: Serie;
+  /** Valor do formulário, ainda não salvo. Criar temporada olha o que já está gravado. */
+  usaTemporadasMarcado?: boolean;
+}) {
   const { state, dispatch } = useAppContext();
   const { user } = useAuth();
   const [criarQuadro, setCriarQuadro] = useState<SerieCreateModalTarget | null>(null);
@@ -47,15 +54,10 @@ export function QuadrosETemporadasSection({ serie }: { serie: Serie }) {
   };
 
   return (
-    <section
-      aria-labelledby="quadros-e-temporadas"
-      className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-4 sm:p-6 stack-md"
-    >
-      <Text id="quadros-e-temporadas" variant="sectionTitle" as="h2">Quadros e temporadas</Text>
-
+    <div className="stack-lg">
       <div className="stack-sm">
-        <div className="flex items-center justify-between gap-2">
-          <Text variant="label" as="h3">Quadros</Text>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Text variant="itemTitle" as="h4">Quadros</Text>
           <AppButton variant="secondary" size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setCriarQuadro({ tipo: 'quadro', seriePaiId: serie.id })}>
             Novo quadro
           </AppButton>
@@ -110,9 +112,9 @@ export function QuadrosETemporadasSection({ serie }: { serie: Serie }) {
         )}
       </div>
 
-      <div className="stack-sm">
-        <div className="flex items-center justify-between gap-2">
-          <Text variant="label" as="h3">Temporadas</Text>
+      <div className="stack-sm border-t border-[var(--border-color)] pt-6">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Text variant="itemTitle" as="h4">Temporadas</Text>
           {usaTemporadas ? (
             <AppButton variant="secondary" size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setEdicaoTemporada({ modo: 'criar' })}>
               Nova temporada
@@ -120,7 +122,11 @@ export function QuadrosETemporadasSection({ serie }: { serie: Serie }) {
           ) : null}
         </div>
         {!usaTemporadas && temporadas.length === 0 ? (
-          <Text variant="meta" as="p">Esta série não usa temporadas. Para criar, ligue “Usa temporadas” acima e salve a série.</Text>
+          <Text variant="meta" as="p">
+            {usaTemporadasMarcado
+              ? 'Salve a série para criar temporadas.'
+              : 'Ligue “Usa temporadas” e salve a série para criar.'}
+          </Text>
         ) : temporadas.length === 0 ? <Text variant="meta" as="p">Nenhuma temporada. Os quadros desta série usam as mesmas temporadas.</Text> : (
           <ul className="divide-y divide-[var(--border-color)]">
             {temporadas.map(temporada => (
@@ -161,6 +167,6 @@ export function QuadrosETemporadasSection({ serie }: { serie: Serie }) {
         onExcluir={() => undefined}
       />
       <ExcluirEstruturaDialog alvo={excluir} onClose={() => setExcluir(null)} />
-    </section>
+    </div>
   );
 }

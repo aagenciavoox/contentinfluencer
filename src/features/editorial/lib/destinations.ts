@@ -1,4 +1,4 @@
-import type { ContentPlataforma, RedeSocial } from '../../../lib/database.ts';
+import type { ContentPlataforma, FormatoEscolhidoNaPublicacao, RedeSocial } from '../../../lib/database.ts';
 import { platformKey } from '../../../components/ui/platformName.ts';
 import { generateUUID } from '../../../utils/uuid.ts';
 
@@ -100,14 +100,28 @@ export function alternarDestino(input: {
   plataforma: DestinoPlataforma;
   contentId: string;
   marcar: boolean;
+  formatoPublicacao?: FormatoEscolhidoNaPublicacao | null;
   criarId?: () => string;
 }): ContentPlataforma[] {
   const criarId = input.criarId ?? generateUUID;
   if (input.marcar) {
-    if (destinoMarcado(input.publicacoes, input.plataforma)) return [...input.publicacoes];
+    if (destinoMarcado(input.publicacoes, input.plataforma)) {
+      if (input.formatoPublicacao !== undefined) {
+        return input.publicacoes.map(item =>
+          publicacaoOriginal(item) && mesmoDestino(item.platformId, input.plataforma)
+            ? { ...item, formatoPublicacao: input.formatoPublicacao }
+            : item
+        );
+      }
+      return [...input.publicacoes];
+    }
+    const agendada = criarPublicacaoAgendada(input.contentId, input.plataforma.id, criarId());
+    if (input.formatoPublicacao !== undefined) {
+      agendada.formatoPublicacao = input.formatoPublicacao;
+    }
     return [
       ...input.publicacoes,
-      criarPublicacaoAgendada(input.contentId, input.plataforma.id, criarId()),
+      agendada,
     ];
   }
 

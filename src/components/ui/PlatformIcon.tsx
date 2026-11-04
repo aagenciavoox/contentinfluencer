@@ -5,6 +5,16 @@ import { platformDisplayName, platformKey } from './platformName';
 
 export { platformDisplayName, platformKey };
 
+/** Shorts: vídeo em pé com o play, para separar do vídeo longo do YouTube. */
+export function ShortsIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="6" y="2.5" width="12" height="19" rx="3" />
+      <path d="M10.5 9.5v5l4-2.5z" fill="currentColor" />
+    </svg>
+  );
+}
+
 function TikTokIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
@@ -22,13 +32,23 @@ interface PlatformIconProps {
 
 const COR_DA_REDE = {
   instagram: 'text-[var(--platform-instagram)]',
+  'instagram-video': 'text-[var(--platform-instagram)]',
+  'instagram-carrossel': 'text-[var(--platform-instagram)]',
   youtube: 'text-[var(--platform-youtube)]',
+  'youtube-shorts': 'text-[var(--platform-youtube)]',
   tiktok: 'text-[var(--platform-tiktok)]',
+  'tiktok-video': 'text-[var(--platform-tiktok)]',
+  'tiktok-carrossel': 'text-[var(--platform-tiktok)]',
 } as const;
 
 /** A rede pelo começo do texto: "instagram", "Instagram @diza" e "Instagram · Leituras" dão Instagram. */
-function redeDoTexto(texto: string): 'instagram' | 'tiktok' | 'youtube' | null {
+function redeDoTexto(texto: string): keyof typeof COR_DA_REDE | null {
   const key = platformKey(texto);
+  if (key === 'shorts' || key === 'youtubeshorts' || key === 'youtube-shorts' || key.includes('shorts')) return 'youtube-shorts';
+  if (key === 'instagram-video' || key === 'instagramvideo' || key.includes('instagram') && key.includes('video')) return 'instagram-video';
+  if (key === 'instagram-carrossel' || key === 'instagramcarrossel' || key.includes('instagram') && key.includes('carrossel')) return 'instagram-carrossel';
+  if (key === 'tiktok-video' || key === 'tiktokvideo' || key.includes('tiktok') && key.includes('video')) return 'tiktok-video';
+  if (key === 'tiktok-carrossel' || key === 'tiktokcarrossel' || key.includes('tiktok') && key.includes('carrossel')) return 'tiktok-carrossel';
   if (key.startsWith('instagram')) return 'instagram';
   if (key.startsWith('tiktok')) return 'tiktok';
   if (key.startsWith('youtube')) return 'youtube';
@@ -42,9 +62,14 @@ function redeDoTexto(texto: string): 'instagram' | 'tiktok' | 'youtube' | null {
 export function PlatformIcon({ platform, className, colored = false }: PlatformIconProps) {
   const rede = redeDoTexto(platform);
   const cor = colored && rede ? COR_DA_REDE[rede] : undefined;
-  if (rede === 'instagram') return <Instagram className={cn(cor, className)} aria-hidden />;
+  if (rede === 'instagram' || rede === 'instagram-video' || rede === 'instagram-carrossel') {
+    return <Instagram className={cn(cor, className)} aria-hidden />;
+  }
+  if (rede === 'youtube-shorts') return <ShortsIcon className={cn(cor, className)} />;
   if (rede === 'youtube') return <Youtube className={cn(cor, className)} aria-hidden />;
-  if (rede === 'tiktok') return <TikTokIcon className={cn(cor, className)} />;
+  if (rede === 'tiktok' || rede === 'tiktok-video' || rede === 'tiktok-carrossel') {
+    return <TikTokIcon className={cn(cor, className)} />;
+  }
   // Id de conta (uuid) não é rótulo: sem ícone, em vez de duas letras soltas.
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(platform.trim())) return null;
   return (
@@ -56,8 +81,13 @@ export function PlatformIcon({ platform, className, colored = false }: PlatformI
 
 const FUNDO_DA_REDE = {
   instagram: 'bg-[var(--platform-instagram)] text-[var(--brand-on-accent)]',
+  'instagram-video': 'bg-[var(--platform-instagram)] text-[var(--brand-on-accent)]',
+  'instagram-carrossel': 'bg-[var(--platform-instagram)] text-[var(--brand-on-accent)]',
   youtube: 'bg-[var(--platform-youtube)] text-[var(--brand-on-accent)]',
+  'youtube-shorts': 'bg-[var(--platform-youtube)] text-[var(--brand-on-accent)]',
   tiktok: 'bg-[var(--platform-tiktok)] text-[var(--bg-elevated)]',
+  'tiktok-video': 'bg-[var(--platform-tiktok)] text-[var(--bg-elevated)]',
+  'tiktok-carrossel': 'bg-[var(--platform-tiktok)] text-[var(--bg-elevated)]',
 } as const;
 
 /** Ícone da rede num quadrado na cor da marca, para listas de contas. */

@@ -4,6 +4,7 @@ import {
   buildSidebarSections,
   isBottomNavItemActive,
   isNavItemActive,
+  isNavItemHidden,
   isSettingsNavActive,
   MOBILE_BOTTOM_NAV_LEFT,
   MOBILE_BOTTOM_NAV_RIGHT,
@@ -65,7 +66,7 @@ function testSidebarTranscricaoIsNotCriacao() {
   assert.equal(isNavItemActive('/criacao/transcricao', '/criacao/transcricao'), true);
   assert.equal(isNavItemActive('/criacao/transcricao', '/criacao/legendas'), false);
   const creation = buildSidebarSections(DEFAULT_MODULE_FLAGS)
-    .find(section => section.label === 'Criação')
+    .find(section => section.label === 'Produção')
     ?.items.find(item => item.to === '/criacao');
   assert.deepEqual(
     creation?.nested?.map(item => [item.label, item.to]),
@@ -97,20 +98,30 @@ function testSettingsExcludesEditorialAndSeries() {
   assert.equal(isSettingsNavActive('/series', true), false);
 }
 
-function testCreationMenuIncludesEditorial() {
-  const creation = buildSidebarSections(DEFAULT_MODULE_FLAGS)
-    .find(section => section.label === 'Criação');
+// Blocos por tipo de trabalho; Contas e horários não é mais item: vive no Editorial.
+function testSidebarBlocks() {
   assert.deepEqual(
-    creation?.items.map(item => [item.label, item.to]),
+    buildSidebarSections(DEFAULT_MODULE_FLAGS).map(section => [section.label, section.items.map(item => item.label)]),
     [
-      ['Criação', '/criacao'],
-      ['Séries e quadros', '/series'],
-      ['Editorial', '/editorial'],
-      ['Análises', '/analises'],
-      ['Contas e horários', '/contas'],
-      ['Biblioteca', '/biblioteca'],
+      [null, ['Hoje', 'Biblioteca']],
+      ['Produção', ['Criação', 'Séries e quadros', 'Gravação']],
+      ['Agenda', ['Calendário', 'Projetos']],
+      ['Estratégia', ['Editorial', 'Planejamento', 'Análises']],
     ],
   );
+}
+
+// Análises é uma área desligada por padrão: só entra no menu quando a chave está ligada.
+function testAnalisesIsAModuleOffByDefault() {
+  const analises = buildSidebarSections(DEFAULT_MODULE_FLAGS)
+    .flatMap(section => section.items)
+    .find(item => item.to === '/analises');
+  assert.ok(analises);
+  assert.equal(isNavItemHidden(analises, DEFAULT_MODULE_FLAGS), true);
+  assert.equal(isNavItemHidden(analises, { ...DEFAULT_MODULE_FLAGS, analyses: true }), false);
+  const mobileWithAnalytics = buildMobileMenuSections({ ...DEFAULT_MODULE_FLAGS, analyses: true })
+    .find(section => section.label === 'Estratégia');
+  assert.ok(mobileWithAnalytics?.items.some(item => item.label === 'Análises'));
 }
 
 function testExactlyOneDesktopItemIsActiveOnRepresentativeRoutes() {
@@ -122,7 +133,6 @@ function testExactlyOneDesktopItemIsActiveOnRepresentativeRoutes() {
     '/series',
     '/editorial',
     '/analises',
-    '/contas',
     '/biblioteca',
     '/gravacao?tab=queue',
     '/calendario',
@@ -139,7 +149,6 @@ function testExactlyOneDesktopItemIsActiveOnRepresentativeRoutes() {
     '/series/serie-1/roteiros',
     '/editorial/pilares/pilar-1',
     '/analises',
-    '/contas',
     '/biblioteca/analise',
     '/biblioteca/book-1',
     '/gravacao/block-1',
@@ -194,15 +203,17 @@ function testMobileMenuListsWhatIsNotInTheBar() {
     sections.map(section => [section.label, section.items.map(item => item.label)]),
     [
       [null, ['Hoje']],
-      ['Criação', ['Legendas', 'Transcrição', 'Séries e quadros', 'Editorial', 'Análises', 'Contas e horários']],
-      ['Produção', ['Calendário', 'Planejamento', 'Projetos']],
+      ['Produção', ['Legendas', 'Transcrição', 'Séries e quadros']],
+      ['Agenda', ['Calendário', 'Projetos']],
+      ['Estratégia', ['Editorial', 'Planejamento']],
     ],
   );
 }
 
 function testMobileMenuHidesDisabledModules() {
   const sections = buildMobileMenuSections({ ...DEFAULT_MODULE_FLAGS, calendar: false, projects: false });
-  assert.equal(sections.some(section => section.label === 'Produção'), false);
+  assert.equal(sections.some(section => section.label === 'Agenda'), false);
+  assert.deepEqual(sections.find(section => section.label === 'Estratégia')?.items.map(item => item.label), ['Editorial']);
 }
 
 const tests = [
@@ -220,7 +231,8 @@ const tests = [
   ['sidebar marks transcricao instead of criacao', testSidebarTranscricaoIsNotCriacao],
   ['sidebar marks detail routes on the parent item', testSidebarDetailRoutesHighlightParents],
   ['settings excludes editorial and series routes', testSettingsExcludesEditorialAndSeries],
-  ['shows the editorial creation menu', testCreationMenuIncludesEditorial],
+  ['sidebar blocks follow the kind of work', testSidebarBlocks],
+  ['analises is a module off by default', testAnalisesIsAModuleOffByDefault],
   ['marks exactly one desktop item on representative routes', testExactlyOneDesktopItemIsActiveOnRepresentativeRoutes],
 ] as const;
 

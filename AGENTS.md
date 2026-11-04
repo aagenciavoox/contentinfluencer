@@ -54,6 +54,14 @@
   - Use `SelectField` or `TagSelect` instead of native `<select>`.
   - Use `SettingsSectionCard` or `Surface` (`outlined`, `interactive`, `info`, `subtle`) instead of ad-hoc card `<div>` wrappers, and avoid nesting `bg-[var(--bg-elevated)]` inside `bg-[var(--bg-elevated)]`.
   - Use the 8px spacing scale (`stack-xs/sm/md/lg/xl/2xl`) and canonical grid classes (`.grid-content`, `.grid-form`, `.grid-editor`, `.grid-metrics`, `.grid-metrics-3`). Never use orphan spacing classes (`p-5`, `gap-5`, `m-5`, `gap-10`, `space-y-*`).
+- **Mobile Standard & Desktop Isolation:**
+  - Strict desktop isolation: never alter desktop styles, classes or behaviors when improving mobile; keep mobile changes scoped to `isMobile` / `celular` branches or `html.mobile-app-shell`.
+  - Single header authority: `MobileAppShell` owns the mobile top bar (`MobileHeaderIOS`). Never render secondary back buttons, title bars or breadcrumbs inside mobile page content.
+  - Action hierarchy: maximum of one primary CTA per mobile screen context; never duplicate "+ Novo..." buttons in inner section headers when the screen already has an action button or bottom nav `+`.
+  - List row ergonomics: title must retain at least 65% of horizontal space; secondary actions (reorder arrows, full dates) belong in `MoreMenu` or a secondary metadata line.
+  - Search & filters: search input must take `flex-1`; filter buttons in the same row must be compact/icon-based, opening in `BottomSheetModal`.
+  - Non-invasive editor & clean focus: floating toolbars in `RichTextEditor` must show only on focus/selection, with hidden scrollbars (`scrollbar-none`); mobile focus mode (`isFullscreen`) must never render the 3-row desktop toolbar.
+  - Smooth tab scrolling: multi-tab segments with medium/long labels must use `.mobile-h-scroll` / `scrollbar-none` to prevent truncation and squishing.
 - BurstMode teleprompter themes are the only exception for custom hex colors.
 - Never use PowerShell bulk `WriteAllText` on `src/`. Use an editor or Node with explicit UTF-8 encoding.
 - Run `npm run lint:design` before finishing UI work.

@@ -452,6 +452,11 @@ export function PeriodoPanel({
     limiteGravacoesDia: settings.preferencias.limiteGravacoesDia,
     concentracao: settings.concentracao,
     excecoesConcentracao: settings.excecoesConcentracao,
+    pausas: settings.pausas ?? [],
+    platforms: state.platforms,
+    redeReferenciaId: settings.preferencias.redeReferenciaId,
+    diasGravacao: settings.preferencias.diasGravacao,
+    antecedenciaPostagemDias: settings.preferencias.antecedenciaPostagemDias,
   })) {
     avisos.push({
       id: aviso.id,

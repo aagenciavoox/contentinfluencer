@@ -19,7 +19,7 @@ interface IdeaQuickCaptureProps {
   onSelectedSeriesChange: (value: string) => void;
   onSelectedBibliotecaIdChange: (value: string) => void;
   onSave: () => void;
-  variant?: 'compact' | 'default';
+  variant?: 'compact' | 'default' | 'single-line';
   autoFocus?: boolean;
 }
 
@@ -53,6 +53,7 @@ export function IdeaQuickCapture({
 
   const canSave = title.trim().length > 0 || notes.trim().length > 0;
   const isCompact = variant === 'compact';
+  const isSingleLine = variant === 'single-line';
 
   const selectedPilar = state.pilares.find((pilar) => pilar.id === selectedPilarId) ?? null;
   const selectedSerie = state.series.find((serie) => serie.id === selectedSeries) ?? null;
@@ -148,6 +149,98 @@ export function IdeaQuickCapture({
       </div>
     );
   };
+
+  if (isSingleLine) {
+    return (
+      <div
+        ref={containerRef}
+        className="rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--surface-editorial)] p-2 shadow-[var(--shadow-soft)] transition-all"
+      >
+        <div className="flex items-center gap-2">
+          <div className="group relative min-w-0 flex-1">
+            <PencilLine
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)] transition-colors group-focus-within:text-[var(--accent-blue)]"
+              aria-hidden="true"
+            />
+            <input
+              autoFocus={autoFocus}
+              value={title}
+              onChange={(event) => onTitleChange(event.target.value)}
+              onKeyDown={handleTitleKeyDown}
+              placeholder="Ideia rápida: anote aqui e aperte Enter…"
+              aria-label="Título da ideia"
+              className={cn(
+                fieldClassName,
+                'h-9 py-0 pl-9 pr-3 t-body placeholder:font-normal',
+              )}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setExpanded(!expanded)}
+            className="inline-flex h-9 shrink-0 items-center gap-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-2.5 t-label text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+          >
+            {expanded ? 'Menos detalhes' : '+ Detalhes'}
+          </button>
+          <AppButton
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={onSave}
+            disabled={!canSave}
+            disabledReason="Escreva um título para salvar a ideia."
+            leftIcon={<CornerDownLeft className="h-3.5 w-3.5" />}
+            className="h-9 shrink-0"
+          >
+            Salvar
+          </AppButton>
+        </div>
+
+        <div
+          className={cn(
+            'overflow-hidden transition-all duration-200',
+            expanded ? 'max-h-56 opacity-100 mt-2 pt-2 border-t border-[var(--border-color)] stack-sm' : 'max-h-0 opacity-0',
+          )}
+        >
+          <textarea
+            value={notes}
+            onChange={(event) => onNotesChange(event.target.value)}
+            onKeyDown={handleNotesKeyDown}
+            rows={2}
+            placeholder="Observações adicionais (opcional)"
+            aria-label="Observações da ideia"
+            className={cn(
+              fieldClassName,
+              'min-h-[4rem] max-h-24 resize-none bg-[var(--bg-hover)] px-3 py-2 t-body leading-relaxed custom-scrollbar',
+            )}
+          />
+          <div className="flex flex-wrap items-center gap-1.5">
+            {renderMetaChip(
+              'pilar',
+              'Pilar',
+              selectedPilar?.nome ?? null,
+              getEntityTagStyle(selectedPilar?.cor),
+            )}
+            {renderMetaChip(
+              'serie',
+              'Série',
+              selectedSerie?.name ?? null,
+              getEntityTagStyle(selectedSerie?.cor),
+            )}
+            {consumindo.length > 0
+              ? renderMetaChip(
+                  'origem',
+                  'Origem',
+                  selectedOrigem?.titulo.slice(0, 28) ?? null,
+                  undefined,
+                  <BookOpen className="h-3 w-3 shrink-0 text-[var(--accent-orange)]" />,
+                )
+              : null}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

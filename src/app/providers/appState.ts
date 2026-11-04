@@ -1,8 +1,9 @@
 import { DEFAULT_EDITORIAL_SETTINGS } from '../../features/editorial/lib/editorialSettings';
 import type * as db from '../../lib/database';
+import type { AppTheme } from '../../lib/themeStorage';
 
 export interface AppState extends db.AppData {
-  theme: 'light' | 'dark';
+  theme: AppTheme;
   isLoaded: boolean;
 }
 

@@ -40,7 +40,7 @@ export function LibraryAnnotationsPage() {
       contentWidth="wide"
       header={(
         <DesktopPageHeader
-          section="Criação"
+          section="Biblioteca"
           title="Anotações"
           backLabel="Biblioteca"
           backTo="/biblioteca"

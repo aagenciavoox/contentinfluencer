@@ -4,8 +4,6 @@ import {AlertCircle, ArrowUpRight, Plus} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
 import {useAuth} from '../../../context/AuthContext';
 import type {Content, ContentPlataforma, Platform, RedeSocial} from '../../../lib/database';
-import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
-import {PageLayout} from '../../../layouts/page/PageLayout';
 import {AppButton} from '../../../components/ui/AppButton';
 import {Badge} from '../../../components/ui/Badge';
 import {DisclosureButton} from '../../../components/ui/DisclosureButton';
@@ -18,7 +16,7 @@ import {Dialog} from '../../../components/overlays/Dialog';
 import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
 import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
-import {PostingTimesOverview} from '../components/PostingTimesOverview';
+import {PostingTimesOverview} from '../../settings/components/PostingTimesOverview';
 import {ToggleSwitch} from '../../../components/ui/ToggleSwitch';
 import {generateUUID} from '../../../utils/uuid';
 import {notifySaveFeedback} from '../../../lib/saveFeedback';
@@ -39,8 +37,8 @@ import {
   complementoDoRotulo,
   contaDaRef,
   iconeDaConta,
-} from '../../contas/lib/contas';
-import {anexarPublicacaoComLink, contasParaLinkAntigo, moverLinkParaPublicacao, revisoesDeContas} from '../../contas/lib/revisaoContas';
+} from '../lib/contas';
+import {anexarPublicacaoComLink, contasParaLinkAntigo, moverLinkParaPublicacao, revisoesDeContas} from '../lib/revisaoContas';
 import {parsePostCode} from '../../editorial/lib/postCode';
 
 const CAMPO =
@@ -59,7 +57,11 @@ const LINHA_CONTA =
 
 const RASCUNHO_NOVO: Rascunho = { id: null, rede: 'instagram', nome: '', handle: '' };
 
-export function PlatformsSettingsPage() {
+/**
+ * Aba "Contas & Horários" do Editorial: contas de cada rede, pendências de links antigos
+ * e os horários de postagem. Antes era a página /contas.
+ */
+export function ContasHorariosPanel() {
   const {state, dispatch} = useAppContext();
   const {user} = useAuth();
   const [rascunho, setRascunho] = useState<Rascunho | null>(null);
@@ -195,24 +197,7 @@ export function PlatformsSettingsPage() {
   };
 
   return (
-    <PageLayout
-      header={
-        <DesktopPageHeader
-          section="Criação"
-          title="Contas e horários"
-          subtitle="Conecte suas contas, defina os horários de postagem e gerencie preferências de publicação."
-          actions={
-            <AppButton
-              onClick={() => setRascunho(RASCUNHO_NOVO)}
-              variant="primary"
-              leftIcon={<Plus className="h-4 w-4" />}
-            >
-              Nova conta
-            </AppButton>
-          }
-        />
-      }
-    >
+    <>
       <Dialog open={rascunho != null} onClose={fechar} desktopMaxW="max-w-md">
         <OverlayHeader title={rascunho?.id ? 'Editar conta' : 'Nova conta'} onClose={fechar} />
         <OverlayBody>
@@ -379,6 +364,16 @@ export function PlatformsSettingsPage() {
             <Badge variant="neutral">
               {contasAtivas(contas).length === 1 ? '1 ativa' : `${contasAtivas(contas).length} ativas`}
             </Badge>
+            {/* A ação fica junto da lista que ela altera; o cabeçalho do Editorial não tem CTA nesta aba. */}
+            <AppButton
+              onClick={() => setRascunho(RASCUNHO_NOVO)}
+              variant="primary"
+              size="sm"
+              leftIcon={<Plus className="h-4 w-4" />}
+              className="ml-auto"
+            >
+              Nova conta
+            </AppButton>
           </div>
           {contas.length === 0 ? (
             <Surface padding="sm">
@@ -484,6 +479,6 @@ export function PlatformsSettingsPage() {
         }}
         onCancel={() => setConfirm(null)}
       />
-    </PageLayout>
+    </>
   );
 }

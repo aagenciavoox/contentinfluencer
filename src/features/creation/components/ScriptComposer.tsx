@@ -13,6 +13,7 @@ import {contasAtivas} from '../../contas/lib/contas';
 
 interface ScriptComposerProps {
   open: boolean;
+  saving?: boolean;
   onClose: () => void;
   /** Recebe as publicações marcadas, ainda sem o id do roteiro. */
   onCreate: (plataformas: ContentPlataforma[]) => void;
@@ -22,7 +23,7 @@ interface ScriptComposerProps {
  * Antes de abrir o roteiro novo, as redes onde ele vai sair. Cada rede marcada vira
  * uma publicação, e a legenda dela já aparece na Gestão para editar depois.
  */
-export function ScriptComposer({open, onClose, onCreate}: ScriptComposerProps) {
+export function ScriptComposer({open, saving = false, onClose, onCreate}: ScriptComposerProps) {
   const {state} = useAppContext();
   const [plataformas, setPlataformas] = useState<ContentPlataforma[]>([]);
   const catalogo = useMemo(
@@ -49,22 +50,24 @@ export function ScriptComposer({open, onClose, onCreate}: ScriptComposerProps) {
         onClose={onClose}
       />
       <OverlayBody className="stack-sm">
+        <fieldset disabled={saving} className="min-w-0" aria-busy={saving}>
         <DestinationChips
           platforms={catalogo}
           publications={plataformas}
           contentId=""
           onChange={setPlataformas}
         />
+        </fieldset>
         <Text variant="meta" className="text-[var(--text-tertiary)]">
           Dá para mudar depois, na Gestão do roteiro.
         </Text>
       </OverlayBody>
       <OverlayFooter className="justify-end">
-        <AppButton variant="secondary" onClick={onClose}>
+        <AppButton variant="secondary" disabled={saving} onClick={onClose}>
           Cancelar
         </AppButton>
-        <AppButton variant="primary" onClick={() => onCreate(plataformas)}>
-          Criar roteiro
+        <AppButton variant="primary" disabled={saving} onClick={() => onCreate(plataformas)}>
+          {saving ? 'Criando…' : 'Criar roteiro'}
         </AppButton>
       </OverlayFooter>
     </Dialog>

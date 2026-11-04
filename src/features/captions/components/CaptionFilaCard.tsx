@@ -11,7 +11,8 @@ import { useAppContext } from '../../../context/AppContext';
 import type { Content, ContentPlataforma, Pilar, Serie } from '../../../lib/database';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import { getDisplayStatus } from '../../contents/lib/contentPipeline';
-import { contaDaRef, iconeDaConta, rotuloConta } from '../../contas/lib/contas';
+import { contaDaRef, iconeDaConta, redeDaRef, rotuloConta } from '../../contas/lib/contas';
+import { formatoNoYoutube } from '../../editorial/lib/publicacoes';
 import { definirLegendaCompartilhada } from '../../editorial/lib/captions';
 import { LegendaBaseField } from '../../editorial/components/legendas/LegendaBaseField';
 import { PublicacaoLegenda } from '../../editorial/components/legendas/PublicacaoLegenda';
@@ -56,10 +57,21 @@ export function CaptionFilaCard({
 
   const rotuloDa = (publicacao: ContentPlataforma) => {
     const conta = contaDaRef(publicacao.platformId, state.platforms);
-    return conta ? rotuloConta(conta) : publicacao.platformId;
+    const rede = redeDaRef(publicacao.platformId, state.platforms);
+    const base = conta ? rotuloConta(conta) : publicacao.platformId;
+    if (rede === 'youtube') {
+      const noYt = formatoNoYoutube({ formatoVisual: draft.formatoVisual ?? null, writingMode: draft.writingMode }, publicacao);
+      return `${base} · ${noYt.formato === 'short' ? 'Shorts' : 'Vídeo longo'}`;
+    }
+    return base;
   };
   const iconeDa = (publicacao: ContentPlataforma) => {
     const conta = contaDaRef(publicacao.platformId, state.platforms);
+    const rede = redeDaRef(publicacao.platformId, state.platforms);
+    if (rede === 'youtube') {
+      const noYt = formatoNoYoutube({ formatoVisual: draft.formatoVisual ?? null, writingMode: draft.writingMode }, publicacao);
+      if (noYt.formato === 'short') return 'youtube-shorts';
+    }
     return conta ? iconeDaConta(conta) : publicacao.platformId;
   };
 

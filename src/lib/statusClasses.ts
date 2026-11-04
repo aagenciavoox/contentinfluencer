@@ -21,6 +21,12 @@ export const STATUS_TOKEN: Record<string, string> = {
   // Production tags sometimes surface as status chips
   [PRODUCTION_TAGS.GRAVAR]: 'ready',
   [PRODUCTION_TAGS.EDITAR]: 'editing',
+  // Semantic status chips (Programado, Produção, Edição e Roteiro já entram pelas constantes acima)
+  Agendado: 'scheduled',
+  Prevista: 'scheduled',
+  'Em produção': 'production',
+  'Material em produção': 'production',
+  'Em edição': 'editing',
 };
 
 export function getStatusToken(status: string): string {

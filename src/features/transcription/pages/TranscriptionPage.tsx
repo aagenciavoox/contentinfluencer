@@ -96,7 +96,7 @@ export function TranscriptionPage() {
       contentStack="dense"
       header={(
         <DesktopPageHeader
-          section="Criação"
+          section="Produção"
           title="Transcrição"
           backLabel="Criação"
           backTo="/criacao"

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { BookOpenText, Check, Clapperboard, ExternalLink, Layers3, Plus, SearchCheck, Tags, Video } from 'lucide-react';
 import type { Content, Pilar, RecordingBlock, Serie } from '../../../lib/database';
 import { EmptyState } from '../../../components/ui/EmptyState';
@@ -25,6 +25,8 @@ import {
 
 interface RecordingMobileScreenProps {
   readyContents: Content[];
+  selectedIds: Set<string>;
+  onSelectionChange: Dispatch<SetStateAction<Set<string>>>;
   recordingBlocks: RecordingBlock[];
   allContents: Content[];
   pilares: Pilar[];
@@ -48,6 +50,8 @@ type RecordingMobileTab = 'queue' | 'blocks';
 
 export function RecordingMobileScreen({
   readyContents,
+  selectedIds,
+  onSelectionChange: setSelectedIds,
   recordingBlocks,
   allContents,
   pilares,
@@ -71,7 +75,6 @@ export function RecordingMobileScreen({
   const [tagFilter, setTagFilter] = useState('all');
   const [energiaFilter, setEnergiaFilter] = useState('all');
   const [sortValue, setSortValue] = useState('recentes');
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [blockName, setBlockName] = useState('');
   const [blockTags, setBlockTags] = useState<string[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(false);

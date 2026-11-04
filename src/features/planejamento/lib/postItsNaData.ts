@@ -18,9 +18,9 @@ function dia(value: string | null | undefined): string | null {
 }
 
 /**
- * Uma data por publicação em todas as telas. Post-it ligado a roteiro com data fica no dia do roteiro,
- * o mesmo que a contagem e o Calendário usam. Sem data no roteiro, vale o dia do próprio post-it.
- * Devolve o mesmo objeto quando nada muda.
+ * Alinha o dia do post-it à data do roteiro ligado.
+ * O Planejamento não usa mais isto: o post-it guarda o próprio rascunho.
+ * Mantida para testes e para quem ainda quiser o alinhamento explícito.
  */
 export function postItsNaDataDoRoteiro<T extends PostItComData>({
   postIts,

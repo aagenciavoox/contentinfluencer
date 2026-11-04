@@ -200,6 +200,8 @@ function testCotaDeFuncaoEstoqueEEvento() {
       publicoLinguagem: '',
       hashtagsForaSeries: '',
       limiteGravacoesDia: null,
+      diasGravacao: [],
+      antecedenciaPostagemDias: null,
     },
   }, NOW));
   assert.equal(

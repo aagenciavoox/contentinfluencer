@@ -31,6 +31,8 @@ export interface PaginationBarProps {
   accessory?: ReactNode;
   /** Hide the repeated item range when the parent already exposes the total. */
   showSummary?: boolean;
+  /** Mantém a navegação do rodapé visível mesmo com uma única página. */
+  alwaysVisible?: boolean;
 }
 
 export function PaginationBar({
@@ -44,10 +46,11 @@ export function PaginationBar({
   className,
   accessory,
   showSummary = true,
+  alwaysVisible = false,
 }: PaginationBarProps) {
-  if (totalItems <= pageSize) return null;
+  if (!alwaysVisible && totalItems <= pageSize) return null;
 
-  const startItem = (currentPage - 1) * pageSize + 1;
+  const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const endItem = Math.min(currentPage * pageSize, totalItems);
   const pages = buildPaginationItems(currentPage, totalPages);
 

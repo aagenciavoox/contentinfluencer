@@ -1,8 +1,11 @@
 import {useEffect, useMemo, useRef, useState, type DragEvent} from 'react';
-import {useNavigate, useSearchParams} from 'react-router-dom';
+import {useLocation, useNavigate, useSearchParams} from 'react-router-dom';
 import {format} from 'date-fns';
+import {type GradeEntry} from '../../editorial/lib/gradeEntries';
+import {pendenciasNaSaude} from '../lib/pendenciasNaSaude';
+import {gravarContextoPlanejamento, lerContextoPlanejamento, orientacaoDoPlanejamento, roteirosDaSaude, type IntervaloSaude} from '../lib/saudeActions';
 import {ptBR} from 'date-fns/locale';
-import {ArrowDownToLine, CalendarDays, ChevronDown, ChevronRight, LayoutGrid, Pencil, Plus, StickyNote, Trash2} from 'lucide-react';
+import {ArrowDownToLine, CalendarDays, ChevronDown, ChevronRight, Clapperboard, LayoutGrid, Pencil, Plus, StickyNote, Trash2} from 'lucide-react';
 import {
   calendarEntryPillStyle,
   CalendarEventPill,
@@ -43,8 +46,16 @@ import {PlanejamentoWeekGrid} from '../components/PlanejamentoWeekGrid';
 import {SaudeEditorialPanel} from '../components/SaudeEditorialPanel';
 import {PlanejamentoContentCard} from '../components/PlanejamentoContentCard';
 import {PlanejamentoReservaCard} from '../components/PlanejamentoReservaCard';
+import {ConteudoPuxadoDialog} from '../components/ConteudoPuxadoDialog';
+import {CriarBlocoDialog} from '../components/CriarBlocoDialog';
+import {entraNoBloco} from '../../recording/lib/blocoDeGravacao';
 import {PostItRapidoDialog} from '../components/PostItRapidoDialog';
 import {PuxarConteudoDialog} from '../components/PuxarConteudoDialog';
+import {
+  SalvarNoCalendarioDialog,
+  type ConfirmacaoSalvarCalendario,
+} from '../components/SalvarNoCalendarioDialog';
+import {executarSalvarNoCalendario, tirarRoteiroDoCalendario} from '../lib/salvarNoCalendario';
 import {PlanejamentoMobileView} from '../components/PlanejamentoMobileView';
 import {SemDataPanel} from '../components/SemDataPanel';
 import {PlatformIcons} from '../../../components/ui/PlatformIcons';
@@ -53,13 +64,13 @@ import {redesDoCartao, redesDoConteudo} from '../lib/redesDoCartao';
 import {diaDaRede, dividirPorRede, weekdayDaData} from '../lib/divisoriaRede';
 import {DivisoriaRede} from '../components/DivisoriaRede';
 import {redeDaRef} from '../../contas/lib/contas';
-import {REDE_ROTULO, rotuloDaRef} from '../../contas/lib/contas';
+import {REDE_ROTULO, ROTULO_REDE_DO_FILTRO, rotuloDaRef} from '../../contas/lib/contas';
 import {saudeDoMes} from '../lib/monthHealth';
 import {avisoDoCalendario, rotuloDoPeriodo} from '../lib/periodoDaSaude';
 import {continuidadeDasSeries, distribuicaoPorObjetivo, janelaDaContinuidade, proporcaoDesejadaDoPeriodo} from '../lib/saudeIndicadores';
 import {linhasDaContinuidadePorEscopo} from '../lib/continuidadePorEscopoNaSaude';
 import {publicacoesNaSaude} from '../lib/publicacoesNaSaude';
-import {contasDoCard, conteudoPassa, filtroAtivo, formatosDoFiltro, indiceDaAgenda, postItPassa, publicacoesDoCard, type FiltroCalendario} from '../lib/filtroCalendario';
+import {contaNoFiltro, contasDoCard, conteudoPassa, filtroAtivo, formatosDoFiltro, indiceDaAgenda, postItPassa, publicacoesDoCard, type FiltroCalendario} from '../lib/filtroCalendario';
 import {diaDoAviso} from '../lib/detalheDoAviso';
 import {publicacoesDaAgenda, rotuloDoFormato} from '../../editorial/lib/publicacoes';
 import {Drawer} from '../../../components/overlays/Drawer';
@@ -78,7 +89,6 @@ import {decisaoDoPeriodo, lerPeriodoSalvo} from '../../editorial/lib/periodoEdit
 import {SelectField} from '../../../components/ui/SelectField';
 import {
   canPullContent,
-  cancelPostItEdit,
   createEmptyPostIt,
   deletePostIt,
   escolherSerieNoPostIt,
@@ -178,19 +188,24 @@ function changedPostIts(before: PlanejamentoPostIt[], after: PlanejamentoPostIt[
 export function PlanejamentoPage() {
   const {state, dispatch} = useAppContext();
   const navigate = useNavigate();
+  const location = useLocation();
+  const retornoPlanejamento = `${location.pathname}${location.search}`;
   const isMobile = useIsMobile();
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialVista = (searchParams.get('vista') as VistaPlanejamento) || 'mes';
-  const [month, setMonth] = useState(new Date());
-  const [vista, setVistaRaw] = useState<VistaPlanejamento>(initialVista);
-
+  const contextoInicial = useRef(lerContextoPlanejamento(searchParams)).current;
+  const [month, setMonth] = useState(() => new Date(contextoInicial.data + 'T12:00:00'));
+  const [vista, setVistaRaw] = useState<VistaPlanejamento>(contextoInicial.vista);
+  const [intervaloEmFoco, setIntervaloEmFoco] = useState(contextoInicial.foco);
+  const [origemSaude, setOrigemSaude] = useState(contextoInicial.origem);
   const setVista = (novaVista: VistaPlanejamento) => {
+    setIntervaloEmFoco(null);
+    setOrigemSaude(null);
     setVistaRaw(novaVista);
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      next.set('vista', novaVista);
-      return next;
-    }, {replace: true});
+  };
+  const navegarCalendario = (data: Date) => {
+    setIntervaloEmFoco(null);
+    setOrigemSaude(null);
+    setMonth(data);
   };
 
   const [dragOverDay, setDragOverDay] = useState<string | null>(null);
@@ -203,18 +218,33 @@ export function PlanejamentoPage() {
   const [dateDraft, setDateDraft] = useState<string | null>(null);
   const [classeDraft, setClasseDraft] = useState<PostItEdit>({texto: '', date: null});
   const [encaixeId, setEncaixeId] = useState<string | null>(null);
-  const [assuntoFiltroId, setAssuntoFiltroId] = useState<string | null>(null);
+  /** Pré-visualização de um conteúdo do calendário (puxado ou publicação): o clique abre aqui, não o roteiro. */
+  const [preview, setPreview] = useState<{contentId: string; postItId: string | null; dia: string | null} | null>(null);
+  /** Conteúdos escolhidos para entrar num bloco de gravação. Null = diálogo fechado. */
+  const [blocoAlvo, setBlocoAlvo] = useState<Content[] | null>(null);
+  const [assuntoFiltroId, setAssuntoFiltroId] = useState<string | null>(contextoInicial.assuntoId);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
-  const [destaqueIds, setDestaqueIds] = useState<Set<string>>(() => new Set());
+  const [destaqueIds, setDestaqueIds] = useState<Set<string>>(() => new Set(contextoInicial.destaques));
   const [avisoAtivoId, setAvisoAtivoId] = useState<string | null>(null);
   /** Dia do post-it rápido. `undefined` = fechado; `null` = fora do calendário. */
   const [rapidoDate, setRapidoDate] = useState<string | null | undefined>(undefined);
   const [direcaoAberta, setDirecaoAberta] = useState(false);
   // 2D: filtros por conta e formato; trecho da Saúde (calendário ou intervalo); análise da Saúde.
-  const [filtro, setFiltro] = useState<FiltroCalendario>({redes: [], formato: null});
-  const [trecho, setTrecho] = useState<'calendario' | 'intervalo'>('calendario');
-  const [intervalo, setIntervalo] = useState<{inicio: string; fim: string}>({inicio: '', fim: ''});
-  const [analiseAberta, setAnaliseAberta] = useState(false);
+  const [filtro, setFiltro] = useState<FiltroCalendario>(contextoInicial.filtro);
+  const [trecho, setTrecho] = useState<'calendario' | 'intervalo'>(contextoInicial.trecho);
+  const [intervalo, setIntervalo] = useState<{inicio: string; fim: string}>(contextoInicial.intervalo);
+  const [analiseAberta, setAnaliseAberta] = useState(() => searchParams.get('saude') === '1');
+  const [seriePlanejandoId, setSeriePlanejandoId] = useState<string | null>(contextoInicial.serieId);
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const next = gravarContextoPlanejamento(params, {
+      data: format(month, 'yyyy-MM-dd'), vista, trecho, intervalo,
+      foco: intervaloEmFoco, serieId: seriePlanejandoId, destaques: [...destaqueIds],
+      filtro, assuntoId: assuntoFiltroId, origem: origemSaude,
+    }, analiseAberta);
+    if (next.toString() !== params.toString()) setSearchParams(next, {replace: true});
+  }, [month, vista, trecho, intervalo, intervaloEmFoco, seriePlanejandoId, destaqueIds, analiseAberta, filtro, assuntoFiltroId, origemSaude, location.search, setSearchParams]);
+  const seriePlanejando = seriePlanejandoId ? state.series.find(s => s.id === seriePlanejandoId) ?? null : null;
   const periodoEditorial = useMemo(
     () => (state.editorialVisao ? lerPeriodoSalvo(state.editorialVisao) : null) ?? periodoInicial(),
     [state.editorialVisao],
@@ -227,9 +257,11 @@ export function PlanejamentoPage() {
   /** Celular: post-it sendo movido pelo menu ⋯ (ou "Mover para…" do post-it aberto). */
   const [moveId, setMoveId] = useState<string | null>(null);
   const [moveDate, setMoveDate] = useState<string | null>(null);
+  /** Ids dos post-its no fluxo "Salvar no calendário". Null = fechado. */
+  const [salvarCalendarioIds, setSalvarCalendarioIds] = useState<string[] | null>(null);
 
   const contents = state.contents;
-  // Post-it ligado fica no dia do roteiro: a mesma data do Calendário e do próprio roteiro.
+  // O dia do post-it é rascunho. O Calendário só muda em "Salvar no calendário".
   const postIts = usePostItsNaData();
   const openPostIt = postIts.find(postIt => postIt.id === openId) ?? null;
   const openContent = contentById(contents, openPostIt?.contentId ?? null);
@@ -286,13 +318,13 @@ export function PlanejamentoPage() {
     const map = new Map<string, PlanejamentoPostIt[]>();
     postIts.forEach(postIt => {
       if (!postIt.date) return;
-      if (!postItPassa(indiceAgenda, postIt, filtro)) return;
+      if (!intervaloEmFoco && !postItPassa(indiceAgenda, postIt, filtro)) return;
       const list = map.get(postIt.date) ?? [];
       list.push(postIt);
       map.set(postIt.date, list);
     });
     return map;
-  }, [postIts, indiceAgenda, filtro]);
+  }, [postIts, indiceAgenda, filtro, intervaloEmFoco]);
 
   const undated = useMemo(
     () => postIts.filter(postIt => !postIt.date && postItPassa(indiceAgenda, postIt, filtro)),
@@ -307,17 +339,17 @@ export function PlanejamentoPage() {
       redeReferenciaId: state.editorial.redeReferenciaId,
       postIts,
     });
-    if (!filtroAtivo(filtro)) return map;
+    if (intervaloEmFoco || !filtroAtivo(filtro)) return map;
     const filtrado = new Map<string, PublicacaoNoDia[]>();
     map.forEach((lista, dia) => {
       const passam = lista.filter(publicacao => conteudoPassa(indiceAgenda, publicacao.contentId, filtro));
       if (passam.length > 0) filtrado.set(dia, passam);
     });
     return filtrado;
-  }, [contents, state.platforms, state.series, state.editorial, postIts, indiceAgenda, filtro]);
+  }, [contents, state.platforms, state.series, state.editorial, postIts, indiceAgenda, filtro, intervaloEmFoco]);
   const filtroRotulo = filtroAtivo(filtro)
     ? [
-      filtro.redes.length > 0 ? filtro.redes.map(rede => REDE_ROTULO[rede]).join(', ') : null,
+      filtro.redes.length > 0 ? filtro.redes.map(rede => ROTULO_REDE_DO_FILTRO[rede]).join(', ') : null,
       filtro.formato ? rotuloDoFormato(filtro.formato) : null,
     ].filter(Boolean).join(' · ')
     : null;
@@ -327,6 +359,11 @@ export function PlanejamentoPage() {
     [postIts, contents, state.temas],
   );
   const assuntoFiltro = assuntosDoPlanejamento.find(tema => tema.id === assuntoFiltroId) ?? null;
+
+  const classeDestaque = (contentId: string | null, postItId?: string) => {
+    const destacado = Boolean((postItId && destaqueIds.has(postItId)) || (contentId && destaqueIds.has(contentId)));
+    return cn(destaqueIds.size > 0 && (destacado ? 'ring-2 ring-[var(--accent-orange)]' : 'opacity-30'));
+  };
 
   const renderPostIt = (postIt: PlanejamentoPostIt, compact: boolean, className?: string) => {
     const content = contentById(contents, postIt.contentId);
@@ -380,7 +417,7 @@ export function PlanejamentoPage() {
           event.stopPropagation();
           navigate(
             buildContentDetailRoute(publicacao.contentId, 'publicacao'),
-            buildDetailBackState('/planejamento'),
+            buildDetailBackState(retornoPlanejamento),
           );
         }}
       />
@@ -397,7 +434,7 @@ export function PlanejamentoPage() {
       <button
         type="button"
         onClick={() =>
-          navigate(buildContentDetailRoute(publicacao.contentId, 'roteiro'), buildDetailBackState('/planejamento'))
+          navigate(buildContentDetailRoute(publicacao.contentId, 'roteiro'), buildDetailBackState(retornoPlanejamento))
         }
         aria-label={`${publicacao.titulo}, ${status}${publicacao.time ? ` às ${publicacao.time}` : ''}. Abrir roteiro`}
         className="flex min-h-11 w-full min-w-0 flex-col gap-1 rounded-[var(--radius-sm)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-2.5 py-2 text-left transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
@@ -426,11 +463,11 @@ export function PlanejamentoPage() {
     setMoveId(postIt.id);
   };
 
-  const abrirMoverPublicacao = (publicacao: PublicacaoNoDia) => {
-    const content = contentById(contents, publicacao.contentId);
+  const abrirMoverPublicacao = (contentId: string) => {
+    const content = contentById(contents, contentId);
     const dia = content?.publishDate ? content.publishDate.slice(0, 10) : null;
     setMoveDate(dia);
-    setMoveId(`content:${publicacao.contentId}`);
+    setMoveId(`content:${contentId}`);
   };
 
   const fecharMover = () => setMoveId(null);
@@ -454,13 +491,9 @@ export function PlanejamentoPage() {
   };
 
   const removePostItById = (id: string) => {
-    const postIt = postIts.find(p => p.id === id);
     const removal = deletePostIt({postIts, contents, id});
     if (removal.postIts.length !== postIts.length) {
       dispatch({type: 'DELETE_POST_IT', payload: id});
-      if (postIt?.contentId) {
-        levarRoteiroDoPostIt(postIt.contentId, null);
-      }
     }
     setSelectedIds(current => {
       if (!current.has(id)) return current;
@@ -471,8 +504,53 @@ export function PlanejamentoPage() {
     if (openId === id) closePostIt();
   };
 
+  const abrirSalvarNoCalendario = (ids: readonly string[]) => {
+    setSalvarCalendarioIds([...ids]);
+  };
+
+  const confirmarSalvarNoCalendario = (confirmacao: ConfirmacaoSalvarCalendario) => {
+    const resultado = executarSalvarNoCalendario({
+      postIts,
+      contents,
+      linhas: confirmacao.linhas,
+      time: confirmacao.time,
+      horarioPorConta: confirmacao.horarioPorConta ?? undefined,
+      contas: state.platforms,
+    });
+    setSalvarCalendarioIds(null);
+    void (async () => {
+      for (const content of resultado.contents) {
+        const exists = contents.some(item => item.id === content.id);
+        await dispatch({
+          type: exists ? 'UPDATE_CONTENT' : 'ADD_CONTENT',
+          payload: content,
+        });
+      }
+      for (const nextPostIt of resultado.postIts) {
+        await dispatch({type: 'UPDATE_POST_IT', payload: nextPostIt});
+      }
+    })();
+    if (resultado.openScriptId) {
+      navigate(
+        buildContentDetailRoute(resultado.openScriptId, 'roteiro'),
+        buildDetailBackState(retornoPlanejamento),
+      );
+    }
+  };
+
+  const tirarDoCalendario = (contentId: string | null) => {
+    const content = contentById(contents, contentId);
+    const tirado = content ? tirarRoteiroDoCalendario(content) : null;
+    if (tirado) void dispatch({type: 'UPDATE_CONTENT', payload: tirado});
+  };
+
   /** Celular: post-it em largura toda com ⋯ (mover, tirar do mês, apagar) no lugar de arrastar. */
   const renderMobilePostIt = (postIt: PlanejamentoPostIt) => {
+    const content = contentById(contents, postIt.contentId);
+    const noCalendario = Boolean(
+      content
+      && (content.publishDate || content.plataformas.some(plataforma => plataforma.publishDate)),
+    );
     const items: MoreMenuItem[] = [
       {
         id: 'mover',
@@ -480,7 +558,13 @@ export function PlanejamentoPage() {
         onClick: () => abrirMover(postIt),
       },
       ...(postIt.date
-        ? [{id: 'tirar', label: 'Tirar do período', onClick: () => moveMany([postIt.id], null)} satisfies MoreMenuItem]
+        ? [
+          {id: 'salvar-calendario', label: 'Salvar no calendário…', onClick: () => abrirSalvarNoCalendario([postIt.id])} satisfies MoreMenuItem,
+          {id: 'tirar', label: 'Tirar do período', onClick: () => moveMany([postIt.id], null)} satisfies MoreMenuItem,
+        ]
+        : []),
+      ...(noCalendario && postIt.contentId
+        ? [{id: 'tirar-calendario', label: 'Tirar do calendário', onClick: () => tirarDoCalendario(postIt.contentId)} satisfies MoreMenuItem]
         : []),
       {id: 'apagar', label: 'Apagar', tone: 'danger', onClick: () => removePostItById(postIt.id)},
     ];
@@ -494,15 +578,15 @@ export function PlanejamentoPage() {
     );
   };
 
-  const periodo = useMemo(() => periodoDaVista(month, vista), [month, vista]);
+  const periodo = useMemo(() => intervaloEmFoco ?? periodoDaVista(month, vista), [month, vista, intervaloEmFoco]);
 
   // Decisão 3 (03/11): a Saúde segue o trecho visível no calendário (mês ou semana).
   // O plano do Editorial continua identificado à parte, no card de metas do período.
   // 2D: "Intervalo" troca o trecho da Saúde por datas escolhidas; incompleto ou invertido, vale o calendário.
   const intervaloValido = trecho === 'intervalo' && Boolean(intervalo.inicio && intervalo.fim && intervalo.inicio <= intervalo.fim);
   const periodoDaSaude = useMemo(
-    () => (intervaloValido ? {inicio: intervalo.inicio, fim: intervalo.fim} : {inicio: periodo.inicio, fim: periodo.fim}),
-    [intervaloValido, intervalo.inicio, intervalo.fim, periodo.inicio, periodo.fim],
+    () => origemSaude?.periodo ?? (intervaloValido ? {inicio: intervalo.inicio, fim: intervalo.fim} : {inicio: periodo.inicio, fim: periodo.fim}),
+    [origemSaude, intervaloValido, intervalo.inicio, intervalo.fim, periodo.inicio, periodo.fim],
   );
   // Com filtro, Saúde e calendário olham o mesmo recorte: só os conteúdos e post-its que passam nele.
   // A continuidade geral fica de todas as contas (o acompanhamento geral é de todas), identificada na análise.
@@ -573,7 +657,7 @@ export function PlanejamentoPage() {
       periodo: periodoDaSaude,
       pausas: settings.pausas ?? [],
     }).filter(linha =>
-      (filtro.redes.length === 0 || !linha.platformId || filtro.redes.includes(redeDaRef(linha.platformId, state.platforms) ?? 'outra'))
+      (filtro.redes.length === 0 || !linha.platformId || contaNoFiltro(redeDaRef(linha.platformId, state.platforms), filtro.redes))
       && (!filtro.formato || !linha.formato || linha.formato === filtro.formato));
     return {
       // A meta absoluta do período já vem na contagem (`metaDoPeriodo`).
@@ -612,6 +696,10 @@ export function PlanejamentoPage() {
       concentracao: state.editorial.concentracao,
       excecoesConcentracao: state.editorial.excecoesConcentracao,
       pausas: state.editorial.pausas ?? [],
+      platforms: state.platforms,
+      redeReferenciaId: state.editorial.preferencias.redeReferenciaId,
+      diasGravacao: state.editorial.preferencias.diasGravacao,
+      antecedenciaPostagemDias: state.editorial.preferencias.antecedenciaPostagemDias,
     });
     const todos = avisosDo({postIts, contents});
     if (!filtroAtivo(filtro)) return todos;
@@ -634,6 +722,41 @@ export function PlanejamentoPage() {
     setAnaliseAberta(false);
   };
 
+  const focarIntervalo = (intervalo: IntervaloSaude) => {
+    setOrigemSaude(prev => prev ?? {periodo: periodoDaSaude, data: format(month, 'yyyy-MM-dd'), vista});
+    setMonth(new Date(intervalo.inicio + 'T12:00:00'));
+    setVistaRaw('semana');
+    setIntervaloEmFoco(intervalo);
+    setAvisoAtivoId(null);
+    setAnaliseAberta(false);
+  };
+  const handlePlanejarIntervalo = ({serieId, inicio, fim}: IntervaloSaude & {serieId: string}) => {
+    focarIntervalo({inicio, fim});
+    setDestaqueIds(new Set());
+    setSeriePlanejandoId(serieId);
+  };
+  const handleReorganizarEpisodios = ({inicio, fim, itemIds}: IntervaloSaude & {itemIds: string[]}) => {
+    focarIntervalo({inicio, fim});
+    setSeriePlanejandoId(null);
+    setDestaqueIds(new Set(itemIds));
+  };
+  const roteiroIdsDoPeriodo = useMemo(() => roteirosDaSaude(monthHealth.counts.itens, contents, state.recordingBlocks), [monthHealth.counts.itens, contents, state.recordingBlocks]);
+  const handleOpenGravacao = (contentIds = roteiroIdsDoPeriodo) => {
+    const elegiveis = new Set(roteiroIdsDoPeriodo);
+    const ids = contentIds.filter(id => elegiveis.has(id));
+    if (ids.length === 0) return;
+    navigate('/gravacao?ids=' + encodeURIComponent(ids.join(',')), buildDetailBackState(retornoPlanejamento));
+  };
+  // Pendências ativas não somem quando o calendário vira o mês ou a semana.
+  const atrasados = useMemo(() => pendenciasNaSaude({
+    postIts: postItsDoFiltro, contents: contentsDoFiltro, series: state.series,
+    pilares: state.pilares, settings: state.editorial, platforms: state.platforms,
+  }), [postItsDoFiltro, contentsDoFiltro, state.series, state.pilares, state.editorial, state.platforms]);
+  const resolverData = (item: GradeEntry) => {
+    setMoveId(item.postItId ?? 'content:' + item.contentId);
+    setMoveDate(item.data);
+  };
+
   /** Análise da Saúde: drawer por cima da tela, em qualquer largura; no celular ocupa a tela inteira. */
   const renderAnalise = () => (
     <SaudeEditorialPanel
@@ -641,8 +764,13 @@ export function PlanejamentoPage() {
       rotuloPeriodo={rotuloSaude}
       avisoPeriodo={avisoSaude}
       counts={monthHealth.counts}
+      atrasados={atrasados}
+      roteiroIds={roteiroIdsDoPeriodo}
+      onResolverData={resolverData}
       series={state.series}
       pilares={state.pilares}
+      temas={state.temas}
+      contents={contents}
       objetivos={monthHealth.objetivos}
       continuidade={monthHealth.continuidade}
       escopos={monthHealth.escopos}
@@ -652,7 +780,9 @@ export function PlanejamentoPage() {
       onLocalizarAviso={localizarAviso}
       onFechar={() => setAnaliseAberta(false)}
       onAddReserva={() => addEmpty(format(new Date(), 'yyyy-MM-dd'))}
-      onOpenGravacao={() => navigate('/gravacao')}
+      onOpenGravacao={handleOpenGravacao}
+      onPlanejarIntervalo={handlePlanejarIntervalo}
+      onReorganizarEpisodios={handleReorganizarEpisodios}
     />
   );
 
@@ -686,27 +816,29 @@ export function PlanejamentoPage() {
     if (postIt.date) setMonth(new Date(`${postIt.date}T12:00:00`));
   };
 
-  const maisOpcoesDoRapido = (draft: PostItEdit) => {
-    const postIt = criarDoRapido(draft);
-    fecharRapido();
+  /** Abre o post-it já no editor completo ("Mais opções" do rápido, "Editar reserva" do cartão). */
+  const abrirEmEdicao = (postIt: PlanejamentoPostIt) => {
     const edit = postItEditDraft(postIt);
     setNoteDraft(edit.texto);
     setDateDraft(edit.date);
     setClasseDraft(edit);
+    if (openId === postIt.id) {
+      setEditing(true);
+      return;
+    }
     editarAoAbrir.current = true;
     setOpenId(postIt.id);
+  };
+
+  const maisOpcoesDoRapido = (draft: PostItEdit) => {
+    const postIt = criarDoRapido(draft);
+    fecharRapido();
+    abrirEmEdicao(postIt);
   };
 
   /** Move ou puxa sem modal bloqueante; a faixa de orientação atualiza sozinha. */
   const confirmarSeCouber = (_content: Content | null, _date: string | null, commit: () => void) => {
     commit();
-  };
-
-  /** O roteiro ligado vai junto: Calendário e roteiro passam a mostrar o mesmo dia. */
-  const levarRoteiroDoPostIt = (contentId: string | null, date: string | null) => {
-    const content = contentById(contents, contentId);
-    const movido = content ? levarRoteiroAoDia(content, date) : null;
-    if (movido) void dispatch({type: 'UPDATE_CONTENT', payload: movido});
   };
 
   const moveMany = (ids: readonly string[], date: string | null) => {
@@ -738,26 +870,20 @@ export function PlanejamentoPage() {
       }
     }
 
+    // Post-it só muda o rascunho. A data do Calendário fica para "Salvar no calendário".
     if (targets.length > 0) {
       dispatch({
         type: 'UPDATE_POST_ITS',
         payload: targets.map(postIt => movePostIt(postIt, date)),
       });
-      targets.forEach(postIt => levarRoteiroDoPostIt(postIt.contentId, date));
     }
 
+    // Cartão de publicação já no Calendário: move a data do roteiro.
     if (contentTargets.length > 0) {
       for (const content of contentTargets) {
         const movido = levarRoteiroAoDia(content, date);
         if (movido) {
           void dispatch({type: 'UPDATE_CONTENT', payload: movido});
-        }
-        const linkedPostIts = postIts.filter(p => p.contentId === content.id && p.date !== date);
-        if (linkedPostIts.length > 0) {
-          dispatch({
-            type: 'UPDATE_POST_ITS',
-            payload: linkedPostIts.map(p => movePostIt(p, date)),
-          });
         }
       }
     }
@@ -777,12 +903,11 @@ export function PlanejamentoPage() {
     if (!result.pulled) return;
     confirmarSeCouber(content, date, () => {
       applyList(result.postIts);
-      // Puxado para a pilha, o roteiro mantém a data que já tinha.
-      if (date) levarRoteiroDoPostIt(content.id, date);
       setPullOpen(false);
     });
   };
 
+  /** Fecha o post-it. Em edição, descarta o rascunho: Esc, fundo, "X" e Cancelar fecham tudo. */
   const closePostIt = () => {
     setEditing(false);
     setOpenId(null);
@@ -797,14 +922,6 @@ export function PlanejamentoPage() {
     setEditing(true);
   };
 
-  const cancelEdit = () => {
-    if (!openPostIt) return;
-    const kept = cancelPostItEdit(openPostIt, {texto: noteDraft, date: dateDraft});
-    setNoteDraft(kept.texto);
-    setDateDraft(kept.date);
-    setEditing(false);
-  };
-
   const saveEdit = () => {
     if (!openPostIt) return;
     // Com conteúdo ligado, a classificação é a do conteúdo: o post-it não grava a dele.
@@ -816,7 +933,6 @@ export function PlanejamentoPage() {
       if (postItMudou(openPostIt, saved)) {
         dispatch({type: 'UPDATE_POST_IT', payload: saved});
       }
-      if (saved.date !== openPostIt.date) levarRoteiroDoPostIt(openPostIt.contentId, saved.date);
       setNoteDraft(saved.texto);
       setDateDraft(saved.date);
       setEditing(false);
@@ -866,19 +982,68 @@ export function PlanejamentoPage() {
         clearSelection();
         return;
       }
+      if (openId || pullOpen || preview || blocoAlvo) return;
+      // Enter com um só selecionado abre: pré-visualização se tem conteúdo, o post-it se é reserva.
+      if (event.key === 'Enter' && selectedIds.size === 1) {
+        const [id] = [...selectedIds];
+        const postIt = postIts.find(item => item.id === id);
+        if (!postIt) return;
+        event.preventDefault();
+        if (postIt.contentId && contentById(contents, postIt.contentId)) {
+          setPreview({contentId: postIt.contentId, postItId: postIt.id, dia: postIt.date});
+        } else {
+          setEditing(false);
+          setOpenId(postIt.id);
+        }
+        return;
+      }
       if (event.key !== 'Delete' && event.key !== 'Backspace') return;
-      if (openId || pullOpen) return;
       event.preventDefault();
       removeSelected();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isMobile, selectedIds, openId, pullOpen, postIts]);
+  }, [isMobile, selectedIds, openId, pullOpen, preview, blocoAlvo, postIts, contents]);
 
-  const commitTransform = (target: 'ideia' | 'roteiro') => {
-    if (!openPostIt || editing) return;
+  // Post-it aberto em leitura: E entra na edição, como o botão Editar.
+  useEffect(() => {
+    if (!openPostItId || editing) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'e' && event.key !== 'E') return;
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      const target = event.target;
+      if (target instanceof HTMLElement) {
+        const tag = target.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable) return;
+      }
+      event.preventDefault();
+      startEdit();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [openPostItId, editing, startEdit]);
+
+  /** Post-its selecionados que têm conteúdo: são eles que podem ir para um bloco de gravação. */
+  const conteudosSelecionados = useMemo(
+    () => [...selectedIds].flatMap(id => {
+      const postIt = postIts.find(item => item.id === id);
+      const content = contentById(contents, postIt?.contentId ?? null);
+      return content && entraNoBloco(content, state.recordingBlocks) ? [content] : [];
+    }),
+    [selectedIds, postIts, contents, state.recordingBlocks],
+  );
+
+  /** Vai direto à página do roteiro (duplo clique, "Abrir roteiro" do menu e da pré-visualização). */
+  const abrirRoteiro = (contentId: string) => {
+    setPreview(null);
+    navigate(buildContentDetailRoute(contentId, 'roteiro'), buildDetailBackState(retornoPlanejamento));
+  };
+
+  /** Transforma o post-it aberto ou, pelo menu do cartão, o post-it indicado. */
+  const commitTransform = (target: 'ideia' | 'roteiro', alvo: PlanejamentoPostIt | null = openPostIt) => {
+    if (!alvo || (alvo.id === openPostIt?.id && editing)) return;
     const result = transformPostIt({
-      postIt: openPostIt,
+      postIt: alvo,
       contents,
       target,
       contas: state.platforms,
@@ -891,11 +1056,12 @@ export function PlanejamentoPage() {
       });
       await dispatch({type: 'UPDATE_POST_IT', payload: result.postIt});
     })();
-    setOpenId(null);
+    if (openPostIt?.id === alvo.id) setOpenId(null);
+    setPreview(null);
     if (result.openScript) {
       navigate(
         buildContentDetailRoute(result.content.id, 'roteiro'),
-        buildDetailBackState('/planejamento'),
+        buildDetailBackState(retornoPlanejamento),
       );
     }
   };
@@ -922,7 +1088,7 @@ export function PlanejamentoPage() {
     if (result.openScript) {
       navigate(
         buildContentDetailRoute(result.content.id, 'roteiro'),
-        buildDetailBackState('/planejamento'),
+        buildDetailBackState(retornoPlanejamento),
       );
     }
   };
@@ -941,6 +1107,12 @@ export function PlanejamentoPage() {
   const openKind = openPostIt ? postItKind(openPostIt, openContent) : 'vazio';
   const openRedes = openPostIt ? redesDoCartao({content: openContent, postIt: openPostIt, contas: state.platforms}) : [];
   const openAppearance = postItAppearance(openContent, state.series, state.pilares, state.temas, openPostIt);
+
+  const previewContent = preview ? contentById(contents, preview.contentId) : null;
+  const previewPostIt = preview?.postItId ? postIts.find(item => item.id === preview.postItId) ?? null : null;
+  const previewAgenda = preview ? publicacoesDoCard(indiceAgenda, preview.contentId, preview.dia) : [];
+  const previewAppearance = postItAppearance(previewContent, state.series, state.pilares, state.temas, previewPostIt);
+
   const opcoesDeSerie = [...state.series]
     .filter(serie => serie.ativa || serie.id === classeDraft.serieId)
     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
@@ -952,6 +1124,51 @@ export function PlanejamentoPage() {
   const opcoesDePilar = sortPilares(state.pilares)
     .filter(pilar => pilar.ativo || pilar.id === classeDraft.pilarId)
     .map(pilar => ({value: pilar.id, label: pilar.nome}));
+
+  const intervaloPlanejando = monthHealth.continuidade.linhas
+    .find(linha => linha.serieId === seriePlanejandoId)?.intervalos
+    .find(intervalo => intervalo.inicio === intervaloEmFoco?.inicio && intervalo.fim === intervaloEmFoco?.fim);
+
+  const orientacaoCalendario = (
+    <div className="stack-sm">
+      {intervaloEmFoco ? (
+        <Surface variant="info" padding="sm" className="flex flex-wrap items-center justify-between gap-2">
+          <Text variant="meta">Intervalo: {format(new Date(intervaloEmFoco.inicio + 'T12:00:00'), 'dd/MM/yyyy')} a {format(new Date(intervaloEmFoco.fim + 'T12:00:00'), 'dd/MM/yyyy')}</Text>
+          <AppButton variant="ghost" size="sm" onClick={() => { if (origemSaude) { setMonth(new Date(origemSaude.data + 'T12:00:00')); setVistaRaw(origemSaude.vista); } setOrigemSaude(null); setIntervaloEmFoco(null); setSeriePlanejandoId(null); limparDestaque(); }}>Voltar ao calendário</AppButton>
+        </Surface>
+      ) : null}
+            {seriePlanejando ? (
+              <Surface variant="outlined" padding="sm" className="flex flex-wrap items-center justify-between gap-3 border-[var(--brand-accent)] bg-[var(--surface-subtle)]">
+                <div className="min-w-0 flex-1 stack-xs">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="h-2 w-2 rounded-full shrink-0" style={{backgroundColor: seriePlanejando.cor || 'var(--brand-accent)'}} aria-hidden />
+                    <Text variant="body" as="p" className="min-w-0 break-words text-[var(--text-primary)]">
+                      Planejando série: <strong>{seriePlanejando.name}</strong>
+                    </Text>
+                  </div>
+                  <Text variant="bodyStrong" as="p">{orientacaoDoPlanejamento(intervaloPlanejando)}</Text>
+                  <Text variant="secondary" as="p">Escolha um dia e use <strong>Post-it</strong> para criar uma pauta ou <strong>Puxar</strong> para trazer um conteúdo da Criação.</Text>
+                </div>
+                <AppButton variant="ghost" size="sm" onClick={() => setSeriePlanejandoId(null)}>
+                  Concluir planejamento
+                </AppButton>
+              </Surface>
+            ) : null}
+
+            {destaqueIds.size > 0 && !avisoAtivoId ? (
+              <Surface variant="outlined" padding="sm" className="flex flex-wrap items-center justify-between gap-3 border-[var(--accent-orange)] bg-[var(--surface-subtle)]">
+                <Text variant="meta" className="text-[var(--text-primary)]">
+                  Exibindo <strong>{destaqueIds.size} {destaqueIds.size === 1 ? 'pauta destacada' : 'pautas destacadas'}</strong>. {isMobile ? 'Use o menu do episódio para mover a data.' : 'Arraste para o dia desejado para reorganizar.'}
+                </Text>
+                <AppButton variant="ghost" size="sm" onClick={limparDestaque}>
+                  Limpar destaque
+                </AppButton>
+              </Surface>
+            ) : null}
+
+
+    </div>
+  );
 
   return (
     <PageLayout
@@ -987,7 +1204,7 @@ export function PlanejamentoPage() {
       navigation={(
         <CalendarPeriodNav
           anchorDate={month}
-          onAnchorDateChange={setMonth}
+          onAnchorDateChange={navegarCalendario}
           viewMode={vista}
           onViewModeChange={mode => setVista(mode)}
           weekViewId="semana"
@@ -1097,6 +1314,7 @@ export function PlanejamentoPage() {
           return (
             <PlanejamentoContentCard
               key={publicacao.id}
+              className={classeDestaque(publicacao.contentId)}
               publicacao={publicacao}
               content={content}
               serie={serie}
@@ -1110,13 +1328,10 @@ export function PlanejamentoPage() {
                 event.dataTransfer.setData('text/plain', payload);
                 event.dataTransfer.effectAllowed = 'move';
               }}
-              onOpen={() => {
-                navigate(
-                  buildContentDetailRoute(publicacao.contentId, 'roteiro'),
-                  buildDetailBackState('/planejamento'),
-                );
-              }}
-              onMove={posted ? undefined : () => abrirMoverPublicacao(publicacao)}
+              onOpen={() => setPreview({contentId: publicacao.contentId, postItId: null, dia: publicacao.dia})}
+              onOpenDireto={() => abrirRoteiro(publicacao.contentId)}
+              onGravacao={content && entraNoBloco(content, state.recordingBlocks) ? () => setBlocoAlvo([content]) : undefined}
+              onMove={posted ? undefined : () => abrirMoverPublicacao(publicacao.contentId)}
               onRemoveFromDate={posted ? undefined : () => moveMany([`content:${publicacao.contentId}`], null)}
             />
           );
@@ -1153,6 +1368,7 @@ export function PlanejamentoPage() {
             return (
               <PlanejamentoContentCard
                 key={postIt.id}
+                className={classeDestaque(content.id, postIt.id)}
                 publicacao={publicacao}
                 content={content}
                 serie={serie}
@@ -1170,15 +1386,14 @@ export function PlanejamentoPage() {
                   event.dataTransfer.setData('text/plain', payload);
                   event.dataTransfer.effectAllowed = 'move';
                 }}
-                onOpen={() => {
-                  navigate(
-                    buildContentDetailRoute(content.id, 'roteiro'),
-                    buildDetailBackState('/planejamento'),
-                  );
-                }}
+                onOpen={() => setPreview({contentId: content.id, postItId: postIt.id, dia: postIt.date})}
+                onOpenDireto={() => abrirRoteiro(content.id)}
+                onGravacao={entraNoBloco(content, state.recordingBlocks) ? () => setBlocoAlvo([content]) : undefined}
                 onMove={() => abrirMover(postIt)}
                 onRemoveFromDate={() => removePostItById(postIt.id)}
                 onDelete={() => removePostItById(postIt.id)}
+                selected={!isMobile && selectedIds.has(postIt.id)}
+                onToggleSelect={isMobile ? undefined : () => toggleSelected(postIt.id)}
               />
             );
           }
@@ -1186,6 +1401,7 @@ export function PlanejamentoPage() {
           return (
             <PlanejamentoReservaCard
               key={postIt.id}
+              className={classeDestaque(null, postIt.id)}
               postIt={postIt}
               content={content}
               serie={serie}
@@ -1207,21 +1423,31 @@ export function PlanejamentoPage() {
                 setOpenId(postIt.id);
               }}
               onDesenvolver={() => desenvolverReserva(postIt)}
+              onVirarIdeia={() => commitTransform('ideia', postIt)}
+              onEncaixar={() => setEncaixeId(postIt.id)}
+              onEditar={() => abrirEmEdicao(postIt)}
               onMove={() => abrirMover(postIt)}
               onDelete={() => removePostItById(postIt.id)}
+              selected={!isMobile && selectedIds.has(postIt.id)}
+              onToggleSelect={isMobile ? undefined : () => toggleSelected(postIt.id)}
             />
           );
         };
 
         if (isMobile) {
           return (
-            <div className="stack-md pb-8">
+            <div className="stack-md">
               <SaudeEditorialPanel
                 rotuloPeriodo={rotuloSaude}
                 avisoPeriodo={avisoSaude}
                 counts={monthHealth.counts}
+                atrasados={atrasados}
+                roteiroIds={roteiroIdsDoPeriodo}
+                onResolverData={resolverData}
                 series={state.series}
                 pilares={state.pilares}
+                temas={state.temas}
+                contents={contents}
                 objetivos={monthHealth.objetivos}
                 continuidade={monthHealth.continuidade}
                 escopos={monthHealth.escopos}
@@ -1231,11 +1457,13 @@ export function PlanejamentoPage() {
                 avisos={avisosOrientacao}
                 onVerAnalise={() => setAnaliseAberta(true)}
                 onAddReserva={() => addEmpty(format(new Date(), 'yyyy-MM-dd'))}
-                onOpenGravacao={() => navigate('/gravacao')}
+                onOpenGravacao={handleOpenGravacao}
               />
+              {orientacaoCalendario}
               <PlanejamentoMobileView
+                intervalo={intervaloEmFoco}
                 month={month}
-                onMonthChange={setMonth}
+                onMonthChange={navegarCalendario}
                 vista={vista}
                 onVistaChange={setVista}
                 byDate={byDate}
@@ -1294,8 +1522,13 @@ export function PlanejamentoPage() {
               rotuloPeriodo={rotuloSaude}
               avisoPeriodo={avisoSaude}
               counts={monthHealth.counts}
+              atrasados={atrasados}
+              roteiroIds={roteiroIdsDoPeriodo}
+              onResolverData={resolverData}
               series={state.series}
               pilares={state.pilares}
+              temas={state.temas}
+              contents={contents}
               objetivos={monthHealth.objetivos}
               continuidade={monthHealth.continuidade}
               escopos={monthHealth.escopos}
@@ -1305,15 +1538,37 @@ export function PlanejamentoPage() {
               avisos={avisosOrientacao}
               onVerAnalise={() => setAnaliseAberta(atual => !atual)}
               onAddReserva={() => addEmpty(format(new Date(), 'yyyy-MM-dd'))}
-              onOpenGravacao={() => navigate('/gravacao')}
+              onOpenGravacao={handleOpenGravacao}
             />
+
+            {orientacaoCalendario}
 
             {selectedIds.size > 0 ? (
               <Surface variant="outlined" padding="sm" className="flex flex-wrap items-center justify-between gap-3">
                 <Text variant="meta" className="text-[var(--text-secondary)]">
-                  {selectedIds.size === 1 ? '1 post-it selecionado.' : `${selectedIds.size} post-its selecionados.`} Arraste um deles para mover todos.
+                  {selectedIds.size === 1 ? '1 post-it selecionado.' : `${selectedIds.size} post-its selecionados.`} Arraste um deles para mover todos; Enter abre.
                 </Text>
                 <div className="flex flex-wrap items-center gap-2">
+                  {conteudosSelecionados.length > 0 ? (
+                    <AppButton
+                      variant="secondary"
+                      size="sm"
+                      leftIcon={<Clapperboard className="h-4 w-4" />}
+                      onClick={() => setBlocoAlvo(conteudosSelecionados)}
+                    >
+                      {conteudosSelecionados.length === 1 ? 'Mandar para gravação' : `Mandar ${conteudosSelecionados.length} para gravação`}
+                    </AppButton>
+                  ) : null}
+                  {[...selectedIds].some(id => postIts.some(postIt => postIt.id === id && postIt.date)) ? (
+                    <AppButton
+                      variant="secondary"
+                      size="sm"
+                      leftIcon={<CalendarDays className="h-4 w-4" />}
+                      onClick={() => abrirSalvarNoCalendario([...selectedIds])}
+                    >
+                      Salvar no calendário
+                    </AppButton>
+                  ) : null}
                   <AppButton
                     variant="secondary"
                     size="sm"
@@ -1338,6 +1593,7 @@ export function PlanejamentoPage() {
                 {vista === 'semana' ? (
                   <PlanejamentoWeekGrid
                     anchorDate={month}
+                    intervalo={intervaloEmFoco}
                     byDate={byDate}
                     publicacoesDoDia={publicacoesDoDia}
                     dragOverDay={dragOverDay}
@@ -1484,6 +1740,7 @@ export function PlanejamentoPage() {
         </div>
       </Drawer>
 
+      {/* Esc, fundo e alça no modo edição só saem da edição: o post-it continua aberto. */}
       <Dialog open={Boolean(openPostIt)} onClose={closePostIt} desktopMaxW="max-w-lg" ariaLabel="Post-it">
         {openPostIt ? (
           <div className="flex h-full min-h-0 flex-col bg-[var(--bg-elevated)]">
@@ -1522,7 +1779,7 @@ export function PlanejamentoPage() {
                 {!editing && openRedes.length > 0 ? (
                   <p className="flex items-center gap-2 t-body text-[var(--text-secondary)]">
                     <PlatformIcons redes={openRedes} max={4} size="md" />
-                    {openRedes.map(rede => REDE_ROTULO[rede]).join(' · ')}
+                    {openRedes.map(rede => ROTULO_REDE_DO_FILTRO[rede]).join(' · ')}
                   </p>
                 ) : null}
                 {!openContent && !editing && openAppearance.marks.length > 0 ? (
@@ -1631,8 +1888,8 @@ export function PlanejamentoPage() {
                       </Text>
                       <Text variant="secondary" className="text-[var(--text-secondary)]">
                         {openKind === 'ideia'
-                          ? 'Ao transformar em roteiro, a data do post-it vai para a publicação.'
-                          : 'A nota, a série, o objetivo, as contas e o dia vão junto. O dia aparece no Calendário.'}
+                          ? 'Ao transformar em roteiro, o vínculo fica no post-it. O dia só vai ao Calendário quando você salvar.'
+                          : 'A nota, a série, o objetivo e as contas vão junto. O dia do Calendário só muda em Salvar no calendário.'}
                       </Text>
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
@@ -1674,7 +1931,7 @@ export function PlanejamentoPage() {
             <OverlayFooter className={editing ? 'justify-end gap-2' : 'justify-between'}>
               {editing ? (
                 <>
-                  <AppButton variant="secondary" onClick={cancelEdit}>
+                  <AppButton variant="secondary" onClick={closePostIt}>
                     Cancelar
                   </AppButton>
                   <AppButton variant="primary" onClick={saveEdit}>
@@ -1694,7 +1951,19 @@ export function PlanejamentoPage() {
                       : 'Apagar'}
                   </AppButton>
                   <div className="flex items-center gap-2">
-                    <AppButton variant="secondary" leftIcon={<Pencil className="h-4 w-4" />} onClick={startEdit}>
+                    {openPostIt?.date ? (
+                      <AppButton
+                        variant="secondary"
+                        leftIcon={<CalendarDays className="h-4 w-4" />}
+                        onClick={() => {
+                          abrirSalvarNoCalendario([openPostIt.id]);
+                          closePostIt();
+                        }}
+                      >
+                        Salvar no calendário
+                      </AppButton>
+                    ) : null}
+                    <AppButton variant="secondary" leftIcon={<Pencil className="h-4 w-4" />} onClick={startEdit} title="Editar (E)">
                       Editar
                     </AppButton>
                     {openKind !== 'vazio' && openContent ? (
@@ -1703,7 +1972,7 @@ export function PlanejamentoPage() {
                         onClick={() => {
                           navigate(
                             buildContentDetailRoute(openContent.id, 'roteiro'),
-                            buildDetailBackState('/planejamento'),
+                            buildDetailBackState(retornoPlanejamento),
                           );
                           closePostIt();
                         }}
@@ -1723,7 +1992,10 @@ export function PlanejamentoPage() {
         <div className="flex h-full min-h-0 flex-col bg-[var(--bg-elevated)]">
           <OverlayHeader title={moveId?.startsWith('content:') ? 'Mover publicação' : 'Mover post-it'} onClose={fecharMover} />
           <OverlayBody>
-            <CampoDia id="mover-dia" value={moveDate} onChange={setMoveDate} />
+            <div className="stack-sm">
+              <CampoDia id="mover-dia" value={moveDate} onChange={setMoveDate} />
+              <AppButton variant="secondary" onClick={() => setMoveDate(format(new Date(), 'yyyy-MM-dd'))}>Mover para hoje</AppButton>
+            </div>
           </OverlayBody>
           <OverlayFooter className="justify-end gap-2">
             <AppButton variant="secondary" onClick={fecharMover}>
@@ -1739,14 +2011,81 @@ export function PlanejamentoPage() {
       <PostItRapidoDialog
         open={rapidoDate !== undefined}
         date={rapidoDate ?? null}
+        initialSerieId={seriePlanejandoId}
         series={state.series}
         pilares={state.pilares}
         platforms={state.platforms}
         onClose={fecharRapido}
-        onSalvar={salvarRapido}
+        onSalvar={draft => {
+          salvarRapido(draft);
+        }}
       />
 
       <EncaixeDialog postIt={encaixePostIt} onClose={() => setEncaixeId(null)} zIndex="z-[140]" />
+
+      <SalvarNoCalendarioDialog
+        open={salvarCalendarioIds !== null}
+        postIts={postIts}
+        contents={contents}
+        platforms={state.platforms}
+        ids={salvarCalendarioIds ?? undefined}
+        onClose={() => setSalvarCalendarioIds(null)}
+        onConfirm={confirmarSalvarNoCalendario}
+      />
+
+      <ConteudoPuxadoDialog
+        open={Boolean(preview && previewContent)}
+        content={previewContent}
+        dia={preview?.dia ?? null}
+        agenda={previewAgenda}
+        marks={previewAppearance.marks}
+        seriesColor={previewAppearance.seriesColor}
+        assuntos={previewAppearance.assuntos}
+        obras={nomesDasObras(previewContent, state.bibliotecaItems)}
+        onClose={() => setPreview(null)}
+        onAbrir={() => previewContent && abrirRoteiro(previewContent.id)}
+        onTransformarEmRoteiro={previewPostIt && previewContent && normalizeContentStatus(previewContent.status) === CONTENT_STATUS.IDEIA
+          ? () => {
+            setPreview(null);
+            desenvolverReserva(previewPostIt);
+          }
+          : undefined}
+        onGravacao={previewContent && entraNoBloco(previewContent, state.recordingBlocks)
+          ? () => {
+            setPreview(null);
+            setBlocoAlvo([previewContent]);
+          }
+          : undefined}
+        onMover={previewPostIt
+          ? () => {
+            setPreview(null);
+            abrirMover(previewPostIt);
+          }
+          : previewContent && !roteiroPublicado(previewContent)
+            ? () => {
+              setPreview(null);
+              abrirMoverPublicacao(previewContent.id);
+            }
+            : undefined}
+        onTirar={previewPostIt
+          ? () => {
+            setPreview(null);
+            removePostItById(previewPostIt.id);
+          }
+          : previewContent && !roteiroPublicado(previewContent)
+            ? () => {
+              setPreview(null);
+              moveMany([`content:${previewContent.id}`], null);
+            }
+            : undefined}
+      />
+
+      <CriarBlocoDialog
+        open={blocoAlvo !== null}
+        contents={blocoAlvo ?? []}
+        onClose={() => setBlocoAlvo(null)}
+        onCriado={clearSelection}
+      />
 
       <PuxarConteudoDialog
         open={pullOpen}

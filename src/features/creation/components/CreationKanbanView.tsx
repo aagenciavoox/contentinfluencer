@@ -4,7 +4,6 @@ import { Badge } from '../../../components/ui/Badge';
 import { Text } from '../../../components/ui/Text';
 import { cn } from '../../../lib/utils';
 import { filterContentsByCreationTab, type CreationTab } from '../../contents/lib/creationContent';
-import { getStatusDetail } from '../../contents/lib/contentPipeline';
 import { CreationCategoryLabel } from './CreationCategoryLabel';
 import { CreationEntityMarks, creationEntityHint } from './CreationEntityMarks';
 import { CreationItemMenu } from './CreationItemMenu';
@@ -14,7 +13,6 @@ import {
 } from '../lib/creationItemActions';
 import {
   CREATION_KANBAN_TABS,
-  getCreationCardDateMeta,
   getCreationCardTags,
   getCreationNoteExcerpt,
   getCreationTitle,
@@ -69,8 +67,6 @@ function CreationKanbanCard({
   const isIdea = isIdeaContent(content);
   const tags = etiquetas ?? getCreationCardTags(content);
   const excerpt = getCreationNoteExcerpt(content);
-  // Só a data no rodapé: o formato vai para a lista, onde há espaço para ele sem cortar.
-  const footerMeta = [getStatusDetail(content), getCreationCardDateMeta(content)].filter(Boolean).join(' · ') || null;
   const canOpen = !content.deletedAt && !selectionMode;
   const entityHint = creationEntityHint(pillar, series, content.pilarId, content.seriesId);
   const hasMarks = entityHint.length > 0;
@@ -80,6 +76,7 @@ function CreationKanbanCard({
 
   return (
     <article
+      style={{ borderTopColor: series?.cor || pillar?.cor || undefined }}
       draggable={draggable}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
@@ -101,7 +98,7 @@ function CreationKanbanCard({
         isIdea
           ? 'creation-hub-card--idea border-[var(--idea-card-border)] bg-[var(--idea-card-bg)]'
           : 'border-[var(--border-color)] bg-[var(--bg-elevated)]',
-        'transition-[border-color,box-shadow,opacity] duration-200',
+        'transition-[border-color,box-shadow,opacity,transform] duration-200',
         'hover:shadow-[var(--shadow-card-hover)]',
         'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
         'focus-within:shadow-[var(--shadow-card-hover)]',
@@ -117,17 +114,7 @@ function CreationKanbanCard({
         >
           <CreationItemMenu items={menuItems} label={`Ações de ${title}`} alwaysVisible />
         </span>
-        {hasMarks ? (
-          <div className="creation-hub-card__header flex min-h-8 items-center pr-9">
-            <CreationEntityMarks
-              pillar={pillar}
-              series={series}
-              pillarId={content.pilarId}
-              seriesId={content.seriesId}
-            />
-          </div>
-        ) : null}
-        <div className={cn('card-body', !hasMarks && 'pr-9')}>
+        <div className="card-body pr-9">
         <Text variant="itemTitle" className="creation-hub-card__title line-clamp-2">
           {title}
         </Text>
@@ -143,23 +130,19 @@ function CreationKanbanCard({
         ) : null}
       </div>
 
-      {tags.length > 0 || footerMeta ? (
-        <div className="creation-hub-card__footer flex min-h-6 items-center justify-between gap-4">
-          {tags.length > 0 ? (
-            <CreationCategoryLabel label={tags[0]} extraCount={tags.length - 1} names={tags} />
-          ) : <span aria-hidden />}
-          {footerMeta ? (
-            <Text
-              variant="meta"
-              as="span"
-              className={cn(
-                'truncate text-right text-[var(--text-tertiary)]',
-                tags.length > 0 ? 'max-w-[60%] shrink-0' : 'max-w-full',
-              )}
-            >
-              {footerMeta}
-            </Text>
-          ) : null}
+      {hasMarks ? (
+        <CreationEntityMarks
+          pillar={pillar}
+          series={series}
+          pillarId={content.pilarId}
+          seriesId={content.seriesId}
+          display="all"
+          className="creation-hub-card__entities"
+        />
+      ) : null}
+      {tags.length > 0 ? (
+        <div className="creation-hub-card__footer">
+          <CreationCategoryLabel label={tags[0]} extraCount={tags.length - 1} names={tags} />
         </div>
       ) : null}
       </div>

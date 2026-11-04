@@ -145,7 +145,7 @@ export function ProjectDetailPage() {
       <PageLayout
         header={
           <DesktopPageHeader
-            section="Produção"
+            section="Agenda"
             title="Projeto não encontrado"
             backLabel="Projetos"
             backTo="/projetos"
@@ -375,7 +375,7 @@ export function ProjectDetailPage() {
       contentStack="dense"
       header={
         <DesktopPageHeader
-          section="Produção"
+          section="Agenda"
           title={projeto.nome}
           titleContent={(
             <div className="min-w-0">

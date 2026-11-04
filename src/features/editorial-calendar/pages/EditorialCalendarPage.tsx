@@ -1,6 +1,6 @@
 import { ValorVazio } from '../../../components/ui/ValorVazio';
 import {useCallback, useEffect, useMemo, useState, type DragEvent, type ReactNode} from 'react';
-import {useLocation, useNavigate, useSearchParams} from 'react-router-dom';
+import {Link, useLocation, useNavigate, useSearchParams} from 'react-router-dom';
 import {
   eachDayOfInterval,
   endOfMonth,
@@ -62,7 +62,7 @@ import {UNDATED_PILE_STORAGE_KEY, UNDATED_ROTEIRO_MIME, UndatedRoteiroPile} from
 import {PostingTimeSuggestions} from '../../settings/components/PostingTimeSuggestions';
 import {getPostingTimesForPlatform} from '../../settings/lib/postingTimes';
 import {getGentleExperienceSettings} from '../../settings/lib/gentleExperience';
-import {getSessionCandidates} from '../../dashboard/lib/dailySession';
+import {itensPendenciaDoDia, type ItemPendenciaDoDia} from '../../planejamento/lib/avisosPendencia';
 import {generateUUID} from '../../../utils/uuid';
 import {calendarEntryIcon, CalendarLegend} from '../components/CalendarNetworkIcons';
 import {contasAtivas, rotuloConta, rotuloDaRef} from '../../contas/lib/contas';
@@ -247,10 +247,28 @@ export function EditorialCalendarPage() {
   );
 
   const gentleExperience = getGentleExperienceSettings(state.preferences);
-  const readyToRecordCount = useMemo(
-    () => getSessionCandidates(state.contents, state.recordingBlocks).length,
-    [state.contents, state.recordingBlocks],
-  );
+  const pendenciasDoDia = useMemo(() => {
+    if (!gentleExperience.calmSuggestions || gentleExperience.pauseMode) return [];
+    return itensPendenciaDoDia({
+      contents: state.contents,
+      platforms: state.platforms,
+      series: state.series,
+      redeReferenciaId: state.editorial.preferencias.redeReferenciaId,
+      diasGravacao: state.editorial.preferencias.diasGravacao,
+      antecedenciaPostagemDias: state.editorial.preferencias.antecedenciaPostagemDias,
+      pausas: state.editorial.pausas ?? [],
+    });
+  }, [
+    gentleExperience.calmSuggestions,
+    gentleExperience.pauseMode,
+    state.contents,
+    state.platforms,
+    state.series,
+    state.editorial.preferencias.redeReferenciaId,
+    state.editorial.preferencias.diasGravacao,
+    state.editorial.preferencias.antecedenciaPostagemDias,
+    state.editorial.pausas,
+  ]);
 
   const allCalendarEntries = Array.from(entriesByDate.values()).flat();
   const weeklyRecordings = allCalendarEntries.filter(entry => entry.type === 'recording').length;
@@ -513,7 +531,7 @@ export function EditorialCalendarPage() {
       contentWidth="wide"
       header={
         <DesktopPageHeader
-          section="Produção"
+          section="Agenda"
           title="Calendário"
           actions={(
             <AppButton
@@ -657,9 +675,7 @@ export function EditorialCalendarPage() {
               onClose={() => setDayPanelOpen(false)}
               onSelectEntry={handleSelectEntry}
               onAddAgenda={() => setQuickCreateDate(selectedDate)}
-              readyToRecordCount={gentleExperience.calmSuggestions ? readyToRecordCount : 0}
-              showCounts={gentleExperience.dashboardCounts}
-              onOpenRecording={() => navigate('/gravacao?tab=queue')}
+              pendencias={pendenciasDoDia}
             />
           ) : undefined
         }
@@ -1171,27 +1187,18 @@ function CalendarDayPanel({
   onClose,
   onSelectEntry,
   onAddAgenda,
-  readyToRecordCount,
-  showCounts,
-  onOpenRecording,
+  pendencias,
 }: {
   selectedDate: Date;
   entries: CalendarEntry[];
   onClose: () => void;
   onSelectEntry: (entry: CalendarEntry) => void;
   onAddAgenda: () => void;
-  readyToRecordCount: number;
-  showCounts: boolean;
-  onOpenRecording: () => void;
+  pendencias: ItemPendenciaDoDia[];
 }) {
   const primaryEntry = entries[0];
   const [eventsOpen, setEventsOpen] = useState(true);
   const [focusOpen, setFocusOpen] = useState(false);
-  const readyToRecordLabel = !showCounts
-    ? 'Há roteiros prontos para gravar.'
-    : readyToRecordCount === 1
-      ? '1 roteiro pronto para gravar.'
-      : `${readyToRecordCount} roteiros prontos para gravar.`;
 
   return (
     <aside className="sticky top-4 h-fit max-h-[calc(100vh-96px)] overflow-y-auto rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-3 shadow-[var(--shadow-soft)]">
@@ -1263,7 +1270,7 @@ function CalendarDayPanel({
         ) : null}
       </div>
 
-      {readyToRecordCount > 0 ? (
+      {pendencias.length > 0 ? (
         <div className="mt-3">
           <div className="rounded-[var(--radius-input)] border border-[var(--border-color)]">
             <button
@@ -1273,19 +1280,24 @@ function CalendarDayPanel({
               className="flex w-full items-center gap-2 px-3 py-2 text-left t-label text-[var(--accent-purple)]"
             >
               <Target className="h-3.5 w-3.5" />
-              Talvez útil neste dia
+              O que falta para postar
             </button>
             {focusOpen ? (
-              <div className="stack-sm border-t border-[var(--border-color)] p-3">
-                <Text variant="meta" as="p" className="text-[var(--text-primary)]">{readyToRecordLabel}</Text>
-                <button
-                  type="button"
-                  onClick={onOpenRecording}
-                  className="self-start t-label text-[var(--accent-blue)]"
-                >
-                  Abrir gravação
-                </button>
-              </div>
+              <ul className="stack-sm border-t border-[var(--border-color)] p-3">
+                {pendencias.map(item => (
+                  <li key={item.contentId + ':' + item.date}>
+                    <Link
+                      to={buildContentDetailRoute(item.contentId)}
+                      className="block rounded-[var(--radius-input)] px-2 py-1.5 hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                    >
+                      <Text variant="label" as="p" className="text-[var(--text-primary)]">{item.titulo}</Text>
+                      <Text variant="meta" as="p" className="mt-0.5 text-[var(--text-secondary)]">
+                        {item.pendencias.join(' · ')}
+                      </Text>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             ) : null}
           </div>
         </div>

@@ -72,7 +72,7 @@ export function AnalyticsPage() {
       contentWidth="wide"
       header={(
         <DesktopPageHeader
-          section="Criação"
+          section="Estratégia"
           title="Análise"
           backLabel="Biblioteca"
           backTo="/biblioteca"

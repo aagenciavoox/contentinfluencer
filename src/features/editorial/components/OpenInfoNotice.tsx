@@ -12,6 +12,7 @@ export function OpenInfoNotice({
   description,
   actionLabel,
   onAction,
+  onItemSelect,
   className,
 }: {
   items: SerieOpenItem[];
@@ -19,6 +20,8 @@ export function OpenInfoNotice({
   description?: string | null;
   actionLabel?: string;
   onAction?: () => void;
+  /** Abre o campo correspondente. Cada pendência vira um atalho. */
+  onItemSelect?: (item: SerieOpenItem) => void;
   className?: string;
 }) {
   if (items.length === 0) return null;
@@ -37,6 +40,20 @@ export function OpenInfoNotice({
             <Text variant="meta" className="text-[var(--text-secondary)]">
               {description ?? `Complete estas informações para os próximos roteiros já nascerem configurados.`}
             </Text>
+          ) : null}
+          {onItemSelect ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {items.map(item => (
+                <AppButton
+                  key={item.key}
+                  variant="secondary"
+                  size="xs"
+                  onClick={() => onItemSelect(item)}
+                >
+                  {item.label.charAt(0).toUpperCase() + item.label.slice(1)}
+                </AppButton>
+              ))}
+            </div>
           ) : null}
         </div>
       </div>

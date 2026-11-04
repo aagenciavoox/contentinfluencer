@@ -8,6 +8,9 @@ const DISPLAY_NAMES: Record<string, string> = {
   instagram: 'Instagram',
   tiktok: 'TikTok',
   youtube: 'YouTube',
+  'youtube-shorts': 'YouTube Shorts',
+  youtubeshorts: 'YouTube Shorts',
+  shorts: 'YouTube Shorts',
 };
 
 /** Chave estável para comparar plataformas: minúsculas, sem acentos e sem espaços. */

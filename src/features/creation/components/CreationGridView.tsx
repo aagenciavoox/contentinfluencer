@@ -29,7 +29,7 @@ export function CreationGridView({
   actions,
 }: CreationGridViewProps) {
   return (
-    <div className="grid-content max-lg:gap-2">
+    <div className="grid-content creation-hub-grid max-lg:gap-2">
       {items.map(item => (
         <CreationGridCard
           key={item.content.id}

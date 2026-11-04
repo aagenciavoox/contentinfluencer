@@ -36,15 +36,22 @@ function avisos(input: Partial<Parameters<typeof avisosDeOrientacao>[0]>) {
 }
 
 function testVesperaEmRoteiro() {
-  const roteiro = createContentDraft({id: 'r1', title: 'Cosmere sem TCC', status: CONTENT_STATUS.ROTEIRO});
+  const roteiro = createContentDraft({
+    id: 'r1',
+    title: 'Cosmere sem TCC',
+    status: CONTENT_STATUS.ROTEIRO,
+    publishDate: '2026-10-31',
+  });
   const lista = avisos({
     postIts: [postIt({id: 'p1', date: '2026-10-31', contentId: 'r1'})],
     contents: [roteiro],
+    antecedenciaPostagemDias: 1,
   });
   const aviso = lista.find(item => item.tipo === 'vespera-sem-pronto');
   assert.ok(aviso);
-  assert.equal(aviso.texto, 'A publicação de amanhã (Cosmere sem TCC) ainda está em roteiro.');
+  assert.match(aviso.texto, /Cosmere sem TCC/);
   assert.deepEqual(aviso.postItIds, ['p1']);
+  assert.deepEqual(aviso.contentIds, ['r1']);
 }
 
 function testVesperaProntaNaoAvisa() {
@@ -52,17 +59,23 @@ function testVesperaProntaNaoAvisa() {
     id: 'r1',
     status: CONTENT_STATUS.EDICAO,
     edicaoConcluidaEm: '2026-10-29T12:00:00.000Z',
+    publishDate: '2026-10-31',
+    legendaBase: 'Legenda pronta',
   });
   const lista = avisos({
     postIts: [postIt({id: 'p1', date: '2026-10-31', contentId: 'r1'})],
     contents: [pronto],
+    antecedenciaPostagemDias: 1,
   });
   assert.equal(lista.some(item => item.tipo === 'vespera-sem-pronto'), false);
 }
 
 function testReservaDeHoje() {
-  const lista = avisos({postIts: [postIt({id: 'p1', date: '2026-10-30'})]});
-  assert.equal(lista.find(item => item.tipo === 'vespera-sem-pronto')?.texto, 'A publicação de hoje ainda é só um post-it.');
+  const lista = avisos({
+    postIts: [postIt({id: 'p1', date: '2026-10-30'})],
+    antecedenciaPostagemDias: 1,
+  });
+  assert.equal(lista.some(item => item.tipo === 'vespera-sem-pronto'), false);
 }
 
 function testGravacoesAcimaDoLimite() {
@@ -149,7 +162,7 @@ function testSerieSomaOsQuadros() {
 const tests = [
   ['warns when tomorrow is still a roteiro', testVesperaEmRoteiro],
   ['ready publication does not warn', testVesperaProntaNaoAvisa],
-  ['a reserva for today warns', testReservaDeHoje],
+  ['a loose post-it alone does not warn', testReservaDeHoje],
   ['warns when a day has more recordings than the limit', testGravacoesAcimaDoLimite],
   ['series below frequency asks to reserve episodes', testFaltaReservarEpisodio],
   ['preparation is separate from filling', testPreparoSeparaDePreenchimento],

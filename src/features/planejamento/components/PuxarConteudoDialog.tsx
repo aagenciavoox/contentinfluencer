@@ -29,7 +29,10 @@ import {
   pilarEfetivo,
   type FiltroPuxar,
 } from '../lib/filtroPuxar';
-import {normalizarRedesPostIt} from '../lib/redesPostIt';
+import {normalizarRedesDoFiltro} from '../../creation/lib/creationRedeFilter';
+import {lerPreferenciaLista} from '../../settings/lib/preferenciaLista';
+import {colunaDeOrdemDisponivel} from '../../settings/lib/seriesLista';
+import {secoesDaSerie, type SecaoPuxar} from '../lib/secoesPuxar';
 import {PostItTemas} from './PostItNote';
 
 /** Tempo em que um clique na lista ainda é o mesmo gesto que abriu o modal. */
@@ -85,7 +88,7 @@ export function PuxarConteudoDialog({
   const redesRapidas = useMemo(() => {
     const dasContas = redesDoFiltroRapido(state.platforms, filtro.redes);
     const dosCandidatos = candidatos.flatMap(c => redesPorConteudo.get(c.id) ?? []);
-    return normalizarRedesPostIt([...dasContas, ...dosCandidatos, ...(filtro.redes ?? [])]);
+    return normalizarRedesDoFiltro([...dasContas, ...dosCandidatos, ...(filtro.redes ?? [])]);
   }, [state.platforms, filtro.redes, candidatos, redesPorConteudo]);
 
   const redeQuickFilter = redesRapidas.length > 0 ? (
@@ -96,13 +99,28 @@ export function PuxarConteudoDialog({
     />
   ) : null;
 
-  const lista = useMemo(() => {
+  // Com série escolhida, a lista é a da página da série, com o agrupamento e a ordem salvos lá.
+  // Sem série, por título. A preferência é relida a cada abertura: pode ter mudado na outra tela.
+  const porSerie = filtro.serieIds.length > 0;
+  const secoes = useMemo<SecaoPuxar[]>(() => {
     const termo = busca.trim().toLocaleLowerCase('pt-BR');
-    return candidatos
+    const visiveis = candidatos
       .filter(content => passaNoFiltroPuxar(content, filtro, state.series, state.temas, redesPorConteudo.get(content.id)))
-      .filter(content => !termo || `${content.title} ${content.status}`.toLocaleLowerCase('pt-BR').includes(termo))
-      .sort((left, right) => (left.title || '').localeCompare(right.title || '', 'pt-BR'));
-  }, [busca, candidatos, filtro, redesPorConteudo, state.series, state.temas]);
+      .filter(content => !termo || `${content.title} ${content.status}`.toLocaleLowerCase('pt-BR').includes(termo));
+    if (porSerie) {
+      return secoesDaSerie(visiveis, filtro.serieIds, state.series, state.temporadas, {
+        preferencia: lerPreferenciaLista,
+        ordemDisponivel: colunaDeOrdemDisponivel(candidatos),
+      });
+    }
+    return [{
+      id: 'titulo',
+      rotulo: null,
+      numerar: false,
+      contents: [...visiveis].sort((left, right) => (left.title || '').localeCompare(right.title || '', 'pt-BR')),
+    }];
+  }, [busca, candidatos, filtro, porSerie, redesPorConteudo, state.series, state.temas, state.temporadas]);
+  const total = secoes.reduce((soma, secao) => soma + secao.contents.length, 0);
 
   const nomeDaSerie = new Map(state.series.map(serie => [serie.id, serie.name.trim()]));
   const nomeDoPilar = new Map(state.pilares.map(pilar => [pilar.id, pilar.nome.trim()]));
@@ -174,7 +192,7 @@ export function PuxarConteudoDialog({
           <div className="stack-sm">
             <div className="flex min-h-8 items-center justify-between gap-3">
               <Text variant="meta" className="text-[var(--text-secondary)]">
-                {lista.length === 1 ? '1 conteúdo' : `${lista.length} conteúdos`}
+                {total === 1 ? '1 conteúdo' : `${total} conteúdos`}
               </Text>
               {filtrando ? (
                 <AppButton
@@ -189,49 +207,64 @@ export function PuxarConteudoDialog({
                 </AppButton>
               ) : null}
             </div>
-            {lista.length === 0 ? (
+            {total === 0 ? (
               <Text variant="meta" className="text-[var(--text-secondary)]">
                 {candidatos.length === 0 ? 'Nada para puxar.' : 'Nada com esses filtros.'}
               </Text>
             ) : (
-              <ul className="stack-sm">
-                {lista.map(content => {
-                  const status = normalizeContentStatus(content.status);
-                  const pilarId = pilarEfetivo(content, state.series);
-                  const redesDoItem = redesPorConteudo.get(content.id) ?? [];
-                  const classe = [
-                    content.seriesId ? nomeDaSerie.get(content.seriesId) : null,
-                    pilarId ? nomeDoPilar.get(pilarId) : null,
-                  ].filter((parte): parte is string => Boolean(parte));
-                  return (
-                    <li key={content.id}>
-                      <button
-                        type="button"
-                        onClick={event => escolher(content, event)}
-                        className="flex w-full items-start justify-between gap-3 rounded-[var(--radius-input)] border border-[var(--border-color)] px-3 py-2 text-left hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-                      >
-                        <span className="min-w-0 flex-1">
-                          <span className="block whitespace-normal break-words t-body-strong text-[var(--text-primary)]">
-                            {content.title || 'Sem título'}
-                          </span>
-                          {classe.length > 0 ? (
-                            <Text variant="meta" as="span" className="mt-0.5 block text-[var(--text-secondary)]">
-                              {classe.join(' · ')}
-                            </Text>
-                          ) : null}
-                          <PostItTemas temas={etiquetasVisiveis(content, state.temas)} />
-                        </span>
-                        <div className="flex shrink-0 flex-col items-end gap-1.5">
-                          <Badge variant="status" status={status}>{status}</Badge>
-                          {redesDoItem.length > 0 ? (
-                            <PlatformIcons redes={redesDoItem} max={4} className="shrink-0" />
-                          ) : null}
-                        </div>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
+              <div className="stack-md">
+                {secoes.map(secao => (
+                  <section key={secao.id} className="stack-xs" aria-label={secao.rotulo ?? undefined}>
+                    {secao.rotulo ? (
+                      <Text variant="meta" as="h3" className="text-[var(--text-secondary)]">
+                        {secao.rotulo}
+                      </Text>
+                    ) : null}
+                    <ul className="stack-sm">
+                      {secao.contents.map((content, indice) => {
+                        const status = normalizeContentStatus(content.status);
+                        const pilarId = pilarEfetivo(content, state.series);
+                        const redesDoItem = redesPorConteudo.get(content.id) ?? [];
+                        // Com série escolhida, o cabeçalho e o filtro já dizem onde o episódio está.
+                        const classe = [
+                          !porSerie && content.seriesId ? nomeDaSerie.get(content.seriesId) : null,
+                          pilarId ? nomeDoPilar.get(pilarId) : null,
+                        ].filter((parte): parte is string => Boolean(parte));
+                        return (
+                          <li key={content.id}>
+                            <button
+                              type="button"
+                              onClick={event => escolher(content, event)}
+                              className="flex w-full items-start justify-between gap-3 rounded-[var(--radius-input)] border border-[var(--border-color)] px-3 py-2 text-left hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                            >
+                              <span className="min-w-0 flex-1">
+                                <span className="block whitespace-normal break-words t-body-strong text-[var(--text-primary)]">
+                                  {secao.numerar ? (
+                                    <span className="mr-2 tabular-nums text-[var(--text-secondary)]">{indice + 1}.</span>
+                                  ) : null}
+                                  {content.title || 'Sem título'}
+                                </span>
+                                {classe.length > 0 ? (
+                                  <Text variant="meta" as="span" className="mt-0.5 block text-[var(--text-secondary)]">
+                                    {classe.join(' · ')}
+                                  </Text>
+                                ) : null}
+                                <PostItTemas temas={etiquetasVisiveis(content, state.temas)} />
+                              </span>
+                              <div className="flex shrink-0 flex-col items-end gap-1.5">
+                                <Badge variant="status" status={status}>{status}</Badge>
+                                {redesDoItem.length > 0 ? (
+                                  <PlatformIcons redes={redesDoItem} max={4} className="shrink-0" />
+                                ) : null}
+                              </div>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </section>
+                ))}
+              </div>
             )}
           </div>
         </OverlayBody>

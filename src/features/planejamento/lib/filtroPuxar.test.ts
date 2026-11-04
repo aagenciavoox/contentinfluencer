@@ -72,6 +72,21 @@ function testOpcoesSoTrazemOQueExisteNosConteudos() {
   ]);
 }
 
+function testSerieTrazOsQuadrosEOsQuadrosMostramOCaminho() {
+  const comQuadro = [...series, {id: 'q-cla', name: 'Clássicos', parentId: 's-res', pilarPrincipalId: null}];
+  const episodioDoQuadro = conteudo({seriesId: 'q-cla'});
+  assert.equal(passaNoFiltroPuxar(episodioDoQuadro, {...FILTRO_PUXAR_VAZIO, serieIds: ['s-res']}, comQuadro, temas), true);
+  assert.equal(passaNoFiltroPuxar(episodioDoQuadro, {...FILTRO_PUXAR_VAZIO, serieIds: ['s-hum']}, comQuadro, temas), false);
+  // Escolher o quadro não traz o que está direto na série.
+  assert.equal(passaNoFiltroPuxar(conteudo({seriesId: 's-res'}), {...FILTRO_PUXAR_VAZIO, serieIds: ['q-cla']}, comQuadro, temas), false);
+
+  const opcoes = opcoesDoFiltroPuxar([episodioDoQuadro], comQuadro, pilares, temas);
+  assert.deepEqual(opcoes.series, [
+    {value: 's-res', label: 'Resenhas'},
+    {value: 'q-cla', label: 'Resenhas · Clássicos'},
+  ]);
+}
+
 function testFiltroAtivo() {
   assert.equal(filtroPuxarAtivo(FILTRO_PUXAR_VAZIO), false);
   assert.equal(filtroPuxarAtivo({...FILTRO_PUXAR_VAZIO, tags: ['terror']}), true);
@@ -96,11 +111,19 @@ function testFiltroRede() {
   assert.equal(passaNoFiltroPuxar(item, filtroMulti, series, temas, ['instagram']), true);
   assert.equal(passaNoFiltroPuxar(item, filtroMulti, series, temas, ['tiktok']), true);
   assert.equal(passaNoFiltroPuxar(item, filtroMulti, series, temas, ['instagram', 'tiktok']), true);
-  assert.equal(passaNoFiltroPuxar(item, filtroMulti, series, temas, ['instagram', 'youtube']), false);
+  // Filtrando por Shorts ou YouTube longo:
+  const filtroShorts = {...FILTRO_PUXAR_VAZIO, redes: ['youtube-shorts' as const]};
+  assert.equal(passaNoFiltroPuxar(item, filtroShorts, series, temas, ['youtube-shorts']), true);
+  assert.equal(passaNoFiltroPuxar(item, filtroShorts, series, temas, ['youtube']), false);
+
+  const filtroYtLongo = {...FILTRO_PUXAR_VAZIO, redes: ['youtube' as const]};
+  assert.equal(passaNoFiltroPuxar(item, filtroYtLongo, series, temas, ['youtube']), true);
+  assert.equal(passaNoFiltroPuxar(item, filtroYtLongo, series, temas, ['youtube-shorts']), false);
 }
 
 testPilarVemDaSerieQuandoOConteudoNaoTem();
 testFiltroCombinaSeriePilarETag();
 testOpcoesSoTrazemOQueExisteNosConteudos();
+testSerieTrazOsQuadrosEOsQuadrosMostramOCaminho();
 testFiltroAtivo();
 testFiltroRede();

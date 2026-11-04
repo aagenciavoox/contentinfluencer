@@ -1,7 +1,8 @@
 import { ArrowRightLeft, Check, Download, Layers, Minus, Target, Trash2, X } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
+import { MoreMenu, type MoreMenuItem } from '../../../components/ui/MoreMenu';
+import { useIsMobile } from '../../../hooks/useIsMobile';
 import { Text } from '../../../components/ui/Text';
-import { cn } from '../../../lib/utils';
 import type { CreationExportCopy } from '../lib/exportScriptsDocx';
 
 type Noun = Pick<CreationExportCopy, 'singular' | 'plural' | 'feminine'>;
@@ -9,7 +10,7 @@ type Noun = Pick<CreationExportCopy, 'singular' | 'plural' | 'feminine'>;
 interface CreationSelectionBarProps {
   selectedCount: number;
   availableCount: number;
-  /** Selecionados que não estão na tela (páginas ainda não carregadas por "Mostrar mais"). */
+  /** Selecionados que estão em outras páginas ou fora da vista atual. */
   hiddenSelectedCount: number;
   /** Nome do que está selecionado (ideia, roteiro ou item). */
   selectedNoun: Noun;
@@ -60,190 +61,61 @@ function selectionDetail({
   return `De ${available} no filtro${offscreen}`;
 }
 
-// No celular os botões viram blocos com ícone sobre o texto (5 por linha); do `md:` em diante, botões normais.
-const actionClassName = cn(
-  'h-auto min-h-14 w-full flex-col gap-1 px-1 py-2 t-label',
-  'md:h-[var(--app-button-height)] md:min-h-0 md:w-auto md:flex-row md:gap-2 md:px-4 md:py-0 md:text-[length:var(--font-size-button)]',
-);
-
-/**
- * Barra da seleção em massa da Criação. Fica presa ao pé da tela enquanto a lista rola
- * (acima da barra inferior no celular) e não empurra a grade para baixo.
- */
+/** A seleção divide o rodapé com a paginação. */
 export function CreationSelectionBar({
-  selectedCount,
-  availableCount,
-  hiddenSelectedCount,
-  selectedNoun,
-  availableNoun,
-  isExporting,
-  onToggleAll,
-  onChangeStatus,
-  onChangeSeries,
-  onChangePillar,
-  onExport,
-  onDelete,
-  onCancel,
+  selectedCount, availableCount, hiddenSelectedCount, selectedNoun, availableNoun,
+  isExporting, onToggleAll, onChangeStatus, onChangeSeries, onChangePillar,
+  onExport, onDelete, onCancel,
 }: CreationSelectionBarProps) {
+  const isMobile = useIsMobile();
   const allSelected = availableCount > 0 && selectedCount === availableCount;
   const someSelected = selectedCount > 0 && !allSelected;
   const nothingSelected = selectedCount === 0;
   const titleNoun = nothingSelected ? availableNoun : selectedNoun;
-  const todos = availableNoun.feminine ? 'todas' : 'todos';
-  const selectAllLabel = `Selecionar ${todos} (${availableCount})`;
-
-  const cancelButton = (className: string) => (
-    <AppButton
-      variant="ghost"
-      size="sm"
-      iconOnly
-      className={className}
-      aria-label="Cancelar seleção"
-      title="Cancelar seleção"
-      onClick={onCancel}
-    >
-      <X className="h-4 w-4" />
-    </AppButton>
-  );
+  const selectAllLabel = 'Selecionar ' + (availableNoun.feminine ? 'todas' : 'todos') + ' (' + availableCount + ')';
+  const menuItems: MoreMenuItem[] = [
+    { id: 'status', label: 'Mudar etapa', onClick: onChangeStatus, disabled: nothingSelected },
+    { id: 'series', label: 'Mudar série', onClick: onChangeSeries, disabled: nothingSelected },
+    { id: 'pillar', label: 'Mudar pilar', onClick: onChangePillar, disabled: nothingSelected },
+    { id: 'export', label: isExporting ? 'Gerando Word…' : 'Exportar em Word', onClick: onExport, disabled: nothingSelected || isExporting },
+    { id: 'delete', label: 'Mover para a lixeira', onClick: onDelete, tone: 'danger', disabled: nothingSelected },
+  ];
 
   return (
-    <div
-      className={cn(
-        'sticky z-30',
-        // Altura da barra inferior do celular (borda + fileira h-14 + área segura de .mobile-bottom-nav)
-        // + respiro. A conta antiga dava 11px de folga sem área segura e só 3px com ela.
-        'bottom-[calc(3.5rem+1px+max(0.25rem,env(safe-area-inset-bottom,0px))+var(--space-sm))]',
-        'lg:bottom-[var(--space-lg)]',
-      )}
-    >
-      <section
-        aria-label="Seleção em massa"
-        className={cn(
-          'mx-auto flex w-full flex-col gap-3 p-3',
-          'rounded-[var(--radius-overlay)] border border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-[var(--shadow-dropdown)]',
-          'md:w-fit md:max-w-full md:flex-row md:flex-wrap md:items-center md:gap-x-6 md:gap-y-3 md:py-2 md:pl-4 md:pr-2',
-        )}
+    <section aria-label="Seleção em massa" className="flex flex-wrap items-center gap-2 border-b border-[var(--border-color)] pb-2">
+      <div className="min-w-0 flex-1 basis-32">
+        <Text variant="bodyStrong" className="truncate" aria-live="polite">
+          {selectedTitle(titleNoun, selectedCount, isMobile)}
+        </Text>
+        <Text variant="meta" as="p" className="truncate">
+          {selectionDetail({ selectedCount, availableCount, hiddenSelectedCount, availableNoun })}
+        </Text>
+      </div>
+      <AppButton
+        variant="secondary"
+        size="sm"
+        role="checkbox"
+        aria-checked={allSelected ? true : someSelected ? 'mixed' : false}
+        aria-label={selectAllLabel}
+        onClick={onToggleAll}
+        leftIcon={allSelected ? <Check className="h-4 w-4" /> : someSelected ? <Minus className="h-4 w-4" /> : undefined}
       >
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="min-w-0 flex-1 md:flex-none">
-            <p className="t-item-title truncate text-[var(--text-primary)]" aria-live="polite">
-              <span className="md:hidden">{selectedTitle(titleNoun, selectedCount, true)}</span>
-              <span className="hidden md:inline">{selectedTitle(titleNoun, selectedCount, false)}</span>
-            </p>
-            <Text variant="meta" as="p" className="truncate">
-              {selectionDetail({ selectedCount, availableCount, hiddenSelectedCount, availableNoun })}
-            </Text>
-          </div>
-
-          {/* A caixa segue o visual das caixas dos cards: preenchida quando marcada, traço quando é parte. */}
-          <AppButton
-            variant="secondary"
-            size="sm"
-            className="px-3"
-            role="checkbox"
-            aria-checked={allSelected ? true : someSelected ? 'mixed' : false}
-            aria-label={selectAllLabel}
-            leftIcon={(
-              <span
-                aria-hidden
-                className={cn(
-                  'inline-flex h-4 w-4 items-center justify-center rounded-[var(--radius-sm)] border transition-colors',
-                  nothingSelected
-                    ? 'border-[var(--border-strong)] bg-[var(--bg-elevated)]'
-                    : 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]',
-                )}
-              >
-                {allSelected ? <Check className="h-3 w-3 stroke-[3px]" /> : null}
-                {someSelected ? <Minus className="h-3 w-3 stroke-[3px]" /> : null}
-              </span>
-            )}
-            onClick={onToggleAll}
-          >
-            <span className="md:hidden">{todos === 'todas' ? 'Todas' : 'Todos'} ({availableCount})</span>
-            <span className="hidden md:inline">{selectAllLabel}</span>
-          </AppButton>
-
-          {cancelButton('-my-1 -mr-1 md:hidden')}
+        {allSelected ? 'Desmarcar' : 'Todos'}
+      </AppButton>
+      {isMobile ? (
+        <MoreMenu items={menuItems} label="Ações da seleção" trigger={<Text variant="button">Ações</Text>} />
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <AppButton variant="secondary" size="sm" leftIcon={<ArrowRightLeft className="h-4 w-4" />} disabled={nothingSelected} onClick={onChangeStatus}>Etapa</AppButton>
+          <AppButton variant="secondary" size="sm" leftIcon={<Layers className="h-4 w-4" />} disabled={nothingSelected} onClick={onChangeSeries}>Série</AppButton>
+          <AppButton variant="secondary" size="sm" leftIcon={<Target className="h-4 w-4" />} disabled={nothingSelected} onClick={onChangePillar}>Pilar</AppButton>
+          <AppButton variant="secondary" size="sm" leftIcon={<Download className="h-4 w-4" />} disabled={nothingSelected || isExporting} onClick={onExport}>{isExporting ? 'Gerando…' : 'Word'}</AppButton>
+          <AppButton variant="ghost" size="sm" className="text-[var(--danger)]" leftIcon={<Trash2 className="h-4 w-4" />} disabled={nothingSelected} onClick={onDelete}>Excluir</AppButton>
         </div>
-
-        <div className="grid grid-cols-5 gap-1.5 md:ml-auto md:flex md:items-center md:gap-2">
-          <AppButton
-            variant="secondary"
-            size="sm"
-            className={actionClassName}
-            leftIcon={<ArrowRightLeft className="h-4 w-4" />}
-            aria-label="Mudar etapa"
-            disabled={nothingSelected}
-            onClick={onChangeStatus}
-          >
-            <span className="md:hidden">Etapa</span>
-            <span className="hidden md:inline">Mudar etapa</span>
-          </AppButton>
-          <AppButton
-            variant="secondary"
-            size="sm"
-            className={actionClassName}
-            leftIcon={<Layers className="h-4 w-4" />}
-            aria-label="Mudar série"
-            disabled={nothingSelected}
-            onClick={onChangeSeries}
-          >
-            <span className="md:hidden">Série</span>
-            <span className="hidden md:inline">Mudar série</span>
-          </AppButton>
-          <AppButton
-            variant="secondary"
-            size="sm"
-            className={actionClassName}
-            leftIcon={<Target className="h-4 w-4" />}
-            aria-label="Mudar pilar"
-            disabled={nothingSelected}
-            onClick={onChangePillar}
-          >
-            <span className="md:hidden">Pilar</span>
-            <span className="hidden md:inline">Mudar pilar</span>
-          </AppButton>
-          {/* Rosa forte no claro e rosa claro no escuro: os dois passam de 4.5:1 sobre o fundo do botão. */}
-          <AppButton
-            variant="secondary"
-            size="sm"
-            className={cn(
-              actionClassName,
-              'border-[color-mix(in_srgb,var(--brand-accent),transparent_45%)] bg-[color-mix(in_srgb,var(--brand-accent-soft),var(--bg-elevated)_85%)]',
-              'text-[var(--brand-accent-text)]',
-              'hover:border-[var(--brand-accent-strong)] hover:bg-[var(--brand-accent-soft)]',
-            )}
-            leftIcon={<Trash2 className="h-4 w-4" />}
-            disabled={nothingSelected}
-            onClick={onDelete}
-          >
-            Excluir
-          </AppButton>
-          <AppButton
-            variant="primary"
-            size="sm"
-            className={actionClassName}
-            leftIcon={<Download className="h-4 w-4" />}
-            disabled={nothingSelected || isExporting}
-            onClick={onExport}
-          >
-            {isExporting ? (
-              <>
-                <span className="md:hidden">Gerando…</span>
-                <span className="hidden md:inline">Gerando DOCX…</span>
-              </>
-            ) : (
-              <>
-                <span className="md:hidden">Exportar</span>
-                <span className="hidden md:inline">Baixar em Word ({selectedCount})</span>
-              </>
-            )}
-          </AppButton>
-
-          <span aria-hidden className="hidden h-6 w-px bg-[var(--border-color)] md:block" />
-          {cancelButton('hidden md:inline-flex')}
-        </div>
-      </section>
-    </div>
+      )}
+      <AppButton variant="ghost" size="sm" iconOnly aria-label="Cancelar seleção" title="Cancelar seleção" onClick={onCancel}>
+        <X className="h-4 w-4" />
+      </AppButton>
+    </section>
   );
 }
