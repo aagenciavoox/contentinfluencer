@@ -30,6 +30,7 @@ import {
   MIGRACAO_SERIE_CONTINUIDADE,
   MIGRACAO_SERIE_TIPO,
   TIPOS_AGRUPAMENTO,
+  acompanhaNoGeralDaLinha,
   UNIDADES_FREQUENCIA,
   arvore,
   avisoDaContinuidade,
@@ -87,10 +88,32 @@ async function fetchPilar(session: Session, id: string): Promise<Row> {
 }
 
 async function fetchSerie(session: Session, id: string): Promise<Row> {
-  const row = check('série', await session.client.from('series').select('*, serie_pilares(pilar_id), serie_plataformas(*)')
-    .eq('user_id', session.userId).eq('id', id).maybeSingle());
+  const completo = await session.client.from('series').select('*, serie_pilares(pilar_id), serie_plataformas(*), serie_acompanhamento(*)')
+    .eq('user_id', session.userId).eq('id', id).maybeSingle();
+  // Sem a tabela serie_acompanhamento (migração 20261103120000), lê como antes.
+  const result = completo.error && /serie_acompanhamento|relationship/i.test(completo.error.message ?? '')
+    ? await session.client.from('series').select('*, serie_pilares(pilar_id), serie_plataformas(*)')
+      .eq('user_id', session.userId).eq('id', id).maybeSingle()
+    : completo;
+  const row = check('série', result);
   if (!row) throw new Error(`Série não encontrada: ${id}`);
   return row;
+}
+
+/** Liga ou desliga o acompanhamento geral em serie_acompanhamento. Sem a tabela, fica só a coluna antiga. */
+async function sincronizarAcompanhamentoGeral(session: Session, serieId: string, ativo: boolean): Promise<void> {
+  const atual = await session.client.from('serie_acompanhamento').select('id')
+    .eq('user_id', session.userId).eq('serie_id', serieId).eq('escopo', 'geral').maybeSingle();
+  if (atual.error) {
+    if (/serie_acompanhamento|does not exist|schema cache/i.test(atual.error.message ?? '')) return;
+    throw new Error(`acompanhamento: ${atual.error.message}`);
+  }
+  const result = atual.data
+    ? await session.client.from('serie_acompanhamento').update({ativo, updated_at: nowIso()}).eq('id', (atual.data as Row).id)
+    : ativo
+      ? await session.client.from('serie_acompanhamento').insert({user_id: session.userId, serie_id: serieId, escopo: 'geral', ativo: true})
+      : {error: null};
+  if (result.error) throw new Error(`acompanhamento: ${result.error.message}`);
 }
 
 function pilarView(row: Row, lookups: Lookups) {
@@ -358,7 +381,7 @@ function estruturaDaSerie(
   else if (!atual && tipo === 'quadro' && args.frequencia === undefined) patch.frequencia_recomendada = 'Sob demanda';
   else if (tipo === 'familia' && !atual) Object.assign(patch, {frequencia_recomendada: null});
 
-  const acompanhar = args.acompanhar_continuidade ?? (atual?.acompanhar_continuidade === true);
+  const acompanhar = args.acompanhar_continuidade ?? acompanhaNoGeralDaLinha(atual);
   const definida = frequenciaDaLinha({...(atual ?? {}), ...patch, ...(args.frequencia !== undefined ? {frequencia_recomendada: args.frequencia} : {})}).definida;
   const continuidade = avisoDaContinuidade(acompanhar, tipo, definida);
   if (continuidade.erro && args.acompanhar_continuidade !== undefined) throw new Error(continuidade.erro);
@@ -404,7 +427,7 @@ function estruturaView(row: Row, lookups: Lookups) {
     quadros: arvore<Row>(id, lista, (filhoId, filhos) => ({id: filhoId, nome: lookups.serieName(filhoId), ...(filhos.length ? {quadros: filhos} : {})})).quadros ?? [],
     usa_temporadas: row.usa_temporadas === true,
     frequencia_detalhada: {vezes: freq.vezes, unidade: freq.unidade, a_partir_de: freq.a_partir_de, resumo: freq.resumo},
-    acompanhar_continuidade: row.acompanhar_continuidade === true,
+    acompanhar_continuidade: acompanhaNoGeralDaLinha(row),
     legenda_base: typeof row.legenda_base === 'string' && row.legenda_base.trim() ? row.legenda_base : null,
   };
 }
@@ -604,6 +627,7 @@ export function registerEditorial(server: McpServer) {
         user_id: session.userId,
         ativa: true,
       }, payload => session.client.from('series').insert(payload));
+      if (args.acompanhar_continuidade !== undefined) await sincronizarAcompanhamentoGeral(session, id, args.acompanhar_continuidade);
       if (args.pilar_principal !== undefined && args.pilares === undefined) {
         const principal = idDoPilar(lookups, args.pilar_principal);
         await replaceSeriePilares(session, lookups, id, principal ? [principal] : []);
@@ -652,6 +676,7 @@ export function registerEditorial(server: McpServer) {
         ignorados = await gravarSerie('atualizar série', {...patch, updated_at: nowIso()}, row =>
           session.client.from('series').update(row).eq('id', id).eq('user_id', session.userId));
       }
+      if (args.acompanhar_continuidade !== undefined) await sincronizarAcompanhamentoGeral(session, id, args.acompanhar_continuidade);
       if (args.pilar_principal !== undefined && args.pilares === undefined) {
         const principal = idDoPilar(lookups, args.pilar_principal);
         await replaceSeriePilares(session, lookups, id, principal ? [principal] : []);

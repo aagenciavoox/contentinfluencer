@@ -358,20 +358,7 @@ export function continuidadeDoAcompanhamento(input: {
     : [];
 
   // Dias seguidos só avisa quando a regra foi ligada no acompanhamento.
-  const diasSeguidos: DiasSeguidos[] = [];
-  if (acompanhamento.evitarDiasSeguidos) {
-    const porDia = new Map<string, string[]>();
-    for (const item of itens) {
-      const dia = item.data?.slice(0, 10);
-      if (!dia || dia < periodo.inicio || dia > periodo.fim) continue;
-      porDia.set(dia, [...(porDia.get(dia) ?? []), item.contentId]);
-    }
-    const dias = [...porDia.keys()].sort();
-    for (let i = 1; i < dias.length; i += 1) {
-      if (diaDepois(dias[i - 1]) !== dias[i]) continue;
-      diasSeguidos.push({ dia: dias[i - 1], seguinte: dias[i], contentIds: [...porDia.get(dias[i - 1])!, ...porDia.get(dias[i])!] });
-    }
-  }
+  const diasSeguidos = acompanhamento.evitarDiasSeguidos ? diasSeguidosDosItens(itens, periodo) : [];
 
   return {
     acompanhamentoId: acompanhamento.id,
@@ -390,6 +377,26 @@ export function continuidadeDoAcompanhamento(input: {
     diasSeguidos,
     itens: apuracao.itens,
   };
+}
+
+/** Episódios em dias seguidos dentro do período (regra opcional do acompanhamento). */
+export function diasSeguidosDosItens(
+  itens: readonly Pick<ItemDaApuracao, 'data' | 'contentId'>[],
+  periodo: Intervalo,
+): DiasSeguidos[] {
+  const porDia = new Map<string, string[]>();
+  for (const item of itens) {
+    const dia = item.data?.slice(0, 10);
+    if (!dia || dia < periodo.inicio || dia > periodo.fim) continue;
+    porDia.set(dia, [...(porDia.get(dia) ?? []), item.contentId]);
+  }
+  const dias = [...porDia.keys()].sort();
+  const seguidos: DiasSeguidos[] = [];
+  for (let i = 1; i < dias.length; i += 1) {
+    if (diaDepois(dias[i - 1]) !== dias[i]) continue;
+    seguidos.push({ dia: dias[i - 1], seguinte: dias[i], contentIds: [...porDia.get(dias[i - 1])!, ...porDia.get(dias[i])!] });
+  }
+  return seguidos;
 }
 
 /** Todos os acompanhamentos, cada um no próprio escopo. A visão geral não soma as metas deles. */

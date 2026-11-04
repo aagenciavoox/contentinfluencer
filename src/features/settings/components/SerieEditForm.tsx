@@ -28,6 +28,7 @@ import { useUnsavedChangesRegistration } from '../../../hooks/useUnsavedChangesR
 import { generateUUID } from '../../../utils/uuid';
 import { EntityColorPicker } from './EntityColorPicker';
 import { isSerieColorTaken } from '../lib/serieColors';
+import { acompanhaNoGeral, comAcompanhamentoGeral } from '../../editorial/lib/acompanhamento';
 import { OpenInfoNotice } from '../../editorial/components/OpenInfoNotice';
 import { LegendaBaseField } from '../../editorial/components/legendas/LegendaBaseField';
 import { LegendaVersaoField } from '../../editorial/components/legendas/LegendaVersaoField';
@@ -319,7 +320,7 @@ export function SerieEditForm({
       usaTemporadas: initial.usaTemporadas === true,
       tipoAgrupamento: initial.tipoAgrupamento ?? null,
       semPilar: initial.semPilar === true,
-      acompanharContinuidade: initial.acompanharContinuidade === true,
+      acompanharContinuidade: acompanhaNoGeral({ id: initial.id ?? '', acompanharContinuidade: initial.acompanharContinuidade, acompanhamentos: initial.acompanhamentos }),
       plataformas: initial.plataformas || [],
     },
   });
@@ -340,6 +341,7 @@ export function SerieEditForm({
 
   const [quadroIdentidadePropria, setQuadroIdentidadePropria] = useState<boolean>(() => {
     if (tipo !== 'quadro') return true;
+    if (initial.usaCorDaSerie) return false;
     const temCapa = Boolean(initial.capaUrl?.trim());
     const temBordao = Boolean(initial.bordao?.trim());
     const corDiferente = Boolean(initial.cor && seriePai?.cor && initial.cor !== seriePai.cor);
@@ -562,7 +564,22 @@ export function SerieEditForm({
       usaTemporadas: form.usaTemporadas,
       tipoAgrupamento: tipo,
       semPilar: !form.pilarPrincipalId && form.semPilar,
-      acompanharContinuidade: form.acompanharContinuidade,
+      // Acompanhamento geral na tabela nova (coluna antiga espelhada); por conta/formato e metas seguem como estavam.
+      // Série nova começa com a lista vazia: sem isso a marcação ia só para a coluna antiga e sumia ao recarregar.
+      ...(() => {
+        const comGeral = comAcompanhamentoGeral({
+          id: form.id,
+          acompanharContinuidade: initial.acompanharContinuidade,
+          acompanhamentos: (initial.acompanhamentos ?? []).map(item => ({ ...item, serieId: form.id })),
+        }, form.acompanharContinuidade, generateUUID);
+        return {
+          acompanharContinuidade: form.acompanharContinuidade,
+          acompanhamentos: comGeral.acompanhamentos,
+          metasPorEscopo: initial.metasPorEscopo,
+        };
+      })(),
+      // Quadro em "Usar da série": a cor acompanha a série na hora.
+      ...(tipo === 'quadro' ? { usaCorDaSerie: !quadroIdentidadePropria } : {}),
       pilarIds: form.pilarPrincipalId ? [form.pilarPrincipalId] : [],
       plataformas: plataformasFinal,
       createdAt: initial.createdAt || now,
@@ -571,6 +588,9 @@ export function SerieEditForm({
   }, [
     contas,
     form,
+    initial.acompanhamentos,
+    initial.acompanharContinuidade,
+    initial.metasPorEscopo,
     initial.createdAt,
     modoModelo,
     quadroApresentacaoPropria,

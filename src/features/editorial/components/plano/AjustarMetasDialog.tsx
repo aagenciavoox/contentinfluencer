@@ -39,6 +39,8 @@ export interface AjustarMetasDialogProps {
   limiteSemanal?: number | null;
   /** Meta de publicação que vale hoje, para conferir a soma por objetivo. */
   metaDoPeriodo?: number | null;
+  /** Meta de cada conta pelo ritmo dela (Contas e formatos), sem o número do período. */
+  metaDaContaPeloRitmo?: Record<string, number | null>;
   onSalvar: (patch: Partial<Omit<DecisaoPeriodo, 'inicio' | 'fim'>>) => void;
 }
 
@@ -70,6 +72,7 @@ export function AjustarMetasDialog({
   semanasParciais = [],
   limiteSemanal = null,
   metaDoPeriodo = null,
+  metaDaContaPeloRitmo = {},
   onSalvar,
 }: AjustarMetasDialogProps) {
   const [prioridade, setPrioridade] = useState('');
@@ -383,7 +386,7 @@ export function AjustarMetasDialog({
             Metas Individuais por Conta
           </Text>
           <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
-            Opcional. Sem número aqui, a conta mostra só quantos posts saíram.
+            Vazio segue a meta da conta (Ritmo & Regras › Contas e formatos). Um número aqui vale só para este período.
           </Text>
           <div className="stack-sm">
             {platforms.length === 0 ? (
@@ -399,7 +402,7 @@ export function AjustarMetasDialog({
                   <Text variant="bodyStrong" as="p">
                     {conta.nome}
                   </Text>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label htmlFor={`prod-${conta.id}`}>
                         <Text variant="meta" as="span" className="block text-[var(--text-tertiary)]">
@@ -433,6 +436,7 @@ export function AjustarMetasDialog({
                         min="0"
                         className="input w-full py-1"
                         value={dadosConta.publicacao ?? ''}
+                        placeholder={metaDaContaPeloRitmo[conta.id] == null ? 'Sem meta na conta' : `${metaDaContaPeloRitmo[conta.id]} pela conta`}
                         onChange={e => {
                           const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
                           setMetasPorConta(prev => ({
@@ -442,27 +446,12 @@ export function AjustarMetasDialog({
                         }}
                       />
                     </div>
-                    <div>
-                      <label htmlFor={`ritmo-${conta.id}`}>
-                        <Text variant="meta" as="span" className="block text-[var(--text-tertiary)]">
-                          Posts por semana
-                        </Text>
-                      </label>
-                      <input
-                        id={`ritmo-${conta.id}`}
-                        type="text"
-                        placeholder="Ex.: 3"
-                        className="input w-full py-1"
-                        value={dadosConta.ritmoSemanal ?? ''}
-                        onChange={e => {
-                          const val = e.target.value;
-                          setMetasPorConta(prev => ({
-                            ...prev,
-                            [conta.id]: { ...prev[conta.id], ritmoSemanal: val },
-                          }));
-                        }}
-                      />
-                    </div>
+                    {/* O texto antigo "posts por semana" fica só como nota; a meta vem do número da conta. */}
+                    {dadosConta.ritmoSemanal?.trim() ? (
+                      <Text variant="meta" as="p" className="col-span-2 text-[var(--text-tertiary)]">
+                        Nota antiga: {dadosConta.ritmoSemanal}
+                      </Text>
+                    ) : null}
                   </div>
                 </div>
               );

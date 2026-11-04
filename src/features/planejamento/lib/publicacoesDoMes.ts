@@ -13,6 +13,8 @@ export type PublicacaoNoDia = {
   time: string | null;
   platformNames: string[];
   estado: 'postado' | 'programado' | 'previsto';
+  /** yyyy-MM-dd do card, para achar a situação de cada conta. */
+  dia?: string;
 };
 
 /**
@@ -47,6 +49,7 @@ export function publicacoesPorDia(input: {
       time: item.time,
       platformNames: item.platformNames,
       estado,
+      dia,
     });
     map.set(dia, lista);
   }

@@ -34,7 +34,7 @@ export type ItemDaApuracao = {
 export type SerieDaApuracao = Pick<
   Serie,
   'id' | 'name' | 'parentId' | 'frequenciaRecomendada' | 'frequenciaVezes' | 'frequenciaUnidade' | 'frequenciaAPartirDe'
-> & Partial<Pick<Serie, 'tipoAgrupamento' | 'ativa' | 'acompanharContinuidade'>>;
+> & Partial<Pick<Serie, 'tipoAgrupamento' | 'ativa' | 'acompanharContinuidade' | 'acompanhamentos'>>;
 
 export type FrequenciaDefinida = FrequenciaSerie & { unidade: 'semana' | 'quinzena' | 'mes' };
 

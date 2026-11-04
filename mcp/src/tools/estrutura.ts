@@ -28,6 +28,7 @@ import {distribuicaoView} from './editorial.ts';
 import {carregarTemporadas} from './temporadas.ts';
 import {
   arvore,
+  acompanhaNoGeralDaLinha,
   escopoDe,
   frequenciaDaLinha,
   serieDaLinha,
@@ -66,7 +67,7 @@ function estruturaDaSerieView(row: Row, series: SerieNoMcp[], temporadas: Tempor
       ? temporadasDoEscopo(escopo.id, temporadas).map(item => ({id: item.id, nome: item.nome, descricao: item.descricao ?? null, ...(escopo.id !== id ? {da_serie: escopo.name} : {})}))
       : [],
     frequencia_detalhada: {vezes: freq.vezes, unidade: freq.unidade, a_partir_de: freq.a_partir_de, resumo: freq.resumo},
-    acompanhar_continuidade: row.acompanhar_continuidade === true,
+    acompanhar_continuidade: acompanhaNoGeralDaLinha(row),
     legenda_base: typeof row.legenda_base === 'string' && row.legenda_base.trim() ? row.legenda_base : null,
   };
 }

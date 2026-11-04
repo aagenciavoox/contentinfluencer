@@ -14,6 +14,10 @@ import type { GradeEntry } from '../../editorial/lib/gradeEntries';
 import { rotuloIntervalo, textoSemObjetivo, type Continuidade, type DistribuicaoObjetivos } from '../lib/saudeIndicadores';
 import { textoDaJanela } from '../../editorial/lib/apuracaoSerie';
 import { ItensDaSaudeDialog, type ListaDaSaude } from './ItensDaSaudeDialog';
+import type { LinhaDoEscopoNaSaude } from '../lib/continuidadePorEscopoNaSaude';
+import type { PublicacoesNaSaude } from '../lib/publicacoesNaSaude';
+import { pontosParaRevisar, type AvisoOrientacao } from '../lib/orientacaoEditorial';
+import { blocoDoAviso, detalheDoAviso } from '../lib/detalheDoAviso';
 
 const STORAGE_EXPANDED_KEY = 'content-os:saude-editorial-expanded';
 
@@ -34,9 +38,43 @@ export interface SaudeEditorialPanelProps {
   objetivos?: DistribuicaoObjetivos<GradeEntry>;
   /** Séries e quadros com meta, conferidos intervalo a intervalo. */
   continuidade?: Continuidade<GradeEntry>;
+  /** Acompanhamentos por conta ou formato, cada um à parte. */
+  escopos?: readonly LinhaDoEscopoNaSaude[];
+  /** Publicações por conta no trecho e a soma das contas. */
+  publicacoes?: PublicacoesNaSaude;
+  /**
+   * completo: o painel de antes, com "Ver detalhes". faixa: só a linha compacta com "Ver análise".
+   * analise: tudo aberto, numa coluna, para o painel lateral ou a sobreposição.
+   */
+  modo?: 'completo' | 'faixa' | 'analise';
+  onVerAnalise?: () => void;
+  onFechar?: () => void;
+  /** Avisos do trecho, cada um no seu bloco (Continuidade, Concentração ou Produção). */
+  avisos?: readonly AvisoOrientacao[];
+  onLocalizarAviso?: (aviso: AvisoOrientacao) => void;
+  /** "Instagram · Reels" quando o calendário está filtrado. */
+  filtroRotulo?: string | null;
   onAddReserva: () => void;
   onOpenGravacao: () => void;
   className?: string;
+}
+
+function AvisoDetalhado({ aviso, onLocalizar }: { aviso: AvisoOrientacao; onLocalizar?: (aviso: AvisoOrientacao) => void }) {
+  const detalhe = detalheDoAviso(aviso);
+  return (
+    <li className="stack-xs rounded-[var(--radius-sm)] border border-[var(--border-subtle)] p-2">
+      <Text variant="body" as="p" className="text-[var(--text-primary)]">{aviso.texto}</Text>
+      <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+        {detalhe.intervalo ? `Intervalo: ${detalhe.intervalo} · ` : ''}Regra: {detalhe.regra}
+      </Text>
+      <Text variant="meta" as="p" className="text-[var(--text-secondary)]">O que fazer: {detalhe.acao}</Text>
+      {onLocalizar ? (
+        <button type="button" onClick={() => onLocalizar(aviso)} className="w-fit hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] rounded-[var(--radius-sm)]">
+          <Text variant="meta" as="span" className="text-[var(--brand-accent-text)]">Localizar no calendário</Text>
+        </button>
+      ) : null}
+    </li>
+  );
 }
 
 export function SaudeEditorialPanel({
@@ -47,6 +85,14 @@ export function SaudeEditorialPanel({
   pilares,
   objetivos,
   continuidade,
+  escopos = [],
+  publicacoes,
+  modo = 'completo',
+  onVerAnalise,
+  onFechar,
+  avisos = [],
+  onLocalizarAviso,
+  filtroRotulo,
   onAddReserva,
   onOpenGravacao,
   className,
@@ -65,8 +111,11 @@ export function SaudeEditorialPanel({
 
 
   const preenchidos = counts.previsto ?? counts.somaPlanejado ?? 0;
+  // Com filtro, a contagem é só da seleção e a meta de conteúdos (de todas as redes) não se compara a ela:
+  // a meta da rede fica em Publicações por conta.
+  const comFiltro = Boolean(filtroRotulo);
   // Sem ritmo nem meta absoluta não há meta: nada de número inventado.
-  const metaTotal = counts.limite ?? null;
+  const metaTotal = comFiltro ? null : counts.limite ?? null;
   const percentualGeral = metaTotal != null && metaTotal > 0 ? Math.min(100, Math.round((preenchidos / metaTotal) * 100)) : 0;
   const meta = counts.meta;
 
@@ -85,6 +134,10 @@ export function SaudeEditorialPanel({
   const faltamParaMeta = metaTotal == null ? 0 : Math.max(0, metaTotal - preenchidos);
   // Atual: fatia entre os itens do período que têm pilar (soma 100%); sem pilar fica à parte.
   const distribuicao = distribuicaoPorPilar(pilaresNaConta.map(p => p.id), counts.pilares, preenchidos);
+  const emAnalise = modo === 'analise';
+  const aberto = emAnalise || (modo === 'completo' && expanded);
+  const avisosDe = (bloco: ReturnType<typeof blocoDoAviso>) => avisos.filter(aviso => blocoDoAviso(aviso) === bloco);
+  const revisar = pontosParaRevisar(avisos);
 
   return (
     <Surface
@@ -104,11 +157,37 @@ export function SaudeEditorialPanel({
           </Text>
           <span className="inline-flex items-center px-2 py-0.5 rounded-[var(--radius-pill)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
             <Text variant="meta" as="span">
-              {metaTotal == null ? `${preenchidos} previstos · meta não definida` : `${preenchidos}/${metaTotal} espaços`}
+              {comFiltro
+                ? `${preenchidos} ${preenchidos === 1 ? 'conteúdo' : 'conteúdos'} na seleção`
+                : metaTotal == null ? `${preenchidos} previstos · meta não definida` : `${preenchidos}/${metaTotal} espaços`}
             </Text>
           </span>
+          {publicacoes && publicacoes.contas.length > 0 ? (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-[var(--radius-pill)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+              <Text variant="meta" as="span">
+                {publicacoes.metaForaDoFiltro
+                  ? `${publicacoes.total} publicações na seleção`
+                  : publicacoes.meta == null ? `${publicacoes.total} publicações` : `${publicacoes.total}/${publicacoes.meta} publicações${publicacoes.incompleta ? ' (incompleta)' : ''}`}
+              </Text>
+            </span>
+          ) : null}
+          {revisar > 0 ? (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-[var(--radius-pill)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+              <Text variant="meta" as="span">{revisar === 1 ? '1 aviso para revisar' : `${revisar} avisos para revisar`}</Text>
+            </span>
+          ) : null}
+          {filtroRotulo ? (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-[var(--radius-pill)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+              <Text variant="meta" as="span">Filtro: {filtroRotulo}</Text>
+            </span>
+          ) : null}
         </div>
 
+        {modo === 'faixa' ? (
+          <AppButton variant="secondary" size="sm" onClick={onVerAnalise} className="shrink-0">Ver análise</AppButton>
+        ) : emAnalise ? (
+          onFechar ? <AppButton variant="ghost" size="sm" onClick={onFechar} className="shrink-0">Fechar</AppButton> : null
+        ) : (
         <button
           type="button"
           onClick={toggleExpanded}
@@ -117,12 +196,13 @@ export function SaudeEditorialPanel({
           <Text variant="meta" as="span">{expanded ? 'Ocultar detalhes' : 'Ver detalhes'}</Text>
           {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </button>
+        )}
       </div>
 
-      {expanded && (
+      {aberto && (
         <div className="stack-md mt-4 pt-1 border-t border-[var(--border-subtle)]">
           {/* 3 Metric Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className={emAnalise ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-1 md:grid-cols-2 gap-3'}>
             {/* Card 1: Volume Editorial */}
             <div className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-4 flex flex-col justify-between">
               <div>
@@ -138,14 +218,20 @@ export function SaudeEditorialPanel({
                 </div>
                 <div className="mt-1.5">
                   <Text variant="sectionTitle" as="div" className="text-[var(--text-primary)]">
-                    {metaTotal == null ? `${preenchidos} previstos` : `${preenchidos} de ${metaTotal} espaços`}
+                    {comFiltro
+                      ? `${preenchidos} na seleção`
+                      : metaTotal == null ? `${preenchidos} previstos` : `${preenchidos} de ${metaTotal} espaços`}
                   </Text>
                 </div>
                 <div className="mt-0.5 stack-xs">
                   <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
                     {prontosOuPublicados} prontos ou publicados · {reservasEmPostIt} {reservasEmPostIt === 1 ? 'reserva' : 'reservas'} em post-it
                   </Text>
-                  {metaTotal == null ? (
+                  {comFiltro ? (
+                    <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
+                      Com filtro, o volume não é comparado à meta de conteúdos, que vale para todas as redes e formatos.
+                    </Text>
+                  ) : metaTotal == null ? (
                     <button type="button" onClick={() => navigate('/editorial?aba=ajustes')} className="w-fit text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] rounded-[var(--radius-sm)]">
                       <Text variant="meta" as="span" className="text-[var(--text-secondary)]">Meta não definida: defina o ritmo no Editorial</Text>
                     </button>
@@ -203,7 +289,7 @@ export function SaudeEditorialPanel({
           </div>
 
           {/* Três indicadores separados, sem nota geral */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <div className={emAnalise ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-1 lg:grid-cols-3 gap-3'}>
             {/* Objetivos */}
             <section className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-4 stack-sm" aria-label="Objetivos">
               <Text variant="label" as="h3" className="tracking-wider text-[var(--text-tertiary)] uppercase">Objetivos</Text>
@@ -267,10 +353,45 @@ export function SaudeEditorialPanel({
               ) : null}
             </section>
 
+            {/* Publicações por conta: uma por conta, separadas da meta de conteúdos únicos */}
+            {publicacoes && publicacoes.contas.length > 0 ? (
+              <section className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-4 stack-sm" aria-label="Publicações por conta">
+                <Text variant="label" as="h3" className="tracking-wider text-[var(--text-tertiary)] uppercase">Publicações por conta</Text>
+                <Text variant="bodyStrong" as="p" className="text-[var(--text-primary)] tabular-nums">
+                  {publicacoes.metaForaDoFiltro
+                    ? `${publicacoes.total} publicações na seleção`
+                    : publicacoes.meta == null
+                    ? `${publicacoes.total} publicações no trecho · nenhuma conta com meta`
+                    : `${publicacoes.total} de ${publicacoes.meta} publicações${publicacoes.incompleta ? ' · soma incompleta (conta sem meta)' : ''}`}
+                </Text>
+                <ul className="stack-xs">
+                  {publicacoes.contas.map(conta => (
+                    <li key={conta.id}>
+                      <Text variant="body" as="span" className="block text-[var(--text-primary)]">
+                        {conta.nome} · {publicacoes.metaForaDoFiltro ? conta.total : conta.meta == null ? `${conta.total} · sem meta` : `${conta.total} de ${conta.meta}`}
+                        {conta.realizadas > 0 ? ` · ${conta.realizadas} publicadas` : ''}
+                        {conta.programadas > 0 ? ` · ${conta.programadas} programadas` : ''}
+                      </Text>
+                      {conta.formatos.length > 0 ? (
+                        <Text variant="meta" as="span" className="block text-[var(--text-secondary)]">
+                          {conta.formatos.map(item => `${item.rotulo} ${item.total}`).join(' · ')}
+                        </Text>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
             {/* Continuidade */}
             <section className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-4 stack-sm" aria-label="Continuidade">
               <Text variant="label" as="h3" className="tracking-wider text-[var(--text-tertiary)] uppercase">Continuidade</Text>
               <Text variant="bodyStrong" as="p" className="text-[var(--text-primary)]">{continuidade?.resumo ?? 'Sem séries para conferir'}</Text>
+              {comFiltro ? (
+                <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
+                  Os acompanhamentos contam todas as publicações: o geral, de todas as contas; por conta ou formato, aparecem só os das redes marcadas.
+                </Text>
+              ) : null}
               {!continuidade || continuidade.nenhumaAcompanhada ? (
                 <button type="button" onClick={() => navigate('/editorial?aba=ajustes')} className="w-fit text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] rounded-[var(--radius-sm)]">
                   <Text variant="meta" as="span" className="text-[var(--text-secondary)]">Escolha no Editorial quais séries acompanhar</Text>
@@ -317,6 +438,26 @@ export function SaudeEditorialPanel({
                               {linha.abaixo.length} de {linha.intervalos.length} abaixo: {datas}{mais}
                             </Text>
                           ) : null}
+                          {linha.pausadas && linha.pausadas.length > 0 ? (
+                            <Text variant="meta" as="span" className="block text-[var(--text-secondary)]">
+                              {linha.pausadas.length === 1 ? '1 intervalo em pausa' : `${linha.pausadas.length} intervalos em pausa`}: {linha.pausadas.map(rotuloIntervalo).join(', ')} (não conta como falta)
+                            </Text>
+                          ) : null}
+                          {linha.parciais && linha.parciais.length > 0 ? (
+                            <Text variant="meta" as="span" className="block text-[var(--text-secondary)]">
+                              {linha.parciais.length === 1 ? '1 intervalo parcial' : `${linha.parciais.length} intervalos parciais`} (pausa em parte dos dias, ou início ou fim do acompanhamento): não contam como falta
+                            </Text>
+                          ) : null}
+                          {linha.distancias?.map(distancia => (
+                            <Text key={distancia.inicio} variant="meta" as="span" className="block text-[var(--text-secondary)]">
+                              {distancia.dias} dias sem episódio ({rotuloIntervalo(distancia)}){distancia.futuro ? ', falta prever' : ''}
+                            </Text>
+                          ))}
+                          {linha.diasSeguidos && linha.diasSeguidos.length > 0 ? (
+                            <Text variant="meta" as="span" className="block text-[var(--text-secondary)]">
+                              Episódios em dias seguidos: {linha.diasSeguidos.slice(0, 3).map(item => rotuloIntervalo({ inicio: item.dia, fim: item.seguinte })).join(', ')}
+                            </Text>
+                          ) : null}
                           {linha.reservadas.length > 0 ? (
                             <Text variant="meta" as="span" className="block text-[var(--text-secondary)]">
                               {linha.reservadas.length === 1 ? '1 intervalo reservado' : `${linha.reservadas.length} intervalos reservados`} só com post-it, conteúdo a desenvolver
@@ -332,7 +473,9 @@ export function SaudeEditorialPanel({
                             {linha.intervalos.map(intervalo => (
                               <li key={intervalo.inicio}>
                                 <Text variant="meta" as="span" className={cn('tabular-nums', intervalo.abaixo ? 'text-[#b45309]' : 'text-[var(--text-secondary)]')}>
-                                  {textoDaJanela(intervalo)}
+                                  {intervalo.pausada
+                                    ? `${rotuloIntervalo(intervalo)}: em pausa`
+                                    : intervalo.parcial ? `${textoDaJanela(intervalo)} · parcial, não conta como falta` : textoDaJanela(intervalo)}
                                 </Text>
                               </li>
                             ))}
@@ -370,6 +513,35 @@ export function SaudeEditorialPanel({
                     ))}
                   </ul>
                 </div>
+              ) : null}
+              {escopos.length === 0 && continuidade && !continuidade.nenhumaAcompanhada ? (
+                <button type="button" onClick={() => navigate('/editorial?aba=ajustes')} className="w-fit text-left border-t border-[var(--border-subtle)] pt-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] rounded-[var(--radius-sm)]">
+                  <Text variant="meta" as="span" className="text-[var(--text-secondary)]">Por conta ou formato: nenhum acompanhamento. Configurar em Editorial › Ritmo &amp; Regras › Continuidade na Saúde</Text>
+                </button>
+              ) : null}
+              {escopos.length > 0 ? (
+                <div className="stack-xs border-t border-[var(--border-subtle)] pt-2">
+                  <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">Por conta ou formato</Text>
+                  <ul className="stack-xs">
+                    {escopos.map(linha => (
+                      <li key={linha.id}>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/series/${linha.serieId}`)}
+                          className="w-full text-left rounded-[var(--radius-sm)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                        >
+                          <Text variant="body" as="span" className="block text-[var(--text-primary)]">{linha.titulo}</Text>
+                          <Text variant="meta" as="span" className={cn('block', linha.atencao ? 'text-[#b45309]' : 'text-[var(--text-secondary)]')}>{linha.texto}</Text>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {avisosDe('continuidade').length > 0 ? (
+                <ul className="stack-xs border-t border-[var(--border-subtle)] pt-2">
+                  {avisosDe('continuidade').map(aviso => <AvisoDetalhado key={aviso.id} aviso={aviso} onLocalizar={onLocalizarAviso} />)}
+                </ul>
               ) : null}
               {continuidade && continuidade.naoAvaliadas.length > 0 ? (
                 <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
@@ -422,7 +594,30 @@ export function SaudeEditorialPanel({
               ) : null}
               <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">Percentual entre os itens com pilar. Sem distribuição desejada, não há julgamento de equilíbrio.</Text>
             </section>
+
+            {/* Concentração: obra e assunto, pelos limites de Variedade e concentração */}
+            {emAnalise ? (
+              <section className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-4 stack-sm" aria-label="Concentração">
+                <Text variant="label" as="h3" className="tracking-wider text-[var(--text-tertiary)] uppercase">Concentração</Text>
+                {avisosDe('concentracao').length === 0 ? (
+                  <Text variant="meta" as="p" className="text-[var(--text-secondary)]">Nenhuma obra ou assunto acima dos limites no trecho.</Text>
+                ) : (
+                  <ul className="stack-xs">
+                    {avisosDe('concentracao').map(aviso => <AvisoDetalhado key={aviso.id} aviso={aviso} onLocalizar={onLocalizarAviso} />)}
+                  </ul>
+                )}
+              </section>
+            ) : null}
           </div>
+
+          {emAnalise && avisosDe('producao').length > 0 ? (
+            <section className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-4 stack-sm" aria-label="Produção e gravação">
+              <Text variant="label" as="h3" className="tracking-wider text-[var(--text-tertiary)] uppercase">Produção e gravação</Text>
+              <ul className="stack-xs">
+                {avisosDe('producao').map(aviso => <AvisoDetalhado key={aviso.id} aviso={aviso} onLocalizar={onLocalizarAviso} />)}
+              </ul>
+            </section>
+          ) : null}
 
           {/* Action Banners */}
           <div className="stack-sm">

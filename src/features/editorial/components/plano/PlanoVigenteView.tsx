@@ -16,6 +16,9 @@ import { AjustarMetasDialog, type ObjetivoNoEditor } from './AjustarMetasDialog'
 import { PausasDoPeriodo } from './PausasDoPeriodo';
 import type { PeriodoSelecionado } from './PeriodoEditorialControl';
 import { metaComAjuste } from '../../lib/vigencias';
+import { metasDasContas } from '../../lib/metasPorConta';
+import { readProporcao } from '../../lib/proporcaoObjetivos';
+import { publicacoesDaAgenda, resumoDePublicacoes } from '../../lib/publicacoes';
 
 export interface PlanoVigenteViewProps {
   periodo: PeriodoSelecionado;
@@ -46,8 +49,11 @@ interface ContaMetaExibicao {
   cor: string;
   /** Só existe quando foi escrita em "Ajustar metas". */
   producao: number | null;
-  /** Vem da meta escrita ou do ritmo escrito; sem nenhum dos dois, a conta não tem meta. */
+  /** Meta numérica da conta (Contas e formatos), ou o número do período. Null = conta sem meta. */
   publicacao: number | null;
+  /** O número veio de "Ajustar metas" só para este período. */
+  ajustada: boolean;
+  /** Texto antigo "posts por semana": só nota, não vira meta. */
   ritmoSemanal: string | null;
   realizados: number;
 }
@@ -124,17 +130,27 @@ export function PlanoVigenteView({
 
   const activePlatforms = platforms.filter(p => p.ativo);
 
-  const contas: ContaMetaExibicao[] = activePlatforms.map(p => {
-    // Horários dizem quando postar, não quantas vezes: o ritmo da conta só vem do que foi escrito.
-    const metaSalva = decisao?.metasPorConta?.[p.id];
-    const ritmoNum = parseInt(metaSalva?.ritmoSemanal?.replace(/\D/g, '') ?? '', 10);
-    const publicacao = metaSalva?.publicacao
-      ?? (Number.isFinite(ritmoNum) && ritmoNum > 0 ? Math.round(ritmoNum * semanasAtivas) : null);
+  // Meta de cada conta: o ritmo numérico da conta (padrão) e, por cima, o número do período.
+  // Conta sem meta deixa a soma incompleta; nunca vira zero.
+  const metasConta = {
+    platformIds: activePlatforms.map(p => p.id),
+    linhas: state.editorial.metasDasContas ?? [],
+    periodo,
+    proporcaoGeral: readProporcao(state.editorial.proporcaoFuncoes),
+    pausas: state.editorial.pausas ?? [],
+  };
+  const consolidadas = metasDasContas({ ...metasConta, decisao });
+  const pelaConta = metasDasContas({ ...metasConta, decisao: decisao ? { pausaEditorial: decisao.pausaEditorial } : null });
+  const metaDaContaPeloRitmo = Object.fromEntries(pelaConta.contas.map(item => [item.platformId, item.valor]));
+  // Publicadas em cada conta no período (uma por conta), não roteiros.
+  const publicadasPorConta = resumoDePublicacoes(
+    publicacoesDaAgenda({ contents: state.contents, contas: platforms, series }),
+    periodo,
+  ).porConta;
 
-    const conteudosDaConta = conteudosDoPeriodo.filter(c => {
-      const temNaPlataforma = c.plataformas?.some(dest => dest.platformId === p.id);
-      return temNaPlataforma || (!c.plataformas?.length && p.id === state.editorial.preferencias.redeReferenciaId);
-    });
+  const contas: ContaMetaExibicao[] = activePlatforms.map(p => {
+    const metaSalva = decisao?.metasPorConta?.[p.id];
+    const metaConta = consolidadas.contas.find(item => item.platformId === p.id);
 
     const nomeMinusculo = p.nome.toLowerCase();
     const cor = nomeMinusculo.includes('instagram')
@@ -149,9 +165,10 @@ export function PlanoVigenteView({
       handle: formatarHandle(p),
       cor,
       producao: metaSalva?.producao ?? null,
-      publicacao,
+      publicacao: metaConta?.valor ?? null,
+      ajustada: metaSalva?.publicacao != null,
       ritmoSemanal: textoDoRitmo(metaSalva?.ritmoSemanal),
-      realizados: conteudosDaConta.filter(c => normalizeContentStatus(c.status) === CONTENT_STATUS.POSTADO).length,
+      realizados: publicadasPorConta[p.id]?.realizadas ?? 0,
     };
   });
 
@@ -327,7 +344,11 @@ export function PlanoVigenteView({
           <section className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-4 stack-sm">
             <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
               <Text variant="bodyStrong" as="h3">Por conta</Text>
-              <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">Postados no período · a meta de cada conta vem de "Ajustar metas"</Text>
+              <Text variant="meta" as="span" className="text-[var(--text-tertiary)] tabular-nums">
+                {consolidadas.total == null
+                  ? 'Nenhuma conta com meta · defina em Ritmo & Regras › Contas e formatos'
+                  : `Soma das contas: ${plural(consolidadas.total, 'publicação', 'publicações')}${consolidadas.incompleta ? ` · incompleta (${plural(consolidadas.contasSemMeta.length, 'conta sem meta', 'contas sem meta')})` : ''}`}
+              </Text>
             </div>
 
             {contas.length === 0 ? (
@@ -341,10 +362,9 @@ export function PlanoVigenteView({
                   const pctConta = percentual(conta.realizados, conta.publicacao);
                   const detalhes = [
                     conta.publicacao == null
-                      ? plural(conta.realizados, 'postado', 'postados')
-                      : `${conta.realizados} de ${plural(conta.publicacao, 'post', 'posts')}`,
+                      ? `${plural(conta.realizados, 'publicada', 'publicadas')} · sem meta`
+                      : `${conta.realizados} de ${plural(conta.publicacao, 'publicação', 'publicações')}${conta.ajustada ? ' (ajustada no período)' : ''}`,
                     ...(conta.producao != null ? [plural(conta.producao, 'roteiro', 'roteiros')] : []),
-                    ...(conta.ritmoSemanal ? [conta.ritmoSemanal] : []),
                   ];
                   return (
                     <li key={conta.id} className="stack-xs">
@@ -367,6 +387,9 @@ export function PlanoVigenteView({
                             style={{ width: `${pctConta}%`, backgroundColor: conta.cor }}
                           />
                         </div>
+                      ) : null}
+                      {conta.ritmoSemanal ? (
+                        <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">Nota antiga: {conta.ritmoSemanal}</Text>
                       ) : null}
                     </li>
                   );
@@ -435,6 +458,7 @@ export function PlanoVigenteView({
         semanasParciais={semanasParciais}
         limiteSemanal={limiteSemanal}
         metaDoPeriodo={meta.valor}
+        metaDaContaPeloRitmo={metaDaContaPeloRitmo}
         onSalvar={onSalvarDecisao}
       />
     </Surface>

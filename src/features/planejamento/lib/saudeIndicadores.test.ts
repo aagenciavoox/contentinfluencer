@@ -311,3 +311,39 @@ assert.deepEqual(janelaDaContinuidade(PERIODO), { inicio: '2026-09-20', fim: '20
 }
 
 console.log('saudeIndicadores: ok');
+
+// --- Acompanhamento geral com início: antes dele não há cobrança; a semana em que ele começa é parcial.
+{
+  const geral = (inicio: string | null, termino: string | null = null) => [{
+    id: 'g', serieId: 'sg', escopo: 'geral' as const, platformId: null, formato: null, ativo: true,
+    inicio, termino, distanciaMaxDias: null, evitarDiasSeguidos: false,
+  }];
+  const semanal = { frequenciaVezes: 1, frequenciaUnidade: 'semana' };
+  const novembro = { inicio: '2026-11-01', fim: '2026-11-30' };
+
+  const futura = continuidadeDasSeries({ series: [serie({ id: 'sg', ...semanal, acompanhamentos: geral('2026-12-06') } as never)], itens: [], periodo: novembro });
+  assert.equal(futura.linhas.length, 0, 'acompanhamento que ainda não começou não cobra');
+  assert.equal(futura.naoAvaliadas[0]?.motivo, 'inicio-futuro');
+
+  const noMeio = continuidadeDasSeries({ series: [serie({ id: 'sg', ...semanal, acompanhamentos: geral('2026-11-18') } as never)], itens: [], periodo: novembro });
+  const linha = noMeio.linhas[0];
+  assert.ok(linha.intervalos.every(intervalo => intervalo.fim >= '2026-11-18'), 'semanas antes do início ficam de fora');
+  assert.equal(linha.parciais?.length, 1, 'a semana de 15/11 começa no meio: parcial');
+  assert.equal(linha.abaixo.some(intervalo => intervalo.inicio === '2026-11-15'), false, 'parcial não vira falta');
+
+  const encerrado = continuidadeDasSeries({ series: [serie({ id: 'sg', ...semanal, acompanhamentos: geral(null, '2026-10-31') } as never)], itens: [], periodo: novembro });
+  assert.equal(encerrado.naoAvaliadas[0]?.motivo, 'encerrado');
+
+  // Pausa em parte da semana: parcial, sem falta; semana toda em pausa: pausa.
+  const pausas = [
+    { id: 'p1', inicio: '2026-11-02', fim: '2026-11-06', escopo: 'publicacao' as const, platformId: null, serieId: null, nota: '' },
+    { id: 'p2', inicio: '2026-11-08', fim: '2026-11-14', escopo: 'publicacao' as const, platformId: null, serieId: null, nota: '' },
+  ];
+  const comPausa = continuidadeDasSeries({ series: [serie({ id: 'sg', ...semanal, acompanhamentos: geral(null) } as never)], itens: [], periodo: novembro, pausas });
+  const semanaDaPausa = comPausa.linhas[0].intervalos.find(intervalo => intervalo.inicio === '2026-11-01');
+  assert.equal(semanaDaPausa?.parcial, true);
+  assert.equal(semanaDaPausa?.abaixo, false);
+  assert.equal(comPausa.linhas[0].intervalos.find(intervalo => intervalo.inicio === '2026-11-08')?.pausada, true);
+}
+
+console.log('saudeIndicadores (acompanhamento geral): ok');

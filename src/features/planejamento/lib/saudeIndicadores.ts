@@ -1,4 +1,4 @@
-import { format, parseISO } from 'date-fns';
+import { addDays, format, parseISO } from 'date-fns';
 import type { FuncaoEditorial } from '../../../lib/database.ts';
 import {
   apurarSerie,
@@ -10,6 +10,14 @@ import {
   type JanelaApurada,
   type SerieDaApuracao,
 } from '../../editorial/lib/apuracaoSerie.ts';
+import { acompanhamentoGeral, acompanhaNoGeral, coberturaNoGeral, idsComAncestrais, serieAcompanhada } from '../../editorial/lib/acompanhamento.ts';
+import {
+  diasSeguidosDosItens,
+  distanciasExcessivas,
+  type DiasSeguidos,
+  type DistanciaExcessiva,
+} from '../../editorial/lib/continuidadeEscopo.ts';
+import { diasDePausa, type PausaEditorial } from '../../editorial/lib/pausas.ts';
 import { FUNCAO_LABELS, FUNCOES, isFuncaoEditorial } from '../../editorial/lib/funcoes.ts';
 import { objetivoDoConteudo, type ConteudoHeranca, type SerieClassificacao } from '../../editorial/lib/herancaSerie.ts';
 import type { MetaDoObjetivo, ProporcaoFuncoes } from '../../editorial/lib/proporcaoObjetivos.ts';
@@ -167,6 +175,10 @@ export type IntervaloAvaliado = JanelaApurada & {
   quantidade: number;
   /** Falta mesmo contando reservas. */
   abaixo: boolean;
+  /** O intervalo inteiro está em pausa (publicação ou da série): aparece como pausa, nunca como falta. */
+  pausada?: boolean;
+  /** Cortado pelo início ou término do acompanhamento, ou com alguns dias de pausa: não vira falta inteira. */
+  parcial?: boolean;
 };
 
 export type LinhaContinuidade<T> = {
@@ -178,6 +190,14 @@ export type LinhaContinuidade<T> = {
   intervalos: IntervaloAvaliado[];
   /** Janelas com falta, mesmo contando reservas. */
   abaixo: IntervaloAvaliado[];
+  /** Janelas inteiras em pausa: no lugar de "falta". */
+  pausadas?: IntervaloAvaliado[];
+  /** Janelas parciais (início, término ou pausa de parte dos dias): não cobradas. */
+  parciais?: IntervaloAvaliado[];
+  /** Distância máxima sem episódio, quando definida no acompanhamento geral. */
+  distancias?: DistanciaExcessiva[];
+  /** Episódios em dias seguidos, quando a regra está ligada. */
+  diasSeguidos?: DiasSeguidos[];
   /** Janelas que só chegam à meta por post-it: reservadas, conteúdo a desenvolver. */
   reservadas: IntervaloAvaliado[];
   /** Mais que a meta num intervalo enquanto outro ficou vazio. */
@@ -201,7 +221,7 @@ export type PendenciaFrequencia = {
 export type NaoAvaliada = {
   serieId: string;
   nome: string;
-  motivo: 'sob-demanda' | 'inicio-futuro';
+  motivo: 'sob-demanda' | 'inicio-futuro' | 'encerrado';
   texto: string;
 };
 
@@ -240,6 +260,10 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
   series: readonly SerieDaSaude[];
   itens: readonly T[];
   periodo: Intervalo;
+  /** Pausas com data: janela inteira em pausa aparece como pausa; com parte dos dias, é parcial. */
+  pausas?: readonly PausaEditorial[];
+  /** yyyy-MM-dd; padrão, hoje. Para a distância que ainda pode ser coberta. */
+  hoje?: string;
 }): Continuidade<T> {
   const { series, itens, periodo } = input;
   const porId = new Map(series.map(serie => [serie.id, serie]));
@@ -251,10 +275,24 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
   for (const serie of series) {
     if (serie.ativa === false) continue;
     // Só entra quem foi marcado para acompanhar; as outras nem aparecem como pendência.
-    if (serie.acompanharContinuidade !== true) continue;
+    if (!acompanhaNoGeral(serie)) {
+      // Acompanhada só por conta ou formato: conta como acompanhada; a linha vem da continuidade por escopo.
+      if (serieAcompanhada(serie)) acompanhadas += 1;
+      continue;
+    }
     acompanhadas += 1;
     const tipo = tipoDe(serie);
     const nome = serie.name?.trim() || (tipo === 'quadro' ? 'Quadro' : 'Série');
+    // Início e término do acompanhamento geral: antes do início não há cobrança nem pendência.
+    const geral = acompanhamentoGeral(serie);
+    if (geral?.inicio && geral.inicio > periodo.fim) {
+      naoAvaliadas.push({ serieId: serie.id, nome, motivo: 'inicio-futuro', texto: `Acompanhamento começa em ${format(parseISO(geral.inicio), 'dd/MM/yyyy')}: ainda não avaliado` });
+      continue;
+    }
+    if (geral?.termino && geral.termino < periodo.inicio) {
+      naoAvaliadas.push({ serieId: serie.id, nome, motivo: 'encerrado', texto: `Acompanhamento terminou em ${format(parseISO(geral.termino), 'dd/MM/yyyy')}: não avaliado` });
+      continue;
+    }
     const tipoLinha = tipo === 'quadro' ? 'quadro' : 'serie';
     const situacao = situacaoDaFrequencia(serie);
     if (situacao.tipo === 'incompleta') {
@@ -287,8 +325,38 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
       continue;
     }
 
-    const intervalos = apuracao.janelas.map(avaliado);
+    // Mesma regra dos escopos: fora do acompanhamento não entra; parcial e pausada não viram falta.
+    const pausas = input.pausas ?? [];
+    const serieIds = idsComAncestrais(serie.id, series);
+    const intervalos = apuracao.janelas.flatMap(janela => {
+      const cobertura = coberturaNoGeral(janela, geral, pausas, serieIds);
+      if (cobertura === 'fora') return [];
+      const item = avaliado(janela);
+      if (cobertura === 'pausada') return [{ ...item, abaixo: false, pausada: true }];
+      if (cobertura === 'parcial') return [{ ...item, abaixo: false, parcial: true }];
+      return [item];
+    });
+    const cobrados = intervalos.filter(intervalo => !intervalo.pausada && !intervalo.parcial);
     const abaixo = intervalos.filter(intervalo => intervalo.abaixo);
+    const pausadas = intervalos.filter(intervalo => intervalo.pausada);
+    const parciais = intervalos.filter(intervalo => intervalo.parcial);
+    const hoje = input.hoje ?? format(new Date(), 'yyyy-MM-dd');
+    const datas = apuracao.itens.flatMap(item => (item.data ? [item.data.slice(0, 10)] : []));
+    const distancias = geral?.distanciaMaxDias
+      ? distanciasExcessivas({
+        datas,
+        periodo,
+        limiteDias: geral.distanciaMaxDias,
+        inicioAcompanhamento: geral.inicio,
+        terminoAcompanhamento: geral.termino,
+        diasPausados: new Set(diasDePausa(pausas, { tipo: 'serie', serieIds }, {
+          inicio: format(addDays(parseISO(periodo.inicio), -400), 'yyyy-MM-dd'),
+          fim: periodo.fim,
+        })),
+        hoje,
+      })
+      : [];
+    const diasSeguidos = geral?.evitarDiasSeguidos ? diasSeguidosDosItens(apuracao.itens, periodo) : [];
     const pai = serie.parentId ? porId.get(serie.parentId) : undefined;
     linhas.push({
       serieId: serie.id,
@@ -298,11 +366,16 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
       frequencia: textoFrequencia(situacao.freq),
       intervalos,
       abaixo,
-      reservadas: intervalos.filter(intervalo => intervalo.estado === 'reservada'),
+      pausadas,
+      parciais,
+      distancias,
+      diasSeguidos,
+      reservadas: cobrados.filter(intervalo => intervalo.estado === 'reservada'),
       concentrada: apuracao.concentrada,
-      semEpisodios: apuracao.semEpisodios,
+      semEpisodios: cobrados.length > 0 && cobrados.every(intervalo => intervalo.estado === 'vazia'),
       foraDoPeriodo: apuracao.foraDoPeriodo,
-      precisaAtencao: abaixo.length > 0 || apuracao.concentrada || apuracao.reservadas.length > 0,
+      precisaAtencao: abaixo.length > 0 || apuracao.concentrada || cobrados.some(intervalo => intervalo.estado === 'reservada')
+        || distancias.length > 0 || diasSeguidos.length > 0,
       itens: apuracao.itens,
     });
   }

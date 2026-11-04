@@ -38,6 +38,20 @@ export type UnidadeFrequencia = (typeof UNIDADES_FREQUENCIA)[number];
 /** Migrações citadas pelo app quando a coluna ainda não existe (database.ts). */
 export const MIGRACAO_SERIE_TIPO = '20261030120000_serie_tipo_agrupamento';
 export const MIGRACAO_SERIE_CONTINUIDADE = '20261102240000_serie_acompanhar_continuidade';
+
+/**
+ * Acompanhamento geral da série: vale a tabela serie_acompanhamento quando veio junto na leitura;
+ * sem ela (migração 20261103120000 ausente ou leitura sem o join), a coluna antiga, que o app mantém espelhada.
+ */
+export function acompanhaNoGeralDaLinha(row: Record<string, unknown> | null | undefined): boolean {
+  if (!row) return false;
+  const lista = row.serie_acompanhamento;
+  if (Array.isArray(lista)) {
+    return lista.some(item => item && typeof item === 'object'
+      && (item as Record<string, unknown>).escopo === 'geral' && (item as Record<string, unknown>).ativo !== false);
+  }
+  return row.acompanhar_continuidade === true;
+}
 export const MIGRACAO_CONTAS = '20261015120000_contas_legendas_metricas';
 export const MIGRACAO_ORDEM_EPISODIO = '20261102210000_ordem_episodio';
 export const MIGRACAO_MOVER_EPISODIOS = '20261102230000_mover_episodios_rpc';

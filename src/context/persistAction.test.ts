@@ -42,6 +42,8 @@ function createMockApi(contentsById: Content[] = []) {
     saveSerie: record('saveSerie'),
     saveSeriePilares: record('saveSeriePilares'),
     saveSeriePlataformas: record('saveSeriePlataformas'),
+    saveSerieAcompanhamentos: record('saveSerieAcompanhamentos'),
+    saveSerieMetas: record('saveSerieMetas'),
     deleteSerie: record('deleteSerie'),
     saveTema: record('saveTema'),
     saveTemporada: record('saveTemporada'),

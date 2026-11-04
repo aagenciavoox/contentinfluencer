@@ -1,5 +1,5 @@
 import type { AppState } from '../app/providers/appState';
-import { nextFreeSerieColor, serieColorKey } from '../features/settings/lib/serieColors';
+import { comCoresDaSerie, nextFreeSerieColor, serieColorKey } from '../features/settings/lib/serieColors';
 import { removerLivroId } from '../lib/livroIds.ts';
 import { isAppTheme, type AppTheme } from '../lib/themeStorage';
 import {
@@ -171,6 +171,8 @@ function deriveTheme(prefs: Record<string, string>, current: AppTheme): AppTheme
 // ============================================================================
 
 function serieWithFreeColor(serie: Serie, series: readonly Serie[]): Serie {
+  // Quadro com "Usar da série": a cor vem da série, não precisa ser única.
+  if (serie.usaCorDaSerie) return serie;
   const key = serieColorKey(serie.cor);
   const taken = Boolean(key) && series.some(item => item.id !== serie.id && serieColorKey(item.cor) === key);
   if (key && !taken) return serie.cor === key ? serie : {...serie, cor: key};
@@ -414,10 +416,16 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
 
     // ─── Séries ─────────────────────────────────────────────────────────────
-    case 'ADD_SERIE':
-      return { ...state, series: [...state.series, serieWithFreeColor(action.payload, state.series)] };
+    case 'ADD_SERIE': {
+      // Com a tabela de acompanhamento lida, série nova já nasce com as listas (vazias) para editar por escopo.
+      const comTabela = state.series.some(serie => serie.acompanhamentos !== undefined);
+      const nova = comTabela
+        ? { ...action.payload, acompanhamentos: action.payload.acompanhamentos ?? [], metasPorEscopo: action.payload.metasPorEscopo ?? [] }
+        : action.payload;
+      return { ...state, series: comCoresDaSerie([...state.series, serieWithFreeColor(nova, state.series)]) };
+    }
     case 'UPDATE_SERIE':
-      return { ...state, series: state.series.map(s => s.id === action.payload.id ? serieWithFreeColor(action.payload, state.series) : s) };
+      return { ...state, series: comCoresDaSerie(state.series.map(s => s.id === action.payload.id ? serieWithFreeColor(action.payload, state.series) : s)) };
     case 'DELETE_SERIE':
       return {
         ...state,

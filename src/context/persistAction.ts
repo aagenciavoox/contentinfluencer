@@ -41,6 +41,8 @@ export type PersistenceApi = Pick<DatabaseModule,
   | 'saveSerie'
   | 'saveSeriePilares'
   | 'saveSeriePlataformas'
+  | 'saveSerieAcompanhamentos'
+  | 'saveSerieMetas'
   | 'deleteSerie'
   | 'saveTema'
   | 'saveTemporada'
@@ -327,6 +329,13 @@ export async function persistAction({ action, userId, state, api }: PersistActio
           : undefined,
         action.payload.plataformas
           ? persistenceApi.saveSeriePlataformas(action.payload.id, action.payload.plataformas)
+          : undefined,
+        // undefined = tabela nova ausente: nada a gravar além da coluna antiga.
+        action.payload.acompanhamentos
+          ? persistenceApi.saveSerieAcompanhamentos(action.payload.id, userId, action.payload.acompanhamentos)
+          : undefined,
+        action.payload.metasPorEscopo
+          ? persistenceApi.saveSerieMetas(action.payload.id, userId, action.payload.metasPorEscopo)
           : undefined,
       ]);
       return;

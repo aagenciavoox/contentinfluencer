@@ -16,6 +16,8 @@ import { AjustesEditorialPanel } from './plano/AjustesEditorialPanel';
 import { PeriodoPanel } from './plano/PeriodoPanel';
 import { periodoInicial, type PeriodoSelecionado } from './plano/PeriodoEditorialControl';
 import { lerPeriodoSalvo } from '../lib/periodoEditorial';
+import { pilarHerdadoDaSerie } from '../lib/herancaSerie';
+import { pilarPrincipalDaSerie } from '../lib/pilarDaSerie';
 
 function linhaDeSeries(nomes: string[]) {
   if (nomes.length === 0) return 'Sem séries ligadas';
@@ -80,10 +82,18 @@ export function DirecaoEditorialPanel({ abaAtiva: abaAtivaProp }: DirecaoEditori
   const seriesPorPilar = useMemo(() => {
     const map = new Map<string, string[]>();
     for (const serie of state.series) {
-      const pilarId = serie.pilarPrincipalId || serie.pilarIds[0];
+      if (serie.tipoAgrupamento === 'familia') continue;
+      // O pilar que vale para a série: o próprio ou o herdado da série de cima.
+      const pilarId = pilarHerdadoDaSerie(serie.id, state.series);
       if (!pilarId) continue;
+      const propria = pilarPrincipalDaSerie(serie) === pilarId;
+      // De quem veio: o primeiro acima que tem esse pilar escolhido (pode ser a família, não só o pai).
+      let origem = serie.parentId ? state.series.find(item => item.id === serie.parentId) ?? null : null;
+      for (let passo = 0; origem && pilarPrincipalDaSerie(origem) !== pilarId && passo < 6; passo += 1) {
+        origem = origem.parentId ? state.series.find(item => item.id === origem!.parentId) ?? null : null;
+      }
       const lista = map.get(pilarId) ?? [];
-      lista.push(serie.name);
+      lista.push(propria ? `${serie.name} (próprio)` : `${serie.name} (herdado${origem ? ` de ${origem.name}` : ''})`);
       map.set(pilarId, lista);
     }
     return map;

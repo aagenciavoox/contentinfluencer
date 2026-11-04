@@ -12,6 +12,7 @@ import { readAvisoDias } from '../features/projects/lib/evento.ts';
 import { DEFAULT_EDITORIAL_SETTINGS, lerMetodoCalculo, METODO_CALCULO_PADRAO, type EditorialSettings } from '../features/editorial/lib/editorialSettings.ts';
 import { LIMITES_CONCENTRACAO_PADRAO, lerLimitesConcentracao, type ExcecaoConcentracao, type LimitesConcentracao } from '../features/editorial/lib/concentracao.ts';
 import type { AcompanhamentoSerie, MetaDaSerieNoEscopo } from '../features/editorial/lib/continuidadeEscopo.ts';
+import { comCoresDaSerie } from '../features/settings/lib/serieColors.ts';
 import type { MetaDaContaVigencia } from '../features/editorial/lib/metasPorConta.ts';
 import type { EscopoDaPausa, PausaEditorial } from '../features/editorial/lib/pausas.ts';
 import { readProporcao } from '../features/editorial/lib/proporcaoObjetivos.ts';
@@ -940,10 +941,14 @@ const SERIE_OPTIONAL_COLUMNS = [
   'tipo_agrupamento',
   'sem_pilar',
   'acompanhar_continuidade',
+  'usa_cor_da_serie',
 ] as const;
 
 /** Migração da escolha "Acompanhar continuidade na Saúde". */
 export const MIGRACAO_SERIE_CONTINUIDADE = '20261102240000_serie_acompanhar_continuidade';
+
+/** Migração do editorial por conta (acompanhamento e meta por escopo, cor do quadro). */
+export const MIGRACAO_EDITORIAL_POR_CONTA = '20261103120000_editorial_por_conta_base';
 
 /** Migração do tipo de agrupamento e do "sem pilar" das séries. */
 export const MIGRACAO_SERIE_TIPO = '20261030120000_serie_tipo_agrupamento';
@@ -1339,8 +1344,9 @@ const mp = {
     semPilar: r.sem_pilar === true,
     acompanharContinuidade: r.acompanhar_continuidade === true,
     usaCorDaSerie: r.usa_cor_da_serie === true,
-    acompanhamentos: Array.isArray(r.serie_acompanhamento) ? r.serie_acompanhamento.flatMap(acompanhamentoDaLinha) : [],
-    metasPorEscopo: Array.isArray(r.serie_meta) ? r.serie_meta.flatMap(metaDaSerieDaLinha) : [],
+    // Sem a tabela (migração 20261103120000) fica undefined: aí vale a coluna antiga.
+    acompanhamentos: Array.isArray(r.serie_acompanhamento) ? r.serie_acompanhamento.flatMap(acompanhamentoDaLinha) : undefined,
+    metasPorEscopo: Array.isArray(r.serie_meta) ? r.serie_meta.flatMap(metaDaSerieDaLinha) : undefined,
     createdAt: r.created_at, updatedAt: r.updated_at,
     pilarIds: (r.serie_pilares || []).map((sp: Row) => sp.pilar_id),
     plataformas: (r.serie_plataformas || []).map((sp: Row) => ({
@@ -2363,7 +2369,8 @@ export async function fetchDataDomains(
           janelaHorarioFim: p.janela_fim ?? null,
         })),
       }));
-      payload.series = seriesRows.map((row: Row) => mp.serie(row));
+      // Quadro com "Usar da série" mostra a cor atual da série.
+      payload.series = comCoresDaSerie(seriesRows.map((row: Row) => mp.serie(row)));
       payload.cenarios = (assertQuerySuccess('cenarios fetch', cenariosResult) || []).map(mp.cenario);
       payload.looks = (assertQuerySuccess('looks fetch', looksResult) || []).map(mp.look);
 
@@ -3310,6 +3317,9 @@ export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 
   if ('tipoAgrupamento' in serie) row.tipo_agrupamento = serie.tipoAgrupamento ?? null;
   if ('semPilar' in serie) row.sem_pilar = serie.semPilar === true;
   if ('acompanharContinuidade' in serie) row.acompanhar_continuidade = serie.acompanharContinuidade === true;
+  // A coluna antiga espelha o acompanhamento geral da tabela nova (a remoção dela está parada).
+  if (serie.acompanhamentos) row.acompanhar_continuidade = serie.acompanhamentos.some(item => item.escopo === 'geral' && item.ativo);
+  if ('usaCorDaSerie' in serie) row.usa_cor_da_serie = serie.usaCorDaSerie === true;
 
   for (let attempt = 0; attempt < 16; attempt += 1) {
     const { error } = await supabase.from('series').upsert(row);
@@ -3331,6 +3341,9 @@ export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 
       // Marcar para acompanhar sem a coluna não pode parecer salvo.
       if (missing === 'acompanhar_continuidade' && row.acompanhar_continuidade === true) {
         throw new Error(`Para acompanhar a continuidade da série, aplique a migração ${MIGRACAO_SERIE_CONTINUIDADE}.`);
+      }
+      if (missing === 'usa_cor_da_serie' && row.usa_cor_da_serie === true) {
+        throw new Error(`Para o quadro usar a cor da série, aplique a migração ${MIGRACAO_EDITORIAL_POR_CONTA}.`);
       }
       const {[missing]: _removed, ...rest} = row;
       row = rest;
@@ -3378,6 +3391,72 @@ export async function saveSeriePlataformas(serieId: string, plataformas: SeriePl
     ({ error } = await supabase.from('serie_plataformas').insert(rows.map(({ legenda: _legenda, ...rest }) => rest)));
   }
   if (error) throw new Error(`serie_plataformas: ${error.message}`);
+}
+
+/**
+ * Acompanhamentos da série (serie_acompanhamento): remove os que saíram e grava os demais pelo id.
+ * Sem a tabela, só reclama quando há algo por conta ou formato para guardar.
+ */
+export async function saveSerieAcompanhamentos(serieId: string, userId: string, lista: readonly AcompanhamentoSerie[]): Promise<void> {
+  if (!supabase) return;
+  const atuais = await supabase.from('serie_acompanhamento').select('id').eq('serie_id', serieId);
+  if (atuais.error) {
+    if (tabelaAusente(atuais.error)) {
+      if (lista.some(item => item.escopo !== 'geral')) {
+        throw new Error(`Para acompanhar por conta ou formato, aplique a migração ${MIGRACAO_EDITORIAL_POR_CONTA}.`);
+      }
+      return;
+    }
+    throw new Error(`serie_acompanhamento fetch: ${atuais.error.message}`);
+  }
+  const manter = new Set(lista.map(item => item.id));
+  const remover = (atuais.data ?? []).map((row: Row) => String(row.id)).filter(id => !manter.has(id));
+  if (remover.length > 0) {
+    const { error } = await supabase.from('serie_acompanhamento').delete().in('id', remover);
+    if (error) throw new Error(`serie_acompanhamento delete: ${error.message}`);
+  }
+  if (lista.length === 0) return;
+  const { error } = await supabase.from('serie_acompanhamento').upsert(lista.map(item => ({
+    id: item.id,
+    user_id: userId,
+    serie_id: serieId,
+    escopo: item.escopo,
+    platform_id: item.escopo === 'geral' ? null : item.platformId,
+    formato: item.escopo === 'formato' ? item.formato : null,
+    ativo: item.ativo,
+    inicio: item.inicio || null,
+    termino: item.termino || null,
+    distancia_max_dias: item.distanciaMaxDias && item.distanciaMaxDias > 0 ? item.distanciaMaxDias : null,
+    evitar_dias_seguidos: item.evitarDiasSeguidos === true,
+    updated_at: new Date().toISOString(),
+  })));
+  if (error) throw new Error(`serie_acompanhamento: ${error.message}`);
+}
+
+/** Meta da série por conta ou formato (serie_meta). A geral continua nas colunas da série. */
+export async function saveSerieMetas(serieId: string, userId: string, metas: readonly MetaDaSerieNoEscopo[]): Promise<void> {
+  if (!supabase) return;
+  const { error: deleteError } = await supabase.from('serie_meta').delete().eq('serie_id', serieId);
+  if (deleteError) {
+    if (tabelaAusente(deleteError)) {
+      if (metas.length > 0) throw new Error(`Para a meta por conta ou formato, aplique a migração ${MIGRACAO_EDITORIAL_POR_CONTA}.`);
+      return;
+    }
+    throw new Error(`serie_meta delete: ${deleteError.message}`);
+  }
+  const validas = metas.filter(meta => (meta.platformId || meta.formato) && meta.vezes > 0
+    && (meta.unidade !== 'quinzena' || meta.aPartirDe));
+  if (validas.length === 0) return;
+  const { error } = await supabase.from('serie_meta').insert(validas.map(meta => ({
+    user_id: userId,
+    serie_id: serieId,
+    platform_id: meta.platformId || null,
+    formato: meta.formato || null,
+    vezes: meta.vezes,
+    unidade: meta.unidade,
+    a_partir_de: meta.aPartirDe || null,
+  })));
+  if (error) throw new Error(`serie_meta: ${error.message}`);
 }
 
 export async function deleteSerie(id: string): Promise<void> {

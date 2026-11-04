@@ -5,6 +5,7 @@ import {CONTENT_STATUS, isReadyToPublish, normalizeContentStatus} from '../../co
 import type {PeriodoGrade} from '../../editorial/lib/gradeCounts.ts';
 import type {GradeEntry} from '../../editorial/lib/gradeEntries.ts';
 import {apurarSerie, ehReserva, type ItemDaApuracao} from '../../editorial/lib/apuracaoSerie.ts';
+import {acompanhamentoGeral, acompanhaNoGeral, coberturaNoGeral, idsComAncestrais, serieAcompanhada} from '../../editorial/lib/acompanhamento.ts';
 import {
   excecaoCobre,
   LIMITES_CONCENTRACAO_PADRAO,
@@ -12,6 +13,7 @@ import {
   type ExcecaoConcentracao,
   type LimitesConcentracao,
 } from '../../editorial/lib/concentracao.ts';
+import {diasDePausa, type PausaEditorial} from '../../editorial/lib/pausas.ts';
 import {contarSerieAgrupada} from '../../editorial/lib/frequenciaAgrupada.ts';
 import {idsDeObras} from './assuntosObras.ts';
 import type {PlanejamentoPostIt} from './postIt.ts';
@@ -236,6 +238,7 @@ function avisosDeFrequenciaSerie(
   itens: readonly ItemDaApuracao[],
   periodo: PeriodoGrade,
   series: readonly Serie[],
+  pausas: readonly PausaEditorial[] = [],
 ): AvisoOrientacao[] {
   const avisos: AvisoOrientacao[] = [];
 
@@ -243,9 +246,9 @@ function avisosDeFrequenciaSerie(
     if (serie.ativa === false) continue;
     const nome = serie.name.trim() || 'Quadro';
     // Metas dos quadros somando menos que a da série não é erro: o resto fica para os outros episódios.
-    // É configuração, não cobrança: aparece mesmo sem acompanhamento.
+    // É configuração, não cobrança, mas só aparece para série acompanhada (decisão da Anne).
     const agrupada = contarSerieAgrupada({serie, series, itens: [], inicio: periodo.inicio, fim: periodo.fim});
-    if (agrupada.recorteIncompativel && agrupada.somaRecortesFilhos != null && agrupada.expectativa != null) {
+    if (serieAcompanhada(serie) && agrupada.recorteIncompativel && agrupada.somaRecortesFilhos != null && agrupada.expectativa != null) {
       avisos.push({
         id: `serie-recorte:${serie.id}`,
         tipo: 'serie-acima',
@@ -257,13 +260,23 @@ function avisosDeFrequenciaSerie(
     }
 
     // Acompanhamento desligado não gera cobrança de frequência.
-    if (serie.acompanharContinuidade !== true) continue;
+    if (!acompanhaNoGeral(serie)) continue;
+    // Antes do início ou depois do término do acompanhamento não há aviso.
+    const geral = acompanhamentoGeral(serie);
+    if ((geral?.inicio && geral.inicio > periodo.fim) || (geral?.termino && geral.termino < periodo.inicio)) continue;
     const apuracao = apurarSerie({serie, series, itens, periodo});
     if (apuracao.situacao.tipo !== 'definida' || apuracao.inicioFuturo || apuracao.janelas.length === 0) continue;
+    // Mesma regra da Saúde: janela fora do acompanhamento não entra; parcial ou em pausa não é cobrada.
+    const serieIds = idsComAncestrais(serie.id, series);
+    const coberturas = apuracao.janelas.map(janela => ({janela, cobertura: coberturaNoGeral(janela, geral, pausas, serieIds)}));
+    const dentro = coberturas.filter(item => item.cobertura !== 'fora').map(item => item.janela);
+    const cobradas = coberturas.filter(item => item.cobertura === 'integral').map(item => item.janela);
+    const faltas = cobradas.filter(janela => janela.estado === 'abaixo' || janela.estado === 'vazia');
+    const reservadas = cobradas.filter(janela => janela.estado === 'reservada');
 
     const postItIds = apuracao.itens.flatMap(item => item.postItId ? [item.postItId] : []);
     const contentIds = apuracao.itens.flatMap(item => ehReserva(item) ? [] : [item.contentId]);
-    const acima = apuracao.janelas.filter(janela => janela.episodios + janela.reservas > janela.meta);
+    const acima = dentro.filter(janela => janela.episodios + janela.reservas > janela.meta);
     if (acima.length > 0) {
       const pautas = acima.reduce((soma, janela) => soma + janela.episodios + janela.reservas, 0);
       const pede = acima.reduce((soma, janela) => soma + janela.meta, 0);
@@ -278,7 +291,7 @@ function avisosDeFrequenciaSerie(
         severidade: 'revisar',
       });
     }
-    const faltam = apuracao.faltas.reduce((soma, janela) => soma + janela.meta - janela.episodios - janela.reservas, 0);
+    const faltam = faltas.reduce((soma, janela) => soma + janela.meta - janela.episodios - janela.reservas, 0);
     if (faltam > 0) {
       avisos.push({
         id: `serie-abaixo:${serie.id}`,
@@ -291,8 +304,8 @@ function avisosDeFrequenciaSerie(
         severidade: 'info',
       });
     }
-    if (apuracao.reservadas.length > 0) {
-      const n = apuracao.reservadas.length;
+    if (reservadas.length > 0) {
+      const n = reservadas.length;
       avisos.push({
         id: `serie-reservada:${serie.id}`,
         tipo: 'serie-reservada',
@@ -365,8 +378,12 @@ function avisosDeGravacao(
   contents: readonly Content[],
   periodo: PeriodoGrade,
   limite: number | null | undefined,
+  pausas: readonly PausaEditorial[] = [],
 ): AvisoOrientacao[] {
-  if (limite == null || limite <= 0) return [];
+  // Pausa de gravação ou de produção: nenhuma gravação cabe naquele dia.
+  const pausados = new Set(diasDePausa(pausas, {tipo: 'gravacao'}, periodo));
+  const temLimite = limite != null && limite > 0;
+  if (!temLimite && pausados.size === 0) return [];
   const porDia = new Map<string, Content[]>();
   for (const content of contents) {
     if (content.deletedAt || content.archivedAt || content.recordedAt) continue;
@@ -380,14 +397,18 @@ function avisosDeGravacao(
   }
   const avisos: AvisoOrientacao[] = [];
   for (const [dia, lista] of [...porDia].sort(([a], [b]) => a.localeCompare(b))) {
-    if (lista.length <= limite) continue;
+    const emPausa = pausados.has(dia);
+    if (!emPausa && (!temLimite || lista.length <= (limite as number))) continue;
     const ids = new Set(lista.map(content => content.id));
     const quando = format(parseISO(dia), "d 'de' MMMM", {locale: ptBR});
     avisos.push({
       id: `gravacoes:${dia}`,
       tipo: 'gravacoes-no-dia',
       // Só passa do limite com 2 ou mais: o plural é sempre o mesmo.
-      texto: `Há ${lista.length} gravações previstas para ${quando}, um dia com limite de ${limite}.`,
+      texto: emPausa
+        ? `${lista.length === 1 ? 'Há 1 gravação prevista' : `Há ${lista.length} gravações previstas`} para ${quando}, um dia em pausa de gravação ou produção.`
+        : `Há ${lista.length} gravações previstas para ${quando}, um dia com limite de ${limite}.`,
+      intervalo: {inicio: dia, fim: dia},
       postItIds: postIts.flatMap(postIt => postIt.contentId && ids.has(postIt.contentId) ? [postIt.id] : []),
       contentIds: [...ids],
       severidade: 'revisar',
@@ -409,6 +430,7 @@ export function avisosDeOrientacao({
   limiteGravacoesDia = null,
   concentracao = LIMITES_CONCENTRACAO_PADRAO,
   excecoesConcentracao = [],
+  pausas = [],
   hoje = new Date(),
 }: {
   postIts: readonly PlanejamentoPostIt[];
@@ -431,6 +453,8 @@ export function avisosDeOrientacao({
   concentracao?: LimitesConcentracao;
   /** Concentrações marcadas como intencionais. */
   excecoesConcentracao?: readonly ExcecaoConcentracao[];
+  /** Pausas com data: gravação e produção valem no aviso de gravações por dia. */
+  pausas?: readonly PausaEditorial[];
   hoje?: Date;
 }): AvisoOrientacao[] {
   // Período + 14 dias anteriores (obra em 7 dias) + margem à frente nas bordas.
@@ -447,10 +471,10 @@ export function avisosDeOrientacao({
   // "Quadro em dias seguidos" não avisa sozinho: vira regra opcional do acompanhamento, desligada por padrão.
   return [
     ...avisosDeVespera(postIts, contents, periodo, hoje),
-    ...avisosDeGravacao(postIts, contents, periodo, limiteGravacoesDia),
+    ...avisosDeGravacao(postIts, contents, periodo, limiteGravacoesDia, pausas),
     ...avisosDeObra(pautas, periodo, obras, concentracao, excecoesConcentracao),
     ...avisosDeTema(pautas, periodo, temas, concentracao, excecoesConcentracao),
-    ...avisosDeFrequenciaSerie(itensSerie ?? itensDasPautas(pautas), periodo, series),
+    ...avisosDeFrequenciaSerie(itensSerie ?? itensDasPautas(pautas), periodo, series, pausas),
   ];
 }
 

@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { Clock, MoreVertical } from 'lucide-react';
+import { AlertCircle, Check, Clock, MoreVertical } from 'lucide-react';
 import { MoreMenu, type MoreMenuItem } from '../../../components/ui/MoreMenu';
 import { PlatformIcon } from '../../../components/ui/PlatformIcon';
 import { Text } from '../../../components/ui/Text';
@@ -8,12 +8,15 @@ import type { PublicacaoNoDia } from '../lib/publicacoesDoMes';
 import { postItKind } from '../lib/postIt';
 import { cn } from '../../../lib/utils';
 import { EtapaIcon, type EtapaDoCard } from './EtapaBadge';
+import type { ContaDoCard } from '../lib/filtroCalendario';
 
 export interface PlanejamentoContentCardProps {
   publicacao: PublicacaoNoDia;
   content?: Content | null;
   serie?: Serie | null;
   pilar?: Pilar | null;
+  /** Contas do mesmo conteúdo, ciclo e dia: um ícone por conta, com a situação de cada uma. */
+  contas?: readonly ContaDoCard[];
   onOpen: () => void;
   onMove?: () => void;
   onRemoveFromDate?: () => void;
@@ -28,6 +31,7 @@ export function PlanejamentoContentCard({
   content,
   serie,
   pilar,
+  contas,
   onOpen,
   onMove,
   onRemoveFromDate,
@@ -141,7 +145,22 @@ export function PlanejamentoContentCard({
       {/* Redes (ícones) · formato · horário */}
       <div className="mt-1.5 flex flex-wrap items-center gap-1 text-[var(--text-secondary)]">
         <EtapaIcon etapa={etapa} cor={cor} />
-        {publicacao.platformNames.map(nome => (
+        {contas && contas.length > 0 ? contas.map(conta => (
+          <span
+            key={conta.platformId}
+            title={`${conta.nome} · ${conta.rotuloFormato} · ${conta.rotuloSituacao}${conta.programado ? ' · programado' : ''}`}
+            aria-label={`${conta.nome}: ${conta.rotuloFormato}, ${conta.rotuloSituacao}`}
+            className={cn('inline-flex items-center gap-0.5', conta.situacao !== 'realizada' && 'opacity-70')}
+          >
+            <PlatformIcon platform={conta.rede ?? conta.nome} className="h-3.5 w-3.5 shrink-0" />
+            {/* A situação aparece sem passar o mouse (no celular não há hover): ✓ publicada, ! data passou. */}
+            {conta.situacao === 'realizada' ? <Check className="h-3 w-3 shrink-0 text-[var(--accent-green)]" aria-hidden /> : null}
+            {conta.situacao === 'vencida' ? <AlertCircle className="h-3 w-3 shrink-0 text-[var(--accent-orange)]" aria-hidden /> : null}
+            {conta.rede === 'youtube' ? (
+              <Text variant="meta" as="span">{conta.rotuloFormato}</Text>
+            ) : null}
+          </span>
+        )) : publicacao.platformNames.map(nome => (
           <span key={nome} title={nome} className="inline-flex">
             <PlatformIcon platform={nome} className="h-3.5 w-3.5 shrink-0" />
           </span>
@@ -152,6 +171,11 @@ export function PlanejamentoContentCard({
         {formato ? (
           <Text variant="meta" as="span" className="lowercase">
             {formato}
+          </Text>
+        ) : null}
+        {publicacao.estado === 'programado' || contas?.some(conta => conta.programado) ? (
+          <Text variant="meta" as="span" className="rounded-[var(--radius-pill)] border border-[var(--border-subtle)] px-1.5 text-[var(--text-secondary)]">
+            Programado
           </Text>
         ) : null}
         {publicacao.time ? (

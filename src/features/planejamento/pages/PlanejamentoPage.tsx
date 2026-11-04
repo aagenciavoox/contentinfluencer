@@ -57,6 +57,14 @@ import {REDE_ROTULO, rotuloDaRef} from '../../contas/lib/contas';
 import {saudeDoMes} from '../lib/monthHealth';
 import {avisoDoCalendario, rotuloDoPeriodo} from '../lib/periodoDaSaude';
 import {continuidadeDasSeries, distribuicaoPorObjetivo, janelaDaContinuidade, proporcaoDesejadaDoPeriodo} from '../lib/saudeIndicadores';
+import {linhasDaContinuidadePorEscopo} from '../lib/continuidadePorEscopoNaSaude';
+import {publicacoesNaSaude} from '../lib/publicacoesNaSaude';
+import {contasDoCard, conteudoPassa, filtroAtivo, formatosDoFiltro, indiceDaAgenda, postItPassa, publicacoesDoCard, type FiltroCalendario} from '../lib/filtroCalendario';
+import {diaDoAviso} from '../lib/detalheDoAviso';
+import {publicacoesDaAgenda, rotuloDoFormato} from '../../editorial/lib/publicacoes';
+import {Drawer} from '../../../components/overlays/Drawer';
+import {CreationRedeQuickFilter} from '../../creation/components/CreationRedeQuickFilter';
+import {redesDoFiltroRapido} from '../../creation/lib/creationRedeFilter';
 import {usePostItsNaData} from '../hooks/usePostItsNaData';
 import {levarRoteiroAoDia, roteiroPublicado} from '../lib/postItsNaData';
 import {POST_IT_MIME, PostItAssuntosObras, PostItIdentity, PostItNote, type PostItMark} from '../components/PostItNote';
@@ -202,6 +210,11 @@ export function PlanejamentoPage() {
   /** Dia do post-it rápido. `undefined` = fechado; `null` = fora do calendário. */
   const [rapidoDate, setRapidoDate] = useState<string | null | undefined>(undefined);
   const [direcaoAberta, setDirecaoAberta] = useState(false);
+  // 2D: filtros por conta e formato; trecho da Saúde (calendário ou intervalo); análise da Saúde.
+  const [filtro, setFiltro] = useState<FiltroCalendario>({redes: [], formato: null});
+  const [trecho, setTrecho] = useState<'calendario' | 'intervalo'>('calendario');
+  const [intervalo, setIntervalo] = useState<{inicio: string; fim: string}>({inicio: '', fim: ''});
+  const [analiseAberta, setAnaliseAberta] = useState(false);
   const periodoEditorial = useMemo(
     () => (state.editorialVisao ? lerPeriodoSalvo(state.editorialVisao) : null) ?? periodoInicial(),
     [state.editorialVisao],
@@ -263,32 +276,51 @@ export function PlanejamentoPage() {
 
   const clearSelection = () => setSelectedIds(new Set());
 
+  // Uma publicação por conta: base dos filtros e da situação de cada conta nos cards.
+  const indiceAgenda = useMemo(
+    () => indiceDaAgenda(publicacoesDaAgenda({contents, contas: state.platforms, series: state.series})),
+    [contents, state.platforms, state.series],
+  );
+
   const byDate = useMemo(() => {
     const map = new Map<string, PlanejamentoPostIt[]>();
     postIts.forEach(postIt => {
       if (!postIt.date) return;
+      if (!postItPassa(indiceAgenda, postIt, filtro)) return;
       const list = map.get(postIt.date) ?? [];
       list.push(postIt);
       map.set(postIt.date, list);
     });
     return map;
-  }, [postIts]);
+  }, [postIts, indiceAgenda, filtro]);
 
   const undated = useMemo(
-    () => postIts.filter(postIt => !postIt.date),
-    [postIts],
+    () => postIts.filter(postIt => !postIt.date && postItPassa(indiceAgenda, postIt, filtro)),
+    [postIts, indiceAgenda, filtro],
   );
 
-  const publicacoesDoDia = useMemo(
-    () => publicacoesPorDia({
+  const publicacoesDoDia = useMemo(() => {
+    const map = publicacoesPorDia({
       contents,
       platforms: state.platforms,
       series: state.series,
       redeReferenciaId: state.editorial.redeReferenciaId,
       postIts,
-    }),
-    [contents, state.platforms, state.series, state.editorial, postIts],
-  );
+    });
+    if (!filtroAtivo(filtro)) return map;
+    const filtrado = new Map<string, PublicacaoNoDia[]>();
+    map.forEach((lista, dia) => {
+      const passam = lista.filter(publicacao => conteudoPassa(indiceAgenda, publicacao.contentId, filtro));
+      if (passam.length > 0) filtrado.set(dia, passam);
+    });
+    return filtrado;
+  }, [contents, state.platforms, state.series, state.editorial, postIts, indiceAgenda, filtro]);
+  const filtroRotulo = filtroAtivo(filtro)
+    ? [
+      filtro.redes.length > 0 ? filtro.redes.map(rede => REDE_ROTULO[rede]).join(', ') : null,
+      filtro.formato ? rotuloDoFormato(filtro.formato) : null,
+    ].filter(Boolean).join(' · ')
+    : null;
 
   const assuntosDoPlanejamento = useMemo(
     () => assuntosEmUso(postIts, contents, state.temas),
@@ -464,17 +496,29 @@ export function PlanejamentoPage() {
 
   const periodo = useMemo(() => periodoDaVista(month, vista), [month, vista]);
 
-  // Saúde e distribuição por pilar: o período salvo no Editorial (o mesmo das duas telas), não o mês visível.
-  // Vem do estado compartilhado: mudar o período ou o ritmo no Editorial atualiza aqui na hora.
+  // Decisão 3 (03/11): a Saúde segue o trecho visível no calendário (mês ou semana).
+  // O plano do Editorial continua identificado à parte, no card de metas do período.
+  // 2D: "Intervalo" troca o trecho da Saúde por datas escolhidas; incompleto ou invertido, vale o calendário.
+  const intervaloValido = trecho === 'intervalo' && Boolean(intervalo.inicio && intervalo.fim && intervalo.inicio <= intervalo.fim);
   const periodoDaSaude = useMemo(
-    () => ({inicio: periodoEditorial.inicio, fim: periodoEditorial.fim}),
-    [periodoEditorial.inicio, periodoEditorial.fim],
+    () => (intervaloValido ? {inicio: intervalo.inicio, fim: intervalo.fim} : {inicio: periodo.inicio, fim: periodo.fim}),
+    [intervaloValido, intervalo.inicio, intervalo.fim, periodo.inicio, periodo.fim],
+  );
+  // Com filtro, Saúde e calendário olham o mesmo recorte: só os conteúdos e post-its que passam nele.
+  // A continuidade geral fica de todas as contas (o acompanhamento geral é de todas), identificada na análise.
+  const contentsDoFiltro = useMemo(
+    () => (filtroAtivo(filtro) ? contents.filter(content => conteudoPassa(indiceAgenda, content.id, filtro)) : contents),
+    [contents, indiceAgenda, filtro],
+  );
+  const postItsDoFiltro = useMemo(
+    () => (filtroAtivo(filtro) ? postIts.filter(postIt => postItPassa(indiceAgenda, postIt, filtro)) : postIts),
+    [postIts, indiceAgenda, filtro],
   );
   const monthHealth = useMemo(() => {
     const settings = state.editorial;
     const counts = saudeDoMes({
-      postIts,
-      contents,
+      postIts: postItsDoFiltro,
+      contents: contentsDoFiltro,
       series: state.series,
       pilares: state.pilares,
       settings,
@@ -489,12 +533,13 @@ export function PlanejamentoPage() {
       vigencias: settings.vigencias,
     });
     // As mesmas metas em número do editor do Editorial: o ajuste do período, senão proporção × meta.
+    // Com filtro não há meta de conteúdos daquela rede: os objetivos ficam em percentual contra a proporção.
     const metasObjetivo = metasDoPeriodo({
-      limite: counts.limite,
+      limite: filtroAtivo(filtro) ? null : counts.limite,
       proporcao,
       ajustes: decisaoDoPeriodo(settings.periodos ?? [], periodoDaSaude.inicio, periodoDaSaude.fim)?.metas,
     });
-    const objetivos = distribuicaoPorObjetivo({itens: counts.itens, contents, series: state.series, proporcao, metas: metasObjetivo});
+    const objetivos = distribuicaoPorObjetivo({itens: counts.itens, contents: contentsDoFiltro, series: state.series, proporcao, metas: metasObjetivo});
     // Semanas e meses das pontas são avaliados inteiros: busca os itens além do período.
     const estendido = saudeDoMes({
       postIts,
@@ -505,47 +550,111 @@ export function PlanejamentoPage() {
       periodo: janelaDaContinuidade(periodoDaSaude),
       platforms: state.platforms,
     });
-    const continuidade = continuidadeDasSeries({series: state.series, itens: estendido.itens, periodo: periodoDaSaude});
+    const continuidade = continuidadeDasSeries({series: state.series, itens: estendido.itens, periodo: periodoDaSaude, pausas: settings.pausas ?? []});
+    // Publicações por conta no trecho, com a meta de cada conta e a soma (incompleta quando falta meta).
+    const publicacoes = publicacoesNaSaude({
+      contents: contentsDoFiltro,
+      platforms: state.platforms,
+      series: state.series,
+      periodo: periodoDaSaude,
+      linhas: settings.metasDasContas ?? [],
+      decisao: decisaoDoPeriodo(settings.periodos ?? [], periodoDaSaude.inicio, periodoDaSaude.fim),
+      proporcaoGeral: readProporcao(settings.proporcaoFuncoes),
+      pausas: settings.pausas ?? [],
+      filtro,
+    });
+    // Acompanhamentos por conta ou formato: cada um conferido à parte, pelas publicações de cada conta.
+    // Com filtro, ficam os acompanhamentos daquela conta ou formato e os que valem para todas.
+    const escopos = linhasDaContinuidadePorEscopo({
+      series: state.series,
+      contents,
+      postIts,
+      platforms: state.platforms,
+      periodo: periodoDaSaude,
+      pausas: settings.pausas ?? [],
+    }).filter(linha =>
+      (filtro.redes.length === 0 || !linha.platformId || filtro.redes.includes(redeDaRef(linha.platformId, state.platforms) ?? 'outra'))
+      && (!filtro.formato || !linha.formato || linha.formato === filtro.formato));
     return {
       // A meta absoluta do período já vem na contagem (`metaDoPeriodo`).
       counts,
       temDistribuicao: readProporcao(settings.proporcaoFuncoes) != null,
       objetivos,
       continuidade,
+      escopos,
+      publicacoes,
     };
-  }, [postIts, contents, state.series, state.pilares, state.platforms, state.editorial, periodoDaSaude]);
+  }, [postIts, contents, postItsDoFiltro, contentsDoFiltro, state.series, state.pilares, state.platforms, state.editorial, periodoDaSaude, filtro]);
   const rotuloSaude = rotuloDoPeriodo(periodoDaSaude);
   const avisoSaude = avisoDoCalendario(periodoDaSaude, periodo);
 
-  const avisosOrientacao = useMemo(
-    () => avisosDeOrientacao({
-      postIts,
-      contents,
+  // Avisos no mesmo trecho da Saúde (o intervalo, quando escolhido) e no mesmo recorte do filtro.
+  // Gravações por dia são capacidade do dia, de todas as redes: esse aviso não segue o filtro.
+  const avisosOrientacao = useMemo(() => {
+    const avisosDo = (lista: {postIts: PlanejamentoPostIt[]; contents: typeof contents}) => avisosDeOrientacao({
+      postIts: lista.postIts,
+      contents: lista.contents,
       series: state.series,
       temas: state.temas,
       obras: state.bibliotecaItems,
-      periodo,
+      periodo: periodoDaSaude,
       // Frequência das séries com a mesma apuração da Saúde: janelas inteiras nas pontas.
       itensSerie: saudeDoMes({
-        postIts,
-        contents,
+        postIts: lista.postIts,
+        contents: lista.contents,
         series: state.series,
         pilares: state.pilares,
         settings: state.editorial,
-        periodo: janelaDaContinuidade(periodo),
+        periodo: janelaDaContinuidade(periodoDaSaude),
         platforms: state.platforms,
       }).itens,
       limiteGravacoesDia: state.editorial.preferencias.limiteGravacoesDia,
       concentracao: state.editorial.concentracao,
       excecoesConcentracao: state.editorial.excecoesConcentracao,
-    }),
-    [postIts, contents, state.series, state.pilares, state.platforms, state.editorial, state.temas, state.bibliotecaItems, periodo],
-  );
+      pausas: state.editorial.pausas ?? [],
+    });
+    const todos = avisosDo({postIts, contents});
+    if (!filtroAtivo(filtro)) return todos;
+    const doFiltro = avisosDo({postIts: postItsDoFiltro, contents: contentsDoFiltro});
+    return [
+      ...doFiltro.filter(aviso => aviso.tipo !== 'gravacoes-no-dia'),
+      ...todos.filter(aviso => aviso.tipo === 'gravacoes-no-dia'),
+    ];
+  }, [postIts, contents, postItsDoFiltro, contentsDoFiltro, filtro, state.series, state.pilares, state.platforms, state.editorial, state.temas, state.bibliotecaItems, periodoDaSaude]);
 
   const verPautasDoAviso = (aviso: AvisoOrientacao) => {
     setAvisoAtivoId(aviso.id);
     setDestaqueIds(new Set(aviso.postItIds));
   };
+
+  const localizarAviso = (aviso: AvisoOrientacao) => {
+    const dia = diaDoAviso(aviso, postIts, contents);
+    if (dia) setMonth(new Date(`${dia}T12:00:00`));
+    verPautasDoAviso(aviso);
+    setAnaliseAberta(false);
+  };
+
+  /** Análise da Saúde: drawer por cima da tela, em qualquer largura; no celular ocupa a tela inteira. */
+  const renderAnalise = () => (
+    <SaudeEditorialPanel
+      modo="analise"
+      rotuloPeriodo={rotuloSaude}
+      avisoPeriodo={avisoSaude}
+      counts={monthHealth.counts}
+      series={state.series}
+      pilares={state.pilares}
+      objetivos={monthHealth.objetivos}
+      continuidade={monthHealth.continuidade}
+      escopos={monthHealth.escopos}
+      publicacoes={monthHealth.publicacoes}
+      filtroRotulo={filtroRotulo}
+      avisos={avisosOrientacao}
+      onLocalizarAviso={localizarAviso}
+      onFechar={() => setAnaliseAberta(false)}
+      onAddReserva={() => addEmpty(format(new Date(), 'yyyy-MM-dd'))}
+      onOpenGravacao={() => navigate('/gravacao')}
+    />
+  );
 
   const limparDestaque = () => {
     setAvisoAtivoId(null);
@@ -891,7 +1000,54 @@ export function PlanejamentoPage() {
       toolbar={(
         <PageToolbar
           filters={
-            assuntosDoPlanejamento.length > 0 ? (
+            <>
+            {/* O mesmo filtro rápido de redes da Criação; com uma rede só, não aparece. */}
+            {redesDoFiltroRapido(state.platforms, filtro.redes).length > 1 ? (
+              <CreationRedeQuickFilter
+                redes={redesDoFiltroRapido(state.platforms, filtro.redes)}
+                value={filtro.redes}
+                onChange={redes => setFiltro(atual => ({...atual, redes}))}
+              />
+            ) : null}
+            <SelectField
+              ariaLabel="Filtrar por formato"
+              prefix="Formato:"
+              value={filtro.formato ?? 'todos'}
+              onChange={value => setFiltro(atual => ({...atual, formato: value === 'todos' ? null : value}))}
+              selected={Boolean(filtro.formato)}
+              options={[{value: 'todos', label: 'Todos'}, ...formatosDoFiltro()]}
+            />
+            <SelectField
+              ariaLabel="Trecho da Saúde"
+              prefix="Saúde:"
+              value={trecho}
+              onChange={value => setTrecho(value === 'intervalo' ? 'intervalo' : 'calendario')}
+              selected={trecho === 'intervalo'}
+              options={[
+                {value: 'calendario', label: vista === 'semana' ? 'Semana visível' : 'Mês visível'},
+                {value: 'intervalo', label: 'Intervalo'},
+              ]}
+            />
+            {trecho === 'intervalo' ? (
+              <span className="inline-flex flex-wrap items-center gap-1">
+                <input
+                  type="date"
+                  aria-label="Início do intervalo da Saúde"
+                  value={intervalo.inicio}
+                  onChange={event => setIntervalo(atual => ({...atual, inicio: event.target.value}))}
+                  className="min-h-9 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-2 text-[var(--text-primary)]"
+                />
+                <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">a</Text>
+                <input
+                  type="date"
+                  aria-label="Fim do intervalo da Saúde"
+                  value={intervalo.fim}
+                  onChange={event => setIntervalo(atual => ({...atual, fim: event.target.value}))}
+                  className="min-h-9 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-2 text-[var(--text-primary)]"
+                />
+              </span>
+            ) : null}
+            {assuntosDoPlanejamento.length > 0 ? (
               <SelectField
                 ariaLabel="Destacar por assunto"
                 prefix="Assunto:"
@@ -903,7 +1059,8 @@ export function PlanejamentoPage() {
                   ...assuntosDoPlanejamento.map(tema => ({value: tema.id, label: tema.nome})),
                 ]}
               />
-            ) : undefined
+            ) : null}
+            </>
           }
           view={(
             <AppButton
@@ -944,6 +1101,7 @@ export function PlanejamentoPage() {
               content={content}
               serie={serie}
               pilar={pilar}
+              contas={contasDoCard(publicacoesDoCard(indiceAgenda, publicacao.contentId, publicacao.dia), state.platforms)}
               draggable={!isMobile && !posted}
               onDragStart={event => {
                 if (isMobile || posted) return;
@@ -999,6 +1157,7 @@ export function PlanejamentoPage() {
                 content={content}
                 serie={serie}
                 pilar={pilar}
+                contas={contasDoCard(publicacoesDoCard(indiceAgenda, content.id, postIt.date), state.platforms)}
                 draggable={!isMobile}
                 onDragStart={event => {
                   if (isMobile) return;
@@ -1065,6 +1224,12 @@ export function PlanejamentoPage() {
                 pilares={state.pilares}
                 objetivos={monthHealth.objetivos}
                 continuidade={monthHealth.continuidade}
+                escopos={monthHealth.escopos}
+                publicacoes={monthHealth.publicacoes}
+                modo="faixa"
+                filtroRotulo={filtroRotulo}
+                avisos={avisosOrientacao}
+                onVerAnalise={() => setAnaliseAberta(true)}
                 onAddReserva={() => addEmpty(format(new Date(), 'yyyy-MM-dd'))}
                 onOpenGravacao={() => navigate('/gravacao')}
               />
@@ -1133,6 +1298,12 @@ export function PlanejamentoPage() {
               pilares={state.pilares}
               objetivos={monthHealth.objetivos}
               continuidade={monthHealth.continuidade}
+              escopos={monthHealth.escopos}
+              publicacoes={monthHealth.publicacoes}
+              modo="faixa"
+              filtroRotulo={filtroRotulo}
+              avisos={avisosOrientacao}
+              onVerAnalise={() => setAnaliseAberta(atual => !atual)}
               onAddReserva={() => addEmpty(format(new Date(), 'yyyy-MM-dd'))}
               onOpenGravacao={() => navigate('/gravacao')}
             />
@@ -1301,6 +1472,17 @@ export function PlanejamentoPage() {
           </div>
         );
       })()}
+
+      <Drawer
+        open={analiseAberta}
+        onClose={() => setAnaliseAberta(false)}
+        widthClassName="max-w-xl"
+        ariaLabel="Análise da Saúde"
+      >
+        <div className="h-full min-h-0 overflow-y-auto bg-[var(--bg-elevated)]">
+          {renderAnalise()}
+        </div>
+      </Drawer>
 
       <Dialog open={Boolean(openPostIt)} onClose={closePostIt} desktopMaxW="max-w-lg" ariaLabel="Post-it">
         {openPostIt ? (
