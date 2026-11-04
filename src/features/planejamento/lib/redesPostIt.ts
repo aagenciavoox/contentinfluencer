@@ -1,6 +1,23 @@
 import type {RedeSocial} from '../../../lib/database.ts';
 import type {RedeDoFiltro} from '../../contas/lib/contas.ts';
 
+/**
+ * Ordem na tela: formatos curtos primeiro (vídeo, TikTok, Shorts),
+ * carrossel e vídeo longo depois.
+ */
+export const ORDEM_EXIBICAO_REDE: readonly RedeDoFiltro[] = [
+  'instagram-video', 'instagram', 'tiktok', 'tiktok-video', 'youtube-shorts',
+  'instagram-carrossel', 'tiktok-carrossel', 'youtube', 'blog', 'outra',
+];
+
+export function compararExibicaoRede(a: RedeDoFiltro, b: RedeDoFiltro): number {
+  const indice = (rede: RedeDoFiltro) => {
+    const posicao = ORDEM_EXIBICAO_REDE.indexOf(rede);
+    return posicao < 0 ? ORDEM_EXIBICAO_REDE.length : posicao;
+  };
+  return indice(a) - indice(b);
+}
+
 /** Ordem fixa das redes no post-it: inclui YouTube Shorts e vídeo longo como escolhas distintas. */
 export const REDES_DO_POSTIT: readonly RedeDoFiltro[] = [
   'instagram', 'instagram-video', 'instagram-carrossel',

@@ -27,6 +27,7 @@ import {
   temporadasDoEscopo,
   type Temporada,
 } from '../../src/features/editorial/lib/temporadas.ts';
+import {normalizarRedesPostIt} from '../../src/features/planejamento/lib/redesPostIt.ts';
 
 type Row = Record<string, any>;
 
@@ -67,6 +68,7 @@ export type SerieNoMcp = {
   pilarPrincipalId: string | null;
   pilarIds: string[];
   semPilar: boolean;
+  focoRedes: ReturnType<typeof normalizarRedesPostIt>;
 };
 
 function texto(value: unknown): string | null {
@@ -92,6 +94,7 @@ export function serieDaLinha(row: Row): SerieNoMcp {
       ? row.serie_pilares.map((sp: Row) => texto(sp?.pilar_id)).filter((id: string | null): id is string => Boolean(id))
       : [],
     semPilar: row.sem_pilar === true,
+    focoRedes: normalizarRedesPostIt(row.foco_redes),
   };
 }
 
@@ -102,6 +105,7 @@ export function temporadaDaLinha(row: Row): Temporada {
     serieId: String(row.serie_id ?? ''),
     nome: typeof row.nome === 'string' ? row.nome : '',
     descricao: texto(row.descricao),
+    focoRedes: normalizarRedesPostIt(row.foco_redes),
     createdAt: typeof row.created_at === 'string' ? row.created_at : '',
   };
 }

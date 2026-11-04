@@ -1,6 +1,7 @@
 import type { ContentPlataforma, FormatoEscolhidoNaPublicacao, RedeSocial } from '../../../lib/database.ts';
 import { platformKey } from '../../../components/ui/platformName.ts';
 import { generateUUID } from '../../../utils/uuid.ts';
+import { redeDaConta } from '../../contas/lib/contas.ts';
 
 /** Uma conta de destino. `rede` e `handle` vêm quando a tela tem o cadastro completo. */
 export type DestinoPlataforma = {
@@ -154,6 +155,28 @@ export function publicacoesDosDestinos(input: {
 }): ContentPlataforma[] {
   const criarId = input.criarId ?? generateUUID;
   return input.destinos.map(destino => criarPublicacaoAgendada(input.contentId, destino.id, criarId()));
+}
+
+/**
+ * Destinos padrão já com o formato que o chip mostra.
+ * YouTube sem escolha é Shorts (a mesma dedução da ficha). Instagram e TikTok são vídeo.
+ */
+export function publicacoesIniciais(input: {
+  destinos: readonly DestinoPlataforma[];
+  contentId: string;
+  criarId?: () => string;
+}): ContentPlataforma[] {
+  return publicacoesDosDestinos(input).map(publicacao => {
+    if (publicacao.formatoPublicacao) return publicacao;
+    const conta = input.destinos.find(destino => destino.id === publicacao.platformId);
+    const rede = redeDaConta(conta ?? null);
+    const formato: FormatoEscolhidoNaPublicacao | null = rede === 'youtube'
+      ? 'short'
+      : rede === 'instagram' || rede === 'tiktok'
+        ? 'reels'
+        : null;
+    return formato ? {...publicacao, formatoPublicacao: formato} : publicacao;
+  });
 }
 
 /**

@@ -116,7 +116,9 @@ export function formatoNoYoutube(
   content: Pick<Content, 'formatoVisual'> & Partial<Pick<Content, 'writingMode'>>,
   publicacao?: Pick<ContentPlataforma, 'formatoPublicacao'> | null,
 ): { formato: 'short' | 'video-longo'; origem: OrigemDoFormatoNoYoutube } {
-  if (publicacao?.formatoPublicacao) return { formato: publicacao.formatoPublicacao, origem: 'escolhido' };
+  if (publicacao?.formatoPublicacao === 'short' || publicacao?.formatoPublicacao === 'video-longo') {
+    return { formato: publicacao.formatoPublicacao, origem: 'escolhido' };
+  }
   const escrito = normalizarFormato(content.formatoVisual);
   const conhecido = escrito ? FORMATOS_CONHECIDOS[escrito] : undefined;
   if (conhecido === 'video-longo') return { formato: 'video-longo', origem: 'conteudo' };

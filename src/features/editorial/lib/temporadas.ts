@@ -1,3 +1,4 @@
+import type { RedeDoFiltro } from '../../contas/lib/contas.ts';
 import type { SerieNo } from './serieArvore.ts';
 import { idsDaSubarvore } from './serieArvore.ts';
 
@@ -7,6 +8,8 @@ export type Temporada = {
   serieId: string;
   nome: string;
   descricao?: string | null;
+  /** Redes desta temporada. Vazio ou ausente = sem foco de plataforma. */
+  focoRedes?: RedeDoFiltro[];
   createdAt: string;
 };
 

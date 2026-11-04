@@ -406,8 +406,12 @@ function testNewScriptCarriesChosenPublications() {
   assert.deepEqual(createScriptWithPublications([]).plataformas, []);
   assert.equal(writingModeInicial([{formatoPublicacao: 'video-longo'}]), 'youtube');
   assert.equal(writingModeInicial([{formatoPublicacao: 'short'}]), 'texto');
+  assert.equal(writingModeInicial([{formatoPublicacao: 'reels'}]), 'texto');
+  assert.equal(writingModeInicial([{formatoPublicacao: 'carrossel'}]), 'carrossel');
+  assert.equal(writingModeInicial([{formatoPublicacao: 'carrossel'}, {formatoPublicacao: 'video-longo'}]), 'carrossel');
   assert.equal(writingModeInicial([{}]), 'texto');
   assert.equal(createScriptWithPublications([{...escolhidas[0], formatoPublicacao: 'video-longo'}]).writingMode, 'youtube');
+  assert.equal(createScriptWithPublications([{...escolhidas[0], formatoPublicacao: 'carrossel'}]).writingMode, 'carrossel');
 }
 
 const tests: Array<[string, () => void]> = [

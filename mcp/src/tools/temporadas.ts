@@ -37,7 +37,21 @@ import {
   type Temporada,
 } from '../serieEstrutura.ts';
 import {idsDaSubarvore} from '../../../src/features/editorial/lib/serieArvore.ts';
+import {normalizarRedesPostIt} from '../../../src/features/planejamento/lib/redesPostIt.ts';
 import type {Session} from '../supabase.ts';
+
+const FOCO_REDES = 'instagram, instagram-video, instagram-carrossel, tiktok, tiktok-video, tiktok-carrossel, youtube (vídeo longo), youtube-shorts, blog, outra';
+
+/** null limpa. Valor desconhecido explica o que vale. */
+function lerFoco(value: readonly string[] | null): string[] {
+  if (value === null) return [];
+  const foco = normalizarRedesPostIt(value);
+  const pedidos = [...new Set(value.map(item => item.trim().toLowerCase()).filter(Boolean))];
+  const conhecidos = new Set<string>(foco);
+  const estranhos = pedidos.filter(item => !conhecidos.has(item));
+  if (estranhos.length > 0) throw new Error(`Rede desconhecida em foco_redes: ${estranhos.join(', ')}. Vale ${FOCO_REDES}.`);
+  return foco;
+}
 
 const idsSchema = z.array(z.string().min(1)).min(1).max(200);
 
@@ -51,7 +65,7 @@ function tabelaAusente(error: {message?: string; code?: string} | null, nome: st
 /** Temporadas da conta. `ausente` quando o banco ainda não tem a tabela. */
 export async function carregarTemporadas(session: Session): Promise<{itens: Temporada[]; ausente: boolean}> {
   try {
-    const {data} = await readCompat('temporadas', 'id, user_id, serie_id, nome, descricao, created_at', columns =>
+    const {data} = await readCompat('temporadas', 'id, user_id, serie_id, nome, descricao, foco_redes, created_at', columns =>
       session.client.from('temporadas').select(columns).eq('user_id', session.userId));
     return {itens: ((data ?? []) as unknown as Row[]).map(temporadaDaLinha), ausente: false};
   } catch (error) {
@@ -123,6 +137,7 @@ function temporadaView(temporada: Temporada, episodios: number | null) {
     id: temporada.id,
     nome: temporada.nome,
     descricao: temporada.descricao ?? null,
+    foco_redes: temporada.focoRedes ?? [],
     serie_id: temporada.serieId,
     ...(episodios === null ? {} : {episodios}),
   };
@@ -175,11 +190,14 @@ export function registerTemporadas(server: McpServer) {
       title: 'Criar temporada',
       description:
         'Cria uma temporada numa série (num quadro, vai para a série dele; os quadros usam as temporadas da série). ' +
-        'Nome repetido na mesma série não vale. Como no app, a primeira temporada liga usa_temporadas na série.',
+        'Nome repetido na mesma série não vale. Como no app, a primeira temporada liga usa_temporadas na série. ' +
+        'foco_redes é opcional: vazio só agrupa episódios de qualquer quadro, sem ordem. ' +
+        'Com redes, a temporada cobre esse grupo (ex.: instagram, tiktok e youtube-shorts; ou só youtube para vídeo longo).',
       inputSchema: {
         serie: z.string().min(1).describe('Nome ou id da série ou do quadro'),
         nome: z.string().min(1),
         descricao: z.string().nullable().optional(),
+        foco_redes: z.array(z.string()).optional().describe(`Redes desta temporada. ${FOCO_REDES}`),
       },
     },
     tool(async (args, session) => {
@@ -192,9 +210,11 @@ export function registerTemporadas(server: McpServer) {
       if (acharTemporadaPorNome(alvo.id, nome, temporadas.itens)) throw new Error(`Já existe a temporada "${nome}" em ${alvo.name}.`);
       const id = newId();
       const descricao = args.descricao?.trim() || null;
-      await writeCompat('criar temporada', {id, user_id: session.userId, serie_id: alvo.id, nome, descricao}, row =>
+      const focoRedes = lerFoco(args.foco_redes ?? []);
+      const gravados = await writeCompat('criar temporada', {id, user_id: session.userId, serie_id: alvo.id, nome, descricao, foco_redes: focoRedes}, row =>
         session.client.from('temporadas').insert(row));
       const avisos: string[] = [];
+      if (gravados.includes('foco_redes') && focoRedes.length > 0) avisos.push('O banco ainda não tem foco_redes: as redes da temporada não foram gravadas.');
       if (!alvo.usaTemporadas) {
         const ignorados = await writeCompat('ligar temporadas na série', {usa_temporadas: true, updated_at: nowIso()}, row =>
           session.client.from('series').update(row).eq('id', alvo.id).eq('user_id', session.userId));
@@ -202,7 +222,7 @@ export function registerTemporadas(server: McpServer) {
         invalidateLookups();
       }
       return json({
-        criada: temporadaView({id, userId: session.userId, serieId: alvo.id, nome, descricao, createdAt: nowIso()}, 0),
+        criada: temporadaView({id, userId: session.userId, serieId: alvo.id, nome, descricao, focoRedes: gravados.includes('foco_redes') ? [] : focoRedes, createdAt: nowIso()}, 0),
         serie: alvo.name,
         ...(avisos.length ? {avisos} : {}),
       });
@@ -213,12 +233,13 @@ export function registerTemporadas(server: McpServer) {
     'atualizar_temporada',
     {
       title: 'Atualizar temporada',
-      description: 'Renomeia uma temporada ou muda a descrição. Nome repetido na mesma série não vale. Os episódios não mudam.',
+      description: 'Renomeia uma temporada, muda a descrição ou o foco de redes. Nome repetido na mesma série não vale. Os episódios não mudam. foco_redes null tira o foco.',
       inputSchema: {
         temporada: z.string().min(1).describe('Id da temporada (ou o nome, junto com serie)'),
         serie: z.string().optional().describe('Nome ou id da série, para achar a temporada pelo nome'),
         nome: z.string().min(1).optional(),
         descricao: z.string().nullable().optional(),
+        foco_redes: z.array(z.string()).nullable().optional().describe(`Redes desta temporada, ou null para tirar. ${FOCO_REDES}`),
       },
     },
     tool(async (args, session) => {
@@ -228,14 +249,15 @@ export function registerTemporadas(server: McpServer) {
       const escopoId = args.serie ? serieDasTemporadas(resolveSerie(lookups, args.serie)!, seriesNo(lookups)).id : null;
       const atual = resolverTemporada(args.temporada, escopoId, temporadas.itens);
       if (!atual) throw new Error(`Temporada não encontrada: ${args.temporada}`);
-      if (args.nome === undefined && args.descricao === undefined) throw new Error('Nenhum campo para atualizar.');
+      if (args.nome === undefined && args.descricao === undefined && args.foco_redes === undefined) throw new Error('Nenhum campo para atualizar.');
       const nome = args.nome?.trim() ?? atual.nome;
       const repetida = acharTemporadaPorNome(atual.serieId, nome, temporadas.itens);
       if (repetida && repetida.id !== atual.id) throw new Error(`Já existe a temporada "${nome}" nesta série.`);
       const descricao = args.descricao === undefined ? atual.descricao ?? null : args.descricao?.trim() || null;
-      await writeCompat('atualizar temporada', {nome, descricao}, row =>
+      const focoRedes = args.foco_redes === undefined ? [...(atual.focoRedes ?? [])] : lerFoco(args.foco_redes);
+      await writeCompat('atualizar temporada', {nome, descricao, foco_redes: focoRedes}, row =>
         session.client.from('temporadas').update(row).eq('id', atual.id).eq('user_id', session.userId));
-      return json({atualizada: temporadaView({...atual, nome, descricao}, null)});
+      return json({atualizada: temporadaView({...atual, nome, descricao, focoRedes}, null)});
     }),
   );
 

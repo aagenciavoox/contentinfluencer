@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, GripVertical, Plus, Trash2 } from 'lucide-react';
 import { ConfirmModal } from '../../../../components/feedback/modals/ConfirmModal';
-import { RichTextEditor } from '../../../../components/editors/RichTextEditor';
 import { Drawer } from '../../../../components/overlays/Drawer';
 import { OverlayBody } from '../../../../components/overlays/OverlayBody';
 import { OverlayFooter } from '../../../../components/overlays/OverlayFooter';
@@ -17,7 +16,10 @@ import { getStatusColorVar } from '../../../../lib/statusClasses';
 import { cn } from '../../../../lib/utils';
 import { generateUUID } from '../../../../utils/uuid';
 import { CONTENT_STATUS } from '../../../contents/lib/contentPipeline';
-import { destinosPadraoAtivos, publicacoesDosDestinos, type DestinoPlataforma } from '../../../editorial/lib/destinations';
+import { comModoDaEscolha } from '../../../contents/lib/creationContent';
+import { DestinationChips } from '../../../editorial/components/DestinationChips';
+import { criarPublicacaoAgendada, destinosPadraoAtivos, publicacoesIniciais, type DestinoPlataforma } from '../../../editorial/lib/destinations';
+import { criarPublicacoesDasRedes, focoEfetivo } from '../../../editorial/lib/focoTemporada';
 import { filhosDaSerie } from '../../../editorial/lib/serieArvore';
 import { plural } from '../../lib/serieAgrupamento';
 import {
@@ -37,6 +39,7 @@ import {
   resumoDosPendentes,
   type BlocoMassa,
   type ModoBloco,
+  type PublicacaoMassa,
   type RascunhoMassa,
 } from '../../lib/seriesBulkDraft';
 
@@ -66,12 +69,6 @@ function opcoesQuadro(serieId: string, series: readonly Serie[]) {
   return opcoes;
 }
 
-function catalogoDestinos(plataformas: readonly Platform[]): DestinoPlataforma[] {
-  return plataformas
-    .filter(plataforma => plataforma.ativo)
-    .map(plataforma => ({ id: plataforma.id, nome: plataforma.nome }));
-}
-
 const ETAPAS_INICIAIS: Array<{ value: ModoBloco; label: string; status: string }> = [
   { value: 'roteiro', label: 'Roteiro', status: CONTENT_STATUS.ROTEIRO },
   { value: 'ideia', label: 'Ideia', status: CONTENT_STATUS.IDEIA },
@@ -82,10 +79,31 @@ function PontoEtapa({ modo }: { modo: ModoBloco }) {
   return <span className="h-2 w-2 rounded-full" style={{ backgroundColor: getStatusColorVar(etapa.status) }} />;
 }
 
+function catalogoDestinos(plataformas: readonly Platform[]): DestinoPlataforma[] {
+  return plataformas
+    .filter(plataforma => plataforma.ativo)
+    .map(plataforma => ({
+      id: plataforma.id,
+      nome: plataforma.nome,
+      rede: plataforma.rede,
+      handle: plataforma.handle,
+      ativo: plataforma.ativo,
+    }));
+}
+
+function escolhaDasPublicacoes(
+  publicacoes: readonly { platformId: string; formatoPublicacao?: PublicacaoMassa['formatoPublicacao'] }[],
+): PublicacaoMassa[] {
+  return publicacoes.map(item => ({
+    platformId: item.platformId,
+    formatoPublicacao: item.formatoPublicacao ?? null,
+  }));
+}
+
 /**
- * Prepara vários conteúdos de uma vez para a série. Os valores comuns valem para o conjunto
- * e cada entrada pode ajustar os seus. Nada é gravado antes de confirmar; o rascunho fica
- * guardado nesta aba enquanto a pessoa prepara.
+ * Prepara vários conteúdos de uma vez para a série. O tipo, o quadro, a temporada e as redes
+ * valem para todos. Cada entrada tem só título e texto. Nada é gravado antes de confirmar;
+ * o rascunho fica guardado nesta aba enquanto a pessoa prepara.
  */
 export function SeriesBulkDrawer({
   open,
@@ -118,7 +136,6 @@ export function SeriesBulkDrawer({
   const [erro, setErro] = useState<string | null>(null);
   const [parcial, setParcial] = useState<string | null>(null);
   const [descartarAberto, setDescartarAberto] = useState(false);
-  const [ajustando, setAjustando] = useState<ReadonlySet<string>>(() => new Set());
   const [arrastando, setArrastando] = useState<string | null>(null);
   const pedidoVisto = useRef<string | number | null>(null);
   const enviando = useRef(false);
@@ -154,6 +171,29 @@ export function SeriesBulkDrawer({
       return next;
     });
   }, [open, pedido, seriePaginaId]);
+
+  useEffect(() => {
+    if (!open) return;
+    setRascunho(atual => {
+      if (atual.comum?.publicacoes !== undefined) return atual;
+      const foco = focoEfetivo(
+        temporadas.find(item => item.id === (atual.comum?.temporadaId ?? null))?.focoRedes,
+        series.find(item => item.id === (atual.comum?.serieId ?? seriePaginaId))?.focoRedes,
+      );
+      const iniciais = foco.length > 0
+        ? criarPublicacoesDasRedes('', foco, plataformas)
+        : publicacoesIniciais({
+          destinos: destinosPadraoAtivos(destinosPadrao, catalogoDestinos(plataformas)),
+          contentId: '',
+        });
+      const next = {
+        ...atual,
+        comum: { ...comumPadrao(seriePaginaId, atual), publicacoes: escolhaDasPublicacoes(iniciais) },
+      };
+      gravarRascunhoMassa(seriePaginaId, next);
+      return next;
+    });
+  }, [destinosPadrao, open, plataformas, seriePaginaId, series, temporadas]);
 
   const quadros = useMemo(() => opcoesQuadro(seriePaginaId, series), [seriePaginaId, series]);
   const pendentes = useMemo(
@@ -204,16 +244,24 @@ export function SeriesBulkDrawer({
     setErro(null);
     setParcial(null);
     const feitos = new Set<string>();
-    const destinos = destinosPadraoAtivos(destinosPadrao, catalogoDestinos(plataformas));
     try {
       for (const bloco of pendentes) {
-        const destino = series.find(item => item.id === bloco.serieId);
+        const serieId = valorQuadro(comum.serieId);
+        const destino = series.find(item => item.id === serieId);
         if (!destino) throw new Error('Agrupamento do conteúdo não encontrado');
-        const base = conteudoDoBloco(bloco, destino, series);
-        const content: Content = {
+        const base = conteudoDoBloco({
+          ...bloco,
+          modo: comum.modo,
+          serieId: valorQuadro(comum.serieId),
+          temporadaId: comum.temporadaId,
+        }, destino, series);
+        const content = comModoDaEscolha({
           ...base,
-          plataformas: publicacoesDosDestinos({ destinos, contentId: base.id }),
-        };
+          plataformas: (comum.publicacoes ?? []).map(item => ({
+            ...criarPublicacaoAgendada(base.id, item.platformId),
+            formatoPublicacao: item.formatoPublicacao,
+          })),
+        });
         await onCreate([content]);
         feitos.add(bloco.id);
       }
@@ -302,10 +350,10 @@ export function SeriesBulkDrawer({
                 </label>
               ) : null}
               <label className="stack-xs">
-                <Text variant="label" as="span">Etapa inicial</Text>
+                <Text variant="label" as="span">Tipo</Text>
                 <SelectField
                   block
-                  ariaLabel="Etapa inicial para o conjunto"
+                  ariaLabel="Tipo para o conjunto"
                   value={comum.modo}
                   leadingIcon={<PontoEtapa modo={comum.modo} />}
                   onChange={valor => atualizar(atual => aplicarComum(atual, seriePaginaId, { modo: valor as ModoBloco }))}
@@ -314,7 +362,23 @@ export function SeriesBulkDrawer({
                 />
               </label>
             </div>
-            <Text variant="meta" as="p">Você pode ajustar cada conteúdo antes de criar.</Text>
+            <DestinationChips
+              platforms={catalogoDestinos(plataformas)}
+              publications={(comum.publicacoes ?? []).map(item => ({
+                ...criarPublicacaoAgendada('', item.platformId),
+                formatoPublicacao: item.formatoPublicacao,
+              }))}
+              contentId=""
+              disabled={busy}
+              onChange={publicacoes => atualizar(atual => ({
+                ...atual,
+                comum: {
+                  ...comumPadrao(seriePaginaId, atual),
+                  publicacoes: escolhaDasPublicacoes(publicacoes),
+                },
+              }))}
+            />
+            <Text variant="meta" as="p">O tipo, o quadro, a temporada e as redes valem para todos.</Text>
           </section>
 
           <ol className="stack-md">
@@ -326,12 +390,7 @@ export function SeriesBulkDrawer({
                 total={rascunho.blocos.length}
                 busy={busy}
                 arrastando={arrastando}
-                mostraQuadro={mostraQuadro}
-                mostraTemporada={mostraTemporada}
-                ajustando={ajustando.has(bloco.id)}
-                quadros={quadros}
-                valorQuadro={valorQuadro(bloco.serieId)}
-                opcoesTemporada={opcoesTemporadaDo(bloco.temporadaId)}
+                modo={comum.modo}
                 onChange={patch => atualizar(atual => alterarBloco(atual, seriePaginaId, bloco.id, patch))}
                 onRecolher={() => atualizar(atual => ({
                   ...atual,
@@ -339,7 +398,6 @@ export function SeriesBulkDrawer({
                 }))}
                 onMover={destino => atualizar(atual => moverBloco(atual, bloco.id, destino))}
                 onRemover={() => atualizar(atual => ({ ...atual, blocos: atual.blocos.filter(item => item.id !== bloco.id) }))}
-                onAjustar={() => setAjustando(atual => new Set([...atual, bloco.id]))}
                 onArrastar={setArrastando}
                 onSoltar={() => soltarEm(index)}
               />
@@ -360,13 +418,14 @@ export function SeriesBulkDrawer({
         <OverlayFooter className="pb-safe flex-wrap items-center justify-between gap-3 px-4 md:px-6">
           <div className="min-w-0 stack-xs" aria-live="polite">
             <Text variant="body" as="p">
-              {resumo.conteudos === 0
-                ? 'Nenhum conteúdo pronto para criar'
-                : [
-                  plural(resumo.conteudos, 'conteúdo', 'conteúdos'),
-                  resumo.roteiros > 0 ? plural(resumo.roteiros, 'roteiro', 'roteiros') : null,
-                  resumo.ideias > 0 ? plural(resumo.ideias, 'ideia', 'ideias') : null,
-                ].filter(Boolean).join(' · ')}
+                {resumo.conteudos === 0
+                  ? 'Nenhum conteúdo pronto para criar'
+                  : [
+                    plural(resumo.conteudos, 'conteúdo', 'conteúdos'),
+                    comum.modo === 'ideia'
+                      ? plural(resumo.conteudos, 'ideia', 'ideias')
+                      : plural(resumo.conteudos, 'roteiro', 'roteiros'),
+                  ].join(' · ')}
             </Text>
             {erro ? (
               <Text variant="meta" as="p" className="text-[var(--danger)]">{erro}</Text>
@@ -414,17 +473,11 @@ function EntradaMassa({
   total,
   busy,
   arrastando,
-  mostraQuadro,
-  mostraTemporada,
-  ajustando,
-  quadros,
-  valorQuadro,
-  opcoesTemporada,
+  modo,
   onChange,
   onRecolher,
   onMover,
   onRemover,
-  onAjustar,
   onArrastar,
   onSoltar,
 }: {
@@ -433,29 +486,17 @@ function EntradaMassa({
   total: number;
   busy: boolean;
   arrastando: string | null;
-  mostraQuadro: boolean;
-  mostraTemporada: boolean;
-  ajustando: boolean;
-  quadros: Array<{ value: string; label: string }>;
-  valorQuadro: string;
-  opcoesTemporada: Array<{ value: string; label: string }>;
-  onChange: (patch: Partial<Pick<BlocoMassa, 'modo' | 'serieId' | 'temporadaId' | 'titulo' | 'texto'>>) => void;
+  modo: ModoBloco;
+  onChange: (patch: Partial<Pick<BlocoMassa, 'titulo' | 'texto'>>) => void;
   onRecolher: () => void;
   onMover: (destino: number) => void;
   onRemover: () => void;
-  onAjustar: () => void;
   onArrastar: (id: string | null) => void;
   onSoltar: () => void;
 }) {
   const numero = indice + 1;
   const travado = busy || bloco.criado;
   const cardRef = useRef<HTMLLIElement>(null);
-  const organizacaoPropria = Boolean(bloco.proprio?.serieId || bloco.proprio?.temporadaId);
-  const mostraOrganizacao = (mostraQuadro || mostraTemporada) && (ajustando || organizacaoPropria);
-  const resumoOrganizacao = [
-    mostraQuadro ? quadros.find(item => item.value === valorQuadro)?.label : null,
-    mostraTemporada ? opcoesTemporada.find(item => item.value === (bloco.temporadaId || 'none'))?.label : null,
-  ].filter(Boolean).join(' · ');
 
   return (
     <li
@@ -524,17 +565,6 @@ function EntradaMassa({
           >
             <ChevronDown className="h-4 w-4" />
           </AppButton>
-          <span className="flex flex-col items-end">
-            <SelectField
-              ariaLabel={`Etapa inicial do conteúdo ${numero}`}
-              value={bloco.modo}
-              leadingIcon={<PontoEtapa modo={bloco.modo} />}
-              onChange={valor => onChange({ modo: valor as ModoBloco })}
-              options={ETAPAS_INICIAIS}
-              disabled={travado}
-              className="min-w-[8.5rem]"
-            />
-          </span>
           <AppButton
             variant="secondary"
             size="sm"
@@ -547,57 +577,12 @@ function EntradaMassa({
           </AppButton>
         </span>
       </div>
-      {bloco.proprio?.modo && !bloco.criado ? (
-        <Text variant="meta" as="p" className="-mt-1 px-3 pb-1 text-right">Etapa personalizada</Text>
-      ) : null}
-
       {bloco.recolhido ? null : (
         <div className="stack-md border-t border-[var(--border-color)] px-3 py-3 sm:pl-12 sm:pr-4">
-          {mostraOrganizacao ? (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {mostraQuadro ? (
-                <label className="stack-xs">
-                  <Text variant="label" as="span">Quadro</Text>
-                  <SelectField
-                    block
-                    ariaLabel={`Quadro do conteúdo ${numero}`}
-                    value={valorQuadro}
-                    onChange={serieId => onChange({ serieId })}
-                    options={quadros}
-                    disabled={travado}
-                  />
-                </label>
-              ) : null}
-              {mostraTemporada ? (
-                <label className="stack-xs">
-                  <Text variant="label" as="span">Temporada</Text>
-                  <SelectField
-                    block
-                    ariaLabel={`Temporada do conteúdo ${numero}`}
-                    value={bloco.temporadaId || 'none'}
-                    onChange={valor => onChange({ temporadaId: valor === 'none' ? null : valor })}
-                    options={opcoesTemporada}
-                    disabled={travado}
-                  />
-                </label>
-              ) : null}
-            </div>
-          ) : (mostraQuadro || mostraTemporada) && !bloco.criado ? (
-            <p className="flex flex-wrap items-center gap-x-2 t-meta text-[var(--text-secondary)]">
-              <span>{resumoOrganizacao}</span>
-              <button
-                type="button"
-                onClick={onAjustar}
-                className="min-h-8 rounded-[var(--radius-sm)] t-button text-[var(--text-primary)] underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-11"
-              >
-                Ajustar quadro e temporada
-              </button>
-            </p>
-          ) : null}
-
-          <label className="stack-xs">
+          <label htmlFor={`massa-titulo-${bloco.id}`} className="stack-xs">
             <Text variant="label" as="span">Título</Text>
             <input
+              id={`massa-titulo-${bloco.id}`}
               aria-label={`Título do conteúdo ${numero}`}
               value={bloco.titulo}
               disabled={travado}
@@ -606,22 +591,23 @@ function EntradaMassa({
             />
           </label>
 
-          <div className="stack-xs">
-            <Text variant="label" as="p">Texto <span className="text-[var(--text-tertiary)]">· opcional</span></Text>
+          <label htmlFor={`massa-texto-${bloco.id}`} className="stack-xs">
+            <Text variant="label" as="span">Texto <span className="text-[var(--text-tertiary)]">· opcional</span></Text>
             {bloco.criado ? (
               <Text variant="secondary">{bloco.texto ? 'Texto já gravado neste conteúdo.' : 'Conteúdo já criado.'}</Text>
             ) : (
-              <RichTextEditor
-                documentId={bloco.id}
-                content={bloco.texto}
-                onChange={html => onChange({ texto: html })}
-                formatBar="writing"
-                meter="none"
-                placeholder={bloco.modo === 'ideia' ? 'Anote a ideia…' : 'Escreva o roteiro…'}
-                editorViewportClassName="max-h-72 min-h-28"
+              <textarea
+                id={`massa-texto-${bloco.id}`}
+                aria-label={`Texto do conteúdo ${numero}`}
+                value={bloco.texto}
+                disabled={travado}
+                rows={4}
+                placeholder={modo === 'ideia' ? 'Anote a ideia…' : 'Escreva o roteiro…'}
+                onChange={event => onChange({ texto: event.target.value })}
+                className={`${inputClass} min-h-24 resize-y`}
               />
             )}
-          </div>
+          </label>
         </div>
       )}
     </li>

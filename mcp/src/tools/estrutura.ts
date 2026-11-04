@@ -57,6 +57,9 @@ function estruturaDaSerieView(row: Row, series: SerieNoMcp[], temporadas: Tempor
     nome: lookups.serieName(filhoId),
     ativa: series.find(item => item.id === filhoId)?.ativa !== false,
     ...(filhos.length ? {quadros: filhos} : {}),
+    ...((series.find(item => item.id === filhoId)?.focoRedes.length ?? 0) > 0
+      ? {foco_redes: series.find(item => item.id === filhoId)?.focoRedes ?? []}
+      : {}),
   })).quadros ?? [];
   return {
     tipo,
@@ -64,7 +67,7 @@ function estruturaDaSerieView(row: Row, series: SerieNoMcp[], temporadas: Tempor
     quadros,
     usa_temporadas: row.usa_temporadas === true,
     temporadas: escopo
-      ? temporadasDoEscopo(escopo.id, temporadas).map(item => ({id: item.id, nome: item.nome, descricao: item.descricao ?? null, ...(escopo.id !== id ? {da_serie: escopo.name} : {})}))
+      ? temporadasDoEscopo(escopo.id, temporadas).map(item => ({id: item.id, nome: item.nome, descricao: item.descricao ?? null, foco_redes: item.focoRedes ?? [], ...(escopo.id !== id ? {da_serie: escopo.name} : {})}))
       : [],
     frequencia_detalhada: {vezes: freq.vezes, unidade: freq.unidade, a_partir_de: freq.a_partir_de, resumo: freq.resumo},
     acompanhar_continuidade: acompanhaNoGeralDaLinha(row),

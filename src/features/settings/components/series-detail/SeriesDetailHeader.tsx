@@ -1,9 +1,14 @@
-import { ArrowLeft, Layers, Pencil, Plus, Target } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Layers, Pencil, Plus, Target } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { Badge } from '../../../../components/ui/Badge';
+import { MoreMenu } from '../../../../components/ui/MoreMenu';
+import { PlatformIcons } from '../../../../components/ui/PlatformIcons';
 import { Text } from '../../../../components/ui/Text';
+import { cn } from '../../../../lib/utils';
 import type { Serie, SerieTipoAgrupamento, Temporada } from '../../../../lib/database';
+import { rotuloDoFoco } from '../../../editorial/lib/focoTemporada';
+import { normalizarRedesPostIt } from '../../../planejamento/lib/redesPostIt';
 import { TIPO_AGRUPAMENTO_LABEL } from '../../lib/serieAgrupamento';
 import type { MetaDoCabecalho, TotaisDoCabecalho } from '../../lib/serieCabecalho';
 
@@ -34,6 +39,7 @@ export function SeriesDetailHeader({
   onConfigure,
   onCreate,
   onBulk,
+  adicionar,
 }: {
   serie: Serie;
   tipo: SerieTipoAgrupamento;
@@ -46,8 +52,11 @@ export function SeriesDetailHeader({
   onConfigure: () => void;
   onCreate: () => void;
   onBulk: () => void;
+  /** Na série e no quadro, um botão só abre temporada, quadro e episódio. */
+  adicionar?: { onEpisodio: () => void; onTemporada?: () => void; onQuadro?: () => void } | null;
 }) {
   const descricao = (temporada?.descricao?.trim() || serie.notes?.trim()) || '';
+  const foco = normalizarRedesPostIt(temporada?.focoRedes?.length ? temporada.focoRedes : serie.focoRedes ?? []);
   const pai = ancestrais.at(-1) ?? null;
   const nome = serie.name.trim() || 'Sem nome';
   const capa = capaHttp(serie.capaUrl);
@@ -104,6 +113,12 @@ export function SeriesDetailHeader({
                 <Badge variant="neutral">{TIPO_AGRUPAMENTO_LABEL[tipo] ?? 'Série'}</Badge>
                 <Badge variant={serie.ativa ? 'success' : 'neutral'}>{serie.ativa ? 'Ativa' : 'Inativa'}</Badge>
               </div>
+              {foco.length > 0 ? (
+                <span className="flex flex-wrap items-center gap-2">
+                  <PlatformIcons redes={foco} max={6} size="md" />
+                  <Text variant="meta" as="span">{rotuloDoFoco(foco)}</Text>
+                </span>
+              ) : null}
               {descricao ? (
                 <Text variant="secondary" as="p" className="max-w-3xl line-clamp-2">{descricao}</Text>
               ) : null}
@@ -117,9 +132,33 @@ export function SeriesDetailHeader({
             <AppButton variant="secondary" size={celular ? 'sm' : undefined} onClick={onBulk} leftIcon={<Layers className="h-4 w-4" />}>
               Criar em massa
             </AppButton>
-            <AppButton variant="primary" size={celular ? 'sm' : undefined} onClick={onCreate} leftIcon={<Plus className="h-4 w-4" />}>
-              Novo episódio
-            </AppButton>
+            {adicionar ? (
+              <MoreMenu
+                label="Adicionar"
+                align="right"
+                triggerClassName="!h-auto !w-auto border-0 bg-transparent p-0 hover:bg-transparent pointer-coarse:!h-auto pointer-coarse:!w-auto"
+                trigger={(
+                  <span className={cn(
+                    't-button inline-flex items-center gap-2 rounded-[var(--radius-input)] border border-[var(--brand-accent-strong)] bg-[var(--brand-accent-strong)] px-4 text-[var(--brand-on-accent)]',
+                    celular ? 'h-8' : 'h-[var(--control-height)]',
+                    'pointer-coarse:h-11',
+                  )}>
+                    <Plus className="h-4 w-4" />
+                    Adicionar
+                    <ChevronDown className="h-4 w-4" />
+                  </span>
+                )}
+                items={[
+                  ...(adicionar.onTemporada ? [{ label: 'Temporada', onClick: adicionar.onTemporada }] : []),
+                  ...(adicionar.onQuadro ? [{ label: 'Quadro', onClick: adicionar.onQuadro }] : []),
+                  { label: 'Episódio', onClick: adicionar.onEpisodio },
+                ]}
+              />
+            ) : (
+              <AppButton variant="primary" size={celular ? 'sm' : undefined} onClick={onCreate} leftIcon={<Plus className="h-4 w-4" />}>
+                Novo episódio
+              </AppButton>
+            )}
           </div>
         </div>
 

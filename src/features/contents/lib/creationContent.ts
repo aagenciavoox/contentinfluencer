@@ -14,7 +14,7 @@ import {
 import {livroIdsEfetivos} from '../../../lib/livroIds.ts';
 import {createContentDraft} from './createContentDraft.ts';
 import {matchesTemaFilter} from './temaFilter.ts';
-import {carouselPlainText, contentReadableBody, isCarouselContent} from './carouselSlides.ts';
+import {carouselPlainText, contentReadableBody, isCarouselContent, slidesForCarouselMode, writingModeChange} from './carouselSlides.ts';
 import {writingNotesToHtml} from './supportDraft.ts';
 import {ideaTextToScriptHtml, joinIdeaNotes, readableTextToScriptHtml} from './ideaNotes.ts';
 import {passaNoFiltroRede} from '../../creation/lib/creationRedeFilter.ts';
@@ -88,15 +88,23 @@ export function createScriptContent(
 }
 
 /**
- * Modo de escrita inicial pelas publicações escolhidas ao criar o roteiro.
- * Vídeo longo abre o modo YouTube. Carrossel não cabe no formato da publicação:
- * quem cria um carrossel escolhe esse modo no conteúdo.
+ * Modo de escrita pelas redes escolhidas. Um conteúdo tem um modo.
+ * Carrossel ganha, porque o texto vira telas. Sem carrossel, vídeo longo abre o modo YouTube.
+ * Vídeo, Shorts e o restante ficam em texto.
  */
 export function writingModeInicial(
   plataformas: readonly Pick<ContentPlataforma, 'formatoPublicacao'>[],
 ): WritingMode {
+  if (plataformas.some(item => item.formatoPublicacao === 'carrossel')) return 'carrossel';
   if (plataformas.some(item => item.formatoPublicacao === 'video-longo')) return 'youtube';
   return 'texto';
+}
+
+/** Aplica o modo das publicações. No carrossel, o texto que já existe vira a primeira tela. */
+export function comModoDaEscolha<T extends Pick<Content, 'plataformas' | 'script'> & Partial<Pick<Content, 'writingMode' | 'carouselSlides'>>>(
+  content: T,
+): T {
+  return {...content, ...writingModeChange(writingModeInicial(content.plataformas), content)};
 }
 
 /** Roteiro novo com as publicações escolhidas ao criar, cada uma já ligada ao id dele. */
@@ -104,15 +112,13 @@ export function createScriptWithPublications(
   plataformas: readonly ContentPlataforma[],
   overrides: Partial<Content> = {},
 ): Content {
-  const content = createScriptContent({
-    writingMode: writingModeInicial(plataformas),
-    ...overrides,
-  });
-  return {
+  const content = createScriptContent(overrides);
+  const comPublicacoes = {
     ...content,
-    writingMode: overrides.writingMode ?? writingModeInicial(plataformas),
     plataformas: plataformas.map(plataforma => ({...plataforma, contentId: content.id})),
   };
+  if (overrides.writingMode) return {...comPublicacoes, writingMode: overrides.writingMode};
+  return comModoDaEscolha(comPublicacoes);
 }
 
 /**
@@ -213,6 +219,9 @@ export function applyStatusChange(
     const currentScript = htmlToReadableText(content.script).trim();
     const ideaText = htmlToReadableText(content.notes).trim();
     if (!currentScript && ideaText) next.script = ideaTextToScriptHtml(content.notes ?? '');
+    if (next.writingMode === 'carrossel') {
+      next.carouselSlides = slidesForCarouselMode(next.script, next.carouselSlides);
+    }
   }
 
   if (nextStatus === CONTENT_STATUS.IDEIA) {

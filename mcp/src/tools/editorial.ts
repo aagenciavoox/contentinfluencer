@@ -45,6 +45,7 @@ import {
   type SerieNoMcp,
   type TipoAgrupamento,
 } from '../serieEstrutura.ts';
+import {normalizarRedesPostIt} from '../../../src/features/planejamento/lib/redesPostIt.ts';
 
 const DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'] as const;
 const timeSchema = z.string().regex(/^\d{2}:\d{2}$/, 'Use HH:MM');
@@ -160,7 +161,21 @@ function serieView(row: Row, lookups: Lookups) {
       legenda: typeof sp.legenda === 'string' && sp.legenda.trim() ? sp.legenda : null,
     })),
     ...estruturaView(row, lookups),
+    foco_redes: normalizarRedesPostIt(row.foco_redes),
   };
+}
+
+function focoDaSerie(value: unknown): string[] {
+  if (value == null) return [];
+  if (!Array.isArray(value) || value.some(item => typeof item !== 'string')) {
+    throw new Error('foco_redes precisa ser uma lista de redes.');
+  }
+  const foco = normalizarRedesPostIt(value);
+  const pedidos = [...new Set(value.map(item => item.trim().toLowerCase()).filter(Boolean))];
+  const conhecidos = new Set<string>(foco);
+  const estranhos = pedidos.filter(item => !conhecidos.has(item));
+  if (estranhos.length > 0) throw new Error('Rede desconhecida em foco_redes: ' + estranhos.join(', ') + '.');
+  return foco;
 }
 
 async function mergePilarPlataformas(
@@ -284,6 +299,10 @@ const serieFields = {
     'Entra na Continuidade da Saúde. Família não entra; sem frequência definida aparece como pendência',
   ),
   legenda_base: z.string().nullable().optional().describe('Legenda base da série, herdada pelos roteiros dela. null limpa'),
+  foco_redes: z.array(z.string()).nullable().optional().describe(
+    'Redes do quadro. Os episódios novos nascem nelas quando a temporada não escolhe as suas. null ou [] tira o foco. ' +
+    'Vale instagram, instagram-video, instagram-carrossel, tiktok, tiktok-video, tiktok-carrossel, youtube, youtube-shorts, blog, outra.',
+  ),
 };
 
 function serieColumns(args: Partial<Record<keyof typeof serieFields | 'nome' | 'ativa', unknown>>): Row {
@@ -391,6 +410,7 @@ function estruturaDaSerie(
   if (args.legenda_base !== undefined) {
     patch.legenda_base = typeof args.legenda_base === 'string' && args.legenda_base.trim() ? args.legenda_base : null;
   }
+  if (args.foco_redes !== undefined) patch.foco_redes = focoDaSerie(args.foco_redes);
   return {patch, avisos: avisosEstrutura};
 }
 
@@ -400,6 +420,7 @@ function exigeMigracao(row: Row, column: string | undefined): string | null {
   if (column === 'acompanhar_continuidade' && row.acompanhar_continuidade === true) return MIGRACAO_SERIE_CONTINUIDADE;
   if (column === 'legenda_base' && row.legenda_base != null) return MIGRACAO_CONTAS;
   if (column === 'parent_id' && row.parent_id != null) return MIGRACAO_SERIE_TIPO;
+  if (column === 'foco_redes' && Array.isArray(row.foco_redes) && row.foco_redes.length > 0) return '20261104190000_serie_foco_redes';
   return null;
 }
 

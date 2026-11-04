@@ -7,7 +7,9 @@ import { useAuth } from '../../../../context/AuthContext';
 import type { Serie } from '../../../../lib/database';
 import { generateUUID } from '../../../../utils/uuid';
 import { filhosDaSerie } from '../../../editorial/lib/serieArvore';
+import { rotuloDoFoco } from '../../../editorial/lib/focoTemporada';
 import { temporadasDoEscopo } from '../../../editorial/lib/temporadas';
+import { normalizarRedesPostIt } from '../../../planejamento/lib/redesPostIt';
 import { SerieCreateModal, type SerieCreateModalTarget } from '../SerieCreateModal';
 import { episodiosDaTemporada, episodiosDoQuadro, nomeDeQuadroRepetido } from '../../lib/estruturaSerie';
 import { textoQuantidade } from '../../lib/selecaoEpisodios';
@@ -87,7 +89,7 @@ export function QuadrosETemporadasSection({
                   ) : (
                     <div className="min-w-0 flex-1">
                       <Text variant="bodyStrong" as="p" className="truncate">{quadro.name?.trim() || 'Sem nome'}</Text>
-                      <Text variant="meta" as="p">{`${episodios(n)}${quadro.ativa === false ? ' · arquivado' : ''}`}</Text>
+                      <Text variant="meta" as="p">{`${episodios(n)}${quadro.ativa === false ? ' · arquivado' : ''}${normalizarRedesPostIt(quadro.focoRedes ?? []).length > 0 ? ` · ${rotuloDoFoco(quadro.focoRedes ?? [])}` : ''}`}</Text>
                     </div>
                   )}
                   {editando ? (
@@ -133,7 +135,12 @@ export function QuadrosETemporadasSection({
               <li key={temporada.id} className="flex items-center gap-2 py-2">
                 <div className="min-w-0 flex-1">
                   <Text variant="bodyStrong" as="p" className="truncate">{temporada.nome}</Text>
-                  <Text variant="meta" as="p">{episodios(episodiosDaTemporada(temporada.id, state.contents).length)}</Text>
+                  <Text variant="meta" as="p">
+                    {episodios(episodiosDaTemporada(temporada.id, state.contents).length)}
+                    {normalizarRedesPostIt(temporada.focoRedes ?? []).length > 0
+                      ? ` · ${rotuloDoFoco(temporada.focoRedes ?? [])}`
+                      : ''}
+                  </Text>
                 </div>
                 <AppButton variant="ghost" size="sm" iconOnly aria-label={`Editar ${temporada.nome}`} title="Editar" onClick={() => setEdicaoTemporada({ modo: 'renomear', temporada })}>
                   <Pencil className="h-4 w-4" />
@@ -152,18 +159,19 @@ export function QuadrosETemporadasSection({
         escopoId={serie.id}
         escopoNome={serie.name ?? ''}
         temporadas={temporadas}
+        plataformas={state.platforms}
         edicao={edicaoTemporada}
         excluir={null}
         contagem={id => episodiosDaTemporada(id, state.contents).length}
         onFecharEdicao={() => setEdicaoTemporada(null)}
         onFecharExcluir={() => undefined}
-        onCriar={(nome, descricao) => {
+        onCriar={(nome, descricao, focoRedes) => {
           void dispatch({
             type: 'ADD_TEMPORADA',
-            payload: { id: generateUUID(), userId: user?.id || '', serieId: serie.id, nome, descricao, createdAt: new Date().toISOString() },
+            payload: { id: generateUUID(), userId: user?.id || '', serieId: serie.id, nome, descricao, focoRedes, createdAt: new Date().toISOString() },
           });
         }}
-        onRenomear={(item, nome, descricao) => void dispatch({ type: 'UPDATE_TEMPORADA', payload: { ...item, nome, descricao } })}
+        onRenomear={(item, nome, descricao, focoRedes) => void dispatch({ type: 'UPDATE_TEMPORADA', payload: { ...item, nome, descricao, focoRedes } })}
         onExcluir={() => undefined}
       />
       <ExcluirEstruturaDialog alvo={excluir} onClose={() => setExcluir(null)} />

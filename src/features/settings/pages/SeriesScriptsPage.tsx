@@ -18,10 +18,11 @@ import { notifySaveFeedback } from '../../../lib/saveFeedback';
 import { broadcastDataSync } from '../../../lib/syncBroadcast';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import { OpenInfoNotice } from '../../editorial/components/OpenInfoNotice';
-import { destinosPadraoAtivos, publicacoesDosDestinos } from '../../editorial/lib/destinations';
+import { comModoDaEscolha } from '../../contents/lib/creationContent';
 import { FUNCAO_LABELS, isFuncaoEditorial } from '../../editorial/lib/funcoes';
 import { formatOpenItems, getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
 import { ancestraisDaSerie, filhosDaSerie } from '../../editorial/lib/serieArvore';
+import { focoEfetivo } from '../../editorial/lib/focoTemporada';
 import { escopoTemporadas, temporadasDoEscopo } from '../../editorial/lib/temporadas';
 import { SerieCreateModal, type SerieCreateModalTarget } from '../components/SerieCreateModal';
 import { NovoConteudoDialog, type PedidoNovoConteudo } from '../components/series-detail/NovoConteudoDialog';
@@ -385,14 +386,11 @@ export function SeriesScriptsPage() {
       texto: novo.texto,
     };
     const base = conteudoDoBloco(bloco, destino, state.series);
-    // Mesmos destinos do "Em massa": os padrão de conteúdo novo.
-    const contas = state.platforms.filter(conta => conta.ativo).map(conta => ({ id: conta.id, nome: conta.nome }));
-    const destinos = destinosPadraoAtivos(state.editorial.destinosPadrao, contas);
-    const content: Content = {
+    const content = comModoDaEscolha({
       ...base,
       userId: user?.id || '',
-      plataformas: publicacoesDosDestinos({ destinos, contentId: base.id }),
-    };
+      plataformas: novo.plataformas.map(plataforma => ({ ...plataforma, contentId: base.id })),
+    });
     void dispatch({ type: 'ADD_CONTENT', payload: content });
     setNovoEm(null);
     // "Criar": fica na série; lista e contagens vêm do estado.
@@ -539,27 +537,19 @@ export function SeriesScriptsPage() {
       total={episodios.length}
       celular={celular}
       avisoOrdem={avisoOrdem}
-      acoes={serieDasTemporadas && !temporada ? (
-        <AppButton variant="secondary" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setEdicaoTemporada({ modo: 'criar' })}>
-          Nova temporada
-        </AppButton>
-      ) : undefined}
+      acoes={undefined}
     />
   );
-  const rodape = (
-    <>
-      {serieDasTemporadas && !temporada ? (
-        <AppButton variant="ghost" size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setEdicaoTemporada({ modo: 'criar' })}>
-          Nova temporada
-        </AppButton>
-      ) : null}
-      {rotaCriarFilho ? (
-        <AppButton variant="ghost" size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={criarFilho}>
-          {tipo === 'familia' ? 'Nova série' : 'Novo quadro'}
-        </AppButton>
-      ) : null}
-    </>
-  );
+  const rodape = tipo === 'familia' && rotaCriarFilho ? (
+    <AppButton variant="ghost" size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={criarFilho}>
+      Nova série
+    </AppButton>
+  ) : null;
+  const adicionar = tipo !== 'familia' && !temporada ? {
+    onEpisodio: () => setNovoEm({ serieId: serie.id, temporadaId: temporadaId ?? null }),
+    ...(serieDasTemporadas ? { onTemporada: () => setEdicaoTemporada({ modo: 'criar' }) } : {}),
+    ...(tipo === 'serie' ? { onQuadro: () => setModalTarget({ tipo: 'quadro', seriePaiId: serie.id }) } : {}),
+  } : null;
   const cabecalho = (noCelular: boolean) => (
     <SeriesDetailHeader
       serie={serie}
@@ -572,6 +562,7 @@ export function SeriesScriptsPage() {
       onConfigure={() => navigate(`/series/${serie.id}/editar`)}
       onCreate={() => setNovoEm({ serieId: serie.id, temporadaId: temporadaId ?? null })}
       onBulk={() => abrirMassa(serie.id, temporadaId)}
+      adicionar={adicionar}
     />
   );
 
@@ -700,6 +691,12 @@ export function SeriesScriptsPage() {
       <NovoConteudoDialog
         open={Boolean(novoEm)}
         ondeVaiFicar={ondeVaiFicar}
+        contas={state.platforms}
+        destinosPadrao={state.editorial.destinosPadrao}
+        focoRedes={novoEm ? focoEfetivo(
+          novoEm.temporadaId ? state.temporadas.find(item => item.id === novoEm.temporadaId)?.focoRedes : [],
+          state.series.find(item => item.id === novoEm.serieId)?.focoRedes,
+        ) : null}
         onClose={() => setNovoEm(null)}
         onCreate={criarUm}
       />
@@ -731,25 +728,26 @@ export function SeriesScriptsPage() {
           escopoId={serieDasTemporadas.id}
           escopoNome={serieDasTemporadas.name ?? ''}
           temporadas={temporadasDoEscopo(serieDasTemporadas.id, state.temporadas)}
+          plataformas={state.platforms}
           edicao={edicaoTemporada}
           excluir={null}
           contagem={id => contagemDoEscopo({ serieId: serieDasTemporadas.id, series: state.series, contents: state.contents, temporadaId: id }).conteudos}
           onFecharEdicao={() => setEdicaoTemporada(null)}
           onFecharExcluir={() => undefined}
-          onCriar={(nome, descricao) => {
+          onCriar={(nome, descricao, focoRedes) => {
             const alvo = state.series.find(item => item.id === serieDasTemporadas.id);
             if (!alvo) return;
             const agora = new Date().toISOString();
             void dispatch({
               type: 'ADD_TEMPORADA',
-              payload: { id: generateUUID(), userId: user?.id || '', serieId: alvo.id, nome, descricao, createdAt: agora },
+              payload: { id: generateUUID(), userId: user?.id || '', serieId: alvo.id, nome, descricao, focoRedes, createdAt: agora },
             });
             // A primeira temporada liga o uso de temporadas na série.
             if (!alvo.usaTemporadas) {
               void dispatch({ type: 'UPDATE_SERIE', payload: { ...alvo, usaTemporadas: true, updatedAt: agora } });
             }
           }}
-          onRenomear={(item, nome, descricao) => void dispatch({ type: 'UPDATE_TEMPORADA', payload: { ...item, nome, descricao } })}
+          onRenomear={(item, nome, descricao, focoRedes) => void dispatch({ type: 'UPDATE_TEMPORADA', payload: { ...item, nome, descricao, focoRedes } })}
           onExcluir={() => undefined}
         />
       ) : null}

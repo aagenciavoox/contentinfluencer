@@ -1,6 +1,7 @@
-import type { Content, Serie } from '../../../lib/database.ts';
+import type { Content, FormatoEscolhidoNaPublicacao, Serie } from '../../../lib/database.ts';
 import { htmlToReadableText } from '../../../lib/utils.ts';
 import { generateUUID } from '../../../utils/uuid.ts';
+import { ideaTextToScriptHtml } from '../../contents/lib/ideaNotes.ts';
 import { createContentDraft } from '../../contents/lib/createContentDraft.ts';
 import { CONTENT_STATUS } from '../../contents/lib/contentPipeline.ts';
 
@@ -9,10 +10,17 @@ export type ModoBloco = 'ideia' | 'roteiro';
 /** Campos que o conjunto define e cada entrada pode ajustar. */
 export type CampoComum = 'modo' | 'serieId' | 'temporadaId';
 
+export type PublicacaoMassa = {
+  platformId: string;
+  formatoPublicacao: FormatoEscolhidoNaPublicacao | null;
+};
+
 export type ComumMassa = {
   modo: ModoBloco;
   serieId: string;
   temporadaId: string | null;
+  /** Ausente: ainda não escolheu. Lista vazia: nenhuma rede. */
+  publicacoes?: PublicacaoMassa[];
 };
 
 export type BlocoMassa = {
@@ -96,25 +104,29 @@ export function marcarCriados(
   return blocos.map(bloco => (ids.has(bloco.id) ? { ...bloco, criado: true } : bloco));
 }
 
-/** Muda um valor do conjunto. Entradas que ajustaram esse campo ficam como estão. */
+/** Muda um valor do conjunto. Vale para todos os conteúdos que ainda não foram criados. */
 export function aplicarComum(
   rascunho: RascunhoMassa,
   serieId: string,
   patch: Partial<ComumMassa>,
 ): RascunhoMassa {
   const comum = { ...comumPadrao(serieId, rascunho), ...patch };
-  const campos = Object.keys(patch) as CampoComum[];
+  const campos = (Object.keys(patch) as Array<keyof ComumMassa>).filter(
+    (campo): campo is CampoComum => campo === 'modo' || campo === 'serieId' || campo === 'temporadaId',
+  );
   return {
     comum,
     blocos: rascunho.blocos.map(bloco => {
       if (bloco.criado) return bloco;
       const proximo = { ...bloco };
+      const proprio = { ...bloco.proprio };
       for (const campo of campos) {
-        if (bloco.proprio?.[campo]) continue;
         if (campo === 'modo') proximo.modo = comum.modo;
         if (campo === 'serieId') proximo.serieId = comum.serieId;
         if (campo === 'temporadaId') proximo.temporadaId = comum.temporadaId;
+        proprio[campo] = false;
       }
+      proximo.proprio = proprio;
       return proximo;
     }),
   };
@@ -179,6 +191,7 @@ export function aplicarContextoNoRascunho(
     modo: rascunho.comum?.modo ?? 'roteiro',
     serieId: contexto.serieId,
     temporadaId: contexto.temporadaId,
+    publicacoes: rascunho.comum?.publicacoes,
   };
   const bloco = criarBloco({ id: novoId, ...comum });
   if (origem === 'massa') return { comum, blocos: [bloco] };
@@ -228,7 +241,7 @@ export function conteudoDoBloco(
     status: ideia ? CONTENT_STATUS.IDEIA : CONTENT_STATUS.ROTEIRO,
     seriesId: bloco.serieId,
     temporadaId: bloco.temporadaId,
-    ...(ideia ? { script: null } : temTexto ? { script: texto } : {}),
+    ...(ideia ? { script: null } : temTexto ? { script: ideaTextToScriptHtml(texto) } : {}),
     notes: ideia ? (textoDoBloco(texto) || null) : null,
     slotType: slotDaSerie(serie),
     publishDate: null,
@@ -261,7 +274,7 @@ function blocoDoJson(value: unknown): BlocoMassa | null {
     serieId: bruto.serieId,
     temporadaId: typeof bruto.temporadaId === 'string' ? bruto.temporadaId : null,
     titulo: bruto.titulo,
-    texto: bruto.texto,
+    texto: /<[a-z][\s\S]*>/i.test(bruto.texto) ? htmlToReadableText(bruto.texto) : bruto.texto,
     criado: Boolean(bruto.criado),
     proprio: lerProprio(bruto.proprio),
     recolhido: bruto.recolhido === true,
@@ -276,7 +289,23 @@ function comumDoJson(value: unknown): ComumMassa | undefined {
     modo: bruto.modo === 'ideia' ? 'ideia' : 'roteiro',
     serieId: bruto.serieId,
     temporadaId: typeof bruto.temporadaId === 'string' ? bruto.temporadaId : null,
+    ...(Array.isArray(bruto.publicacoes) ? { publicacoes: lerPublicacoes(bruto.publicacoes) } : {}),
   };
+}
+
+function lerPublicacoes(value: unknown[]): PublicacaoMassa[] {
+  return value.flatMap(item => {
+    if (!item || typeof item !== 'object') return [];
+    const bruto = item as Partial<PublicacaoMassa>;
+    if (typeof bruto.platformId !== 'string' || !bruto.platformId) return [];
+    const formato = bruto.formatoPublicacao;
+    return [{
+      platformId: bruto.platformId,
+      formatoPublicacao: formato === 'short' || formato === 'video-longo' || formato === 'reels' || formato === 'carrossel'
+        ? formato
+        : null,
+    }];
+  });
 }
 
 export function lerRascunhoMassa(serieId: string): RascunhoMassa {

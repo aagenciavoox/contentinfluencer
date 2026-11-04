@@ -1,7 +1,7 @@
 import {useEffect, useMemo, useState} from 'react';
 import type {ContentPlataforma} from '../../../lib/database';
 import {DestinationChips} from '../../editorial/components/DestinationChips';
-import {destinosPadraoAtivos, publicacoesDosDestinos} from '../../editorial/lib/destinations';
+import {destinosPadraoAtivos, publicacoesIniciais} from '../../editorial/lib/destinations';
 import type {AppState} from '../../../app/providers/appState';
 import {Dialog} from '../../../components/overlays/Dialog';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
@@ -48,7 +48,7 @@ export function CreationComposer({
     if (!open) return;
     setOriginId(initialOriginId);
     const destinos = destinosPadraoAtivos(state.editorial.destinosPadrao, catalogo);
-    setPlataformas(publicacoesDosDestinos({destinos, contentId: ''}));
+    setPlataformas(publicacoesIniciais({destinos, contentId: ''}));
   }, [catalogo, initialOriginId, open, state.preferences]);
 
   const reset = () => {

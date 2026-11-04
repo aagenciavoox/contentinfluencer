@@ -98,16 +98,14 @@ assert.deepEqual(
   ['x'],
 );
 
-// Valores comuns valem para o conjunto; a entrada que ajustou o campo fica como está.
+// O tipo, o quadro e a temporada do início valem para todos.
 let conjunto = { blocos: [bloco({ id: 'a' }), bloco({ id: 'b' })] };
 conjunto = alterarBloco(conjunto, 's', 'b', { modo: 'ideia' });
 assert.equal(conjunto.blocos[1]?.proprio?.modo, true);
 conjunto = aplicarComum(conjunto, 's', { temporadaId: 't1' });
 conjunto = aplicarComum(conjunto, 's', { modo: 'ideia' });
 conjunto = aplicarComum(conjunto, 's', { modo: 'roteiro' });
-assert.deepEqual(conjunto.blocos.map(item => [item.modo, item.temporadaId]), [['roteiro', 't1'], ['ideia', 't1']]);
-// Voltar ao valor do conjunto desfaz o ajuste.
-conjunto = alterarBloco(conjunto, 's', 'b', { modo: 'roteiro' });
+assert.deepEqual(conjunto.blocos.map(item => [item.modo, item.temporadaId]), [['roteiro', 't1'], ['roteiro', 't1']]);
 assert.equal(conjunto.blocos[1]?.proprio?.modo, false);
 conjunto = adicionarBloco(conjunto, 's', 'c');
 assert.equal(conjunto.blocos[2]?.temporadaId, 't1');

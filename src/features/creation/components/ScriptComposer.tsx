@@ -1,7 +1,7 @@
 import {useEffect, useMemo, useState} from 'react';
 import type {ContentPlataforma} from '../../../lib/database';
 import {DestinationChips} from '../../editorial/components/DestinationChips';
-import {destinosPadraoAtivos, publicacoesDosDestinos} from '../../editorial/lib/destinations';
+import {destinosPadraoAtivos, publicacoesIniciais} from '../../editorial/lib/destinations';
 import {Dialog} from '../../../components/overlays/Dialog';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
 import {OverlayFooter} from '../../../components/overlays/OverlayFooter';
@@ -34,7 +34,7 @@ export function ScriptComposer({open, saving = false, onClose, onCreate}: Script
   useEffect(() => {
     if (!open) return;
     const destinos = destinosPadraoAtivos(state.editorial.destinosPadrao, catalogo);
-    setPlataformas(publicacoesDosDestinos({destinos, contentId: ''}));
+    setPlataformas(publicacoesIniciais({destinos, contentId: ''}));
   }, [catalogo, open, state.preferences]);
 
   return (

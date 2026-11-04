@@ -206,6 +206,8 @@ export interface Serie {
   acompanharContinuidade?: boolean;
   /** Quadro com "Usar da série": a cor vem da série na hora (migração 20261103120000). */
   usaCorDaSerie?: boolean;
+  /** Redes dos episódios novos deste quadro, quando a temporada não escolhe as suas. */
+  focoRedes?: RedeDoFiltro[];
   /** Acompanhamentos da série por escopo (serie_acompanhamento). */
   acompanhamentos?: AcompanhamentoSerie[];
   /** Frequência da série numa conta ou formato (serie_meta). A geral fica nas colunas acima. */
@@ -223,6 +225,11 @@ export interface Temporada {
   serieId: string;
   nome: string;
   descricao?: string | null;
+  /**
+   * Redes que esta temporada cobre. Vazio = só agrupa episódios, de qualquer quadro, sem ordem.
+   * Ex.: Instagram, TikTok e Shorts numa; YouTube longo em outra.
+   */
+  focoRedes?: RedeDoFiltro[];
   createdAt: string;
 }
 
@@ -451,14 +458,15 @@ export interface ContentPlataforma {
   /** Usado em reposts. Ausente no banco antigo conta como verdadeiro. */
   contaNaGrade?: boolean;
   /**
-   * Formato escolhido para esta publicação (hoje só no YouTube: Shorts ou vídeo longo).
-   * Null = sem escolha: vale o formato do conteúdo ou a dedução. Migração 20261103200000.
+   * Formato escolhido para esta publicação.
+   * YouTube: Shorts ou vídeo longo. Instagram e TikTok: vídeo (reels) ou carrossel.
+   * Null = sem escolha: vale o formato do conteúdo ou a dedução.
    */
   formatoPublicacao?: FormatoEscolhidoNaPublicacao | null;
 }
 
-/** Formatos que dá para escolher por publicação. */
-export type FormatoEscolhidoNaPublicacao = 'short' | 'video-longo';
+/** Formato marcado na publicação ao criar ou ao trocar o chip da rede. */
+export type FormatoEscolhidoNaPublicacao = 'short' | 'video-longo' | 'reels' | 'carrossel';
 
 /** Migração do formato por publicação (Shorts ou vídeo longo no YouTube). */
 export const MIGRACAO_FORMATO_PUBLICACAO = '20261103200000_formato_da_publicacao';
@@ -953,6 +961,7 @@ const SERIE_OPTIONAL_COLUMNS = [
   'sem_pilar',
   'acompanhar_continuidade',
   'usa_cor_da_serie',
+  'foco_redes',
 ] as const;
 
 /** Migração da escolha "Acompanhar continuidade na Saúde". */
@@ -960,6 +969,9 @@ export const MIGRACAO_SERIE_CONTINUIDADE = '20261102240000_serie_acompanhar_cont
 
 /** Migração do editorial por conta (acompanhamento e meta por escopo, cor do quadro). */
 export const MIGRACAO_EDITORIAL_POR_CONTA = '20261103120000_editorial_por_conta_base';
+
+/** Foco de redes do quadro. */
+export const MIGRACAO_SERIE_FOCO_REDES = '20261104190000_serie_foco_redes';
 
 /** Migração do tipo de agrupamento e do "sem pilar" das séries. */
 export const MIGRACAO_SERIE_TIPO = '20261030120000_serie_tipo_agrupamento';
@@ -1137,6 +1149,10 @@ function readRede(value: unknown): RedeSocial | null {
     : null;
 }
 
+function readFormatoPublicacao(value: unknown): FormatoEscolhidoNaPublicacao | null {
+  return value === 'short' || value === 'video-longo' || value === 'reels' || value === 'carrossel' ? value : null;
+}
+
 function readConexaoStatus(value: unknown): ConexaoStatus {
   return value === 'conectada' || value === 'expirada' || value === 'erro' ? value : 'nao_conectada';
 }
@@ -1171,7 +1187,7 @@ function mapContentPlataforma(p: Row): ContentPlataforma {
     externoId: readTextoOpcional(p.externo_id),
     legendaPropria: p.legenda_propria === true,
     contaNaGrade: p.conta_na_grade === false ? false : true,
-    formatoPublicacao: p.formato_publicacao === 'short' || p.formato_publicacao === 'video-longo' ? p.formato_publicacao : null,
+    formatoPublicacao: readFormatoPublicacao(p.formato_publicacao),
   };
 }
 
@@ -1356,6 +1372,7 @@ const mp = {
     semPilar: r.sem_pilar === true,
     acompanharContinuidade: r.acompanhar_continuidade === true,
     usaCorDaSerie: r.usa_cor_da_serie === true,
+    focoRedes: normalizarRedesPostIt(r.foco_redes),
     // Sem a tabela (migração 20261103120000) fica undefined: aí vale a coluna antiga.
     acompanhamentos: Array.isArray(r.serie_acompanhamento) ? r.serie_acompanhamento.flatMap(acompanhamentoDaLinha) : undefined,
     metasPorEscopo: Array.isArray(r.serie_meta) ? r.serie_meta.flatMap(metaDaSerieDaLinha) : undefined,
@@ -1374,6 +1391,7 @@ const mp = {
     serieId: String(r.serie_id),
     nome: typeof r.nome === 'string' ? r.nome : '',
     descricao: typeof r.descricao === 'string' && r.descricao.trim() ? r.descricao : null,
+    focoRedes: normalizarRedesPostIt(r.foco_redes),
     createdAt: r.created_at,
   }),
   tema: (r: Row): Tema => ({
@@ -2407,11 +2425,7 @@ export async function fetchDataDomains(
         payload.temas = (assertQuerySuccess('temas fetch', temasResult) || []).map(mp.tema);
       }
 
-      const temporadasResult = await supabase
-        .from('temporadas')
-        .select('id, user_id, serie_id, nome, created_at')
-        .eq('user_id', uid)
-        .order('nome');
+      const temporadasResult = await lerTemporadas(uid);
       const temporadasErro = temporadasResult.error?.message ?? '';
       if (temporadasErro && /temporadas/i.test(temporadasErro) && /does not exist|Could not find the table/i.test(temporadasErro)) {
         payload.temporadas = [];
@@ -3360,6 +3374,7 @@ export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 
   // A coluna antiga espelha o acompanhamento geral da tabela nova (a remoção dela está parada).
   if (serie.acompanhamentos) row.acompanhar_continuidade = serie.acompanhamentos.some(item => item.escopo === 'geral' && item.ativo);
   if ('usaCorDaSerie' in serie) row.usa_cor_da_serie = serie.usaCorDaSerie === true;
+  if ('focoRedes' in serie) row.foco_redes = normalizarRedesPostIt(serie.focoRedes ?? []);
 
   for (let attempt = 0; attempt < 16; attempt += 1) {
     const { error } = await supabase.from('series').upsert(row);
@@ -3384,6 +3399,9 @@ export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 
       }
       if (missing === 'usa_cor_da_serie' && row.usa_cor_da_serie === true) {
         throw new Error(`Para o quadro usar a cor da série, aplique a migração ${MIGRACAO_EDITORIAL_POR_CONTA}.`);
+      }
+      if (missing === 'foco_redes' && Array.isArray(row.foco_redes) && row.foco_redes.length > 0) {
+        throw new Error(`Para guardar as redes do quadro, aplique a migração ${MIGRACAO_SERIE_FOCO_REDES}.`);
       }
       const {[missing]: _removed, ...rest} = row;
       row = rest;
@@ -3505,27 +3523,56 @@ export async function deleteSerie(id: string): Promise<void> {
   if (error) throw new Error(`delete serie: ${error.message}`);
 }
 
+/** Lê temporadas. Colunas novas somem do select se o banco ainda não as tem. */
+async function lerTemporadas(uid: string) {
+  if (!supabase) return { data: [], error: null };
+  let colunas = 'id, user_id, serie_id, nome, descricao, foco_redes, created_at';
+  for (let tentativa = 0; tentativa < 3; tentativa += 1) {
+    const result = await supabase.from('temporadas').select(colunas).eq('user_id', uid).order('nome');
+    if (!result.error) return result;
+    const message = result.error.message ?? '';
+    if (isMissingNamedColumn(message, 'foco_redes') && colunas.includes('foco_redes')) {
+      colunas = colunas.replace('foco_redes, ', '');
+      continue;
+    }
+    if (isMissingNamedColumn(message, 'descricao') && colunas.includes('descricao')) {
+      colunas = colunas.replace('descricao, ', '');
+      continue;
+    }
+    return result;
+  }
+  return supabase.from('temporadas').select('id, user_id, serie_id, nome, created_at').eq('user_id', uid).order('nome');
+}
+
 export async function saveTemporada(temporada: Omit<Temporada, 'createdAt'>): Promise<void> {
   if (!supabase) return;
   const nome = temporada.nome.trim();
   if (!nome) throw new Error('temporadas: nome vazio');
-  const descricao = temporada.descricao?.trim() || null;
-  let { error } = await supabase.from('temporadas').upsert({
+  let row: Record<string, unknown> = {
     id: temporada.id,
     user_id: temporada.userId,
     serie_id: temporada.serieId,
     nome,
-    descricao,
-  });
-  if (error && isMissingNamedColumn(error.message ?? '', 'descricao')) {
-    ({ error } = await supabase.from('temporadas').upsert({
-      id: temporada.id,
-      user_id: temporada.userId,
-      serie_id: temporada.serieId,
-      nome,
-    }));
+    descricao: temporada.descricao?.trim() || null,
+    foco_redes: normalizarRedesPostIt(temporada.focoRedes ?? []),
+  };
+  for (let tentativa = 0; tentativa < 3; tentativa += 1) {
+    const { error } = await supabase.from('temporadas').upsert(row);
+    if (!error) return;
+    const message = error.message ?? '';
+    if (isMissingNamedColumn(message, 'foco_redes') && 'foco_redes' in row) {
+      const { foco_redes: _omitida, ...resto } = row;
+      row = resto;
+      continue;
+    }
+    if (isMissingNamedColumn(message, 'descricao') && 'descricao' in row) {
+      const { descricao: _omitida, ...resto } = row;
+      row = resto;
+      continue;
+    }
+    throw new Error(`temporadas: ${message}`);
   }
-  if (error) throw new Error(`temporadas: ${error.message}`);
+  throw new Error('temporadas: não foi possível salvar');
 }
 
 export async function deleteTemporada(id: string): Promise<void> {

@@ -113,6 +113,7 @@ await import('./features/editorial/lib/markPublished.test.ts');
 await import('./features/editorial/lib/gradeEntries.test.ts');
 await import('./features/editorial/lib/platformFields.test.ts');
 await import('./features/editorial/lib/destinations.test.ts');
+await import('./features/editorial/lib/focoTemporada.test.ts');
 await import('./features/editorial/lib/captions.test.ts');
 await import('./features/editorial/lib/legendaSerie.test.ts');
 await import('./features/contas/lib/contas.test.ts');

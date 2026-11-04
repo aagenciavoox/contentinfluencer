@@ -538,6 +538,8 @@ function testTransformLevaNotaERedes() {
   // Só as contas ativas das redes marcadas viram publicação. A data fica para "Salvar no calendário".
   assert.deepEqual(result.content.plataformas.map(p => p.platformId).sort(), ['ig', 'yt']);
   assert.equal(result.content.plataformas.find(p => p.platformId === 'yt')?.formatoPublicacao, 'video-longo');
+  assert.equal(result.content.plataformas.find(p => p.platformId === 'ig')?.formatoPublicacao, 'reels');
+  assert.equal(result.content.writingMode, 'youtube');
   assert.ok(result.content.plataformas.every(p => p.contentId === result.content.id));
   assert.ok(result.content.plataformas.every(p => p.publishDate == null));
   assert.equal(result.postIt.date, '2026-11-03');
@@ -553,14 +555,15 @@ function testTransformLevaNotaERedes() {
     redes: ['instagram-video' as const],
   };
   const resultIgVideo = transformPostIt({postIt: postItIgVideo, contents: [], target: 'ideia', contas, now: NOW});
-  assert.equal(resultIgVideo.ok && resultIgVideo.content.plataformas.find(p => p.platformId === 'ig')?.formatoPublicacao, undefined);
+  assert.equal(resultIgVideo.ok && resultIgVideo.content.plataformas.find(p => p.platformId === 'ig')?.formatoPublicacao, 'reels');
+  assert.equal(resultIgVideo.ok && resultIgVideo.content.writingMode, 'texto');
   const postItIgCarr = {
     ...createEmptyPostIt({id: 'post-ig-carr', texto: 'Carrossel', date: '2026-11-03', now: NOW}),
     redes: ['instagram-carrossel' as const],
   };
   const resultIgCarr = transformPostIt({postIt: postItIgCarr, contents: [], target: 'ideia', contas, now: NOW});
   assert.equal(resultIgCarr.ok && resultIgCarr.content.writingMode, 'carrossel');
-  assert.equal(resultIgCarr.ok && resultIgCarr.content.plataformas.find(p => p.platformId === 'ig')?.formatoPublicacao, undefined);
+  assert.equal(resultIgCarr.ok && resultIgCarr.content.plataformas.find(p => p.platformId === 'ig')?.formatoPublicacao, 'carrossel');
 
   // Sem contas informadas, nada de publicação inventada.
   const semContas = transformPostIt({postIt, contents: [], target: 'ideia', now: NOW});

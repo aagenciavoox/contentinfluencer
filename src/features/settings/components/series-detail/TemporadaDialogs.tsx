@@ -6,8 +6,11 @@ import { OverlayFooter } from '../../../../components/overlays/OverlayFooter';
 import { OverlayHeader } from '../../../../components/overlays/OverlayHeader';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { Text } from '../../../../components/ui/Text';
-import type { Temporada } from '../../../../lib/database';
+import type { Platform, Temporada } from '../../../../lib/database';
+import type { RedeDoFiltro } from '../../../contas/lib/contas';
 import { acharTemporadaPorNome } from '../../../editorial/lib/temporadas';
+import { RedeChips } from '../../../planejamento/components/RedeChips';
+import { normalizarRedesPostIt } from '../../../planejamento/lib/redesPostIt';
 import { textoConteudos } from '../../lib/serieAgrupamento';
 
 export type EdicaoTemporada = { modo: 'criar' } | { modo: 'renomear'; temporada: Temporada };
@@ -17,12 +20,13 @@ const campoClass =
 
 /**
  * Criar, editar e excluir temporada a partir do grupo da página. Temporadas moram na série e
- * os quadros dela usam as mesmas; excluir deixa os conteúdos na série, sem temporada.
+ * os quadros dela usam as mesmas. O foco de redes é opcional: sem ele, a temporada só agrupa.
  */
 export function TemporadaDialogs({
   escopoId,
   escopoNome,
   temporadas,
+  plataformas,
   edicao,
   excluir,
   contagem,
@@ -36,35 +40,39 @@ export function TemporadaDialogs({
   escopoId: string;
   escopoNome: string;
   temporadas: readonly Temporada[];
+  plataformas: readonly Platform[];
   edicao: EdicaoTemporada | null;
   excluir: Temporada | null;
   /** Conteúdos ativos da temporada. */
   contagem: (temporadaId: string) => number;
   onFecharEdicao: () => void;
   onFecharExcluir: () => void;
-  onCriar: (nome: string, descricao: string | null) => void;
-  onRenomear: (temporada: Temporada, nome: string, descricao: string | null) => void;
+  onCriar: (nome: string, descricao: string | null, focoRedes: RedeDoFiltro[]) => void;
+  onRenomear: (temporada: Temporada, nome: string, descricao: string | null, focoRedes: RedeDoFiltro[]) => void;
   onExcluir: (temporada: Temporada) => void;
 }) {
   const [nome, setNome] = useState('');
   const [descricao, setDescricao] = useState('');
+  const [redes, setRedes] = useState<RedeDoFiltro[]>([]);
 
   useEffect(() => {
     if (!edicao) return;
     setNome(edicao.modo === 'renomear' ? edicao.temporada.nome : '');
     setDescricao(edicao.modo === 'renomear' ? edicao.temporada.descricao || '' : '');
+    setRedes(normalizarRedesPostIt(edicao.modo === 'renomear' ? edicao.temporada.focoRedes ?? [] : []));
   }, [edicao]);
 
   const limpo = nome.trim();
   const descricaoLimpa = descricao.trim() || null;
+  const foco = normalizarRedesPostIt(redes);
   const repetida = limpo ? acharTemporadaPorNome(escopoId, limpo, temporadas) : null;
   const conflito = repetida && (edicao?.modo !== 'renomear' || repetida.id !== edicao.temporada.id);
   const podeSalvar = Boolean(limpo) && !conflito;
 
   const salvar = () => {
     if (!edicao || !podeSalvar) return;
-    if (edicao.modo === 'criar') onCriar(limpo, descricaoLimpa);
-    else onRenomear(edicao.temporada, limpo, descricaoLimpa);
+    if (edicao.modo === 'criar') onCriar(limpo, descricaoLimpa, foco);
+    else onRenomear(edicao.temporada, limpo, descricaoLimpa, foco);
     onFecharEdicao();
   };
 
@@ -96,13 +104,23 @@ export function TemporadaDialogs({
                   salvar();
                 }
               }}
-              placeholder="Ex.: Especial Projetos Secretos"
+              placeholder="Ex.: Redes curtas, ou YouTube · Temporada 1"
               aria-invalid={conflito ? true : undefined}
               className={campoClass}
             />
             {conflito ? (
               <p className="t-meta" style={{ color: 'var(--danger)' }}>Já existe uma temporada com esse nome nesta série.</p>
             ) : null}
+          </div>
+
+          <div className="stack-xs">
+            <Text variant="label" as="p" id="temporada-redes-rotulo">
+              Redes <span className="font-normal text-[var(--text-tertiary)]">· opcional</span>
+            </Text>
+            <RedeChips value={redes} onChange={setRedes} platforms={plataformas} />
+            <Text variant="meta" as="p">
+              Sem redes, a temporada só agrupa episódios de qualquer quadro, sem ordem. Com redes, os episódios novos já nascem nelas — por exemplo Instagram, TikTok e Shorts numa, e só YouTube longo em outra.
+            </Text>
           </div>
 
           <div className="stack-xs">

@@ -2,9 +2,10 @@ import type {Content, FuncaoEditorial, FuncaoPadraoSerie, RedeSocial} from '../.
 import {mesmasRedes, normalizarRedesPostIt} from './redesPostIt.ts';
 import {generateUUID} from '../../../utils/uuid.ts';
 import {CONTENT_STATUS, normalizeContentStatus} from '../../contents/lib/contentPipeline.ts';
+import {comModoDaEscolha} from '../../contents/lib/creationContent.ts';
 import {createContentDraft} from '../../contents/lib/createContentDraft.ts';
-import {contasAtivas, redeDaConta, type ContaRef, type RedeDoFiltro} from '../../contas/lib/contas.ts';
-import {criarPublicacaoAgendada} from '../../editorial/lib/destinations.ts';
+import {type ContaRef, type RedeDoFiltro} from '../../contas/lib/contas.ts';
+import {criarPublicacoesDasRedes} from '../../editorial/lib/focoTemporada.ts';
 import {aplicarEscolhasHerdadas} from '../../editorial/lib/escolhasSerie.ts';
 import {contaNaGradePadrao} from '../../editorial/lib/funcoes.ts';
 import {objetivoHerdadoDaSerie, pilarHerdadoDaSerie, type SerieClassificacao} from '../../editorial/lib/herancaSerie.ts';
@@ -291,29 +292,9 @@ function conteudoDoPostIt(draft: Content, postIt: PlanejamentoPostIt): Content {
 function publicacoesDasRedes(content: Content, postIt: PlanejamentoPostIt, contas: readonly ContaRef[]): Content {
   const redes = normalizarRedesPostIt(postIt.redes);
   if (redes.length === 0) return content;
-  const base = redes.includes('instagram-carrossel') || redes.includes('tiktok-carrossel')
-    ? {...content, writingMode: 'carrossel' as const}
-    : content;
-  const plataformas = contasAtivas(contas)
-    .filter(conta => {
-      const rede = redeDaConta(conta);
-      if (rede === null) return false;
-      if (redes.includes(rede)) return true;
-      if (rede === 'youtube' && redes.includes('youtube-shorts')) return true;
-      if (rede === 'instagram' && (redes.includes('instagram-video') || redes.includes('instagram-carrossel'))) return true;
-      if (rede === 'tiktok' && (redes.includes('tiktok-video') || redes.includes('tiktok-carrossel'))) return true;
-      return false;
-    })
-    .map(conta => {
-      const rede = redeDaConta(conta);
-      const pub = criarPublicacaoAgendada(base.id, conta.id);
-      if (rede === 'youtube') {
-        if (redes.includes('youtube-shorts')) return {...pub, formatoPublicacao: 'short' as const};
-        if (redes.includes('youtube')) return {...pub, formatoPublicacao: 'video-longo' as const};
-      }
-      return pub;
-    });
-  return plataformas.length > 0 ? {...base, plataformas: [...base.plataformas, ...plataformas]} : base;
+  const plataformas = criarPublicacoesDasRedes(content.id, redes, contas);
+  if (plataformas.length === 0) return content;
+  return comModoDaEscolha({...content, plataformas: [...content.plataformas, ...plataformas]});
 }
 
 /** A primeira linha da nota vira o título; a nota inteira fica nas anotações. */

@@ -6,9 +6,10 @@ import { Badge } from '../../../../components/ui/Badge';
 import { MoreMenu, type MoreMenuItem } from '../../../../components/ui/MoreMenu';
 import { PlatformIcon } from '../../../../components/ui/PlatformIcon';
 import { PlatformIcons } from '../../../../components/ui/PlatformIcons';
+import { rotuloDoFoco } from '../../../editorial/lib/focoTemporada';
+import { normalizarRedesPostIt } from '../../../planejamento/lib/redesPostIt';
 import { Text } from '../../../../components/ui/Text';
 import type { Content, Platform, Serie, SerieTipoAgrupamento, Temporada } from '../../../../lib/database';
-import { diaNumerico } from '../../../../lib/dates';
 import { getStatusColorVar } from '../../../../lib/statusClasses';
 import { cn } from '../../../../lib/utils';
 import { getDisplayStatus, getDisplayStatusLabel } from '../../../contents/lib/contentPipeline';
@@ -156,7 +157,6 @@ function LinhaConteudo({
       {ehIdeia(content) ? 'IDEIA' : 'ROTEIRO'}
     </Badge>
   );
-  const dataFormatada = diaNumerico(content.publishDate || content.createdAt);
   const redes = redesSelecionadas(content, contas);
   const podeMover = Boolean(acoes.onMoverEpisodio) && !selecao.ativa && lista.length > 1;
 
@@ -237,7 +237,7 @@ function LinhaConteudo({
         </Text>
       </div>
 
-      {/* Lado Direito: redes escolhidas, data e ações */}
+      {/* Lado Direito: redes escolhidas e ações */}
       <div className="relative z-[2] flex shrink-0 items-center gap-3 sm:gap-4">
         {podeMover ? (
           <div className="hidden items-center gap-0.5 sm:flex">
@@ -266,7 +266,6 @@ function LinhaConteudo({
           </div>
         ) : null}
         {redes.length > 0 ? <PlatformIcons redes={redes} max={5} size="md" className="shrink-0" /> : null}
-        <Text variant="meta" as="span">{dataFormatada}</Text>
         <MoreMenu
           size="sm"
           label={`Mais opções de ${titulo}`}
@@ -346,6 +345,7 @@ function CabecalhoDoGrupo({
   tipoDoFilho,
   filtrando,
   serieDaPagina,
+  series,
   menu,
   marcacao,
 }: {
@@ -357,12 +357,18 @@ function CabecalhoDoGrupo({
   tipoDoFilho: SerieTipoAgrupamento | null;
   filtrando: boolean;
   serieDaPagina: string;
+  series: readonly Serie[];
   menu: MoreMenuItem[];
   marcacao?: { estado: EstadoMarcacao; onToggle: () => void };
 }) {
   const linkDoTitulo = grupo.temporada
     ? `/series/${serieDaPagina}/temporadas/${grupo.temporada.id}`
     : grupo.filhoId ? `/series/${grupo.filhoId}` : null;
+  const focoDaTemporada = normalizarRedesPostIt(grupo.temporada?.focoRedes ?? []);
+  const focoDoQuadro = grupo.filhoId
+    ? normalizarRedesPostIt(series.find(item => item.id === grupo.filhoId)?.focoRedes ?? [])
+    : [];
+  const foco = focoDaTemporada.length > 0 ? focoDaTemporada : focoDoQuadro;
 
   const rotuloExibicao = grupo.id === 'temp:none'
     ? 'CONTEÚDOS DIRETOS DA SÉRIE (SEM TEMPORADA)'
@@ -380,23 +386,31 @@ function CabecalhoDoGrupo({
         {marcacao ? (
           <CaixaMarcacao estado={marcacao.estado} rotulo={`Selecionar os episódios exibidos de ${grupo.rotulo}`} onToggle={marcacao.onToggle} className="-ml-2" />
         ) : null}
-        {linkDoTitulo ? (
-          <Link
-            to={linkDoTitulo}
-            className="min-w-0 hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-          >
-            <Text variant="itemTitle" as="span" className="text-[var(--text-primary)]">
-              {rotuloExibicao}
-            </Text>
-          </Link>
-        ) : (
-          <Text variant="itemTitle" as="span" className="min-w-0 text-[var(--text-primary)]">
-            {rotuloExibicao}
-          </Text>
-        )}
-        <Badge variant="neutral">
-          {contagemRotulo}
-        </Badge>
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            {linkDoTitulo ? (
+              <Link
+                to={linkDoTitulo}
+                className="min-w-0 hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              >
+                <Text variant="itemTitle" as="span" className="text-[var(--text-primary)]">
+                  {rotuloExibicao}
+                </Text>
+              </Link>
+            ) : (
+              <Text variant="itemTitle" as="span" className="min-w-0 text-[var(--text-primary)]">
+                {rotuloExibicao}
+              </Text>
+            )}
+            <Badge variant="neutral">
+              {contagemRotulo}
+            </Badge>
+            {foco.length > 0 ? <PlatformIcons redes={foco} max={6} /> : null}
+          </div>
+          {foco.length > 0 ? (
+            <Text variant="meta" as="p" className="text-[var(--text-secondary)]">{rotuloDoFoco(foco)}</Text>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex items-center gap-2">
@@ -461,7 +475,7 @@ export function SeriesGruposLista({
   selecao: SelecaoDaLista;
   /** Numera a posição quando a lista está na ordem manual — a mesma numeração do Puxar. */
   numerar: boolean;
-  /** "+ Nova temporada · + Novo quadro", no fim da lista. */
+  /** Na família, "+ Nova série" no fim da lista. */
   rodape?: ReactNode;
 }) {
   const primeiraComConteudo = grupos.findIndex(grupo => grupo.total > 0);
@@ -560,6 +574,7 @@ function Grupo({
           tipoDoFilho={tipoDoFilho}
           filtrando={filtrando}
           serieDaPagina={serieDaPagina}
+          series={linha.series}
           menu={menu}
           marcacao={(!celular || selecao.ativa) && exibidosDoGrupo(grupo).length > 0 ? {
             estado: estadoDaMarcacao(exibidosDoGrupo(grupo).map(content => content.id), selecao.ids),

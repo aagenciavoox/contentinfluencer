@@ -32,7 +32,7 @@ import {
 import {normalizarRedesDoFiltro} from '../../creation/lib/creationRedeFilter';
 import {lerPreferenciaLista} from '../../settings/lib/preferenciaLista';
 import {colunaDeOrdemDisponivel} from '../../settings/lib/seriesLista';
-import {secoesDaSerie, type SecaoPuxar} from '../lib/secoesPuxar';
+import {posicoesNaSerie, secoesDaSerie, type SecaoPuxar} from '../lib/secoesPuxar';
 import {PostItTemas} from './PostItNote';
 
 /** Tempo em que um clique na lista ainda é o mesmo gesto que abriu o modal. */
@@ -121,6 +121,14 @@ export function PuxarConteudoDialog({
     }];
   }, [busca, candidatos, filtro, porSerie, redesPorConteudo, state.series, state.temas, state.temporadas]);
   const total = secoes.reduce((soma, secao) => soma + secao.contents.length, 0);
+  // O número é o da página da série, na lista inteira. Busca e filtro não recontam.
+  const posicoes = useMemo(() => {
+    if (!porSerie) return new Map();
+    return posicoesNaSerie(state.contents, filtro.serieIds, state.series, state.temporadas, {
+      preferencia: lerPreferenciaLista,
+      ordemDisponivel: colunaDeOrdemDisponivel(state.contents),
+    });
+  }, [filtro.serieIds, porSerie, state.contents, state.series, state.temporadas]);
 
   const nomeDaSerie = new Map(state.series.map(serie => [serie.id, serie.name.trim()]));
   const nomeDoPilar = new Map(state.pilares.map(pilar => [pilar.id, pilar.nome.trim()]));
@@ -221,10 +229,11 @@ export function PuxarConteudoDialog({
                       </Text>
                     ) : null}
                     <ul className="stack-sm">
-                      {secao.contents.map((content, indice) => {
+                      {secao.contents.map(content => {
                         const status = normalizeContentStatus(content.status);
                         const pilarId = pilarEfetivo(content, state.series);
                         const redesDoItem = redesPorConteudo.get(content.id) ?? [];
+                        const posicao = posicoes.get(content.id) ?? null;
                         // Com série escolhida, o cabeçalho e o filtro já dizem onde o episódio está.
                         const classe = [
                           !porSerie && content.seriesId ? nomeDaSerie.get(content.seriesId) : null,
@@ -239,11 +248,13 @@ export function PuxarConteudoDialog({
                             >
                               <span className="min-w-0 flex-1">
                                 <span className="block whitespace-normal break-words t-body-strong text-[var(--text-primary)]">
-                                  {secao.numerar ? (
-                                    <span className="mr-2 tabular-nums text-[var(--text-secondary)]">{indice + 1}.</span>
-                                  ) : null}
                                   {content.title || 'Sem título'}
                                 </span>
+                                {posicao ? (
+                                  <Text variant="meta" as="span" className="mt-0.5 block tabular-nums text-[var(--text-secondary)]">
+                                    {posicao.indicativo}
+                                  </Text>
+                                ) : null}
                                 {classe.length > 0 ? (
                                   <Text variant="meta" as="span" className="mt-0.5 block text-[var(--text-secondary)]">
                                     {classe.join(' · ')}

@@ -26,6 +26,8 @@ import {
 import { SerieProductionMetricsPanel } from './SerieProductionMetricsPanel';
 import { templateToHtml } from '../../contents/lib/seriesScriptTemplate';
 import { cn } from '../../../lib/utils';
+import { RedeChips } from '../../planejamento/components/RedeChips';
+import { normalizarRedesPostIt } from '../../planejamento/lib/redesPostIt';
 import { useUnsavedChangesRegistration } from '../../../hooks/useUnsavedChangesRegistration';
 import { generateUUID } from '../../../utils/uuid';
 import { EntityColorPicker } from './EntityColorPicker';
@@ -480,6 +482,7 @@ export function SerieEditForm({
       legendaBase: initial.legendaBase || '',
       parentId: initial.parentId ?? null,
       usaTemporadas: initial.usaTemporadas === true,
+      focoRedes: normalizarRedesPostIt(initial.focoRedes ?? []),
       tipoAgrupamento: initial.tipoAgrupamento ?? null,
       semPilar: initial.semPilar === true,
       acompanharContinuidade: acompanhaNoGeral({ id: initial.id ?? '', acompanharContinuidade: initial.acompanharContinuidade, acompanhamentos: initial.acompanhamentos }),
@@ -554,6 +557,7 @@ export function SerieEditForm({
     if (form.legendaBase !== snap.form.legendaBase) return true;
     if (form.parentId !== snap.form.parentId) return true;
     if (form.usaTemporadas !== snap.form.usaTemporadas) return true;
+    if (JSON.stringify(form.focoRedes) !== JSON.stringify(snap.form.focoRedes)) return true;
     if (form.ativa !== snap.form.ativa) return true;
     if (JSON.stringify(form.plataformas) !== JSON.stringify(snap.form.plataformas)) return true;
     return false;
@@ -724,6 +728,7 @@ export function SerieEditForm({
       legendaBase: legendaFinal,
       parentId: form.parentId,
       usaTemporadas: form.usaTemporadas,
+      focoRedes: tipo === 'quadro' ? normalizarRedesPostIt(form.focoRedes) : normalizarRedesPostIt(initial.focoRedes ?? []),
       tipoAgrupamento: tipo,
       semPilar: !form.pilarPrincipalId && form.semPilar,
       // Acompanhamento geral na tabela nova (coluna antiga espelhada); por conta/formato e metas seguem como estavam.
@@ -1456,7 +1461,7 @@ export function SerieEditForm({
                     <EditorSection
                       index="04"
                       title="Estrutura interna"
-                      description="Quadros desta série e temporadas compartilhadas entre eles."
+                      description="Quadros desta série e temporadas compartilhadas entre eles. Uma temporada reúne episódios de quadros diferentes e pode focar um grupo de redes."
                     >
                       <label className="flex w-fit cursor-pointer items-start gap-2">
                         <input
@@ -1468,7 +1473,7 @@ export function SerieEditForm({
                         <span>
                           <Text variant="body" as="span">Usa temporadas</Text>
                           <Text variant="meta" as="span" className="mt-0.5 block text-[var(--text-secondary)]">
-                            Vale para a série e para os quadros. A criação de temporada usa o valor já salvo.
+                            Vale para a série e para os quadros. Cada temporada pode focar um grupo de redes. A criação usa o valor já salvo.
                           </Text>
                         </span>
                       </label>
@@ -1560,6 +1565,20 @@ export function SerieEditForm({
                     rows={2}
                     className={cn(inputClass, 'resize-y leading-relaxed')}
                   />
+                </div>
+
+                <div className="stack-xs">
+                  <Text variant="label" as="p">
+                    Redes <span className="font-normal text-[var(--text-tertiary)]">· opcional</span>
+                  </Text>
+                  <RedeChips
+                    value={form.focoRedes}
+                    onChange={focoRedes => setForm(previous => ({ ...previous, focoRedes }))}
+                    platforms={contas}
+                  />
+                  <Text variant="meta" as="p">
+                    Os episódios novos deste quadro já nascem nestas redes, quando a temporada não escolhe as suas.
+                  </Text>
                 </div>
 
                 {renderBlocoModeloRoteiro(true)}

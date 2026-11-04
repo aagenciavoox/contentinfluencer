@@ -59,6 +59,7 @@ import {
 import {
   archiveCreation,
   CREATION_PAGE_SIZE,
+  comModoDaEscolha,
   createIdeaContent,
   createScriptWithPublications,
   CREATION_TABS,
@@ -668,10 +669,13 @@ export function CreationHubPage() {
     let content = createIdeaContent({
       ...input,
       pilarOrigem: input.pilarId ? 'escolhida' : null,
-      plataformas: input.plataformas.map(plataforma => ({...plataforma, contentId: ''})),
+      plataformas: [],
     });
     if (serie) content = aplicarEscolhasDaSerie(content, serie);
-    content.plataformas = content.plataformas.map(plataforma => ({...plataforma, contentId: content.id}));
+    content = comModoDaEscolha({
+      ...content,
+      plataformas: input.plataformas.map(plataforma => ({...plataforma, contentId: content.id})),
+    });
     // Fecha o modal e vai para Ideias antes do await, como o roteiro faz: o
     // `previous` é a URL do render em que o modal abriu, então navegar depois
     // do await trazia o compose=idea de volta e reabria o modal.

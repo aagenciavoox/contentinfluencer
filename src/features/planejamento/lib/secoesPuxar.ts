@@ -3,8 +3,10 @@ import {filhosDaSerie, idsDaSubarvore} from '../../editorial/lib/serieArvore.ts'
 import type {PreferenciaLista} from '../../settings/lib/preferenciaLista.ts';
 import {
   FILTROS_LISTA_PADRAO,
+  episodiosDaPagina,
   exibidosDoGrupo,
   montarLista,
+  ordenarLista,
   resolverAgrupar,
   resolverOrdem,
   temporadasDaSerie,
@@ -18,6 +20,25 @@ export type SecaoPuxar = {
   numerar: boolean;
   contents: Content[];
 };
+
+/** A mesma posição da página da série. Filtro do modal não reconta. */
+export type PosicaoNaSerie = {
+  numero: number;
+  total: number;
+  indicativo: string;
+};
+
+/** "2 de 6 ep da Temporada 1" quando a conta é a da temporada; senão a posição do grupo. */
+export function indicativoDaPosicao(
+  numero: number,
+  total: number,
+  temporadaDoGrupo: string | null,
+  temporadaDoEpisodio: string | null,
+): string {
+  if (temporadaDoGrupo) return `${numero} de ${total} ep da ${temporadaDoGrupo}`;
+  if (temporadaDoEpisodio) return `${numero} de ${total} · ${temporadaDoEpisodio}`;
+  return `${numero} de ${total}`;
+}
 
 /** Séries escolhidas sem as que já estão dentro de outra escolhida, em ordem de nome. */
 function raizesDaEscolha(serieIds: readonly string[], series: readonly Serie[]): Serie[] {
@@ -99,4 +120,62 @@ export function secoesDaSerie(
     });
   }
   return secoes;
+}
+
+/**
+ * Posição de cada episódio como na página da série, contando a série inteira.
+ * O que o modal esconde (busca, tag, rede) não vira o episódio 1.
+ */
+export function posicoesNaSerie(
+  contents: readonly Content[],
+  serieIds: readonly string[],
+  series: readonly Serie[],
+  temporadas: readonly Temporada[],
+  opcoes: {
+    preferencia: (serieId: string) => PreferenciaLista;
+    ordemDisponivel: boolean;
+  },
+): Map<string, PosicaoNaSerie> {
+  const posicoes = new Map<string, PosicaoNaSerie>();
+  const nomeDaTemporada = new Map(temporadas.map(temporada => [temporada.id, temporada.nome.trim()]));
+
+  for (const raiz of raizesDaEscolha(serieIds, series)) {
+    const episodios = episodiosDaPagina(raiz.id, series, contents);
+    if (episodios.length === 0) continue;
+
+    const temporadasValidas = temporadasDaSerie(raiz.id, series, temporadas);
+    const salva = opcoes.preferencia(raiz.id);
+    const agrupar = resolverAgrupar(salva.agrupar, {
+      temQuadros: filhosDaSerie(raiz.id, series).length > 0,
+      temTemporadas: Boolean(temporadasValidas),
+    });
+    const ordem = resolverOrdem(salva.ordem, opcoes.ordemDisponivel);
+    if (ordem !== 'manual') continue;
+
+    const grupos = montarLista({
+      episodios,
+      filtros: FILTROS_LISTA_PADRAO,
+      agrupar,
+      ordem,
+      ctx: {serieId: raiz.id, series, contas: [], temporadasValidas: temporadasValidas ?? []},
+      temporadas: temporadasValidas ?? [],
+    });
+
+    for (const grupo of grupos) {
+      const manual = ordenarLista(exibidosDoGrupo(grupo), 'manual');
+      const total = manual.length;
+      const temporadaDoGrupo = grupo.temporada?.nome.trim() || null;
+      manual.forEach((content, indice) => {
+        const numero = indice + 1;
+        const temporadaDoEpisodio = content.temporadaId ? nomeDaTemporada.get(content.temporadaId) || null : null;
+        posicoes.set(content.id, {
+          numero,
+          total,
+          indicativo: indicativoDaPosicao(numero, total, temporadaDoGrupo, temporadaDoEpisodio),
+        });
+      });
+    }
+  }
+
+  return posicoes;
 }

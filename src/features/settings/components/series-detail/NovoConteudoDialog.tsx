@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react';
 import { RichTextEditor } from '../../../../components/editors/RichTextEditor';
 import { BottomSheetModal } from '../../../../components/feedback/modals/BottomSheetModal';
+import { DestinationChips } from '../../../editorial/components/DestinationChips';
+import { publicacoesDoEpisodioNaTemporada } from '../../../editorial/lib/focoTemporada';
 import { OverlayBody } from '../../../../components/overlays/OverlayBody';
 import { OverlayFooter } from '../../../../components/overlays/OverlayFooter';
 import { OverlayHeader } from '../../../../components/overlays/OverlayHeader';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { SegmentTabs } from '../../../../components/ui/SegmentTabs';
 import { Text } from '../../../../components/ui/Text';
+import type { ContentPlataforma, Platform } from '../../../../lib/database';
+import type { RedeDoFiltro } from '../../../contas/lib/contas';
 import { generateUUID } from '../../../../utils/uuid';
 import type { ModoBloco } from '../../lib/seriesBulkDraft';
 
@@ -16,6 +20,7 @@ export type PedidoNovoConteudo = {
   titulo: string;
   /** HTML do editor; vazio quando nada foi colado. */
   texto: string;
+  plataformas: ContentPlataforma[];
   /** true: abre a página do conteúdo; false: fica na série. */
   abrir: boolean;
 };
@@ -30,12 +35,18 @@ const inputClass =
 export function NovoConteudoDialog({
   open,
   ondeVaiFicar,
+  contas,
+  destinosPadrao,
+  focoRedes,
   onClose,
   onCreate,
 }: {
   open: boolean;
   /** "A Ciência Explica · Temporada 1". */
   ondeVaiFicar: string;
+  contas: readonly Platform[];
+  destinosPadrao: readonly string[];
+  focoRedes?: readonly RedeDoFiltro[] | null;
   onClose: () => void;
   onCreate: (pedido: PedidoNovoConteudo) => void;
 }) {
@@ -43,6 +54,7 @@ export function NovoConteudoDialog({
   const [modo, setModo] = useState<ModoBloco>('ideia');
   const [titulo, setTitulo] = useState('');
   const [texto, setTexto] = useState('');
+  const [plataformas, setPlataformas] = useState<ContentPlataforma[]>([]);
   const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
@@ -51,8 +63,14 @@ export function NovoConteudoDialog({
     setModo('ideia');
     setTitulo('');
     setTexto('');
+    setPlataformas(publicacoesDoEpisodioNaTemporada({
+      contentId: '',
+      focoRedes,
+      contas,
+      destinosPadrao,
+    }));
     setErro(null);
-  }, [open]);
+  }, [contas, destinosPadrao, focoRedes, open]);
 
   // Enter continua criando e abrindo.
   const criar = (abrir = true) => {
@@ -60,7 +78,7 @@ export function NovoConteudoDialog({
       setErro('Dê um título ao conteúdo.');
       return;
     }
-    onCreate({ id, modo, titulo: titulo.trim(), texto, abrir });
+    onCreate({ id, modo, titulo: titulo.trim(), texto, plataformas, abrir });
   };
 
   return (
@@ -75,6 +93,12 @@ export function NovoConteudoDialog({
             { id: 'ideia', label: 'Ideia' },
             { id: 'roteiro', label: 'Roteiro' },
           ]}
+        />
+        <DestinationChips
+          platforms={contas.filter(conta => conta.ativo)}
+          publications={plataformas}
+          contentId=""
+          onChange={setPlataformas}
         />
         <div className="stack-xs">
           <label htmlFor="novo-conteudo-titulo">

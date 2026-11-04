@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Check } from 'lucide-react';
-import type { ContentPlataforma } from '../../../lib/database';
+import type { ContentPlataforma, FormatoEscolhidoNaPublicacao } from '../../../lib/database';
 import { PlatformIcon } from '../../../components/ui/PlatformIcon';
 import { Text } from '../../../components/ui/Text';
 import { Tooltip } from '../../../components/ui/Tooltip';
@@ -88,18 +88,38 @@ export function DestinationChips({
     return formatoDaConta(conta) === formatoAlvo;
   };
 
-  const alternarConta = (conta: DestinoPlataforma, formatoEscolhido?: 'short' | 'video-longo') => {
+  const formatoDoDestino = (destino: RedeDoFiltro): FormatoEscolhidoNaPublicacao | null => {
+    const formato = formatoDoFiltro(destino);
+    if (formato === 'short' || formato === 'video-longo' || formato === 'reels' || formato === 'carrossel') return formato;
+    if (redeBaseDoFiltro(destino) === 'tiktok') return 'reels';
+    return null;
+  };
+
+  const clicarNaConta = (conta: DestinoPlataforma, formato: FormatoEscolhidoNaPublicacao | null) => {
     if (disabled) return;
+    const pub = pubDaConta(conta);
     const marcada = destinoMarcado(publications, conta);
+    if (pub && marcada && formato) {
+      if (formatoDaConta(conta) === formato) {
+        if (!publicada(conta)) {
+          onChange(alternarDestino({ publicacoes: publications, plataforma: conta, contentId, marcar: false }));
+        }
+        return;
+      }
+      onChange(publications.map(item => item.id === pub.id ? { ...item, formatoPublicacao: formato } : item));
+      onActivate?.(conta.id);
+      return;
+    }
     if (marcada && publicada(conta)) return;
+    const vaiMarcar = !marcada;
     onChange(alternarDestino({
       publicacoes: publications,
       plataforma: conta,
       contentId,
-      marcar: !marcada,
-      formatoPublicacao: formatoEscolhido,
+      marcar: vaiMarcar,
+      ...(vaiMarcar && formato ? { formatoPublicacao: formato } : {}),
     }));
-    if (!marcada) onActivate?.(conta.id);
+    if (vaiMarcar) onActivate?.(conta.id);
   };
 
   const contasDaRede = (rede: string) => platforms.filter(conta => redeDaConta(conta) === rede);
@@ -110,55 +130,35 @@ export function DestinationChips({
     const redeBase = redeBaseDoFiltro(destino);
     const contas = contasDaRede(redeBase);
     if (contas.length === 0) return;
-    const formatoAlvo = formatoDoFiltro(destino);
-    const formatoYoutube = formatoAlvo === 'short' || formatoAlvo === 'video-longo' ? formatoAlvo : null;
-
-    if (formatoYoutube) {
-      if (contas.length === 1) {
-        const conta = contas[0];
-        const pub = pubDaConta(conta);
-        if (pub) {
-          const formatoAtual = formatoDaConta(conta);
-          if (formatoAtual === formatoYoutube) {
-            if (!publicada(conta)) {
-              onChange(alternarDestino({ publicacoes: publications, plataforma: conta, contentId, marcar: false }));
-            }
-          } else {
-            onChange(publications.map(item =>
-              item.id === pub.id ? { ...item, formatoPublicacao: formatoYoutube } : item
-            ));
-          }
-        } else {
-          onChange(alternarDestino({
-            publicacoes: publications,
-            plataforma: conta,
-            contentId,
-            marcar: true,
-            formatoPublicacao: formatoYoutube,
-          }));
-          onActivate?.(conta.id);
-        }
-        return;
-      }
+    if (contas.length > 1) {
       setAbertas(current => (current.includes(destino) ? current.filter(item => item !== destino) : [...current, destino]));
       return;
     }
-
-    if (contas.length === 1) {
-      alternarConta(contas[0]);
-      return;
-    }
-    setAbertas(current => (current.includes(destino) ? current.filter(item => item !== destino) : [...current, destino]));
+    clicarNaConta(contas[0], formatoDoDestino(destino));
   };
 
-  const chipDeConta = (conta: DestinoPlataforma) => {
-    const marcada = destinoMarcado(publications, conta);
+  const chipDeConta = (conta: DestinoPlataforma, formatoAlvo: FormatoEscolhidoNaPublicacao | null = null) => {
+    const marcada = formatoAlvo
+      ? destinoMarcado(publications, conta) && formatoDaConta(conta) === formatoAlvo
+      : destinoMarcado(publications, conta);
     const jaPublicada = publicada(conta);
     const ativa = activePlatformId === conta.id;
     const rede = redeDaConta(conta);
-    const formato = rede === 'youtube' ? formatoDaConta(conta) : null;
-    const icone = formato === 'short' ? 'youtube-shorts' : iconeDaConta(conta);
-    const complementoFormato = formato === 'short' ? ' · Shorts' : formato === 'video-longo' ? ' · Vídeo longo' : '';
+    const formato = formatoDaConta(conta);
+    const icone = formato === 'short'
+      ? 'youtube-shorts'
+      : formato === 'carrossel'
+        ? (rede === 'tiktok' ? 'tiktok-carrossel' : 'instagram-carrossel')
+        : iconeDaConta(conta);
+    const complementoFormato = formato === 'short'
+      ? ' · Shorts'
+      : formato === 'video-longo'
+        ? ' · Vídeo longo'
+        : formato === 'carrossel'
+          ? ' · Carrossel'
+          : formato === 'reels'
+            ? ' · Vídeo'
+            : '';
 
     return (
       <button
@@ -173,7 +173,7 @@ export function DestinationChips({
             onActivate(conta.id);
             return;
           }
-          alternarConta(conta);
+          clicarNaConta(conta, formatoAlvo);
         }}
         className={cn(
           contaChipClass,
@@ -270,7 +270,7 @@ export function DestinationChips({
                 {`Contas de ${ROTULO_REDE_DO_FILTRO[destino]}`}
               </Text>
               <div className="flex flex-wrap gap-2" role="group" aria-label={`Contas de ${ROTULO_REDE_DO_FILTRO[destino]}`}>
-                {contasDaRede(redeBaseDoFiltro(destino)).map(chipDeConta)}
+                {contasDaRede(redeBaseDoFiltro(destino)).map(conta => chipDeConta(conta, formatoDoDestino(destino)))}
               </div>
             </div>
           ))}
@@ -279,7 +279,7 @@ export function DestinationChips({
             <div className="stack-xs">
               <Text variant="meta" className="text-[var(--text-secondary)]">Outras plataformas</Text>
               <div className="flex flex-wrap gap-2" role="group" aria-label="Outras plataformas">
-                {outras.map(chipDeConta)}
+                {outras.map(conta => chipDeConta(conta))}
               </div>
             </div>
           ) : null}

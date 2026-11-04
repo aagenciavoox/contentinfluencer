@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import type {Content, Serie, Temporada} from '../../../lib/database.ts';
 import type {PreferenciaLista} from '../../settings/lib/preferenciaLista.ts';
-import {secoesDaSerie} from './secoesPuxar.ts';
+import {posicoesNaSerie, secoesDaSerie} from './secoesPuxar.ts';
 
 const serie = (id: string, name: string, parentId: string | null, usaTemporadas = false) =>
   ({id, name, parentId, usaTemporadas} as unknown as Serie);
@@ -99,6 +99,15 @@ function testQuadroEscolhidoJuntoComASerieNaoDuplica() {
   assert.deepEqual(secoes[0].contents.map(item => item.id), ['c']);
 }
 
+function testPosicaoNaoRecontaQuemOModalEsconde() {
+  // A conta usa a série inteira. Quem o modal esconde continua ocupando o lugar.
+  const todas = posicoesNaSerie(lista, ['s-res'], series, temporadas, comPreferencia({'s-res': {agrupar: 'temporada'}}));
+  assert.equal(todas.get('a')?.indicativo, '1 de 2 ep da Temporada 1');
+  assert.equal(todas.get('b')?.indicativo, '2 de 2 ep da Temporada 1');
+  assert.equal(todas.get('d')?.indicativo, '1 de 1 ep da Temporada 2');
+  assert.equal(todas.get('b')?.numero, 2);
+}
+
 function testForaDaEscolhaNaoSome() {
   const secoes = secoesDaSerie([ep('x', 's-hum'), ep('z', null)], ['s-hum'], series, temporadas, comPreferencia());
   assert.deepEqual(resumo(secoes), [[null, ['x']], ['Outros', ['z']]]);
@@ -111,4 +120,5 @@ testSemColunaDeOrdemCaiNaPublicacao();
 testPreferenciaInvalidaVoltaAoPadrao();
 testVariasSeriesPrefixamONomeECadaUmaSegueASuaPreferencia();
 testQuadroEscolhidoJuntoComASerieNaoDuplica();
+testPosicaoNaoRecontaQuemOModalEsconde();
 testForaDaEscolhaNaoSome();
