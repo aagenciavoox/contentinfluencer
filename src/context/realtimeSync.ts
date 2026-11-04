@@ -56,6 +56,28 @@ export function changedTablesFromPayload(payload: unknown): string[] {
   ))];
 }
 
+const conteudosRemovidos = new Set<string>();
+
+/** Ids apagados que o próximo aviso leva junto, para a outra tela tirar o roteiro sem baixar a lista. */
+export function anotarConteudosRemovidos(ids: readonly string[]) {
+  for (const id of ids) {
+    if (typeof id === 'string' && id.length > 0) conteudosRemovidos.add(id);
+  }
+}
+
+export function consumirConteudosRemovidos(): string[] {
+  const ids = [...conteudosRemovidos];
+  conteudosRemovidos.clear();
+  return ids;
+}
+
+/** Ids de roteiro que um aviso pediu para tirar da lista agora. Lixo no payload é ignorado. */
+export function removedContentIdsFromPayload(payload: unknown): string[] {
+  const ids = (payload as { removedContentIds?: unknown } | null)?.removedContentIds;
+  if (!Array.isArray(ids)) return [];
+  return [...new Set(ids.filter((id): id is string => typeof id === 'string' && id.length > 0))].slice(0, 200);
+}
+
 export const SYNC_ANNOUNCE_DELAY_MS = 1000;
 
 /**

@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
 import {
+  anotarConteudosRemovidos,
   changedTablesFromPayload,
+  consumirConteudosRemovidos,
   createTableAnnouncer,
   LOCAL_REALTIME_SUPPRESSION_MS,
   REALTIME_REFRESH_DEBOUNCE_MS,
   realtimeRefreshDelay,
+  removedContentIdsFromPayload,
   shouldSkipRealtimeRefresh,
   syncChannelName,
 } from './realtimeSync.ts';
@@ -66,6 +69,15 @@ function testAnnouncerFlushSendsPendingNow() {
   assert.deepEqual(sent, [['series']]);
 }
 
+function testRemovedContentIdsRideAlongAndAreReadBack() {
+  consumirConteudosRemovidos();
+  anotarConteudosRemovidos(['roteiro-1', '', 'roteiro-1', 'roteiro-2']);
+  assert.deepEqual(consumirConteudosRemovidos(), ['roteiro-1', 'roteiro-2']);
+  assert.deepEqual(consumirConteudosRemovidos(), []);
+  assert.deepEqual(removedContentIdsFromPayload({ tables: ['contents'], removedContentIds: ['a', 'a', 3, ''] }), ['a']);
+  assert.deepEqual(removedContentIdsFromPayload({ tables: ['contents'] }), []);
+}
+
 function testRefreshWaitsForTheRestOfTheWindow() {
   // Sem recarga anterior: só a folga de 1,5 s.
   assert.equal(realtimeRefreshDelay(0, 10_000, 30_000), REALTIME_REFRESH_DEBOUNCE_MS);
@@ -87,6 +99,7 @@ const tests: Array<[string, () => void | Promise<void>]> = [
   ['reads only known tables from a sync message', testReadsOnlyKnownTablesFromPayload],
   ['batches writes made close together into one sync message', testAnnouncerBatchesWritesIntoOneMessage],
   ['flush sends pending tables immediately and only once', testAnnouncerFlushSendsPendingNow],
+  ['removed content ids travel with the next sync notice and are read back', testRemovedContentIdsRideAlongAndAreReadBack],
   ['a refresh asked inside the minimum window waits instead of being dropped', testRefreshWaitsForTheRestOfTheWindow],
 ];
 

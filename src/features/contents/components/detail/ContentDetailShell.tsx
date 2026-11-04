@@ -702,7 +702,8 @@ export function ContentDetailShell({
       setDraftDirty(false);
       setDeleteConfirmOpen(false);
       const backTo = resolveContentDetailBack(location.state as {from?: string} | null);
-      await dispatch({type: 'DELETE_CONTENT', payload: content.id});
+      // A lista perde o episódio na hora. A gravação no banco segue e, se falhar, o aviso e a recarga tratam.
+      void dispatch({type: 'DELETE_CONTENT', payload: content.id}).catch(() => undefined);
       navigate(backTo, {replace: true});
     } finally {
       setIsDeleting(false);

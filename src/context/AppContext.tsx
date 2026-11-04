@@ -8,9 +8,12 @@ import type * as db from '../lib/database';
 import { appReducer, AppAction } from './reducer';
 import { persistAction, persistContentRecord } from './persistAction';
 import {
+  anotarConteudosRemovidos,
   changedTablesFromPayload,
+  consumirConteudosRemovidos,
   createTableAnnouncer,
   realtimeRefreshDelay,
+  removedContentIdsFromPayload,
   shouldSkipRealtimeRefresh,
   SYNC_EVENT,
   syncChannelName,
@@ -84,7 +87,22 @@ const ACTION_SAVE_LABELS: Partial<Record<AppAction['type'], string>> = {
   DELETE_PLATFORM: 'Plataforma removida',
 };
 
-export type PersistOptions = { silent?: boolean; skipBroadcast?: boolean };
+export type PersistOptions = {
+  silent?: boolean;
+  skipBroadcast?: boolean;
+  removedContentIds?: readonly string[];
+};
+
+function idsRemovidosDaAcao(ids: readonly string[] | undefined): string[] | undefined {
+  const limpos = ids?.filter(id => id.length > 0);
+  return limpos && limpos.length > 0 ? [...limpos] : undefined;
+}
+
+function idsDaAcaoDeApagar(action: AppAction): string[] | undefined {
+  if (action.type === 'DELETE_CONTENT' || action.type === 'FORGET_CONTENT') return [action.payload];
+  if (action.type === 'DELETE_MULTIPLE_CONTENTS') return idsRemovidosDaAcao(action.payload);
+  return undefined;
+}
 
 export type RefreshFromServerOptions = {
   silent?: boolean;
@@ -240,7 +258,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       notifySaveFeedback({ status: 'success', message: label });
     }
     if (!options?.skipBroadcast) {
-      broadcastDataSync();
+      const removedContentIds = idsRemovidosDaAcao(options?.removedContentIds);
+      if (removedContentIds) anotarConteudosRemovidos(removedContentIds);
+      broadcastDataSync(removedContentIds);
     }
 
     if (
@@ -583,6 +603,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const refreshFromServerRef = useRef(refreshFromServer);
   refreshFromServerRef.current = refreshFromServer;
+  const esquecerConteudosRef = useRef<(ids: readonly string[]) => void>(() => undefined);
 
   useEffect(() => {
     if (!supabase || !userId) return;
@@ -658,6 +679,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     let joined = false;
 
     channel.on('broadcast', { event: SYNC_EVENT }, message => {
+      esquecerConteudosRef.current(removedContentIdsFromPayload(message.payload));
       changedTablesFromPayload(message.payload).forEach(handleTableChange);
     });
 
@@ -669,7 +691,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
 
     const announcer = createTableAnnouncer(tables => {
-      const payload = { tables };
+      const removedContentIds = consumirConteudosRemovidos();
+      const payload = removedContentIds.length > 0 ? { tables, removedContentIds } : { tables };
       if (joined) {
         void channel.send({ type: 'broadcast', event: SYNC_EVENT, payload });
         return;
@@ -696,7 +719,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [userId]);
 
   useEffect(() => {
-    return subscribeDataSync(() => {
+    return subscribeDataSync(message => {
+      esquecerConteudosRef.current(message.removedContentIds ?? []);
       void refreshFromServer({ silent: true });
     });
   }, [refreshFromServer]);
@@ -819,6 +843,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         userId,
         stateRef.current.contents.filter(content => content.id !== normalizedAction.payload),
       );
+      if (!options?.skipBroadcast) {
+        anotarConteudosRemovidos([normalizedAction.payload]);
+        broadcastDataSync([normalizedAction.payload]);
+      }
     }
 
     if (!userId || !shouldPersist) return;
@@ -831,7 +859,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await runPersist(() =>
         persistAction({ action: normalizedAction, userId, state: stateRef.current })
       );
-      finishPersist(normalizedAction.type, persistOptions);
+      finishPersist(normalizedAction.type, {
+        ...persistOptions,
+        removedContentIds: idsDaAcaoDeApagar(normalizedAction),
+      });
       // O que foi salvo entra no cache do navegador: recarregar não traz a versão de antes.
       if (snapshot) patchChangedSlicesInDomainCaches(userId, snapshot, stateRef.current);
     } catch (err) {
@@ -853,6 +884,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       throw err;
     }
   }, [createContent, finishPersist, refreshFromServer, runPersist, updateContent, userId]);
+
+  esquecerConteudosRef.current = ids => {
+    for (const id of ids) {
+      void enhancedDispatch({ type: 'FORGET_CONTENT', payload: id }, { skipBroadcast: true });
+    }
+  };
 
   // "Sistema" acompanha o sistema operacional, inclusive quando ele troca com o app aberto.
   useEffect(() => {
