@@ -280,6 +280,7 @@ function montarItens(
       temPauta,
       etapa,
       postItId: escolhido.id,
+      ...(entry?.temporadaId ? { temporadaId: entry.temporadaId } : {}),
     };
     itens.push(itemDeEntrada(sintetico, temPauta));
   }

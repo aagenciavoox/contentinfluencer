@@ -19,7 +19,8 @@ export type PublicacaoNoDia = {
 
 /**
  * Publicações e previsões datadas. Uma data prevista mantém a etapa real.
- * Só leitura: os post-its continuam sendo o plano.
+ * O quadro do Planejamento não pinta esta lista: lá só entra post-it.
+ * O Calendário recebe o dia quando o post-it é aprovado.
  */
 export function publicacoesPorDia(input: {
   contents: readonly Content[];

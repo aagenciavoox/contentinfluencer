@@ -48,8 +48,8 @@ export function PlanejamentoReservaCard({
   onToggleSelect,
   className,
 }: PlanejamentoReservaCardProps) {
-  // Cor editorial: vem da série/quadro (ou herda do pilar)
-  const cor = serie?.cor || pilar?.cor || null;
+  // A cor do post-it é a do pilar. Sem pilar, o papel fica branco.
+  const cor = pilar?.cor?.trim() || null;
   const nomeAgrupamento = serie?.name || pilar?.nome || (pilar as any)?.name || null;
 
   const menuItems: MoreMenuItem[] = [
@@ -95,8 +95,7 @@ export function PlanejamentoReservaCard({
   const descricao = linhas.length > 1 ? linhas.slice(1).join(' ') : null;
   const redes = postIt.redes && postIt.redes.length > 0 ? postIt.redes : [];
 
-  // Quadrada, com a ponta dobrada (`.post-it-card`). Sem série nem pilar o papel é âmbar claro;
-  // com série o papel continua claro e só a borda e a dobra levam a cor.
+  // Quadrada, com a ponta dobrada. Sem pilar o papel é branco; com pilar, a borda e a dobra levam a cor.
   const styleCustom = cor ? ({'--card-accent': cor} as CSSProperties) : undefined;
 
   return (
@@ -133,7 +132,7 @@ export function PlanejamentoReservaCard({
       }}
       className={cn(
         'post-it-card group relative flex flex-col justify-between p-2.5 pb-3.5 text-left cursor-pointer',
-        cor && 'post-it-card--serie',
+        cor && 'post-it-card--pilar',
         draggable && 'cursor-grab active:cursor-grabbing',
         selected && 'ring-2 ring-[var(--text-primary)]',
         className,

@@ -16,9 +16,9 @@ const dia = (d: Date) => format(d, 'yyyy-MM-dd');
 const dados = (contents: ReturnType<typeof createContentDraft>[]) => ({contents, postIts: [], series: [], pilares: [], platforms: [], settings: {redeReferenciaId: null, proporcaoFuncoes: null}});
 
 describe('ações da Saúde Editorial', () => {
-  it('mostra domingo a sábado e todos os dias de ciclos que atravessam o mês', () => {
+  it('mostra segunda a domingo e todos os dias de ciclos que atravessam o mês', () => {
     const semana = intervalosDaFrequencia({vezes: 2, unidade: 'semana', aPartirDe:null}, {inicio: '2026-11-03', fim: '2026-11-07'})[0];
-    assert.deepEqual(diasDoCalendario(new Date('2026-11-01T12:00:00')).map(dia), ['2026-11-01','2026-11-02','2026-11-03','2026-11-04','2026-11-05','2026-11-06','2026-11-07']);
+    assert.deepEqual(diasDoCalendario(new Date('2026-11-04T12:00:00')).map(dia), ['2026-11-02','2026-11-03','2026-11-04','2026-11-05','2026-11-06','2026-11-07','2026-11-08']);
     assert.equal(dia(diasDoCalendario(new Date('2026-11-03T12:00:00'), semana).at(-1)!), semana.fim);
     const quinzena = intervalosDaFrequencia({vezes: 2, unidade: 'quinzena', aPartirDe: '2026-10-25'}, {inicio: '2026-11-01', fim: '2026-11-07'})[0];
     const dias = diasDoCalendario(new Date('2026-10-25T12:00:00'), quinzena);
@@ -63,11 +63,11 @@ describe('ações da Saúde Editorial', () => {
     assert.deepEqual(roteirosDaSaude([...counts.itens, ...counts.itens], contents, blocks), ['pronto']);
   });
   it('mantém atrasos de outro mês e os remove após mover, retirar a previsão ou publicar', () => {
-    const atrasado = createContentDraft({id:'atrasado',status:CONTENT_STATUS.PRODUCAO,publishDate:'2026-10-31'});
+    const passouDaData = createContentDraft({id:'passouDaData',status:CONTENT_STATUS.PRODUCAO,publishDate:'2026-10-31'});
     const publicado = createContentDraft({id:'publicado',status:CONTENT_STATUS.POSTADO,publishDate:'2026-10-30',postedAt:'2026-10-30T12:00:00Z'});
-    assert.deepEqual(pendenciasNaSaude(dados([atrasado, publicado]), '2026-11-04').map(i=>i.contentId), ['atrasado']);
-    assert.equal(pendenciasNaSaude(dados([levarRoteiroAoDia(atrasado,'2026-11-04')!]), '2026-11-04').length, 0);
-    assert.equal(pendenciasNaSaude(dados([levarRoteiroAoDia(atrasado,null)!]), '2026-11-04').length, 0);
+    assert.deepEqual(pendenciasNaSaude(dados([passouDaData, publicado]), '2026-11-04').map(i=>i.contentId), ['passouDaData']);
+    assert.equal(pendenciasNaSaude(dados([levarRoteiroAoDia(passouDaData,'2026-11-04')!]), '2026-11-04').length, 0);
+    assert.equal(pendenciasNaSaude(dados([levarRoteiroAoDia(passouDaData,null)!]), '2026-11-04').length, 0);
   });
   it('mostra frequência encerrada como histórico também no acompanhamento por conta', () => {
     const serie = {id:'s1', name:'Série', ativa:true, frequenciaVezes:2, frequenciaUnidade:'semana',

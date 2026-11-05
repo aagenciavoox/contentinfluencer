@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { AtSign, Palette, Plus, SlidersHorizontal, Target } from 'lucide-react';
+import { Activity, AtSign, Palette, Plus, SlidersHorizontal, Target } from 'lucide-react';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { SettingsGridCard, SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/SettingsGridCard';
 import { AppButton } from '../../../components/ui/AppButton';
@@ -14,6 +14,7 @@ import { CONFIRM, type ConfirmState } from '../../../lib/uiCopy';
 import { sortPilares } from '../../settings/lib/activePilares';
 import { ContasHorariosPanel } from '../../contas/components/ContasHorariosPanel';
 import { AjustesEditorialPanel } from './plano/AjustesEditorialPanel';
+import { ContinuidadePanel } from './plano/ContinuidadePanel';
 import { PeriodoPanel } from './plano/PeriodoPanel';
 import { periodoInicial, type PeriodoSelecionado } from './plano/PeriodoEditorialControl';
 import { lerPeriodoSalvo } from '../lib/periodoEditorial';
@@ -30,9 +31,9 @@ function nomeChave(nome: string): string {
   return nome.trim().toLocaleLowerCase('pt-BR');
 }
 
-export type EditorialAba = 'plano' | 'pilares' | 'ajustes' | 'contas';
+export type EditorialAba = 'plano' | 'continuidade' | 'pilares' | 'ajustes' | 'contas';
 
-const EDITORIAL_ABAS: readonly EditorialAba[] = ['plano', 'pilares', 'ajustes', 'contas'];
+const EDITORIAL_ABAS: readonly EditorialAba[] = ['plano', 'continuidade', 'pilares', 'ajustes', 'contas'];
 
 /** Lê `?aba=` da URL; qualquer valor desconhecido cai em Plano Vigente. */
 export function abaEditorialDaUrl(valor: string | null): EditorialAba {
@@ -42,6 +43,7 @@ export function abaEditorialDaUrl(valor: string | null): EditorialAba {
 export function opcoesAbasEditorial(): SegmentTabOption<EditorialAba>[] {
   return [
     { id: 'plano', label: 'Plano Vigente', icon: <Target className="h-4 w-4" /> },
+    { id: 'continuidade', label: 'Continuidade', icon: <Activity className="h-4 w-4" /> },
     { id: 'pilares', label: 'Pilares & Linhas', icon: <Palette className="h-4 w-4" /> },
     { id: 'ajustes', label: 'Ritmo & Regras Gerais', icon: <SlidersHorizontal className="h-4 w-4" /> },
     { id: 'contas', label: 'Contas & Horários', icon: <AtSign className="h-4 w-4" /> },
@@ -139,6 +141,8 @@ export function DirecaoEditorialPanel({ abaAtiva: abaAtivaProp }: DirecaoEditori
           planoRecolhivel={false}
         />
       )}
+
+      {abaAtiva === 'continuidade' && <ContinuidadePanel />}
 
       {abaAtiva === 'pilares' && (
         <Section title="Pilares">

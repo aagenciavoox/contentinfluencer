@@ -138,9 +138,9 @@ function testFullListDropsGhostAndKeepsFreshLocal() {
     ...content('arquivo', 'Fora da lista ativa', '2026-07-02T12:00:00.000Z'),
     archivedAt: '2026-07-02T12:00:00.000Z',
   };
-  const falhou = content('falha', 'Gravação que falhou', '2026-07-03T12:00:00.000Z');
+  const comErro = content('falha', 'Gravação com erro', '2026-07-03T12:00:00.000Z');
   const lista = aplicarListaCompletaDeConteudos(
-    [ghost, fresco, vivo, arquivado, falhou],
+    [ghost, fresco, vivo, arquivado, comErro],
     [vivo],
     {
       manterIds: new Set(['falha']),

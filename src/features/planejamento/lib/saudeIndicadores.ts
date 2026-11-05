@@ -10,6 +10,7 @@ import {
   type JanelaApurada,
   type SerieDaApuracao,
 } from '../../editorial/lib/apuracaoSerie.ts';
+import { exclusaoDeMetaPropria } from '../../editorial/lib/metaPropria.ts';
 import { acompanhamentoGeral, acompanhaNoGeral, coberturaNoGeral, idsComAncestrais, serieAcompanhada } from '../../editorial/lib/acompanhamento.ts';
 import {
   diasSeguidosDosItens,
@@ -182,9 +183,13 @@ export type IntervaloAvaliado = JanelaApurada & {
 };
 
 export type LinhaContinuidade<T> = {
+  /** Chave estável da linha: o id da série, ou `t:` + id da temporada. */
+  chave: string;
   serieId: string;
+  /** Preenchido quando a linha é a wave de uma temporada, não a série inteira. */
+  temporadaId?: string | null;
   nome: string;
-  tipo: 'serie' | 'quadro';
+  tipo: 'serie' | 'quadro' | 'temporada';
   paiNome: string | null;
   frequencia: string;
   intervalos: IntervaloAvaliado[];
@@ -213,7 +218,9 @@ export type LinhaContinuidade<T> = {
 export type PendenciaFrequencia = {
   serieId: string;
   nome: string;
-  tipo: 'serie' | 'quadro';
+  tipo: 'serie' | 'quadro' | 'temporada';
+  /** Wave da temporada, quando a pendência é dela e não da série. */
+  temporadaId?: string | null;
   motivo: 'sem-frequencia' | 'incompleta' | 'sem-ancora';
   texto: string;
 };
@@ -252,10 +259,23 @@ function avaliado(janela: JanelaApurada): IntervaloAvaliado {
 
 /**
  * Continuidade: cada série (e quadro com meta própria) marcada, conferida janela a janela
- * pela apuração comum (`apurarSerie`). Episódio de quadro conta para a série acima, uma vez só.
+ * pela apuração comum (`apurarSerie`). Episódio de quadro conta para a série acima, uma vez só;
+ * quadro com meta própria e wave com ritmo próprio contam só na linha deles.
  * Repost não é episódio novo. Post-it é reserva. Sobra não compensa falta.
  * `itens` pode ir além do período: os intervalos das pontas são avaliados inteiros.
  */
+export type TemporadaDaSaude = {
+  id: string;
+  serieId: string;
+  nome: string;
+  acompanhar?: boolean;
+  /** Com meta, os episódios saem da conta da série (padrão ligado). */
+  ritmoProprio?: boolean | null;
+  frequenciaVezes?: number | null;
+  frequenciaUnidade?: string | null;
+  frequenciaAPartirDe?: string | null;
+};
+
 export function continuidadeDasSeries<T extends ItemSaude>(input: {
   series: readonly SerieDaSaude[];
   itens: readonly T[];
@@ -264,6 +284,8 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
   pausas?: readonly PausaEditorial[];
   /** yyyy-MM-dd; padrão, hoje. Para a distância que ainda pode ser coberta. */
   hoje?: string;
+  /** Waves com acompanhamento próprio. Só entram as marcadas. */
+  temporadas?: readonly TemporadaDaSaude[];
 }): Continuidade<T> {
   const { series, itens, periodo } = input;
   const porId = new Map(series.map(serie => [serie.id, serie]));
@@ -314,7 +336,13 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
       continue;
     }
 
-    const apuracao = apurarSerie({ serie, series, itens, periodo });
+    const apuracao = apurarSerie({
+      serie,
+      series,
+      itens,
+      periodo,
+      excluir: exclusaoDeMetaPropria(serie, series, input.temporadas ?? []),
+    });
     if (apuracao.inicioFuturo) {
       naoAvaliadas.push({
         serieId: serie.id,
@@ -359,7 +387,9 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
     const diasSeguidos = geral?.evitarDiasSeguidos ? diasSeguidosDosItens(apuracao.itens, periodo) : [];
     const pai = serie.parentId ? porId.get(serie.parentId) : undefined;
     linhas.push({
+      chave: serie.id,
       serieId: serie.id,
+      temporadaId: null,
       nome,
       tipo: tipoLinha,
       paiNome: pai?.name?.trim() || null,
@@ -376,6 +406,82 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
       foraDoPeriodo: apuracao.foraDoPeriodo,
       precisaAtencao: abaixo.length > 0 || apuracao.concentrada || cobrados.some(intervalo => intervalo.estado === 'reservada')
         || distancias.length > 0 || diasSeguidos.length > 0,
+      itens: apuracao.itens,
+    });
+  }
+
+  // Cada temporada marcada é uma wave: só os episódios dela, com a meta dela.
+  for (const temporada of input.temporadas ?? []) {
+    if (temporada.acompanhar !== true) continue;
+    const dona = porId.get(temporada.serieId);
+    if (!dona || dona.ativa === false) continue;
+    const nome = temporada.nome.trim() || 'Temporada';
+    const sintetica: SerieDaSaude = {
+      ...dona,
+      name: nome,
+      frequenciaRecomendada: null,
+      frequenciaVezes: temporada.frequenciaVezes ?? null,
+      frequenciaUnidade: temporada.frequenciaUnidade ?? null,
+      frequenciaAPartirDe: temporada.frequenciaAPartirDe ?? null,
+    };
+    const situacao = situacaoDaFrequencia(sintetica);
+    if (situacao.tipo === 'incompleta' || situacao.tipo === 'sem-frequencia' || situacao.tipo === 'sem-ancora') {
+      const motivo = situacao.tipo === 'incompleta' ? 'incompleta' : situacao.tipo === 'sem-ancora' ? 'sem-ancora' : 'sem-frequencia';
+      const texto = motivo === 'incompleta' ? 'Frequência incompleta: escolha a unidade'
+        : motivo === 'sem-ancora' ? TEXTO_SEM_ANCORA
+          : 'Sem frequência definida';
+      acompanhadas += 1;
+      pendencias.push({ serieId: dona.id, temporadaId: temporada.id, nome, tipo: 'temporada', motivo, texto });
+      continue;
+    }
+    if (situacao.tipo === 'sob-demanda') {
+      naoAvaliadas.push({ serieId: dona.id, nome, motivo: 'sob-demanda', texto: 'Sob demanda: não avaliada' });
+      continue;
+    }
+    // Sob demanda não entra na contagem de acompanhadas; com meta (ou pendência de meta), entra.
+    acompanhadas += 1;
+    const daOnda = itens.filter(item => item.temporadaId === temporada.id);
+    const apuracao = apurarSerie({ serie: sintetica, series, itens: daOnda, periodo });
+    if (apuracao.inicioFuturo) {
+      naoAvaliadas.push({
+        serieId: dona.id,
+        nome,
+        motivo: 'inicio-futuro',
+        texto: `Meta começa em ${format(parseISO(apuracao.inicioFuturo), 'dd/MM/yyyy')}: ainda não avaliada`,
+      });
+      continue;
+    }
+    const pausas = input.pausas ?? [];
+    const serieIds = idsComAncestrais(dona.id, series);
+    const intervalos = apuracao.janelas.flatMap(janela => {
+      const cobertura = coberturaNoGeral(janela, null, pausas, serieIds);
+      if (cobertura === 'fora') return [];
+      const item = avaliado(janela);
+      if (cobertura === 'pausada') return [{ ...item, abaixo: false, pausada: true }];
+      if (cobertura === 'parcial') return [{ ...item, abaixo: false, parcial: true }];
+      return [item];
+    });
+    const cobrados = intervalos.filter(intervalo => !intervalo.pausada && !intervalo.parcial);
+    const abaixo = intervalos.filter(intervalo => intervalo.abaixo);
+    linhas.push({
+      chave: `t:${temporada.id}`,
+      serieId: dona.id,
+      temporadaId: temporada.id,
+      nome,
+      tipo: 'temporada',
+      paiNome: dona.name?.trim() || null,
+      frequencia: textoFrequencia(situacao.freq),
+      intervalos,
+      abaixo,
+      pausadas: intervalos.filter(intervalo => intervalo.pausada),
+      parciais: intervalos.filter(intervalo => intervalo.parcial),
+      distancias: [],
+      diasSeguidos: [],
+      reservadas: cobrados.filter(intervalo => intervalo.estado === 'reservada'),
+      concentrada: apuracao.concentrada,
+      semEpisodios: cobrados.length > 0 && cobrados.every(intervalo => intervalo.estado === 'vazia'),
+      foraDoPeriodo: apuracao.foraDoPeriodo,
+      precisaAtencao: abaixo.length > 0 || apuracao.concentrada || cobrados.some(intervalo => intervalo.estado === 'reservada'),
       itens: apuracao.itens,
     });
   }
@@ -401,18 +507,24 @@ type LinhaResumo = Pick<LinhaContinuidade<unknown>, 'tipo' | 'precisaAtencao' | 
 function seriesEQuadros(linhas: readonly LinhaResumo[]): { texto: string; total: number } {
   const series = linhas.filter(l => l.tipo === 'serie').length;
   const quadros = linhas.filter(l => l.tipo === 'quadro').length;
-  const texto = [
+  const temporadas = linhas.filter(l => l.tipo === 'temporada').length;
+  const partes = [
     series > 0 ? plural(series, 'série', 'séries') : null,
     quadros > 0 ? plural(quadros, 'quadro', 'quadros') : null,
-  ].filter(Boolean).join(' e ');
-  return { texto, total: series + quadros };
+    temporadas > 0 ? plural(temporadas, 'temporada', 'temporadas') : null,
+  ].filter(Boolean);
+  const texto = partes.length <= 1 ? (partes[0] ?? '') : `${partes.slice(0, -1).join(', ')} e ${partes.at(-1)}`;
+  return { texto, total: series + quadros + temporadas };
 }
 
 /** "1 série abaixo da frequência · 2 sem episódios no período". Cada grupo conta à parte. */
 export function resumoDaContinuidade(linhas: readonly LinhaResumo[]): string {
   const atencao = linhas.filter(l => l.precisaAtencao);
   if (atencao.length === 0) {
-    return linhas.length === 0 ? 'Nenhuma série com frequência para conferir' : 'Todas as séries e quadros acompanhados dentro da frequência';
+    if (linhas.length === 0) return 'Nenhuma série com frequência para conferir';
+    return linhas.some(linha => linha.tipo === 'temporada')
+      ? 'Todas as séries, quadros e temporadas acompanhados dentro da frequência'
+      : 'Todas as séries e quadros acompanhados dentro da frequência';
   }
   const semEpisodios = seriesEQuadros(atencao.filter(l => l.semEpisodios));
   const abaixo = seriesEQuadros(atencao.filter(l => !l.semEpisodios && l.abaixo.length > 0));

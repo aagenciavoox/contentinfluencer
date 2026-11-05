@@ -16,7 +16,6 @@ import { atualizarPreferencias } from '../../lib/editorialSettings';
 import { agendarVigencia, desfazerMudanca, diretrizNoDomingo, domingosParaVigencia, mudancasAgendadas } from '../../lib/vigencias';
 import { ProporcaoObjetivosEditor, proporcaoEmTexto, ResumoDaProporcao } from './ProporcaoObjetivosEditor';
 import { ContasEFormatosCard } from './ContasEFormatosCard';
-import { ContinuidadeSeriesCard } from './ContinuidadeSeriesCard';
 import { VariedadeConcentracaoCard } from './VariedadeConcentracaoCard';
 import { useEditorialPlano } from './useEditorialPlano';
 import { diaMes, ValeAPartirDe } from './ValeAPartirDe';
@@ -409,8 +408,6 @@ export function AjustesEditorialPanel() {
       </CardConfiguracao>
 
       <ContasEFormatosCard />
-
-      <ContinuidadeSeriesCard />
 
       <VariedadeConcentracaoCard />
 

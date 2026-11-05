@@ -10,6 +10,19 @@ export type Temporada = {
   descricao?: string | null;
   /** Redes desta temporada. Vazio ou ausente = sem foco de plataforma. */
   focoRedes?: RedeDoFiltro[];
+  /** Quantidade da meta desta wave. Nulo = sem meta própria. */
+  frequenciaVezes?: number | null;
+  /** semana, quinzena ou mes. */
+  frequenciaUnidade?: string | null;
+  /** Primeiro dia da meta. Obrigatório no ciclo de 14 dias. */
+  frequenciaAPartirDe?: string | null;
+  /** Wave isolada na Saúde: conta só os episódios desta temporada. */
+  acompanhar?: boolean;
+  /**
+   * Wave com ritmo próprio: com meta, os episódios dela saem da conta da série de cima.
+   * Ligado por padrão quando há meta (serie_acompanhamento.ritmo_proprio).
+   */
+  ritmoProprio?: boolean;
   createdAt: string;
 };
 

@@ -9,7 +9,6 @@ import {
   ChevronUp,
   Clapperboard,
   Clock,
-  ExternalLink,
   HelpCircle,
   Layers,
   Pin,
@@ -53,7 +52,7 @@ export interface SaudeEditorialPanelProps {
   rotuloPeriodo: string;
   /** Quando o calendário mostra datas fora do período. */
   avisoPeriodo?: string | null;
-  atrasados?: readonly GradeEntry[];
+  foraDoPrazo?: readonly GradeEntry[];
   roteiroIds?: readonly string[];
   onResolverData?: (item: GradeEntry) => void;
   counts: GradeCounts & {
@@ -217,7 +216,7 @@ export function SaudeEditorialPanel({
   rotuloPeriodo,
   avisoPeriodo,
   counts,
-  atrasados: pendenciasAtrasadas,
+  foraDoPrazo: pendenciasForaDoPrazo,
   roteiroIds: idsParaGravar = [],
   onResolverData,
   series = [],
@@ -353,13 +352,13 @@ export function SaudeEditorialPanel({
   const revisar = pontosParaRevisar(avisos.filter(a => blocoDoAviso(a) !== 'continuidade'));
 
   // 1. Urgências & Hoje: Publicações com data anterior a hoje não realizadas, e pendências de hoje
-  const atrasados = useMemo(() => {
-    return pendenciasAtrasadas ?? (counts.itens ?? []).filter(item => {
+  const foraDoPrazo = useMemo(() => {
+    return pendenciasForaDoPrazo ?? (counts.itens ?? []).filter(item => {
       if (!item.data || item.data >= hojeIso) return false;
       if (item.realizada || item.etapa === 'postado') return false;
       return true;
     });
-  }, [counts.itens, hojeIso, pendenciasAtrasadas]);
+  }, [counts.itens, hojeIso, pendenciasForaDoPrazo]);
 
   const deHoje = useMemo(() => {
     return (counts.itens ?? []).filter(item => item.data === hojeIso);
@@ -382,7 +381,7 @@ export function SaudeEditorialPanel({
     for (const escopo of escopos) {
       if (linhas.some(linha => linha.serieId === escopo.serieId)) continue;
       const serie = series.find(s => s.id === escopo.serieId);
-      linhas.push({serieId: escopo.serieId, nome: serie?.name ?? 'Série', tipo: 'serie', paiNome: null,
+      linhas.push({chave: escopo.serieId, serieId: escopo.serieId, nome: serie?.name ?? 'Série', tipo: 'serie', paiNome: null,
         frequencia: 'Acompanhamento por conta ou formato', intervalos: [], abaixo: [], reservadas: [],
         concentrada: false, semEpisodios: false, foraDoPeriodo: 0, precisaAtencao: escopo.atencao, itens: []});
     }
@@ -409,7 +408,7 @@ export function SaudeEditorialPanel({
     || escopos.some(e => e.serieId === l.serieId && e.atencao));
 
   // Status visual geral
-  const statusGeral = atrasados.length > 0 ? 'erro' : seriesComPendencias.length > 0 || gravacao > 0 ? 'aviso' : 'ok';
+  const statusGeral = foraDoPrazo.length > 0 ? 'erro' : seriesComPendencias.length > 0 || gravacao > 0 ? 'aviso' : 'ok';
 
   // --- Modo FAIXA: Linha horizontal compacta para topo da página ---
   if (modo === 'faixa') {
@@ -435,10 +434,10 @@ export function SaudeEditorialPanel({
               Saúde Editorial — {rotuloPeriodo}
             </Text>
 
-            {atrasados.length > 0 ? (
+            {foraDoPrazo.length > 0 ? (
               <span className="inline-flex items-center px-2 py-0.5 rounded-[var(--radius-pill)] bg-[color-mix(in_srgb,var(--accent-red)_15%,var(--bg-elevated))] text-[var(--accent-red)] border border-[color-mix(in_srgb,var(--accent-red)_30%,transparent)]">
                 <Text variant="meta" as="span">
-                  {atrasados.length} {atrasados.length === 1 ? 'atrasada' : 'atrasadas'}
+                  {foraDoPrazo.length} {foraDoPrazo.length === 1 ? 'data passou' : 'datas passaram'}
                 </Text>
               </span>
             ) : null}
@@ -556,7 +555,7 @@ export function SaudeEditorialPanel({
                 onClick={() => toggleSecao('urgencias')}
                 className={cn(
                   'rounded-[var(--radius-card)] border p-3 text-left transition-all hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]',
-                  atrasados.length > 0
+                  foraDoPrazo.length > 0
                     ? 'border-[color-mix(in_srgb,var(--accent-red)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent-red)_6%,var(--bg-primary))]'
                     : 'border-[var(--border-subtle)] bg-[var(--bg-primary)]'
                 )}
@@ -568,14 +567,14 @@ export function SaudeEditorialPanel({
                   <span
                     className={cn(
                       'h-1.5 w-1.5 rounded-full shrink-0',
-                      atrasados.length > 0 ? 'bg-[var(--accent-red)]' : pendentesHoje.length > 0 ? 'bg-[var(--accent-orange)]' : 'bg-[var(--accent-green)]'
+                      foraDoPrazo.length > 0 ? 'bg-[var(--accent-red)]' : pendentesHoje.length > 0 ? 'bg-[var(--accent-orange)]' : 'bg-[var(--accent-green)]'
                     )}
                   />
                 </div>
                 <div className="mt-1">
                   <Text variant="bodyStrong" as="p" className="text-[var(--text-primary)] truncate">
-                    {atrasados.length > 0
-                      ? `${atrasados.length} atrasada(s)`
+                    {foraDoPrazo.length > 0
+                      ? `${foraDoPrazo.length} com data passada`
                       : pendentesHoje.length > 0
                       ? `${pendentesHoje.length} pendente(s)`
                       : 'Em dia'}
@@ -711,22 +710,22 @@ export function SaudeEditorialPanel({
                 icon={AlertCircle}
                 aberta={secoesAbertas.has('urgencias')}
                 onToggle={() => toggleSecao('urgencias')}
-                alerta={atrasados.length > 0 ? 'erro' : pendentesHoje.length > 0 || avisosVespera.length > 0 ? 'aviso' : 'ok'}
+                alerta={foraDoPrazo.length > 0 ? 'erro' : pendentesHoje.length > 0 || avisosVespera.length > 0 ? 'aviso' : 'ok'}
                 resumo={
-                  atrasados.length > 0
-                    ? `${atrasados.length} atrasada(s)`
+                  foraDoPrazo.length > 0
+                    ? `${foraDoPrazo.length} com data passada`
                     : pendentesHoje.length > 0
                     ? `${pendentesHoje.length} pendente(s) hoje`
                     : `${deHoje.length} hoje · em dia`
                 }
               >
-                {/* Publicações Atrasadas */}
-                {atrasados.length > 0 ? (
+                {/* Publicações com data passada */}
+                {foraDoPrazo.length > 0 ? (
                   <div className="rounded-[var(--radius-card)] border border-[color-mix(in_srgb,var(--accent-red)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent-red)_8%,var(--bg-elevated))] p-3.5 stack-sm">
                     <div className="flex items-center gap-2">
                       <AlertCircle className="h-4 w-4 text-[var(--accent-red)] shrink-0" />
                       <Text variant="bodyStrong" as="h4" className="text-[var(--accent-red)]">
-                        {atrasados.length} {atrasados.length === 1 ? 'publicação atrasada' : 'publicações atrasadas'}
+                        {foraDoPrazo.length} {foraDoPrazo.length === 1 ? 'publicação pode ser retomada' : 'publicações podem ser retomadas'}
                       </Text>
                     </div>
                     <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
@@ -734,7 +733,7 @@ export function SaudeEditorialPanel({
                     </Text>
 
                     <ul className="stack-xs mt-1">
-                      {atrasados.map(item => {
+                      {foraDoPrazo.map(item => {
                         const content = contents.find(c => c.id === item.contentId);
                         const tituloItem = content?.title || (item.postItId ? 'Post-it sem roteiro' : 'Conteúdo');
                         const dataFmt = item.data ? format(parseISO(item.data), 'dd/MM') : 'Sem data';
@@ -849,11 +848,11 @@ export function SaudeEditorialPanel({
                   </ul>
                 ) : null}
 
-                {atrasados.length === 0 && pendentesHoje.length === 0 && avisosVespera.length === 0 ? (
+                {foraDoPrazo.length === 0 && pendentesHoje.length === 0 && avisosVespera.length === 0 ? (
                   <div className="flex items-center gap-2 p-3 rounded-[var(--radius-sm)] bg-[var(--surface-subtle)] text-[var(--text-secondary)]">
                     <CheckCircle2 className="h-4 w-4 text-[var(--accent-green)] shrink-0" />
                     <Text variant="meta" as="p">
-                      Tudo em dia para hoje e nenhuma publicação atrasada pendente.
+                      Tudo em dia para hoje e nada com data passada esperando.
                     </Text>
                   </div>
                 ) : null}
@@ -1003,11 +1002,11 @@ export function SaudeEditorialPanel({
                 {(!continuidade || continuidade.nenhumaAcompanhada) && escopos.length === 0 ? (
                   <div className="p-3 rounded-[var(--radius-sm)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] stack-xs">
                     <Text variant="body" as="p">
-                      Nenhuma série ou quadro marcado para acompanhamento neste período.
+                      Nada marcado para acompanhamento neste período.
                     </Text>
                     <button
                       type="button"
-                      onClick={() => navigate('/editorial?aba=ajustes')}
+                      onClick={() => navigate('/editorial?aba=continuidade')}
                       className="w-fit text-left text-[var(--brand-accent-text)] hover:underline focus-visible:outline-none"
                     >
                       <Text variant="meta" as="span" className="text-[var(--brand-accent-text)]">
@@ -1028,9 +1027,9 @@ export function SaudeEditorialPanel({
 
                       return (
                         <details
-                          key={linha.serieId}
-                          open={seriesAbertas.has(linha.serieId)}
-                          onToggle={event => guardarAbertura(linha.serieId, event.currentTarget.open)}
+                          key={linha.chave ?? linha.serieId}
+                          open={seriesAbertas.has(linha.chave ?? linha.serieId)}
+                          onToggle={event => guardarAbertura(linha.chave ?? linha.serieId, event.currentTarget.open)}
                           className={cn(
                             'rounded-[var(--radius-card)] border p-3.5 stack-sm transition-all',
                             temAtencao
@@ -1048,6 +1047,10 @@ export function SaudeEditorialPanel({
                                 {linha.tipo === 'quadro' ? (
                                   <Badge variant="neutral" className="px-1.5 py-0">
                                     {linha.paiNome ? `Quadro de ${linha.paiNome}` : 'Quadro'}
+                                  </Badge>
+                                ) : linha.tipo === 'temporada' ? (
+                                  <Badge variant="neutral" className="px-1.5 py-0">
+                                    {linha.paiNome ? `Temporada de ${linha.paiNome}` : 'Temporada'}
                                   </Badge>
                                 ) : null}
                               </div>
@@ -1071,13 +1074,16 @@ export function SaudeEditorialPanel({
 
                             <button
                               type="button"
-                              onClick={event => { event.stopPropagation(); navigate(`/series/${linha.serieId}`, withDetailBack(retornoPlanejamento)); }}
+                              onClick={event => {
+                                event.stopPropagation();
+                                const alvo = linha.temporadaId ? `t:${linha.temporadaId}` : `s:${linha.serieId}`;
+                                navigate(`/editorial?aba=continuidade&editar=${encodeURIComponent(alvo)}`);
+                              }}
                               className="text-[var(--brand-accent-text)] hover:underline inline-flex items-center gap-1 focus-visible:outline-none"
                             >
                               <Text variant="meta" as="span" className="text-[var(--brand-accent-text)]">
-                                Ver série
+                                Ajustar meta
                               </Text>
-                              <ExternalLink className="h-3 w-3" />
                             </button>
                           </summary>
 
@@ -1239,7 +1245,7 @@ export function SaudeEditorialPanel({
                             <li key={linha.id}>
                               <button
                                 type="button"
-                                onClick={() => navigate(`/series/${linha.serieId}`)}
+                                onClick={() => navigate(`/editorial?aba=continuidade&editar=${encodeURIComponent(`s:${linha.serieId}`)}`)}
                                 className="w-full text-left rounded-[var(--radius-sm)] hover:underline focus-visible:outline-none"
                               >
                                 <Text variant="body" as="span" className="block text-[var(--text-primary)]">
@@ -1267,10 +1273,13 @@ export function SaudeEditorialPanel({
                         </Text>
                         <ul className="stack-xs">
                           {continuidade.pendencias.map(pendencia => (
-                            <li key={pendencia.serieId}>
+                            <li key={`${pendencia.temporadaId ?? pendencia.serieId}:${pendencia.motivo}`}>
                               <button
                                 type="button"
-                                onClick={() => navigate(`/series/${pendencia.serieId}/editar`)}
+                                onClick={() => {
+                                  const alvo = pendencia.temporadaId ? `t:${pendencia.temporadaId}` : `s:${pendencia.serieId}`;
+                                  navigate(`/editorial?aba=continuidade&editar=${encodeURIComponent(alvo)}`);
+                                }}
                                 className="w-full text-left rounded-[var(--radius-sm)] hover:underline focus-visible:outline-none"
                               >
                                 <Text variant="meta" as="span" className="text-[var(--text-secondary)]">

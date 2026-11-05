@@ -16,8 +16,8 @@ const intervalo = {inicio:'2026-11-01',fim:'2026-11-07'};
 
 describe('fluxos visíveis da Saúde', () => {
   it('renderiza o episódio da sexta na semana acionada no desktop e no celular', () => {
-    const desktop = renderToStaticMarkup(<PlanejamentoWeekGrid anchorDate={new Date('2026-11-01T12:00:00')} intervalo={intervalo} byDate={byDate} publicacoesDoDia={new Map()} dragOverDay={null} onDayDragOver={noop} onDayDragLeave={noop} onDayDrop={noop} renderPostIt={p => <span key={p.id}>{p.texto}</span>} renderPublicacao={() => null} onAddPauta={noop} onPuxarConteudo={noop} />);
-    const mobile = renderToStaticMarkup(<MemoryRouter><PlanejamentoMobileView month={new Date('2026-11-01T12:00:00')} intervalo={intervalo} onMonthChange={noop} vista="semana" onVistaChange={noop} byDate={byDate} publicacoesDoDia={new Map()} undated={[]} contents={[]} series={[]} temas={[]} renderPostIt={p => <span key={p.id}>{p.texto}</span>} renderPublicacao={() => null} onNovoPostIt={noop} onPuxar={noop} onEditorial={noop} resumo={null} assuntoFiltroId={null} onAssuntoFiltroChange={noop} /></MemoryRouter>);
+    const desktop = renderToStaticMarkup(<PlanejamentoWeekGrid anchorDate={new Date('2026-11-01T12:00:00')} intervalo={intervalo} byDate={byDate} dragOverDay={null} onDayDragOver={noop} onDayDragLeave={noop} onDayDrop={noop} renderPostIt={p => <span key={p.id}>{p.texto}</span>} onAddPauta={noop} onPuxarConteudo={noop} />);
+    const mobile = renderToStaticMarkup(<MemoryRouter><PlanejamentoMobileView month={new Date('2026-11-01T12:00:00')} intervalo={intervalo} onMonthChange={noop} vista="semana" onVistaChange={noop} byDate={byDate} undated={[]} contents={[]} series={[]} temas={[]} renderPostIt={p => <span key={p.id}>{p.texto}</span>} onNovoPostIt={noop} onPuxar={noop} onEditorial={noop} resumo={null} assuntoFiltroId={null} onAssuntoFiltroChange={noop} /></MemoryRouter>);
     assert.match(desktop, /Episódio de sexta/);
     const inicioDia = desktop.indexOf('Ações de 06/11');
     const criar = desktop.indexOf('Criar post-it em sex, 6', inicioDia);

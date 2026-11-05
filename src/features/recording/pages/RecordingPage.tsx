@@ -1,3 +1,4 @@
+import {energiaDaSerie} from '../../editorial/lib/herancaSerie';
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {useLocation, useNavigate, useSearchParams} from 'react-router-dom';
 import {Plus} from 'lucide-react';
@@ -200,7 +201,7 @@ export function RecordingPage() {
       if (filterPilar && content.pilarId !== filterPilar) return false;
       if (filterSerie && !contentPassaFiltroSerie(content.seriesId, filterSerie, state.series)) return false;
       if (filterTag && !normalizeRecordingTags(content.tags || []).includes(filterTag)) return false;
-      if (filterEnergia && content.energiaNecessaria !== filterEnergia) return false;
+      if (filterEnergia && energiaDaSerie(content, state.series) !== filterEnergia) return false;
       if (searchTerm.trim()) {
         const term = searchTerm.toLowerCase();
         const haystacks = [
@@ -224,7 +225,7 @@ export function RecordingPage() {
         }
         case 'energia:desc': {
           const energyRank: Record<string, number> = {alta: 3, média: 2, baixa: 1};
-          return (energyRank[right.energiaNecessaria ?? ''] ?? 0) - (energyRank[left.energiaNecessaria ?? ''] ?? 0);
+          return (energyRank[energiaDaSerie(right, state.series) ?? ''] ?? 0) - (energyRank[energiaDaSerie(left, state.series) ?? ''] ?? 0);
         }
         case 'recentes':
         default:

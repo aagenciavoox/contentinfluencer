@@ -85,7 +85,7 @@ test('falha mantém texto completo; tentar novamente reutiliza o id e limpa apó
   assert.equal(readAnnotationDraft('user', 'book', storage), null);
 });
 
-test('confirmação atrasada não apaga uma versão nova escrita em outra aba', async () => {
+test('confirmação que chega depois não apaga uma versão nova escrita em outra aba', async () => {
   const storage = memoryStorage();
   const original = draft();
   const confirmation = deferred();

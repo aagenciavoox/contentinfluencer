@@ -1,19 +1,17 @@
 import {format, isSameDay} from 'date-fns';
 import {diasDoCalendario, type IntervaloSaude} from '../lib/saudeActions';
+import {fimDeSemana} from '../lib/periodoPlanejamento';
 import {ArrowDownToLine, Plus} from 'lucide-react';
 import type {ReactNode} from 'react';
 import {AppButton} from '../../../components/ui/AppButton';
 import {Text} from '../../../components/ui/Text';
 import {cn} from '../../../lib/utils';
-import type {PublicacaoNoDia} from '../lib/publicacoesDoMes';
 import type {PlanejamentoPostIt} from '../lib/postIt';
 import type {RedeSocial} from '../../../lib/database';
 import {DivisoriaRede} from './DivisoriaRede';
 
 export type DiaSeparado = {
   rede: RedeSocial;
-  pubsAcima: PublicacaoNoDia[];
-  pubsAbaixo: PublicacaoNoDia[];
   postItsAcima: PlanejamentoPostIt[];
   postItsAbaixo: PlanejamentoPostIt[];
 };
@@ -32,13 +30,11 @@ export function PlanejamentoWeekGrid({
   anchorDate,
   intervalo,
   byDate,
-  publicacoesDoDia,
   dragOverDay,
   onDayDragOver,
   onDayDragLeave,
   onDayDrop,
   renderPostIt,
-  renderPublicacao,
   separarDia,
   onAddPauta,
   onPuxarConteudo,
@@ -46,13 +42,11 @@ export function PlanejamentoWeekGrid({
   anchorDate: Date;
   intervalo?: IntervaloSaude | null;
   byDate: ReadonlyMap<string, PlanejamentoPostIt[]>;
-  publicacoesDoDia: ReadonlyMap<string, PublicacaoNoDia[]>;
   dragOverDay: string | null;
   onDayDragOver: (dateKey: string, event: React.DragEvent) => void;
   onDayDragLeave: () => void;
   onDayDrop: (dateKey: string, event: React.DragEvent) => void;
   renderPostIt: (postIt: PlanejamentoPostIt, compact: boolean) => ReactNode;
-  renderPublicacao: (publicacao: PublicacaoNoDia) => ReactNode;
   /** Dia de postagem de uma rede: devolve a divisão; null mantém o dia como está. */
   separarDia?: (dateKey: string) => DiaSeparado | null;
   onAddPauta: (dateKey: string) => void;
@@ -73,7 +67,10 @@ export function PlanejamentoWeekGrid({
             <div
               key={dateKey(day)}
               role="columnheader"
-              className="border-r border-[var(--border-color)] px-2 py-2 last:border-r-0"
+              className={cn(
+                'border-r border-[var(--border-color)] px-2 py-2 last:border-r-0',
+                fimDeSemana(day) && 'planejamento-fim-de-semana',
+              )}
             >
               <Text variant="label" as="span" className="block text-center uppercase tracking-wide text-[var(--text-secondary)]">
                 {weekdayLabel(day)}
@@ -101,7 +98,6 @@ export function PlanejamentoWeekGrid({
         {days.map(day => {
           const key = dateKey(day);
           const dayPostIts = byDate.get(key) ?? [];
-          const dayPubs = publicacoesDoDia.get(key) ?? [];
           return (
             <div
               key={key}
@@ -109,7 +105,9 @@ export function PlanejamentoWeekGrid({
               className={cn(
                 // Altura da tela que sobra abaixo da barra: a semana vira um quadro, não uma faixa baixa.
                 'group/day @container/week-day min-h-[max(16rem,calc(100vh-25rem))] min-w-0 border-r border-[var(--border-color)] p-1.5 last:border-r-0',
-                dragOverDay === key && 'bg-[color-mix(in_srgb,var(--accent-orange)_12%,transparent)]',
+                dragOverDay === key
+                  ? 'bg-[color-mix(in_srgb,var(--accent-orange)_12%,transparent)]'
+                  : fimDeSemana(day) && 'planejamento-fim-de-semana',
               )}
               onDragOver={event => {
                 event.preventDefault();
@@ -157,15 +155,10 @@ export function PlanejamentoWeekGrid({
                 </div>
                 {(() => {
                   const dia = separarDia?.(key) ?? null;
-                  if (!dia) return (<>
-                    {dayPubs.map(renderPublicacao)}
-                    {dayPostIts.map(postIt => renderPostIt(postIt, false))}
-                  </>);
+                  if (!dia) return dayPostIts.map(postIt => renderPostIt(postIt, false));
                   return (<>
-                    {dia.pubsAcima.map(renderPublicacao)}
                     {dia.postItsAcima.map(postIt => renderPostIt(postIt, false))}
                     <DivisoriaRede rede={dia.rede}>
-                      {dia.pubsAbaixo.map(renderPublicacao)}
                       {dia.postItsAbaixo.map(postIt => renderPostIt(postIt, false))}
                     </DivisoriaRede>
                   </>);

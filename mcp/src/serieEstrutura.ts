@@ -106,6 +106,11 @@ export function temporadaDaLinha(row: Row): Temporada {
     nome: typeof row.nome === 'string' ? row.nome : '',
     descricao: texto(row.descricao),
     focoRedes: normalizarRedesPostIt(row.foco_redes),
+    frequenciaVezes: typeof row.frequencia_vezes === 'number' ? row.frequencia_vezes : null,
+    frequenciaUnidade: typeof row.frequencia_unidade === 'string' ? row.frequencia_unidade : null,
+    frequenciaAPartirDe: typeof row.frequencia_a_partir_de === 'string' ? row.frequencia_a_partir_de.slice(0, 10) : null,
+    acompanhar: row.acompanhar === true,
+    ritmoProprio: row.ritmo_proprio === true,
     createdAt: typeof row.created_at === 'string' ? row.created_at : '',
   };
 }

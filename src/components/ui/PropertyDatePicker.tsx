@@ -1,3 +1,4 @@
+import {INICIO_DA_SEMANA} from '../../lib/semana.ts';
 import {createPortal} from 'react-dom';
 import {dia} from '../../lib/dates';
 import {FLOATING_MENU_HIDDEN_STYLE, FLOATING_MENU_Z_INDEX, useAnchoredPosition} from './anchoredPosition';
@@ -34,7 +35,7 @@ export function PropertyDatePicker({
   placeholder = 'Selecionar…',
   className,
   variant = 'property',
-  weekStartsOn = 0,
+  weekStartsOn = INICIO_DA_SEMANA,
   disabled = false,
 }: PropertyDatePickerProps) {
   const [open, setOpen] = useState(false);

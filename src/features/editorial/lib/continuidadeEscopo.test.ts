@@ -115,6 +115,18 @@ const series = [serie('s')];
   assert.equal(resultado.faltas.length, 3);
 }
 
+// --- Pausa da série-mãe vale para o quadro acompanhado; pausa do quadro não pausa a mãe.
+{
+  const comQuadro = [serie('s'), serie('q', { parentId: 's', tipoAgrupamento: 'quadro' } as Partial<SerieDaApuracao>)];
+  const pausas: PausaEditorial[] = [
+    { id: 'p', inicio: '2026-11-08', fim: '2026-11-14', escopo: 'serie', platformId: null, serieId: 's', nota: '' },
+    { id: 'r', inicio: '2026-11-15', fim: '2026-11-21', escopo: 'serie', platformId: null, serieId: 'q', nota: '' },
+  ];
+  const doQuadro = continuidadeDoAcompanhamento({ acompanhamento: acompanhamento({ serieId: 'q' }), series: comQuadro, publicacoes: [], periodo: NOVEMBRO, pausas, hoje: HOJE })!;
+  assert.equal(doQuadro.janelas.find(janela => janela.inicio === '2026-11-08')!.cobertura, 'pausada', 'pausa da mãe');
+  assert.equal(doQuadro.janelas.find(janela => janela.inicio === '2026-11-15')!.cobertura, 'pausada', 'pausa do próprio quadro');
+}
+
 // --- Distância máxima: usa o episódio de antes do período, não passa do fim e pula a pausa.
 {
   const distancias = distanciasExcessivas({

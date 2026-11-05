@@ -5,6 +5,7 @@ import {CONTENT_STATUS, normalizeContentStatus} from '../../contents/lib/content
 import type {PeriodoGrade} from '../../editorial/lib/gradeCounts.ts';
 import type {GradeEntry} from '../../editorial/lib/gradeEntries.ts';
 import {apurarSerie, ehReserva, type ItemDaApuracao} from '../../editorial/lib/apuracaoSerie.ts';
+import {exclusaoDeMetaPropria, type OndaDaExclusao} from '../../editorial/lib/metaPropria.ts';
 import {acompanhamentoGeral, acompanhaNoGeral, coberturaNoGeral, idsComAncestrais, serieAcompanhada} from '../../editorial/lib/acompanhamento.ts';
 import {
   excecaoCobre,
@@ -240,6 +241,7 @@ function avisosDeFrequenciaSerie(
   periodo: PeriodoGrade,
   series: readonly Serie[],
   pausas: readonly PausaEditorial[] = [],
+  temporadas: readonly OndaDaExclusao[] = [],
 ): AvisoOrientacao[] {
   const avisos: AvisoOrientacao[] = [];
 
@@ -265,7 +267,8 @@ function avisosDeFrequenciaSerie(
     // Antes do início ou depois do término do acompanhamento não há aviso.
     const geral = acompanhamentoGeral(serie);
     if ((geral?.inicio && geral.inicio > periodo.fim) || (geral?.termino && geral.termino < periodo.inicio)) continue;
-    const apuracao = apurarSerie({serie, series, itens, periodo});
+    // Quadro com meta própria e wave com ritmo próprio têm a conta deles; não cobram de novo na série.
+    const apuracao = apurarSerie({serie, series, itens, periodo, excluir: exclusaoDeMetaPropria(serie, series, temporadas)});
     if (apuracao.situacao.tipo !== 'definida' || apuracao.inicioFuturo || apuracao.janelas.length === 0) continue;
     // Mesma regra da Saúde: janela fora do acompanhamento não entra; parcial ou em pausa não é cobrada.
     const serieIds = idsComAncestrais(serie.id, series);
@@ -428,6 +431,7 @@ export function avisosDeOrientacao({
   redeReferenciaId = null,
   diasGravacao = [],
   antecedenciaPostagemDias = null,
+  temporadas = [],
   hoje = new Date(),
 }: {
   postIts: readonly PlanejamentoPostIt[];
@@ -458,6 +462,8 @@ export function avisosDeOrientacao({
   diasGravacao?: readonly number[];
   /** Null desliga a antecedência da postagem. */
   antecedenciaPostagemDias?: number | null;
+  /** Waves: as com ritmo próprio saem da frequência da série. */
+  temporadas?: readonly OndaDaExclusao[];
   hoje?: Date;
 }): AvisoOrientacao[] {
   // Período + 14 dias anteriores (obra em 7 dias) + margem à frente nas bordas.
@@ -488,7 +494,7 @@ export function avisosDeOrientacao({
     ...avisosDeGravacao(postIts, contents, periodo, limiteGravacoesDia, pausas),
     ...avisosDeObra(pautas, periodo, obras, concentracao, excecoesConcentracao),
     ...avisosDeTema(pautas, periodo, temas, concentracao, excecoesConcentracao),
-    ...avisosDeFrequenciaSerie(itensSerie ?? itensDasPautas(pautas), periodo, series, pausas),
+    ...avisosDeFrequenciaSerie(itensSerie ?? itensDasPautas(pautas), periodo, series, pausas, temporadas),
   ];
 }
 

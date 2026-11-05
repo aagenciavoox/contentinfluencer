@@ -1,3 +1,4 @@
+import {INICIO_DA_SEMANA} from '../../../lib/semana.ts';
 import type {DragEvent} from 'react';
 import {addMonths} from 'date-fns';
 import {AgendaItem, Content, Platform, Projeto} from '../../../lib/database';
@@ -20,7 +21,7 @@ import {calendarEntryIcon} from './CalendarNetworkIcons';
 import {rotuloDaRef} from '../../contas/lib/contas';
 import {nomeDaEtapaNaTela, pendenciasDoRoteiro, rotuloDasPendencias} from '../../contents/lib/esteiraDisplay';
 
-const WEEK_STARTS_ON = 1 as const;
+const WEEK_STARTS_ON = INICIO_DA_SEMANA;
 
 type MonthlyCalendarViewProps = {
   contents: Content[];

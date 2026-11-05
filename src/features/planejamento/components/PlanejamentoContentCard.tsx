@@ -31,6 +31,8 @@ export interface PlanejamentoContentCardProps {
   /** Ctrl/Cmd + clique entra e sai da seleção (desktop). */
   selected?: boolean;
   onToggleSelect?: () => void;
+  /** "3 de 12" quando o conteúdo pertence a uma temporada. */
+  episodio?: string | null;
   className?: string;
 }
 
@@ -53,12 +55,13 @@ export function PlanejamentoContentCard({
   onDragStart,
   selected = false,
   onToggleSelect,
+  episodio = null,
   className,
 }: PlanejamentoContentCardProps) {
   const posted = publicacao.estado === 'postado';
   const kind = content ? postItKind(null, content) : 'vazio';
   const etapa: EtapaDoCard = posted ? 'postado' : kind === 'vazio' ? 'roteiro' : kind;
-  const cor = serie?.cor || pilar?.cor || null;
+  const cor = pilar?.cor?.trim() || null;
   const onTirar = onRemoveFromDate ?? onDelete;
   const cliqueAgendado = useRef<number | null>(null);
   useEffect(() => () => {
@@ -155,6 +158,7 @@ export function PlanejamentoContentCard({
       style={cor ? ({ '--card-accent': cor } as CSSProperties) : undefined}
       className={cn(
         'planner-card group relative flex flex-col p-2.5 text-left cursor-pointer',
+        cor && 'planner-card--pilar',
         draggable && 'cursor-grab active:cursor-grabbing',
         selected && 'ring-2 ring-[var(--text-primary)]',
         className,
@@ -181,27 +185,29 @@ export function PlanejamentoContentCard({
         </Text>
       </div>
 
-      {serie ? (
-        <div className="mt-1 flex items-center gap-1.5">
-          <span
-            className="h-1.5 w-1.5 rounded-full shrink-0"
-            style={{ backgroundColor: serie.cor || 'var(--text-tertiary)' }}
-            aria-hidden
-          />
-          <Text variant="meta" as="span" className="text-[var(--text-secondary)] truncate max-w-[150px]">
-            {serie.name}
-          </Text>
-        </div>
-      ) : pilar ? (
-        <div className="mt-1 flex items-center gap-1.5">
-          <span
-            className="h-1.5 w-1.5 rounded-full shrink-0"
-            style={{ backgroundColor: pilar.cor || 'var(--text-tertiary)' }}
-            aria-hidden
-          />
-          <Text variant="meta" as="span" className="text-[var(--text-secondary)] truncate max-w-[150px]">
-            {pilar.nome}
-          </Text>
+      {serie || pilar || episodio ? (
+        <div className="mt-1 flex min-w-0 items-center gap-1.5">
+          {serie || pilar ? (
+            <span
+              className="h-1.5 w-1.5 rounded-full shrink-0"
+              style={{ backgroundColor: cor || 'var(--text-tertiary)' }}
+              aria-hidden
+            />
+          ) : null}
+          {serie ? (
+            <Text variant="meta" as="span" className="min-w-0 truncate text-[var(--text-secondary)]">
+              {serie.name}
+            </Text>
+          ) : pilar ? (
+            <Text variant="meta" as="span" className="min-w-0 truncate text-[var(--text-secondary)]">
+              {pilar.nome}
+            </Text>
+          ) : null}
+          {episodio ? (
+            <Text variant="meta" as="span" className="shrink-0 tabular-nums text-[var(--text-secondary)]">
+              {episodio}
+            </Text>
+          ) : null}
         </div>
       ) : null}
 

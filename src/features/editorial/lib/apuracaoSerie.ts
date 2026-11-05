@@ -29,6 +29,8 @@ export type ItemDaApuracao = {
   etapa?: string;
   realizada?: boolean;
   postItId?: string | null;
+  /** Temporada do episódio. A wave isolada só conta os itens daquela temporada. */
+  temporadaId?: string | null;
 };
 
 export type SerieDaApuracao = Pick<
@@ -192,6 +194,15 @@ export type ApuracaoDaSerie<T extends ItemDaApuracao = ItemDaApuracao> = {
   itens: T[];
 };
 
+/**
+ * O que fica fora da conta da série: quadros com meta própria (e os filhos deles)
+ * e waves com ritmo próprio. Ver exclusaoDeMetaPropria (metaPropria.ts).
+ */
+export type ExclusaoDaApuracao = {
+  serieIds?: ReadonlySet<string>;
+  temporadaIds?: ReadonlySet<string>;
+};
+
 /** Post-it sem conteúdo ligado (ou cujo conteúdo sumiu): reserva provisória. */
 export function ehReserva(item: Pick<ItemDaApuracao, 'postItId' | 'etapa'>): boolean {
   return Boolean(item.postItId) && item.etapa === 'planejamento';
@@ -210,10 +221,18 @@ export function apurarSerie<T extends ItemDaApuracao>(input: {
   series: readonly SerieDaApuracao[];
   itens: readonly T[];
   periodo: Intervalo;
+  /** Itens com meta própria em outra linha: não contam aqui. */
+  excluir?: ExclusaoDaApuracao;
 }): ApuracaoDaSerie<T> {
   const { serie, series, periodo } = input;
   const ids = idsDaSubarvore(serie.id, series);
   ids.add(serie.id);
+  for (const id of input.excluir?.serieIds ?? []) {
+    if (id === serie.id) continue;
+    for (const filho of idsDaSubarvore(id, series)) ids.delete(filho);
+    ids.delete(id);
+  }
+  const ondasFora = input.excluir?.temporadaIds;
 
   // Episódio uma vez: repost fica fora; o mesmo conteúdo não entra duas vezes.
   const vistos = new Set<string>();
@@ -221,6 +240,7 @@ export function apurarSerie<T extends ItemDaApuracao>(input: {
   for (const item of input.itens) {
     if (!item.serieId || !ids.has(item.serieId) || !item.data) continue;
     if (item.tipo === 'repost') continue;
+    if (item.temporadaId && ondasFora?.has(item.temporadaId)) continue;
     const chaveItem = ehReserva(item) ? `reserva:${item.id}` : `conteudo:${item.contentId}`;
     if (vistos.has(chaveItem)) continue;
     vistos.add(chaveItem);

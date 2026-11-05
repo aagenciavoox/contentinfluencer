@@ -27,6 +27,8 @@ export type GradeEntry = {
   etapa?: Etapa;
   /** Só no item que nasce de um post-it na contagem do período. */
   postItId?: string | null;
+  /** Temporada do episódio, quando o conteúdo está numa wave. */
+  temporadaId?: string | null;
 };
 
 /** A rede de referência vem das preferências. O espelho do topo continua valendo. */
@@ -47,7 +49,7 @@ export type GradeContent = Pick<
   | 'publishDate'
   | 'plataformas'
   | 'deletedAt'
-> & Partial<Pick<Content, 'publishTime' | 'postedAt' | 'archivedAt' | 'formatoVisual' | 'script' | 'title' | 'pautaDefinida'>> & {
+> & Partial<Pick<Content, 'publishTime' | 'postedAt' | 'archivedAt' | 'formatoVisual' | 'script' | 'title' | 'pautaDefinida' | 'temporadaId'>> & {
   redeReferenciaCongeladaId?: string | null;
   scriptOrigem?: 'autor' | 'modelo' | string | null;
   contaNaGradeOrigem?: ContaNaGradeOrigem | null;
@@ -178,6 +180,7 @@ export function buildGradeEntries({
       realizada,
       realizadaEm: realizadaEmOriginal,
       etapa,
+      ...(content.temporadaId ? { temporadaId: content.temporadaId } : {}),
     });
 
     const publicacoes = content.plataformas ?? [];

@@ -1,3 +1,4 @@
+import {INICIO_DA_SEMANA} from '../../lib/semana.ts';
 import {
   addMonths,
   eachDayOfInterval,
@@ -39,7 +40,7 @@ export function CalendarMiniMonth({
   selectedDate,
   onSelectDate,
   onMonthChange,
-  weekStartsOn = 0,
+  weekStartsOn = INICIO_DA_SEMANA,
   className,
 }: CalendarMiniMonthProps) {
   const today = new Date();

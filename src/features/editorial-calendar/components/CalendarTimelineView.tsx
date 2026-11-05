@@ -1,3 +1,4 @@
+import {INICIO_DA_SEMANA} from '../../../lib/semana.ts';
 import {useMemo} from 'react';
 import {
   eachDayOfInterval,
@@ -42,7 +43,7 @@ interface CalendarTimelineViewProps {
 export function CalendarTimelineView({
   anchorDate,
   period,
-  weekStartsOn = 0,
+  weekStartsOn = INICIO_DA_SEMANA,
   entriesByDate,
   selectedDate,
   onSelectDate,

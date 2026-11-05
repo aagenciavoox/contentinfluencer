@@ -161,7 +161,7 @@ export function SeriesScriptsPage() {
   const serie = state.series.find(item => item.id === serieId) ?? null;
   const temporada = temporadaId ? state.temporadas.find(item => item.id === temporadaId) ?? null : null;
   const pronto = useDomainsReady(DOMINIOS_DA_SERIE);
-  const falhou = DOMINIOS_DA_SERIE.some(dominio => resolveDomainStatus(domainStatus, dominio) === 'error');
+  const comErro = DOMINIOS_DA_SERIE.some(dominio => resolveDomainStatus(domainStatus, dominio) === 'error');
   const rolagem = useScrollMemory(`criaki:serie:${serieId}${temporadaId ? `:${temporadaId}` : ''}`, pronto && Boolean(serie));
 
   // Seleção é desta página: trocar de série ou de temporada começa do zero.
@@ -472,7 +472,7 @@ export function SeriesScriptsPage() {
     const status = resolveQueryViewStatus({
       loading: !pronto,
       fetchAttempted: pronto,
-      error: falhou ? 'falha' : null,
+      error: comErro ? 'falha' : null,
       itemCount: 0,
     });
     return (
@@ -587,9 +587,9 @@ export function SeriesScriptsPage() {
         ) : null}
 
         <div className="stack-md">
-          {!pronto || falhou ? (
+          {!pronto || comErro ? (
             <QueryViewState
-              status={falhou && pronto ? 'error' : 'loading'}
+              status={comErro && pronto ? 'error' : 'loading'}
               onRetry={() => void ensureDataDomains(DOMINIOS_DA_SERIE, { force: true })}
               skeletonCount={5}
               skeletonVariant="row"

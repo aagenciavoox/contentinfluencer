@@ -1,3 +1,4 @@
+import {INICIO_DA_SEMANA} from '../../lib/semana.ts';
 import { Text } from '../ui/Text';
 import type {ReactNode} from 'react';
 import {
@@ -33,6 +34,8 @@ interface CalendarMonthGridProps {
   stickyHeader?: boolean;
   className?: string;
   tone?: 'flat' | 'elevated';
+  /** Sábado e domingo com um fundo levemente diferente. */
+  tintWeekends?: boolean;
   renderDayContent: (props: CalendarMonthGridDayProps) => ReactNode;
   getDayClassName?: (props: CalendarMonthGridDayProps) => string | undefined;
   /** Clique ou Enter/Espaço no dia. */
@@ -64,7 +67,7 @@ export function CalendarMonthGrid({
   anchorDate,
   selectedDate,
   onSelectDate,
-  weekStartsOn = 0,
+  weekStartsOn = INICIO_DA_SEMANA,
   headerFormat = 'full',
   dayNumberAlign = 'end',
   minCellHeight = 120,
@@ -72,6 +75,7 @@ export function CalendarMonthGrid({
   stickyHeader = false,
   className,
   tone = 'flat',
+  tintWeekends = false,
   renderDayContent,
   getDayClassName,
   onDayClick,
@@ -143,7 +147,10 @@ export function CalendarMonthGrid({
             <div
               key={`header-${day.toISOString()}`}
               role="columnheader"
-              className="min-w-0 border-r border-[var(--border-color)] px-1 py-2 text-center last:border-r-0 sm:px-2"
+              className={cn(
+                'min-w-0 border-r border-[var(--border-color)] px-1 py-2 text-center last:border-r-0 sm:px-2',
+                tintWeekends && (day.getDay() === 0 || day.getDay() === 6) && 'planejamento-fim-de-semana',
+              )}
             >
               <Text variant="label" as="span" className={cn(headerLabelClass)}>
                 {headerText}

@@ -1,3 +1,4 @@
+import {energiaDaSerie} from '../../../editorial/lib/herancaSerie';
 import {BookOpenText, Check, Clapperboard, ExternalLink, Zap} from 'lucide-react';
 import { CountBadge } from '../../../../components/ui/CountBadge';
 import {Text} from '../../../../components/ui/Text';
@@ -105,6 +106,8 @@ export function RecordingQueueGrid({
         {contents.map(content => {
           const isSelected = selectedIds.has(content.id);
           const {pillar, series} = resolveContentEntities(content, state.pilares, state.series);
+          // Sem energia no conteúdo, vale a da série (ou da série acima).
+          const energia = energiaDaSerie(content, state.series);
           const excerpt = getUsefulExcerpt(content);
           const wordCount = getScriptWordCount(content);
           const bodyStatus = resolveScriptBodyStatus(content, {
@@ -190,10 +193,10 @@ export function RecordingQueueGrid({
                 )}
 
                 <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">
-                  {content.energiaNecessaria ? (
+                  {energia ? (
                     <Text variant="label" as="span" className="inline-flex items-center gap-1 rounded-full bg-[var(--bg-hover)] px-2 py-0.5 capitalize text-[var(--text-secondary)]">
                       <Zap className="h-3 w-3" />
-                      {content.energiaNecessaria}
+                      {energia}
                     </Text>
                   ) : null}
                   {recordingTags.slice(0, 2).map(tag => (

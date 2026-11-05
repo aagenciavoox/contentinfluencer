@@ -457,6 +457,7 @@ export function PeriodoPanel({
     redeReferenciaId: settings.preferencias.redeReferenciaId,
     diasGravacao: settings.preferencias.diasGravacao,
     antecedenciaPostagemDias: settings.preferencias.antecedenciaPostagemDias,
+    temporadas: state.temporadas,
   })) {
     avisos.push({
       id: aviso.id,

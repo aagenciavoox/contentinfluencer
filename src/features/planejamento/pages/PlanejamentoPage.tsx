@@ -1,3 +1,4 @@
+import {INICIO_DA_SEMANA} from '../../../lib/semana.ts';
 import {useEffect, useMemo, useRef, useState, type DragEvent} from 'react';
 import {useLocation, useNavigate, useSearchParams} from 'react-router-dom';
 import {format} from 'date-fns';
@@ -5,10 +6,8 @@ import {type GradeEntry} from '../../editorial/lib/gradeEntries';
 import {pendenciasNaSaude} from '../lib/pendenciasNaSaude';
 import {gravarContextoPlanejamento, lerContextoPlanejamento, orientacaoDoPlanejamento, roteirosDaSaude, type IntervaloSaude} from '../lib/saudeActions';
 import {ptBR} from 'date-fns/locale';
-import {ArrowDownToLine, CalendarDays, ChevronDown, ChevronRight, Clapperboard, LayoutGrid, Pencil, Plus, StickyNote, Trash2} from 'lucide-react';
+import {ArrowDownToLine, CalendarDays, ChevronDown, Clapperboard, LayoutGrid, Pencil, Plus, StickyNote, Trash2} from 'lucide-react';
 import {
-  calendarEntryPillStyle,
-  CalendarEventPill,
   CalendarMonthGrid,
   CalendarPeriodNav,
 } from '../../../components/calendar';
@@ -31,8 +30,7 @@ import type {Content, Pilar, Serie, Tema} from '../../../lib/database';
 import {cn, tintedTextColor} from '../../../lib/utils';
 import {TemaField} from '../../contents/components/detail/TemaField';
 import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
-import {CONTENT_STATUS, DISPLAY_STATUS, normalizeContentStatus} from '../../contents/lib/contentPipeline';
-import {calendarEntryIcon, CalendarNetworkIcons} from '../../editorial-calendar/components/CalendarNetworkIcons';
+import {CONTENT_STATUS, normalizeContentStatus} from '../../contents/lib/contentPipeline';
 import {buildDetailBackState} from '../../../lib/navigation/detailBack';
 import {getCreationCardTags} from '../../creation/lib/creationItemPresentation';
 import {metasDoPeriodo, readProporcao} from '../../editorial/lib/proporcaoObjetivos';
@@ -60,7 +58,7 @@ import {PlanejamentoMobileView} from '../components/PlanejamentoMobileView';
 import {SemDataPanel} from '../components/SemDataPanel';
 import {PlatformIcons} from '../../../components/ui/PlatformIcons';
 import {RedeChips} from '../components/RedeChips';
-import {redesDoCartao, redesDoConteudo} from '../lib/redesDoCartao';
+import {redesDoCartao} from '../lib/redesDoCartao';
 import {diaDaRede, dividirPorRede, weekdayDaData} from '../lib/divisoriaRede';
 import {DivisoriaRede} from '../components/DivisoriaRede';
 import {redeDaRef} from '../../contas/lib/contas';
@@ -81,8 +79,9 @@ import {levarRoteiroAoDia, roteiroPublicado} from '../lib/postItsNaData';
 import {POST_IT_MIME, PostItAssuntosObras, PostItIdentity, PostItNote, type PostItMark} from '../components/PostItNote';
 import {assuntosEmUso, conteudoTemAssunto, nomesDasObras, nomesDosAssuntos} from '../lib/assuntosObras';
 import {avisosDeOrientacao, type AvisoOrientacao} from '../lib/orientacaoEditorial';
-import {periodoDaVista, type VistaPlanejamento} from '../lib/periodoPlanejamento';
-import {publicacoesPorDia, type PublicacaoNoDia} from '../lib/publicacoesDoMes';
+import {fimDeSemana, periodoDaVista, type VistaPlanejamento} from '../lib/periodoPlanejamento';
+import {rotulosDeEpisodio} from '../lib/episodioNaTemporada';
+import type {PublicacaoNoDia} from '../lib/publicacoesDoMes';
 import {PeriodoPanel} from '../../editorial/components/plano/PeriodoPanel';
 import {periodoInicial, type PeriodoSelecionado} from '../../editorial/components/plano/PeriodoEditorialControl';
 import {decisaoDoPeriodo, lerPeriodoSalvo} from '../../editorial/lib/periodoEditorial';
@@ -162,7 +161,7 @@ function postItAppearance(
     });
   }
   return {
-    seriesColor: content ? serie?.cor?.trim() || null : null,
+    seriesColor: pilar?.cor?.trim() || null,
     marks,
     assuntos: content ? nomesDosAssuntos(content, temas) : [],
   };
@@ -261,6 +260,7 @@ export function PlanejamentoPage() {
   const [salvarCalendarioIds, setSalvarCalendarioIds] = useState<string[] | null>(null);
 
   const contents = state.contents;
+  const episodioPorId = useMemo(() => rotulosDeEpisodio(contents), [contents]);
   // O dia do post-it é rascunho. O Calendário só muda em "Salvar no calendário".
   const postIts = usePostItsNaData();
   const openPostIt = postIts.find(postIt => postIt.id === openId) ?? null;
@@ -331,22 +331,6 @@ export function PlanejamentoPage() {
     [postIts, indiceAgenda, filtro],
   );
 
-  const publicacoesDoDia = useMemo(() => {
-    const map = publicacoesPorDia({
-      contents,
-      platforms: state.platforms,
-      series: state.series,
-      redeReferenciaId: state.editorial.redeReferenciaId,
-      postIts,
-    });
-    if (intervaloEmFoco || !filtroAtivo(filtro)) return map;
-    const filtrado = new Map<string, PublicacaoNoDia[]>();
-    map.forEach((lista, dia) => {
-      const passam = lista.filter(publicacao => conteudoPassa(indiceAgenda, publicacao.contentId, filtro));
-      if (passam.length > 0) filtrado.set(dia, passam);
-    });
-    return filtrado;
-  }, [contents, state.platforms, state.series, state.editorial, postIts, indiceAgenda, filtro, intervaloEmFoco]);
   const filtroRotulo = filtroAtivo(filtro)
     ? [
       filtro.redes.length > 0 ? filtro.redes.map(rede => ROTULO_REDE_DO_FILTRO[rede]).join(', ') : null,
@@ -394,67 +378,6 @@ export function PlanejamentoPage() {
           setOpenId(postIt.id);
         }}
       />
-    );
-  };
-
-  /**
-   * Semana: pílula aberta (título inteiro). Mês: compacta, com o título na segunda linha;
-   * numa linha só, ícones e hora tomavam a célula e o título sumia.
-   */
-  const renderPublicacao = (publicacao: PublicacaoNoDia, variant: 'compact' | 'expanded' = 'compact') => {
-    const posted = publicacao.estado === 'postado';
-    return (
-      <CalendarEventPill
-        key={publicacao.id}
-        variant={variant}
-        className={variant === 'compact' ? 'flex-wrap gap-y-0.5 [&>span:last-child]:basis-full' : undefined}
-        label={publicacao.titulo}
-        time={publicacao.time}
-        secondary={posted ? CONTENT_STATUS.POSTADO : DISPLAY_STATUS.PROGRAMADO}
-        icon={calendarEntryIcon({platformNames: publicacao.platformNames, posted, scheduled: !posted})}
-        style={calendarEntryPillStyle({type: 'publish', posted})}
-        onClick={event => {
-          event.stopPropagation();
-          navigate(
-            buildContentDetailRoute(publicacao.contentId, 'publicacao'),
-            buildDetailBackState(retornoPlanejamento),
-          );
-        }}
-      />
-    );
-  };
-
-  /**
-   * Celular: publicação já programada ou postada. Só leitura (abre o conteúdo), mais apagada
-   * que os post-its editáveis e com o estado por extenso.
-   */
-  const renderPublicacaoMobile = (publicacao: PublicacaoNoDia) => {
-    const status = publicacao.estado === 'postado' ? CONTENT_STATUS.POSTADO : DISPLAY_STATUS.PROGRAMADO;
-    return (
-      <button
-        type="button"
-        onClick={() =>
-          navigate(buildContentDetailRoute(publicacao.contentId, 'roteiro'), buildDetailBackState(retornoPlanejamento))
-        }
-        aria-label={`${publicacao.titulo}, ${status}${publicacao.time ? ` às ${publicacao.time}` : ''}. Abrir roteiro`}
-        className="flex min-h-11 w-full min-w-0 flex-col gap-1 rounded-[var(--radius-sm)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-2.5 py-2 text-left transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-      >
-        <span className="flex min-w-0 items-center gap-2">
-          <Badge variant="status" status={status}>{status}</Badge>
-          {publicacao.time ? (
-            <Text variant="meta" as="span" className="shrink-0 tabular-nums text-[var(--text-secondary)]">
-              {publicacao.time}
-            </Text>
-          ) : null}
-          <span className="ml-auto flex shrink-0 items-center gap-1 text-[var(--text-tertiary)]">
-            <CalendarNetworkIcons names={publicacao.platformNames} />
-            <ChevronRight className="h-4 w-4" aria-hidden />
-          </span>
-        </span>
-        <Text variant="body" as="span" className="block min-w-0 break-words text-[var(--text-secondary)]">
-          {publicacao.titulo}
-        </Text>
-      </button>
     );
   };
 
@@ -634,7 +557,7 @@ export function PlanejamentoPage() {
       periodo: janelaDaContinuidade(periodoDaSaude),
       platforms: state.platforms,
     });
-    const continuidade = continuidadeDasSeries({series: state.series, itens: estendido.itens, periodo: periodoDaSaude, pausas: settings.pausas ?? []});
+    const continuidade = continuidadeDasSeries({series: state.series, itens: estendido.itens, periodo: periodoDaSaude, pausas: settings.pausas ?? [], temporadas: state.temporadas});
     // Publicações por conta no trecho, com a meta de cada conta e a soma (incompleta quando falta meta).
     const publicacoes = publicacoesNaSaude({
       contents: contentsDoFiltro,
@@ -656,6 +579,7 @@ export function PlanejamentoPage() {
       platforms: state.platforms,
       periodo: periodoDaSaude,
       pausas: settings.pausas ?? [],
+      temporadas: state.temporadas,
     }).filter(linha =>
       (filtro.redes.length === 0 || !linha.platformId || contaNoFiltro(redeDaRef(linha.platformId, state.platforms), filtro.redes))
       && (!filtro.formato || !linha.formato || linha.formato === filtro.formato));
@@ -668,7 +592,7 @@ export function PlanejamentoPage() {
       escopos,
       publicacoes,
     };
-  }, [postIts, contents, postItsDoFiltro, contentsDoFiltro, state.series, state.pilares, state.platforms, state.editorial, periodoDaSaude, filtro]);
+  }, [postIts, contents, postItsDoFiltro, contentsDoFiltro, state.series, state.pilares, state.platforms, state.editorial, state.temporadas, periodoDaSaude, filtro]);
   const rotuloSaude = rotuloDoPeriodo(periodoDaSaude);
   const avisoSaude = avisoDoCalendario(periodoDaSaude, periodo);
 
@@ -700,6 +624,7 @@ export function PlanejamentoPage() {
       redeReferenciaId: state.editorial.preferencias.redeReferenciaId,
       diasGravacao: state.editorial.preferencias.diasGravacao,
       antecedenciaPostagemDias: state.editorial.preferencias.antecedenciaPostagemDias,
+      temporadas: state.temporadas,
     });
     const todos = avisosDo({postIts, contents});
     if (!filtroAtivo(filtro)) return todos;
@@ -708,7 +633,7 @@ export function PlanejamentoPage() {
       ...doFiltro.filter(aviso => aviso.tipo !== 'gravacoes-no-dia'),
       ...todos.filter(aviso => aviso.tipo === 'gravacoes-no-dia'),
     ];
-  }, [postIts, contents, postItsDoFiltro, contentsDoFiltro, filtro, state.series, state.pilares, state.platforms, state.editorial, state.temas, state.bibliotecaItems, periodoDaSaude]);
+  }, [postIts, contents, postItsDoFiltro, contentsDoFiltro, filtro, state.series, state.pilares, state.platforms, state.editorial, state.temas, state.bibliotecaItems, state.temporadas, periodoDaSaude]);
 
   const verPautasDoAviso = (aviso: AvisoOrientacao) => {
     setAvisoAtivoId(aviso.id);
@@ -748,7 +673,7 @@ export function PlanejamentoPage() {
     navigate('/gravacao?ids=' + encodeURIComponent(ids.join(',')), buildDetailBackState(retornoPlanejamento));
   };
   // Pendências ativas não somem quando o calendário vira o mês ou a semana.
-  const atrasados = useMemo(() => pendenciasNaSaude({
+  const foraDoPrazo = useMemo(() => pendenciasNaSaude({
     postIts: postItsDoFiltro, contents: contentsDoFiltro, series: state.series,
     pilares: state.pilares, settings: state.editorial, platforms: state.platforms,
   }), [postItsDoFiltro, contentsDoFiltro, state.series, state.pilares, state.editorial, state.platforms]);
@@ -764,7 +689,7 @@ export function PlanejamentoPage() {
       rotuloPeriodo={rotuloSaude}
       avisoPeriodo={avisoSaude}
       counts={monthHealth.counts}
-      atrasados={atrasados}
+      foraDoPrazo={foraDoPrazo}
       roteiroIds={roteiroIdsDoPeriodo}
       onResolverData={resolverData}
       series={state.series}
@@ -1207,6 +1132,7 @@ export function PlanejamentoPage() {
           onAnchorDateChange={navegarCalendario}
           viewMode={vista}
           onViewModeChange={mode => setVista(mode)}
+          weekStartsOn={INICIO_DA_SEMANA}
           weekViewId="semana"
           views={[
             {id: 'mes' as const, label: 'Mês'},
@@ -1297,44 +1223,8 @@ export function PlanejamentoPage() {
         // Dia em que uma conta do YouTube tem horário próprio: cartões só do YouTube vão abaixo da linha.
         const separarDia = (dateKey: string) => {
           if (!diaDaRede({weekday: weekdayDaData(dateKey), rede: 'youtube', horarios: state.postingTimeEntries ?? [], contas: state.platforms})) return null;
-          const pubs = dividirPorRede(publicacoesDoDia.get(dateKey) ?? [], pub => redesDoConteudo(contentById(contents, pub.contentId), state.platforms), 'youtube');
           const postIts = dividirPorRede(byDate.get(dateKey) ?? [], postIt => redesDoCartao({content: contentById(contents, postIt.contentId), postIt, contas: state.platforms}), 'youtube');
-          return {rede: 'youtube' as const, pubsAcima: pubs.acima, pubsAbaixo: pubs.abaixo, postItsAcima: postIts.acima, postItsAbaixo: postIts.abaixo};
-        };
-
-        const renderPlanejamentoContentCard = (publicacao: PublicacaoNoDia) => {
-          const content = contentById(contents, publicacao.contentId);
-          const serie = content?.seriesId
-            ? state.series.find(s => s.id === content.seriesId)
-            : null;
-          const pilarId = content ? pilarDoConteudo(content, state.series) : null;
-          const pilar = pilarId ? state.pilares.find(p => p.id === pilarId) ?? null : null;
-          const posted = publicacao.estado === 'postado';
-
-          return (
-            <PlanejamentoContentCard
-              key={publicacao.id}
-              className={classeDestaque(publicacao.contentId)}
-              publicacao={publicacao}
-              content={content}
-              serie={serie}
-              pilar={pilar}
-              contas={contasDoCard(publicacoesDoCard(indiceAgenda, publicacao.contentId, publicacao.dia), state.platforms)}
-              draggable={!isMobile && !posted}
-              onDragStart={event => {
-                if (isMobile || posted) return;
-                const payload = `content:${publicacao.contentId}`;
-                event.dataTransfer.setData(POST_IT_MIME, payload);
-                event.dataTransfer.setData('text/plain', payload);
-                event.dataTransfer.effectAllowed = 'move';
-              }}
-              onOpen={() => setPreview({contentId: publicacao.contentId, postItId: null, dia: publicacao.dia})}
-              onOpenDireto={() => abrirRoteiro(publicacao.contentId)}
-              onGravacao={content && entraNoBloco(content, state.recordingBlocks) ? () => setBlocoAlvo([content]) : undefined}
-              onMove={posted ? undefined : () => abrirMoverPublicacao(publicacao.contentId)}
-              onRemoveFromDate={posted ? undefined : () => moveMany([`content:${publicacao.contentId}`], null)}
-            />
-          );
+          return {rede: 'youtube' as const, postItsAcima: postIts.acima, postItsAbaixo: postIts.abaixo};
         };
 
         const renderPlanejamentoReservaCard = (postIt: PlanejamentoPostIt) => {
@@ -1386,6 +1276,7 @@ export function PlanejamentoPage() {
                   event.dataTransfer.setData('text/plain', payload);
                   event.dataTransfer.effectAllowed = 'move';
                 }}
+                episodio={episodioPorId.get(content.id) ?? null}
                 onOpen={() => setPreview({contentId: content.id, postItId: postIt.id, dia: postIt.date})}
                 onOpenDireto={() => abrirRoteiro(content.id)}
                 onGravacao={entraNoBloco(content, state.recordingBlocks) ? () => setBlocoAlvo([content]) : undefined}
@@ -1441,7 +1332,7 @@ export function PlanejamentoPage() {
                 rotuloPeriodo={rotuloSaude}
                 avisoPeriodo={avisoSaude}
                 counts={monthHealth.counts}
-                atrasados={atrasados}
+                foraDoPrazo={foraDoPrazo}
                 roteiroIds={roteiroIdsDoPeriodo}
                 onResolverData={resolverData}
                 series={state.series}
@@ -1467,13 +1358,11 @@ export function PlanejamentoPage() {
                 vista={vista}
                 onVistaChange={setVista}
                 byDate={byDate}
-                publicacoesDoDia={publicacoesDoDia}
                 undated={undated}
                 contents={contents}
                 series={state.series}
                 temas={assuntosDoPlanejamento}
                 renderPostIt={renderPlanejamentoReservaCard}
-                renderPublicacao={renderPlanejamentoContentCard}
                 onNovoPostIt={addEmpty}
                 onPuxar={date => {
                   setPullDate(date);
@@ -1513,7 +1402,7 @@ export function PlanejamentoPage() {
                 <PeriodoPanel
                   periodo={periodoEditorial}
                   onPeriodoChange={salvarPeriodoEditorial}
-                  onAbrirAjustes={() => navigate('/editorial?aba=direcao')}
+                  onAbrirAjustes={() => navigate('/editorial?aba=ajustes')}
                 />
               </div>
             ) : null}
@@ -1522,7 +1411,7 @@ export function PlanejamentoPage() {
               rotuloPeriodo={rotuloSaude}
               avisoPeriodo={avisoSaude}
               counts={monthHealth.counts}
-              atrasados={atrasados}
+              foraDoPrazo={foraDoPrazo}
               roteiroIds={roteiroIdsDoPeriodo}
               onResolverData={resolverData}
               series={state.series}
@@ -1595,7 +1484,6 @@ export function PlanejamentoPage() {
                     anchorDate={month}
                     intervalo={intervaloEmFoco}
                     byDate={byDate}
-                    publicacoesDoDia={publicacoesDoDia}
                     dragOverDay={dragOverDay}
                     onDayDragOver={(key) => {
                       setDragOverDay(key);
@@ -1608,7 +1496,6 @@ export function PlanejamentoPage() {
                       if (ids.length > 0) moveMany(ids, key);
                     }}
                     renderPostIt={renderPlanejamentoReservaCard}
-                    renderPublicacao={renderPlanejamentoContentCard}
                     separarDia={separarDia}
                     onAddPauta={addEmpty}
                     onPuxarConteudo={key => {
@@ -1619,15 +1506,18 @@ export function PlanejamentoPage() {
                 ) : (
                   <CalendarMonthGrid
                     anchorDate={month}
-                    weekStartsOn={1}
+                    weekStartsOn={INICIO_DA_SEMANA}
                     headerFormat="short"
                     dayNumberAlign="start"
                     minCellHeight={110}
                     expandContent
                     tone="elevated"
+                    tintWeekends
                     getDayClassName={day => cn(
                       'group/day',
-                      dragOverDay === day.dateKey && 'bg-[color-mix(in_srgb,var(--accent-orange)_12%,transparent)]',
+                      dragOverDay === day.dateKey
+                        ? 'bg-[color-mix(in_srgb,var(--accent-orange)_12%,transparent)]'
+                        : day.inMonth && !day.isToday && fimDeSemana(day.day) && 'planejamento-fim-de-semana',
                     )}
                     onDayDragOver={(day, event) => {
                       event.preventDefault();
@@ -1643,20 +1533,14 @@ export function PlanejamentoPage() {
                     }}
                     renderDayContent={day => {
                       const dayPostIts = byDate.get(day.dateKey) ?? [];
-                      const dayPublicacoes = publicacoesDoDia.get(day.dateKey) ?? [];
                       return (
                         <div className="@container stack-sm">
                           {(() => {
                             const dia = separarDia(day.dateKey);
-                            if (!dia) return (<>
-                              {dayPublicacoes.map(renderPlanejamentoContentCard)}
-                              {dayPostIts.map(renderPlanejamentoReservaCard)}
-                            </>);
+                            if (!dia) return dayPostIts.map(renderPlanejamentoReservaCard);
                             return (<>
-                              {dia.pubsAcima.map(renderPlanejamentoContentCard)}
                               {dia.postItsAcima.map(renderPlanejamentoReservaCard)}
                               <DivisoriaRede rede={dia.rede}>
-                                {dia.pubsAbaixo.map(renderPlanejamentoContentCard)}
                                 {dia.postItsAbaixo.map(renderPlanejamentoReservaCard)}
                               </DivisoriaRede>
                             </>);

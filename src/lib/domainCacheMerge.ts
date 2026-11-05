@@ -67,7 +67,7 @@ function mergeContents(current: Content[], incoming: Content[]): Content[] {
 
 /**
  * A lista completa do servidor (não o resumo limitado) é a fonte do que ainda existe.
- * Roteiro que não veio nessa lista sai da tela, menos gravação que falhou, item arquivado
+ * Roteiro que não veio nessa lista sai da tela, menos gravação com erro, item arquivado
  * e item alterado depois que a busca começou.
  */
 export function aplicarListaCompletaDeConteudos(

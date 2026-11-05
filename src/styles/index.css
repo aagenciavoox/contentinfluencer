@@ -2926,18 +2926,32 @@ html.mobile-app-shell .segment-tabs--full .segment-tabs-item-active {
   max-inline-size: 100%;
 }
 
+/* Sábado e domingo do planejamento: um tom acima do papel, sem competir com o hoje. */
+.planejamento-fim-de-semana {
+  background-color: color-mix(in srgb, var(--text-tertiary) 8%, var(--bg-elevated));
+}
+
 /* ── Cards do Planejamento ───────────────────────────────────────────────
-   Conteúdo (ideia, roteiro...): fundo quase branco e só a borda leva a cor da série ou do pilar.
+   Conteúdo e reserva: a cor é só a do pilar. Sem pilar, o papel fica branco.
    Reserva (post-it sem conteúdo): quadrada, com a ponta inferior direita dobrada. */
 .planner-card {
-  --card-accent: var(--border-strong);
-  border: 1.5px solid color-mix(in srgb, var(--card-accent) 85%, var(--border-subtle));
-  background: color-mix(in srgb, var(--card-accent) 4%, var(--bg-elevated));
+  --card-accent: var(--border-subtle);
+  border: 1.5px solid var(--border-subtle);
+  background: var(--bg-elevated);
   border-radius: var(--radius-card);
   transition: border-color 120ms ease, background-color 120ms ease;
 }
 
+.planner-card--pilar {
+  border-color: color-mix(in srgb, var(--card-accent) 85%, var(--border-subtle));
+  background: color-mix(in srgb, var(--card-accent) 10%, var(--bg-elevated));
+}
+
 .planner-card:hover {
+  border-color: color-mix(in srgb, var(--card-accent) 70%, var(--border-strong));
+}
+
+.planner-card--pilar:hover {
   border-color: var(--card-accent);
 }
 
@@ -2947,10 +2961,10 @@ html.mobile-app-shell .segment-tabs--full .segment-tabs-item-active {
 }
 
 .post-it-card {
-  --card-accent: var(--accent-orange);
-  --card-fill-share: 9%;
-  --card-edge: color-mix(in srgb, var(--card-accent) 80%, var(--border-subtle));
-  --card-fill: color-mix(in srgb, var(--card-accent) var(--card-fill-share), var(--bg-elevated));
+  --card-accent: var(--border-subtle);
+  --card-fill-share: 0%;
+  --card-edge: var(--border-color);
+  --card-fill: var(--bg-elevated);
   --card-fold-size: 14px;
   --card-edge-width: 1.5px;
   position: relative;
@@ -2967,8 +2981,11 @@ html.mobile-app-shell .segment-tabs--full .segment-tabs-item-active {
   transition: background-color 120ms ease;
 }
 
+.post-it-card--pilar,
 .post-it-card--serie {
-  --card-fill-share: 5%;
+  --card-fill-share: 14%;
+  --card-edge: color-mix(in srgb, var(--card-accent) 80%, var(--border-subtle));
+  --card-fill: color-mix(in srgb, var(--card-accent) var(--card-fill-share), var(--bg-elevated));
 }
 
 .post-it-card::before {

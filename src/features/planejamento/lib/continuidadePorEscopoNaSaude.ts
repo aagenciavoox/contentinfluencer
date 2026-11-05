@@ -4,6 +4,7 @@ import { rotuloConta } from '../../contas/lib/contas.ts';
 import { acompanhamentosPorEscopo } from '../../editorial/lib/acompanhamento.ts';
 import { TEXTO_SEM_ANCORA } from '../../editorial/lib/apuracaoSerie.ts';
 import { continuidadePorEscopo, type ContinuidadeDoEscopo } from '../../editorial/lib/continuidadeEscopo.ts';
+import type { OndaDaExclusao } from '../../editorial/lib/metaPropria.ts';
 import type { PausaEditorial } from '../../editorial/lib/pausas.ts';
 import { publicacoesDaAgenda, rotuloDoFormato } from '../../editorial/lib/publicacoes.ts';
 import type { PlanejamentoPostIt } from './postIt.ts';
@@ -78,6 +79,7 @@ export function linhasDaContinuidadePorEscopo(input: {
   platforms: readonly Platform[];
   periodo: { inicio: string; fim: string };
   pausas: readonly PausaEditorial[];
+  temporadas?: readonly OndaDaExclusao[];
   hoje?: string;
 }): LinhaDoEscopoNaSaude[] {
   const acompanhamentos = input.series
@@ -98,6 +100,7 @@ export function linhasDaContinuidadePorEscopo(input: {
     })),
     periodo: input.periodo,
     pausas: input.pausas,
+    temporadas: input.temporadas ?? [],
     hoje: input.hoje ?? format(new Date(), 'yyyy-MM-dd'),
   });
   const nomes = new Map(input.series.map(serie => [serie.id, serie.name]));

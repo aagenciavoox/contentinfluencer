@@ -13,6 +13,8 @@ import {
 import type { AjusteSemana, DecisaoPeriodo } from './editorialSettings.ts';
 
 const FORMATO = 'yyyy-MM-dd';
+// Apuração editorial: domingo a sábado, de propósito. Vigências e ajustes gravados no banco estão ancorados no domingo;
+// passar para INICIO_DA_SEMANA (src/lib/semana.ts) pede migração desses dados. Ver relatório da Fase 0.
 const SEMANA = { weekStartsOn: 0 as const };
 
 /** `semana` só chega de períodos salvos antes do trimestre; o seletor oferece mês, trimestre e personalizado. */

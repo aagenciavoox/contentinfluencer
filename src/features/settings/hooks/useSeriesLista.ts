@@ -77,11 +77,11 @@ export function useSeriesLista(onAbrirModalCriacao?: (target: SerieCreateModalTa
   );
 
   const pronto = useDomainsReady(DOMINIOS_DA_LISTA);
-  const falhou = DOMINIOS_DA_LISTA.some(dominio => resolveDomainStatus(domainStatus, dominio) === 'error');
+  const comErro = DOMINIOS_DA_LISTA.some(dominio => resolveDomainStatus(domainStatus, dominio) === 'error');
   const status: QueryViewStatus = resolveQueryViewStatus({
     loading: !pronto,
     fetchAttempted: pronto,
-    error: falhou ? 'falha' : null,
+    error: comErro ? 'falha' : null,
     itemCount: state.series.length,
   });
 

@@ -19,6 +19,7 @@ import { readProporcao } from '../features/editorial/lib/proporcaoObjetivos.ts';
 import type { PeriodoSelecionado } from '../features/editorial/lib/periodoEditorial.ts';
 import { alinharComVigenciaAgendada, domingosParaVigencia } from '../features/editorial/lib/vigencias.ts';
 import { lerAvaliacaoCriterios, type AvaliacaoCriterios } from '../features/library/lib/avaliacaoCriterios.ts';
+import { linhasDaOnda, ondaDasLinhas } from '../features/editorial/lib/metaDaOnda.ts';
 
 // ============================================================================
 // TYPES
@@ -230,6 +231,19 @@ export interface Temporada {
    * Ex.: Instagram, TikTok e Shorts numa; YouTube longo em outra.
    */
   focoRedes?: RedeDoFiltro[];
+  /** Quantidade da meta desta wave. Nulo = sem meta própria. */
+  frequenciaVezes?: number | null;
+  /** semana, quinzena ou mes. */
+  frequenciaUnidade?: string | null;
+  /** Primeiro dia da meta. Obrigatório no ciclo de 14 dias. */
+  frequenciaAPartirDe?: string | null;
+  /** Wave isolada na Saúde: conta só os episódios desta temporada. */
+  acompanhar?: boolean;
+  /**
+   * Wave com ritmo próprio: com meta, os episódios dela saem da conta da série de cima.
+   * Ligado por padrão quando há meta (serie_acompanhamento.ritmo_proprio).
+   */
+  ritmoProprio?: boolean;
   createdAt: string;
 }
 
@@ -972,6 +986,8 @@ export const MIGRACAO_EDITORIAL_POR_CONTA = '20261103120000_editorial_por_conta_
 
 /** Foco de redes do quadro. */
 export const MIGRACAO_SERIE_FOCO_REDES = '20261104190000_serie_foco_redes';
+/** Meta e acompanhamento isolados da temporada. */
+export const MIGRACAO_TEMPORADA_ACOMPANHAMENTO = '20261104200000_temporada_acompanhamento';
 
 /** Migração do tipo de agrupamento e do "sem pilar" das séries. */
 export const MIGRACAO_SERIE_TIPO = '20261030120000_serie_tipo_agrupamento';
@@ -1392,6 +1408,13 @@ const mp = {
     nome: typeof r.nome === 'string' ? r.nome : '',
     descricao: typeof r.descricao === 'string' && r.descricao.trim() ? r.descricao : null,
     focoRedes: normalizarRedesPostIt(r.foco_redes),
+    frequenciaVezes: typeof r.frequencia_vezes === 'number' ? r.frequencia_vezes : null,
+    frequenciaUnidade: typeof r.frequencia_unidade === 'string' && r.frequencia_unidade ? r.frequencia_unidade : null,
+    frequenciaAPartirDe: typeof r.frequencia_a_partir_de === 'string' && r.frequencia_a_partir_de
+      ? String(r.frequencia_a_partir_de).slice(0, 10)
+      : null,
+    acompanhar: r.acompanhar === true,
+    ritmoProprio: r.ritmo_proprio === true,
     createdAt: r.created_at,
   }),
   tema: (r: Row): Tema => ({
@@ -2914,7 +2937,8 @@ function acompanhamentoDaLinha(row: Row): AcompanhamentoSerie[] {
 function metaDaSerieDaLinha(row: Row): MetaDaSerieNoEscopo[] {
   const vezes = inteiroOpcional(row.vezes);
   const unidade = row.unidade === 'semana' || row.unidade === 'quinzena' || row.unidade === 'mes' ? row.unidade : null;
-  if (typeof row.serie_id !== 'string' || !vezes || !unidade) return [];
+  // A meta da wave (temporada_id) é lida com a temporada.
+  if (typeof row.serie_id !== 'string' || !vezes || !unidade || row.temporada_id != null) return [];
   return [{
     serieId: row.serie_id,
     platformId: textoOuNull(row.platform_id),
@@ -3457,7 +3481,8 @@ export async function saveSeriePlataformas(serieId: string, plataformas: SeriePl
  */
 export async function saveSerieAcompanhamentos(serieId: string, userId: string, lista: readonly AcompanhamentoSerie[]): Promise<void> {
   if (!supabase) return;
-  const atuais = await supabase.from('serie_acompanhamento').select('id').eq('serie_id', serieId);
+  // Os da temporada (escopo 'temporada') são gravados com ela.
+  const atuais = await supabase.from('serie_acompanhamento').select('id').eq('serie_id', serieId).neq('escopo', 'temporada');
   if (atuais.error) {
     if (tabelaAusente(atuais.error)) {
       if (lista.some(item => item.escopo !== 'geral')) {
@@ -3494,7 +3519,11 @@ export async function saveSerieAcompanhamentos(serieId: string, userId: string, 
 /** Meta da série por conta ou formato (serie_meta). A geral continua nas colunas da série. */
 export async function saveSerieMetas(serieId: string, userId: string, metas: readonly MetaDaSerieNoEscopo[]): Promise<void> {
   if (!supabase) return;
-  const { error: deleteError } = await supabase.from('serie_meta').delete().eq('serie_id', serieId);
+  // A meta da temporada fica: só sai a da série por conta ou formato.
+  let { error: deleteError } = await supabase.from('serie_meta').delete().eq('serie_id', serieId).is('temporada_id', null);
+  if (deleteError && isMissingNamedColumn(deleteError.message ?? '', 'temporada_id')) {
+    ({ error: deleteError } = await supabase.from('serie_meta').delete().eq('serie_id', serieId));
+  }
   if (deleteError) {
     if (tabelaAusente(deleteError)) {
       if (metas.length > 0) throw new Error(`Para a meta por conta ou formato, aplique a migração ${MIGRACAO_EDITORIAL_POR_CONTA}.`);
@@ -3527,21 +3556,68 @@ export async function deleteSerie(id: string): Promise<void> {
 async function lerTemporadas(uid: string) {
   if (!supabase) return { data: [], error: null };
   let colunas = 'id, user_id, serie_id, nome, descricao, foco_redes, created_at';
-  for (let tentativa = 0; tentativa < 3; tentativa += 1) {
+  const opcionais = ['foco_redes', 'descricao'];
+  for (let tentativa = 0; tentativa < opcionais.length + 1; tentativa += 1) {
     const result = await supabase.from('temporadas').select(colunas).eq('user_id', uid).order('nome');
-    if (!result.error) return result;
+    if (!result.error) return { ...result, data: await comOndas(uid, (result.data ?? []) as unknown as Row[]) };
     const message = result.error.message ?? '';
-    if (isMissingNamedColumn(message, 'foco_redes') && colunas.includes('foco_redes')) {
-      colunas = colunas.replace('foco_redes, ', '');
-      continue;
-    }
-    if (isMissingNamedColumn(message, 'descricao') && colunas.includes('descricao')) {
-      colunas = colunas.replace('descricao, ', '');
-      continue;
-    }
-    return result;
+    const ausente = opcionais.find(coluna => isMissingNamedColumn(message, coluna) && colunas.includes(coluna));
+    if (!ausente) return result;
+    colunas = colunas.replace(`${ausente}, `, '');
   }
   return supabase.from('temporadas').select('id, user_id, serie_id, nome, created_at').eq('user_id', uid).order('nome');
+}
+
+/**
+ * Junta a wave (meta e acompanhamento) às temporadas. Vem de serie_acompanhamento (escopo 'temporada')
+ * e serie_meta (temporada_id); sem a migração ${MIGRACAO_TEMPORADA_ACOMPANHAMENTO}, fica sem wave.
+ */
+async function comOndas(uid: string, linhas: Row[]): Promise<Row[]> {
+  if (!supabase || linhas.length === 0) return linhas;
+  const [acompanhamentos, metas] = await Promise.all([
+    supabase.from('serie_acompanhamento').select('temporada_id, escopo, ativo, ritmo_proprio').eq('user_id', uid).eq('escopo', 'temporada'),
+    supabase.from('serie_meta').select('temporada_id, vezes, unidade, a_partir_de').eq('user_id', uid).not('temporada_id', 'is', null),
+  ]);
+  const acomp = acompanhamentos.error ? [] : (acompanhamentos.data ?? []) as Row[];
+  const meta = metas.error ? [] : (metas.data ?? []) as Row[];
+  return linhas.map(row => {
+    const onda = ondaDasLinhas(String(row.id), acomp, meta);
+    return {
+      ...row,
+      acompanhar: onda.acompanhar,
+      ritmo_proprio: onda.ritmoProprio,
+      frequencia_vezes: onda.frequenciaVezes,
+      frequencia_unidade: onda.frequenciaUnidade,
+      frequencia_a_partir_de: onda.frequenciaAPartirDe,
+    };
+  });
+}
+
+/** Grava a wave nas tabelas da série: troca o acompanhamento e a meta da temporada. */
+async function gravarOnda(temporada: Omit<Temporada, 'createdAt'>, nome: string): Promise<void> {
+  if (!supabase) return;
+  const { acompanhamento, meta } = linhasDaOnda(temporada);
+  const pediu = Boolean(acompanhamento || meta);
+  const migracao = () => new Error(`Para acompanhar a temporada à parte, aplique a migração ${MIGRACAO_TEMPORADA_ACOMPANHAMENTO}.`);
+  const semColuna = (message: string) => isMissingNamedColumn(message, 'temporada_id') || isMissingNamedColumn(message, 'ritmo_proprio');
+  const removidoA = await supabase.from('serie_acompanhamento').delete().eq('temporada_id', temporada.id);
+  if (removidoA.error) {
+    if (semColuna(removidoA.error.message ?? '') || tabelaAusente(removidoA.error)) {
+      if (pediu) throw migracao();
+      return;
+    }
+    throw new Error(`serie_acompanhamento (${nome}): ${removidoA.error.message}`);
+  }
+  const removidoM = await supabase.from('serie_meta').delete().eq('temporada_id', temporada.id);
+  if (removidoM.error) throw new Error(`serie_meta (${nome}): ${removidoM.error.message}`);
+  if (acompanhamento) {
+    const { error } = await supabase.from('serie_acompanhamento').insert(acompanhamento);
+    if (error) throw semColuna(error.message ?? '') ? migracao() : new Error(`serie_acompanhamento (${nome}): ${error.message}`);
+  }
+  if (meta) {
+    const { error } = await supabase.from('serie_meta').insert(meta);
+    if (error) throw semColuna(error.message ?? '') ? migracao() : new Error(`serie_meta (${nome}): ${error.message}`);
+  }
 }
 
 export async function saveTemporada(temporada: Omit<Temporada, 'createdAt'>): Promise<void> {
@@ -3556,21 +3632,18 @@ export async function saveTemporada(temporada: Omit<Temporada, 'createdAt'>): Pr
     descricao: temporada.descricao?.trim() || null,
     foco_redes: normalizarRedesPostIt(temporada.focoRedes ?? []),
   };
-  for (let tentativa = 0; tentativa < 3; tentativa += 1) {
+  for (let tentativa = 0; tentativa < 4; tentativa += 1) {
     const { error } = await supabase.from('temporadas').upsert(row);
-    if (!error) return;
+    if (!error) {
+      // Meta e acompanhamento da wave ficam nas tabelas da série, não em colunas da temporada.
+      await gravarOnda(temporada, nome);
+      return;
+    }
     const message = error.message ?? '';
-    if (isMissingNamedColumn(message, 'foco_redes') && 'foco_redes' in row) {
-      const { foco_redes: _omitida, ...resto } = row;
-      row = resto;
-      continue;
-    }
-    if (isMissingNamedColumn(message, 'descricao') && 'descricao' in row) {
-      const { descricao: _omitida, ...resto } = row;
-      row = resto;
-      continue;
-    }
-    throw new Error(`temporadas: ${message}`);
+    const ausente = ['foco_redes', 'descricao'].find(coluna => isMissingNamedColumn(message, coluna) && coluna in row);
+    if (!ausente) throw new Error(`temporadas: ${message}`);
+    const { [ausente]: _omitida, ...resto } = row;
+    row = resto;
   }
   throw new Error('temporadas: não foi possível salvar');
 }

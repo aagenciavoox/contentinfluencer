@@ -1,3 +1,4 @@
+import {INICIO_DA_SEMANA, SEMANA} from '../../../lib/semana.ts';
 import { ValorVazio } from '../../../components/ui/ValorVazio';
 import {useCallback, useEffect, useMemo, useState, type DragEvent, type ReactNode} from 'react';
 import {Link, useLocation, useNavigate, useSearchParams} from 'react-router-dom';
@@ -212,7 +213,7 @@ export function EditorialCalendarPage() {
   const selectedEntries = entriesByDate.get(selectedDateKey) || [];
 
   const agendaPeriod = useMemo(() => {
-    const weekStartsOn = 0 as const;
+    const weekStartsOn = INICIO_DA_SEMANA;
     if (viewMode === 'week' || viewMode === 'timeline') {
       return {
         start: startOfWeek(currentMonth, {weekStartsOn}),
@@ -921,8 +922,8 @@ function CalendarWeekView({
 }) {
   const today = new Date();
   const days = eachDayOfInterval({
-    start: startOfWeek(weekDate, {weekStartsOn: 1}),
-    end: endOfWeek(weekDate, {weekStartsOn: 1}),
+    start: startOfWeek(weekDate, SEMANA),
+    end: endOfWeek(weekDate, SEMANA),
   });
 
   return (

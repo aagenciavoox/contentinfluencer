@@ -3,7 +3,7 @@ import type {Pilar, Serie} from '../../../lib/database.ts';
 import {CONTENT_STATUS} from '../../contents/lib/contentPipeline.ts';
 import {createContentDraft} from '../../contents/lib/createContentDraft.ts';
 import {excessosAoAcrescentar, foraDaContaDoMes, publicacoesEmOutrasRedes, periodoDoMes, saudeDoMes, seriesDoPilarNoMes, textoForaDaConta, tomDaSaude} from './monthHealth.ts';
-import type {PlanejamentoPostIt} from './postIt.ts';
+import {movePostIt, type PlanejamentoPostIt} from './postIt.ts';
 
 const PERIODO = {inicio: '2026-10-01', fim: '2026-10-31'};
 const PERCENTUAIS = {
@@ -419,3 +419,26 @@ testProporcaoDefineMetaDosObjetivos();
   assert.equal(counts.comPauta,0);
   assert.equal(counts.semSerie,0);
 }
+
+// Arrastar o post-it de um roteiro já no Calendário só muda o rascunho: o mesmo id, sem cópia,
+// e a Saúde segue contando o roteiro uma vez, na data do Calendário.
+function testArrastarPostItLigadoNaoDuplica() {
+  const content = createContentDraft({
+    id: 'roteiro-datado',
+    status: CONTENT_STATUS.PRODUCAO,
+    seriesId: serie.id,
+    publishDate: '2026-10-08',
+  }, serie);
+  const original = postIt({id: 'post-datado', contentId: content.id, date: '2026-10-08'});
+  const movido = movePostIt(original, '2026-10-20', '2026-10-05T12:00:00.000Z');
+  assert.equal(movido.id, original.id);
+  assert.equal(movido.contentId, content.id);
+  assert.equal(movido.date, '2026-10-20');
+  const antes = saude({postIts: [original], contents: [content]});
+  const depois = saude({postIts: [movido], contents: [content]});
+  const doRoteiro = (itens: readonly {contentId?: string | null}[]) => itens.filter(item => item.contentId === content.id).length;
+  assert.equal(doRoteiro(antes.itens), 1);
+  assert.equal(doRoteiro(depois.itens), 1, 'post-it movido não vira segundo item do roteiro');
+  assert.equal(depois.previsto, antes.previsto);
+}
+testArrastarPostItLigadoNaoDuplica();

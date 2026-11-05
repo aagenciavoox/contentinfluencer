@@ -8,6 +8,8 @@ import {
   type SerieDaApuracao,
   type SituacaoFrequencia,
 } from './apuracaoSerie.ts';
+import { idsComAncestrais } from './acompanhamento.ts';
+import { exclusaoDeMetaPropria, type OndaDaExclusao } from './metaPropria.ts';
 import { diasDePausa, type PausaEditorial } from './pausas.ts';
 import type { PublicacaoNaAgenda } from './publicacoes.ts';
 import { idsDaSubarvore } from './serieArvore.ts';
@@ -292,6 +294,8 @@ export function continuidadeDoAcompanhamento(input: {
   reservas?: readonly ReservaDoEscopo[];
   periodo: Intervalo;
   pausas?: readonly PausaEditorial[];
+  /** Waves da série: as com ritmo próprio saem da conta do escopo. */
+  temporadas?: readonly OndaDaExclusao[];
   hoje: string;
 }): ContinuidadeDoEscopo | null {
   const { acompanhamento, periodo } = input;
@@ -312,11 +316,14 @@ export function continuidadeDoAcompanhamento(input: {
     itensGrade: input.itensGrade,
     reservas: input.reservas,
   });
-  const apuracao = apurarSerie({ serie: serieDoEscopo, series: input.series, itens, periodo });
+  // Quadro com meta própria e wave com ritmo próprio contam só na linha deles, como na linha geral.
+  const excluir = exclusaoDeMetaPropria(serie, input.series, input.temporadas ?? []);
+  const apuracao = apurarSerie({ serie: serieDoEscopo, series: input.series, itens, periodo, excluir });
   if (apuracao.inicioFuturo) return vazio(acompanhamento, 'nao-iniciado', situacao);
 
+  // Pausa da própria série, de um filho ou da série acima: quadro com meta própria não é cobrado com o pai em pausa.
   const ids = idsDaSubarvore(acompanhamento.serieId, input.series);
-  ids.add(acompanhamento.serieId);
+  for (const id of idsComAncestrais(acompanhamento.serieId, input.series)) ids.add(id);
   const alvo = { tipo: 'serie' as const, serieIds: ids };
   const pausas = input.pausas ?? [];
 

@@ -37,6 +37,7 @@ import {
   type Temporada,
 } from '../serieEstrutura.ts';
 import {idsDaSubarvore} from '../../../src/features/editorial/lib/serieArvore.ts';
+import {frequenciaParaGravar, linhasDaOnda, ondaDasLinhas, ritmoProprioDaOnda} from '../../../src/features/editorial/lib/metaDaOnda.ts';
 import {normalizarRedesPostIt} from '../../../src/features/planejamento/lib/redesPostIt.ts';
 import type {Session} from '../supabase.ts';
 
@@ -67,7 +68,26 @@ export async function carregarTemporadas(session: Session): Promise<{itens: Temp
   try {
     const {data} = await readCompat('temporadas', 'id, user_id, serie_id, nome, descricao, foco_redes, created_at', columns =>
       session.client.from('temporadas').select(columns).eq('user_id', session.userId));
-    return {itens: ((data ?? []) as unknown as Row[]).map(temporadaDaLinha), ausente: false};
+    const linhas = (data ?? []) as unknown as Row[];
+    // A wave (meta e acompanhamento) fica nas tabelas da série, como no app (database.ts comOndas).
+    const [acompanhamentos, metas] = linhas.length === 0 ? [null, null] : await Promise.all([
+      session.client.from('serie_acompanhamento').select('temporada_id, escopo, ativo, ritmo_proprio').eq('user_id', session.userId).eq('escopo', 'temporada'),
+      session.client.from('serie_meta').select('temporada_id, vezes, unidade, a_partir_de').eq('user_id', session.userId).not('temporada_id', 'is', null),
+    ]);
+    const acomp = !acompanhamentos || acompanhamentos.error ? [] : (acompanhamentos.data ?? []) as Row[];
+    const meta = !metas || metas.error ? [] : (metas.data ?? []) as Row[];
+    const itens = linhas.map(row => {
+      const onda = ondaDasLinhas(String(row.id), acomp, meta);
+      return temporadaDaLinha({
+        ...row,
+        acompanhar: onda.acompanhar,
+        ritmo_proprio: onda.ritmoProprio,
+        frequencia_vezes: onda.frequenciaVezes,
+        frequencia_unidade: onda.frequenciaUnidade,
+        frequencia_a_partir_de: onda.frequenciaAPartirDe,
+      });
+    });
+    return {itens, ausente: false};
   } catch (error) {
     if (tabelaAusente({message: (error as Error).message}, 'temporadas')) return {itens: [], ausente: true};
     throw error;
@@ -139,6 +159,11 @@ function temporadaView(temporada: Temporada, episodios: number | null) {
     descricao: temporada.descricao ?? null,
     foco_redes: temporada.focoRedes ?? [],
     serie_id: temporada.serieId,
+    acompanhar: temporada.acompanhar === true,
+    ritmo_proprio: ritmoProprioDaOnda(temporada),
+    frequencia_vezes: temporada.frequenciaVezes ?? null,
+    frequencia_unidade: temporada.frequenciaUnidade ?? null,
+    frequencia_a_partir_de: temporada.frequenciaAPartirDe ?? null,
     ...(episodios === null ? {} : {episodios}),
   };
 }
@@ -155,6 +180,74 @@ async function contarPorTemporada(session: Session, ids: string[]): Promise<Map<
 
 function semTabela(): never {
   throw new Error('O banco ainda não tem a tabela de temporadas (migration pendente).');
+}
+
+const MIGRACAO_ONDA = '20261104200000_temporada_acompanhamento';
+
+const camposDaOnda = {
+  acompanhar: z.boolean().optional().describe('Liga o acompanhamento isolado desta temporada na Saúde.'),
+  ritmo_proprio: z.boolean().optional().describe('Com meta, a wave anda no próprio ritmo e os episódios dela saem da conta da série (padrão: ligado). false mantém os episódios contando também na série.'),
+  frequencia_vezes: z.number().int().min(1).max(60).nullable().optional().describe('Quantidade da meta. null tira a meta'),
+  frequencia_unidade: z.enum(['semana', 'quinzena', 'mes']).nullable().optional().describe('Período da meta. quinzena = ciclo de 14 dias e exige frequencia_a_partir_de'),
+  frequencia_a_partir_de: z.string().nullable().optional().describe('Data de início da meta, yyyy-MM-dd'),
+};
+
+function metaDaOnda(args: {
+  acompanhar?: boolean;
+  ritmo_proprio?: boolean;
+  frequencia_vezes?: number | null;
+  frequencia_unidade?: 'semana' | 'quinzena' | 'mes' | null;
+  frequencia_a_partir_de?: string | null;
+}, atual?: Temporada): {acompanhar: boolean; ritmo_proprio: boolean; frequencia_vezes: number | null; frequencia_unidade: string | null; frequencia_a_partir_de: string | null} {
+  const vezes = args.frequencia_vezes === undefined ? atual?.frequenciaVezes ?? null : args.frequencia_vezes;
+  const unidade = args.frequencia_unidade === undefined ? atual?.frequenciaUnidade ?? null : args.frequencia_unidade;
+  const inicio = args.frequencia_a_partir_de === undefined ? atual?.frequenciaAPartirDe ?? null : args.frequencia_a_partir_de;
+  const gravada = frequenciaParaGravar({vezes, unidade, aPartirDe: inicio, tipo: 'temporada'});
+  if ('erro' in gravada) throw new Error(gravada.erro);
+  return {
+    acompanhar: args.acompanhar === undefined ? atual?.acompanhar === true : args.acompanhar,
+    ritmo_proprio: args.ritmo_proprio === undefined ? atual?.ritmoProprio !== false : args.ritmo_proprio,
+    frequencia_vezes: gravada.vezes,
+    frequencia_unidade: gravada.unidade,
+    frequencia_a_partir_de: gravada.aPartirDe,
+  };
+}
+
+type OndaDoMcp = ReturnType<typeof metaDaOnda>;
+
+/** Grava a wave nas tabelas da série (espelho de gravarOnda em src/lib/database.ts). */
+async function gravarOnda(session: Session, temporadaId: string, serieId: string, onda: OndaDoMcp): Promise<void> {
+  const {acompanhamento, meta} = linhasDaOnda({
+    id: temporadaId,
+    userId: session.userId,
+    serieId,
+    acompanhar: onda.acompanhar,
+    ritmoProprio: onda.ritmo_proprio,
+    frequenciaVezes: onda.frequencia_vezes,
+    frequenciaUnidade: onda.frequencia_unidade,
+    frequenciaAPartirDe: onda.frequencia_a_partir_de,
+  });
+  const pediu = Boolean(acompanhamento || meta);
+  const semColuna = (message = '') => /temporada_id|ritmo_proprio/.test(message) && /does not exist|schema cache|could not find/i.test(message);
+  const migracao = () => new Error(`Para acompanhar a temporada à parte, aplique a migração ${MIGRACAO_ONDA}.`);
+  const removidoA = await session.client.from('serie_acompanhamento').delete().eq('user_id', session.userId).eq('temporada_id', temporadaId);
+  if (removidoA.error) {
+    if (semColuna(removidoA.error.message)) {
+      if (pediu) throw migracao();
+      return;
+    }
+    throw new Error(`serie_acompanhamento: ${removidoA.error.message}`);
+  }
+  const removidoM = await session.client.from('serie_meta').delete().eq('user_id', session.userId).eq('temporada_id', temporadaId);
+  if (removidoM.error) throw new Error(`serie_meta: ${removidoM.error.message}`);
+  if (acompanhamento) {
+    const {error} = await session.client.from('serie_acompanhamento').insert(acompanhamento);
+    if (error) throw semColuna(error.message) ? migracao() : new Error(`serie_acompanhamento: ${error.message}`);
+  }
+  if (meta) {
+    const {error} = await session.client.from('serie_meta').insert(meta);
+    if (error) throw semColuna(error.message) ? migracao() : new Error(`serie_meta: ${error.message}`);
+  }
 }
 
 export function registerTemporadas(server: McpServer) {
@@ -198,6 +291,7 @@ export function registerTemporadas(server: McpServer) {
         nome: z.string().min(1),
         descricao: z.string().nullable().optional(),
         foco_redes: z.array(z.string()).optional().describe(`Redes desta temporada. ${FOCO_REDES}`),
+        ...camposDaOnda,
       },
     },
     tool(async (args, session) => {
@@ -211,8 +305,11 @@ export function registerTemporadas(server: McpServer) {
       const id = newId();
       const descricao = args.descricao?.trim() || null;
       const focoRedes = lerFoco(args.foco_redes ?? []);
-      const gravados = await writeCompat('criar temporada', {id, user_id: session.userId, serie_id: alvo.id, nome, descricao, foco_redes: focoRedes}, row =>
-        session.client.from('temporadas').insert(row));
+      const onda = metaDaOnda(args);
+      const gravados = await writeCompat('criar temporada', {
+        id, user_id: session.userId, serie_id: alvo.id, nome, descricao, foco_redes: focoRedes,
+      }, row => session.client.from('temporadas').insert(row));
+      await gravarOnda(session, id, alvo.id, onda);
       const avisos: string[] = [];
       if (gravados.includes('foco_redes') && focoRedes.length > 0) avisos.push('O banco ainda não tem foco_redes: as redes da temporada não foram gravadas.');
       if (!alvo.usaTemporadas) {
@@ -222,7 +319,16 @@ export function registerTemporadas(server: McpServer) {
         invalidateLookups();
       }
       return json({
-        criada: temporadaView({id, userId: session.userId, serieId: alvo.id, nome, descricao, focoRedes: gravados.includes('foco_redes') ? [] : focoRedes, createdAt: nowIso()}, 0),
+        criada: temporadaView({
+          id, userId: session.userId, serieId: alvo.id, nome, descricao,
+          focoRedes: gravados.includes('foco_redes') ? [] : focoRedes,
+          acompanhar: onda.acompanhar,
+          ritmoProprio: onda.ritmo_proprio,
+          frequenciaVezes: onda.frequencia_vezes,
+          frequenciaUnidade: onda.frequencia_unidade,
+          frequenciaAPartirDe: onda.frequencia_a_partir_de,
+          createdAt: nowIso(),
+        }, 0),
         serie: alvo.name,
         ...(avisos.length ? {avisos} : {}),
       });
@@ -233,13 +339,14 @@ export function registerTemporadas(server: McpServer) {
     'atualizar_temporada',
     {
       title: 'Atualizar temporada',
-      description: 'Renomeia uma temporada, muda a descrição ou o foco de redes. Nome repetido na mesma série não vale. Os episódios não mudam. foco_redes null tira o foco.',
+      description: 'Renomeia uma temporada, muda a descrição, o foco de redes ou a meta da wave (acompanhar, quantidade, período e data de início). Nome repetido na mesma série não vale. Os episódios não mudam. foco_redes null tira o foco.',
       inputSchema: {
         temporada: z.string().min(1).describe('Id da temporada (ou o nome, junto com serie)'),
         serie: z.string().optional().describe('Nome ou id da série, para achar a temporada pelo nome'),
         nome: z.string().min(1).optional(),
         descricao: z.string().nullable().optional(),
         foco_redes: z.array(z.string()).nullable().optional().describe(`Redes desta temporada, ou null para tirar. ${FOCO_REDES}`),
+        ...camposDaOnda,
       },
     },
     tool(async (args, session) => {
@@ -249,15 +356,30 @@ export function registerTemporadas(server: McpServer) {
       const escopoId = args.serie ? serieDasTemporadas(resolveSerie(lookups, args.serie)!, seriesNo(lookups)).id : null;
       const atual = resolverTemporada(args.temporada, escopoId, temporadas.itens);
       if (!atual) throw new Error(`Temporada não encontrada: ${args.temporada}`);
-      if (args.nome === undefined && args.descricao === undefined && args.foco_redes === undefined) throw new Error('Nenhum campo para atualizar.');
+      const mexeNaOnda = args.acompanhar !== undefined || args.ritmo_proprio !== undefined || args.frequencia_vezes !== undefined || args.frequencia_unidade !== undefined || args.frequencia_a_partir_de !== undefined;
+      if (args.nome === undefined && args.descricao === undefined && args.foco_redes === undefined && !mexeNaOnda) throw new Error('Nenhum campo para atualizar.');
       const nome = args.nome?.trim() ?? atual.nome;
       const repetida = acharTemporadaPorNome(atual.serieId, nome, temporadas.itens);
       if (repetida && repetida.id !== atual.id) throw new Error(`Já existe a temporada "${nome}" nesta série.`);
       const descricao = args.descricao === undefined ? atual.descricao ?? null : args.descricao?.trim() || null;
       const focoRedes = args.foco_redes === undefined ? [...(atual.focoRedes ?? [])] : lerFoco(args.foco_redes);
+      const onda = mexeNaOnda ? metaDaOnda(args, atual) : null;
       await writeCompat('atualizar temporada', {nome, descricao, foco_redes: focoRedes}, row =>
         session.client.from('temporadas').update(row).eq('id', atual.id).eq('user_id', session.userId));
-      return json({atualizada: temporadaView({...atual, nome, descricao, focoRedes}, null)});
+      if (onda) await gravarOnda(session, atual.id, atual.serieId, onda);
+      return json({atualizada: temporadaView({
+        ...atual,
+        nome,
+        descricao,
+        focoRedes,
+        ...(onda ? {
+          acompanhar: onda.acompanhar,
+          ritmoProprio: onda.ritmo_proprio,
+          frequenciaVezes: onda.frequencia_vezes,
+          frequenciaUnidade: onda.frequencia_unidade,
+          frequenciaAPartirDe: onda.frequencia_a_partir_de,
+        } : {}),
+      }, null)});
     }),
   );
 

@@ -1,3 +1,4 @@
+import {INICIO_DA_SEMANA} from '../../lib/semana.ts';
 import { Text } from '../ui/Text';
 import {useId, useRef} from 'react';
 import {
@@ -49,7 +50,7 @@ export function CalendarPeriodNav<T extends string = string>({
   viewMode,
   onViewModeChange,
   views,
-  weekStartsOn = 0,
+  weekStartsOn = INICIO_DA_SEMANA,
   className,
   weekViewId,
 }: CalendarPeriodNavProps<T>) {

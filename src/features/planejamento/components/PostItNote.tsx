@@ -131,7 +131,7 @@ export function PostItNote({
       className={cn(
         // @container: na coluna estreita da semana o cartão esconde a alça e o título fica com a largura toda.
         '@container flex w-full items-start gap-1.5 px-2 py-2 text-left',
-        reserva ? cn('post-it-card pb-3.5', accent && 'post-it-card--serie') : 'planner-card',
+        reserva ? cn('post-it-card pb-3.5', accent && 'post-it-card--pilar') : cn('planner-card', accent && 'planner-card--pilar'),
         draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
         highlighted &&
           (reserva

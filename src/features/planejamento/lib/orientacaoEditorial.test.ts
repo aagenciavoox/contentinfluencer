@@ -215,10 +215,10 @@ function testSobDemandaNaoCobra() {
   assert.equal(avisos.some(aviso => aviso.tipo === 'serie-acima' || aviso.tipo === 'serie-abaixo'), false);
 }
 
-function testPeriodoDaSemanaDomingoASabado() {
+function testPeriodoDaSemanaSegundaADomingo() {
   const periodo = periodoDaSemana(new Date(2026, 10, 4)); // quarta 4 nov 2026
-  assert.equal(periodo.inicio, '2026-11-01');
-  assert.equal(periodo.fim, '2026-11-07');
+  assert.equal(periodo.inicio, '2026-11-02');
+  assert.equal(periodo.fim, '2026-11-08');
 }
 
 function testPostItVinculadoNaoDuplicaObra() {
@@ -247,5 +247,5 @@ testQuadroEmDiasSeguidos();
 testSerieAcimaDaFrequencia();
 testSemAcompanhamentoNaoCobra();
 testSobDemandaNaoCobra();
-testPeriodoDaSemanaDomingoASabado();
+testPeriodoDaSemanaSegundaADomingo();
 testPostItVinculadoNaoDuplicaObra();

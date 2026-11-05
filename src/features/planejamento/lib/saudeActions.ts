@@ -60,7 +60,7 @@ export function gravarContextoPlanejamento(params: URLSearchParams, contexto: Co
   return next;
 }
 
-/** Mesma semana domingo–sábado usada pela apuração; ciclos maiores permanecem inteiros. */
+/** Semana de segunda a domingo do planejamento; ciclos maiores permanecem inteiros. */
 export function diasDoCalendario(anchor: Date, foco?: IntervaloSaude | null): Date[] {
   const intervalo = foco ?? periodoDaSemana(anchor);
   return eachDayOfInterval({start: parseISO(intervalo.inicio), end: parseISO(intervalo.fim)});

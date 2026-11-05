@@ -1,3 +1,4 @@
+import {energiaDaSerie} from '../../../features/editorial/lib/herancaSerie';
 import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { BookOpenText, Check, Clapperboard, ExternalLink, Layers3, Plus, SearchCheck, Tags, Video } from 'lucide-react';
 import type { Content, Pilar, RecordingBlock, Serie } from '../../../lib/database';
@@ -95,13 +96,13 @@ export function RecordingMobileScreen({
           return leftPilar.localeCompare(rightPilar, 'pt-BR');
         }
         case 'energia:desc':
-          return (energyRank[right.energiaNecessaria ?? ''] ?? 0) - (energyRank[left.energiaNecessaria ?? ''] ?? 0);
+          return (energyRank[energiaDaSerie(right, series) ?? ''] ?? 0) - (energyRank[energiaDaSerie(left, series) ?? ''] ?? 0);
         case 'recentes':
         default:
           return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
       }
     });
-  }, [pilares, readyContents, sortValue]);
+  }, [pilares, readyContents, series, sortValue]);
 
   const filteredQueue = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -113,7 +114,7 @@ export function RecordingMobileScreen({
         tagFilter === 'all' ? true : normalizeRecordingTags(content.tags || []).includes(tagFilter)
       )
       .filter((content) =>
-        energiaFilter === 'all' ? true : content.energiaNecessaria === energiaFilter
+        energiaFilter === 'all' ? true : energiaDaSerie(content, series) === energiaFilter
       )
       .filter((content) => {
         if (!normalizedSearch) return true;

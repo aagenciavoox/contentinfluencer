@@ -169,7 +169,7 @@ assert.equal(situacaoDaFrequencia(serie({ id: 'x', frequenciaRecomendada: 'Sob d
   assert.match(cont.resumoPendencias ?? '', /^2 configurações pendentes/);
 }
 
-// --- Quadro com meta própria: linha própria, episódios contam na série uma vez.
+// --- Quadro com meta própria: linha própria, e os episódios dele saem da conta da série (sem cobrança dupla).
 {
   const pai = serie({ id: 'pai', name: 'Resenha', frequenciaVezes: 1, frequenciaUnidade: 'mes' });
   const quadro = serie({ id: 'quadro', name: 'Indicação', parentId: 'pai', tipoAgrupamento: 'quadro', frequenciaVezes: 2, frequenciaUnidade: 'mes' });
@@ -181,8 +181,8 @@ assert.equal(situacaoDaFrequencia(serie({ id: 'x', frequenciaRecomendada: 'Sob d
   const cont = continuidadeDasSeries({ series: [pai, quadro], itens, periodo: PERIODO });
   const linhaPai = cont.linhas.find(l => l.serieId === 'pai')!;
   const linhaQuadro = cont.linhas.find(l => l.serieId === 'quadro')!;
-  assert.deepEqual(linhaPai.intervalos.map(i => i.quantidade), [2, 1, 0]);
-  assert.equal(linhaPai.itens.length, 3, 'sem duplicar episódios do quadro');
+  assert.deepEqual(linhaPai.intervalos.map(i => i.quantidade), [0, 1, 0]);
+  assert.equal(linhaPai.itens.length, 1, 'episódios do quadro com meta própria contam só no quadro');
   assert.deepEqual(linhaQuadro.intervalos.map(i => i.quantidade), [2, 0, 0]);
   assert.equal(linhaQuadro.paiNome, 'Resenha');
   assert.equal(cont.resumo, '1 série e 1 quadro abaixo da frequência');
@@ -208,6 +208,20 @@ assert.deepEqual(janelaDaContinuidade(PERIODO), { inicio: '2026-09-20', fim: '20
   assert.equal(cont.naoAvaliadas.length, 0);
   assert.equal(cont.nenhumaAcompanhada, true);
   assert.equal(cont.resumo, 'Nenhuma série acompanhada');
+}
+
+// --- Wave sob demanda: não avaliada e fora da contagem de acompanhadas.
+{
+  const cont = continuidadeDasSeries({
+    series: [serie({ id: 'mae', name: 'Mãe', acompanharContinuidade: false })],
+    temporadas: [{ id: 'w', serieId: 'mae', nome: 'Wave livre', acompanhar: true, frequenciaUnidade: 'sob-demanda' }],
+    itens: [],
+    periodo: PERIODO,
+  });
+  assert.equal(cont.linhas.length, 0);
+  assert.equal(cont.pendencias.length, 0);
+  assert.deepEqual(cont.naoAvaliadas.map(item => item.motivo), ['sob-demanda']);
+  assert.equal(cont.nenhumaAcompanhada, true);
 }
 
 // --- Marcada e sem frequência (ou quadro marcado sem meta): pendência, não "abaixo".

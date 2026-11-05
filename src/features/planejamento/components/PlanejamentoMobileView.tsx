@@ -1,3 +1,4 @@
+import {INICIO_DA_SEMANA} from '../../../lib/semana.ts';
 import {useEffect, useId, useMemo, useRef, useState, type ReactNode} from 'react';
 import {
   eachDayOfInterval,
@@ -20,14 +21,14 @@ import {FilterChips} from '../../../components/ui/FilterChips';
 import {Text} from '../../../components/ui/Text';
 import {cn} from '../../../lib/utils';
 import type {Content, Serie, Tema} from '../../../lib/database';
-import type {PublicacaoNoDia} from '../lib/publicacoesDoMes';
 import type {PlanejamentoPostIt} from '../lib/postIt';
 import type {VistaPlanejamento} from '../lib/periodoPlanejamento';
 import {diasDoCalendario, type IntervaloSaude} from '../lib/saudeActions';
+import {fimDeSemana} from '../lib/periodoPlanejamento';
 import {SemDataPanel} from './SemDataPanel';
 
 const TODOS_OS_ASSUNTOS = '__todos';
-const WEEK_STARTS_ON = 0;
+const WEEK_STARTS_ON = INICIO_DA_SEMANA;
 
 interface PlanejamentoMobileViewProps {
   month: Date;
@@ -36,13 +37,11 @@ interface PlanejamentoMobileViewProps {
   vista: VistaPlanejamento;
   onVistaChange: (vista: VistaPlanejamento) => void;
   byDate: ReadonlyMap<string, PlanejamentoPostIt[]>;
-  publicacoesDoDia: ReadonlyMap<string, PublicacaoNoDia[]>;
   undated: readonly PlanejamentoPostIt[];
   contents: readonly Content[];
   series: readonly Serie[];
   /** Post-it em largura toda, com o menu ⋯ (mover, tirar do período, apagar). */
   renderPostIt: (postIt: PlanejamentoPostIt) => ReactNode;
-  renderPublicacao: (publicacao: PublicacaoNoDia) => ReactNode;
   onNovoPostIt: (date: string | null) => void;
   onPuxar: (date: string | null) => void;
   onEditorial: () => void;
@@ -77,29 +76,12 @@ function itemsLabel(count: number) {
   return count === 1 ? '1 item' : `${count} itens`;
 }
 
-function publicadasLabel(publicacoes: readonly PublicacaoNoDia[]) {
-  const postadas = publicacoes.filter(publicacao => publicacao.estado === 'postado').length;
-  if (postadas === 0) return 'Programado';
-  if (postadas === publicacoes.length) return 'Publicado';
-  return 'Programado e publicado';
-}
-
-function GroupLabel({children}: {children: ReactNode}) {
-  return (
-    <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-      {children}
-    </Text>
-  );
-}
-
 function DayList({
   days,
   month,
   todayKey,
   byDate,
-  publicacoesDoDia,
   renderPostIt,
-  renderPublicacao,
   onNovoPostIt,
   onPuxar,
   showEmptyDays,
@@ -108,9 +90,7 @@ function DayList({
   month: Date;
   todayKey: string;
   byDate: ReadonlyMap<string, PlanejamentoPostIt[]>;
-  publicacoesDoDia: ReadonlyMap<string, PublicacaoNoDia[]>;
   renderPostIt: (postIt: PlanejamentoPostIt) => ReactNode;
-  renderPublicacao: (publicacao: PublicacaoNoDia) => ReactNode;
   onNovoPostIt: (date: string | null) => void;
   onPuxar: (date: string | null) => void;
   showEmptyDays: boolean;
@@ -121,11 +101,10 @@ function DayList({
       return {
         day,
         key,
-        publicacoes: publicacoesDoDia.get(key) ?? [],
         postIts: byDate.get(key) ?? [],
       };
     })
-    .filter(item => showEmptyDays || item.publicacoes.length > 0 || item.postIts.length > 0);
+    .filter(item => showEmptyDays || item.postIts.length > 0);
 
   if (entries.length === 0) {
     return (
@@ -139,9 +118,11 @@ function DayList({
     <div className="stack-md">
       {entries.map(item => {
         const isToday = item.key === todayKey;
-        const ambos = item.publicacoes.length > 0 && item.postIts.length > 0;
         return (
-          <div key={item.key} className="stack-sm min-w-0 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-3">
+          <div key={item.key} className={cn(
+            'stack-sm min-w-0 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] p-3',
+            !isToday && fimDeSemana(item.day) ? 'planejamento-fim-de-semana' : 'bg-[var(--bg-secondary)]',
+          )}>
             <div className="flex items-center justify-between gap-2">
               <Text
                 variant="label"
@@ -160,25 +141,12 @@ function DayList({
                 </AppButton>
               </div>
             </div>
-            {item.publicacoes.length > 0 ? (
-              <div className="stack-sm min-w-0">
-                {ambos ? <GroupLabel>{publicadasLabel(item.publicacoes)}</GroupLabel> : null}
-                <ul className="stack-sm min-w-0">
-                  {item.publicacoes.map(publicacao => (
-                    <li key={publicacao.id} className="min-w-0">{renderPublicacao(publicacao)}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
             {item.postIts.length > 0 ? (
-              <div className="stack-sm min-w-0">
-                {ambos ? <GroupLabel>Rascunhos</GroupLabel> : null}
-                <ul className="stack-sm min-w-0">
-                  {item.postIts.map(postIt => (
-                    <li key={postIt.id} className="min-w-0">{renderPostIt(postIt)}</li>
-                  ))}
-                </ul>
-              </div>
+              <ul className="stack-sm min-w-0">
+                {item.postIts.map(postIt => (
+                  <li key={postIt.id} className="min-w-0">{renderPostIt(postIt)}</li>
+                ))}
+              </ul>
             ) : null}
           </div>
         );
@@ -198,12 +166,10 @@ export function PlanejamentoMobileView({
   vista,
   onVistaChange,
   byDate,
-  publicacoesDoDia,
   undated,
   contents,
   series,
   renderPostIt,
-  renderPublicacao,
   onNovoPostIt,
   onPuxar,
   onEditorial,
@@ -281,6 +247,7 @@ export function PlanejamentoMobileView({
           onAnchorDateChange={onMonthChange}
           viewMode={vista}
           onViewModeChange={mode => onVistaChange(mode)}
+          weekStartsOn={INICIO_DA_SEMANA}
           weekViewId="semana"
           views={[
             {id: 'mes' as const, label: 'Mês'},
@@ -309,9 +276,7 @@ export function PlanejamentoMobileView({
           month={month}
           todayKey={todayKey}
           byDate={byDate}
-          publicacoesDoDia={publicacoesDoDia}
           renderPostIt={renderPostIt}
-          renderPublicacao={renderPublicacao}
           onNovoPostIt={onNovoPostIt}
           onPuxar={onPuxar}
           showEmptyDays
@@ -324,7 +289,7 @@ export function PlanejamentoMobileView({
           {weeks.map(week => {
             const isCurrent = isWithinInterval(today, {start: week.start, end: week.end});
             const total = week.days.reduce(
-              (sum, day) => sum + (byDate.get(dateKey(day))?.length ?? 0) + (publicacoesDoDia.get(dateKey(day))?.length ?? 0),
+              (sum, day) => sum + (byDate.get(dateKey(day))?.length ?? 0),
               0,
             );
             const title = `Semana ${weekRangeLabel(week.start, week.end)}`;
@@ -362,9 +327,7 @@ export function PlanejamentoMobileView({
                   month={month}
                   todayKey={todayKey}
                   byDate={byDate}
-                  publicacoesDoDia={publicacoesDoDia}
                   renderPostIt={renderPostIt}
-                  renderPublicacao={renderPublicacao}
                   onNovoPostIt={onNovoPostIt}
                   onPuxar={onPuxar}
                   showEmptyDays={false}

@@ -67,7 +67,17 @@ function estruturaDaSerieView(row: Row, series: SerieNoMcp[], temporadas: Tempor
     quadros,
     usa_temporadas: row.usa_temporadas === true,
     temporadas: escopo
-      ? temporadasDoEscopo(escopo.id, temporadas).map(item => ({id: item.id, nome: item.nome, descricao: item.descricao ?? null, foco_redes: item.focoRedes ?? [], ...(escopo.id !== id ? {da_serie: escopo.name} : {})}))
+      ? temporadasDoEscopo(escopo.id, temporadas).map(item => ({
+        id: item.id,
+        nome: item.nome,
+        descricao: item.descricao ?? null,
+        foco_redes: item.focoRedes ?? [],
+        acompanhar: item.acompanhar === true,
+        frequencia_vezes: item.frequenciaVezes ?? null,
+        frequencia_unidade: item.frequenciaUnidade ?? null,
+        frequencia_a_partir_de: item.frequenciaAPartirDe ?? null,
+        ...(escopo.id !== id ? {da_serie: escopo.name} : {}),
+      }))
       : [],
     frequencia_detalhada: {vezes: freq.vezes, unidade: freq.unidade, a_partir_de: freq.a_partir_de, resumo: freq.resumo},
     acompanhar_continuidade: acompanhaNoGeralDaLinha(row),
