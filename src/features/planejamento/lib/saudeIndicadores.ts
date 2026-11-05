@@ -274,6 +274,8 @@ export type TemporadaDaSaude = {
   frequenciaVezes?: number | null;
   frequenciaUnidade?: string | null;
   frequenciaAPartirDe?: string | null;
+  /** Rascunho e arquivada não viram linha na Saúde. */
+  status?: 'rascunho' | 'ativa' | 'arquivada';
 };
 
 export function continuidadeDasSeries<T extends ItemSaude>(input: {
@@ -295,7 +297,8 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
 
   let acompanhadas = 0;
   for (const serie of series) {
-    if (serie.ativa === false) continue;
+    // Rascunho organiza sem cobrar; arquivada já saiu.
+    if (serie.ativa === false || serie.status === 'rascunho') continue;
     // Só entra quem foi marcado para acompanhar; as outras nem aparecem como pendência.
     if (!acompanhaNoGeral(serie)) {
       // Acompanhada só por conta ou formato: conta como acompanhada; a linha vem da continuidade por escopo.
@@ -413,8 +416,9 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
   // Cada temporada marcada é uma wave: só os episódios dela, com a meta dela.
   for (const temporada of input.temporadas ?? []) {
     if (temporada.acompanhar !== true) continue;
+    if (temporada.status === 'rascunho' || temporada.status === 'arquivada') continue;
     const dona = porId.get(temporada.serieId);
-    if (!dona || dona.ativa === false) continue;
+    if (!dona || dona.ativa === false || dona.status === 'rascunho') continue;
     const nome = temporada.nome.trim() || 'Temporada';
     const sintetica: SerieDaSaude = {
       ...dona,

@@ -15,6 +15,7 @@ import {
   plural,
 } from '../../lib/serieAgrupamento';
 import { type ItemLista } from '../../lib/seriesListaView';
+import { podeSerRascunho, ROTULO_STATUS, statusDaSerie, type StatusSerie } from '../../lib/statusSerie';
 
 /** Menu do agrupamento, igual no card, na linha e no cabeçalho da família. */
 export function itensDoMenuDaSerie(
@@ -22,9 +23,15 @@ export function itensDoMenuDaSerie(
   acoes: {
     onEdit: (serieId: string) => void;
     onToggleAtiva: (serieId: string) => void;
+    onMudarStatus?: (serieId: string, status: StatusSerie) => void;
     onCriarFilho?: (item: Pick<ItemLista, 'serie' | 'tipo'>) => void;
   },
 ): MoreMenuItem[] {
+  const status = statusDaSerie(item.serie);
+  const rotuloAlternar = status === 'ativa' ? 'Arquivar' : status === 'rascunho' ? 'Ativar' : 'Reativar';
+  const voltarParaRascunho = acoes.onMudarStatus && status === 'ativa' && podeSerRascunho(item.serie)
+    ? [{ label: 'Voltar para rascunho', onClick: () => acoes.onMudarStatus?.(item.serie.id, 'rascunho') }]
+    : [];
   const criarFilho = acoes.onCriarFilho && item.tipo !== 'quadro'
     ? [{
       label: item.tipo === 'familia' ? 'Criar série nesta família' : 'Criar quadro',
@@ -34,7 +41,8 @@ export function itensDoMenuDaSerie(
   return [
     ...criarFilho,
     { label: 'Configurar', onClick: () => acoes.onEdit(item.serie.id) },
-    { label: item.serie.ativa ? 'Arquivar' : 'Reativar', onClick: () => acoes.onToggleAtiva(item.serie.id) },
+    { label: rotuloAlternar, onClick: () => acoes.onToggleAtiva(item.serie.id) },
+    ...voltarParaRascunho,
   ];
 }
 
@@ -184,11 +192,11 @@ export function SerieCard({
               <span
                 className={cn(
                   'h-2 w-2 rounded-full',
-                  serie.ativa ? 'bg-emerald-500' : 'bg-zinc-400',
+                  serie.ativa ? 'bg-emerald-500' : statusDaSerie(serie) === 'rascunho' ? 'bg-amber-400' : 'bg-zinc-400',
                 )}
                 aria-hidden="true"
               />
-              <span>{serie.ativa ? 'Ativa' : 'Inativa'}</span>
+              <span>{ROTULO_STATUS[statusDaSerie(serie)]}</span>
             </Text>
           </div>
 

@@ -39,17 +39,19 @@ const TITULO_EDITAR: Record<SerieTipoAgrupamento, string> = {
 };
 import {ordenarContas} from '../../contas/lib/contas';
 import {roteirosQueSeguemASerie, type AlteracaoDeRoteiro} from '../../editorial/lib/legendaSerie';
+import {useStatusDaSerie} from '../hooks/useStatusDaSerie';
+import {statusDaSerie, type StatusSerie} from '../lib/statusSerie';
 
 function SerieEditHeaderActions({
   isCreate,
-  ativa,
+  status,
   rotuloSalvar,
   onToggleAtiva,
   onDelete,
   chrome,
 }: {
   isCreate: boolean;
-  ativa?: boolean;
+  status?: StatusSerie;
   rotuloSalvar: string;
   onToggleAtiva?: () => void;
   onDelete?: () => void;
@@ -64,7 +66,7 @@ function SerieEditHeaderActions({
           items={[
             ...(onToggleAtiva
               ? [{
-                label: ativa !== false ? 'Arquivar' : 'Reativar',
+                label: status === 'rascunho' ? 'Ativar' : status === 'arquivada' ? 'Reativar' : 'Arquivar',
                 onClick: onToggleAtiva,
               }]
               : []),
@@ -228,16 +230,10 @@ export function SeriesEditPage() {
     voltarLista();
   };
 
+  const { alternarAtiva, modalAtivacao } = useStatusDaSerie();
   const handleToggleAtiva = () => {
     if (!editingSerie) return;
-    dispatch({
-      type: 'UPDATE_SERIE',
-      payload: {
-        ...editingSerie,
-        ativa: !editingSerie.ativa,
-        updatedAt: new Date().toISOString(),
-      },
-    });
+    alternarAtiva(editingSerie.id);
   };
 
   const lastEditLabel = editingSerie?.updatedAt
@@ -315,7 +311,7 @@ export function SeriesEditPage() {
             actions={
               <SerieEditHeaderActions
                 isCreate={isCreate}
-                ativa={editingSerie?.ativa}
+                status={editingSerie ? statusDaSerie(editingSerie) : undefined}
                 rotuloSalvar={isCreate ? TITULO_CRIAR[tipo] : 'Salvar alterações'}
                 onToggleAtiva={handleToggleAtiva}
                 onDelete={() => setConfirmDelete(true)}
@@ -333,7 +329,7 @@ export function SeriesEditPage() {
             ) : <span />}
             <SerieEditHeaderActions
               isCreate={isCreate}
-              ativa={editingSerie?.ativa}
+              status={editingSerie ? statusDaSerie(editingSerie) : undefined}
               rotuloSalvar={isCreate ? 'Criar' : 'Salvar'}
               onToggleAtiva={handleToggleAtiva}
               onDelete={() => setConfirmDelete(true)}
@@ -405,6 +401,7 @@ export function SeriesEditPage() {
           {formElement}
         </div>
       </PageLayout>
+      {modalAtivacao}
 
       <ConfirmModal
         open={confirmDelete}

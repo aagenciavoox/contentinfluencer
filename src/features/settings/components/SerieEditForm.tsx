@@ -42,7 +42,6 @@ import {
   collectFormatoSuggestions,
   ENERGIA_LABELS,
   ENERGIA_NIVEIS,
-  FORMATO_APRESENTACAO_SUGESTOES,
 } from '../../editorial/lib/editorialOptions';
 import { lerFrequencia } from '../../editorial/lib/frequenciaSerie';
 import { pilarPrincipalDaSerie } from '../../editorial/lib/pilarDaSerie';
@@ -466,7 +465,6 @@ export function SerieEditForm({
       slotPadrao: initial.slotPadrao || null,
       formatoVisualPadrao: normalizeFormatoList(initial.formatoVisualPadrao),
       estruturaRoteiro: estruturaInicial,
-      bordao: initial.bordao || '',
       cor: initial.cor || SERIE_DEFAULT_COR,
       capaUrl: initial.capaUrl || '',
       ativa: initial.ativa ?? true,
@@ -477,7 +475,6 @@ export function SerieEditForm({
       funcaoPadrao: initial.funcaoPadrao || null,
       energiaPadrao: initial.energiaPadrao || null,
       pilarPrincipalId: pilarPrincipalDaSerie(initial),
-      formatoApresentacao: normalizeFormatoList(initial.formatoApresentacao),
       orientacoesEditoriais: orientacoesIniciais,
       legendaBase: initial.legendaBase || '',
       parentId: initial.parentId ?? null,
@@ -508,15 +505,11 @@ export function SerieEditForm({
     if (tipo !== 'quadro') return true;
     if (initial.usaCorDaSerie) return false;
     const temCapa = Boolean(initial.capaUrl?.trim());
-    const temBordao = Boolean(initial.bordao?.trim());
     const corDiferente = Boolean(initial.cor && seriePai?.cor && initial.cor !== seriePai.cor);
-    return temCapa || temBordao || corDiferente;
+    return temCapa || corDiferente;
   });
   const [quadroOrientacoesProprias, setQuadroOrientacoesProprias] = useState<boolean>(
     () => tipo !== 'quadro' || Boolean(orientacoesIniciais),
-  );
-  const [quadroApresentacaoPropria, setQuadroApresentacaoPropria] = useState<boolean>(
-    () => tipo !== 'quadro' || normalizeFormatoList(initial.formatoApresentacao).length > 0,
   );
   const [quadroFormatosProprios, setQuadroFormatosProprios] = useState<boolean>(
     () => tipo !== 'quadro' || normalizeFormatoList(initial.formatoVisualPadrao).length > 0,
@@ -540,7 +533,6 @@ export function SerieEditForm({
     if (form.tipoAgrupamento !== snap.form.tipoAgrupamento) return true;
     if (form.semPilar !== snap.form.semPilar) return true;
     if (form.acompanharContinuidade !== snap.form.acompanharContinuidade) return true;
-    if (form.bordao !== snap.form.bordao) return true;
     if (form.cor !== snap.form.cor) return true;
     if (form.capaUrl !== snap.form.capaUrl) return true;
     if (form.estruturaRoteiro !== snap.form.estruturaRoteiro) return true;
@@ -552,7 +544,6 @@ export function SerieEditForm({
     if (form.funcaoPadrao !== snap.form.funcaoPadrao) return true;
     if (form.energiaPadrao !== snap.form.energiaPadrao) return true;
     if (form.pilarPrincipalId !== snap.form.pilarPrincipalId) return true;
-    if (JSON.stringify(form.formatoApresentacao) !== JSON.stringify(snap.form.formatoApresentacao)) return true;
     if (form.orientacoesEditoriais !== snap.form.orientacoesEditoriais) return true;
     if (form.legendaBase !== snap.form.legendaBase) return true;
     if (form.parentId !== snap.form.parentId) return true;
@@ -633,7 +624,6 @@ export function SerieEditForm({
         slotPadrao: null,
         formatoVisualPadrao: [],
         estruturaRoteiro: null,
-        bordao: null,
         cor: form.cor,
         capaUrl: form.capaUrl.trim() || null,
         ativa: form.ativa,
@@ -644,7 +634,6 @@ export function SerieEditForm({
         funcaoPadrao: null,
         energiaPadrao: null,
         pilarPrincipalId: null,
-        formatoApresentacao: [],
         motivoSalvar: null,
         motivoEnviar: null,
         legendaBase: null,
@@ -675,15 +664,9 @@ export function SerieEditForm({
     const capaFinal = tipo === 'quadro' && !quadroIdentidadePropria
       ? null
       : (form.capaUrl.trim() || null);
-    const bordaoFinal = tipo === 'quadro' && !quadroIdentidadePropria
-      ? null
-      : (form.bordao.trim() || null);
     const orientacoesFinal = tipo === 'quadro' && !quadroOrientacoesProprias
       ? null
       : (form.orientacoesEditoriais.trim() || null);
-    const apresentacaoFinal = tipo === 'quadro' && !quadroApresentacaoPropria
-      ? []
-      : form.formatoApresentacao;
     const formatosFinal = tipo === 'quadro' && !quadroFormatosProprios
       ? []
       : form.formatoVisualPadrao;
@@ -711,10 +694,11 @@ export function SerieEditForm({
       slotPadrao: form.slotPadrao,
       formatoVisualPadrao: formatosFinal,
       estruturaRoteiro: estruturaFinal || null,
-      bordao: bordaoFinal,
       cor: corFinal,
       capaUrl: capaFinal,
       ativa: form.ativa,
+      // O status muda no menu da série; salvar o formulário mantém o que está gravado.
+      ...(initial.status ? { status: initial.status } : {}),
       frequenciaRecomendada,
       frequenciaVezes: vezes,
       frequenciaUnidade: unidade,
@@ -722,7 +706,6 @@ export function SerieEditForm({
       funcaoPadrao: form.funcaoPadrao,
       energiaPadrao: form.energiaPadrao,
       pilarPrincipalId: form.pilarPrincipalId,
-      formatoApresentacao: apresentacaoFinal,
       motivoSalvar: orientacoesFinal,
       motivoEnviar: null,
       legendaBase: legendaFinal,
@@ -760,7 +743,6 @@ export function SerieEditForm({
     initial.metasPorEscopo,
     initial.createdAt,
     modoModelo,
-    quadroApresentacaoPropria,
     quadroContasProprias,
     quadroFormatosProprios,
     quadroIdentidadePropria,
@@ -836,7 +818,6 @@ export function SerieEditForm({
   const pilarChoices = pilares.filter(item => item.ativo || item.id === form.pilarPrincipalId);
   const funcaoDescription = FUNCAO_OPTIONS.find(option => option.value === form.funcaoPadrao)?.description ?? null;
   const formatoOptions = collectFormatoSuggestions([...usedFormatoValues, ...form.formatoVisualPadrao]);
-  const apresentacaoOptions = normalizeFormatoList([...FORMATO_APRESENTACAO_SUGESTOES, ...form.formatoApresentacao]);
   const serieForMetrics = useMemo(() => buildPayload(), [buildPayload]);
 
   const [confirmParent, setConfirmParent] = useState<{ next: string | null; message: string } | null>(null);
@@ -1368,20 +1349,6 @@ export function SerieEditForm({
                           />
                         </div>
                       </div>
-
-                      <div>
-                        <label htmlFor="serie-bordao">
-                          <FieldLabel optional>Bordão</FieldLabel>
-                        </label>
-                        <input
-                          id="serie-bordao"
-                          type="text"
-                          value={form.bordao}
-                          onChange={event => setForm(previous => ({ ...previous, bordao: event.target.value }))}
-                          placeholder="Ex.: vamos descomplicar isso"
-                          className={inputClass}
-                        />
-                      </div>
                     </EditorSection>
 
                     <EditorSection
@@ -1421,18 +1388,6 @@ export function SerieEditForm({
                           value={form.energiaPadrao}
                           onChange={energiaPadrao => setForm(previous => ({ ...previous, energiaPadrao }))}
                           options={ENERGIA_NIVEIS.map(value => ({ value, label: ENERGIA_LABELS[value] }))}
-                        />
-                      </div>
-
-                      <div className="stack-sm">
-                        <FieldLabel optional>Apresentação habitual</FieldLabel>
-                        <MultiChoiceField
-                          id="serie-formato-apresentacao"
-                          label="Apresentação habitual"
-                          value={form.formatoApresentacao}
-                          onChange={formatoApresentacao => setForm(previous => ({ ...previous, formatoApresentacao }))}
-                          options={apresentacaoOptions}
-                          placeholder="Outra apresentação…"
                         />
                       </div>
                     </EditorSection>
@@ -1660,10 +1615,10 @@ export function SerieEditForm({
                 </div>
 
                 <div className="stack-sm">
-                  <FieldLabel>Cor, capa e bordão</FieldLabel>
+                  <FieldLabel>Cor e capa</FieldLabel>
                   <SelectField
                     block
-                    ariaLabel="Cor, capa e bordão"
+                    ariaLabel="Cor e capa"
                     value={quadroIdentidadePropria ? 'proprio' : 'herdar'}
                     onChange={valor => setQuadroIdentidadePropria(valor === 'proprio')}
                     options={[
@@ -1696,19 +1651,6 @@ export function SerieEditForm({
                           />
                         </div>
                       </div>
-                      <div>
-                        <label htmlFor="quadro-bordao">
-                          <FieldLabel optional>Bordão</FieldLabel>
-                        </label>
-                        <input
-                          id="quadro-bordao"
-                          type="text"
-                          value={form.bordao}
-                          onChange={event => setForm(previous => ({ ...previous, bordao: event.target.value }))}
-                          placeholder="Ex.: vamos descomplicar isso"
-                          className={inputClass}
-                        />
-                      </div>
                     </div>
                   ) : null}
                 </div>
@@ -1721,20 +1663,6 @@ export function SerieEditForm({
                       ariaLabel="Orientações editoriais"
                       value={quadroOrientacoesProprias ? 'proprio' : 'herdar'}
                       onChange={valor => setQuadroOrientacoesProprias(valor === 'proprio')}
-                      options={[
-                        { value: 'herdar', label: 'Usar da série' },
-                        { value: 'proprio', label: 'Definir outro' },
-                      ]}
-                    />
-                  </div>
-
-                  <div>
-                    <FieldLabel>Apresentação habitual</FieldLabel>
-                    <SelectField
-                      block
-                      ariaLabel="Apresentação habitual"
-                      value={quadroApresentacaoPropria ? 'proprio' : 'herdar'}
-                      onChange={valor => setQuadroApresentacaoPropria(valor === 'proprio')}
                       options={[
                         { value: 'herdar', label: 'Usar da série' },
                         { value: 'proprio', label: 'Definir outro' },
@@ -1772,19 +1700,6 @@ export function SerieEditForm({
                       placeholder="Direcionamentos específicos para este quadro…"
                       rows={3}
                       className={cn(inputClass, 'resize-y leading-relaxed')}
-                    />
-                  </div>
-                ) : null}
-
-                {quadroApresentacaoPropria ? (
-                  <div>
-                    <FieldLabel optional>Apresentação habitual do quadro</FieldLabel>
-                    <MultiChoiceField
-                      id="quadro-formato-apresentacao"
-                      label="Apresentação habitual do quadro"
-                      value={form.formatoApresentacao}
-                      onChange={formatoApresentacao => setForm(previous => ({ ...previous, formatoApresentacao }))}
-                      options={apresentacaoOptions}
                     />
                   </div>
                 ) : null}

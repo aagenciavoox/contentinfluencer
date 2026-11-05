@@ -734,20 +734,20 @@ export function SeriesScriptsPage() {
           contagem={id => contagemDoEscopo({ serieId: serieDasTemporadas.id, series: state.series, contents: state.contents, temporadaId: id }).conteudos}
           onFecharEdicao={() => setEdicaoTemporada(null)}
           onFecharExcluir={() => undefined}
-          onCriar={(nome, descricao, focoRedes) => {
+          onCriar={(nome, descricao, focoRedes, status) => {
             const alvo = state.series.find(item => item.id === serieDasTemporadas.id);
             if (!alvo) return;
             const agora = new Date().toISOString();
             void dispatch({
               type: 'ADD_TEMPORADA',
-              payload: { id: generateUUID(), userId: user?.id || '', serieId: alvo.id, nome, descricao, focoRedes, createdAt: agora },
+              payload: { id: generateUUID(), userId: user?.id || '', serieId: alvo.id, nome, descricao, focoRedes, status, createdAt: agora },
             });
             // A primeira temporada liga o uso de temporadas na série.
             if (!alvo.usaTemporadas) {
               void dispatch({ type: 'UPDATE_SERIE', payload: { ...alvo, usaTemporadas: true, updatedAt: agora } });
             }
           }}
-          onRenomear={(item, nome, descricao, focoRedes) => void dispatch({ type: 'UPDATE_TEMPORADA', payload: { ...item, nome, descricao, focoRedes } })}
+          onRenomear={(item, nome, descricao, focoRedes, status) => void dispatch({ type: 'UPDATE_TEMPORADA', payload: { ...item, nome, descricao, focoRedes, status } })}
           onExcluir={() => undefined}
         />
       ) : null}

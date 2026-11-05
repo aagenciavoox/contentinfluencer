@@ -5,6 +5,7 @@ import { OverlayBody } from '../../../../components/overlays/OverlayBody';
 import { OverlayFooter } from '../../../../components/overlays/OverlayFooter';
 import { OverlayHeader } from '../../../../components/overlays/OverlayHeader';
 import { AppButton } from '../../../../components/ui/AppButton';
+import { SelectField } from '../../../../components/ui/SelectField';
 import { Text } from '../../../../components/ui/Text';
 import type { Platform, Temporada } from '../../../../lib/database';
 import type { RedeDoFiltro } from '../../../contas/lib/contas';
@@ -12,6 +13,7 @@ import { acharTemporadaPorNome } from '../../../editorial/lib/temporadas';
 import { RedeChips } from '../../../planejamento/components/RedeChips';
 import { normalizarRedesPostIt } from '../../../planejamento/lib/redesPostIt';
 import { textoConteudos } from '../../lib/serieAgrupamento';
+import { ROTULO_STATUS, STATUS_SERIE, statusDaOnda, textoDaAtivacao, type StatusSerie } from '../../lib/statusSerie';
 
 export type EdicaoTemporada = { modo: 'criar' } | { modo: 'renomear'; temporada: Temporada };
 
@@ -47,19 +49,21 @@ export function TemporadaDialogs({
   contagem: (temporadaId: string) => number;
   onFecharEdicao: () => void;
   onFecharExcluir: () => void;
-  onCriar: (nome: string, descricao: string | null, focoRedes: RedeDoFiltro[]) => void;
-  onRenomear: (temporada: Temporada, nome: string, descricao: string | null, focoRedes: RedeDoFiltro[]) => void;
+  onCriar: (nome: string, descricao: string | null, focoRedes: RedeDoFiltro[], status: StatusSerie) => void;
+  onRenomear: (temporada: Temporada, nome: string, descricao: string | null, focoRedes: RedeDoFiltro[], status: StatusSerie) => void;
   onExcluir: (temporada: Temporada) => void;
 }) {
   const [nome, setNome] = useState('');
   const [descricao, setDescricao] = useState('');
   const [redes, setRedes] = useState<RedeDoFiltro[]>([]);
+  const [status, setStatus] = useState<StatusSerie>('ativa');
 
   useEffect(() => {
     if (!edicao) return;
     setNome(edicao.modo === 'renomear' ? edicao.temporada.nome : '');
     setDescricao(edicao.modo === 'renomear' ? edicao.temporada.descricao || '' : '');
     setRedes(normalizarRedesPostIt(edicao.modo === 'renomear' ? edicao.temporada.focoRedes ?? [] : []));
+    setStatus(edicao.modo === 'renomear' ? statusDaOnda(edicao.temporada) : 'ativa');
   }, [edicao]);
 
   const limpo = nome.trim();
@@ -71,10 +75,19 @@ export function TemporadaDialogs({
 
   const salvar = () => {
     if (!edicao || !podeSalvar) return;
-    if (edicao.modo === 'criar') onCriar(limpo, descricaoLimpa, foco);
-    else onRenomear(edicao.temporada, limpo, descricaoLimpa, foco);
+    if (edicao.modo === 'criar') onCriar(limpo, descricaoLimpa, foco, status);
+    else onRenomear(edicao.temporada, limpo, descricaoLimpa, foco, status);
     onFecharEdicao();
   };
+
+  // Wave que sai do rascunho (ou do arquivo): avisa quanto vai pedir por semana neste mês.
+  const avisoAtivacao = edicao?.modo === 'renomear' && status === 'ativa' && statusDaOnda(edicao.temporada) !== 'ativa'
+    ? textoDaAtivacao({
+      name: limpo || edicao.temporada.nome,
+      frequenciaVezes: edicao.temporada.frequenciaVezes ?? null,
+      frequenciaUnidade: edicao.temporada.frequenciaUnidade ?? null,
+    })
+    : null;
 
   const quantos = excluir ? contagem(excluir.id) : 0;
 
@@ -120,6 +133,23 @@ export function TemporadaDialogs({
             <RedeChips value={redes} onChange={setRedes} platforms={plataformas} />
             <Text variant="meta" as="p">
               Sem redes, a temporada só agrupa episódios de qualquer quadro, sem ordem. Com redes, os episódios novos já nascem nelas — por exemplo Instagram, TikTok e Shorts numa, e só YouTube longo em outra.
+            </Text>
+          </div>
+
+          <div className="stack-xs">
+            <label htmlFor="temporada-status">
+              <Text variant="label" as="span">Status</Text>
+            </label>
+            <SelectField
+              id="temporada-status"
+              block
+              value={status}
+              describedBy="temporada-status-hint"
+              onChange={valor => setStatus(STATUS_SERIE.includes(valor as StatusSerie) ? valor as StatusSerie : 'ativa')}
+              options={STATUS_SERIE.map(valor => ({ value: valor, label: ROTULO_STATUS[valor] }))}
+            />
+            <Text variant="meta" as="p" id="temporada-status-hint">
+              {avisoAtivacao ?? 'Em rascunho, a wave organiza episódios sem entrar na Saúde nem na conta da série.'}
             </Text>
           </div>
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactElement } from 'react';
 import { Layers, SlidersHorizontal } from 'lucide-react';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { DisclosureButton } from '../../../../components/ui/DisclosureButton';
@@ -16,8 +16,6 @@ import { FamiliaSecao, SerieLinha } from './SeriesListBlocks';
 /** Corpo da lista: agrupado por família, em cards planos ou em linhas. */
 export function ResultadoDaLista({ modelo, celular = false }: { modelo: SeriesListaModelo; celular?: boolean }) {
   const { state } = useAppContext();
-  const { lista, filtros } = modelo;
-  const grade = celular ? 'grid grid-cols-1 gap-3' : 'grid-content';
   const card = (item: ItemLista, mostrarOnde: boolean) => (
     <SerieCard
       key={item.serie.id}
@@ -34,6 +32,25 @@ export function ResultadoDaLista({ modelo, celular = false }: { modelo: SeriesLi
     />
   );
 
+  return (
+    <>
+      <CorpoDaLista modelo={modelo} celular={celular} card={card} />
+      {modelo.modalAtivacao}
+    </>
+  );
+}
+
+function CorpoDaLista({
+  modelo,
+  celular,
+  card,
+}: {
+  modelo: SeriesListaModelo;
+  celular: boolean;
+  card: (item: ItemLista, mostrarOnde: boolean) => ReactElement;
+}) {
+  const { lista, filtros } = modelo;
+  const grade = celular ? 'grid grid-cols-1 gap-3' : 'grid-content';
   if (lista.visiveis.length === 0 && !(lista.agrupada && lista.agrupada.familias.length > 0)) {
     const busca = filtros.busca.trim();
     return (

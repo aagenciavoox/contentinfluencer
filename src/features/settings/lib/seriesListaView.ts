@@ -9,9 +9,10 @@ import {
   type ContagemConteudos,
   type PilarDaSerieResolvido,
 } from './serieAgrupamento.ts';
+import { emRascunho } from './statusSerie.ts';
 
 export type FiltroTipoLista = 'todos' | SerieTipoAgrupamento;
-export type FiltroSituacao = 'ativas' | 'inativas' | 'todas' | 'abertas';
+export type FiltroSituacao = 'ativas' | 'rascunho' | 'inativas' | 'todas' | 'abertas';
 export type VistaLista = 'cards' | 'lista';
 
 export type FiltrosLista = {
@@ -70,9 +71,11 @@ function semAcento(valor: string): string {
   return valor.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
 
-function passaSituacao(serie: Serie, situacao: FiltroSituacao, emAberto: boolean): boolean {
+/** Rascunho tem filtro próprio e não aparece em Inativas (que fica só com as arquivadas). */
+export function passaSituacao(serie: Serie, situacao: FiltroSituacao, emAberto: boolean): boolean {
   if (situacao === 'ativas') return serie.ativa;
-  if (situacao === 'inativas') return !serie.ativa;
+  if (situacao === 'rascunho') return emRascunho(serie);
+  if (situacao === 'inativas') return !serie.ativa && !emRascunho(serie);
   if (situacao === 'abertas') return emAberto;
   return true;
 }
@@ -119,7 +122,7 @@ export function montarListaSeries({
     if (filtros.pilar === 'sem' && item.pilar.pilarId) return false;
     if (filtros.pilar !== 'todos' && filtros.pilar !== 'sem' && item.pilar.pilarId !== filtros.pilar) return false;
     if (!busca) return true;
-    const texto = [item.serie.name, item.serie.bordao, item.serie.notes].filter(Boolean).join(' ');
+    const texto = [item.serie.name, item.serie.notes].filter(Boolean).join(' ');
     return semAcento(texto).includes(busca);
   };
 
@@ -129,9 +132,10 @@ export function montarListaSeries({
     : exibirSeriesVisiveis(filtradas, 'agrupada').map(no => no.serie);
   const visiveis = ordem.map(serie => itens.get(serie.id)!);
 
-  const situacoes: Record<FiltroSituacao, number> = { ativas: 0, inativas: 0, todas: series.length, abertas: 0 };
+  const situacoes: Record<FiltroSituacao, number> = { ativas: 0, rascunho: 0, inativas: 0, todas: series.length, abertas: 0 };
   for (const serie of series) {
     if (serie.ativa) situacoes.ativas += 1;
+    else if (emRascunho(serie)) situacoes.rascunho += 1;
     else situacoes.inativas += 1;
     if (emAberto(serie.id)) situacoes.abertas += 1;
   }

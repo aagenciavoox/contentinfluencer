@@ -11,6 +11,7 @@ import { getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
 import type { SerieCreateModalTarget } from '../components/SerieCreateModal';
 import { TIPOS_AGRUPAMENTO, TIPO_AGRUPAMENTO_PLURAL } from '../lib/serieAgrupamento';
 import { rotaParaCriarFilho } from '../lib/serieHierarquia';
+import { useStatusDaSerie } from './useStatusDaSerie';
 import {
   FILTROS_LISTA_PADRAO,
   filtrosDaListaAtivos,
@@ -29,7 +30,7 @@ function validarFiltros(valor: unknown): FiltrosLista | null {
     busca: typeof bruto.busca === 'string' ? bruto.busca : '',
     tipo: bruto.tipo === 'familia' || bruto.tipo === 'serie' || bruto.tipo === 'quadro' ? bruto.tipo : 'todos',
     pilar: typeof bruto.pilar === 'string' && bruto.pilar ? bruto.pilar : 'todos',
-    situacao: bruto.situacao === 'inativas' || bruto.situacao === 'todas' || bruto.situacao === 'abertas'
+    situacao: bruto.situacao === 'inativas' || bruto.situacao === 'rascunho' || bruto.situacao === 'todas' || bruto.situacao === 'abertas'
       ? bruto.situacao
       : 'ativas',
     vista: bruto.vista === 'lista' ? 'lista' : 'cards',
@@ -99,20 +100,14 @@ export function useSeriesLista(onAbrirModalCriacao?: (target: SerieCreateModalTa
       : [...atual, familiaId]));
   }, [setFamiliasFechadas]);
 
-  const alternarAtiva = useCallback((serieId: string) => {
-    const serie = state.series.find(item => item.id === serieId);
-    if (!serie) return;
-    void dispatch({
-      type: 'UPDATE_SERIE',
-      payload: { ...serie, ativa: !serie.ativa, updatedAt: new Date().toISOString() },
-    });
-  }, [dispatch, state.series]);
+  const { alternarAtiva, mudarStatus, modalAtivacao } = useStatusDaSerie();
 
   const acoes = useMemo(() => ({
     onOpen: (serieId: string) => navigate(`/series/${serieId}`),
     onOpenFilhos: (serieId: string) => navigate(`/series/${serieId}?aba=quadros`),
     onEdit: (serieId: string) => navigate(`/series/${serieId}/editar`),
     onToggleAtiva: alternarAtiva,
+    onMudarStatus: mudarStatus,
     onCriarFilho: (item: Pick<ItemLista, 'serie' | 'tipo'>) => {
       if (item.tipo === 'serie' && onAbrirModalCriacao) {
         onAbrirModalCriacao({ tipo: 'quadro', seriePaiId: item.serie.id });
@@ -121,7 +116,7 @@ export function useSeriesLista(onAbrirModalCriacao?: (target: SerieCreateModalTa
       const rota = rotaParaCriarFilho(item.serie.id, item.tipo);
       if (rota) navigate(rota);
     },
-  }), [alternarAtiva, navigate, onAbrirModalCriacao]);
+  }), [alternarAtiva, mudarStatus, navigate, onAbrirModalCriacao]);
 
   const opcoesTipo = [
     { value: 'todos', label: 'Todos' },
@@ -137,11 +132,12 @@ export function useSeriesLista(onAbrirModalCriacao?: (target: SerieCreateModalTa
   ];
   const rotulosSituacao: Record<FiltroSituacao, string> = {
     ativas: 'Ativas',
+    rascunho: 'Rascunho',
     inativas: 'Inativas',
     todas: 'Todas',
     abertas: 'Em aberto',
   };
-  const opcoesSituacao = (['ativas', 'inativas', 'todas', ...(avisos ? ['abertas' as const] : [])] as FiltroSituacao[])
+  const opcoesSituacao = (['ativas', 'rascunho', 'inativas', 'todas', ...(avisos ? ['abertas' as const] : [])] as FiltroSituacao[])
     .map(situacao => ({ value: situacao, label: `${rotulosSituacao[situacao]} (${lista.situacoes[situacao]})` }));
 
   const preferencias = [
@@ -178,6 +174,7 @@ export function useSeriesLista(onAbrirModalCriacao?: (target: SerieCreateModalTa
     emAberto: (serieId: string) => avisos && (abertos.get(serieId)?.length ?? 0) > 0,
     pilarNome,
     acoes,
+    modalAtivacao,
     opcoesTipo,
     opcoesPilar,
     opcoesSituacao,

@@ -40,20 +40,12 @@ export const FORMATOS_PUBLICACAO = [
   'Stories',
 ] as const;
 
-export const FORMATOS_APRESENTACAO = [
-  'Falando para a câmera',
-  'Narrando',
-  'Texto na tela',
-  'Entrevista',
-  'Vlog',
-] as const;
-
 export const FORMATO_DESCRICAO =
   'Formato visual do roteiro (Talking Head, Tela Verde, Voiceover, POV Texto, Reacao, Vlog, Misto) ' +
   'ou formato de publicação (Reels, Carrossel, Post estático, Vídeo longo, Stories). Texto livre também vale.';
 
 /**
- * Lista de formatos da série (formato_visual_padrao / formato_apresentacao).
+ * Lista de formatos da série (formato_visual_padrao).
  * Aceita text[] (depois da migração 20261016190000), o texto único antigo e
  * texto com lista JSON gravado antes da migração. Sem vazios nem repetidos.
  */

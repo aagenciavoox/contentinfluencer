@@ -10,6 +10,8 @@ export type OndaDaExclusao = {
   acompanhar?: boolean;
   ritmoProprio?: boolean | null;
   frequenciaVezes?: number | null;
+  /** Wave em rascunho não conta na série. */
+  status?: 'rascunho' | 'ativa' | 'arquivada';
 };
 
 function ehQuadro(serie: SerieDaApuracao): boolean {
@@ -36,8 +38,8 @@ export function ondaComRitmoProprio(onda: OndaDaExclusao): boolean {
 }
 
 /**
- * O que sai da conta da série: quadros abaixo dela com meta própria (com os filhos)
- * e waves com ritmo próprio. Assim o mesmo episódio não é cobrado duas vezes.
+ * O que sai da conta da série: quadros abaixo dela com meta própria (com os filhos),
+ * waves com ritmo próprio e waves em rascunho. Assim o mesmo episódio não é cobrado duas vezes.
  */
 export function exclusaoDeMetaPropria(
   serie: SerieDaApuracao,
@@ -50,6 +52,8 @@ export function exclusaoDeMetaPropria(
     const quadro = series.find(item => item.id === id);
     if (quadro && quadroComMetaPropria(quadro)) serieIds.add(id);
   }
-  const temporadaIds = new Set(temporadas.filter(ondaComRitmoProprio).map(onda => onda.id));
+  const temporadaIds = new Set(temporadas
+    .filter(onda => ondaComRitmoProprio(onda) || onda.status === 'rascunho')
+    .map(onda => onda.id));
   return { serieIds, temporadaIds };
 }

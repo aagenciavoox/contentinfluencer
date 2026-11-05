@@ -165,13 +165,13 @@ export function QuadrosETemporadasSection({
         contagem={id => episodiosDaTemporada(id, state.contents).length}
         onFecharEdicao={() => setEdicaoTemporada(null)}
         onFecharExcluir={() => undefined}
-        onCriar={(nome, descricao, focoRedes) => {
+        onCriar={(nome, descricao, focoRedes, status) => {
           void dispatch({
             type: 'ADD_TEMPORADA',
-            payload: { id: generateUUID(), userId: user?.id || '', serieId: serie.id, nome, descricao, focoRedes, createdAt: new Date().toISOString() },
+            payload: { id: generateUUID(), userId: user?.id || '', serieId: serie.id, nome, descricao, focoRedes, status, createdAt: new Date().toISOString() },
           });
         }}
-        onRenomear={(item, nome, descricao, focoRedes) => void dispatch({ type: 'UPDATE_TEMPORADA', payload: { ...item, nome, descricao, focoRedes } })}
+        onRenomear={(item, nome, descricao, focoRedes, status) => void dispatch({ type: 'UPDATE_TEMPORADA', payload: { ...item, nome, descricao, focoRedes, status } })}
         onExcluir={() => undefined}
       />
       <ExcluirEstruturaDialog alvo={excluir} onClose={() => setExcluir(null)} />

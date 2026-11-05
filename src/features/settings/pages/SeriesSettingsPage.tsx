@@ -82,7 +82,6 @@ export function SeriesSettingsPage() {
       slotPadrao: null,
       formatoVisualPadrao: [],
       estruturaRoteiro: null,
-      bordao: null,
       cor: isSerieColorTaken(state.series, quickColor) ? nextFreeSerieColor(state.series) : quickColor,
       capaUrl: null,
       ativa: true,

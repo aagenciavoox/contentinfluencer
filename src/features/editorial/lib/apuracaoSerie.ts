@@ -36,7 +36,7 @@ export type ItemDaApuracao = {
 export type SerieDaApuracao = Pick<
   Serie,
   'id' | 'name' | 'parentId' | 'frequenciaRecomendada' | 'frequenciaVezes' | 'frequenciaUnidade' | 'frequenciaAPartirDe'
-> & Partial<Pick<Serie, 'tipoAgrupamento' | 'ativa' | 'acompanharContinuidade' | 'acompanhamentos'>>;
+> & Partial<Pick<Serie, 'tipoAgrupamento' | 'ativa' | 'status' | 'acompanharContinuidade' | 'acompanhamentos'>>;
 
 export type FrequenciaDefinida = FrequenciaSerie & { unidade: 'semana' | 'quinzena' | 'mes' };
 
@@ -231,6 +231,12 @@ export function apurarSerie<T extends ItemDaApuracao>(input: {
     if (id === serie.id) continue;
     for (const filho of idsDaSubarvore(id, series)) ids.delete(filho);
     ids.delete(id);
+  }
+  // Rascunho abaixo da série (com os filhos) organiza sem cobrar: fica fora da conta.
+  for (const outra of series) {
+    if (outra.id === serie.id || outra.status !== 'rascunho' || !ids.has(outra.id)) continue;
+    for (const filho of idsDaSubarvore(outra.id, series)) ids.delete(filho);
+    ids.delete(outra.id);
   }
   const ondasFora = input.excluir?.temporadaIds;
 

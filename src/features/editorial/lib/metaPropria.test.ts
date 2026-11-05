@@ -43,6 +43,20 @@ function testWaveComRitmoProprioSaiDaContaDaSerie() {
   assert.equal(apurarSerie({ serie: pai, series, itens, periodo, excluir }).noPeriodo.episodios, 2);
 }
 
+function testRascunhoFicaForaDaConta() {
+  // Wave em rascunho organiza sem cobrar: sai da conta da série, mesmo sem ritmo próprio.
+  const ondas = [{ id: 'r', serieId: 'pai', acompanhar: false, status: 'rascunho' as const }];
+  const excluir = exclusaoDeMetaPropria(pai, series, ondas);
+  assert.deepEqual([...(excluir.temporadaIds ?? [])], ['r']);
+  const periodo = { inicio: '2026-11-02', fim: '2026-11-08' };
+  assert.equal(apurarSerie({ serie: pai, series, itens: [item('a', 'pai', 'r'), item('b', 'pai')], periodo, excluir }).noPeriodo.episodios, 1);
+  // Série em rascunho abaixo de uma família não entra na conta da família.
+  const familia = { id: 'fam', name: 'Família', ativa: true, tipoAgrupamento: 'familia' } as unknown as SerieDaApuracao;
+  const rascunho = { id: 'nat', name: 'Natal', parentId: 'fam', ativa: false, status: 'rascunho', tipoAgrupamento: 'serie' } as unknown as SerieDaApuracao;
+  const arvore = [familia, rascunho];
+  assert.equal(apurarSerie({ serie: familia, series: arvore, itens: [item('x', 'nat'), item('y', 'fam')], periodo }).noPeriodo.episodios, 1);
+}
+
 function testToggleDeRitmoProprio() {
   // Caixa do modal: ligada por padrão; desmarcada, a wave volta para a conta da série.
   assert.equal(ritmoProprioMarcado({}), true);
@@ -57,5 +71,6 @@ function testToggleDeRitmoProprio() {
 
 testQuadroComMetaPropriaSaiDaContaDoPai();
 testToggleDeRitmoProprio();
+testRascunhoFicaForaDaConta();
 testWaveComRitmoProprioSaiDaContaDaSerie();
 console.log('metaPropria.test.ts ok');

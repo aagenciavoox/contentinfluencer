@@ -1,5 +1,6 @@
 import { ArrowLeft, ChevronDown, Layers, Pencil, Plus, Target } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { ROTULO_STATUS, statusDaSerie } from '../../lib/statusSerie';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { Badge } from '../../../../components/ui/Badge';
 import { MoreMenu } from '../../../../components/ui/MoreMenu';
@@ -111,7 +112,7 @@ export function SeriesDetailHeader({
                   {temporada ? temporada.nome : nome}
                 </Text>
                 <Badge variant="neutral">{TIPO_AGRUPAMENTO_LABEL[tipo] ?? 'Série'}</Badge>
-                <Badge variant={serie.ativa ? 'success' : 'neutral'}>{serie.ativa ? 'Ativa' : 'Inativa'}</Badge>
+                <Badge variant={serie.ativa ? 'success' : statusDaSerie(serie) === 'rascunho' ? 'warning' : 'neutral'}>{ROTULO_STATUS[statusDaSerie(serie)]}</Badge>
               </div>
               {foco.length > 0 ? (
                 <span className="flex flex-wrap items-center gap-2">

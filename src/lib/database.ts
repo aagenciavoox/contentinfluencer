@@ -144,7 +144,7 @@ export function normalizeFormatoList(values: ReadonlyArray<string | null | undef
 }
 
 /**
- * Lê formato_visual_padrao / formato_apresentacao. Aceita text[] (depois da migração
+ * Lê formato_visual_padrao. Aceita text[] (depois da migração
  * 20261016190000) e o texto único antigo, que vira lista de um item.
  */
 export function readFormatoList(value: unknown): string[] {
@@ -172,10 +172,11 @@ export interface Serie {
   /** Formatos de publicação (vários). Banco antigo guardava texto único. */
   formatoVisualPadrao: string[];
   estruturaRoteiro: string | null;
-  bordao: string | null;
   cor: string | null;
   capaUrl: string | null;
   ativa: boolean;
+  /** Rascunho, ativa ou arquivada. `ativa` segue o status (ativa = 'ativa'). Ausente no banco antigo. */
+  status?: StatusSerie;
   frequenciaRecomendada: string | null;
   /** Quantas vezes a série entra no período. Ausente no banco antigo. */
   frequenciaVezes?: number | null;
@@ -189,8 +190,7 @@ export interface Serie {
   energiaPadrao: EnergiaNivel | null;
   /** Pilar que o conteúdo herda. Ausente no banco antigo. */
   pilarPrincipalId?: string | null;
-  /** Como a série aparece na tela. Ausente no banco antigo. */
-  formatoApresentacao?: string[];
+  /** Orientações editoriais da série (coluna motivo_salvar). Ausente no banco antigo. */
   motivoSalvar?: string | null;
   motivoEnviar?: string | null;
   /** Legenda que orienta os roteiros novos da série. Ausente no banco antigo. */
@@ -220,6 +220,13 @@ export interface Serie {
 }
 
 /** Temporada com identidade no escopo de uma série. */
+/** Rascunho organiza sem cobrar; ativa entra na Saúde e nas metas; arquivada sai de tudo. */
+export type StatusSerie = 'rascunho' | 'ativa' | 'arquivada';
+
+function readStatusSerie(value: unknown): StatusSerie | undefined {
+  return value === 'rascunho' || value === 'ativa' || value === 'arquivada' ? value : undefined;
+}
+
 export interface Temporada {
   id: string;
   userId: string;
@@ -244,6 +251,8 @@ export interface Temporada {
    * Ligado por padrão quando há meta (serie_acompanhamento.ritmo_proprio).
    */
   ritmoProprio?: boolean;
+  /** Rascunho ou arquivada: fora da Saúde e da conta da série. Ausente no banco antigo = ativa. */
+  status?: StatusSerie;
   createdAt: string;
 }
 
@@ -962,7 +971,6 @@ const SERIE_OPTIONAL_COLUMNS = [
   'energia_padrao',
   'funcao_padrao',
   'pilar_principal_id',
-  'formato_apresentacao',
   'motivo_salvar',
   'motivo_enviar',
   'frequencia_vezes',
@@ -976,6 +984,7 @@ const SERIE_OPTIONAL_COLUMNS = [
   'acompanhar_continuidade',
   'usa_cor_da_serie',
   'foco_redes',
+  'status',
 ] as const;
 
 /** Migração da escolha "Acompanhar continuidade na Saúde". */
@@ -986,6 +995,8 @@ export const MIGRACAO_EDITORIAL_POR_CONTA = '20261103120000_editorial_por_conta_
 
 /** Foco de redes do quadro. */
 export const MIGRACAO_SERIE_FOCO_REDES = '20261104190000_serie_foco_redes';
+/** Status rascunho / ativa / arquivada da série e da wave. */
+export const MIGRACAO_SERIE_STATUS = '20261105150000_serie_status';
 /** Meta e acompanhamento isolados da temporada. */
 export const MIGRACAO_TEMPORADA_ACOMPANHAMENTO = '20261104200000_temporada_acompanhamento';
 
@@ -1365,9 +1376,9 @@ const mp = {
   serie: (r: Row): Serie => ({
     id: r.id, userId: r.user_id, name: r.name, template: r.template || '',
     notes: r.notes || '', slotPadrao: r.slot_padrao, formatoVisualPadrao: readFormatoList(r.formato_visual_padrao),
-    estruturaRoteiro: r.estrutura_roteiro, bordao: r.bordao, cor: r.cor,
+    estruturaRoteiro: r.estrutura_roteiro, cor: r.cor,
     capaUrl: r.capa_url || null,
-    ativa: r.ativa ?? true, frequenciaRecomendada: r.frequencia_recomendada,
+    ativa: r.ativa ?? true, status: readStatusSerie(r.status), frequenciaRecomendada: r.frequencia_recomendada,
     frequenciaVezes: typeof r.frequencia_vezes === 'number' ? r.frequencia_vezes : null,
     frequenciaUnidade: typeof r.frequencia_unidade === 'string' && r.frequencia_unidade
       ? r.frequencia_unidade
@@ -1378,7 +1389,6 @@ const mp = {
     funcaoPadrao: readFuncaoPadrao(r.funcao_padrao),
     energiaPadrao: readEnergiaNivel(r.energia_padrao),
     pilarPrincipalId: typeof r.pilar_principal_id === 'string' && r.pilar_principal_id ? r.pilar_principal_id : null,
-    formatoApresentacao: readFormatoList(r.formato_apresentacao),
     motivoSalvar: typeof r.motivo_salvar === 'string' ? r.motivo_salvar : null,
     motivoEnviar: typeof r.motivo_enviar === 'string' ? r.motivo_enviar : null,
     legendaBase: typeof r.legenda_base === 'string' ? r.legenda_base : null,
@@ -1415,6 +1425,7 @@ const mp = {
       : null,
     acompanhar: r.acompanhar === true,
     ritmoProprio: r.ritmo_proprio === true,
+    status: readStatusSerie(r.status),
     createdAt: r.created_at,
   }),
   tema: (r: Row): Tema => ({
@@ -3376,13 +3387,12 @@ export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 
   let row: Record<string, unknown> = {
     id: serie.id, user_id: serie.userId, name: serie.name, template: serie.template,
     notes: serie.notes, slot_padrao: serie.slotPadrao, formato_visual_padrao: normalizeFormatoList(serie.formatoVisualPadrao),
-    estrutura_roteiro: serie.estruturaRoteiro, bordao: serie.bordao, cor: serie.cor,
+    estrutura_roteiro: serie.estruturaRoteiro, cor: serie.cor,
     capa_url: serie.capaUrl?.trim() || null,
     ativa: serie.ativa, frequencia_recomendada: serie.frequenciaRecomendada,
     energia_padrao: serie.energiaPadrao ?? null,
     funcao_padrao: serie.funcaoPadrao ?? null,
     pilar_principal_id: serie.pilarPrincipalId ?? null,
-    formato_apresentacao: normalizeFormatoList(serie.formatoApresentacao),
     motivo_salvar: serie.motivoSalvar?.trim() || null,
     motivo_enviar: serie.motivoEnviar?.trim() || null,
   };
@@ -3399,6 +3409,10 @@ export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 
   if (serie.acompanhamentos) row.acompanhar_continuidade = serie.acompanhamentos.some(item => item.escopo === 'geral' && item.ativo);
   if ('usaCorDaSerie' in serie) row.usa_cor_da_serie = serie.usaCorDaSerie === true;
   if ('focoRedes' in serie) row.foco_redes = normalizarRedesPostIt(serie.focoRedes ?? []);
+  if (serie.status) {
+    row.status = serie.status;
+    row.ativa = serie.status === 'ativa';
+  }
 
   for (let attempt = 0; attempt < 16; attempt += 1) {
     const { error } = await supabase.from('series').upsert(row);
@@ -3423,6 +3437,9 @@ export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 
       }
       if (missing === 'usa_cor_da_serie' && row.usa_cor_da_serie === true) {
         throw new Error(`Para o quadro usar a cor da série, aplique a migração ${MIGRACAO_EDITORIAL_POR_CONTA}.`);
+      }
+      if (missing === 'status' && row.status === 'rascunho') {
+        throw new Error(`Para guardar a série como rascunho, aplique a migração ${MIGRACAO_SERIE_STATUS}.`);
       }
       if (missing === 'foco_redes' && Array.isArray(row.foco_redes) && row.foco_redes.length > 0) {
         throw new Error(`Para guardar as redes do quadro, aplique a migração ${MIGRACAO_SERIE_FOCO_REDES}.`);
@@ -3555,8 +3572,8 @@ export async function deleteSerie(id: string): Promise<void> {
 /** Lê temporadas. Colunas novas somem do select se o banco ainda não as tem. */
 async function lerTemporadas(uid: string) {
   if (!supabase) return { data: [], error: null };
-  let colunas = 'id, user_id, serie_id, nome, descricao, foco_redes, created_at';
-  const opcionais = ['foco_redes', 'descricao'];
+  let colunas = 'id, user_id, serie_id, nome, descricao, foco_redes, status, created_at';
+  const opcionais = ['status', 'foco_redes', 'descricao'];
   for (let tentativa = 0; tentativa < opcionais.length + 1; tentativa += 1) {
     const result = await supabase.from('temporadas').select(colunas).eq('user_id', uid).order('nome');
     if (!result.error) return { ...result, data: await comOndas(uid, (result.data ?? []) as unknown as Row[]) };
@@ -3631,8 +3648,9 @@ export async function saveTemporada(temporada: Omit<Temporada, 'createdAt'>): Pr
     nome,
     descricao: temporada.descricao?.trim() || null,
     foco_redes: normalizarRedesPostIt(temporada.focoRedes ?? []),
+    ...(temporada.status ? { status: temporada.status } : {}),
   };
-  for (let tentativa = 0; tentativa < 4; tentativa += 1) {
+  for (let tentativa = 0; tentativa < 5; tentativa += 1) {
     const { error } = await supabase.from('temporadas').upsert(row);
     if (!error) {
       // Meta e acompanhamento da wave ficam nas tabelas da série, não em colunas da temporada.
@@ -3640,8 +3658,11 @@ export async function saveTemporada(temporada: Omit<Temporada, 'createdAt'>): Pr
       return;
     }
     const message = error.message ?? '';
-    const ausente = ['foco_redes', 'descricao'].find(coluna => isMissingNamedColumn(message, coluna) && coluna in row);
+    const ausente = ['status', 'foco_redes', 'descricao'].find(coluna => isMissingNamedColumn(message, coluna) && coluna in row);
     if (!ausente) throw new Error(`temporadas: ${message}`);
+    if (ausente === 'status' && row.status !== 'ativa') {
+      throw new Error(`Para guardar o status da wave, aplique a migração ${MIGRACAO_SERIE_STATUS}.`);
+    }
     const { [ausente]: _omitida, ...resto } = row;
     row = resto;
   }

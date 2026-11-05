@@ -18,7 +18,6 @@ const serieBase = {
   slotPadrao: null,
   formatoVisualPadrao: [],
   estruturaRoteiro: null,
-  bordao: null,
   cor: null,
   capaUrl: null,
   ativa: true,

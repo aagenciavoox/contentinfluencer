@@ -184,7 +184,7 @@ export function migracaoDaColuna(
 ): string | null {
   if (tabela === 'projetos') return coluna === 'aviso_dias' ? MIGRACAO_PUBLICACOES : null;
   if (tabela === 'content_plataformas') return MIGRACAO_PUBLICACOES;
-  if (coluna === 'funcao_padrao' || coluna === 'formato_apresentacao' || coluna === 'energia_padrao' || coluna === 'motivo_salvar' || coluna === 'motivo_enviar' || coluna === 'pilar_principal_id') {
+  if (coluna === 'funcao_padrao' || coluna === 'energia_padrao' || coluna === 'motivo_salvar' || coluna === 'motivo_enviar' || coluna === 'pilar_principal_id') {
     return MIGRACAO_FUNCOES;
   }
   if (coluna === 'recording_time') return MIGRACAO_GRAVACAO;

@@ -139,9 +139,10 @@ Uma linha nova no banco não escapa do cache de abertura. A foto do domínio (me
   - `slot_padrao` text opcional -> valores esperados: `UNICO | SERIE | JANELA`
   - `formato_visual_padrao` text opcional
   - `estrutura_roteiro` text opcional
-  - `bordao` text opcional
+  - `bordao` text opcional -> legado: o app e o MCP nao leem nem gravam mais (coluna mantida)
   - `cor` text opcional
-  - `ativa` boolean obrigatorio -> default: `true`
+  - `ativa` boolean obrigatorio -> default: `true`; compatibilidade, segue `status` (`ativa = status = 'ativa'`)
+  - `status` text obrigatorio -> default: `'ativa'`; valores: `rascunho | ativa | arquivada`; quadro nao fica em `rascunho` (migracao `20261105150000_serie_status`)
   - `frequencia_recomendada` text opcional -> valores esperados: `Semanal | Quinzenal | Mensal | Sob demanda`
   - `created_at` timestamptz automatico
   - `updated_at` timestamptz automatico
@@ -155,10 +156,23 @@ Uma linha nova no banco não escapa do cache de abertura. A foto do domínio (me
   - pertence sempre a um usuario
   - delete em `serie` remove relacoes auxiliares em cascata
   - conteudos e ideias ligados usam `on delete set null`
+  - `rascunho` organiza sem cobrar: fica fora da Saude e da apuracao da serie de cima; ao ativar, o app avisa quantos roteiros por semana a serie vai pedir no mes
+  - trigger `series_status_coerente` mantem `ativa` e `status` coerentes quando so um deles e gravado (app ou MCP antigos)
 - O que nao salvar:
+  - `❌ bordao`, `❌ formato_apresentacao` -> sem efeito no app; colunas mantidas no banco, fora da UI, do codigo e do MCP
   - `❌ pilar_id` unico em serie -> substituido por `serie_pilar` para N:N
   - `❌ plataformas_principais` JSON -> substituido por `serie_plataforma`
   - `❌ funil_padrao` (`topo|meio|fundo`) -> substituido por `funcao_padrao` (`atrair|converter|aprofundar|comunidade|acao|reter|varia`)
+
+## temporada
+
+- Nome: `temporadas` (wave da serie)
+- Campos relevantes:
+  - `status` text obrigatorio -> default: `'ativa'`; valores: `rascunho | ativa | arquivada` (migracao `20261105150000_serie_status`)
+- Regras de negocio:
+  - `rascunho`: fora da Saude e da conta da serie
+  - `arquivada`: sai da Saude; os episodios publicados continuam contando na serie
+  - meta e acompanhamento da wave ficam em `serie_meta` e `serie_acompanhamento` (escopo `temporada`)
 
 ## serie_pilar
 

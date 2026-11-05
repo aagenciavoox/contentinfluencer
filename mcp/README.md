@@ -106,7 +106,7 @@ Se o banco ainda não tiver uma coluna ou tabela, a leitura segue sem ela e a gr
 
 | Coluna | Arquivo |
 | --- | --- |
-| `funcao`, `funcao_origem`, `classificacao_congelada_em`, `conta_na_grade` do roteiro, `legenda_base`, `livro_ids`, `funcao_padrao`, `formato_apresentacao`, `motivo_salvar`, `motivo_enviar`, `pilar_principal_id` | `supabase/migrations/20261004100000_funcoes_editoriais.sql` |
+| `funcao`, `funcao_origem`, `classificacao_congelada_em`, `conta_na_grade` do roteiro, `legenda_base`, `livro_ids`, `funcao_padrao`, `motivo_salvar`, `motivo_enviar`, `pilar_principal_id` | `supabase/migrations/20261004100000_funcoes_editoriais.sql` |
 | status da publicação, `post_url`, `post_codigo`, `legenda_propria`, `conta_na_grade` do destino, `aviso_dias` | `supabase/migrations/20261004110000_publicacoes.sql` |
 | `recording_time` | `supabase/migrations/20261004230000_content_recording_time.sql` |
 | `temas`, `content_temas` | `supabase/migrations/20261004233000_temas_roteiro.sql` |

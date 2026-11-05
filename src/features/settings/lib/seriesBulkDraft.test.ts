@@ -24,7 +24,6 @@ const serie = {
   slotPadrao: null,
   formatoVisualPadrao: ['Reels'],
   estruturaRoteiro: null,
-  bordao: null,
   cor: null,
   capaUrl: null,
   ativa: true,

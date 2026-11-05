@@ -1,7 +1,6 @@
 import type {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {z} from 'zod';
 import {
-  FORMATOS_APRESENTACAO,
   FORMATO_DESCRICAO,
   listaDeFormatos,
 } from '../campos.ts';
@@ -144,12 +143,10 @@ function serieView(row: Row, lookups: Lookups) {
     etapa_funil: isFuncao(row.funcao_padrao) ? FUNIL_DA_FUNCAO[row.funcao_padrao] ?? 'fora' : null,
     frequencia: row.frequencia_recomendada ?? null,
     formato_padrao: listaDeFormatos(row.formato_visual_padrao),
-    formato_apresentacao: listaDeFormatos(row.formato_apresentacao),
     energia_padrao: row.energia_padrao ?? null,
     motivo_salvar: row.motivo_salvar ?? null,
     motivo_enviar: row.motivo_enviar ?? null,
     pilar_principal: lookups.pilarName(row.pilar_principal_id),
-    bordao: row.bordao ?? null,
     estrutura_roteiro: row.estrutura_roteiro ?? null,
     modelo: row.template || null,
     notas: row.notes || null,
@@ -267,16 +264,12 @@ const serieFields = {
     `Formatos de publicação da série (um ou vários; lista substitui a anterior, null ou [] limpa). ${FORMATO_DESCRICAO} ` +
     'O conteúdo criado na série herda o primeiro.',
   ),
-  formato_apresentacao: z.union([z.string(), z.array(z.string())]).nullable().optional().describe(
-    `Um ou vários (lista substitui a anterior). Como a série aparece na tela. Sugestões: ${FORMATOS_APRESENTACAO.join(', ')}. Texto livre também vale.`,
-  ),
   energia_padrao: z.enum(['baixa', 'média', 'alta']).nullable().optional().describe('Esforço de produção'),
   motivo_salvar: z.string().nullable().optional().describe('O que faz a pessoa guardar'),
   motivo_enviar: z.string().nullable().optional().describe('O que faz a pessoa enviar'),
   pilar_principal: z.string().nullable().optional().describe(
     'Nome ou id. Se pilares não vier, a série fica ligada só a este pilar.',
   ),
-  bordao: z.string().nullable().optional(),
   estrutura_roteiro: z.string().nullable().optional().describe('Passo a passo do roteiro da série (referência, não é colado no roteiro)'),
   notas: z.string().optional(),
   cor: colorSchema.nullable().optional(),
@@ -309,15 +302,15 @@ function serieColumns(args: Partial<Record<keyof typeof serieFields | 'nome' | '
   const map: Record<string, string> = {
     nome: 'name', ativa: 'ativa', funcao_padrao: 'funcao_padrao',
     frequencia: 'frequencia_recomendada', formato_padrao: 'formato_visual_padrao',
-    formato_apresentacao: 'formato_apresentacao', energia_padrao: 'energia_padrao',
+    energia_padrao: 'energia_padrao',
     motivo_salvar: 'motivo_salvar', motivo_enviar: 'motivo_enviar',
-    bordao: 'bordao', estrutura_roteiro: 'estrutura_roteiro', notas: 'notes', cor: 'cor', capa_url: 'capa_url',
+    estrutura_roteiro: 'estrutura_roteiro', notas: 'notes', cor: 'cor', capa_url: 'capa_url',
   };
   const row: Row = {};
   for (const [key, column] of Object.entries(map)) {
     const value = args[key as keyof typeof args];
     if (value === undefined) continue;
-    if (column === 'formato_visual_padrao' || column === 'formato_apresentacao') {
+    if (column === 'formato_visual_padrao') {
       row[column] = listaDeFormatos(value);
       continue;
     }
@@ -615,8 +608,8 @@ export function registerEditorial(server: McpServer) {
     {
       title: 'Criar série',
       description:
-        'Cria uma série (formato recorrente). Formato, apresentação, motivos e energia padrão descrevem a série; ' +
-        'formato e energia são copiados para os roteiros criados por ela. Bordão e estrutura do roteiro ficam só como referência. ' +
+        'Cria uma série (formato recorrente). Formato, motivos e energia padrão descrevem a série; ' +
+        'formato e energia são copiados para os roteiros criados por ela. A estrutura do roteiro fica só como referência. ' +
         'pilar_principal é o pilar que o app mostra; sem a lista pilares, a série fica ligada só a ele. ' +
         'Para criar um quadro, envie parent_id com a série (o tipo vira quadro); para uma família, tipo_agrupamento=familia. ' +
         'Frequência detalhada: frequencia_vezes + frequencia_unidade (semana, quinzena = a cada 14 dias, mes, sob-demanda) + frequencia_a_partir_de (obrigatória na quinzena). ' +

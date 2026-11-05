@@ -1,7 +1,6 @@
 import type {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {z} from 'zod';
 import {
-  FORMATOS_APRESENTACAO,
   FORMATOS_PUBLICACAO,
   FORMATOS_VISUAIS,
   HORA_DA_JANELA,
@@ -91,7 +90,7 @@ export function registerEstrutura(server: McpServer) {
     {
       title: 'Ver estrutura editorial',
       description:
-        'Mostra o DNA da voz, os pilares, as séries (com estrutura de roteiro, bordão, função padrão, formato, motivos e pilar principal; ' +
+        'Mostra o DNA da voz, os pilares, as séries (com estrutura de roteiro, função padrão, formato, motivos e pilar principal; ' +
         'tipo família/série/quadro, pai, árvore de quadros, temporadas, frequência detalhada, continuidade e legenda), ' +
         'os temas, as opções fechadas (formatos, janelas, energia), as funções editoriais (antigo funil) com a distribuição desejada, ' +
         'as plataformas, as regras de ouro e os ajustes (rede de referência, destinos padrão, distribuição e estoque). ' +
@@ -140,14 +139,12 @@ export function registerEstrutura(server: McpServer) {
           pilares: (s.serie_pilares ?? []).map((sp: Row) => lookups.pilarName(sp.pilar_id)),
           funcao_padrao: s.funcao_padrao ?? null,
           etapa_funil: isFuncao(s.funcao_padrao) ? FUNIL_DA_FUNCAO[s.funcao_padrao] ?? 'fora' : null,
-          formato_apresentacao: listaDeFormatos(s.formato_apresentacao),
           formato_padrao: listaDeFormatos(s.formato_visual_padrao),
           energia_padrao: s.energia_padrao ?? null,
           motivo_salvar: s.motivo_salvar ?? null,
           motivo_enviar: s.motivo_enviar ?? null,
           pilar_principal: lookups.pilarName(s.pilar_principal_id),
           frequencia: s.frequencia_recomendada ?? null,
-          bordao: s.bordao ?? null,
           estrutura_roteiro: s.estrutura_roteiro ?? null,
           modelo: s.template || null,
           notas: s.notes || null,
@@ -168,7 +165,6 @@ export function registerEstrutura(server: McpServer) {
         result.opcoes = {
           formatos_visuais: [...FORMATOS_VISUAIS],
           formatos_publicacao: [...FORMATOS_PUBLICACAO],
-          formatos_apresentacao: [...FORMATOS_APRESENTACAO],
           energia: ['baixa', 'média', 'alta'],
           janelas: JANELAS.map(id => ({id, rotulo: JANELA_ROTULO[id], hora: HORA_DA_JANELA[id]})),
           funcoes: FUNCOES,

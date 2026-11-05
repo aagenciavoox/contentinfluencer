@@ -73,6 +73,8 @@ await import('./features/settings/lib/pilarConstants.test.ts');
 await import('./features/settings/lib/serieColors.test.ts');
 await import('./features/settings/lib/seriesBulkDraft.test.ts');
 await import('./features/settings/lib/serieAgrupamento.test.ts');
+await import('./features/settings/lib/statusSerie.test.ts');
+await import('./features/settings/lib/seriesListaView.test.ts');
 await import('./features/settings/lib/serieCabecalho.test.ts');
 await import('./features/settings/lib/seriesLista.test.ts');
 await import('./features/settings/lib/selecaoEpisodios.test.ts');

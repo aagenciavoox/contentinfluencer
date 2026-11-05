@@ -11,12 +11,14 @@ import {
   textoRoteirosIdeias,
 } from '../../lib/serieAgrupamento';
 import { textoTipoEOnde, type ItemLista } from '../../lib/seriesListaView';
+import type { StatusSerie } from '../../lib/statusSerie';
 import { itensDoMenuDaSerie, rotuloDosFilhos } from './SerieCard';
 
 type AcoesDaSerie = {
   onOpen: (serieId: string) => void;
   onEdit: (serieId: string) => void;
   onToggleAtiva: (serieId: string) => void;
+  onMudarStatus?: (serieId: string, status: StatusSerie) => void;
   onCriarFilho?: (item: Pick<ItemLista, 'serie' | 'tipo'>) => void;
 };
 
