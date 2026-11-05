@@ -1378,7 +1378,7 @@ export function SaudeEditorialPanel({
                     {!objetivos.temProporcao ? (
                       <button
                         type="button"
-                        onClick={() => navigate('/editorial?aba=ajustes')}
+                        onClick={() => navigate('/editorial?aba=pilares')}
                         className="w-fit text-left text-[var(--brand-accent-text)] hover:underline focus-visible:outline-none"
                       >
                         <Text variant="meta" as="span" className="text-[var(--brand-accent-text)]">

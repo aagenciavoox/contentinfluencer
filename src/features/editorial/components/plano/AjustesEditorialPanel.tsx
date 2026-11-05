@@ -123,11 +123,14 @@ function MudancaAgendadaAviso({ texto, onDesfazer }: { texto: string; onDesfazer
   );
 }
 
+/** Que parte dos ajustes cada aba do Editorial mostra. */
+export type SecaoAjustes = 'capacidade' | 'proporcao' | 'contas' | 'avisos' | 'operacional';
+
 /**
  * Aba Ajustes: o que vale para todos os períodos. Não tem seletor de período; o que muda
  * de um período para outro fica na aba Período.
  */
-export function AjustesEditorialPanel() {
+export function AjustesEditorialPanel({ secao = 'capacidade' }: { secao?: SecaoAjustes } = {}) {
   const { state, settings, gravar, salvarPreferencias } = useEditorialPlano();
   const preferencias = settings.preferencias;
   const hoje = format(new Date(), 'yyyy-MM-dd');
@@ -197,6 +200,7 @@ export function AjustesEditorialPanel() {
 
   return (
     <div className="stack-lg">
+      {secao === 'capacidade' ? (<>
       <CardConfiguracao
         icone={<CalendarDays className="h-5 w-5" />}
         titulo="Ritmo de criação"
@@ -312,6 +316,7 @@ export function AjustesEditorialPanel() {
         )) : null}
       </CardConfiguracao>
 
+      <div id="dias-de-gravacao">
       <CardConfiguracao
         icone={<Clock className="h-5 w-5" />}
         titulo="Avisos do que falta para postar"
@@ -366,7 +371,10 @@ export function AjustesEditorialPanel() {
           />
         </div>
       </CardConfiguracao>
+      </div>
+      </>) : null}
 
+      {secao === 'proporcao' ? (
       <CardConfiguracao
         icone={<Target className="h-5 w-5" />}
         titulo="Proporção por objetivo"
@@ -407,9 +415,10 @@ export function AjustesEditorialPanel() {
         )) : null}
       </CardConfiguracao>
 
-      <ContasEFormatosCard />
+      ) : null}
 
-      <VariedadeConcentracaoCard />
+      {secao === 'contas' ? (<>
+      <ContasEFormatosCard />
 
       <CardConfiguracao icone={<Share2 className="h-5 w-5" />} titulo="Redes e horários">
         <div className="grid-form">
@@ -456,7 +465,11 @@ export function AjustesEditorialPanel() {
           </div>
         </div>
       </CardConfiguracao>
+      </>) : null}
 
+      {secao === 'avisos' ? <VariedadeConcentracaoCard /> : null}
+
+      {secao === 'operacional' ? (
       <div className="grid gap-4 lg:grid-cols-2">
         <CardConfiguracao icone={<Hash className="h-5 w-5" />} titulo="Hashtags fora das séries">
           <div className="stack-sm">
@@ -495,6 +508,7 @@ export function AjustesEditorialPanel() {
           </div>
         </CardConfiguracao>
       </div>
+      ) : null}
 
       <SidePanel
         open={horariosAbertos}

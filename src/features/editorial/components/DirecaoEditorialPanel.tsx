@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Activity, AtSign, Palette, Plus, SlidersHorizontal, Target } from 'lucide-react';
+import { Activity, AtSign, Bell, Palette, Plus, SlidersHorizontal, Target, Wrench } from 'lucide-react';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { SettingsGridCard, SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/SettingsGridCard';
 import { AppButton } from '../../../components/ui/AppButton';
@@ -14,6 +14,8 @@ import { CONFIRM, type ConfirmState } from '../../../lib/uiCopy';
 import { sortPilares } from '../../settings/lib/activePilares';
 import { ContasHorariosPanel } from '../../contas/components/ContasHorariosPanel';
 import { AjustesEditorialPanel } from './plano/AjustesEditorialPanel';
+import { AvisosEditorialPanel } from './plano/AvisosEditorialPanel';
+import { MetodoCalculoCard } from './plano/MetodoCalculoCard';
 import { ContinuidadePanel } from './plano/ContinuidadePanel';
 import { PeriodoPanel } from './plano/PeriodoPanel';
 import { periodoInicial, type PeriodoSelecionado } from './plano/PeriodoEditorialControl';
@@ -31,10 +33,10 @@ function nomeChave(nome: string): string {
   return nome.trim().toLocaleLowerCase('pt-BR');
 }
 
-export type EditorialAba = 'plano' | 'continuidade' | 'pilares' | 'ajustes' | 'contas';
+export type EditorialAba = 'plano' | 'continuidade' | 'pilares' | 'ajustes' | 'contas' | 'avisos' | 'operacional';
 
-/** Ordem de configuração: capacidade → objetivos e pilares → contas → séries e waves → plano do período. */
-const EDITORIAL_ABAS: readonly EditorialAba[] = ['ajustes', 'pilares', 'contas', 'continuidade', 'plano'];
+/** Ordem de configuração: capacidade → objetivos e pilares → contas → séries e waves → plano do período → avisos → operacional. */
+const EDITORIAL_ABAS: readonly EditorialAba[] = ['ajustes', 'pilares', 'contas', 'continuidade', 'plano', 'avisos', 'operacional'];
 
 /** Lê `?aba=` da URL; os ids antigos continuam valendo e qualquer valor desconhecido cai em Capacidade e regras. */
 export function abaEditorialDaUrl(valor: string | null): EditorialAba {
@@ -48,6 +50,8 @@ export function opcoesAbasEditorial(): SegmentTabOption<EditorialAba>[] {
     { id: 'contas', label: 'Contas e formatos', icon: <AtSign className="h-4 w-4" /> },
     { id: 'continuidade', label: 'Séries e waves', icon: <Activity className="h-4 w-4" /> },
     { id: 'plano', label: 'Plano do período', icon: <Target className="h-4 w-4" /> },
+    { id: 'avisos', label: 'Avisos', icon: <Bell className="h-4 w-4" /> },
+    { id: 'operacional', label: 'Operacional', icon: <Wrench className="h-4 w-4" /> },
   ];
 }
 
@@ -145,6 +149,8 @@ export function DirecaoEditorialPanel({ abaAtiva: abaAtivaProp }: DirecaoEditori
 
       {abaAtiva === 'continuidade' && <ContinuidadePanel />}
 
+      {abaAtiva === 'pilares' && <AjustesEditorialPanel secao="proporcao" />}
+
       {abaAtiva === 'pilares' && (
         <Section title="Pilares">
           {pilares.length === 0 ? (
@@ -190,10 +196,27 @@ export function DirecaoEditorialPanel({ abaAtiva: abaAtivaProp }: DirecaoEditori
       {abaAtiva === 'ajustes' && (
         <div id="ritmo-editorial" className="stack-lg">
           <AjustesEditorialPanel />
+          <MetodoCalculoCard periodo={periodo} />
         </div>
       )}
 
-      {abaAtiva === 'contas' && <ContasHorariosPanel />}
+      {abaAtiva === 'contas' && (
+        <div className="stack-lg">
+          <AjustesEditorialPanel secao="contas" />
+          <ContasHorariosPanel />
+        </div>
+      )}
+
+      {abaAtiva === 'avisos' && (
+        <AvisosEditorialPanel
+          onAbrirCapacidade={() => {
+            handleAbaChange('ajustes');
+            window.setTimeout(() => document.getElementById('dias-de-gravacao')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+          }}
+        />
+      )}
+
+      {abaAtiva === 'operacional' && <AjustesEditorialPanel secao="operacional" />}
 
       <ConfirmModal
         open={Boolean(confirm)}
