@@ -10,12 +10,10 @@ import {
   startOfQuarter,
   startOfWeek,
 } from 'date-fns';
+import { SEMANA } from '../../../lib/semana.ts';
 import type { AjusteSemana, DecisaoPeriodo } from './editorialSettings.ts';
 
 const FORMATO = 'yyyy-MM-dd';
-// Apuração editorial: domingo a sábado, de propósito. Vigências e ajustes gravados no banco estão ancorados no domingo;
-// passar para INICIO_DA_SEMANA (src/lib/semana.ts) pede migração desses dados. Ver relatório da Fase 0.
-const SEMANA = { weekStartsOn: 0 as const };
 
 /** `semana` só chega de períodos salvos antes do trimestre; o seletor oferece mês, trimestre e personalizado. */
 export type ModoPeriodo = 'semana' | 'mes' | 'trimestre' | 'intervalo';
@@ -31,8 +29,13 @@ export const PERIODO_EDITORIAL_PREFERENCE_KEY = 'editorial_periodo';
 
 /**
  * Contas de período, sem React.
- * A semana corre de domingo a sábado. A decisão de um mês não vale
- * para a semana que está dentro dele: a busca é o intervalo exato.
+ * A semana corre de segunda a domingo (`INICIO_DA_SEMANA` em src/lib/semana.ts).
+ * A decisão de um mês não vale para a semana que está dentro dele: a busca é o intervalo exato.
+ *
+ * Semana parcial no início ou no fim do período: entra proporcional
+ * (limite × dias ÷ 7, arredondado). Ajuste gravado na semana inteira (segunda–domingo)
+ * substitui o proporcional. Semanas de domingo–sábado antigas no banco precisam da
+ * migration `20261105210000_semana_segunda.sql` para voltar a casar.
  */
 
 export function semanaDe(data: string): { inicio: string; fim: string } {
@@ -70,7 +73,7 @@ interface TrechoSemana {
   dias: number;
 }
 
-/** Corta o intervalo nas semanas domingo–sábado que ele atravessa. */
+/** Corta o intervalo nas semanas segunda–domingo que ele atravessa. */
 export function semanasNoIntervalo(inicio: string, fim: string): TrechoSemana[] {
   const semanas: TrechoSemana[] = [];
   let cursor = inicio;
@@ -151,7 +154,7 @@ export function decisaoDoPeriodo(
 
 /**
  * Lê a janela gravada em `editorial_visao`.
- * Semana volta a ser domingo–sábado, mês volta a ser o mês inteiro do início salvo
+ * Semana volta a ser segunda–domingo, mês volta a ser o mês inteiro do início salvo
  * e trimestre volta a ser o trimestre inteiro.
  * O banco só aceita semana, mês e intervalo, então o trimestre é gravado como intervalo:
  * um intervalo que cobre exatamente um trimestre volta como trimestre.

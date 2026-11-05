@@ -14,6 +14,7 @@ import {
   isSameMonth
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { SEMANA } from '../../../lib/semana';
 import { Video, Send, Star, Calendar as CalendarIcon, ChevronRight, Zap } from 'lucide-react';
 import { cn, getEventDates } from '../../../lib/utils';
 import { Dialog } from '../../../components/overlays/Dialog';
@@ -140,8 +141,8 @@ export function CalendarAgendaView({
   return (
     <div className="flex flex-col gap-8 pb-32">
       {months.map((month, mIdx) => {
-        const startDate = startOfWeek(month.date, { weekStartsOn: 0 });
-        const endDate = endOfWeek(endOfMonth(month.date), { weekStartsOn: 0 });
+        const startDate = startOfWeek(month.date, SEMANA);
+        const endDate = endOfWeek(endOfMonth(month.date), SEMANA);
         const gridDays = eachDayOfInterval({ start: startDate, end: endDate });
 
         return (
@@ -154,7 +155,7 @@ export function CalendarAgendaView({
             </div>
             
             <div className="grid grid-cols-7 border-b border-[var(--border-color)] bg-[var(--bg-hover)]/30">
-              {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
+              {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map(d => (
                 <div key={d} className="py-3 text-center">
                   <Text variant="label" uppercase className=" text-[var(--text-tertiary)]">{d}</Text>
                 </div>

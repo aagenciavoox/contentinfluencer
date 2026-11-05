@@ -11,7 +11,7 @@ import type { PausaEditorial } from './pausas.ts';
 import type { PublicacaoNaAgenda } from './publicacoes.ts';
 
 const HOJE = '2026-11-03';
-const NOVEMBRO = { inicio: '2026-11-01', fim: '2026-11-28' }; // 4 semanas inteiras, domingo a sábado
+const NOVEMBRO = { inicio: '2026-11-02', fim: '2026-11-29' }; // 4 semanas inteiras, segunda a domingo
 
 function serie(id: string, extra: Partial<SerieDaApuracao> = {}): SerieDaApuracao {
   return {
@@ -96,9 +96,9 @@ const series = [serie('s')];
     acompanhamento: acompanhamento({ inicio: '2026-11-11' }), series, publicacoes: [], periodo: NOVEMBRO, hoje: HOJE,
   })!;
   assert.deepEqual(resultado.janelas.map(janela => [janela.inicio, janela.cobertura]), [
-    ['2026-11-08', 'parcial'],
-    ['2026-11-15', 'integral'],
-    ['2026-11-22', 'integral'],
+    ['2026-11-09', 'parcial'],
+    ['2026-11-16', 'integral'],
+    ['2026-11-23', 'integral'],
   ]);
   assert.equal(resultado.faltas.length, 2, 'só as semanas inteiras cobram');
 }
@@ -106,12 +106,12 @@ const series = [serie('s')];
 // --- Pausa da série: semana toda em pausa não é falta; pausa de outra série não muda nada.
 {
   const pausas: PausaEditorial[] = [
-    { id: 'p', inicio: '2026-11-08', fim: '2026-11-14', escopo: 'serie', platformId: null, serieId: 's', nota: '' },
-    { id: 'q', inicio: '2026-11-15', fim: '2026-11-21', escopo: 'serie', platformId: null, serieId: 'outra', nota: '' },
+    { id: 'p', inicio: '2026-11-09', fim: '2026-11-15', escopo: 'serie', platformId: null, serieId: 's', nota: '' },
+    { id: 'q', inicio: '2026-11-16', fim: '2026-11-22', escopo: 'serie', platformId: null, serieId: 'outra', nota: '' },
   ];
   const resultado = continuidadeDoAcompanhamento({ acompanhamento: acompanhamento(), series, publicacoes: [], periodo: NOVEMBRO, pausas, hoje: HOJE })!;
-  assert.equal(resultado.janelas.find(janela => janela.inicio === '2026-11-08')!.cobertura, 'pausada');
-  assert.equal(resultado.janelas.find(janela => janela.inicio === '2026-11-15')!.cobertura, 'integral');
+  assert.equal(resultado.janelas.find(janela => janela.inicio === '2026-11-09')!.cobertura, 'pausada');
+  assert.equal(resultado.janelas.find(janela => janela.inicio === '2026-11-16')!.cobertura, 'integral');
   assert.equal(resultado.faltas.length, 3);
 }
 
@@ -119,12 +119,12 @@ const series = [serie('s')];
 {
   const comQuadro = [serie('s'), serie('q', { parentId: 's', tipoAgrupamento: 'quadro' } as Partial<SerieDaApuracao>)];
   const pausas: PausaEditorial[] = [
-    { id: 'p', inicio: '2026-11-08', fim: '2026-11-14', escopo: 'serie', platformId: null, serieId: 's', nota: '' },
-    { id: 'r', inicio: '2026-11-15', fim: '2026-11-21', escopo: 'serie', platformId: null, serieId: 'q', nota: '' },
+    { id: 'p', inicio: '2026-11-09', fim: '2026-11-15', escopo: 'serie', platformId: null, serieId: 's', nota: '' },
+    { id: 'r', inicio: '2026-11-16', fim: '2026-11-22', escopo: 'serie', platformId: null, serieId: 'q', nota: '' },
   ];
   const doQuadro = continuidadeDoAcompanhamento({ acompanhamento: acompanhamento({ serieId: 'q' }), series: comQuadro, publicacoes: [], periodo: NOVEMBRO, pausas, hoje: HOJE })!;
-  assert.equal(doQuadro.janelas.find(janela => janela.inicio === '2026-11-08')!.cobertura, 'pausada', 'pausa da mãe');
-  assert.equal(doQuadro.janelas.find(janela => janela.inicio === '2026-11-15')!.cobertura, 'pausada', 'pausa do próprio quadro');
+  assert.equal(doQuadro.janelas.find(janela => janela.inicio === '2026-11-09')!.cobertura, 'pausada', 'pausa da mãe');
+  assert.equal(doQuadro.janelas.find(janela => janela.inicio === '2026-11-16')!.cobertura, 'pausada', 'pausa do próprio quadro');
 }
 
 // --- Distância máxima: usa o episódio de antes do período, não passa do fim e pula a pausa.
@@ -139,8 +139,8 @@ const series = [serie('s')];
     hoje: HOJE,
   });
   assert.deepEqual(distancias, [
-    { inicio: '2026-11-01', fim: '2026-11-11', dias: 17, futuro: true },
-    { inicio: '2026-11-13', fim: '2026-11-28', dias: 16, futuro: true },
+    { inicio: '2026-11-02', fim: '2026-11-11', dias: 17, futuro: true },
+    { inicio: '2026-11-13', fim: '2026-11-29', dias: 17, futuro: true },
   ]);
   const comPausa = distanciasExcessivas({
     datas: ['2026-11-01', '2026-11-20'],

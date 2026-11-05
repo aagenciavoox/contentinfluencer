@@ -72,7 +72,7 @@ describe('ações da Saúde Editorial', () => {
   it('mostra frequência encerrada como histórico também no acompanhamento por conta', () => {
     const serie = {id:'s1', name:'Série', ativa:true, frequenciaVezes:2, frequenciaUnidade:'semana',
       acompanhamentos:[{id:'a1',serieId:'s1',escopo:'conta',platformId:'p1',formato:null,ativo:true,inicio:null,termino:null,distanciaMaxDias:null,evitarDiasSeguidos:false}]} as Serie;
-    const linhas = linhasDaContinuidadePorEscopo({series:[serie], contents:[], postIts:[], platforms:[], periodo:{inicio:'2026-10-18',fim:'2026-10-24'}, pausas:[],hoje:'2026-11-04'});
+    const linhas = linhasDaContinuidadePorEscopo({series:[serie], contents:[], postIts:[], platforms:[], periodo:{inicio:'2026-10-19',fim:'2026-10-25'}, pausas:[],hoje:'2026-11-04'});
     assert.equal(linhas.length, 1);
     assert.equal(linhas[0].atencao, false);
     assert.match(linhas[0].texto, /Histórico/);

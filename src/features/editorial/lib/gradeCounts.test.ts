@@ -91,7 +91,7 @@ function testPercentualAntigoNaoViraLimite() {
 function testSemanaParcialUsaLimiteDoIntervalo() {
   const inicio = '2026-10-01';
   const fim = '2026-10-03';
-  const ajustesSemana = [{ inicio: '2026-09-27', fim: '2026-10-03', limite: 10 }];
+  const ajustesSemana = [{ inicio: '2026-09-28', fim: '2026-10-04', limite: 10 }];
   const esperado = limiteDoIntervalo({
     limiteSemanal: 14,
     inicio,

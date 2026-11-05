@@ -164,7 +164,7 @@ export function AjustesEditorialPanel({ secao = 'capacidade' }: { secao?: SecaoA
       || ritmo.prontos !== salvo.prontos
       || ritmo.gravacoes !== salvo.gravacoes;
     if (mudou) {
-      // Reserva, prontos e gravações valem já; o limite vale a partir do domingo escolhido.
+      // Reserva, prontos e gravações valem já; o limite vale a partir da segunda escolhida.
       let proximo = atualizarPreferencias(settings, {
         reservaForaSeriesSemanal: inteiroOuNull(ritmo.reserva),
         reservaProntos: inteiroOuNull(ritmo.prontos),

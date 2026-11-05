@@ -18,7 +18,7 @@ import { periodoVigente } from './vigencias.ts';
 
 type Intervalo = { inicio: string; fim: string };
 
-/** Uma linha de editorial_conta_meta: vale a partir de um domingo, até a próxima linha da conta. */
+/** Uma linha de editorial_conta_meta: vale a partir de uma segunda, até a próxima linha da conta. */
 export type MetaDaContaVigencia = {
   platformId: string;
   vigenteDesde: string;
@@ -91,8 +91,8 @@ export function proximaMudancaDaConta(
 }
 
 /**
- * Ritmo da conta a partir de um domingo escolhido, nunca antes desta semana. Outro valor no mesmo
- * domingo é trocado; as linhas anteriores ficam como histórico. Limite vazio = a conta fica sem meta dali em diante.
+ * Ritmo da conta a partir de uma segunda escolhida, nunca antes desta semana. Outro valor no mesmo
+ * início de semana é trocado; as linhas anteriores ficam como histórico. Limite vazio = a conta fica sem meta dali em diante.
  */
 export function agendarMetaDaConta(
   linhas: readonly MetaDaContaVigencia[],

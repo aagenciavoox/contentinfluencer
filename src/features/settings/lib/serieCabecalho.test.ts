@@ -40,7 +40,7 @@ assert.deepEqual(totaisDoCabecalho({ serieId: 'q2', series, contents }), { total
 
 // Meta.
 const base = { id: 's', name: 'S', parentId: null, frequenciaRecomendada: null, frequenciaVezes: null, frequenciaUnidade: null, frequenciaAPartirDe: null };
-const semana = { modo: 'semana' as const, inicio: '2026-11-01', fim: '2026-11-07' };
+const semana = { modo: 'semana' as const, inicio: '2026-11-02', fim: '2026-11-08' };
 const itens = [
   { id: 'd1:original', contentId: 'd1', serieId: 's', data: '2026-11-03', tipo: 'original' as const, etapa: 'ideia' },
   { id: 'q1a:original', contentId: 'q1a', serieId: 'q1', data: '2026-11-04', tipo: 'original' as const, etapa: 'producao' },

@@ -12,8 +12,8 @@ export function diaMes(dia: string): string {
 }
 
 /**
- * Quando uma mudança de ritmo começa: sempre num domingo, nunca antes desta semana.
- * Desta semana vale já no período em curso; de um domingo futuro fica agendada e o de hoje continua até lá.
+ * Quando uma mudança de ritmo começa: sempre numa segunda, nunca antes desta semana.
+ * Desta semana vale já no período em curso; de uma segunda futura fica agendada e o de hoje continua até lá.
  */
 export function ValeAPartirDe({
   id,
@@ -24,7 +24,7 @@ export function ValeAPartirDe({
   id: string;
   /** Domingo escolhido (yyyy-MM-dd). */
   valor: string;
-  onChange: (domingo: string) => void;
+  onChange: (inicioSemana: string) => void;
   hoje: string;
 }) {
   const { estaSemana, proxima } = domingosParaVigencia(hoje);
@@ -43,9 +43,9 @@ export function ValeAPartirDe({
           if (escolha === 'outra') onChange(daquiADuas);
         }}
         options={[
-          { value: 'esta', label: 'Esta semana', description: `desde dom, ${diaMes(estaSemana)}` },
-          { value: 'proxima', label: 'Próxima semana', description: `dom, ${diaMes(proxima)}` },
-          { value: 'outra', label: 'Outra data', description: 'um domingo à frente' },
+          { value: 'esta', label: 'Esta semana', description: `desde seg, ${diaMes(estaSemana)}` },
+          { value: 'proxima', label: 'Próxima semana', description: `seg, ${diaMes(proxima)}` },
+          { value: 'outra', label: 'Outra data', description: 'uma segunda à frente' },
         ]}
       />
       {quando === 'outra' ? (
@@ -59,8 +59,8 @@ export function ValeAPartirDe({
             onChange={event => {
               const dia = event.target.value;
               if (!dia) return;
-              const domingo = semanaDe(dia).inicio;
-              onChange(domingo < estaSemana ? estaSemana : domingo);
+              const inicio = semanaDe(dia).inicio;
+              onChange(inicio < estaSemana ? estaSemana : inicio);
             }}
             className={`${CAMPO_BASE} min-h-11`}
           />
@@ -69,7 +69,7 @@ export function ValeAPartirDe({
       <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
         {quando === 'esta'
           ? 'Vale já, inclusive no período em curso. Períodos encerrados mantêm o que tinham.'
-          : `Começa no domingo ${diaMes(valor)}. Até lá vale o de hoje.`}
+          : `Começa na segunda ${diaMes(valor)}. Até lá vale o de hoje.`}
       </Text>
     </div>
   );

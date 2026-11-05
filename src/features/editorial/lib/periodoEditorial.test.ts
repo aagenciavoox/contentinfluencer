@@ -25,11 +25,13 @@ const NOVEMBRO: DecisaoPeriodo = {
   ajustesSemana: [],
 };
 
-function testSemanaDeDomingoASabado() {
-  assert.deepEqual(semanaDe('2026-10-14'), { inicio: '2026-10-11', fim: '2026-10-17' });
-  assert.deepEqual(semanaDe('2026-10-11'), { inicio: '2026-10-11', fim: '2026-10-17' });
-  assert.deepEqual(semanaDe('2026-10-17'), { inicio: '2026-10-11', fim: '2026-10-17' });
-  assert.deepEqual(semanaDe('2026-10-01'), { inicio: '2026-09-27', fim: '2026-10-03' });
+function testSemanaDeSegundaADomingo() {
+  // 14/10/2026 é quarta: segunda 12/10 a domingo 18/10.
+  assert.deepEqual(semanaDe('2026-10-14'), { inicio: '2026-10-12', fim: '2026-10-18' });
+  assert.deepEqual(semanaDe('2026-10-12'), { inicio: '2026-10-12', fim: '2026-10-18' });
+  assert.deepEqual(semanaDe('2026-10-18'), { inicio: '2026-10-12', fim: '2026-10-18' });
+  // 01/10/2026 é quinta: segunda 28/09 a domingo 04/10.
+  assert.deepEqual(semanaDe('2026-10-01'), { inicio: '2026-09-28', fim: '2026-10-04' });
 }
 
 function testProporcionalDeTresDias() {
@@ -44,14 +46,14 @@ function testProporcionalDeTresDias() {
 function testSemanaCheiaIgualAoLimite() {
   assert.equal(limiteDoIntervalo({
     limiteSemanal: 14,
-    inicio: '2026-10-11',
-    fim: '2026-10-17',
+    inicio: '2026-10-12',
+    fim: '2026-10-18',
   }), 14);
   assert.equal(limiteProporcional(14, 7), 14);
 }
 
 function testAjusteSubstituiOProporcional() {
-  const ajuste = { inicio: '2026-09-27', fim: '2026-10-03', limite: 10 };
+  const ajuste = { inicio: '2026-09-28', fim: '2026-10-04', limite: 10 };
   assert.equal(limiteDoIntervalo({
     limiteSemanal: 14,
     inicio: '2026-10-01',
@@ -61,12 +63,12 @@ function testAjusteSubstituiOProporcional() {
 
   assert.equal(limiteDoIntervalo({
     limiteSemanal: 14,
-    inicio: '2026-10-11',
-    fim: '2026-10-17',
-    ajustesSemana: [{ inicio: '2026-10-11', fim: '2026-10-17', limite: 9 }],
+    inicio: '2026-10-12',
+    fim: '2026-10-18',
+    ajustesSemana: [{ inicio: '2026-10-12', fim: '2026-10-18', limite: 9 }],
   }), 9);
 
-  // Ajuste que não é a semana domingo–sábado não entra.
+  // Ajuste que não é a semana segunda–domingo não entra.
   assert.equal(limiteDoIntervalo({
     limiteSemanal: 14,
     inicio: '2026-10-01',
@@ -76,7 +78,8 @@ function testAjusteSubstituiOProporcional() {
 }
 
 function testMesSomaAsSemanasReais() {
-  // Outubro/2026: 3 dias + quatro semanas cheias. 6 + 14 × 4.
+  // Outubro/2026 (segunda–domingo): 4 dias + 3 semanas cheias + 6 dias.
+  // round(14×4/7) + 14×3 + round(14×6/7) = 8 + 42 + 12 = 62.
   assert.equal(limiteDoIntervalo({
     limiteSemanal: 14,
     inicio: '2026-10-01',
@@ -87,8 +90,8 @@ function testMesSomaAsSemanasReais() {
     limiteSemanal: 14,
     inicio: '2026-10-01',
     fim: '2026-10-31',
-    ajustesSemana: [{ inicio: '2026-09-27', fim: '2026-10-03', limite: 10 }],
-  }), 66);
+    ajustesSemana: [{ inicio: '2026-09-28', fim: '2026-10-04', limite: 10 }],
+  }), 64);
 }
 
 function testCicloDeQuatroSemanas() {
@@ -115,16 +118,16 @@ function testSemLimiteNaoViraZero() {
 
   assert.equal(limiteDoIntervalo({
     limiteSemanal: null,
-    inicio: '2026-10-11',
-    fim: '2026-10-17',
-    ajustesSemana: [{ inicio: '2026-10-11', fim: '2026-10-17', limite: 9 }],
+    inicio: '2026-10-12',
+    fim: '2026-10-18',
+    ajustesSemana: [{ inicio: '2026-10-12', fim: '2026-10-18', limite: 9 }],
   }), 9);
 
   assert.equal(limiteDoIntervalo({
     limiteSemanal: null,
     inicio: '2026-10-01',
     fim: '2026-10-03',
-    ajustesSemana: [{ inicio: '2026-09-27', fim: '2026-10-03', limite: 10 }],
+    ajustesSemana: [{ inicio: '2026-09-28', fim: '2026-10-04', limite: 10 }],
   }), 10);
 }
 
@@ -133,7 +136,7 @@ function testDecisaoNaoHerdaDoMes() {
   assert.equal(decisaoDoPeriodo(periodos, '2026-10-01', '2026-10-31')?.prioridade, 'lançamento');
   assert.deepEqual(decisaoDoPeriodo(periodos, '2026-10-01', '2026-10-31')?.metas, { atrair: 8, converter: 2 });
   assert.equal(decisaoDoPeriodo(periodos, '2026-11-01', '2026-11-30')?.prioridade, 'comunidade');
-  assert.equal(decisaoDoPeriodo(periodos, '2026-10-11', '2026-10-17'), null);
+  assert.equal(decisaoDoPeriodo(periodos, '2026-10-12', '2026-10-18'), null);
   assert.equal(decisaoDoPeriodo(periodos, '2026-10-01', '2026-11-30'), null);
 }
 
@@ -148,7 +151,7 @@ function testPeriodoSalvoVoltaComoFoiConfirmado() {
   );
   assert.deepEqual(
     lerPeriodoSalvo({ modo: 'semana', inicio: '2026-10-14', fim: '2026-10-14' }),
-    { modo: 'semana', inicio: '2026-10-11', fim: '2026-10-17' },
+    { modo: 'semana', inicio: '2026-10-12', fim: '2026-10-18' },
   );
   assert.deepEqual(
     lerPeriodoSalvo({ modo: 'mes', inicio: '2026-10-15', fim: '2026-10-15' }),
@@ -187,7 +190,7 @@ function testPeriodoSalvoQuebradoNaoVale() {
   assert.equal(lerPeriodoSalvo({ modo: 'intervalo', inicio: '2026-02-30', fim: '2026-03-05' }), null);
 }
 
-testSemanaDeDomingoASabado();
+testSemanaDeSegundaADomingo();
 testPeriodoSalvoVoltaComoFoiConfirmado();
 testPeriodoSalvoQuebradoNaoVale();
 testTrimestreDoCalendario();

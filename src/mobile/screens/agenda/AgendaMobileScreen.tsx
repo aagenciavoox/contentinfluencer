@@ -18,6 +18,7 @@ import {
   subMonths,
 } from 'date-fns';
 import {ptBR} from 'date-fns/locale';
+import {SEMANA} from '../../../lib/semana';
 import {
   BriefcaseBusiness,
   ChevronDown,
@@ -399,8 +400,8 @@ export function AgendaMobileScreen({
   // Calendar grid data
   const monthStart = startOfMonth(calendarMonth);
   const monthEnd = endOfMonth(calendarMonth);
-  const gridStart = startOfWeek(monthStart, {weekStartsOn: 0});
-  const gridEnd = endOfWeek(monthEnd, {weekStartsOn: 0});
+  const gridStart = startOfWeek(monthStart, SEMANA);
+  const gridEnd = endOfWeek(monthEnd, SEMANA);
   const days = eachDayOfInterval({start: gridStart, end: gridEnd});
 
   return (
@@ -464,7 +465,7 @@ export function AgendaMobileScreen({
 
         {/* Day-of-week labels */}
         <div className="grid grid-cols-7 border-t border-[var(--border-color)] bg-[var(--bg-hover)]/30">
-          {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((label, i) => (
+          {['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map((label, i) => (
             <div key={i} className="py-1.5 text-center t-label text-[var(--text-tertiary)]">
               {label}
             </div>

@@ -56,10 +56,10 @@ function linha(platformId: string, vigenteDesde: string, limiteSemanal: number |
 
 // --- Período encerrado: cada semana com a linha que valia nela; semana sem meta deixa o período sem meta.
 {
-  const outubro = { inicio: '2026-10-04', fim: '2026-10-17' };
-  const duasLinhas = [linha('ig', '2026-10-04', 7), linha('ig', '2026-10-11', 14)];
+  const outubro = { inicio: '2026-10-05', fim: '2026-10-18' };
+  const duasLinhas = [linha('ig', '2026-10-05', 7), linha('ig', '2026-10-12', 14)];
   assert.equal(metaDaConta({ platformId: 'ig', linhas: duasLinhas, periodo: outubro, proporcaoGeral: null, hoje: HOJE }).valor, 21);
-  const comecouNoMeio = [linha('ig', '2026-10-11', 7)];
+  const comecouNoMeio = [linha('ig', '2026-10-12', 7)];
   assert.equal(metaDaConta({ platformId: 'ig', linhas: comecouNoMeio, periodo: outubro, proporcaoGeral: null, hoje: HOJE }).valor, null);
 }
 
@@ -111,18 +111,18 @@ assert.equal(consolidarMetas([]).total, null);
 // --- Mudança da conta com data: desta semana vale já; futura fica agendada e pode ser desfeita.
 {
   const linhas = [linha('ig', '2026-10-04', 7)];
-  const agora = agendarMetaDaConta(linhas, 'ig', '2026-11-01', { limiteSemanal: 10, proporcaoFuncoes: null, parcelasFormato: null }, HOJE);
+  const agora = agendarMetaDaConta(linhas, 'ig', '2026-11-02', { limiteSemanal: 10, proporcaoFuncoes: null, parcelasFormato: null }, HOJE);
   assert.equal(metaDaContaHoje(agora, 'ig', HOJE)?.limiteSemanal, 10);
-  assert.equal(linhaDaContaEm(agora.filter(item => item.platformId === 'ig').sort((a, b) => a.vigenteDesde.localeCompare(b.vigenteDesde)), '2026-10-25')?.limiteSemanal, 7, 'outubro guarda o de antes');
+  assert.equal(linhaDaContaEm(agora.filter(item => item.platformId === 'ig').sort((a, b) => a.vigenteDesde.localeCompare(b.vigenteDesde)), '2026-10-26')?.limiteSemanal, 7, 'outubro guarda o de antes');
 
   const agendada = agendarMetaDaConta(linhas, 'ig', '2026-11-11', { limiteSemanal: 14, proporcaoFuncoes: null, parcelasFormato: null }, HOJE);
-  assert.equal(proximaMudancaDaConta(agendada, 'ig', HOJE)?.vigenteDesde, '2026-11-08', 'data no meio da semana vira o domingo dela');
+  assert.equal(proximaMudancaDaConta(agendada, 'ig', HOJE)?.vigenteDesde, '2026-11-09', 'data no meio da semana vira a segunda dela');
   assert.equal(metaDaContaHoje(agendada, 'ig', HOJE)?.limiteSemanal, 7);
   // Desfazer só vale para o que ainda não começou.
-  assert.equal(desfazerMudancaDaConta(agendada, 'ig', '2026-11-08', HOJE).length, 1);
+  assert.equal(desfazerMudancaDaConta(agendada, 'ig', '2026-11-09', HOJE).length, 1);
   assert.equal(desfazerMudancaDaConta(agendada, 'ig', '2026-10-04', HOJE).length, 2);
   // Data passada não reescreve o histórico: vira esta semana.
-  assert.equal(agendarMetaDaConta(linhas, 'ig', '2026-10-11', { limiteSemanal: 3, proporcaoFuncoes: null, parcelasFormato: null }, HOJE).at(-1)?.vigenteDesde, '2026-11-01');
+  assert.equal(agendarMetaDaConta(linhas, 'ig', '2026-10-11', { limiteSemanal: 3, proporcaoFuncoes: null, parcelasFormato: null }, HOJE).at(-1)?.vigenteDesde, '2026-11-02');
 }
 
 console.log('metasPorConta (agendamento): ok');

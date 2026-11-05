@@ -34,7 +34,7 @@ export interface AjustarMetasDialogProps {
   publicacaoCalculada: number | null;
   /** Distribuição por objetivo do período (proporção × meta, ou o ajuste já gravado). */
   objetivos?: readonly ObjetivoNoEditor[];
-  /** Semanas domingo–sábado que o período só cobre em parte. */
+  /** Semanas segunda–domingo que o período só cobre em parte. */
   semanasParciais?: readonly { inicio: string; fim: string }[];
   limiteSemanal?: number | null;
   /** Meta de publicação que vale hoje, para conferir a soma por objetivo. */

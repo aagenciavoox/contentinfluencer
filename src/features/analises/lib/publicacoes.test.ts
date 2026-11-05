@@ -121,7 +121,7 @@ const soUma = filtrarPublicacoes({
 assert.deepEqual(soUma.map(item => item.publicacaoId), ['pub-b']);
 assert.equal(soUma[0].serie, null);
 assert.equal(soUma[0].objetivo, 'Atrair alcance');
-assert.equal(soUma[0].periodoEditorial, intervalo('2026-10-18', '2026-10-24'));
+assert.equal(soUma[0].periodoEditorial, intervalo('2026-10-19', '2026-10-25'));
 
 const semDataEfetiva = filtrarPublicacoes({
   contents,

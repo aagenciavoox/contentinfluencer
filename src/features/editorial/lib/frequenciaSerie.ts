@@ -8,6 +8,7 @@ import {
   startOfMonth,
   startOfWeek,
 } from 'date-fns';
+import { SEMANA } from '../../../lib/semana.ts';
 
 /** Recorrência usada só para comparar. Não escolhe dia nem cria post-it. */
 export type FrequenciaSerie = {
@@ -15,10 +16,6 @@ export type FrequenciaSerie = {
   unidade: 'semana' | 'quinzena' | 'mes' | 'sob-demanda';
   aPartirDe: string | null;
 };
-
-// Apuração editorial: domingo a sábado, de propósito. Vigências e ajustes gravados no banco estão ancorados no domingo;
-// passar para INICIO_DA_SEMANA (src/lib/semana.ts) pede migração desses dados. Ver relatório da Fase 0.
-const SEMANA = { weekStartsOn: 0 as const };
 const DIAS_QUINZENA = 14;
 
 function texto(value: string): string {

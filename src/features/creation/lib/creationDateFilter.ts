@@ -1,5 +1,6 @@
 import {addMonths, addWeeks, endOfMonth, endOfWeek, format, parseISO, startOfMonth, startOfWeek} from 'date-fns';
 import {ptBR} from 'date-fns/locale';
+import { SEMANA } from '../../../lib/semana.ts';
 import type {FiltroData} from '../../editorial/lib/datasNaGrade.ts';
 
 /** Chaves da URL: `data=sem`, ou `de` e `ate` no formato aaaa-mm-dd. */
@@ -60,11 +61,11 @@ export function rotuloDoIntervalo(inicio: string, fim: string): string {
 }
 
 /**
- * Opções do filtro de data. A semana vai de domingo a sábado, como no resto do app.
+ * Opções do filtro de data. A semana vai de segunda a domingo (`INICIO_DA_SEMANA`).
  * Um intervalo vindo de um link (o Editorial manda o período) aparece como opção própria.
  */
 export function opcoesDoFiltroData(hoje: Date, atual: FiltroData | null): {label: string; value: string}[] {
-  const semana = {weekStartsOn: 0} as const;
+  const semana = SEMANA;
   const opcoes = [
     {label: 'Qualquer data', value: ''},
     {label: 'Sem data', value: 'sem'},

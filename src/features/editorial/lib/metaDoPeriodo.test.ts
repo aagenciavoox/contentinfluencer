@@ -29,7 +29,7 @@ assert.equal(metaDoPeriodo({ periodo: { inicio: '2026-11-01', fim: '2026-11-03' 
   const meta = metaDoPeriodo({
     periodo: DEZEMBRO,
     limiteSemanal: 7,
-    ajustesSemana: [{ inicio: '2026-12-20', fim: '2026-12-26', limite: 2 }],
+    ajustesSemana: [{ inicio: '2026-12-21', fim: '2026-12-27', limite: 2 }],
     decisao: { pausaEditorial: '24/12 a 26/12' },
     hoje: HOJE,
   });

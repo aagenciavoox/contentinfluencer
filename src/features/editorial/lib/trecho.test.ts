@@ -18,7 +18,7 @@ const NOVEMBRO = plano('2026-11-01', '2026-11-30', { metasPublicacao: 30 });
 
 // --- Abrir uma semana não aplica a meta do mês inteira: vale o ritmo, e o mês fica de referência.
 {
-  const semana = metaDoTrecho({ trecho: { inicio: '2026-11-08', fim: '2026-11-14' }, decisoes: [NOVEMBRO], limiteSemanal: 7, hoje: HOJE });
+  const semana = metaDoTrecho({ trecho: { inicio: '2026-11-09', fim: '2026-11-15' }, decisoes: [NOVEMBRO], limiteSemanal: 7, hoje: HOJE });
   assert.equal(semana.valor, 7);
   assert.deepEqual(semana.referencias, [{ inicio: '2026-11-01', fim: '2026-11-30', valor: 30 }]);
   assert.equal(semana.semAjusteEspecifico, false);
@@ -52,15 +52,15 @@ const NOVEMBRO = plano('2026-11-01', '2026-11-30', { metasPublicacao: 30 });
 // --- A pausa escrita é lida com as datas do plano, não com as da semana aberta.
 {
   const semana = metaDoTrecho({
-    trecho: { inicio: '2026-11-08', fim: '2026-11-14' },
+    trecho: { inicio: '2026-11-09', fim: '2026-11-15' },
     decisoes: [plano('2026-11-01', '2026-11-30', { pausaEditorial: '10 a 15' })],
     limiteSemanal: 7,
     hoje: HOJE,
   });
-  assert.equal(semana.diasDePausa, 5, '10 a 14 caem nesta semana');
-  assert.equal(semana.valor, 2);
+  assert.equal(semana.diasDePausa, 6, '10 a 15 caem nesta semana');
+  assert.equal(semana.valor, 1);
   const trimestral = metaDoTrecho({
-    trecho: { inicio: '2026-11-08', fim: '2026-11-14' },
+    trecho: { inicio: '2026-11-09', fim: '2026-11-15' },
     decisoes: [plano('2026-10-01', '2026-12-31', { pausaEditorial: '10 a 15' })],
     limiteSemanal: 7,
     hoje: HOJE,
@@ -76,7 +76,7 @@ const NOVEMBRO = plano('2026-11-01', '2026-11-30', { metasPublicacao: 30 });
   const mes = metaDoTrecho({ trecho: { inicio: '2026-11-01', fim: '2026-11-30' }, decisoes: [trimestre, NOVEMBRO], limiteSemanal: 7, hoje: HOJE });
   assert.equal(mes.valor, 30);
   assert.deepEqual(mes.referencias.map(r => r.valor), []);
-  const semana = metaDoTrecho({ trecho: { inicio: '2026-11-08', fim: '2026-11-14' }, decisoes: [trimestre, NOVEMBRO], limiteSemanal: 7, hoje: HOJE });
+  const semana = metaDoTrecho({ trecho: { inicio: '2026-11-09', fim: '2026-11-15' }, decisoes: [trimestre, NOVEMBRO], limiteSemanal: 7, hoje: HOJE });
   assert.deepEqual(semana.referencias.map(r => r.valor), [30], 'a semana vê o mês, não o trimestre inteiro como obrigação');
 }
 
@@ -123,8 +123,8 @@ const NOVEMBRO = plano('2026-11-01', '2026-11-30', { metasPublicacao: 30 });
   const doMes = metasPorObjetivoDoTrecho({ trecho: { inicio: '2026-11-01', fim: '2026-11-30' }, meta: mesMeta, decisoes: [comMetas], proporcao });
   assert.equal(doMes.metas.atrair.meta, 20);
   assert.equal(doMes.metas.atrair.origem, 'ajustada');
-  const semanaMeta = metaDoTrecho({ trecho: { inicio: '2026-11-08', fim: '2026-11-14' }, decisoes: [comMetas], limiteSemanal: 8, hoje: HOJE });
-  const daSemana = metasPorObjetivoDoTrecho({ trecho: { inicio: '2026-11-08', fim: '2026-11-14' }, meta: semanaMeta, decisoes: [comMetas], proporcao });
+  const semanaMeta = metaDoTrecho({ trecho: { inicio: '2026-11-09', fim: '2026-11-15' }, decisoes: [comMetas], limiteSemanal: 8, hoje: HOJE });
+  const daSemana = metasPorObjetivoDoTrecho({ trecho: { inicio: '2026-11-09', fim: '2026-11-15' }, meta: semanaMeta, decisoes: [comMetas], proporcao });
   assert.equal(daSemana.metas.atrair.meta, 4, 'proporção sobre a meta da semana');
   assert.equal(daSemana.metas.atrair.origem, 'proporcao');
   assert.deepEqual(daSemana.referencias, [{ inicio: '2026-11-01', fim: '2026-11-30', metas: { atrair: 20, converter: 10 } }]);

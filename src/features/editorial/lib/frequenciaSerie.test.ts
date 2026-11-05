@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { expectativaNoIntervalo, lerFrequencia } from './frequenciaSerie.ts';
 
-const SEMANA = { inicio: '2026-10-11', fim: '2026-10-17' };
+const SEMANA = { inicio: '2026-10-12', fim: '2026-10-18' };
 const TRES_DIAS = { inicio: '2026-10-11', fim: '2026-10-13' };
 const MES = { inicio: '2026-10-01', fim: '2026-10-31' };
 

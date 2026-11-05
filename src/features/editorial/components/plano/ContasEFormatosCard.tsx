@@ -106,7 +106,7 @@ function ResumoDaConta({
 
 type ModoProporcao = 'geral' | 'propria';
 
-/** Painel de uma conta: total por semana, proporção e formatos, a partir de um domingo escolhido. */
+/** Painel de uma conta: total por semana, proporção e formatos, a partir de uma segunda escolhida. */
 function EditorDaConta({
   conta,
   linhas,
@@ -330,7 +330,7 @@ export function ContasEFormatosCard() {
         open={editando != null}
         onClose={() => setEditandoId(null)}
         title={editando ? rotuloConta(editando) : 'Conta'}
-        subtitle="Meta de publicações desta conta. Mudanças valem a partir de um domingo; as semanas passadas mantêm o que tinham."
+        subtitle="Meta de publicações desta conta. Mudanças valem a partir de uma segunda; as semanas passadas mantêm o que tinham."
         widthClassName="max-w-2xl"
       >
         {editando ? (

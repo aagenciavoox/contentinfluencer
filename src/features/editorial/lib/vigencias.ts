@@ -36,7 +36,7 @@ function mesmaProporcao(a: ProporcaoFuncoes | null, b: ProporcaoFuncoes | null):
 }
 
 /**
- * Guarda o limite e a proporção a partir do domingo desta semana, se mudaram.
+ * Guarda o limite e a proporção a partir da segunda desta semana, se mudaram.
  * A semana atual e as seguintes passam a usar o valor novo; as anteriores mantêm o antigo.
  */
 export function registrarVigencia(
@@ -131,8 +131,8 @@ export function proporcaoDoIntervalo(input: {
 
 // ---------------------------------------------------------------- Mudança com data
 
-/** Domingo desta semana e o próximo, para escolher de quando uma mudança vale. */
-export function domingosParaVigencia(hoje: string = format(new Date(), 'yyyy-MM-dd')): { estaSemana: string; proxima: string } {
+/** Segunda desta semana e a próxima, para escolher de quando uma mudança vale. */
+export function iniciosParaVigencia(hoje: string = format(new Date(), 'yyyy-MM-dd')): { estaSemana: string; proxima: string } {
   const estaSemana = semanaDe(hoje).inicio;
   return { estaSemana, proxima: semanaDe(format(addDays(parseISO(estaSemana), 7), 'yyyy-MM-dd')).inicio };
 }
@@ -210,8 +210,8 @@ export function proporcaoDoPeriodo(input: {
 }
 
 /**
- * Grava o ritmo e a proporção a partir de um domingo escolhido. Desta semana: vale já, como antes.
- * De um domingo futuro: fica agendado e o ritmo de hoje continua até lá. Nunca volta para um domingo passado.
+ * Grava o ritmo e a proporção a partir de uma segunda escolhida. Desta semana: vale já, como antes.
+ * De uma segunda futura: fica agendado e o ritmo de hoje continua até lá. Nunca volta para uma segunda passada.
  */
 export function agendarVigencia(
   settings: EditorialSettings,
@@ -257,7 +257,7 @@ export function alinharComVigenciaAgendada(
 }
 
 /** O que vale num domingo escolhido: a mudança já agendada até ele, senão o ritmo de hoje. */
-export function diretrizNoDomingo(
+export function diretrizNoInicio(
   settings: EditorialSettings,
   domingo: string,
   hoje: string = format(new Date(), 'yyyy-MM-dd'),
@@ -280,7 +280,7 @@ export function desfazerMudanca(
 ): EditorialSettings {
   const linha = settings.vigencias?.find(item => item.vigenteDesde === vigenteDesde);
   if (!linha || vigenteDesde <= semanaDe(hoje).inicio) return settings;
-  const antes = diretrizNoDomingo(settings, format(addDays(parseISO(vigenteDesde), -7), 'yyyy-MM-dd'), hoje);
+  const antes = diretrizNoInicio(settings, format(addDays(parseISO(vigenteDesde), -7), 'yyyy-MM-dd'), hoje);
   const nova: VigenciaEditorial = campo === 'limite'
     ? { ...linha, limiteSemanal: antes.limiteSemanal }
     : { ...linha, proporcaoFuncoes: antes.proporcaoFuncoes };
@@ -304,7 +304,7 @@ export function mudancasAgendadas(
 ): MudancaAgendada[] {
   const estaSemana = semanaDe(hoje).inicio;
   return ordenadas(settings.vigencias ?? []).filter(linha => linha.vigenteDesde > estaSemana).flatMap(linha => {
-    const antes = diretrizNoDomingo(settings, format(addDays(parseISO(linha.vigenteDesde), -7), 'yyyy-MM-dd'), hoje);
+    const antes = diretrizNoInicio(settings, format(addDays(parseISO(linha.vigenteDesde), -7), 'yyyy-MM-dd'), hoje);
     const limite = linha.limiteSemanal !== antes.limiteSemanal ? { de: antes.limiteSemanal, para: linha.limiteSemanal } : null;
     const proporcao = mesmaProporcao(linha.proporcaoFuncoes, antes.proporcaoFuncoes)
       ? null
@@ -312,3 +312,8 @@ export function mudancasAgendadas(
     return limite || proporcao ? [{ vigenteDesde: linha.vigenteDesde, limite, proporcao }] : [];
   });
 }
+
+/** @deprecated use iniciosParaVigencia */
+export const domingosParaVigencia = iniciosParaVigencia;
+/** @deprecated use diretrizNoInicio */
+export const diretrizNoDomingo = diretrizNoInicio;

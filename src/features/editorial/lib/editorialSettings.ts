@@ -41,7 +41,7 @@ export interface PreferenciasGerais {
   antecedenciaPostagemDias: number | null;
 }
 
-/** Exceção de uma semana fechada, domingo a sábado. */
+/** Exceção de uma semana fechada, segunda a domingo. */
 export interface AjusteSemana {
   inicio: string;
   fim: string;
@@ -59,7 +59,7 @@ export interface MetasPeriodo {
 }
 
 /**
- * Limite semanal e proporção que valem a partir de um domingo, até a próxima linha.
+ * Limite semanal e proporção que valem a partir de uma segunda, até a próxima linha.
  * Mudar a estratégia em novembro não muda a referência de outubro.
  */
 export interface VigenciaEditorial {

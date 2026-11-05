@@ -38,7 +38,7 @@ export function intervaloDoModo(modo: 'semana' | 'mes' | 'trimestre', hoje = hoj
   };
 }
 
-/** Semanas de domingo a sábado que o intervalo só cobre em parte. */
+/** Semanas de segunda a domingo que o intervalo só cobre em parte. */
 export function semanasParciais(inicio: string, fim: string): Array<{ inicio: string; fim: string }> {
   if (!DATA.test(inicio) || !DATA.test(fim) || fim < inicio) return [];
 
@@ -61,7 +61,7 @@ export function semanasParciais(inicio: string, fim: string): Array<{ inicio: st
 export function rotuloSemanaAjustada(inicio: string, fim: string): string {
   const de = format(parseISO(inicio), "d 'de' MMM", { locale: ptBR });
   const ate = format(parseISO(fim), "d 'de' MMM", { locale: ptBR });
-  return `Limite ajustado da semana de domingo a sábado, ${de} a ${ate}`;
+  return `Limite ajustado da semana de segunda a domingo, ${de} a ${ate}`;
 }
 
 function capitalizar(texto: string): string {

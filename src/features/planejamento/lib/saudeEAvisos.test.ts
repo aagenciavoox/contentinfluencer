@@ -9,7 +9,7 @@ import {avisosDeOrientacao} from './orientacaoEditorial.ts';
 import type {PlanejamentoPostIt} from './postIt.ts';
 
 const HOJE = new Date(2026, 9, 30, 12);
-const PERIODO = {inicio: '2026-10-25', fim: '2026-11-07'};
+const PERIODO = {inicio: '2026-10-26', fim: '2026-11-08'};
 
 function postIt(partial: Partial<PlanejamentoPostIt> & Pick<PlanejamentoPostIt, 'id' | 'date'>): PlanejamentoPostIt {
   return {

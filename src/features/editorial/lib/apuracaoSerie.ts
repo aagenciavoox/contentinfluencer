@@ -88,7 +88,7 @@ export function textoFrequencia(freq: FrequenciaSerie): string {
 }
 
 /**
- * Janelas inteiras que tocam o período: semanas domingo-sábado, meses do calendário,
+ * Janelas inteiras que tocam o período: semanas segunda–domingo, meses do calendário,
  * ciclos de 14 dias a partir do início da meta. Antes do início da meta, nada.
  */
 export function intervalosDaFrequencia(freq: FrequenciaDefinida, periodo: Intervalo): Intervalo[] {
