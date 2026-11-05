@@ -21,7 +21,7 @@ const CAMPOS: Array<{ key: keyof CopiarCampos; label: string; hint?: string }> =
   { key: 'script', label: 'Roteiro' },
   { key: 'formato', label: 'Formato' },
   { key: 'pilar', label: 'Pilar' },
-  { key: 'funcao', label: 'Função' },
+  { key: 'funcao', label: 'Objetivo' },
   { key: 'referencias', label: 'Referências' },
   { key: 'temas', label: 'Temas' },
   { key: 'notes', label: 'Notas' },

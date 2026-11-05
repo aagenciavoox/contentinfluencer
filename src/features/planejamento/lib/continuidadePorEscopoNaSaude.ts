@@ -42,7 +42,7 @@ function textoDoEscopo(resultado: ContinuidadeDoEscopo, hoje: string): { texto: 
       : tipo === 'incompleta' ? 'Frequência incompleta: escolha a unidade'
         : tipo === 'sob-demanda' ? 'Sob demanda: não avaliada'
           : 'Sem frequência definida';
-    // Configuração pendente nunca conta como abaixo da meta.
+    // Configuração em aberto nunca conta como ritmo em aberto.
     return { texto, atencao: false };
   }
   const encerradas = resultado.janelas.filter(janela => janela.fim < hoje);

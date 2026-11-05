@@ -266,7 +266,7 @@ export function SettingsPage() {
           <SettingsToggle
             id="opcao-avisos-abertos"
             title="Avisar sobre informações em aberto"
-            description="Sinaliza séries sem pilar, função, recorrência, formato ou esforço."
+            description="Sinaliza séries sem pilar, objetivo, recorrência, formato ou esforço."
             enabled={state.editorial.openInfoNotices}
             onToggle={() => dispatch({
               type: 'SET_EDITORIAL',

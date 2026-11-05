@@ -1,4 +1,4 @@
-import { addDays, format, parseISO } from 'date-fns';
+import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns';
 import type { FuncaoEditorial } from '../../../lib/database.ts';
 import {
   apurarSerie,
@@ -497,7 +497,7 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
     resumo: acompanhadas === 0 ? 'Nenhuma série acompanhada' : resumoDaContinuidade(linhas),
     nenhumaAcompanhada: acompanhadas === 0,
     resumoPendencias: pendencias.length === 0 ? null
-      : `${plural(pendencias.length, 'configuração pendente', 'configurações pendentes')} (não contam como abaixo da meta)`,
+      : `${plural(pendencias.length, 'configuração em aberto', 'configurações em aberto')} (não entram na leitura do ritmo)`,
   };
 }
 
@@ -517,7 +517,7 @@ function seriesEQuadros(linhas: readonly LinhaResumo[]): { texto: string; total:
   return { texto, total: series + quadros + temporadas };
 }
 
-/** "1 série abaixo da frequência · 2 sem episódios no período". Cada grupo conta à parte. */
+/** "1 série com ritmo em aberto · 2 sem episódios no período". Cada grupo conta à parte. */
 export function resumoDaContinuidade(linhas: readonly LinhaResumo[]): string {
   const atencao = linhas.filter(l => l.precisaAtencao);
   if (atencao.length === 0) {
@@ -531,7 +531,7 @@ export function resumoDaContinuidade(linhas: readonly LinhaResumo[]): string {
   const concentradas = seriesEQuadros(atencao.filter(l => !l.semEpisodios && l.abaixo.length === 0 && l.concentrada));
   const reservadas = seriesEQuadros(atencao.filter(l => !l.semEpisodios && l.abaixo.length === 0 && !l.concentrada && (l.reservadas?.length ?? 0) > 0));
   return [
-    abaixo.total > 0 ? `${abaixo.texto} abaixo da frequência` : null,
+    abaixo.total > 0 ? `${abaixo.texto} com ritmo em aberto` : null,
     concentradas.total > 0 ? `${concentradas.texto} com episódios concentrados` : null,
     reservadas.total > 0 ? `${reservadas.texto} só com reserva em post-it, conteúdo a desenvolver` : null,
     semEpisodios.total > 0 ? `${semEpisodios.texto} sem episódios no período` : null,
@@ -540,6 +540,18 @@ export function resumoDaContinuidade(linhas: readonly LinhaResumo[]): string {
 
 export function rotuloIntervalo(intervalo: Intervalo): string {
   return `${curta(intervalo.inicio)}–${curta(intervalo.fim)}`;
+}
+
+/** "mais N pra fechar a semana|a quinzena|o mês", conforme a duração do intervalo. */
+export function textoMaisPraFechar(faltam: number, intervalo: Intervalo): string {
+  const dias = differenceInCalendarDays(parseISO(intervalo.fim), parseISO(intervalo.inicio)) + 1;
+  const ciclo = dias <= 7 ? 'a semana' : dias <= 14 ? 'a quinzena' : 'o mês';
+  return `mais ${faltam} pra fechar ${ciclo}`;
+}
+
+/** Ritmo abaixo da meta: ainda no prazo, ou já encerrou. Compara a data de fim (yyyy-MM-dd) com hoje. */
+export function textoRitmoAbaixo(fimDoPeriodo: string, hoje: string): string {
+  return fimDoPeriodo >= hoje ? 'ainda dá tempo' : 'ficou pro próximo período';
 }
 
 /** Reserva em post-it entre os itens: para a lista mostrar "post-it" e não episódio. */

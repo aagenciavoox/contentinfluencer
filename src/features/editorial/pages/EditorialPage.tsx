@@ -31,7 +31,7 @@ export function EditorialPage() {
   const handleAbaChange = (novaAba: EditorialAba) => {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
-      if (novaAba === 'plano') next.delete('aba');
+      if (novaAba === 'ajustes') next.delete('aba');
       else next.set('aba', novaAba);
       return next;
     });

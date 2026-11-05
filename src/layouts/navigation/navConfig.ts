@@ -178,7 +178,7 @@ export function buildMobileMenuSections(moduleFlags: ModuleFlags): NavSectionDef
 
 /**
  * Blocos por tipo de trabalho: começar o dia e ler; produzir; cumprir datas; decidir a direção.
- * Contas e horários vivem dentro do Editorial (aba "Contas & Horários").
+ * Contas e horários vivem dentro do Editorial (aba "Contas e formatos").
  */
 export function buildSidebarSections(moduleFlags: ModuleFlags): NavSectionDefinition[] {
   return [

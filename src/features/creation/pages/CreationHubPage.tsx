@@ -1133,7 +1133,7 @@ export function CreationHubPage() {
       value: funcaoId,
       onChange: (value: string) => updateSearchParam('funcao', value),
       options: [
-        { label: 'Todas as funções', value: '' },
+        { label: 'Todos os objetivos', value: '' },
         ...FUNCOES.map(funcao => ({ label: FUNCAO_LABELS[funcao], value: funcao })),
       ],
     },

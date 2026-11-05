@@ -7,6 +7,7 @@ import {
   objetivoEfetivo,
   proporcaoDesejadaDoPeriodo,
   situacaoDaFrequencia,
+  textoRitmoAbaixo,
   textoSemObjetivo,
   type ConteudoDaSaude,
   type ItemSaude,
@@ -116,7 +117,7 @@ assert.equal(situacaoDaFrequencia(serie({ id: 'x', frequenciaRecomendada: 'Sob d
   assert.equal(linha.intervalos[1].quantidade, 2);
   assert.equal(linha.abaixo.length, 12);
   assert.equal(linha.concentrada, true);
-  assert.equal(cont.resumo, '1 série abaixo da frequência');
+  assert.equal(cont.resumo, '1 série com ritmo em aberto');
   assert.equal(linha.semEpisodios, false);
   const novembro = linha.intervalos.find(i => i.inicio === '2026-11-29')!;
   assert.match(novembro.nota ?? '', /atravessa dois meses/);
@@ -147,7 +148,7 @@ assert.equal(situacaoDaFrequencia(serie({ id: 'x', frequenciaRecomendada: 'Sob d
   assert.deepEqual(cont2.linhas[0].intervalos.map(i => i.inicio), ['2026-12-06', '2026-12-13', '2026-12-20', '2026-12-27']);
 }
 
-// --- Configuração ausente nunca é "abaixo da meta".
+// --- Configuração ausente nunca é "ritmo em aberto".
 {
   const cont = continuidadeDasSeries({
     series: [
@@ -166,7 +167,7 @@ assert.equal(situacaoDaFrequencia(serie({ id: 'x', frequenciaRecomendada: 'Sob d
   ]);
   assert.equal(cont.naoAvaliadas.length, 1);
   assert.equal(cont.resumo, 'Nenhuma série com frequência para conferir');
-  assert.match(cont.resumoPendencias ?? '', /^2 configurações pendentes/);
+  assert.match(cont.resumoPendencias ?? '', /^2 configurações em aberto/);
 }
 
 // --- Quadro com meta própria: linha própria, e os episódios dele saem da conta da série (sem cobrança dupla).
@@ -185,7 +186,7 @@ assert.equal(situacaoDaFrequencia(serie({ id: 'x', frequenciaRecomendada: 'Sob d
   assert.equal(linhaPai.itens.length, 1, 'episódios do quadro com meta própria contam só no quadro');
   assert.deepEqual(linhaQuadro.intervalos.map(i => i.quantidade), [2, 0, 0]);
   assert.equal(linhaQuadro.paiNome, 'Resenha');
-  assert.equal(cont.resumo, '1 série e 1 quadro abaixo da frequência');
+  assert.equal(cont.resumo, '1 série e 1 quadro com ritmo em aberto');
   assert.match(linhaPai.intervalos[0].nota ?? '', /mês 01\/10–31\/10 avaliado inteiro/);
 }
 
@@ -256,7 +257,7 @@ assert.deepEqual(janelaDaContinuidade(PERIODO), { inicio: '2026-09-20', fim: '20
   });
   assert.equal(cont.linhas.find(l => l.serieId === 'vazia1')!.semEpisodios, true);
   assert.equal(cont.linhas.find(l => l.serieId === 'pouca')!.semEpisodios, false);
-  assert.equal(cont.resumo, '1 série abaixo da frequência · 2 séries sem episódios no período');
+  assert.equal(cont.resumo, '1 série com ritmo em aberto · 2 séries sem episódios no período');
 }
 
 // --- Post-it é reserva: janela coberta só por ele fica "reservada", não atendida.
@@ -361,3 +362,10 @@ console.log('saudeIndicadores: ok');
 }
 
 console.log('saudeIndicadores (acompanhamento geral): ok');
+
+// --- Ritmo abaixo: ainda no prazo ou já encerrou.
+{
+  assert.equal(textoRitmoAbaixo('2026-11-10', '2026-11-05'), 'ainda dá tempo');
+  assert.equal(textoRitmoAbaixo('2026-11-05', '2026-11-05'), 'ainda dá tempo');
+  assert.equal(textoRitmoAbaixo('2026-11-04', '2026-11-05'), 'ficou pro próximo período');
+}

@@ -228,7 +228,7 @@ export function AjustesEditorialPanel() {
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
             <CampoStepper
               id="limite-semanal"
-              label="Publicações por semana"
+              label="Roteiros por semana"
               unidade="roteiros"
               hint="Cada roteiro conta uma vez, na publicação original. Reposts e roteiros fora das metas não entram. Você escolhe a partir de quando vale."
               value={ritmo.limite}
@@ -274,7 +274,7 @@ export function AjustesEditorialPanel() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
             <ValorDoRitmo
-              rotulo="Publicações por semana"
+              rotulo="Roteiros por semana"
               valor={preferencias.limiteSemanal}
               unidade="roteiros"
               dotColor="#10b981"

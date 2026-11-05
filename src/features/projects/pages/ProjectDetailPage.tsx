@@ -487,14 +487,14 @@ export function ProjectDetailPage() {
                   <Text variant="bodyStrong">Nenhum roteiro vinculado</Text>
                   {evento ? (
                     <Text variant="secondary" className="mt-2">
-                      Cada roteiro deste evento fica com a própria função.
+                      Cada roteiro deste evento fica com o próprio objetivo.
                     </Text>
                   ) : null}
                 </div>
               ) : (
                 <div className="stack-md">
                   {evento ? (
-                    <Text variant="secondary">Cada roteiro deste evento tem a própria função.</Text>
+                    <Text variant="secondary">Cada roteiro deste evento tem o próprio objetivo.</Text>
                   ) : null}
                   {projetoContents.map(content => (
                     <div key={content.id} className="stack-md rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-4">

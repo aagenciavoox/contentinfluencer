@@ -102,7 +102,7 @@ function testFaltaReservarEpisodio() {
     acompanharContinuidade: true,
   } as Serie;
   const aviso = avisos({series: [serie]}).find(item => item.tipo === 'serie-abaixo');
-  assert.equal(aviso?.texto, 'Faltam reservar 2 episódios de Descomplicando neste período.');
+  assert.equal(aviso?.texto, 'Mais 2 episódios de Descomplicando pra fechar o período.');
   // Sem acompanhamento, a mesma série não é cobrada.
   assert.equal(avisos({series: [{...serie, acompanharContinuidade: false}]}).some(item => item.tipo === 'serie-abaixo'), false);
 }

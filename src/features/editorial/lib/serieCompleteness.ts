@@ -10,7 +10,7 @@ export interface SerieOpenItem {
 
 const OPEN_ITEM_LABELS: Record<SerieOpenItemKey, string> = {
   pilar: 'pilar',
-  funcao: 'função',
+  funcao: 'objetivo',
   frequencia: 'recorrência',
   formato: 'formato',
   energia: 'esforço',
@@ -92,7 +92,7 @@ export function getSerieOpenItems(
   return missing.map(key => ({ key, label: OPEN_ITEM_LABELS[key] }));
 }
 
-/** "pilar, função e energia" */
+/** "pilar, objetivo e energia" */
 export function formatOpenItems(items: SerieOpenItem[]): string {
   const labels = items.map(item => item.label);
   if (labels.length <= 1) return labels.join('');

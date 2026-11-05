@@ -14,7 +14,7 @@ function testQuickSerieHasEverythingOpen() {
     items.map(item => item.key),
     ['pilar', 'funcao', 'frequencia', 'formato', 'energia'],
   );
-  assert.equal(formatOpenItems(items), 'pilar, função, recorrência, formato e esforço');
+  assert.equal(formatOpenItems(items), 'pilar, objetivo, recorrência, formato e esforço');
 }
 
 function testCompleteSerieHasNothingOpen() {

@@ -242,7 +242,7 @@ export function ProjectDetailMobileScreen({
             <EmptyState compact
               title="Nenhum roteiro vinculado"
               description={evento
-                ? 'Vincule um roteiro. Cada um deste evento fica com a própria função.'
+                ? 'Vincule um roteiro. Cada um deste evento fica com o próprio objetivo.'
                 : 'Vincule ideias já existentes ou crie novos roteiros para este projeto.'}
               action={tabAction}
               icon={<ClipboardList className="h-8 w-8" />}
@@ -250,7 +250,7 @@ export function ProjectDetailMobileScreen({
           ) : (
             <>
               {evento ? (
-                <Text variant="secondary">Cada roteiro deste evento tem a própria função.</Text>
+                <Text variant="secondary">Cada roteiro deste evento tem o próprio objetivo.</Text>
               ) : null}
               {projetoContents.map(content => (
                 <div key={content.id} className="stack-sm">

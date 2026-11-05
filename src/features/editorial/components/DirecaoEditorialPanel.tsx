@@ -33,20 +33,21 @@ function nomeChave(nome: string): string {
 
 export type EditorialAba = 'plano' | 'continuidade' | 'pilares' | 'ajustes' | 'contas';
 
-const EDITORIAL_ABAS: readonly EditorialAba[] = ['plano', 'continuidade', 'pilares', 'ajustes', 'contas'];
+/** Ordem de configuração: capacidade → objetivos e pilares → contas → séries e waves → plano do período. */
+const EDITORIAL_ABAS: readonly EditorialAba[] = ['ajustes', 'pilares', 'contas', 'continuidade', 'plano'];
 
-/** Lê `?aba=` da URL; qualquer valor desconhecido cai em Plano Vigente. */
+/** Lê `?aba=` da URL; os ids antigos continuam valendo e qualquer valor desconhecido cai em Capacidade e regras. */
 export function abaEditorialDaUrl(valor: string | null): EditorialAba {
-  return (EDITORIAL_ABAS as readonly string[]).includes(valor ?? '') ? (valor as EditorialAba) : 'plano';
+  return (EDITORIAL_ABAS as readonly string[]).includes(valor ?? '') ? (valor as EditorialAba) : 'ajustes';
 }
 
 export function opcoesAbasEditorial(): SegmentTabOption<EditorialAba>[] {
   return [
-    { id: 'plano', label: 'Plano Vigente', icon: <Target className="h-4 w-4" /> },
-    { id: 'continuidade', label: 'Continuidade', icon: <Activity className="h-4 w-4" /> },
-    { id: 'pilares', label: 'Pilares & Linhas', icon: <Palette className="h-4 w-4" /> },
-    { id: 'ajustes', label: 'Ritmo & Regras Gerais', icon: <SlidersHorizontal className="h-4 w-4" /> },
-    { id: 'contas', label: 'Contas & Horários', icon: <AtSign className="h-4 w-4" /> },
+    { id: 'ajustes', label: 'Capacidade e regras', icon: <SlidersHorizontal className="h-4 w-4" /> },
+    { id: 'pilares', label: 'Pilares', icon: <Palette className="h-4 w-4" /> },
+    { id: 'contas', label: 'Contas e formatos', icon: <AtSign className="h-4 w-4" /> },
+    { id: 'continuidade', label: 'Séries e waves', icon: <Activity className="h-4 w-4" /> },
+    { id: 'plano', label: 'Plano do período', icon: <Target className="h-4 w-4" /> },
   ];
 }
 
@@ -79,7 +80,7 @@ export function DirecaoEditorialPanel({ abaAtiva: abaAtivaProp }: DirecaoEditori
   const handleAbaChange = (novaAba: EditorialAba) => {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
-      if (novaAba === 'plano') next.delete('aba');
+      if (novaAba === 'ajustes') next.delete('aba');
       else next.set('aba', novaAba);
       return next;
     });

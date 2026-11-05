@@ -346,7 +346,7 @@ export function PlanoVigenteView({
               <Text variant="bodyStrong" as="h3">Por conta</Text>
               <Text variant="meta" as="span" className="text-[var(--text-tertiary)] tabular-nums">
                 {consolidadas.total == null
-                  ? 'Nenhuma conta com meta · defina em Ritmo & Regras › Contas e formatos'
+                  ? 'Nenhuma conta com meta · defina em Editorial › Contas e formatos'
                   : `Soma das contas: ${plural(consolidadas.total, 'publicação', 'publicações')}${consolidadas.incompleta ? ` · incompleta (${plural(consolidadas.contasSemMeta.length, 'conta sem meta', 'contas sem meta')})` : ''}`}
               </Text>
             </div>

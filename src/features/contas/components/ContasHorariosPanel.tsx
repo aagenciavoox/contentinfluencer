@@ -58,7 +58,7 @@ const LINHA_CONTA =
 const RASCUNHO_NOVO: Rascunho = { id: null, rede: 'instagram', nome: '', handle: '' };
 
 /**
- * Aba "Contas & Horários" do Editorial: contas de cada rede, pendências de links antigos
+ * Aba "Contas e formatos" do Editorial: contas de cada rede, pendências de links antigos
  * e os horários de postagem. Antes era a página /contas.
  */
 export function ContasHorariosPanel() {

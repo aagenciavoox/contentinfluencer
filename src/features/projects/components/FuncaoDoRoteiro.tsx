@@ -36,7 +36,7 @@ export function FuncaoDoRoteiro({
   if (resolved.congelada) {
     return (
       <div className="stack-sm">
-        <Text variant="label">Função</Text>
+        <Text variant="label">Objetivo</Text>
         <Badge variant="tag">{rotuloResolvido(resolved.funcao, resolved.estado)}</Badge>
         <Text variant="meta">Definida na publicação.</Text>
       </div>
@@ -48,7 +48,7 @@ export function FuncaoDoRoteiro({
   return (
     <TagSelect
       id={`funcao-roteiro-${contentId}`}
-      label="Função"
+      label="Objetivo"
       values={[escolha]}
       onChange={values => {
         const next = values[0] ?? 'indefinida';
@@ -56,7 +56,7 @@ export function FuncaoDoRoteiro({
       }}
       options={opcoesFuncaoNoEvento(serie)}
       maxSelections={1}
-      placeholder="Escolha a função"
+      placeholder="Escolha o objetivo"
     />
   );
 }

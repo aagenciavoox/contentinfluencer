@@ -29,7 +29,7 @@ import { distribuicaoPorPilar } from '../lib/periodoDaSaude';
 import { distribuicaoAssuntosNaSaude } from '../lib/distribuicaoAssuntosNaSaude';
 import { cn } from '../../../lib/utils';
 import type { GradeEntry } from '../../editorial/lib/gradeEntries';
-import { rotuloIntervalo, textoSemObjetivo, type Continuidade, type LinhaContinuidade, type DistribuicaoObjetivos } from '../lib/saudeIndicadores';
+import { rotuloIntervalo, textoMaisPraFechar, textoRitmoAbaixo, textoSemObjetivo, type Continuidade, type LinhaContinuidade, type DistribuicaoObjetivos } from '../lib/saudeIndicadores';
 import { textoDaJanela } from '../../editorial/lib/apuracaoSerie';
 import { ItensDaSaudeDialog, type ListaDaSaude } from './ItensDaSaudeDialog';
 import type { LinhaDoEscopoNaSaude } from '../lib/continuidadePorEscopoNaSaude';
@@ -562,7 +562,7 @@ export function SaudeEditorialPanel({
               >
                 <div className="flex items-center justify-between gap-1">
                   <Text variant="label" as="span" className="text-[var(--text-tertiary)] uppercase tracking-wider truncate">
-                    Hoje & Urgências
+                    Hoje & Em aberto
                   </Text>
                   <span
                     className={cn(
@@ -576,7 +576,7 @@ export function SaudeEditorialPanel({
                     {foraDoPrazo.length > 0
                       ? `${foraDoPrazo.length} com data passada`
                       : pendentesHoje.length > 0
-                      ? `${pendentesHoje.length} pendente(s)`
+                      ? `${pendentesHoje.length} em aberto`
                       : 'Em dia'}
                   </Text>
                 </div>
@@ -706,7 +706,7 @@ export function SaudeEditorialPanel({
               {/* ---------------- 1. HOJE & URGÊNCIAS ---------------- */}
               <SecaoAccordion
                 id="urgencias"
-                titulo="1. Hoje & Urgências"
+                titulo="1. Hoje & Em aberto"
                 icon={AlertCircle}
                 aberta={secoesAbertas.has('urgencias')}
                 onToggle={() => toggleSecao('urgencias')}
@@ -715,7 +715,7 @@ export function SaudeEditorialPanel({
                   foraDoPrazo.length > 0
                     ? `${foraDoPrazo.length} com data passada`
                     : pendentesHoje.length > 0
-                    ? `${pendentesHoje.length} pendente(s) hoje`
+                    ? `${pendentesHoje.length} em aberto hoje`
                     : `${deHoje.length} hoje · em dia`
                 }
               >
@@ -863,7 +863,7 @@ export function SaudeEditorialPanel({
                     <div className="flex items-center gap-2 text-[var(--text-primary)] dark:text-[var(--border-color)]">
                       <AlertCircle className="h-4 w-4 shrink-0 text-[var(--accent-orange)]" />
                       <Text variant="body" as="span" className="text-[var(--text-primary)] dark:text-[var(--border-color)]">
-                        {preenchidos} de {metaTotal} espaços: {faltamParaMeta === 1 ? 'falta 1 publicação' : `faltam ${faltamParaMeta} publicações`} para a meta.
+                        {preenchidos} de {metaTotal} espaços: mais {faltamParaMeta} pra fechar o período.
                       </Text>
                     </div>
                     <AppButton
@@ -993,7 +993,7 @@ export function SaudeEditorialPanel({
                 alerta={seriesAbaixo.length > 0 ? 'aviso' : seriesConcentradas.length > 0 ? 'aviso' : 'ok'}
                 resumo={
                   seriesComPendencias.length > 0
-                    ? `${seriesAbaixo.length} abaixo da frequência`
+                    ? `${seriesAbaixo.length === 1 ? '1 série com ritmo em aberto' : `${seriesAbaixo.length} séries com ritmo em aberto`}`
                     : seriesConcentradas.length > 0
                     ? `${seriesConcentradas.length} com excesso`
                     : seriesComPendencias.length > 0 ? `${seriesComPendencias.length} para revisar` : `${linhasContinuidade.length} acompanhadas · em dia`
@@ -1058,7 +1058,7 @@ export function SaudeEditorialPanel({
                                 {linha.frequencia}
                                 {futurosAbaixo.length > 0 || futurosExcesso.length > 0 ? (
                                   <span className="ml-1 text-[var(--accent-orange)]">· {[
-                                    futurosAbaixo.length > 0 ? futurosAbaixo.length + ' intervalo(s) abaixo da frequência' : '',
+                                    futurosAbaixo.length > 0 ? (futurosAbaixo.length === 1 ? '1 intervalo com ritmo em aberto' : `${futurosAbaixo.length} intervalos com ritmo em aberto`) : '',
                                     futurosExcesso.length > 0 ? futurosExcesso.length + ' intervalo(s) com excesso' : '',
                                   ].filter(Boolean).join(' · ')}</span>
                                 ) : passados.length > 0 && futuros.length === 0 ? (
@@ -1113,7 +1113,7 @@ export function SaudeEditorialPanel({
                                           {rotuloIntervalo(intervalo)}
                                         </Text>
                                         <Text variant="meta" as="span" className="ml-2 text-[var(--text-secondary)]">
-                                          {intervalo.quantidade} de {intervalo.meta} {intervalo.meta === 1 ? 'episódio' : 'episódios'} (faltam {faltam})
+                                          {intervalo.quantidade} de {intervalo.meta} {intervalo.meta === 1 ? 'episódio' : 'episódios'} ({textoMaisPraFechar(faltam, intervalo)})
                                         </Text>
                                       </div>
 
@@ -1220,7 +1220,7 @@ export function SaudeEditorialPanel({
                                       )}
                                     >
                                       {rotuloIntervalo(intervalo)}: {intervalo.quantidade} de {intervalo.meta} episódios
-                                      {intervalo.abaixo ? ' (abaixo da meta)' : ' (cumprido)'}
+                                      {intervalo.abaixo ? ` (${textoRitmoAbaixo(intervalo.fim, hojeIso)})` : ' (cumprido)'}
                                     </Text>
                                   </li>
                                 ))}

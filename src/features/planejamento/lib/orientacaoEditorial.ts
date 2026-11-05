@@ -301,8 +301,8 @@ function avisosDeFrequenciaSerie(
         id: `serie-abaixo:${serie.id}`,
         tipo: 'serie-abaixo',
         texto: faltam === 1
-          ? `Falta reservar 1 episódio de ${nome} neste período.`
-          : `Faltam reservar ${faltam} episódios de ${nome} neste período.`,
+          ? `Mais 1 episódio de ${nome} pra fechar o período.`
+          : `Mais ${faltam} episódios de ${nome} pra fechar o período.`,
         postItIds,
         contentIds,
         severidade: 'info',

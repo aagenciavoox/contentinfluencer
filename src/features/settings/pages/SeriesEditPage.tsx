@@ -219,7 +219,7 @@ export function SeriesEditPage() {
     ? conteudosParaAplicarFuncao(state.contents, pendingApply.id).length
     : 0;
   const aplicarMensagem = pendingApply && isFuncaoEditorial(pendingApply.funcaoPadrao)
-    ? `${aplicarQuantidade === 1 ? '1 roteiro já publicado ainda usa' : `${aplicarQuantidade} roteiros já publicados ainda usam`} a função herdada. Aplicar ${FUNCAO_LABELS[pendingApply.funcaoPadrao]} a ${aplicarQuantidade === 1 ? 'ele' : 'eles'}?`
+    ? `${aplicarQuantidade === 1 ? '1 roteiro já publicado ainda usa' : `${aplicarQuantidade} roteiros já publicados ainda usam`} o objetivo herdado. Aplicar ${FUNCAO_LABELS[pendingApply.funcaoPadrao]} a ${aplicarQuantidade === 1 ? 'ele' : 'eles'}?`
     : '';
 
   const handleDelete = () => {

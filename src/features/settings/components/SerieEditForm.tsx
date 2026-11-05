@@ -1125,12 +1125,12 @@ export function SerieEditForm({
                     >
                       <div className="scroll-mt-28">
                         <label htmlFor="serie-meta">
-                          <FieldLabel optional>Meta de publicação</FieldLabel>
+                          <FieldLabel optional>Ritmo de episódios</FieldLabel>
                         </label>
                         <SelectField
                           id="serie-meta"
                           block
-                          ariaLabel="Meta de publicação"
+                          ariaLabel="Ritmo de episódios"
                           value={form.temMeta ? 'com-meta' : 'sem-meta'}
                           onChange={valor => {
                             const ativar = valor === 'com-meta';
@@ -1584,10 +1584,10 @@ export function SerieEditForm({
                 {renderBlocoModeloRoteiro(true)}
 
                 <div className="stack-sm">
-                  <FieldLabel optional>Meta de publicação</FieldLabel>
+                  <FieldLabel optional>Ritmo de episódios</FieldLabel>
                   <SelectField
                     block
-                    ariaLabel="Meta de publicação"
+                    ariaLabel="Ritmo de episódios"
                     value={form.temMeta ? 'quadro' : 'serie'}
                     onChange={valor => {
                       const ativar = valor === 'quadro';

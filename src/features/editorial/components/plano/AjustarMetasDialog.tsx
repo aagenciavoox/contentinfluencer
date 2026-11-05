@@ -266,7 +266,7 @@ export function AjustarMetasDialog({
           <div className="stack-xs">
             <label htmlFor="meta-publicacao">
               <Text variant="bodyStrong" as="span">
-                Meta de publicação (conteúdos)
+                Meta de roteiros do período
               </Text>
             </label>
             <input
@@ -386,7 +386,7 @@ export function AjustarMetasDialog({
             Metas Individuais por Conta
           </Text>
           <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
-            Vazio segue a meta da conta (Ritmo & Regras › Contas e formatos). Um número aqui vale só para este período.
+            Vazio segue a meta da conta (Editorial › Contas e formatos). Um número aqui vale só para este período.
           </Text>
           <div className="stack-sm">
             {platforms.length === 0 ? (
