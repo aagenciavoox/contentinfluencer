@@ -44,6 +44,8 @@ import {
   ENERGIA_NIVEIS,
 } from '../../editorial/lib/editorialOptions';
 import { lerFrequencia } from '../../editorial/lib/frequenciaSerie';
+import { FrequenciaChip } from '../../editorial/components/FrequenciaChip';
+import type { FrequenciaGravada } from '../../editorial/lib/metaDaOnda';
 import { pilarPrincipalDaSerie } from '../../editorial/lib/pilarDaSerie';
 import { getSerieOpenItems, type SerieOpenItemKey } from '../../editorial/lib/serieCompleteness';
 import { pilarEfetivoDaSerie } from '../lib/serieAgrupamento';
@@ -932,6 +934,42 @@ export function SerieEditForm({
     </div>
   );
 
+  // Série já gravada: a meta é editada no chip (mesmo store do cabeçalho e da Continuidade).
+  // Na criação ainda não há série para gravar, então os campos completos continuam aqui.
+  const serieGravada = Boolean(initial.id && state.series.some(item => item.id === initial.id));
+  const aplicarFrequencia = (frequencia: FrequenciaGravada) => {
+    const campos = {
+      temMeta: frequencia.vezes != null,
+      frequenciaVezes: frequencia.vezes,
+      frequenciaUnidade: frequencia.unidade ?? 'semana',
+      frequenciaAPartirDe: frequencia.aPartirDe ?? '',
+    };
+    // Já gravado pelo chip: não conta como alteração pendente do formulário.
+    initialSnapshot.current.form = { ...initialSnapshot.current.form, ...campos };
+    setForm(previous => ({ ...previous, ...campos }));
+  };
+  const renderChipDaMeta = (notaAdicional?: string) => (
+    <div className="stack-sm scroll-mt-28">
+      <FieldLabel optional>Ritmo de episódios</FieldLabel>
+      <FrequenciaChip id="serie-meta" serieId={initial.id!} className="w-fit" onSalvo={aplicarFrequencia} />
+      {form.temMeta ? (
+        <label className="flex items-center gap-2 w-fit cursor-pointer">
+          <input
+            type="checkbox"
+            checked={form.acompanharContinuidade}
+            onChange={event => setForm(previous => ({ ...previous, acompanharContinuidade: event.target.checked }))}
+            className="h-4 w-4 accent-[var(--brand-accent)]"
+          />
+          <Text variant="body" as="span">Acompanhar continuidade na Saúde</Text>
+        </label>
+      ) : null}
+      <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+        O chip grava na hora, no mesmo lugar do cabeçalho da série e da Continuidade.
+        {notaAdicional ? ` ${notaAdicional}` : ''}
+      </Text>
+    </div>
+  );
+
   const renderBlocoModeloRoteiro = (isQuadro: boolean) => (
     <div className="stack-sm">
       <FieldLabel optional>Modelo de roteiro</FieldLabel>
@@ -1104,6 +1142,7 @@ export function SerieEditForm({
                       title="Ritmo e meta"
                       description="Quantidade, período e o dia em que a contagem começa."
                     >
+                      {serieGravada ? renderChipDaMeta() : (<>
                       <div className="scroll-mt-28">
                         <label htmlFor="serie-meta">
                           <FieldLabel optional>Ritmo de episódios</FieldLabel>
@@ -1129,6 +1168,7 @@ export function SerieEditForm({
                         />
                       </div>
                       {form.temMeta ? renderCamposMeta() : null}
+                      </>)}
                     </EditorSection>
 
                     <EditorSection
@@ -1538,6 +1578,7 @@ export function SerieEditForm({
 
                 {renderBlocoModeloRoteiro(true)}
 
+                {serieGravada ? renderChipDaMeta('O episódio deste quadro conta nas duas metas.') : (
                 <div className="stack-sm">
                   <FieldLabel optional>Ritmo de episódios</FieldLabel>
                   <SelectField
@@ -1562,6 +1603,7 @@ export function SerieEditForm({
                     ? renderCamposMeta('O episódio deste quadro conta nas duas metas.')
                     : null}
                 </div>
+                )}
               </Surface>
 
               <CollapsibleSection

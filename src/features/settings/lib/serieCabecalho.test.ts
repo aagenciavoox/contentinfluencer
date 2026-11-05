@@ -55,7 +55,7 @@ const m = metaDoCabecalho({ serie: comMeta, series: [comMeta, lista[1]], itens, 
 assert.equal(m.estado, 'ativa');
 assert.equal(m.texto, '2 episódios nesta semana · meta de 3 · 0 de 1 semana atendida');
 if (m.estado === 'ativa') {
-  assert.equal(m.regra, 'Meta: 3× por semana');
+  assert.equal(m.regra, 'Meta: 3 por semana');
   assert.equal(m.barra, 0);
 }
 

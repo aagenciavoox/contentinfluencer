@@ -80,11 +80,11 @@ export function situacaoDaFrequencia(serie: Pick<SerieDaApuracao, 'frequenciaRec
 
 export const TEXTO_SEM_ANCORA = 'Defina o início dos ciclos de 14 dias';
 
-/** "2× por semana", "1× a cada 14 dias", "1× por mês". */
+/** "2 por semana", "1 a cada 14 dias", "1 por mês". Mesmo formato do formulário e do chip. */
 export function textoFrequencia(freq: FrequenciaSerie): string {
   const vezes = freq.vezes ?? 1;
-  if (freq.unidade === 'quinzena') return `${vezes}× a cada 14 dias`;
-  return `${vezes}× por ${freq.unidade === 'semana' ? 'semana' : 'mês'}`;
+  if (freq.unidade === 'quinzena') return `${vezes} a cada 14 dias`;
+  return `${vezes} por ${freq.unidade === 'semana' ? 'semana' : 'mês'}`;
 }
 
 /**

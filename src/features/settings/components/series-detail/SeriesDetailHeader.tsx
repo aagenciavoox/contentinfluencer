@@ -9,6 +9,7 @@ import { Text } from '../../../../components/ui/Text';
 import { cn } from '../../../../lib/utils';
 import type { Serie, SerieTipoAgrupamento, Temporada } from '../../../../lib/database';
 import { rotuloDoFoco } from '../../../editorial/lib/focoTemporada';
+import { FrequenciaChip } from '../../../editorial/components/FrequenciaChip';
 import { normalizarRedesPostIt } from '../../../planejamento/lib/redesPostIt';
 import { TIPO_AGRUPAMENTO_LABEL } from '../../lib/serieAgrupamento';
 import type { MetaDoCabecalho, TotaisDoCabecalho } from '../../lib/serieCabecalho';
@@ -181,6 +182,7 @@ export function SeriesDetailHeader({
               </Text>
             </div>
             <Text variant="secondary" as="span" className="text-[var(--text-primary)]">{meta.texto}</Text>
+            {!temporada && tipo !== 'familia' ? <FrequenciaChip serieId={serie.id} className="w-fit" /> : null}
             {meta.estado === 'ativa' && meta.esperado > 0 ? (
               <div
                 className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--bg-elevated)]"

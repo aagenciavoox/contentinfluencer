@@ -27,18 +27,14 @@ import {
   metaDoEscopo,
   novoAcompanhamento,
 } from '../../lib/acompanhamento';
-import { situacaoDaFrequencia, TEXTO_SEM_ANCORA, textoFrequencia } from '../../lib/apuracaoSerie';
 import type { AcompanhamentoSerie, MetaDaSerieNoEscopo } from '../../lib/continuidadeEscopo';
 import { frequenciaParaGravar, unidadeDaMeta, type UnidadeDaMeta } from '../../lib/metaDaOnda';
 import { FORMATOS_DA_REDE, rotuloDoFormato } from '../../lib/publicacoes';
 import { CAMPO } from './campos';
+import { CamposDaMeta, UNIDADES } from './CamposDaMeta';
+import { textoDoChip } from '../../lib/frequenciaChip';
 
 const FORMATOS = [...new Set(Object.values(FORMATOS_DA_REDE).flatMap(lista => [...(lista ?? [])]))];
-const UNIDADES = [
-  { value: 'semana', label: 'por semana' },
-  { value: 'quinzena', label: 'a cada 14 dias' },
-  { value: 'mes', label: 'por mês' },
-];
 
 type Linha = AcompanhamentoSerie & {
   metaVezes: string;
@@ -46,24 +42,6 @@ type Linha = AcompanhamentoSerie & {
   metaAPartirDe: string;
 };
 
-function textoDaFrequenciaDe(alvo: {
-  frequenciaRecomendada?: string | null;
-  frequenciaVezes?: number | null;
-  frequenciaUnidade?: string | null;
-  frequenciaAPartirDe?: string | null;
-}): string {
-  const situacao = situacaoDaFrequencia({
-    frequenciaRecomendada: alvo.frequenciaRecomendada ?? null,
-    frequenciaVezes: alvo.frequenciaVezes ?? null,
-    frequenciaUnidade: alvo.frequenciaUnidade ?? null,
-    frequenciaAPartirDe: alvo.frequenciaAPartirDe ?? null,
-  });
-  if (situacao.tipo === 'definida') return textoFrequencia(situacao.freq);
-  if (situacao.tipo === 'sem-ancora') return TEXTO_SEM_ANCORA;
-  if (situacao.tipo === 'incompleta') return 'Frequência incompleta';
-  if (situacao.tipo === 'sob-demanda') return 'Sob demanda';
-  return 'Sem meta definida';
-}
 
 function numeroDeDias(texto: string): number | null {
   const n = Number.parseInt(texto.replace(/\D/g, ''), 10);
@@ -132,59 +110,6 @@ function RegrasDoAcompanhamento({
   );
 }
 
-function CamposDaMeta({
-  vezes,
-  unidade,
-  inicio,
-  onVezes,
-  onUnidade,
-  onInicio,
-}: {
-  vezes: string;
-  unidade: UnidadeDaMeta;
-  inicio: string;
-  onVezes: (valor: string) => void;
-  onUnidade: (valor: UnidadeDaMeta) => void;
-  onInicio: (valor: string) => void;
-}) {
-  return (
-    <div className="grid-form">
-      <label className="flex flex-col gap-1" htmlFor="onda-quantidade">
-        <Text variant="meta" as="span">Quantidade</Text>
-        <input
-          id="onda-quantidade"
-          type="text"
-          inputMode="numeric"
-          aria-label="Quantidade"
-          className={CAMPO}
-          value={vezes}
-          onChange={event => onVezes(event.target.value.replace(/\D/g, '').slice(0, 2))}
-        />
-      </label>
-      <div className="flex flex-col gap-1">
-        <Text variant="meta" as="span">Período</Text>
-        <SelectField
-          block
-          ariaLabel="Período"
-          value={unidade}
-          onChange={valor => onUnidade(unidadeDaMeta(valor))}
-          options={UNIDADES}
-        />
-      </div>
-      <label className="flex flex-col gap-1" htmlFor="onda-inicio">
-        <Text variant="meta" as="span">Data de início{unidade === 'quinzena' ? '' : ' (opcional)'}</Text>
-        <input
-          id="onda-inicio"
-          type="date"
-          aria-label="Data de início"
-          className={CAMPO}
-          value={inicio}
-          onChange={event => onInicio(event.target.value)}
-        />
-      </label>
-    </div>
-  );
-}
 
 type AlvoSerie = { tipo: 'serie' | 'quadro'; serie: Serie };
 type AlvoTemporada = { tipo: 'temporada'; temporada: Temporada; serie: Serie };
@@ -591,7 +516,7 @@ export function ContinuidadePanel() {
                 nome={quadro.name}
                 detalhe="Quadro"
                 marcada={acompanhaNoGeral(quadro)}
-                resumo={textoDaFrequenciaDe(quadro)}
+                resumo={textoDoChip(quadro)}
                 onToggle={valor => alternarSerie(quadro, valor)}
                 onEditar={() => abrir(`s:${quadro.id}`)}
               />
@@ -610,7 +535,7 @@ export function ContinuidadePanel() {
                   id={`onda-${serie.id}`}
                   nome={serie.name}
                   marcada={acompanhaNoGeral(serie)}
-                  resumo={textoDaFrequenciaDe(serie)}
+                  resumo={textoDoChip(serie)}
                   onToggle={valor => alternarSerie(serie, valor)}
                   onEditar={() => abrir(`s:${serie.id}`)}
                 />
@@ -623,7 +548,7 @@ export function ContinuidadePanel() {
                         nome={quadro.name}
                         detalhe="Quadro"
                         marcada={acompanhaNoGeral(quadro)}
-                        resumo={textoDaFrequenciaDe(quadro)}
+                        resumo={textoDoChip(quadro)}
                         onToggle={valor => alternarSerie(quadro, valor)}
                         onEditar={() => abrir(`s:${quadro.id}`)}
                       />
@@ -635,7 +560,7 @@ export function ContinuidadePanel() {
                         nome={temporada.nome}
                         detalhe="Temporada"
                         marcada={temporada.acompanhar === true}
-                        resumo={textoDaFrequenciaDe(temporada)}
+                        resumo={textoDoChip(temporada)}
                         ritmoProprio={ondaComRitmoProprio(temporada)}
                         onToggle={valor => alternarTemporada(temporada, valor)}
                         onEditar={() => abrir(`t:${temporada.id}`)}
