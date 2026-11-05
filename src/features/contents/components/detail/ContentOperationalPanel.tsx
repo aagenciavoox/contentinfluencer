@@ -19,6 +19,7 @@ import {
 } from '../../../editorial/lib/funcoes';
 import { aplicarEscolhasDaSerie, marcarEscolhaManual } from '../../../editorial/lib/escolhasSerie';
 import { pilarDoConteudo } from '../../../editorial/lib/herancaSerie';
+import { herancaNaFicha } from '../../lib/herancaNaFicha';
 import type {Weekday} from '../../../settings/lib/postingTimes';
 import {cn} from '../../../../lib/utils';
 import {useAppContext} from '../../../../context/AppContext';
@@ -606,6 +607,18 @@ export function ContentOperationalPanel({
   const formInputClass =
     'w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 t-body text-[var(--text-primary)] outline-none focus:border-[var(--accent-blue)] transition-colors';
 
+  const linhasDeHeranca = herancaNaFicha(draft, series, pilares);
+  const herancaSection = linhasDeHeranca.length > 0 ? (
+    <div className="stack-xs" aria-label="Herança da série">
+      <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">Herança da série</Text>
+      {linhasDeHeranca.map(linha => (
+        <Text key={linha.campo} variant="meta" as="p" className="text-[var(--text-secondary)]">
+          <span className="text-[var(--text-primary)]">{linha.rotulo}: {linha.valor}</span> · {linha.origem}
+        </Text>
+      ))}
+    </div>
+  ) : null;
+
   const propertiesSection = (
     <PropertySection label="Propriedades">
       <PropertyRow label="Série" icon={<Layers />}>
@@ -1031,6 +1044,7 @@ export function ContentOperationalPanel({
               ))}
             </RoteiroSelect>
           </RoteiroField>
+          {herancaSection}
         </AsideAccordion>
 
         <AsideAccordion id="schedule" title="Agendamento" openId={openSection} onToggle={toggleSection} alwaysOpen={sectionsOpen}>
@@ -1102,6 +1116,7 @@ export function ContentOperationalPanel({
         ) : null}
 
         {propertiesSection}
+        {herancaSection}
         {scheduleSection}
 
         {publishDateOnly ? (

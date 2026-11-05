@@ -66,6 +66,7 @@ export function SerieCard({
   item,
   pilarNome,
   temporadasCount = 0,
+  ondasComRitmoProprio = 0,
   emAberto = false,
   onOpen,
   onOpenFilhos,
@@ -73,6 +74,8 @@ export function SerieCard({
   item: ItemLista;
   pilarNome?: string | null;
   temporadasCount?: number;
+  /** Waves acompanhadas com meta própria: saem da conta da série. */
+  ondasComRitmoProprio?: number;
   mostrarOnde?: boolean;
   emAberto?: boolean;
   onOpen: (serieId: string) => void;
@@ -204,6 +207,12 @@ export function SerieCard({
           <Text variant="itemTitle" as="h3" className="leading-snug line-clamp-2">
             {nome}
           </Text>
+
+          {ondasComRitmoProprio > 0 ? (
+            <Badge variant="tag" className="w-fit">
+              {ondasComRitmoProprio === 1 ? '1 wave com ritmo próprio' : `${ondasComRitmoProprio} waves com ritmo próprio`}
+            </Badge>
+          ) : null}
 
           {/* Seção com a setinha de detalhes (não abre o card, abre o popover de detalhes) */}
           <div className="mt-auto pt-2 border-t border-[var(--border-color)]">

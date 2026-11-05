@@ -369,3 +369,38 @@ console.log('saudeIndicadores (acompanhamento geral): ok');
   assert.equal(textoRitmoAbaixo('2026-11-05', '2026-11-05'), 'ainda dá tempo');
   assert.equal(textoRitmoAbaixo('2026-11-04', '2026-11-05'), 'ficou pro próximo período');
 }
+
+// --- Wave com janela, distância e dias seguidos, como no acompanhamento geral.
+{
+  const mae = serie({ id: 'mae', name: 'Mãe', acompanharContinuidade: false });
+  const novembro = { inicio: '2026-11-02', fim: '2026-11-29' };
+  const onda = {
+    id: 'w', serieId: 'mae', nome: 'T1', acompanhar: true,
+    frequenciaVezes: 1, frequenciaUnidade: 'semana', frequenciaAPartirDe: '2026-11-02',
+  };
+  const futura = continuidadeDasSeries({ series: [mae], temporadas: [{ ...onda, acompanhamentoInicio: '2026-12-10' }], itens: [], periodo: novembro });
+  assert.deepEqual(futura.naoAvaliadas.map(item => item.motivo), ['inicio-futuro']);
+  const encerrada = continuidadeDasSeries({ series: [mae], temporadas: [{ ...onda, acompanhamentoTermino: '2026-10-01' }], itens: [], periodo: novembro });
+  assert.deepEqual(encerrada.naoAvaliadas.map(item => item.motivo), ['encerrado']);
+
+  const itens = [
+    item('a', '2026-11-09', { serieId: 'mae', temporadaId: 'w' } as never),
+    item('b', '2026-11-10', { serieId: 'mae', temporadaId: 'w' } as never),
+  ];
+  const regras = continuidadeDasSeries({
+    series: [mae],
+    temporadas: [{ ...onda, distanciaMaxDias: 7, evitarDiasSeguidos: true }],
+    itens,
+    periodo: novembro,
+    hoje: '2026-11-25',
+    progressoDasOndas: new Map([['w', { publicados: 2, total: 5, diasDesdeUltima: 21 }]]),
+  });
+  const linha = regras.linhas[0];
+  assert.equal(linha.tipo, 'temporada');
+  assert.equal((linha.diasSeguidos ?? []).length, 1);
+  assert.ok((linha.distancias ?? []).length > 0);
+  assert.deepEqual(linha.progresso, { publicados: 2, total: 5, diasDesdeUltima: 21, limiteDias: 7 });
+  assert.equal(linha.precisaAtencao, true);
+}
+
+console.log('saudeIndicadores (wave): ok');

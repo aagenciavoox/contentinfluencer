@@ -13,6 +13,7 @@ await import('./features/contents/lib/contentWorkflow.test.ts');
 await import('./features/contents/lib/contentPipeline.test.ts');
 await import('./features/contents/lib/esteiraDisplay.test.ts');
 await import('./features/contents/lib/contentBody.test.ts');
+await import('./features/contents/lib/herancaNaFicha.test.ts');
 await import('./features/contents/lib/seriesScriptTemplate.test.ts');
 await import('./features/contents/lib/draftChanges.test.ts');
 await import('./features/contents/lib/spokenDuration.test.ts');

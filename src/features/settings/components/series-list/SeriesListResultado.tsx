@@ -8,6 +8,7 @@ import { Text } from '../../../../components/ui/Text';
 import { ToggleRow } from '../../../../components/ui/ToggleSwitch';
 import { useAppContext } from '../../../../context/AppContext';
 import { temporadasDoEscopo } from '../../../editorial/lib/temporadas';
+import { ondaComRitmoProprio } from '../../../editorial/lib/metaPropria';
 import type { SeriesListaModelo } from '../../hooks/useSeriesLista';
 import type { ItemLista } from '../../lib/seriesListaView';
 import { SerieCard } from './SerieCard';
@@ -22,6 +23,7 @@ export function ResultadoDaLista({ modelo, celular = false }: { modelo: SeriesLi
       item={item}
       pilarNome={modelo.pilarNome(item)}
       temporadasCount={temporadasDoEscopo(item.serie.id, state.temporadas).length}
+      ondasComRitmoProprio={state.temporadas.filter(onda => onda.serieId === item.serie.id && ondaComRitmoProprio(onda)).length}
       mostrarOnde={mostrarOnde}
       emAberto={modelo.emAberto(item.serie.id)}
       onOpen={modelo.acoes.onOpen}

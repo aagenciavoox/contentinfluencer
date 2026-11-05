@@ -64,7 +64,16 @@ export type OndaGravada = {
   frequenciaVezes: number | null;
   frequenciaUnidade: UnidadeDaMeta | null;
   frequenciaAPartirDe: string | null;
+  /** Janela e regras do acompanhamento da wave, como no acompanhamento geral da série. */
+  inicio: string | null;
+  termino: string | null;
+  distanciaMaxDias: number | null;
+  evitarDiasSeguidos: boolean;
 };
+
+function dia(valor: unknown): string | null {
+  return typeof valor === 'string' && /^\d{4}-\d{2}-\d{2}/.test(valor) ? valor.slice(0, 10) : null;
+}
 
 /**
  * Ritmo próprio: a wave anda sozinha e os episódios dela saem da conta da série de cima.
@@ -88,6 +97,12 @@ export function ondaDasLinhas(temporadaId: string, acompanhamentos: readonly Lin
     frequenciaVezes: unidade ? vezes : null,
     frequenciaUnidade: unidade,
     frequenciaAPartirDe: unidade ? aPartirDe : null,
+    inicio: dia(acompanhamento?.inicio),
+    termino: dia(acompanhamento?.termino),
+    distanciaMaxDias: typeof acompanhamento?.distancia_max_dias === 'number' && acompanhamento.distancia_max_dias > 0
+      ? acompanhamento.distancia_max_dias
+      : null,
+    evitarDiasSeguidos: acompanhamento?.evitar_dias_seguidos === true,
   };
 }
 
@@ -104,6 +119,10 @@ export function linhasDaOnda(temporada: {
   frequenciaVezes?: number | null;
   frequenciaUnidade?: string | null;
   frequenciaAPartirDe?: string | null;
+  acompanhamentoInicio?: string | null;
+  acompanhamentoTermino?: string | null;
+  distanciaMaxDias?: number | null;
+  evitarDiasSeguidos?: boolean;
 }): { acompanhamento: Linha | null; meta: Linha | null } {
   const vezes = typeof temporada.frequenciaVezes === 'number' && temporada.frequenciaVezes > 0 ? Math.trunc(temporada.frequenciaVezes) : null;
   const unidade = UNIDADES.has(temporada.frequenciaUnidade as UnidadeDaMeta) ? temporada.frequenciaUnidade as UnidadeDaMeta : null;
@@ -129,6 +148,12 @@ export function linhasDaOnda(temporada: {
       formato: null,
       ativo: temporada.acompanhar === true,
       ritmo_proprio: temporada.ritmoProprio !== false,
+      inicio: temporada.acompanhamentoInicio || null,
+      termino: temporada.acompanhamentoTermino || null,
+      distancia_max_dias: typeof temporada.distanciaMaxDias === 'number' && temporada.distanciaMaxDias > 0
+        ? Math.trunc(temporada.distanciaMaxDias)
+        : null,
+      evitar_dias_seguidos: temporada.evitarDiasSeguidos === true,
     }
     : null;
   return { acompanhamento, meta };

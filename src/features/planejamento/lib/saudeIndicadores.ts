@@ -1,4 +1,5 @@
 import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns';
+import type { ProgressoDaOnda } from './episodioNaTemporada.ts';
 import type { FuncaoEditorial } from '../../../lib/database.ts';
 import {
   apurarSerie,
@@ -203,6 +204,8 @@ export type LinhaContinuidade<T> = {
   distancias?: DistanciaExcessiva[];
   /** Episódios em dias seguidos, quando a regra está ligada. */
   diasSeguidos?: DiasSeguidos[];
+  /** Só na wave: "Wave 3/12" e há quantos dias está parada. */
+  progresso?: (ProgressoDaOnda & { limiteDias: number | null }) | null;
   /** Janelas que só chegam à meta por post-it: reservadas, conteúdo a desenvolver. */
   reservadas: IntervaloAvaliado[];
   /** Mais que a meta num intervalo enquanto outro ficou vazio. */
@@ -276,7 +279,13 @@ export type TemporadaDaSaude = {
   frequenciaAPartirDe?: string | null;
   /** Rascunho e arquivada não viram linha na Saúde. */
   status?: 'rascunho' | 'ativa' | 'arquivada';
+  /** Janela e regras do acompanhamento da wave. */
+  acompanhamentoInicio?: string | null;
+  acompanhamentoTermino?: string | null;
+  distanciaMaxDias?: number | null;
+  evitarDiasSeguidos?: boolean;
 };
+
 
 export function continuidadeDasSeries<T extends ItemSaude>(input: {
   series: readonly SerieDaSaude[];
@@ -288,6 +297,8 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
   hoje?: string;
   /** Waves com acompanhamento próprio. Só entram as marcadas. */
   temporadas?: readonly TemporadaDaSaude[];
+  /** Andamento de cada wave, pelo id da temporada (ver progressoDasOndas). */
+  progressoDasOndas?: ReadonlyMap<string, ProgressoDaOnda>;
 }): Continuidade<T> {
   const { series, itens, periodo } = input;
   const porId = new Map(series.map(serie => [serie.id, serie]));
@@ -442,6 +453,18 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
       naoAvaliadas.push({ serieId: dona.id, nome, motivo: 'sob-demanda', texto: 'Sob demanda: não avaliada' });
       continue;
     }
+    // Início e término do acompanhamento da wave, como no geral da série.
+    const janelaDaOnda = { inicio: temporada.acompanhamentoInicio ?? null, termino: temporada.acompanhamentoTermino ?? null };
+    if (janelaDaOnda.inicio && janelaDaOnda.inicio > periodo.fim) {
+      acompanhadas += 1;
+      naoAvaliadas.push({ serieId: dona.id, nome, motivo: 'inicio-futuro', texto: `Acompanhamento começa em ${format(parseISO(janelaDaOnda.inicio), 'dd/MM/yyyy')}: ainda não avaliado` });
+      continue;
+    }
+    if (janelaDaOnda.termino && janelaDaOnda.termino < periodo.inicio) {
+      acompanhadas += 1;
+      naoAvaliadas.push({ serieId: dona.id, nome, motivo: 'encerrado', texto: `Acompanhamento terminou em ${format(parseISO(janelaDaOnda.termino), 'dd/MM/yyyy')}: não avaliado` });
+      continue;
+    }
     // Sob demanda não entra na contagem de acompanhadas; com meta (ou pendência de meta), entra.
     acompanhadas += 1;
     const daOnda = itens.filter(item => item.temporadaId === temporada.id);
@@ -458,7 +481,7 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
     const pausas = input.pausas ?? [];
     const serieIds = idsComAncestrais(dona.id, series);
     const intervalos = apuracao.janelas.flatMap(janela => {
-      const cobertura = coberturaNoGeral(janela, null, pausas, serieIds);
+      const cobertura = coberturaNoGeral(janela, janelaDaOnda, pausas, serieIds);
       if (cobertura === 'fora') return [];
       const item = avaliado(janela);
       if (cobertura === 'pausada') return [{ ...item, abaixo: false, pausada: true }];
@@ -467,6 +490,23 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
     });
     const cobrados = intervalos.filter(intervalo => !intervalo.pausada && !intervalo.parcial);
     const abaixo = intervalos.filter(intervalo => intervalo.abaixo);
+    const hojeDaOnda = input.hoje ?? format(new Date(), 'yyyy-MM-dd');
+    const datasDaOnda = apuracao.itens.flatMap(item => (item.data ? [item.data.slice(0, 10)] : []));
+    const distanciasDaOnda = temporada.distanciaMaxDias
+      ? distanciasExcessivas({
+        datas: datasDaOnda,
+        periodo,
+        limiteDias: temporada.distanciaMaxDias,
+        inicioAcompanhamento: janelaDaOnda.inicio,
+        terminoAcompanhamento: janelaDaOnda.termino,
+        diasPausados: new Set(diasDePausa(pausas, { tipo: 'serie', serieIds }, {
+          inicio: format(addDays(parseISO(periodo.inicio), -400), 'yyyy-MM-dd'),
+          fim: periodo.fim,
+        })),
+        hoje: hojeDaOnda,
+      })
+      : [];
+    const diasSeguidosDaOnda = temporada.evitarDiasSeguidos ? diasSeguidosDosItens(apuracao.itens, periodo) : [];
     linhas.push({
       chave: `t:${temporada.id}`,
       serieId: dona.id,
@@ -479,13 +519,18 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
       abaixo,
       pausadas: intervalos.filter(intervalo => intervalo.pausada),
       parciais: intervalos.filter(intervalo => intervalo.parcial),
-      distancias: [],
-      diasSeguidos: [],
+      distancias: distanciasDaOnda,
+      diasSeguidos: diasSeguidosDaOnda,
+      progresso: (() => {
+        const andamento = input.progressoDasOndas?.get(temporada.id);
+        return andamento ? { ...andamento, limiteDias: temporada.distanciaMaxDias ?? null } : null;
+      })(),
       reservadas: cobrados.filter(intervalo => intervalo.estado === 'reservada'),
       concentrada: apuracao.concentrada,
       semEpisodios: cobrados.length > 0 && cobrados.every(intervalo => intervalo.estado === 'vazia'),
       foraDoPeriodo: apuracao.foraDoPeriodo,
-      precisaAtencao: abaixo.length > 0 || apuracao.concentrada || cobrados.some(intervalo => intervalo.estado === 'reservada'),
+      precisaAtencao: abaixo.length > 0 || apuracao.concentrada || cobrados.some(intervalo => intervalo.estado === 'reservada')
+        || distanciasDaOnda.length > 0 || diasSeguidosDaOnda.length > 0,
       itens: apuracao.itens,
     });
   }

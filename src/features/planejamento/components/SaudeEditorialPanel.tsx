@@ -39,6 +39,7 @@ import { blocoDoAviso, detalheDoAviso } from '../lib/detalheDoAviso';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import { secoesSalvas, type IntervaloSaude } from '../lib/saudeActions';
 import { withDetailBack } from '../../../lib/navigation/detailBack';
+import { textoDoProgresso } from '../lib/episodioNaTemporada';
 
 const STORAGE_EXPANDED_KEY = 'content-os:saude-editorial-expanded';
 const STORAGE_SECOES_KEY = 'content-os:saude-editorial-secoes-v2';
@@ -1051,6 +1052,11 @@ export function SaudeEditorialPanel({
                                 ) : linha.tipo === 'temporada' ? (
                                   <Badge variant="neutral" className="px-1.5 py-0">
                                     {linha.paiNome ? `Temporada de ${linha.paiNome}` : 'Temporada'}
+                                  </Badge>
+                                ) : null}
+                                {linha.tipo === 'temporada' && linha.progresso && linha.progresso.total > 0 ? (
+                                  <Badge variant="tag" className="px-1.5 py-0">
+                                    {textoDoProgresso(linha.progresso, linha.progresso.limiteDias)}
                                   </Badge>
                                 ) : null}
                               </div>

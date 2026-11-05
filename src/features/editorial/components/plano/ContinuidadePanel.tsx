@@ -13,7 +13,8 @@ import { Text } from '../../../../components/ui/Text';
 import { useAppContext } from '../../../../context/AppContext';
 import type { Platform, Serie } from '../../../../lib/database';
 import type { Temporada } from '../../lib/temporadas';
-import { ritmoProprioMarcado } from '../../lib/metaPropria';
+import { ondaComRitmoProprio, ritmoProprioMarcado } from '../../lib/metaPropria';
+import { Badge } from '../../../../components/ui/Badge';
 import { generateUUID } from '../../../../utils/uuid';
 import { tipoDaSerie } from '../../../settings/lib/serieAgrupamento';
 import { rotuloConta } from '../../../contas/lib/contas';
@@ -201,6 +202,12 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
   const [geral, setGeral] = useState<AcompanhamentoSerie | null>(alvo.tipo === 'temporada' ? null : acompanhamentoGeral(alvo.serie));
   const [linhas, setLinhas] = useState<Linha[]>(alvo.tipo === 'temporada' ? [] : linhasDaSerie(alvo.serie));
   const [erro, setErro] = useState<string | null>(null);
+  const [regrasDaOnda, setRegrasDaOnda] = useState(() => ({
+    inicio: alvo.tipo === 'temporada' ? alvo.temporada.acompanhamentoInicio ?? null : null,
+    termino: alvo.tipo === 'temporada' ? alvo.temporada.acompanhamentoTermino ?? null : null,
+    distanciaMaxDias: alvo.tipo === 'temporada' ? alvo.temporada.distanciaMaxDias ?? null : null,
+    evitarDiasSeguidos: alvo.tipo === 'temporada' ? alvo.temporada.evitarDiasSeguidos === true : false,
+  }));
   const comEscopos = alvo.tipo !== 'temporada' && alvo.serie.acompanhamentos !== undefined;
 
   const mudar = (id: string, patch: Partial<Linha>) => setLinhas(prev => prev.map(linha => (linha.id === id ? { ...linha, ...patch } : linha)));
@@ -221,6 +228,10 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
     if ('erro' in frequencia) { setErro(frequencia.erro); return; }
 
     if (alvo.tipo === 'temporada') {
+      if (regrasDaOnda.inicio && regrasDaOnda.termino && regrasDaOnda.inicio > regrasDaOnda.termino) {
+        setErro('O término vem antes do início.');
+        return;
+      }
       void dispatch({
         type: 'UPDATE_TEMPORADA',
         payload: {
@@ -230,6 +241,10 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
           frequenciaVezes: frequencia.vezes,
           frequenciaUnidade: frequencia.unidade,
           frequenciaAPartirDe: frequencia.aPartirDe,
+          acompanhamentoInicio: regrasDaOnda.inicio,
+          acompanhamentoTermino: regrasDaOnda.termino,
+          distanciaMaxDias: regrasDaOnda.distanciaMaxDias,
+          evitarDiasSeguidos: regrasDaOnda.evitarDiasSeguidos,
         },
       });
       onClose();
@@ -348,6 +363,15 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
         <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
           Quantidade vazia tira a meta. Com o acompanhamento ligado e sem meta, a Saúde pede a configuração e não marca falta.
         </Text>
+        {alvo.tipo === 'temporada' ? (
+          <div className="stack-xs border-t border-[var(--border-subtle)] pt-3">
+            <Text variant="bodyStrong" as="span">Janela e regras da wave</Text>
+            <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+              Antes do início não há aviso. Depois do término, sai da conferência.
+            </Text>
+            <RegrasDoAcompanhamento item={regrasDaOnda} onChange={patch => setRegrasDaOnda(atual => ({ ...atual, ...patch }))} />
+          </div>
+        ) : null}
         {comEscopos && geral ? (
           <div className="stack-xs border-t border-[var(--border-subtle)] pt-3">
             <Text variant="bodyStrong" as="span">Janela do acompanhamento geral</Text>
@@ -443,9 +467,11 @@ function LinhaDaOnda({
   detalhe,
   marcada,
   resumo,
+  ritmoProprio = false,
   onToggle,
   onEditar,
 }: {
+  ritmoProprio?: boolean;
   id: string;
   nome: string;
   detalhe?: string;
@@ -470,6 +496,7 @@ function LinhaDaOnda({
         </span>
       </label>
       <span className="flex shrink-0 items-center gap-2">
+        {ritmoProprio ? <Badge variant="tag" className="px-1.5 py-0">Ritmo próprio</Badge> : null}
         <Text variant="meta" as="span" className="text-[var(--text-secondary)]">{resumo}</Text>
         <AppButton variant="ghost" size="sm" onClick={onEditar}>Editar</AppButton>
       </span>
@@ -609,6 +636,7 @@ export function ContinuidadePanel() {
                         detalhe="Temporada"
                         marcada={temporada.acompanhar === true}
                         resumo={textoDaFrequenciaDe(temporada)}
+                        ritmoProprio={ondaComRitmoProprio(temporada)}
                         onToggle={valor => alternarTemporada(temporada, valor)}
                         onEditar={() => abrir(`t:${temporada.id}`)}
                       />

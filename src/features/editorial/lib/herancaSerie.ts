@@ -379,3 +379,27 @@ export function resolverHerancaSerie(
       : [],
   };
 }
+
+/**
+ * De qual série da subida (própria primeiro) vem cada valor herdado: pilar, objetivo e energia.
+ * Mesmas paradas dos resolvedores: "sem pilar" e "varia" interrompem a subida.
+ */
+export function origemDaHeranca<S extends SerieClassificacao & { energiaPadrao?: EnergiaNivel | null }>(
+  serieId: string | null | undefined,
+  series: readonly S[],
+): { pilar: S | null; objetivo: S | null; energia: S | null } {
+  const id = serieId?.trim();
+  const origem = { pilar: null as S | null, objetivo: null as S | null, energia: null as S | null };
+  if (!id) return origem;
+  const subida = propriaEAncestrais(id, series);
+  for (const serie of subida) {
+    if (pilarPrincipalDaSerie(serie)) { origem.pilar = serie; break; }
+    if (serie.semPilar) break;
+  }
+  for (const serie of subida) {
+    if (serie.funcaoPadrao === 'varia') break;
+    if (padraoHerdavel(serie.funcaoPadrao)) { origem.objetivo = serie; break; }
+  }
+  origem.energia = subida.find(serie => Boolean(serie.energiaPadrao)) ?? null;
+  return origem;
+}

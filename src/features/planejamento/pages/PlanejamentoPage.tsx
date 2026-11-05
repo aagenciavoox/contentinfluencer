@@ -80,7 +80,7 @@ import {POST_IT_MIME, PostItAssuntosObras, PostItIdentity, PostItNote, type Post
 import {assuntosEmUso, conteudoTemAssunto, nomesDasObras, nomesDosAssuntos} from '../lib/assuntosObras';
 import {avisosDeOrientacao, type AvisoOrientacao} from '../lib/orientacaoEditorial';
 import {fimDeSemana, periodoDaVista, type VistaPlanejamento} from '../lib/periodoPlanejamento';
-import {rotulosDeEpisodio} from '../lib/episodioNaTemporada';
+import {progressoDasOndas, rotulosDeEpisodio} from '../lib/episodioNaTemporada';
 import type {PublicacaoNoDia} from '../lib/publicacoesDoMes';
 import {PeriodoPanel} from '../../editorial/components/plano/PeriodoPanel';
 import {periodoInicial, type PeriodoSelecionado} from '../../editorial/components/plano/PeriodoEditorialControl';
@@ -557,7 +557,15 @@ export function PlanejamentoPage() {
       periodo: janelaDaContinuidade(periodoDaSaude),
       platforms: state.platforms,
     });
-    const continuidade = continuidadeDasSeries({series: state.series, itens: estendido.itens, periodo: periodoDaSaude, pausas: settings.pausas ?? [], temporadas: state.temporadas});
+    const continuidade = continuidadeDasSeries({
+      series: state.series,
+      itens: estendido.itens,
+      periodo: periodoDaSaude,
+      pausas: settings.pausas ?? [],
+      temporadas: state.temporadas,
+      // Andamento das waves sobre todos os episódios, não só os do período.
+      progressoDasOndas: progressoDasOndas(state.contents, format(new Date(), 'yyyy-MM-dd')),
+    });
     // Publicações por conta no trecho, com a meta de cada conta e a soma (incompleta quando falta meta).
     const publicacoes = publicacoesNaSaude({
       contents: contentsDoFiltro,

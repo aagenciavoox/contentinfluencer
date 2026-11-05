@@ -23,6 +23,11 @@ export type Temporada = {
    * Ligado por padrão quando há meta (serie_acompanhamento.ritmo_proprio).
    */
   ritmoProprio?: boolean;
+  /** Janela e regras do acompanhamento da wave (serie_acompanhamento). */
+  acompanhamentoInicio?: string | null;
+  acompanhamentoTermino?: string | null;
+  distanciaMaxDias?: number | null;
+  evitarDiasSeguidos?: boolean;
   createdAt: string;
 };
 

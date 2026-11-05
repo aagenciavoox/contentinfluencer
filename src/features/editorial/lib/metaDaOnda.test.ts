@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { frequenciaParaGravar } from './metaDaOnda.ts';
+import { frequenciaParaGravar, linhasDaOnda, ondaDasLinhas } from './metaDaOnda.ts';
 
 const vazia = frequenciaParaGravar({ vezes: null, unidade: 'semana', aPartirDe: '2026-11-01', tipo: 'serie' });
 assert.ok(!('erro' in vazia));
@@ -21,6 +21,23 @@ if (!('erro' in ok)) {
   assert.equal(ok.unidade, 'semana');
   assert.equal(ok.aPartirDe, '2026-11-04');
   assert.equal(ok.recomendada, '2 por semana');
+}
+
+// --- Janela e regras da wave: gravadas no acompanhamento e lidas de volta.
+{
+  const { acompanhamento } = linhasDaOnda({
+    id: 't1', userId: 'u', serieId: 's', acompanhar: true,
+    acompanhamentoInicio: '2026-11-01', acompanhamentoTermino: '', distanciaMaxDias: 6.7, evitarDiasSeguidos: true,
+  });
+  assert.equal(acompanhamento?.inicio, '2026-11-01');
+  assert.equal(acompanhamento?.termino, null);
+  assert.equal(acompanhamento?.distancia_max_dias, 6);
+  assert.equal(acompanhamento?.evitar_dias_seguidos, true);
+  const lida = ondaDasLinhas('t1', [acompanhamento!], []);
+  assert.equal(lida.inicio, '2026-11-01');
+  assert.equal(lida.termino, null);
+  assert.equal(lida.distanciaMaxDias, 6);
+  assert.equal(lida.evitarDiasSeguidos, true);
 }
 
 console.log('metaDaOnda: ok');

@@ -251,6 +251,13 @@ export interface Temporada {
    * Ligado por padrão quando há meta (serie_acompanhamento.ritmo_proprio).
    */
   ritmoProprio?: boolean;
+  /** Janela do acompanhamento da wave (serie_acompanhamento.inicio / termino). */
+  acompanhamentoInicio?: string | null;
+  acompanhamentoTermino?: string | null;
+  /** Distância máxima sem episódio da wave, em dias. */
+  distanciaMaxDias?: number | null;
+  /** Avisa episódios da wave em dias seguidos. */
+  evitarDiasSeguidos?: boolean;
   /** Rascunho ou arquivada: fora da Saúde e da conta da série. Ausente no banco antigo = ativa. */
   status?: StatusSerie;
   createdAt: string;
@@ -1425,6 +1432,10 @@ const mp = {
       : null,
     acompanhar: r.acompanhar === true,
     ritmoProprio: r.ritmo_proprio === true,
+    acompanhamentoInicio: typeof r.acompanhamento_inicio === 'string' && r.acompanhamento_inicio ? r.acompanhamento_inicio.slice(0, 10) : null,
+    acompanhamentoTermino: typeof r.acompanhamento_termino === 'string' && r.acompanhamento_termino ? r.acompanhamento_termino.slice(0, 10) : null,
+    distanciaMaxDias: typeof r.distancia_max_dias === 'number' && r.distancia_max_dias > 0 ? r.distancia_max_dias : null,
+    evitarDiasSeguidos: r.evitar_dias_seguidos === true,
     status: readStatusSerie(r.status),
     createdAt: r.created_at,
   }),
@@ -3592,7 +3603,7 @@ async function lerTemporadas(uid: string) {
 async function comOndas(uid: string, linhas: Row[]): Promise<Row[]> {
   if (!supabase || linhas.length === 0) return linhas;
   const [acompanhamentos, metas] = await Promise.all([
-    supabase.from('serie_acompanhamento').select('temporada_id, escopo, ativo, ritmo_proprio').eq('user_id', uid).eq('escopo', 'temporada'),
+    supabase.from('serie_acompanhamento').select('temporada_id, escopo, ativo, ritmo_proprio, inicio, termino, distancia_max_dias, evitar_dias_seguidos').eq('user_id', uid).eq('escopo', 'temporada'),
     supabase.from('serie_meta').select('temporada_id, vezes, unidade, a_partir_de').eq('user_id', uid).not('temporada_id', 'is', null),
   ]);
   const acomp = acompanhamentos.error ? [] : (acompanhamentos.data ?? []) as Row[];
@@ -3606,6 +3617,10 @@ async function comOndas(uid: string, linhas: Row[]): Promise<Row[]> {
       frequencia_vezes: onda.frequenciaVezes,
       frequencia_unidade: onda.frequenciaUnidade,
       frequencia_a_partir_de: onda.frequenciaAPartirDe,
+      acompanhamento_inicio: onda.inicio,
+      acompanhamento_termino: onda.termino,
+      distancia_max_dias: onda.distanciaMaxDias,
+      evitar_dias_seguidos: onda.evitarDiasSeguidos,
     };
   });
 }
