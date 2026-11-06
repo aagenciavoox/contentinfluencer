@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import type {BibliotecaItem, Serie, Tema} from '../../../lib/database.ts';
 import {CONTENT_STATUS} from '../../contents/lib/contentPipeline.ts';
 import {createContentDraft} from '../../contents/lib/createContentDraft.ts';
-import {avisosDeOrientacao} from './orientacaoEditorial.ts';
+import {LIMITES_CONCENTRACAO_PADRAO, excecaoCobre} from '../../editorial/lib/concentracao.ts';
+import {avisosDeOrientacao, mapaSequenciaPorConteudo, excecaoFoiDeProposito} from './orientacaoEditorial.ts';
 import type {PlanejamentoPostIt} from './postIt.ts';
 import {periodoDaSemana} from './periodoPlanejamento.ts';
 
@@ -83,7 +84,7 @@ function testLimitesEExcecaoDeObra() {
     obras: [obraSanderson],
     periodo: {inicio: '2026-11-01', fim: '2026-11-07'},
   };
-  const limiteMaior = {obraRepeticoes: 3, obraJanelaDias: 7, assuntoFracaoMax: 1 / 3, assuntoMinPautas: 3};
+  const limiteMaior = {...LIMITES_CONCENTRACAO_PADRAO, obraRepeticoes: 3, obraJanelaDias: 7, assuntoFracaoMax: 1 / 3, assuntoMinPautas: 3};
   assert.equal(avisosDeOrientacao({...base, concentracao: limiteMaior}).some(aviso => aviso.tipo === 'obra-repetida'), false);
   const excecao = {id: 'e', tipo: 'obra' as const, alvoId: obraSanderson.id, platformId: null, inicio: '2026-11-01', fim: '2026-11-30', nota: 'maratona'};
   assert.equal(avisosDeOrientacao({...base, excecoesConcentracao: [excecao]}).some(aviso => aviso.tipo === 'obra-repetida'), false);
@@ -249,3 +250,65 @@ testSemAcompanhamentoNaoCobra();
 testSobDemandaNaoCobra();
 testPeriodoDaSemanaSegundaADomingo();
 testPostItVinculadoNaoDuplicaObra();
+
+// Sequência deriva de série/wave + conjunto de obras, sem agrupar itens sem obra/escopo.
+{
+  const criar = (id: string, obra: string | null = 'obra-1', seriesId: string | null = 'serie-a', temporadaId: string | null = null) =>
+    createContentDraft({id, bibliotecaItemId: obra, seriesId, temporadaId, temaIds: ['tema-1']});
+  const a = criar('a');
+  const b = criar('b');
+  const outra = criar('outra', 'obra-2');
+  const semObra = criar('sem-obra', null);
+  const semSerie = criar('sem-serie', 'obra-1', null);
+  const wave1 = criar('w1', 'obra-1', 'serie-a', 'wave-1');
+  const wave2 = criar('w2', 'obra-1', 'serie-a', 'wave-2');
+  const mapa = mapaSequenciaPorConteudo([a, b, outra, semObra, semSerie, wave1, wave2]);
+  assert.equal(mapa.a, mapa.b);
+  assert.notEqual(mapa.a, mapa.outra);
+  assert.equal(mapa['sem-obra'], undefined);
+  assert.equal(mapa['sem-serie'], undefined);
+  assert.notEqual(mapa.w1, mapa.w2);
+  assert.notEqual(mapa.a, mapa.w1);
+
+  const base = {
+    contents: [a, b],
+    postIts: [postIt({id: 'pa', date: '2026-11-02', contentId: 'a'}), postIt({id: 'pb', date: '2026-11-08', contentId: 'b'})],
+    series: [], temas: [temaHalloween], obras: [obraSanderson],
+    periodo: {inicio: '2026-11-01', fim: '2026-11-30'},
+  };
+  const avisos = avisosDeOrientacao(base);
+  const janela = avisos.find(item => item.id.startsWith('tema-janela:'))!;
+  assert.ok(janela, '2 em 7 avisa mesmo abaixo do mínimo de 3 para a fração');
+  assert.equal(janela.texto, '2 pautas do mesmo assunto em 7 dias: Halloween (avisa a partir de 2).');
+  assert.equal(avisos.some(item => item.id === 'tema:tema-1'), false);
+  assert.equal(avisosDeOrientacao({...base, sequenciaPorConteudo: mapa}).length, 0);
+  const separados = {...base, postIts: [base.postIts[0], {...base.postIts[1], date: '2026-11-09'}]};
+  assert.equal(avisosDeOrientacao(separados).some(item => item.id.startsWith('tema-janela:')), false);
+  const tres = {...base, contents: [...base.contents, criar('c', null, null)], postIts: [...base.postIts, postIt({id: 'pc', date: '2026-11-03', contentId: 'c'})]};
+  const ambos = avisosDeOrientacao(tres).filter(item => item.tipo === 'tema-concentrado');
+  assert.equal(ambos.length, 2, 'fração e janela coexistem');
+  assert.equal(new Set(ambos.map(item => item.id)).size, 2);
+  const todos = avisosDeOrientacao(tres);
+  const intencionais = todos.flatMap((aviso, index) => {
+    const excecao = excecaoFoiDeProposito(aviso, `e${index}`);
+    return excecao ? [excecao] : [];
+  });
+  assert.deepEqual(avisosDeOrientacao({...tres, excecoesConcentracao: intencionais}), [], 'toast inteiro some sem reaparecer em janela deslocada');
+  const multi = mapaSequenciaPorConteudo([{...a, id: 'ma', livroIds: ['z', 'a']}, {...b, id: 'mb', livroIds: ['a', 'z']}]);
+  assert.equal(multi.ma, multi.mb, 'ordem das obras não muda a sequência');
+  assert.ok(avisosDeOrientacao({...base, concentracao: {...LIMITES_CONCENTRACAO_PADRAO, obraJanelaDias: 1}}).some(item => item.id.startsWith('tema-janela:')), 'janela de assunto independe da obra');
+  assert.equal(avisosDeOrientacao({...base, concentracao: {...LIMITES_CONCENTRACAO_PADRAO, assuntoRepeticoes: 3}}).some(item => item.id.startsWith('tema-janela:')), false);
+
+  for (const aviso of avisos) {
+    const excecao = excecaoFoiDeProposito(aviso, 'excecao')!;
+    assert.equal(excecao.platformId, null);
+    assert.equal(excecao.nota, 'foi de propósito');
+    assert.ok(excecaoCobre([excecao], {tipo: excecao.tipo, alvoId: aviso.alvoId!}, aviso.intervalo!));
+    assert.equal(avisosDeOrientacao({...base, excecoesConcentracao: [excecao]}).some(item => item.id === aviso.id), false);
+  }
+  assert.equal(excecaoFoiDeProposito({...janela, alvoId: undefined}, 'e'), null);
+  assert.equal(excecaoFoiDeProposito({...janela, intervalo: undefined}, 'e'), null);
+  assert.equal(excecaoFoiDeProposito({...janela, tipo: 'serie-acima'}, 'e'), null);
+  // Obras diferentes da mesma série continuam gerando janela de assunto.
+  assert.ok(avisosDeOrientacao({...base, contents: [a, {...outra, id: 'b'}], sequenciaPorConteudo: {...mapa, b: mapa.outra}}).some(item => item.id.startsWith('tema-janela:')));
+}

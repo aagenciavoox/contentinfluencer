@@ -26,7 +26,7 @@ const acao = {...contexto, antes, depois, date, postItIds: ['p2', 'p3'], content
 
 // Drop múltiplo: os dois tipos disparam, com os textos da faixa e tom informativo.
 const novos = concentracaoAoColocar(acao);
-assert.deepEqual(novos.map(a => a.tipo), ['obra-repetida', 'tema-concentrado']);
+assert.deepEqual(novos.map(a => a.tipo), ['obra-repetida', 'tema-concentrado', 'tema-concentrado']);
 assert.ok(novos.every(a => a.severidade === 'info'));
 assert.deepEqual(novos.map(a => a.texto), avisosDeConcentracaoNoPlano({...contexto, ...depois}).map(a => a.texto));
 assert.deepEqual(antes.postIts.map(p => p.date), ['2026-11-04', null, null], 'cálculo não muda o plano');
@@ -38,8 +38,8 @@ const excecoes = [
   {id: 'e2', tipo: 'assunto' as const, alvoId: 't', platformId: null, inicio: '2026-10-01', fim: '2026-12-31', nota: ''},
 ];
 assert.deepEqual(concentracaoAoColocar({...acao, settings: {...contexto.settings, excecoesConcentracao: excecoes}}), []);
-assert.equal(concentracaoAoColocar({...acao, settings: {...contexto.settings, excecoesConcentracao: excecoes.map(e => ({...e, fim: '2026-10-31'}))}}).length, 2);
-assert.deepEqual(concentracaoAoColocar({...acao, settings: {...contexto.settings, concentracao: {...contexto.settings.concentracao, obraRepeticoes: 4, assuntoMinPautas: 4}}}), []);
+assert.equal(concentracaoAoColocar({...acao, settings: {...contexto.settings, excecoesConcentracao: excecoes.map(e => ({...e, fim: '2026-10-31'}))}}).length, 3);
+assert.deepEqual(concentracaoAoColocar({...acao, settings: {...contexto.settings, concentracao: {...contexto.settings.concentracao, obraRepeticoes: 4, assuntoMinPautas: 4, assuntoRepeticoes: 4}}}), []);
 
 // Aviso já existente não volta, nem se o texto ou a data inicial da obra mudarem.
 const jaComObra = {...antes, postIts: antes.postIts.map(p => p.id === 'p2' ? movePostIt(p, '2026-11-05') : p)};
@@ -71,7 +71,9 @@ const publicado = conteudo('publicado', {status: CONTENT_STATUS.POSTADO, postedA
 const comPublicado = {contents: [publicado, contents[1]], postIts: [nota('publicado-nota', publicado.id, '2026-11-04'), nota('p2', 'c2', null)]};
 const depoisPublicado = {...comPublicado, postIts: comPublicado.postIts.map(p => p.id === 'p2' ? movePostIt(p, date) : p)};
 const avisoPublicado = concentracaoAoColocar({...acao, antes: comPublicado, depois: depoisPublicado, postItIds: ['p2'], contentIds: ['c2']});
-assert.equal(avisoPublicado.length, 1);
+assert.equal(avisoPublicado.length, 2);
+assert.equal(avisoPublicado.filter(a => a.tipo === 'obra-repetida').length, 1);
+assert.ok(avisoPublicado.every(a => a.contentIds.filter(id => id === 'publicado').length === 1));
 assert.match(avisoPublicado[0].texto, /^2 pautas/);
 assert.ok(avisoPublicado[0].contentIds.includes('publicado'));
 
@@ -94,7 +96,7 @@ let momentos = 0;
 const salvando = colocarEAvisarConcentracao(acao, () => {
   executou = true;
   return new Promise<void>(resolve => {concluir = resolve;});
-}, avisos => {momentos++; assert.equal(avisos.length, 2);});
+}, avisos => {momentos++; assert.equal(avisos.length, 3);});
 assert.ok(executou);
 assert.equal(momentos, 0);
 concluir();
@@ -105,3 +107,15 @@ await colocarEAvisarConcentracao(acao, () => Promise.reject(new Error('falha sim
 
 // Mesmo recorte de redes/formato da faixa: um roteiro oculto não dispara o toast.
 assert.deepEqual(concentracaoAoColocar({...acao, filtro: {redes: ['youtube'], formato: null}}), []);
+
+// Toggle ligado colapsa série + obra; desligado volta a avisar nas duas janelas.
+const mesmaSerie = contents.map(content => ({...content, seriesId: 's'}));
+const par = {contents: mesmaSerie, postIts: depois.postIts.slice(0, 2)};
+assert.deepEqual(avisosDeConcentracaoNoPlano({...contexto, ...par}), []);
+const desligado = {...contexto.settings, concentracao: {...contexto.settings.concentracao, contarSequencia: false}};
+assert.deepEqual(avisosDeConcentracaoNoPlano({...contexto, ...par, settings: desligado}).map(a => a.tipo), ['obra-repetida', 'tema-concentrado']);
+// Janela própria de assunto busca margem maior que a da obra, inclusive publicado sem post-it.
+const longo = {...contexto.settings, concentracao: {...contexto.settings.concentracao, assuntoJanelaDias: 30, obraJanelaDias: 1}};
+const publicadoFora = {...publicado, publishDate: '2026-10-15', postedAt: '2026-10-15T12:00:00Z'};
+const bordaAssunto = avisosDeConcentracaoNoPlano({...contexto, settings: longo, contents: [publicadoFora, contents[1]], postIts: [nota('p2', 'c2', '2026-11-02')]});
+assert.ok(bordaAssunto.some(a => a.id.startsWith('tema-janela:') && a.contentIds.includes('publicado')));

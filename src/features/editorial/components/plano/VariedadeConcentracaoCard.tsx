@@ -6,6 +6,7 @@ import { AppButton } from '../../../../components/ui/AppButton';
 import { Badge } from '../../../../components/ui/Badge';
 import { ChoiceChips } from '../../../../components/ui/ChoiceChips';
 import { SelectField } from '../../../../components/ui/SelectField';
+import { ToggleSwitch } from '../../../../components/ui/ToggleSwitch';
 import { Text } from '../../../../components/ui/Text';
 import { generateUUID } from '../../../../utils/uuid';
 import { rotuloConta } from '../../../contas/lib/contas';
@@ -23,7 +24,7 @@ import { CAMPO, CAMPO_BASE, CampoStepper, CardConfiguracao, inteiroOuNull } from
 import { useEditorialPlano } from './useEditorialPlano';
 import { diaMes } from './ValeAPartirDe';
 
-type LimitesDraft = { repeticoes: string; janela: string; percentual: string; minimo: string };
+type LimitesDraft = { repeticoes: string; janela: string; percentual: string; minimo: string; assuntoRepeticoes: string; assuntoJanela: string };
 
 function draftDe(limites: LimitesConcentracao): LimitesDraft {
   return {
@@ -31,6 +32,8 @@ function draftDe(limites: LimitesConcentracao): LimitesDraft {
     janela: String(limites.obraJanelaDias),
     percentual: String(Math.round(limites.assuntoFracaoMax * 100)),
     minimo: String(limites.assuntoMinPautas),
+    assuntoRepeticoes: String(limites.assuntoRepeticoes),
+    assuntoJanela: String(limites.assuntoJanelaDias),
   };
 }
 
@@ -91,7 +94,7 @@ function EditorDaExcecao({
           }}
           options={[
             { value: 'obra', label: 'Uma obra', description: 'Várias pautas do mesmo livro, filme ou série' },
-            { value: 'assunto', label: 'Um assunto', description: 'Um tema acima da fração do intervalo' },
+            { value: 'assunto', label: 'Um assunto', description: 'Um assunto que se repete no intervalo' },
           ]}
         />
       </div>
@@ -225,7 +228,11 @@ export function VariedadeConcentracaoCard() {
   const janela = inteiroOuNull(draft.janela);
   const percentual = inteiroOuNull(draft.percentual);
   const minimo = inteiroOuNull(draft.minimo);
+  const assuntoRepeticoes = inteiroOuNull(draft.assuntoRepeticoes);
+  const assuntoJanela = inteiroOuNull(draft.assuntoJanela);
   const erros = {
+    assuntoRepeticoes: foraDaFaixa(assuntoRepeticoes, FAIXAS_CONCENTRACAO.assuntoRepeticoes),
+    assuntoJanela: foraDaFaixa(assuntoJanela, FAIXAS_CONCENTRACAO.assuntoJanelaDias),
     repeticoes: foraDaFaixa(repeticoes, FAIXAS_CONCENTRACAO.obraRepeticoes),
     janela: foraDaFaixa(janela, FAIXAS_CONCENTRACAO.obraJanelaDias),
     percentual: foraDaFaixa(percentual, FAIXAS_CONCENTRACAO.assuntoPercentual),
@@ -239,7 +246,7 @@ export function VariedadeConcentracaoCard() {
     const fracao = percentual === Math.round(limites.assuntoFracaoMax * 100) ? limites.assuntoFracaoMax : percentual! / 100;
     gravar({
       ...settings,
-      concentracao: { obraRepeticoes: repeticoes!, obraJanelaDias: janela!, assuntoFracaoMax: fracao, assuntoMinPautas: minimo! },
+      concentracao: { contarSequencia: limites.contarSequencia, assuntoRepeticoes: assuntoRepeticoes!, assuntoJanelaDias: assuntoJanela!, obraRepeticoes: repeticoes!, obraJanelaDias: janela!, assuntoFracaoMax: fracao, assuntoMinPautas: minimo! },
     });
     setEditando(false);
   };
@@ -264,6 +271,18 @@ export function VariedadeConcentracaoCard() {
       )}
     >
       <div className="stack-lg">
+        <div className="flex items-center justify-between gap-3">
+          <label htmlFor="concentracao-sequencia" className="stack-xs">
+            <Text variant="bodyStrong" as="span">Contar sequência uma vez</Text>
+            <Text variant="secondary" as="span">Quando ligado, a sequência da mesma série ou wave e da mesma obra conta uma vez nas janelas de obra e assunto.</Text>
+          </label>
+          <ToggleSwitch
+            id="concentracao-sequencia"
+            label="Contar sequência uma vez"
+            enabled={limites.contarSequencia}
+            onToggle={() => gravar({...settings, concentracao: {...limites, contarSequencia: !limites.contarSequencia}})}
+          />
+        </div>
         {editando ? (
           <div className="stack-md">
             <div className="grid gap-6 md:grid-cols-2">
@@ -271,7 +290,7 @@ export function VariedadeConcentracaoCard() {
                 id="concentracao-repeticoes"
                 label="Mesma obra"
                 unidade="pautas ou mais"
-                hint="Quantas pautas da mesma obra disparam o aviso. Sequência marcada de propósito conta uma vez."
+                hint="Quantas pautas da mesma obra disparam o aviso."
                 value={draft.repeticoes}
                 onChange={valor => setDraft(atual => ({ ...atual, repeticoes: valor }))}
                 erro={erros.repeticoes}
@@ -298,10 +317,28 @@ export function VariedadeConcentracaoCard() {
                 id="concentracao-minimo"
                 label="Com pelo menos"
                 unidade="pautas no intervalo"
-                hint="Com menos pautas que isto, não há aviso de assunto."
+                hint="Mínimo de pautas para o aviso pela fração do assunto. Não altera a janela em dias."
                 value={draft.minimo}
                 onChange={valor => setDraft(atual => ({ ...atual, minimo: valor }))}
                 erro={erros.minimo}
+              />
+              <CampoStepper
+                id="concentracao-assunto-repeticoes"
+                label="Mesmo assunto na janela"
+                unidade="pautas ou mais"
+                hint="Quantas pautas do mesmo assunto disparam o aviso em dias corridos."
+                value={draft.assuntoRepeticoes}
+                onChange={valor => setDraft(atual => ({...atual, assuntoRepeticoes: valor}))}
+                erro={erros.assuntoRepeticoes}
+              />
+              <CampoStepper
+                id="concentracao-assunto-janela"
+                label="Janela do assunto"
+                unidade="dias"
+                hint="Independente da janela da obra e da fração do intervalo."
+                value={draft.assuntoJanela}
+                onChange={valor => setDraft(atual => ({...atual, assuntoJanela: valor}))}
+                erro={erros.assuntoJanela}
               />
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-subtle)] pt-3">
@@ -331,6 +368,9 @@ export function VariedadeConcentracaoCard() {
             </div>
             <Text variant="body" as="p">
               Mesmo assunto: aviso acima de {rotuloFracao(limites.assuntoFracaoMax)} das pautas do intervalo, com pelo menos {limites.assuntoMinPautas} pautas.
+            </Text>
+            <Text variant="body" as="p">
+              Mesmo assunto: aviso com {limites.assuntoRepeticoes} pautas ou mais em {limites.assuntoJanelaDias} dias, mesmo com menos de {limites.assuntoMinPautas} pautas no intervalo.
             </Text>
             <div>
               <Badge variant="neutral">{limitesPadrao(limites) ? 'Limites padrão' : 'Limites seus'}</Badge>

@@ -14,7 +14,8 @@ import type { FuncaoEditorial } from '../../../../lib/database';
 import { BREAKPOINTS } from '../../../../shared/breakpoints';
 import { reservaPronta, rotuloCapacidadeSeries, textoEstoque } from '../../lib/estoque';
 import { listarSoEmOutrasRedes } from '../../lib/soEmOutrasRedes';
-import { avisosDeOrientacao } from '../../../planejamento/lib/orientacaoEditorial';
+import { entriesDaConcentracao } from '../../../planejamento/lib/concentracaoAoColocar';
+import { avisosDeOrientacao, mapaSequenciaPorConteudo } from '../../../planejamento/lib/orientacaoEditorial';
 import { ETAPA_LABEL, ETAPAS, ETAPAS_DE_CONTEUDO, contagemPorEtapaVazia, somaDasEtapas, type ContagemPorEtapa, type Etapa } from '../../lib/etapas';
 import { apurarSerie, textoDaFrequencia, textoDoVolume } from '../../lib/apuracaoSerie';
 import { FUNCAO_CURTA, FUNCOES } from '../../lib/funcoes';
@@ -448,6 +449,12 @@ export function PeriodoPanel({
     temas: state.temas,
     obras: state.bibliotecaItems,
     periodo: { inicio: periodo.inicio, fim: periodo.fim },
+    entries: entriesDaConcentracao({
+      postIts, contents: state.contents, series: state.series, temas: state.temas,
+      obras: state.bibliotecaItems, settings, platforms: state.platforms,
+      periodo: {inicio: periodo.inicio, fim: periodo.fim},
+    }),
+    sequenciaPorConteudo: settings.concentracao.contarSequencia ? mapaSequenciaPorConteudo(state.contents) : {},
     itensSerie: itensJanela,
     limiteGravacoesDia: settings.preferencias.limiteGravacoesDia,
     concentracao: settings.concentracao,

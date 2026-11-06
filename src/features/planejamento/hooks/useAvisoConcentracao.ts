@@ -1,3 +1,6 @@
+import {useRef} from 'react';
+import {generateUUID} from '../../../utils/uuid';
+import {excecaoFoiDeProposito} from '../lib/orientacaoEditorial';
 import type {FiltroCalendario} from '../lib/filtroCalendario';
 import {useAppContext} from '../../../context/AppContext';
 import {notifySaveFeedback} from '../../../lib/saveFeedback';
@@ -5,7 +8,9 @@ import {colocarEAvisarConcentracao, type PlanoDaConcentracao} from '../lib/conce
 
 /** O commit começa imediatamente. O aviso vem só depois de salvar, sem pedir confirmação. */
 export function useAvisoConcentracao(periodo: {inicio: string; fim: string}, filtro?: FiltroCalendario) {
-  const {state} = useAppContext();
+  const {state, dispatch} = useAppContext();
+  const editorialAtual = useRef(state.editorial);
+  editorialAtual.current = state.editorial;
   return (acao: {
     depois: PlanoDaConcentracao;
     date: string | null;
@@ -19,6 +24,19 @@ export function useAvisoConcentracao(periodo: {inicio: string; fim: string}, fil
     platforms: state.platforms, settings: state.editorial,
   }, commit, avisos => {
     // Um único toast para toda a seleção; permanece até dispensar, para dar tempo de ler.
-    notifySaveFeedback({status: 'info', message: 'Para lembrar', detail: avisos.map(aviso => aviso.texto).join(' '), persistent: true});
+    notifySaveFeedback({status: 'info', message: 'Para lembrar', detail: avisos.map(aviso => aviso.texto).join(' '), persistent: true,
+      undoLabel: 'Foi de propósito',
+      onUndo: () => {
+        const novas = avisos.flatMap(aviso => {
+          const excecao = excecaoFoiDeProposito(aviso, generateUUID());
+          return excecao ? [excecao] : [];
+        });
+        if (novas.length === 0) return;
+        const editorial = editorialAtual.current;
+        const payload = {...editorial, excecoesConcentracao: [...(editorial.excecoesConcentracao ?? []), ...novas]};
+        editorialAtual.current = payload;
+        dispatch({type: 'SET_EDITORIAL', payload});
+      },
+    });
   });
 }

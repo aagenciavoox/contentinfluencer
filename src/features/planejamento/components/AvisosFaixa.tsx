@@ -13,6 +13,7 @@ export function AvisosFaixa({
   avisos,
   avisoAtivoId,
   onLocalizar,
+  onFoiDeProposito,
   onLimparDestaque,
   onVerAnalise,
   onAbrirEditorial,
@@ -21,6 +22,7 @@ export function AvisosFaixa({
   avisos: readonly AvisoOrientacao[];
   avisoAtivoId?: string | null;
   onLocalizar: (aviso: AvisoOrientacao) => void;
+  onFoiDeProposito?: (aviso: AvisoOrientacao) => void;
   onLimparDestaque?: () => void;
   onVerAnalise?: () => void;
   onAbrirEditorial?: () => void;
@@ -98,6 +100,11 @@ export function AvisosFaixa({
                   >
                     Localizar
                   </AppButton>
+                  {onFoiDeProposito && (aviso.tipo === 'obra-repetida' || aviso.tipo === 'tema-concentrado') && aviso.alvoId && aviso.intervalo ? (
+                    <AppButton variant="secondary" size="sm" onClick={() => onFoiDeProposito(aviso)}>
+                      Foi de propósito
+                    </AppButton>
+                  ) : null}
                   {ativo && onLimparDestaque ? (
                     <AppButton variant="secondary" size="sm" onClick={onLimparDestaque}>
                       Limpar

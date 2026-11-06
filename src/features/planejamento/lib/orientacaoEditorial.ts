@@ -66,6 +66,7 @@ export type AvisoOrientacao = {
   /** Conteúdos envolvidos (quando não há post-it). */
   contentIds: string[];
   intervalo?: PeriodoGrade;
+  alvoId?: string;
   /** Abaixo da frequência só informa; os demais pedem revisão. */
   severidade: 'revisar' | 'info';
 };
@@ -88,8 +89,33 @@ function diaValido(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(parseISO(value).getTime());
 }
 
-function mesmaSequencia(a: string | null, b: string | null): boolean {
-  return Boolean(a && b && a === b);
+/** Mesma série (ou wave) e mesmas obras formam uma sequência, sem campo novo no banco. */
+export function mapaSequenciaPorConteudo(contents: readonly Content[]): Record<string, string> {
+  const mapa: Record<string, string> = {};
+  for (const content of contents) {
+    const escopo = content.temporadaId ?? content.seriesId;
+    const obras = [...idsDeObras(content)].sort();
+    if (escopo && obras.length > 0) mapa[content.id] = `${escopo}:${obras.join(',')}`;
+  }
+  return mapa;
+}
+
+function semSequenciasRepetidas(pautas: readonly PautaNoDia[]): PautaNoDia[] {
+  const vistas = new Set<string>();
+  return pautas.filter(item => {
+    if (!item.sequenciaId) return true;
+    if (vistas.has(item.sequenciaId)) return false;
+    vistas.add(item.sequenciaId);
+    return true;
+  });
+}
+
+/** A mesma exceção do Editorial, válida para todas as contas. */
+export function excecaoFoiDeProposito(aviso: AvisoOrientacao, id: string): ExcecaoConcentracao | null {
+  if (!aviso.alvoId || !aviso.intervalo) return null;
+  const tipo = aviso.tipo === 'obra-repetida' ? 'obra' : aviso.tipo === 'tema-concentrado' ? 'assunto' : null;
+  if (!tipo) return null;
+  return {id, tipo, alvoId: aviso.alvoId, platformId: null, ...aviso.intervalo, nota: 'foi de propósito'};
 }
 
 /**
@@ -164,16 +190,13 @@ function avisosDeObra(
       const base = comObra[i];
       const janelaFim = format(addDays(parseISO(base.date), limites.obraJanelaDias - 1), 'yyyy-MM-dd');
       const grupo = comObra.filter(item => item.date >= base.date && item.date <= janelaFim);
-      const semSequencia = grupo.filter((item, index, list) => {
-        if (index === 0) return true;
-        const prev = list[index - 1];
-        return !mesmaSequencia(item.sequenciaId, prev.sequenciaId);
-      });
+      const semSequencia = semSequenciasRepetidas(grupo);
       if (semSequencia.length < limites.obraRepeticoes) continue;
       // Só avisa se a janela toca o período visível.
       if (janelaFim < periodo.inicio || base.date > periodo.fim) continue;
       // Concentração marcada como intencional para esta obra nestas datas: sem aviso.
-      if (excecaoCobre(excecoes, {tipo: 'obra', alvoId: obraId}, {inicio: base.date, fim: janelaFim})) continue;
+      if (excecaoCobre(excecoes, {tipo: 'obra', alvoId: obraId}, {inicio: base.date, fim: janelaFim})
+        || excecaoCobre(excecoes, {tipo: 'obra', alvoId: obraId}, {inicio: base.date, fim: grupo[grupo.length - 1].date})) continue;
       const chave = `obra:${obraId}:${base.date}`;
       if (vistos.has(obraId)) continue;
       vistos.add(obraId);
@@ -182,6 +205,7 @@ function avisosDeObra(
       avisos.push({
         id: chave,
         tipo: 'obra-repetida',
+        alvoId: obraId,
         texto: `${grupo.length} pautas da mesma obra em ${limites.obraJanelaDias} dias: ${nome} (avisa a partir de ${limites.obraRepeticoes}).`,
         intervalo: {inicio: base.date, fim: janelaFim},
         postItIds: envolvidos.flatMap(item => item.postItId ? [item.postItId] : []),
@@ -203,7 +227,6 @@ function avisosDeTema(
   excecoes: readonly ExcecaoConcentracao[],
 ): AvisoOrientacao[] {
   const noRecorte = pautas.filter(pauta => noPeriodo(pauta.date, periodo));
-  if (noRecorte.length < limites.assuntoMinPautas) return [];
 
   const nomeTema = new Map(temas.map(tema => [tema.id, tema.nome.trim()]));
   const porTema = new Map<string, PautaNoDia[]>();
@@ -218,18 +241,43 @@ function avisosDeTema(
   const avisos: AvisoOrientacao[] = [];
   const limite = noRecorte.length * limites.assuntoFracaoMax;
   for (const [temaId, lista] of porTema) {
-    if (lista.length <= limite) continue;
+    if (noRecorte.length < limites.assuntoMinPautas || lista.length <= limite) continue;
     if (excecaoCobre(excecoes, {tipo: 'assunto', alvoId: temaId}, periodo)) continue;
     const nome = nomeTema.get(temaId) ?? 'Assunto';
     avisos.push({
       id: `tema:${temaId}`,
       tipo: 'tema-concentrado',
-      texto: `${nome} concentra ${lista.length} de ${noRecorte.length} pautas do intervalo (avisa acima de ${rotuloFracao(limites.assuntoFracaoMax)}).`,
+      alvoId: temaId,
+      texto: `${nome} concentra ${lista.length} de ${noRecorte.length} pautas do intervalo (avisa acima de ${rotuloFracao(limites.assuntoFracaoMax)}, com pelo menos ${limites.assuntoMinPautas} pautas).`,
       intervalo: periodo,
       postItIds: lista.flatMap(item => item.postItId ? [item.postItId] : []),
       contentIds: lista.flatMap(item => item.contentId ? [item.contentId] : []),
       severidade: 'revisar',
     });
+  }
+  for (const temaId of porTema.keys()) {
+    const comTema = pautas.filter(item => item.temaIds.includes(temaId)).sort((a, b) => a.date.localeCompare(b.date));
+    for (const base of comTema) {
+      const fim = format(addDays(parseISO(base.date), limites.assuntoJanelaDias - 1), 'yyyy-MM-dd');
+      if (fim < periodo.inicio || base.date > periodo.fim) continue;
+      const grupo = comTema.filter(item => item.date >= base.date && item.date <= fim);
+      if (semSequenciasRepetidas(grupo).length < limites.assuntoRepeticoes) continue;
+      const intervalo = {inicio: base.date, fim};
+      // Não recria o mesmo aviso deslocando a janela quando todas as pautas já estão cobertas.
+      if (excecaoCobre(excecoes, {tipo: 'assunto', alvoId: temaId}, intervalo)
+        || excecaoCobre(excecoes, {tipo: 'assunto', alvoId: temaId}, {inicio: base.date, fim: grupo[grupo.length - 1].date})) continue;
+      avisos.push({
+        id: `tema-janela:${temaId}:${base.date}`,
+        tipo: 'tema-concentrado',
+        alvoId: temaId,
+        texto: `${grupo.length} pautas do mesmo assunto em ${limites.assuntoJanelaDias} dias: ${nomeTema.get(temaId) ?? 'Assunto'} (avisa a partir de ${limites.assuntoRepeticoes}).`,
+        intervalo,
+        postItIds: grupo.flatMap(item => item.postItId ? [item.postItId] : []),
+        contentIds: grupo.flatMap(item => item.contentId ? [item.contentId] : []),
+        severidade: 'info',
+      });
+      break;
+    }
   }
   return avisos;
 }
@@ -602,7 +650,7 @@ export function avisosDeOrientacao({
    * a mesma apuração da Saúde. Sem eles, a conta sai das pautas dos post-its.
    */
   itensSerie?: readonly ItemDaApuracao[];
-  /** Id de sequência intencional por contentId. Sem campo no banco, fica vazio. */
+  /** Id de sequência por contentId, derivado da série/wave e das obras. */
   sequenciaPorConteudo?: Readonly<Record<string, string>>;
   /** Editorial › Ajustes. Sem número, não há aviso de gravação. */
   limiteGravacoesDia?: number | null;

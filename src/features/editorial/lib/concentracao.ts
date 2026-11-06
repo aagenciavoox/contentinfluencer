@@ -6,16 +6,22 @@
 
 export type LimitesConcentracao = {
   /** Pautas da mesma obra dentro da janela que disparam o aviso. */
+  contarSequencia: boolean;
+  assuntoRepeticoes: number;
+  assuntoJanelaDias: number;
   obraRepeticoes: number;
   /** Tamanho da janela da obra, em dias corridos. */
   obraJanelaDias: number;
   /** Fração das pautas do intervalo acima da qual um assunto está concentrado. */
   assuntoFracaoMax: number;
-  /** Com menos pautas que isto no intervalo, não há aviso de assunto. */
+  /** Mínimo de pautas para a regra de fração do assunto. */
   assuntoMinPautas: number;
 };
 
 export const LIMITES_CONCENTRACAO_PADRAO: LimitesConcentracao = {
+  contarSequencia: true,
+  assuntoRepeticoes: 2,
+  assuntoJanelaDias: 7,
   obraRepeticoes: 2,
   obraJanelaDias: 7,
   assuntoFracaoMax: 1 / 3,
@@ -34,6 +40,9 @@ export function lerLimitesConcentracao(valor: unknown): LimitesConcentracao {
     ? raw.assuntoFracaoMax
     : null;
   return {
+    contarSequencia: typeof raw.contarSequencia === 'boolean' ? raw.contarSequencia : true,
+    assuntoRepeticoes: inteiroEntre(raw.assuntoRepeticoes, 2, 30) ?? LIMITES_CONCENTRACAO_PADRAO.assuntoRepeticoes,
+    assuntoJanelaDias: inteiroEntre(raw.assuntoJanelaDias, 1, 90) ?? LIMITES_CONCENTRACAO_PADRAO.assuntoJanelaDias,
     obraRepeticoes: inteiroEntre(raw.obraRepeticoes, 2, 30) ?? LIMITES_CONCENTRACAO_PADRAO.obraRepeticoes,
     obraJanelaDias: inteiroEntre(raw.obraJanelaDias, 1, 90) ?? LIMITES_CONCENTRACAO_PADRAO.obraJanelaDias,
     assuntoFracaoMax: fracao ?? LIMITES_CONCENTRACAO_PADRAO.assuntoFracaoMax,
@@ -79,6 +88,8 @@ export function excecaoCobre(
 
 /** Faixas aceitas na tela, as mesmas da leitura (fora delas vale o padrão). */
 export const FAIXAS_CONCENTRACAO = {
+  assuntoRepeticoes: { min: 2, max: 30 },
+  assuntoJanelaDias: { min: 1, max: 90 },
   obraRepeticoes: { min: 2, max: 30 },
   obraJanelaDias: { min: 1, max: 90 },
   /** Em %, só inteiros: 1/3 aparece como 33%. */
@@ -89,7 +100,10 @@ export const FAIXAS_CONCENTRACAO = {
 /** Os limites são os padrão? (então nada precisa ser gravado). */
 export function limitesPadrao(limites: LimitesConcentracao): boolean {
   const padrao = LIMITES_CONCENTRACAO_PADRAO;
-  return limites.obraRepeticoes === padrao.obraRepeticoes
+  return limites.contarSequencia === padrao.contarSequencia
+    && limites.assuntoRepeticoes === padrao.assuntoRepeticoes
+    && limites.assuntoJanelaDias === padrao.assuntoJanelaDias
+    && limites.obraRepeticoes === padrao.obraRepeticoes
     && limites.obraJanelaDias === padrao.obraJanelaDias
     && limites.assuntoFracaoMax === padrao.assuntoFracaoMax
     && limites.assuntoMinPautas === padrao.assuntoMinPautas;

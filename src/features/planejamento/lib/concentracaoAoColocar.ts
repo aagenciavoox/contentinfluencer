@@ -4,7 +4,7 @@ import type {EditorialSettings} from '../../editorial/lib/editorialSettings.ts';
 import {publicacoesDaAgenda} from '../../editorial/lib/publicacoes.ts';
 import {conteudoPassa, filtroAtivo, indiceDaAgenda, postItPassa, type FiltroCalendario} from './filtroCalendario.ts';
 import {entriesDaSaudeDoMes} from './monthHealth.ts';
-import {avisosDeOrientacao, type AvisoOrientacao} from './orientacaoEditorial.ts';
+import {avisosDeOrientacao, mapaSequenciaPorConteudo, type AvisoOrientacao} from './orientacaoEditorial.ts';
 import type {PlanejamentoPostIt} from './postIt.ts';
 
 type Orientacao = Parameters<typeof avisosDeOrientacao>[0];
@@ -18,7 +18,7 @@ export type ContextoDaConcentracao = Pick<Orientacao, 'series' | 'temas' | 'obra
  * A margem mantém as janelas de obra que cruzam as pontas do período.
  */
 export function entriesDaConcentracao(input: ContextoDaConcentracao & PlanoDaConcentracao) {
-  const margem = input.settings.concentracao.obraJanelaDias - 1;
+  const margem = Math.max(input.settings.concentracao.obraJanelaDias, input.settings.concentracao.assuntoJanelaDias) - 1;
   let {postIts, contents} = input;
   if (input.filtro && filtroAtivo(input.filtro)) {
     const filtro = input.filtro;
@@ -39,6 +39,7 @@ export function avisosDeConcentracaoNoPlano(input: ContextoDaConcentracao & Plan
   return avisosDeOrientacao({
     ...input,
     entries: entriesDaConcentracao(input),
+    sequenciaPorConteudo: input.settings.concentracao.contarSequencia ? mapaSequenciaPorConteudo(input.contents) : {},
     concentracao: input.settings.concentracao,
     excecoesConcentracao: input.settings.excecoesConcentracao,
   }).filter(ehConcentracao);
@@ -50,7 +51,7 @@ function ehConcentracao(aviso: AvisoOrientacao): boolean {
 
 function chaveDoAviso(aviso: AvisoOrientacao): string {
   // A data inicial da janela pode mudar com o movimento: não torna nova a mesma obra já avisada.
-  return aviso.tipo === 'obra-repetida' ? aviso.id.replace(/:\d{4}-\d{2}-\d{2}$/, '') : aviso.id;
+  return aviso.tipo === 'obra-repetida' || aviso.id.startsWith('tema-janela:') ? aviso.id.replace(/:\d{4}-\d{2}-\d{2}$/, '') : aviso.id;
 }
 
 /** Só o que esta ação passou a disparar, não um lembrete de concentrações já existentes. */

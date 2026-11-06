@@ -1,3 +1,4 @@
+import {generateUUID} from '../../../utils/uuid';
 import {useMemo, useState} from 'react';
 import {endOfMonth, format, startOfMonth} from 'date-fns';
 import {useNavigate} from 'react-router-dom';
@@ -13,7 +14,7 @@ import {linhasDaContinuidadePorEscopo} from '../lib/continuidadePorEscopoNaSaude
 import {publicacoesNaSaude} from '../lib/publicacoesNaSaude';
 import {contaNoFiltro, conteudoPassa, filtroAtivo, postItPassa, type FiltroCalendario} from '../lib/filtroCalendario';
 import {abreAnaliseAoLocalizar, diaDoAviso} from '../lib/detalheDoAviso';
-import {avisosDeOrientacao, janelaDosProximosDias, semanaCorrente, TIPOS_AVISO_GLOBAIS, type AvisoOrientacao} from '../lib/orientacaoEditorial';
+import {avisosDeOrientacao, excecaoFoiDeProposito, mapaSequenciaPorConteudo, janelaDosProximosDias, semanaCorrente, TIPOS_AVISO_GLOBAIS, type AvisoOrientacao} from '../lib/orientacaoEditorial';
 import {periodoDaVista, type VistaPlanejamento} from '../lib/periodoPlanejamento';
 import {progressoDasOndas} from '../lib/episodioNaTemporada';
 import {pendenciasNaSaude} from '../lib/pendenciasNaSaude';
@@ -46,7 +47,7 @@ export function useSaudeEAvisos(args: {
   setSeriePlanejandoId: (id: string | null) => void;
   retornoPlanejamento: string;
 }) {
-  const {state} = useAppContext();
+  const {state, dispatch} = useAppContext();
   const navigate = useNavigate();
   const {
     month, vista, setMonth, setVistaRaw, intervaloEmFoco, setIntervaloEmFoco,
@@ -223,6 +224,7 @@ export function useSaudeEAvisos(args: {
       }).itens,
       limiteGravacoesDia: state.editorial.preferencias.limiteGravacoesDia,
       concentracao: state.editorial.concentracao,
+      sequenciaPorConteudo: state.editorial.concentracao.contarSequencia ? mapaSequenciaPorConteudo(lista.contents) : {},
       excecoesConcentracao: state.editorial.excecoesConcentracao,
       pausas: state.editorial.pausas ?? [],
       platforms: state.platforms,
@@ -239,6 +241,15 @@ export function useSaudeEAvisos(args: {
       ...todos.filter(aviso => TIPOS_AVISO_GLOBAIS.has(aviso.tipo)),
     ];
   }, [postIts, contents, postItsDoFiltro, contentsDoFiltro, filtro, state.series, state.pilares, state.platforms, state.editorial, state.temas, state.bibliotecaItems, state.temporadas, periodoDaSaude, month]);
+
+  const marcarFoiDeProposito = (aviso: AvisoOrientacao) => {
+    const excecao = excecaoFoiDeProposito(aviso, generateUUID());
+    if (!excecao) return;
+    dispatch({type: 'SET_EDITORIAL', payload: {
+      ...state.editorial,
+      excecoesConcentracao: [...(state.editorial.excecoesConcentracao ?? []), excecao],
+    }});
+  };
 
   const verPautasDoAviso = (aviso: AvisoOrientacao) => {
     setAvisoAtivoId(aviso.id);
@@ -303,6 +314,7 @@ export function useSaudeEAvisos(args: {
     avisosOrientacao,
     verPautasDoAviso,
     localizarAviso,
+    marcarFoiDeProposito,
     focarIntervalo,
     handlePlanejarIntervalo,
     handleReorganizarEpisodios,

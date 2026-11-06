@@ -3148,7 +3148,10 @@ export async function saveEditorial(settings: EditorialSettings): Promise<void> 
 function concentracaoParaGravar(limites: LimitesConcentracao | undefined): LimitesConcentracao | null {
   if (!limites) return null;
   const padrao = LIMITES_CONCENTRACAO_PADRAO;
-  const igual = limites.obraRepeticoes === padrao.obraRepeticoes
+  const igual = limites.contarSequencia === padrao.contarSequencia
+    && limites.assuntoRepeticoes === padrao.assuntoRepeticoes
+    && limites.assuntoJanelaDias === padrao.assuntoJanelaDias
+    && limites.obraRepeticoes === padrao.obraRepeticoes
     && limites.obraJanelaDias === padrao.obraJanelaDias
     && limites.assuntoFracaoMax === padrao.assuntoFracaoMax
     && limites.assuntoMinPautas === padrao.assuntoMinPautas;

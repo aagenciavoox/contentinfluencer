@@ -8,6 +8,8 @@ import {PlanejamentoMobileView} from './PlanejamentoMobileView';
 import {RecordingMobileScreen} from '../../../mobile/screens/recording/RecordingMobileScreen';
 import {createContentDraft} from '../../contents/lib/createContentDraft';
 import {CONTENT_STATUS} from '../../contents/lib/contentPipeline';
+import {AvisosFaixa} from './AvisosFaixa';
+import type {AvisoOrientacao} from '../lib/orientacaoEditorial';
 import {SaveFeedbackToast} from '../../../components/ui/SaveFeedbackToast';
 import {clearSaveFeedback, getSaveFeedbackState, notifySaveFeedback} from '../../../lib/saveFeedback';
 
@@ -40,7 +42,7 @@ describe('fluxos visíveis da Saúde', () => {
 
 describe('aviso pontual de concentração', () => {
   it('usa o toast existente com informação neutra, texto legível e ação de dispensar', () => {
-    notifySaveFeedback({status: 'info', message: 'Para lembrar', detail: '2 pautas da mesma obra em 7 dias: Livro.', persistent: true});
+    notifySaveFeedback({status: 'info', message: 'Para lembrar', detail: '2 pautas da mesma obra em 7 dias: Livro.', persistent: true, undoLabel: 'Foi de propósito', onUndo: noop});
     try {
       const html = renderToStaticMarkup(<MemoryRouter><SaveFeedbackToast /></MemoryRouter>);
       assert.match(html, /role="status"/);
@@ -48,11 +50,27 @@ describe('aviso pontual de concentração', () => {
       assert.match(html, /Para lembrar/);
       assert.match(html, /2 pautas da mesma obra/);
       assert.match(html, /Dispensar aviso/);
+      assert.match(html, /Foi de propósito/);
+      assert.equal(getSaveFeedbackState().onUndo, noop);
       assert.ok(!html.includes('text-[var(--danger)]'));
       assert.equal(getSaveFeedbackState().persistent, true);
     } finally {
       clearSaveFeedback();
     }
     assert.equal(getSaveFeedbackState().status, 'idle');
+  });
+});
+
+
+describe('ação de concentração na faixa', () => {
+  it('oferece Foi de propósito apenas para concentração identificada e com callback', () => {
+    const obra: AvisoOrientacao = {id: 'obra:o:2026-11-02', tipo: 'obra-repetida', alvoId: 'o', intervalo, texto: 'Obra repetida', postItIds: [], contentIds: [], severidade: 'info'};
+    const assunto: AvisoOrientacao = {...obra, id: 'tema:t', tipo: 'tema-concentrado', alvoId: 't'};
+    const outros: AvisoOrientacao[] = [{...obra, id: 'serie', tipo: 'serie-acima'}, {...obra, id: 'sem-alvo', alvoId: undefined}];
+    const html = renderToStaticMarkup(<AvisosFaixa avisos={[obra, assunto, ...outros]} onLocalizar={noop} onFoiDeProposito={noop} />);
+    assert.equal(html.split('Foi de propósito').length - 1, 2);
+    const semAcao = renderToStaticMarkup(<AvisosFaixa avisos={[obra]} onLocalizar={noop} />);
+    assert.ok(!semAcao.includes('Foi de propósito'));
+    assert.match(semAcao, /Localizar/);
   });
 });

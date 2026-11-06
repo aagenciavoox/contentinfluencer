@@ -36,3 +36,18 @@ console.log('concentracao: ok');
 }
 
 console.log('concentracao (exceções): ok');
+
+// Leitura tolerante dos novos limites e do toggle; desligado não é o padrão.
+for (const contarSequencia of [undefined, null, 'false', 0, {}]) {
+  assert.equal(lerLimitesConcentracao({contarSequencia}).contarSequencia, true);
+}
+assert.equal(lerLimitesConcentracao({contarSequencia: false}).contarSequencia, false);
+assert.equal(limitesPadrao({...LIMITES_CONCENTRACAO_PADRAO, contarSequencia: false}), false);
+assert.deepEqual(lerLimitesConcentracao({assuntoRepeticoes: 30, assuntoJanelaDias: 90}), {
+  ...LIMITES_CONCENTRACAO_PADRAO, assuntoRepeticoes: 30, assuntoJanelaDias: 90,
+});
+for (const limites of [{assuntoRepeticoes: 1, assuntoJanelaDias: 0}, {assuntoRepeticoes: 31, assuntoJanelaDias: 91}]) {
+  assert.deepEqual(lerLimitesConcentracao(limites), LIMITES_CONCENTRACAO_PADRAO);
+}
+assert.equal(limitesPadrao({...LIMITES_CONCENTRACAO_PADRAO, assuntoRepeticoes: 3}), false);
+assert.equal(limitesPadrao({...LIMITES_CONCENTRACAO_PADRAO, assuntoJanelaDias: 8}), false);

@@ -153,7 +153,7 @@ export function PlanejamentoPage() {
   const {
     periodo, periodoDaSaude, contentsDoFiltro, postItsDoFiltro, vistaTemRoteiro,
     pausedDateKeys, monthHealth, rotuloSaude, avisoSaude, avisosOrientacao,
-    verPautasDoAviso, localizarAviso, handlePlanejarIntervalo, handleReorganizarEpisodios,
+    verPautasDoAviso, localizarAviso, marcarFoiDeProposito, handlePlanejarIntervalo, handleReorganizarEpisodios,
     roteiroIdsDoPeriodo, handleOpenGravacao, foraDoPrazo, avisoAtivoId, setAvisoAtivoId,
     limparDestaque,
   } = saude;
@@ -723,6 +723,7 @@ export function PlanejamentoPage() {
                 avisos={avisosOrientacao}
                 avisoAtivoId={avisoAtivoId}
                 onLocalizarAviso={localizarAviso}
+                onFoiDeProposito={marcarFoiDeProposito}
                 onLimparDestaque={limparDestaque}
                 assuntoFiltroId={assuntoFiltroId}
                 onAssuntoFiltroChange={setAssuntoFiltroId}
@@ -740,6 +741,7 @@ export function PlanejamentoPage() {
               avisos={avisosOrientacao}
               avisoAtivoId={avisoAtivoId}
               onLocalizar={localizarAviso}
+              onFoiDeProposito={marcarFoiDeProposito}
               onLimparDestaque={limparDestaque}
               onVerAnalise={() => setAnaliseAberta(true)}
               onAbrirEditorial={() => navigate('/editorial')}
