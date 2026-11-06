@@ -1,3 +1,4 @@
+import {SugestaoGravacaoPanel} from '../components/SugestaoGravacaoPanel';
 import {energiaDaSerie} from '../../editorial/lib/herancaSerie';
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {useLocation, useNavigate, useSearchParams} from 'react-router-dom';
@@ -60,6 +61,7 @@ export function RecordingPage() {
   });
   const [blockName, setBlockName] = useState('');
   const [showBlockForm, setShowBlockForm] = useState(false);
+  const [energiaAberta, setEnergiaAberta] = useState(false);
 
   const [filterPilar, setFilterPilar] = useState('');
   const [filterSerie, setFilterSerie] = useState('');
@@ -341,11 +343,18 @@ export function RecordingPage() {
     await dispatch({type: 'UPDATE_BLOCK_CONTENTS', payload: {blockId: block.id, contents: blockContents}});
   };
 
+  const painelEnergia = energiaAberta ? <SugestaoGravacaoPanel
+    onClose={() => setEnergiaAberta(false)}
+    onCriado={() => {handleClearSelection(); handleTabChange('blocks');}}
+  /> : null;
+
   if (isMobile) {
     return (
       <>
+        {painelEnergia}
         <div className="min-h-full bg-[var(--bg-primary)]">
           <RecordingMobileScreen
+          onGravarComEnergia={() => setEnergiaAberta(true)}
           readyContents={queueContents}
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
@@ -384,6 +393,7 @@ export function RecordingPage() {
 
   return (
     <>
+      {painelEnergia}
       <PageLayout
       contentStack="dense"
       header={
@@ -392,6 +402,7 @@ export function RecordingPage() {
           title="Gravação"
           actions={
             activeTab === 'queue' ? (
+              <>
               <AppButton
                 variant="primary"
                 leftIcon={<Plus className="h-4 w-4" />}
@@ -402,6 +413,10 @@ export function RecordingPage() {
               >
                 Criar bloco
               </AppButton>
+              <AppButton variant="secondary" disabled={!recordingReady} onClick={() => setEnergiaAberta(true)}>
+                Gravar com esta energia
+              </AppButton>
+              </>
             ) : (
               <AppButton
                 variant="secondary"

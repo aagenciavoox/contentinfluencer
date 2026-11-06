@@ -10,6 +10,7 @@ import {createContentDraft} from '../../contents/lib/createContentDraft';
 import {CONTENT_STATUS} from '../../contents/lib/contentPipeline';
 import {AvisosFaixa} from './AvisosFaixa';
 import type {AvisoOrientacao} from '../lib/orientacaoEditorial';
+import {SugestaoGravacaoConteudo} from '../../recording/components/SugestaoGravacaoPanel';
 import {SaveFeedbackToast} from '../../../components/ui/SaveFeedbackToast';
 import {clearSaveFeedback, getSaveFeedbackState, notifySaveFeedback} from '../../../lib/saveFeedback';
 
@@ -72,5 +73,34 @@ describe('ação de concentração na faixa', () => {
     const semAcao = renderToStaticMarkup(<AvisosFaixa avisos={[obra]} onLocalizar={noop} />);
     assert.ok(!semAcao.includes('Foi de propósito'));
     assert.match(semAcao, /Localizar/);
+  });
+});
+
+
+describe('gravação por energia', () => {
+  it('mostra energia, contexto opcional, motivos e montagem sem criar outra fila', () => {
+    const content = createContentDraft({id: 'energia', title: 'Roteiro leve', status: CONTENT_STATUS.ROTEIRO, script: '<p>Texto</p>'});
+    const html = renderToStaticMarkup(<SugestaoGravacaoConteudo
+      escolha={{energia: 'média', lookId: null, cenarioId: null}} onEscolha={noop} looks={[]} cenarios={[]}
+      sugestoes={[{content, energia: 'baixa', pontos: 110, motivos: ['publica amanhã', 'mesmo look']}]}
+      quantidade={1} ocupado={false} erro={null} onCriar={noop} />);
+    assert.match(html, /Energia de hoje/);
+    assert.match(html, /Baixa/);
+    assert.match(html, /Média/);
+    assert.match(html, /Alta/);
+    assert.match(html, /Look opcional/);
+    assert.match(html, /Cenário opcional/);
+    assert.match(html, /publica amanhã · mesmo look/);
+    assert.match(html, /Montar bloco com estes/);
+    assert.match(html, /Roteiro leve/);
+    assert.match(html, /Sem energia definida aparece no fim/);
+  });
+  it('exibe o acionamento só na aba Sem bloco do celular e preserva as ações atuais', () => {
+    const props = {readyContents: [], selectedIds: new Set<string>(), onSelectionChange: noop, recordingBlocks: [], allContents: [], pilares: [], series: [], availableTags: [], onTabChange: noop, onCreateBlock: noop, onAddToExistingBlock: noop, onOpenBlock: noop, onOpenContent: noop, onReadContent: noop, onGravarComEnergia: noop};
+    const fila = renderToStaticMarkup(<MemoryRouter><RecordingMobileScreen {...props} activeTab="queue" /></MemoryRouter>);
+    const blocos = renderToStaticMarkup(<MemoryRouter><RecordingMobileScreen {...props} activeTab="blocks" /></MemoryRouter>);
+    assert.match(fila, /Gravar com esta energia/);
+    assert.ok(!blocos.includes('Gravar com esta energia'));
+    assert.match(fila, /Buscar roteiro, pilar ou série/);
   });
 });

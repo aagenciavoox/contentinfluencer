@@ -56,6 +56,7 @@ await import('./features/planejamento/lib/filtroPuxar.test.ts');
 await import('./features/planejamento/lib/secoesPuxar.test.ts');
 await import('./features/planejamento/lib/resumoDoPuxado.test.ts');
 await import('./features/recording/lib/blocoDeGravacao.test.ts');
+await import('./features/recording/lib/sugestaoDeGravacao.test.ts');
 await import('./features/planejamento/lib/publicacoesDoMes.test.ts');
 await import('./features/planejamento/lib/postItsNaData.test.ts');
 await import('./features/planejamento/lib/salvarNoCalendario.test.ts');

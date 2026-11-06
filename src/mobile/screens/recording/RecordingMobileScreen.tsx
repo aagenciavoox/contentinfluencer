@@ -40,6 +40,7 @@ interface RecordingMobileScreenProps {
   onOpenBlock: (blockId: string) => void;
   onOpenContent: (contentId: string) => void;
   onReadContent: (contentId: string) => void;
+  onGravarComEnergia?: () => void;
   isHydrating?: (id: string) => boolean;
   hasHydrationError?: (id: string) => boolean;
   onRetryHydration?: (id: string) => void;
@@ -65,6 +66,7 @@ export function RecordingMobileScreen({
   onOpenBlock,
   onOpenContent,
   onReadContent,
+  onGravarComEnergia,
   isHydrating = () => false,
   hasHydrationError = () => false,
   onRetryHydration,
@@ -220,6 +222,11 @@ export function RecordingMobileScreen({
       <section className="stack-md">
         {activeTab === 'queue' ? (
           <>
+            {onGravarComEnergia ? (
+              <div className="flex justify-end">
+                <AppButton variant="secondary" disabled={!countsReady} onClick={onGravarComEnergia}>Gravar com esta energia</AppButton>
+              </div>
+            ) : null}
             <MobileSearchBar
               value={search}
               onChange={setSearch}
