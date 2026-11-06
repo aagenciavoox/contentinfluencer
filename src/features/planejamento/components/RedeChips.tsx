@@ -2,29 +2,12 @@ import {RedeIcon} from '../../../components/ui/PlatformIcons';
 import type {Platform} from '../../../lib/database';
 import {cn} from '../../../lib/utils';
 import {REDE_ROTULO, redeDaConta, rotuloCurtoConta, type RedeDoFiltro} from '../../contas/lib/contas';
-import {compararExibicaoRede, normalizarRedesPostIt} from '../lib/redesPostIt';
+import {alternarRedeNoFoco, ordenarChipsDoFoco} from '../lib/redesPostIt';
 
 export interface RedeChipsProps {
   value: readonly RedeDoFiltro[];
   onChange: (redes: RedeDoFiltro[]) => void;
   platforms?: readonly Platform[];
-}
-
-const EXCLUSOES: Partial<Record<RedeDoFiltro, readonly RedeDoFiltro[]>> = {
-  youtube: ['youtube-shorts'],
-  'youtube-shorts': ['youtube'],
-  'instagram-video': ['instagram', 'instagram-carrossel'],
-  'instagram-carrossel': ['instagram', 'instagram-video'],
-};
-
-function alternarRede(atuais: readonly RedeDoFiltro[], clicada: RedeDoFiltro): RedeDoFiltro[] {
-  if (atuais.includes(clicada)) {
-    return atuais.filter(r => r !== clicada);
-  }
-  const exclusoes = EXCLUSOES[clicada] ?? [];
-  const proximas = atuais.filter(r => !exclusoes.includes(r));
-  proximas.push(clicada);
-  return normalizarRedesPostIt(proximas);
 }
 
 function nomeDaRede(rede: string): string | null {
@@ -59,7 +42,7 @@ const chipClass = (active: boolean) => cn(
 
 /**
  * Chips de seleção de contas de publicação para post-its e temporadas.
- * Curtos primeiro: Instagram vídeo, TikTok, Shorts. Carrossel e vídeo longo depois.
+ * Selecionados aparecem primeiro, na ordem gravada/clicada; os demais na ordem de exibição.
  * Uma conta só na rede aparece pelo nome da rede; o @ entra quando há outra conta para distinguir.
  */
 export function RedeChips({value, onChange, platforms = []}: RedeChipsProps) {
@@ -84,7 +67,7 @@ export function RedeChips({value, onChange, platforms = []}: RedeChipsProps) {
               key={`${conta.id}-${destino}`}
               type="button"
               aria-pressed={value.includes(destino)}
-              onClick={() => onChange(alternarRede(value, destino))}
+              onClick={() => onChange(alternarRedeNoFoco(value, destino))}
               className={chipClass(value.includes(destino))}
             >
               <RedeIcon rede={destino} className="h-4 w-4 shrink-0" />
@@ -101,7 +84,7 @@ export function RedeChips({value, onChange, platforms = []}: RedeChipsProps) {
             key={conta.id}
             type="button"
             aria-pressed={value.includes(destino)}
-            onClick={() => onChange(alternarRede(value, destino))}
+            onClick={() => onChange(alternarRedeNoFoco(value, destino))}
             className={chipClass(value.includes(destino))}
           >
             <RedeIcon rede={destino} className="h-4 w-4 shrink-0" />
@@ -109,33 +92,37 @@ export function RedeChips({value, onChange, platforms = []}: RedeChipsProps) {
           </button>
         ),
       }];
-    }).sort((a, b) => compararExibicaoRede(a.destino, b.destino));
+    });
+
+    const ordenados = ordenarChipsDoFoco(chips, value);
 
     return (
       <div role="group" aria-label="Redes" className="flex flex-wrap gap-2">
-        {chips.map(chip => chip.node)}
+        {ordenados.map(chip => chip.node)}
       </div>
     );
   }
 
-  const redesPadrao: Array<{rede: RedeDoFiltro; label: string}> = [
-    {rede: 'instagram-video', label: 'Instagram (vídeo)'},
-    {rede: 'tiktok', label: 'TikTok'},
-    {rede: 'youtube-shorts', label: 'YouTube Shorts'},
-    {rede: 'instagram-carrossel', label: 'Instagram (carrossel)'},
-    {rede: 'youtube', label: 'YouTube (vídeo longo)'},
+  const redesPadrao: Array<{destino: RedeDoFiltro; label: string}> = [
+    {destino: 'instagram-video', label: 'Instagram (vídeo)'},
+    {destino: 'tiktok', label: 'TikTok'},
+    {destino: 'youtube-shorts', label: 'YouTube Shorts'},
+    {destino: 'instagram-carrossel', label: 'Instagram (carrossel)'},
+    {destino: 'youtube', label: 'YouTube (vídeo longo)'},
   ];
+
+  const padraoOrdenado = ordenarChipsDoFoco(redesPadrao, value);
 
   return (
     <div role="group" aria-label="Redes sociais" className="flex flex-wrap gap-2">
-      {redesPadrao.map(({rede, label}) => {
+      {padraoOrdenado.map(({destino: rede, label}) => {
         const active = value.includes(rede);
         return (
           <button
             key={rede}
             type="button"
             aria-pressed={active}
-            onClick={() => onChange(alternarRede(value, rede))}
+            onClick={() => onChange(alternarRedeNoFoco(value, rede))}
             className={chipClass(active)}
           >
             <RedeIcon rede={rede} className="h-3.5 w-3.5 shrink-0" />

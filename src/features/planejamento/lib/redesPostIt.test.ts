@@ -1,15 +1,60 @@
 import assert from 'node:assert/strict';
 import {createEmptyPostIt, postItEditDraft, postItMudou, savePostItEdit} from './postIt.ts';
 import {redesDoCartao, redesDoConteudo} from './redesDoCartao.ts';
-import {mesmasRedes, normalizarRedesPostIt, postItRapidoPodeSalvar} from './redesPostIt.ts';
+import {alternarRedeNoFoco, mesmasRedes, normalizarRedesPostIt, ordenarChipsDoFoco, postItRapidoPodeSalvar} from './redesPostIt.ts';
 
 const NOW = '2026-10-16T12:00:00.000Z';
 
 function testNormalizaRedes() {
   assert.deepEqual(normalizarRedesPostIt(null), []);
   assert.deepEqual(normalizarRedesPostIt('instagram'), []);
-  assert.deepEqual(normalizarRedesPostIt(['youtube', 'Instagram ', 'youtube', 'facebook', 3]), ['instagram', 'youtube']);
-  assert.deepEqual(normalizarRedesPostIt(['youtube-shorts', 'Instagram ']), ['instagram', 'youtube-shorts']);
+  // Preserva a ordem de entrada; deduplica e descarta desconhecidos.
+  assert.deepEqual(normalizarRedesPostIt(['youtube', 'Instagram ', 'youtube', 'facebook', 3]), ['youtube', 'instagram']);
+  assert.deepEqual(normalizarRedesPostIt(['youtube-shorts', 'Instagram ']), ['youtube-shorts', 'instagram']);
+  assert.deepEqual(normalizarRedesPostIt(['tiktok', 'youtube']), ['tiktok', 'youtube']);
+  assert.deepEqual(normalizarRedesPostIt(['youtube', 'tiktok']), ['youtube', 'tiktok']);
+}
+
+function testOrdemDeCliqueNoFoco() {
+  // A depois B grava A,B; invertido grava B,A.
+  assert.deepEqual(
+    alternarRedeNoFoco(alternarRedeNoFoco([], 'youtube'), 'instagram-carrossel'),
+    ['youtube', 'instagram-carrossel'],
+  );
+  assert.deepEqual(
+    alternarRedeNoFoco(alternarRedeNoFoco([], 'instagram-carrossel'), 'youtube'),
+    ['instagram-carrossel', 'youtube'],
+  );
+  // Exclusão não bagunca a ordem do que ficou.
+  assert.deepEqual(
+    alternarRedeNoFoco(['tiktok', 'youtube-shorts'], 'youtube'),
+    ['tiktok', 'youtube'],
+  );
+}
+
+
+function testOrdenaChipsSelecionadosNaOrdemGravada() {
+  const chips = [
+    {destino: 'instagram-video' as const, id: 'ig'},
+    {destino: 'tiktok' as const, id: 'tt'},
+    {destino: 'youtube-shorts' as const, id: 'sh'},
+    {destino: 'instagram-carrossel' as const, id: 'car'},
+    {destino: 'youtube' as const, id: 'yt'},
+  ];
+  // Selecionados primeiro na ordem do clique; demais na ordem de exibição.
+  assert.deepEqual(
+    ordenarChipsDoFoco(chips, ['youtube', 'instagram-carrossel']).map(item => item.id),
+    ['yt', 'car', 'ig', 'tt', 'sh'],
+  );
+  assert.deepEqual(
+    ordenarChipsDoFoco(chips, ['instagram-carrossel', 'youtube']).map(item => item.id),
+    ['car', 'yt', 'ig', 'tt', 'sh'],
+  );
+  // Sem seleção: só a ordem de exibição.
+  assert.deepEqual(
+    ordenarChipsDoFoco(chips, []).map(item => item.id),
+    ['ig', 'tt', 'sh', 'car', 'yt'],
+  );
 }
 
 function testMesmasRedesIgnoraOrdem() {
@@ -26,7 +71,7 @@ function testRapidoPedeSoANota() {
 function testCriaSemDataComRedes() {
   const postIt = createEmptyPostIt({texto: 'nota', redes: ['youtube', 'instagram'], now: NOW});
   assert.equal(postIt.date, null);
-  assert.deepEqual(postIt.redes, ['instagram', 'youtube']);
+  assert.deepEqual(postIt.redes, ['youtube', 'instagram']);
 }
 
 function testSalvarGravaRedesEDetectaMudanca() {
@@ -50,9 +95,9 @@ const CONTAS = [
 function testRedesDoConteudoPelaConta() {
   const content = {plataformas: [{platformId: 'c-yt'}, {platformId: 'c-ig'}, {platformId: 'c-ig'}, {platformId: 'c-x'}]};
   // Sem formato nem escrita, YouTube deduz para Shorts
-  assert.deepEqual(redesDoConteudo(content, CONTAS), ['instagram-video', 'youtube-shorts']);
+  assert.deepEqual(redesDoConteudo(content, CONTAS), ['youtube-shorts', 'instagram-video']);
   // Com modo de escrita YouTube ou formato longo, vira YouTube longo
-  assert.deepEqual(redesDoConteudo({...content, writingMode: 'youtube' as const}, CONTAS), ['instagram-video', 'youtube']);
+  assert.deepEqual(redesDoConteudo({...content, writingMode: 'youtube' as const}, CONTAS), ['youtube', 'instagram-video']);
   assert.deepEqual(redesDoConteudo({plataformas: [{platformId: 'c-yt', formatoPublicacao: 'video-longo' as const}]}, CONTAS), ['youtube']);
   assert.deepEqual(redesDoConteudo({plataformas: [{platformId: 'TikTok'}]}, CONTAS), ['tiktok']);
   assert.deepEqual(redesDoConteudo(null, CONTAS), []);
@@ -70,6 +115,8 @@ const tests = [
   ['derives content networks from its accounts', testRedesDoConteudoPelaConta],
   ['card prefers content networks and falls back to the post-it', testCartaoUsaConteudoAntesDoPostIt],
   ['normalizes post-it networks', testNormalizaRedes],
+  ['keeps click order on focus chips', testOrdemDeCliqueNoFoco],
+  ['shows selected chips in saved order', testOrdenaChipsSelecionadosNaOrdemGravada],
   ['compares networks ignoring order', testMesmasRedesIgnoraOrdem],
   ['quick post-it only needs the note', testRapidoPedeSoANota],
   ['creates a post-it without date and with networks', testCriaSemDataComRedes],

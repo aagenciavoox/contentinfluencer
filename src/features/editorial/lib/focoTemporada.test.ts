@@ -44,7 +44,7 @@ assert.deepEqual(
   focoEfetivo(['youtube'], ['instagram', 'tiktok']).map(rede => rede),
   ['youtube'],
 );
-assert.deepEqual(focoEfetivo([], ['tiktok', 'instagram-video']), ['instagram-video', 'tiktok']);
+assert.deepEqual(focoEfetivo([], ['tiktok', 'instagram-video']), ['tiktok', 'instagram-video']);
 
 
 assert.deepEqual(sugestaoDoFoco(['instagram-carrossel']), { writingMode: 'carrossel', formatoVisual: 'Carrossel' });
