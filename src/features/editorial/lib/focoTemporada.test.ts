@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { focoEfetivo, publicacoesDoEpisodioNaTemporada, rotuloDoFoco } from './focoTemporada.ts';
+import { focoEfetivo, publicacoesDoEpisodioNaTemporada, rotuloDoFoco, sugestaoDoFoco, textoDaSugestaoDoFoco } from './focoTemporada.ts';
 
 const contas = [
   { id: 'ig', nome: 'Instagram', rede: 'instagram' as const, ativo: true },
@@ -46,4 +46,38 @@ assert.deepEqual(
 );
 assert.deepEqual(focoEfetivo([], ['tiktok', 'instagram-video']), ['instagram-video', 'tiktok']);
 
+
+assert.deepEqual(sugestaoDoFoco(['instagram-carrossel']), { writingMode: 'carrossel', formatoVisual: 'Carrossel' });
+assert.deepEqual(sugestaoDoFoco(['youtube']), { writingMode: 'youtube', formatoVisual: 'YouTube' });
+assert.deepEqual(sugestaoDoFoco(['instagram-video']), { writingMode: 'texto', formatoVisual: 'Reels' });
+assert.equal(sugestaoDoFoco([]), null);
+assert.equal(sugestaoDoFoco(null), null);
+
+// Ordem do próprio foco manda quando há mais de uma rede.
+assert.deepEqual(
+  sugestaoDoFoco(['youtube', 'instagram-carrossel']),
+  { writingMode: 'youtube', formatoVisual: 'YouTube' },
+);
+assert.deepEqual(
+  sugestaoDoFoco(['instagram-carrossel', 'youtube']),
+  { writingMode: 'carrossel', formatoVisual: 'Carrossel' },
+);
+assert.deepEqual(
+  sugestaoDoFoco(['tiktok', 'youtube-shorts']),
+  { writingMode: 'texto', formatoVisual: 'Reels' },
+);
+assert.deepEqual(
+  sugestaoDoFoco(['youtube-shorts', 'tiktok']),
+  { writingMode: 'texto', formatoVisual: 'Shorts' },
+);
+
+// Só blog/outra no foco: nenhuma sugestao (fila fixa também não mapeia).
+assert.equal(sugestaoDoFoco(['blog', 'outra']), null);
+
+assert.equal(
+  textoDaSugestaoDoFoco({ writingMode: 'carrossel', formatoVisual: 'Carrossel' }),
+  'Neste foco, o episódio nasce como Carrossel (modo carrossel).',
+);
+
 console.log('ok - foco temporada');
+

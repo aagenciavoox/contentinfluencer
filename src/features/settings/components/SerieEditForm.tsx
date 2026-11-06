@@ -22,6 +22,7 @@ import {
   type Platform,
   type Serie,
   type SerieTipoAgrupamento,
+  type ModoSequenciaSerie,
 } from '../../../lib/database';
 import { SerieProductionMetricsPanel } from './SerieProductionMetricsPanel';
 import { templateToHtml } from '../../contents/lib/seriesScriptTemplate';
@@ -32,6 +33,11 @@ import { useUnsavedChangesRegistration } from '../../../hooks/useUnsavedChangesR
 import { generateUUID } from '../../../utils/uuid';
 import { EntityColorPicker } from './EntityColorPicker';
 import { isSerieColorTaken } from '../lib/serieColors';
+import {
+  AJUDA_MODO_SEQUENCIA,
+  lerModoSequencia,
+  ROTULO_MODO_SEQUENCIA,
+} from '../lib/modoSequencia';
 import { acompanhaNoGeral, comAcompanhamentoGeral } from '../../editorial/lib/acompanhamento';
 import { OpenInfoNotice } from '../../editorial/components/OpenInfoNotice';
 import { LegendaBaseField } from '../../editorial/components/legendas/LegendaBaseField';
@@ -482,6 +488,7 @@ export function SerieEditForm({
       parentId: initial.parentId ?? null,
       usaTemporadas: initial.usaTemporadas === true,
       focoRedes: normalizarRedesPostIt(initial.focoRedes ?? []),
+      modoSequencia: lerModoSequencia(initial.modoSequencia) ?? 'ordem_temporada',
       tipoAgrupamento: initial.tipoAgrupamento ?? null,
       semPilar: initial.semPilar === true,
       acompanharContinuidade: acompanhaNoGeral({ id: initial.id ?? '', acompanharContinuidade: initial.acompanharContinuidade, acompanhamentos: initial.acompanhamentos }),
@@ -551,6 +558,7 @@ export function SerieEditForm({
     if (form.parentId !== snap.form.parentId) return true;
     if (form.usaTemporadas !== snap.form.usaTemporadas) return true;
     if (JSON.stringify(form.focoRedes) !== JSON.stringify(snap.form.focoRedes)) return true;
+    if (form.modoSequencia !== snap.form.modoSequencia) return true;
     if (form.ativa !== snap.form.ativa) return true;
     if (JSON.stringify(form.plataformas) !== JSON.stringify(snap.form.plataformas)) return true;
     return false;
@@ -714,6 +722,7 @@ export function SerieEditForm({
       parentId: form.parentId,
       usaTemporadas: form.usaTemporadas,
       focoRedes: tipo === 'quadro' ? normalizarRedesPostIt(form.focoRedes) : normalizarRedesPostIt(initial.focoRedes ?? []),
+      modoSequencia: tipo === 'serie' ? lerModoSequencia(form.modoSequencia) : (initial.modoSequencia ?? null),
       tipoAgrupamento: tipo,
       semPilar: !form.pilarPrincipalId && form.semPilar,
       // Acompanhamento geral na tabela nova (coluna antiga espelhada); por conta/formato e metas seguem como estavam.
@@ -1171,8 +1180,39 @@ export function SerieEditForm({
                       </>)}
                     </EditorSection>
 
+
                     <EditorSection
                       index="02"
+                      title="Modo de sequência"
+                      description="Como o Planejamento prioriza o próximo episódio em Ver o que encaixa."
+                    >
+                      <div className="scroll-mt-28">
+                        <label htmlFor="serie-modo-sequencia">
+                          <FieldLabel optional>Sequência dos episódios</FieldLabel>
+                        </label>
+                        <SelectField
+                          id="serie-modo-sequencia"
+                          block
+                          ariaLabel="Modo de sequência"
+                          value={form.modoSequencia}
+                          onChange={valor => setForm(previous => ({
+                            ...previous,
+                            modoSequencia: (lerModoSequencia(valor) ?? 'ordem_temporada') as ModoSequenciaSerie,
+                          }))}
+                          options={[
+                            { value: 'intercalar', label: ROTULO_MODO_SEQUENCIA.intercalar },
+                            { value: 'seguir_um', label: ROTULO_MODO_SEQUENCIA.seguir_um },
+                            { value: 'ordem_temporada', label: ROTULO_MODO_SEQUENCIA.ordem_temporada },
+                          ]}
+                        />
+                        <Text variant="meta" as="p" className="mt-1.5 text-[var(--text-secondary)]">
+                          {AJUDA_MODO_SEQUENCIA[form.modoSequencia as ModoSequenciaSerie]}
+                        </Text>
+                      </div>
+                    </EditorSection>
+
+                    <EditorSection
+                      index="03"
                       title="Destinos e formatos"
                       description="Onde a série publica e os formatos que os episódios novos recebem."
                     >
@@ -1209,7 +1249,7 @@ export function SerieEditForm({
                     </EditorSection>
 
                     <EditorSection
-                      index="03"
+                      index="04"
                       title="Textos de publicação"
                       description="A legenda-base vale para todas as contas, até que uma delas tenha um texto próprio."
                     >

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { RichTextEditor } from '../../../../components/editors/RichTextEditor';
 import { BottomSheetModal } from '../../../../components/feedback/modals/BottomSheetModal';
 import { DestinationChips } from '../../../editorial/components/DestinationChips';
-import { publicacoesDoEpisodioNaTemporada } from '../../../editorial/lib/focoTemporada';
+import { publicacoesDoEpisodioNaTemporada, sugestaoDoFoco, textoDaSugestaoDoFoco } from '../../../editorial/lib/focoTemporada';
+import type { WritingMode } from '../../../../lib/database';
 import { OverlayBody } from '../../../../components/overlays/OverlayBody';
 import { OverlayFooter } from '../../../../components/overlays/OverlayFooter';
 import { OverlayHeader } from '../../../../components/overlays/OverlayHeader';
@@ -21,7 +22,10 @@ export type PedidoNovoConteudo = {
   /** HTML do editor; vazio quando nada foi colado. */
   texto: string;
   plataformas: ContentPlataforma[];
-  /** true: abre a página do conteúdo; false: fica na série. */
+  /** Sugestão do foco de redes; ausente quando não há foco. */
+  writingMode?: WritingMode;
+  formatoVisual?: string | null;
+  /** true: abre a pagina do conteudo; false: fica na serie. */
   abrir: boolean;
 };
 
@@ -78,7 +82,17 @@ export function NovoConteudoDialog({
       setErro('Dê um título ao conteúdo.');
       return;
     }
-    onCreate({ id, modo, titulo: titulo.trim(), texto, plataformas, abrir });
+    const sugestao = sugestaoDoFoco(focoRedes);
+    onCreate({
+      id,
+      modo,
+      titulo: titulo.trim(),
+      texto,
+      plataformas,
+      writingMode: sugestao?.writingMode,
+      formatoVisual: sugestao?.formatoVisual ?? null,
+      abrir,
+    });
   };
 
   return (
@@ -100,6 +114,16 @@ export function NovoConteudoDialog({
           contentId=""
           onChange={setPlataformas}
         />
+
+        {(() => {
+          const sugestao = sugestaoDoFoco(focoRedes);
+          if (!sugestao) return null;
+          return (
+            <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+              {textoDaSugestaoDoFoco(sugestao)}
+            </Text>
+          );
+        })()}
         <div className="stack-xs">
           <label htmlFor="novo-conteudo-titulo">
             <Text variant="label" as="span">

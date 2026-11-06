@@ -390,6 +390,8 @@ export function SeriesScriptsPage() {
       ...base,
       userId: user?.id || '',
       plataformas: novo.plataformas.map(plataforma => ({ ...plataforma, contentId: base.id })),
+      ...(novo.formatoVisual ? { formatoVisual: novo.formatoVisual } : {}),
+      ...(novo.writingMode ? { writingMode: novo.writingMode } : {}),
     });
     void dispatch({ type: 'ADD_CONTENT', payload: content });
     setNovoEm(null);

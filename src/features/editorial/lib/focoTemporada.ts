@@ -1,6 +1,6 @@
-import type { ContentPlataforma, FormatoEscolhidoNaPublicacao } from '../../../lib/database.ts';
+import type { ContentPlataforma, FormatoEscolhidoNaPublicacao, WritingMode } from '../../../lib/database.ts';
 import { contasAtivas, redeDaConta, ROTULO_REDE_DO_FILTRO, type ContaRef, type RedeDoFiltro } from '../../contas/lib/contas.ts';
-import { compararExibicaoRede, normalizarRedesPostIt } from '../../planejamento/lib/redesPostIt.ts';
+import { compararExibicaoRede, normalizarRedesPostIt, REDES_DO_POSTIT } from '../../planejamento/lib/redesPostIt.ts';
 import { criarPublicacaoAgendada, destinosPadraoAtivos, publicacoesIniciais } from './destinations.ts';
 
 /** "Instagram · TikTok · YouTube Shorts". */
@@ -93,4 +93,106 @@ export function publicacoesDoEpisodioNaTemporada(input: {
     })),
   );
   return publicacoesIniciais({ destinos, contentId: input.contentId });
+}
+
+export type SugestaoDoFoco = {
+  writingMode: WritingMode;
+  /** Rótulo curto do formato do episódio; null = não sugere (mantém o da série). */
+  formatoVisual: string | null;
+};
+
+/** Conhecidas, sem repetir, na ordem em que vieram (não reordena pela lista fixa). */
+function redesDoFocoNaOrdem(focoRedes: readonly string[] | null | undefined): RedeDoFiltro[] {
+  if (!Array.isArray(focoRedes) || focoRedes.length === 0) return [];
+  const conhecidas = new Set<string>(REDES_DO_POSTIT);
+  const vistas = new Set<string>();
+  const out: RedeDoFiltro[] = [];
+  for (const bruto of focoRedes) {
+    if (typeof bruto !== 'string') continue;
+    const rede = bruto.trim().toLowerCase();
+    if (!conhecidas.has(rede) || vistas.has(rede)) continue;
+    vistas.add(rede);
+    out.push(rede as RedeDoFiltro);
+  }
+  return out;
+}
+
+function sugestaoDaRede(rede: RedeDoFiltro): SugestaoDoFoco | null {
+  if (rede === 'instagram-carrossel' || rede === 'tiktok-carrossel') {
+    return { writingMode: 'carrossel', formatoVisual: 'Carrossel' };
+  }
+  if (rede === 'youtube') {
+    return { writingMode: 'youtube', formatoVisual: 'YouTube' };
+  }
+  if (rede === 'youtube-shorts') {
+    return { writingMode: 'texto', formatoVisual: 'Shorts' };
+  }
+  if (
+    rede === 'instagram-video'
+    || rede === 'tiktok-video'
+    || rede === 'instagram'
+    || rede === 'tiktok'
+  ) {
+    return { writingMode: 'texto', formatoVisual: 'Reels' };
+  }
+  return null;
+}
+
+/** Fila fixa: só entra quando o foco não traz ordem utilizavel. */
+const FILA_FIXA_SUGESTAO: readonly RedeDoFiltro[] = [
+  'instagram-carrossel',
+  'tiktok-carrossel',
+  'youtube',
+  'youtube-shorts',
+  'instagram-video',
+  'tiktok-video',
+  'instagram',
+  'tiktok',
+];
+
+/**
+ * Formato e modo de escrita sugeridos pelo foco de redes na criação do episódio.
+ * Com mais de uma rede, manda a ordem do próprio foco da wave.
+ * A fila fixa (carrossel > YouTube longo > Shorts > Reels) só vale quando essa ordem não existe.
+ * Meta automática da conta fica para depois.
+ */
+function sugestaoPelaFilaFixa(redes: readonly RedeDoFiltro[]): SugestaoDoFoco | null {
+  const presentes = new Set(redes);
+  for (const rede of FILA_FIXA_SUGESTAO) {
+    if (!presentes.has(rede)) continue;
+    const sugestao = sugestaoDaRede(rede);
+    if (sugestao) return sugestao;
+  }
+  return null;
+}
+
+export function sugestaoDoFoco(focoRedes: readonly string[] | null | undefined): SugestaoDoFoco | null {
+  // Sem array ordenado: só há um conjunto (ou nada). Aí vale a fila fixa.
+  if (!Array.isArray(focoRedes)) {
+    return sugestaoPelaFilaFixa(normalizarRedesPostIt(focoRedes ?? []));
+  }
+
+  const ordenadas = redesDoFocoNaOrdem(focoRedes);
+  if (ordenadas.length === 0) return null;
+
+  // Ordem do próprio foco da wave: a primeira rede que sugere formato/modo vence.
+  for (const rede of ordenadas) {
+    const sugestao = sugestaoDaRede(rede);
+    if (sugestao) return sugestao;
+  }
+
+  // Redes no foco sem mapeamento (ex.: só blog/outra).
+  return sugestaoPelaFilaFixa(ordenadas);
+}
+
+/** Frase curta para o diálogo de novo conteúdo. */
+export function textoDaSugestaoDoFoco(sugestao: SugestaoDoFoco): string {
+  const modo =
+    sugestao.writingMode === 'carrossel' ? 'modo carrossel'
+    : sugestao.writingMode === 'youtube' ? 'modo YouTube'
+    : 'modo texto';
+  if (sugestao.formatoVisual) {
+    return 'Neste foco, o episódio nasce como ' + sugestao.formatoVisual + ' (' + modo + ').';
+  }
+  return 'Neste foco, o episódio nasce em ' + modo + '.';
 }

@@ -142,7 +142,8 @@ Uma linha nova no banco não escapa do cache de abertura. A foto do domínio (me
   - `bordao` text opcional -> legado: o app e o MCP nao leem nem gravam mais (coluna mantida)
   - `cor` text opcional
   - `ativa` boolean obrigatorio -> default: `true`; compatibilidade, segue `status` (`ativa = status = 'ativa'`)
-  - `status` text obrigatorio -> default: `'ativa'`; valores: `rascunho | ativa | arquivada`; quadro nao fica em `rascunho` (migracao `20261105150000_serie_status`)
+  - `status` text obrigatorio -> default: `'ativa'`; valores: `rascunho | ativa | arquivada`; quadro nao fica em `rascunho` (migração `20261105150000_serie_status`)
+  - `modo_sequencia` text opcional -> valores: `intercalar | seguir_um | ordem_temporada`; null = ainda não escolhido; usado pelo Planejamento em Ver o que encaixa (migração `20261105220000_serie_modo_sequencia`)
   - `frequencia_recomendada` text opcional -> valores esperados: `Semanal | Quinzenal | Mensal | Sob demanda`
   - `created_at` timestamptz automatico
   - `updated_at` timestamptz automatico

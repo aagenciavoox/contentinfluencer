@@ -116,6 +116,9 @@ export type FuncaoPadraoSerie = FuncaoEditorial | 'varia';
 /** Nível do agrupamento: família → série → quadro. Todos opcionais. */
 export type SerieTipoAgrupamento = 'familia' | 'serie' | 'quadro';
 
+/** Como o Planejamento prioriza episódios da série em "Ver o que encaixa". */
+export type ModoSequenciaSerie = 'intercalar' | 'seguir_um' | 'ordem_temporada';
+
 /** De onde veio a função do roteiro. Vazio = ainda não escolhida. */
 export type FuncaoOrigem = 'herdada' | 'escolhida' | 'nenhuma' | 'aplicada' | 'migrada';
 
@@ -209,6 +212,8 @@ export interface Serie {
   usaCorDaSerie?: boolean;
   /** Redes dos episódios novos deste quadro, quando a temporada não escolhe as suas. */
   focoRedes?: RedeDoFiltro[];
+  /** Como priorizar episódios no Planejamento (Fase 3). Ausente antes da migração 20261105220000. */
+  modoSequencia?: ModoSequenciaSerie | null;
   /** Acompanhamentos da série por escopo (serie_acompanhamento). */
   acompanhamentos?: AcompanhamentoSerie[];
   /** Frequência da série numa conta ou formato (serie_meta). A geral fica nas colunas acima. */
@@ -225,6 +230,10 @@ export type StatusSerie = 'rascunho' | 'ativa' | 'arquivada';
 
 function readStatusSerie(value: unknown): StatusSerie | undefined {
   return value === 'rascunho' || value === 'ativa' || value === 'arquivada' ? value : undefined;
+}
+
+function readModoSequencia(value: unknown): ModoSequenciaSerie | null {
+  return value === 'intercalar' || value === 'seguir_um' || value === 'ordem_temporada' ? value : null;
 }
 
 export interface Temporada {
@@ -992,6 +1001,7 @@ const SERIE_OPTIONAL_COLUMNS = [
   'usa_cor_da_serie',
   'foco_redes',
   'status',
+  'modo_sequencia',
 ] as const;
 
 /** Migração da escolha "Acompanhar continuidade na Saúde". */
@@ -1004,6 +1014,8 @@ export const MIGRACAO_EDITORIAL_POR_CONTA = '20261103120000_editorial_por_conta_
 export const MIGRACAO_SERIE_FOCO_REDES = '20261104190000_serie_foco_redes';
 /** Status rascunho / ativa / arquivada da série e da wave. */
 export const MIGRACAO_SERIE_STATUS = '20261105150000_serie_status';
+/** Modo de sequência da série (intercalar / seguir um / ordem da temporada). */
+export const MIGRACAO_SERIE_MODO_SEQUENCIA = '20261105220000_serie_modo_sequencia';
 /** Meta e acompanhamento isolados da temporada. */
 export const MIGRACAO_TEMPORADA_ACOMPANHAMENTO = '20261104200000_temporada_acompanhamento';
 
@@ -1406,6 +1418,7 @@ const mp = {
     acompanharContinuidade: r.acompanhar_continuidade === true,
     usaCorDaSerie: r.usa_cor_da_serie === true,
     focoRedes: normalizarRedesPostIt(r.foco_redes),
+    modoSequencia: readModoSequencia(r.modo_sequencia),
     // Sem a tabela (migração 20261103120000) fica undefined: aí vale a coluna antiga.
     acompanhamentos: Array.isArray(r.serie_acompanhamento) ? r.serie_acompanhamento.flatMap(acompanhamentoDaLinha) : undefined,
     metasPorEscopo: Array.isArray(r.serie_meta) ? r.serie_meta.flatMap(metaDaSerieDaLinha) : undefined,
@@ -3420,6 +3433,7 @@ export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 
   if (serie.acompanhamentos) row.acompanhar_continuidade = serie.acompanhamentos.some(item => item.escopo === 'geral' && item.ativo);
   if ('usaCorDaSerie' in serie) row.usa_cor_da_serie = serie.usaCorDaSerie === true;
   if ('focoRedes' in serie) row.foco_redes = normalizarRedesPostIt(serie.focoRedes ?? []);
+  if ('modoSequencia' in serie) row.modo_sequencia = readModoSequencia(serie.modoSequencia);
   if (serie.status) {
     row.status = serie.status;
     row.ativa = serie.status === 'ativa';
@@ -3454,6 +3468,9 @@ export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 
       }
       if (missing === 'foco_redes' && Array.isArray(row.foco_redes) && row.foco_redes.length > 0) {
         throw new Error(`Para guardar as redes do quadro, aplique a migração ${MIGRACAO_SERIE_FOCO_REDES}.`);
+      }
+      if (missing === 'modo_sequencia' && row.modo_sequencia != null) {
+        throw new Error(`Para guardar o modo de sequência, aplique a migração ${MIGRACAO_SERIE_MODO_SEQUENCIA}.`);
       }
       const {[missing]: _removed, ...rest} = row;
       row = rest;
