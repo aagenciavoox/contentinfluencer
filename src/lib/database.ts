@@ -171,6 +171,7 @@ export interface Serie {
   name: string;
   template: string;
   notes: string;
+  /** Só a criação em massa usa (ÚNICO / SÉRIE / JANELA → Content.slotType). O Planejamento não sugere dia nem horário por ele. */
   slotPadrao: string | null;
   /** Formatos de publicação (vários). Banco antigo guardava texto único. */
   formatoVisualPadrao: string[];

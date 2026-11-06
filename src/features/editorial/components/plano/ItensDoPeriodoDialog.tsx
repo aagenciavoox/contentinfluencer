@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -20,6 +20,9 @@ import { ETAPA_LABEL, ETAPAS, type Etapa } from '../../lib/etapas';
 import { etapaDoItem } from '../../lib/gradeCounts';
 import type { GradeEntry } from '../../lib/gradeEntries';
 import { usePostItsNaData } from '../../../planejamento/hooks/usePostItsNaData';
+import { saudeDoMes } from '../../../planejamento/lib/monthHealth';
+import { continuidadeDasSeries, janelaDaContinuidade } from '../../../planejamento/lib/saudeIndicadores';
+import { progressoDasOndas } from '../../../planejamento/lib/episodioNaTemporada';
 
 /** Qual célula da tabela foi aberta. `objetivo` null é a linha "Sem objetivo". */
 export type FiltroDosItens = {
@@ -83,6 +86,27 @@ export function ItensDoPeriodoDialog({
   const { state } = useAppContext();
   const [encaixe, setEncaixe] = useState<PlanejamentoPostIt | null>(null);
   const postIts = usePostItsNaData();
+  // Ritmo do encaixe: a mesma continuidade da Saúde/régua, no período desta tabela.
+  const linhasDoRitmo = useMemo(() => {
+    if (!encaixe) return [];
+    const estendido = saudeDoMes({
+      postIts,
+      contents: state.contents,
+      series: state.series,
+      pilares: state.pilares,
+      settings: state.editorial,
+      periodo: janelaDaContinuidade(periodo),
+      platforms: state.platforms,
+    });
+    return continuidadeDasSeries({
+      series: state.series,
+      itens: estendido.itens,
+      periodo,
+      pausas: state.editorial.pausas ?? [],
+      temporadas: state.temporadas,
+      progressoDasOndas: progressoDasOndas(state.contents, format(new Date(), 'yyyy-MM-dd')),
+    }).linhas;
+  }, [encaixe, postIts, state.contents, state.series, state.pilares, state.editorial, state.platforms, state.temporadas, periodo]);
 
   const doFiltro = filtro
     ? itens
@@ -209,7 +233,7 @@ export function ItensDoPeriodoDialog({
           ) : null}
         </div>
       </Dialog>
-      <EncaixeDialog postIt={encaixe} onClose={() => setEncaixe(null)} zIndex="z-[140]" />
+      <EncaixeDialog postIt={encaixe} onClose={() => setEncaixe(null)} zIndex="z-[140]" linhasDoRitmo={linhasDoRitmo} />
     </>
   );
 }

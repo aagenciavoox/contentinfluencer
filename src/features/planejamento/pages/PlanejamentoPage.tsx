@@ -1908,7 +1908,12 @@ export function PlanejamentoPage() {
         }}
       />
 
-      <EncaixeDialog postIt={encaixePostIt} onClose={() => setEncaixeId(null)} zIndex="z-[140]" />
+      <EncaixeDialog
+        postIt={encaixePostIt}
+        onClose={() => setEncaixeId(null)}
+        zIndex="z-[140]"
+        linhasDoRitmo={monthHealth.continuidade.linhas}
+      />
 
       <SalvarNoCalendarioDialog
         open={salvarCalendarioIds !== null}

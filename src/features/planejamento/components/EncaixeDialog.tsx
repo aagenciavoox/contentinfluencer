@@ -12,7 +12,8 @@ import {useAppContext} from '../../../context/AppContext';
 import {normalizeContentStatus} from '../../contents/lib/contentPipeline';
 import {datasNaGrade} from '../../editorial/lib/datasNaGrade';
 import {FUNCAO_CURTA} from '../../editorial/lib/funcoes';
-import {candidatosDoEncaixe, descricaoDoCandidato, type CandidatoEncaixe} from '../lib/encaixe';
+import {candidatosDoEncaixe, descricaoDoCandidato, type CandidatoEncaixe, type RitmoDoEncaixe} from '../lib/encaixe';
+import {progressoDasOndas} from '../lib/episodioNaTemporada';
 import {encaixarConteudo, type PlanejamentoPostIt} from '../lib/postIt';
 import {usePostItsNaData} from '../hooks/usePostItsNaData';
 
@@ -80,8 +81,11 @@ export function EncaixeDialog({
   onClose,
   onEncaixado,
   zIndex,
+  linhasDoRitmo,
 }: {
   postIt: PlanejamentoPostIt | null;
+  /** Linhas da continuidade do período visível (a mesma da régua). Sem elas, o ritmo não ordena. */
+  linhasDoRitmo?: RitmoDoEncaixe['linhas'];
   onClose: () => void;
   onEncaixado?: (postIt: PlanejamentoPostIt) => void;
   zIndex?: string;
@@ -100,13 +104,18 @@ export function EncaixeDialog({
 
   const lista = useMemo(() => {
     if (!postIt) return {combinam: [], outros: []};
-    const todos = candidatosDoEncaixe({postIt, postIts, contents: state.contents, series: state.series, datas});
+    const ritmo: RitmoDoEncaixe = {
+      linhas: linhasDoRitmo ?? [],
+      temporadas: state.temporadas,
+      progressoDasOndas: progressoDasOndas(state.contents, format(new Date(), 'yyyy-MM-dd')),
+    };
+    const todos = candidatosDoEncaixe({postIt, postIts, contents: state.contents, series: state.series, datas, ritmo});
     const termo = busca.trim().toLocaleLowerCase('pt-BR');
     if (!termo) return todos;
     const passa = (candidato: CandidatoEncaixe) =>
       (candidato.content.title || '').toLocaleLowerCase('pt-BR').includes(termo);
     return {combinam: todos.combinam.filter(passa), outros: todos.outros.filter(passa)};
-  }, [busca, datas, postIt, postIts, state.contents, state.series]);
+  }, [busca, datas, postIt, postIts, state.contents, state.series, state.temporadas, linhasDoRitmo]);
 
   const criterio = postIt ? criterioDoPostIt(postIt, state.series, state.pilares) : null;
   const vazio = lista.combinam.length === 0 && lista.outros.length === 0;
