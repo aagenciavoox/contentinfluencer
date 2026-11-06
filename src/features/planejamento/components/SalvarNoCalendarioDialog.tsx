@@ -14,6 +14,7 @@ import {
   type DestinoSalvar,
   type LinhaSalvarCalendario,
   linhasParaSalvarNoCalendario,
+  textoHorariosDescartados,
 } from '../lib/salvarNoCalendario';
 
 type ModoData = 'mesmo' | 'por-conta';
@@ -81,6 +82,21 @@ export function SalvarNoCalendarioDialog({
     }
     setPorConta(mapa);
   }, [open, iniciais, postIts, contents, platforms]);
+
+  const avisoHorario = useMemo(() => {
+    if (modo !== 'mesmo' || !time.trim()) return null;
+    const mensagens = linhas.flatMap(linha => {
+      const postIt = postIts.find(item => item.id === linha.postItId);
+      const content = postIt?.contentId ? contents.find(item => item.id === postIt.contentId) : null;
+      if (!content) return [];
+      const texto = textoHorariosDescartados(content, time, platformId => {
+        const conta = platforms.find(item => item.id === platformId);
+        return conta?.nome || platformId;
+      });
+      return texto ? [texto] : [];
+    });
+    return mensagens.length > 0 ? mensagens.join(' ') : null;
+  }, [modo, time, linhas, postIts, contents, platforms]);
 
   const precisaEscolher = linhas.some(linha => !linha.opcoes.manter || linha.opcoes.ideia || linha.opcoes.roteiro);
   const aplicarTodos = (destino: DestinoSalvar) => {
@@ -194,18 +210,25 @@ export function SalvarNoCalendarioDialog({
                   ]}
                 />
                 {modo === 'mesmo' ? (
-                  <label className="block" htmlFor="horario-salvar-calendario">
-                    <Text variant="label" as="span" className="mb-2 block text-[var(--text-tertiary)]">
-                      Horário (opcional)
-                    </Text>
-                    <input
-                      id="horario-salvar-calendario"
-                      type="time"
-                      value={time}
-                      onChange={event => setTime(event.target.value)}
-                      className="input w-full max-w-[10rem]"
-                    />
-                  </label>
+                  <>
+                    <label className="block" htmlFor="horario-salvar-calendario">
+                      <Text variant="label" as="span" className="mb-2 block text-[var(--text-tertiary)]">
+                        Horário (opcional)
+                      </Text>
+                      <input
+                        id="horario-salvar-calendario"
+                        type="time"
+                        value={time}
+                        onChange={event => setTime(event.target.value)}
+                        className="input w-full max-w-[10rem]"
+                      />
+                    </label>
+                    {avisoHorario ? (
+                      <Text variant="meta" as="p" role="status" className="text-[var(--text-secondary)]">
+                        {avisoHorario}
+                      </Text>
+                    ) : null}
+                  </>
                 ) : (
                   <ul className="stack-md">
                     {linhas.map(linha => (

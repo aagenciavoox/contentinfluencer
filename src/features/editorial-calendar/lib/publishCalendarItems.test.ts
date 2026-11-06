@@ -265,8 +265,13 @@ function testPostadoFicaNoDiaEmQueFoiAoAr() {
   const base = { contents: [content], platforms, series, redeReferenciaId: INSTAGRAM };
 
   const todas = buildPublishCalendarItems({ ...base, platformFilter: 'todas' });
-  assert.equal(todas[0]?.date, '2026-10-11');
-  assert.equal(todas[0]?.posted, true);
+  assert.deepEqual(
+    todas.map(item => ({ rede: item.platformNames[0], date: item.date, posted: item.posted })),
+    [
+      { rede: 'Instagram', date: '2026-10-11', posted: true },
+      { rede: 'TikTok', date: '2026-10-10', posted: true },
+    ],
+  );
 
   const soTikTok = buildPublishCalendarItems({ ...base, platformFilter: 'TikTok' });
   assert.equal(soTikTok[0]?.date, '2026-10-10');
@@ -343,12 +348,13 @@ function testSemRedeDeReferenciaCadaRoteiroAparece() {
   assert.deepEqual(
     itens.map(item => ({ id: item.id, date: item.date, posted: item.posted, redes: item.platformNames })),
     [
-      { id: 'com-redes:original', date: '2026-10-10', posted: true, redes: ['Instagram', 'TikTok'] },
+      { id: 'com-redes:pub:ig', date: '2026-10-11', posted: true, redes: ['Instagram'] },
+      { id: 'com-redes:pub:tt', date: '2026-10-10', posted: true, redes: ['TikTok'] },
       { id: 'com-redes:ciclo:2', date: '2026-10-20', posted: false, redes: ['Instagram'] },
       { id: 'agendado:original', date: '2026-10-16', posted: false, redes: ['TikTok'] },
     ],
   );
-  assert.equal(itens[2]?.time, '19:00');
+  assert.equal(itens[3]?.time, '19:00');
 }
 
 function testPublicadoEmDiaDiferenteDoPlanejadoUsaODiaReal() {
@@ -413,6 +419,88 @@ function testMesmoConteudoCaiNoMesmoDiaNaGradeENoCalendario() {
   assert.equal(gradeEntry.hora, calendarItem.time);
 }
 
+function testPostadoSoForaDaRedeDeReferenciaContinuaNoCalendario() {
+  const content = conteudo({
+    id: 'so-tiktok-postado',
+    status: 'Postado',
+    publishDate: null,
+    plataformas: [
+      publicacao({
+        id: 'tt',
+        contentId: 'so-tiktok-postado',
+        platformId: TIKTOK,
+        status: 'publicada',
+        publishDate: '2026-10-07',
+        publishTime: '19:00',
+      }),
+    ],
+  });
+  const grade = buildGradeEntries({
+    contents: [content],
+    series,
+    settings: { redeReferenciaId: INSTAGRAM },
+    platforms,
+  });
+  const itens = buildPublishCalendarItems({
+    contents: [content],
+    platforms,
+    series,
+    redeReferenciaId: INSTAGRAM,
+    platformFilter: 'todas',
+  });
+
+  assert.equal(grade.length, 0);
+  assert.equal(itens.length, 1);
+  assert.equal(itens[0]?.contentId, 'so-tiktok-postado');
+  assert.equal(itens[0]?.posted, true);
+  assert.equal(itens[0]?.date, '2026-10-07');
+  assert.equal(itens[0]?.time, '19:00');
+  assert.deepEqual(itens[0]?.platformNames, ['TikTok']);
+}
+
+function testVariasContasPostadasMostramHorariosDiferentes() {
+  const itens = buildPublishCalendarItems({
+    contents: [
+      conteudo({
+        id: 'horarios',
+        status: 'Postado',
+        publishDate: '2026-10-06',
+        publishTime: '18:00',
+        plataformas: [
+          publicacao({
+            id: 'ig',
+            contentId: 'horarios',
+            platformId: INSTAGRAM,
+            status: 'publicada',
+            publishDate: '2026-10-06',
+            publishTime: '18:00',
+          }),
+          publicacao({
+            id: 'tt',
+            contentId: 'horarios',
+            platformId: TIKTOK,
+            status: 'publicada',
+            publishDate: '2026-10-08',
+            publishTime: '21:00',
+          }),
+        ],
+      }),
+    ],
+    platforms,
+    series,
+    redeReferenciaId: INSTAGRAM,
+    platformFilter: 'todas',
+  });
+
+  assert.deepEqual(
+    itens.map(item => ({ rede: item.platformNames, date: item.date, time: item.time })),
+    [
+      { rede: ['Instagram'], date: '2026-10-06', time: '18:00' },
+      { rede: ['TikTok'], date: '2026-10-08', time: '21:00' },
+    ],
+  );
+}
+
 testSemanaMostraInstagramNaGradeETikTokComoExtra();
 testRepostEntraNaGradeComDataPropria();
 testPublicacaoMarcadaComoPostadaApareceComoPostado();
@@ -422,4 +510,6 @@ testPostadoPeloStatusUsaDataPlanejadaAntesDaMudanca();
 testSemRedeDeReferenciaCadaRoteiroAparece();
 testPublicadoEmDiaDiferenteDoPlanejadoUsaODiaReal();
 testMesmoConteudoCaiNoMesmoDiaNaGradeENoCalendario();
+testPostadoSoForaDaRedeDeReferenciaContinuaNoCalendario();
+testVariasContasPostadasMostramHorariosDiferentes();
 console.log('publishCalendarItems tests passed');

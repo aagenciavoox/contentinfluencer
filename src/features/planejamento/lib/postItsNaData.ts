@@ -4,6 +4,7 @@ import {applyScheduleToContent} from '../../editorial-calendar/lib/scheduleConte
 import {retirarPrevisao} from '../../editorial/lib/dataVencida.ts';
 import type {DestinoPlataforma} from '../../editorial/lib/destinations.ts';
 import {buildGradeEntries, type GradeContent, type GradeSerie} from '../../editorial/lib/gradeEntries.ts';
+import {dataRealizada, earliestRealizadaEm} from '../../editorial/lib/markPublished.ts';
 import {normalizePublicacaoStatus} from '../../editorial/lib/publicacaoSituacao.ts';
 
 type PostItComData = {
@@ -59,6 +60,66 @@ export function postItsNaDataDoRoteiro<T extends PostItComData>({
 /** Já saiu: a data é a da publicação e não muda pelo Planejamento. */
 export function roteiroPublicado(content: Pick<Content, 'status' | 'postedAt'>): boolean {
   return Boolean(content.postedAt) || normalizeContentStatus(content.status) === CONTENT_STATUS.POSTADO;
+}
+
+function hora(value: string | null | undefined): string | null {
+  const match = value ? /(\d{2}):(\d{2})/.exec(value) : null;
+  return match ? `${match[1]}:${match[2]}` : null;
+}
+
+function pad2(value: number): string {
+  return String(value).padStart(2, '0');
+}
+
+/** Instante ISO vira dia e hora locais. Data sem hora fica só com o dia. */
+function instanteDe(value: string | null | undefined): { date: string; time: string | null } | null {
+  if (!value) return null;
+  const texto = value.trim();
+  const soDia = /^(\d{4}-\d{2}-\d{2})$/.exec(texto);
+  if (soDia) return { date: soDia[1], time: null };
+  const date = new Date(texto);
+  if (Number.isNaN(date.getTime())) return null;
+  return {
+    date: `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`,
+    time: `${pad2(date.getHours())}:${pad2(date.getMinutes())}`,
+  };
+}
+
+export type QuandoFoiAoAr = { date: string; time: string | null };
+
+/**
+ * Dia e hora em que o roteiro foi ao ar: a publicação mais cedo, depois postedAt, depois o plano.
+ * Roteiro que ainda não saiu devolve null.
+ */
+export function quandoFoiAoAr(
+  content: Pick<Content, 'status' | 'postedAt' | 'publishDate' | 'publishTime' | 'plataformas'>,
+): QuandoFoiAoAr | null {
+  if (!roteiroPublicado(content)) return null;
+  const realizadas = (content.plataformas ?? [])
+    .filter(plataforma => plataforma.status === 'publicada')
+    .map(plataforma => dataRealizada(plataforma))
+    .filter((value): value is string => Boolean(value));
+  const doAr = instanteDe(earliestRealizadaEm(realizadas)) ?? instanteDe(content.postedAt);
+  if (doAr) return doAr;
+  const plano = dia(content.publishDate);
+  if (!plano) return null;
+  return { date: plano, time: hora(content.publishTime) };
+}
+
+/** "Publicado em dd/MM HH:mm". Sem hora, só o dia. */
+export function rotuloPublicadoEm(quando: QuandoFoiAoAr): string {
+  const [, mes, diaMes] = quando.date.split('-');
+  const data = `${diaMes}/${mes}`;
+  return quando.time ? `Publicado em ${data} ${quando.time}` : `Publicado em ${data}`;
+}
+
+/** No quadro, o post-it publicado fica no dia em que foi ao ar. Os outros ficam no dia gravado. */
+export function diaNoQuadro(
+  postIt: PostItComData,
+  content: Pick<Content, 'status' | 'postedAt' | 'publishDate' | 'publishTime' | 'plataformas'> | null | undefined,
+): string | null {
+  if (content && roteiroPublicado(content)) return quandoFoiAoAr(content)?.date ?? postIt.date;
+  return postIt.date;
 }
 
 function contaAindaPrevista(status: Content['plataformas'][number]['status']): boolean {

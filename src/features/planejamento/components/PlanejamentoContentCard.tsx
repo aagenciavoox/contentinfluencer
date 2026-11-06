@@ -38,6 +38,8 @@ export interface PlanejamentoContentCardProps {
   onToggleSelect?: () => void;
   /** "3 de 12" quando o conteúdo pertence a uma temporada. */
   episodio?: string | null;
+  /** Aviso de roteiro que já foi ao ar, por exemplo "Publicado em 06/11 18:30". */
+  aviso?: string | null;
   className?: string;
 }
 
@@ -63,6 +65,7 @@ export function PlanejamentoContentCard({
   selected = false,
   onToggleSelect,
   episodio = null,
+  aviso = null,
   className,
 }: PlanejamentoContentCardProps) {
   const posted = publicacao.estado === 'postado';
@@ -152,7 +155,7 @@ export function PlanejamentoContentCard({
       role="button"
       tabIndex={0}
       aria-pressed={onToggleSelect ? selected : undefined}
-      draggable={draggable}
+      draggable={draggable && !aviso}
       onDragStart={event => {
         // Ctrl/Cmd + arrastar não existe: o gesto é de seleção.
         if ((event.ctrlKey || event.metaKey) && onToggleSelect) {
@@ -263,6 +266,11 @@ export function PlanejamentoContentCard({
         {publicacao.estado === 'programado' || contas?.some(conta => conta.programado) ? (
           <Text variant="meta" as="span" className="rounded-[var(--radius-pill)] border border-[var(--border-subtle)] px-1.5 text-[var(--text-secondary)]">
             Programado
+          </Text>
+        ) : null}
+        {aviso ? (
+          <Text variant="meta" as="span" className="basis-full text-[var(--text-secondary)]">
+            {aviso}
           </Text>
         ) : null}
         {publicacao.time ? (

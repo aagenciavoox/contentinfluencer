@@ -81,7 +81,8 @@ import {publicacoesDaAgenda, rotuloDoFormato} from '../../editorial/lib/publicac
 import {CreationRedeQuickFilter} from '../../creation/components/CreationRedeQuickFilter';
 import {redesDoFiltroRapido} from '../../creation/lib/creationRedeFilter';
 import {usePostItsNaData} from '../hooks/usePostItsNaData';
-import {roteiroPublicado} from '../lib/postItsNaData';
+import {diaNoQuadro, quandoFoiAoAr, rotuloPublicadoEm, roteiroPublicado} from '../lib/postItsNaData';
+import {notifySaveFeedback} from '../../../lib/saveFeedback';
 import {
   POST_IT_MIME,
   PostItAssuntosObras,
@@ -191,31 +192,33 @@ export function PlanejamentoPage() {
     if (!postItPedido) return;
     const pedido = postIts.find(postIt => postIt.id === postItPedido);
     if (!pedido) return;
-    if (pedido.date) setMonth(new Date(`${pedido.date}T12:00:00`));
+    const dia = diaNoQuadro(pedido, contentById(contents, pedido.contentId));
+    if (dia) setMonth(new Date(`${dia}T12:00:00`));
     setOpenId(pedido.id);
     setSearchParams(previous => {
       const next = new URLSearchParams(previous);
       next.delete('postit');
       return next;
     }, {replace: true});
-  }, [postItPedido, postIts, setSearchParams]);
+  }, [postItPedido, postIts, contents, setSearchParams]);
 
 
   const byDate = useMemo(() => {
     const map = new Map<string, PlanejamentoPostIt[]>();
     postIts.forEach(postIt => {
-      if (!postIt.date) return;
+      const dia = diaNoQuadro(postIt, contentById(contents, postIt.contentId));
+      if (!dia) return;
       if (!intervaloEmFoco && !postItPassa(indiceAgenda, postIt, filtro)) return;
-      const list = map.get(postIt.date) ?? [];
+      const list = map.get(dia) ?? [];
       list.push(postIt);
-      map.set(postIt.date, list);
+      map.set(dia, list);
     });
     return map;
-  }, [postIts, indiceAgenda, filtro, intervaloEmFoco]);
+  }, [postIts, contents, indiceAgenda, filtro, intervaloEmFoco]);
 
   const undated = useMemo(
-    () => postIts.filter(postIt => !postIt.date && postItPassa(indiceAgenda, postIt, filtro)),
-    [postIts, indiceAgenda, filtro],
+    () => postIts.filter(postIt => !diaNoQuadro(postIt, contentById(contents, postIt.contentId)) && postItPassa(indiceAgenda, postIt, filtro)),
+    [postIts, contents, indiceAgenda, filtro],
   );
 
   const filtroRotulo = filtroAtivo(filtro)
@@ -296,6 +299,14 @@ export function PlanejamentoPage() {
       contas: state.platforms,
     });
     setSalvarCalendarioIds(null);
+    if (resultado.avisos.length > 0) {
+      notifySaveFeedback({
+        status: 'info',
+        message: 'Horários substituídos',
+        detail: resultado.avisos.join(' '),
+        persistent: true,
+      });
+    }
     void (async () => {
       for (const content of resultado.contents) {
         const exists = contents.some(item => item.id === content.id);
@@ -604,19 +615,23 @@ export function PlanejamentoPage() {
           const pilar = pilarId ? state.pilares.find(p => p.id === pilarId) ?? null : null;
 
           if (content) {
+            const publicado = roteiroPublicado(content);
+            const quando = publicado ? quandoFoiAoAr(content) : null;
             const redes = redesDoCartao({content, postIt, contas: state.platforms});
             const publicacao: PublicacaoNoDia = {
               id: `postit:${postIt.id}`,
               contentId: content.id,
               titulo: content.title?.trim() || postIt.texto?.trim() || 'Sem título',
-              time: (content.publishTime ? content.publishTime.slice(0, 5) : null) || (content.publishDate?.includes('T') ? content.publishDate.slice(11, 16) : null),
+              time: publicado
+                ? null
+                : (content.publishTime ? content.publishTime.slice(0, 5) : null) || (content.publishDate?.includes('T') ? content.publishDate.slice(11, 16) : null),
               // A referência é o id da conta: vira a rede dela. Sem rede conhecida, nenhum ícone.
               platformNames: redes.length > 0 ? redes : (() => {
                 if (!state.editorial.redeReferenciaId) return ['instagram'];
                 const rede = redeDaRef(state.editorial.redeReferenciaId, state.platforms);
                 return rede ? [rede] : [];
               })(),
-              estado: 'previsto',
+              estado: publicado ? 'postado' : 'previsto',
             };
 
             return (
@@ -627,8 +642,9 @@ export function PlanejamentoPage() {
                 content={content}
                 serie={serie}
                 pilar={pilar}
-                contas={contasDoCard(publicacoesDoCard(indiceAgenda, content.id, postIt.date), state.platforms)}
-                draggable={!isMobile}
+                aviso={quando ? rotuloPublicadoEm(quando) : null}
+                contas={contasDoCard(publicacoesDoCard(indiceAgenda, content.id, publicado ? null : postIt.date), state.platforms)}
+                draggable={!isMobile && !publicado}
                 onDragStart={event => {
                   if (isMobile) return;
                   const ids =
@@ -641,15 +657,15 @@ export function PlanejamentoPage() {
                   event.dataTransfer.effectAllowed = 'move';
                 }}
                 episodio={episodioPorId.get(content.id) ?? null}
-                onOpen={() => setPreview({contentId: content.id, postItId: postIt.id, dia: postIt.date})}
+                onOpen={() => setPreview({contentId: content.id, postItId: postIt.id, dia: diaNoQuadro(postIt, content)})}
                 onOpenDireto={() => abrirRoteiro(content.id)}
                 onGravacao={entraNoBloco(content, state.recordingBlocks) ? () => setBlocoAlvo([content]) : undefined}
-                onMove={() => abrirMover(postIt)}
+                onMove={publicado ? undefined : () => abrirMover(postIt)}
                 onRemoveFromDate={() => removePostItById(postIt.id)}
                 onDelete={() => removePostItById(postIt.id)}
-                onSalvarNoCalendario={postIt.date ? () => abrirSalvarNoCalendario([postIt.id]) : undefined}
+                onSalvarNoCalendario={!publicado && postIt.date ? () => abrirSalvarNoCalendario([postIt.id]) : undefined}
                 onTirarDoCalendario={
-                  content.publishDate || content.plataformas.some(plataforma => plataforma.publishDate)
+                  !publicado && (content.publishDate || content.plataformas.some(plataforma => plataforma.publishDate))
                     ? () => tirarDoCalendario(content.id)
                     : undefined
                 }

@@ -90,6 +90,35 @@ function realizadaEm(publicacoes: ReadonlyArray<ContentPlataforma | undefined>):
 }
 
 /**
+ * Roteiro que já foi ao ar: uma entrada por conta, no dia e na hora em que essa conta publicou.
+ * Vale também quando nenhuma conta é a rede de referência. A grade da Saúde não usa isto.
+ */
+function itensPorContaPublicada(content: Content, platforms: readonly PlatformRef[]): PublishCalendarItem[] {
+  const contas = (content.plataformas ?? []).filter(publicacao =>
+    cicloDaPublicacao(publicacao) === 1 && publicacaoPostada(content, publicacao),
+  );
+  return contas.map(publicacao => {
+    const quando = quandoDoItem(
+      content,
+      planejado(publicacao.publishDate, publicacao.publishTime),
+      true,
+      dataRealizada(publicacao),
+    );
+    return {
+      id: `${content.id}:pub:${publicacao.id}`,
+      contentId: content.id,
+      date: quando.date,
+      time: quando.time,
+      plataformaId: publicacao.id,
+      platformNames: [platformName(publicacao.platformId, platforms)],
+      posted: true,
+      cancelled: false,
+      programada: false,
+    };
+  });
+}
+
+/**
  * Sem rede de referência, cada roteiro entra uma vez, com todas as suas redes,
  * e cada repost entra na data dele.
  */
@@ -189,9 +218,9 @@ export function publishItemStatus(content: Content, item: PublishCalendarItem, _
 
 /**
  * "Todas" mostra um item por entrada da grade, com as redes daquele roteiro.
- * Sem rede de referência, um item por roteiro.
+ * Sem rede de referência, um item por roteiro — salvo o que já foi ao ar, que vira um item por conta.
  * Uma rede mostra um item por publicação dela, na data dessa publicação.
- * O que já foi ao ar fica no dia em que foi postado.
+ * O que já foi ao ar fica no dia e na hora em que cada conta publicou, mesmo fora da rede de referência.
  */
 export function buildPublishCalendarItems(input: {
   contents: readonly Content[];
@@ -236,7 +265,13 @@ export function buildPublishCalendarItems(input: {
   }
 
   if (!referenciaId) {
-    return input.contents.flatMap(content => itensSemReferencia(content, input.platforms));
+    return input.contents.flatMap(content => {
+      const porConta = itensPorContaPublicada(content, input.platforms);
+      if (porConta.length === 0) return itensSemReferencia(content, input.platforms);
+      const reposts = itensSemReferencia(content, input.platforms)
+        .filter(item => item.id.includes(':ciclo:'));
+      return [...porConta, ...reposts];
+    });
   }
 
   const series: GradeSerie[] = input.series.map(serie => ({
@@ -250,9 +285,13 @@ export function buildPublishCalendarItems(input: {
     platforms: input.platforms,
   });
 
-  return entries.flatMap(entry => {
+  const daGrade = entries.flatMap(entry => {
     const content = input.contents.find(item => item.id === entry.contentId);
     if (!content) return [];
+    if (entry.tipo === 'original') {
+      const porConta = itensPorContaPublicada(content, input.platforms);
+      if (porConta.length > 0) return porConta;
+    }
     const publicacoes = (content.plataformas ?? []).map(publicacao => ({
       ...publicacao,
       platformId: canonicalPlatformId(publicacao.platformId, input.platforms),
@@ -297,5 +336,13 @@ export function buildPublishCalendarItems(input: {
         : normalizePublicacaoStatus(publicacao?.status) === 'programada',
     }];
   });
+
+  const naGrade = new Set(entries.map(entry => entry.contentId));
+  const foraDaGrade = input.contents.flatMap(content => {
+    if (content.deletedAt || content.archivedAt || naGrade.has(content.id)) return [];
+    return itensPorContaPublicada(content, input.platforms);
+  });
+
+  return [...daGrade, ...foraDaGrade];
 }
 

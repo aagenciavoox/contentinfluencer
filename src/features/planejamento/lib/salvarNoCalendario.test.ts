@@ -7,6 +7,7 @@ import {
   executarSalvarNoCalendario,
   linhasParaSalvarNoCalendario,
   salvarRoteiroNoCalendario,
+  textoHorariosDescartados,
   tirarRoteiroDoCalendario,
 } from './salvarNoCalendario.ts';
 
@@ -137,6 +138,32 @@ function roteiro(overrides: Partial<Content> = {}): Content {
   });
   assert.equal(resultado.contents.length, 2);
   assert.equal(resultado.openScriptId, null);
+}
+
+{
+  const content = roteiro({
+    plataformas: [conta('ig', null), conta('tt', null, {publishTime: '20:00'})],
+  });
+  const aviso = textoHorariosDescartados(content, '19:00');
+  assert.match(aviso ?? '', /ig 18:00/);
+  assert.match(aviso ?? '', /tt 20:00/);
+  assert.match(aviso ?? '', /19:00/);
+  assert.equal(textoHorariosDescartados(content, null), null);
+  const semHorario = salvarRoteiroNoCalendario(content, {modo: 'mesmo', date: '2026-11-10'});
+  assert.ok(semHorario);
+  assert.deepEqual(semHorario.plataformas.map(item => item.publishTime), ['18:00', '20:00']);
+
+  const postIt = {...createEmptyPostIt({id: 'p-hora', texto: 'nota', date: '2026-11-12', now: NOW}), contentId: 'r1'};
+  const resultado = executarSalvarNoCalendario({
+    postIts: [postIt],
+    contents: [content],
+    linhas: linhasParaSalvarNoCalendario([postIt], [content]),
+    time: '19:00',
+    now: NOW,
+  });
+  assert.equal(resultado.avisos.length, 1);
+  assert.match(resultado.avisos[0] ?? '', /19:00/);
+  assert.deepEqual(resultado.contents[0]?.plataformas.map(item => item.publishTime), ['19:00', '19:00']);
 }
 
 console.log('salvarNoCalendario tests passed');

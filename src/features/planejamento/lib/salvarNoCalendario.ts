@@ -17,6 +17,32 @@ function contaAindaPrevista(status: ContentPlataforma['status']): boolean {
   return situacao === 'prevista' || situacao === 'programada';
 }
 
+function hora(value: string | null | undefined): string | null {
+  const match = value ? /(\d{2}):(\d{2})/.exec(value) : null;
+  return match ? `${match[1]}:${match[2]}` : null;
+}
+
+/**
+ * Contas previstas que perderiam o horário próprio se todas recebessem `time`.
+ * Horário vazio não descarta: cada conta fica com o que já tinha.
+ */
+export function textoHorariosDescartados(
+  content: Content,
+  time: string | null | undefined,
+  rotulo: (platformId: string) => string = id => id,
+): string | null {
+  const horaNova = hora(time);
+  if (!horaNova || content.deletedAt || roteiroPublicado(content)) return null;
+  const perdidos = content.plataformas.flatMap(plataforma => {
+    if (!contaAindaPrevista(plataforma.status)) return [];
+    const atual = hora(plataforma.publishTime);
+    if (!atual || atual === horaNova) return [];
+    return `${rotulo(plataforma.platformId)} ${atual}`;
+  });
+  if (perdidos.length === 0) return null;
+  return `O salvamento substitui ${perdidos.join(', ')} por ${horaNova}.`;
+}
+
 export type ContaNoCalendario = {
   platformId: string;
   date: string;
@@ -37,19 +63,22 @@ export function salvarRoteiroNoCalendario(
 
   if (input.modo === 'mesmo') {
     const day = input.date.slice(0, 10);
-    const time = input.time ?? content.publishTime ?? null;
+    const horaNova = hora(input.time);
+    const horarioDe = (plataforma: ContentPlataforma | null) =>
+      horaNova ?? hora(plataforma?.publishTime) ?? hora(content.publishTime);
     if (content.plataformas.length === 0) {
-      if (dia(content.publishDate) === day && (content.publishTime ?? null) === time) return null;
+      const time = horarioDe(null);
+      if (dia(content.publishDate) === day && hora(content.publishTime) === time) return null;
       return applyScheduleToContent(content, null, day, time);
     }
     const previstas = content.plataformas.filter(plataforma => contaAindaPrevista(plataforma.status));
     if (previstas.length === 0) return null;
     const jaNoDia = previstas.every(plataforma => dia(plataforma.publishDate) === day)
       && dia(content.publishDate) === day
-      && previstas.every(plataforma => (plataforma.publishTime ?? content.publishTime ?? null) === time);
+      && previstas.every(plataforma => hora(plataforma.publishTime ?? content.publishTime) === horarioDe(plataforma));
     if (jaNoDia) return null;
     return previstas.reduce(
-      (atual, plataforma) => applyScheduleToContent(atual, plataforma.platformId, day, time),
+      (atual, plataforma) => applyScheduleToContent(atual, plataforma.platformId, day, horarioDe(plataforma)),
       content,
     );
   }
@@ -166,6 +195,8 @@ export type ResultadoSalvarCalendario = {
   postIts: PlanejamentoPostIt[];
   /** Um único roteiro novo abre o editor. Vários não. */
   openScriptId: string | null;
+  /** Horários de conta que o horário único substituiu. */
+  avisos: string[];
 };
 
 /**
@@ -186,6 +217,7 @@ export function executarSalvarNoCalendario(input: {
   const changedContents = new Map<string, Content>();
   const changedPostIts = new Map<string, PlanejamentoPostIt>();
   const roteirosNovos: string[] = [];
+  const avisos: string[] = [];
 
   for (const linha of input.linhas) {
     let postIt = changedPostIts.get(linha.postItId) ?? postItsById.get(linha.postItId);
@@ -215,14 +247,18 @@ export function executarSalvarNoCalendario(input: {
     if (!content) continue;
 
     const porConta = input.horarioPorConta?.get(postIt.id);
+    const aviso = porConta && porConta.length > 0
+      ? null
+      : textoHorariosDescartados(content, input.time);
     const movido = porConta && porConta.length > 0
       ? salvarRoteiroNoCalendario(content, {modo: 'por-conta', contas: porConta})
       : salvarRoteiroNoCalendario(content, {
         modo: 'mesmo',
         date: postIt.date,
-        time: input.time ?? content.publishTime ?? null,
+        time: input.time,
       });
     if (movido) {
+      if (aviso) avisos.push(aviso);
       changedContents.set(movido.id, movido);
       contentsById.set(movido.id, movido);
     }
@@ -232,5 +268,6 @@ export function executarSalvarNoCalendario(input: {
     contents: [...changedContents.values()],
     postIts: [...changedPostIts.values()],
     openScriptId: roteirosNovos.length === 1 ? roteirosNovos[0] : null,
+    avisos,
   };
 }

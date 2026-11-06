@@ -1,6 +1,7 @@
 import {useEffect, useMemo, useState} from 'react';
 import {useAppContext} from '../../../context/AppContext';
 import {contentById} from '../lib/postItAppearance';
+import {diaNoQuadro} from '../lib/postItsNaData';
 import {entraNoBloco} from '../../recording/lib/blocoDeGravacao';
 import type {Content} from '../../../lib/database';
 import type {PlanejamentoPostIt} from '../lib/postIt';
@@ -70,7 +71,11 @@ export function useSelecaoETeclado(args: {
         if (!postIt) return;
         event.preventDefault();
         if (postIt.contentId && contentById(contents, postIt.contentId)) {
-          setPreview({contentId: postIt.contentId, postItId: postIt.id, dia: postIt.date});
+          setPreview({
+            contentId: postIt.contentId,
+            postItId: postIt.id,
+            dia: diaNoQuadro(postIt, contentById(contents, postIt.contentId)),
+          });
         } else {
           setEditing(false);
           setOpenId(postIt.id);

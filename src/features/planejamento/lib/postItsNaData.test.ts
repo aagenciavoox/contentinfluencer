@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import type {Content, ContentPlataforma} from '../../../lib/database.ts';
 import {CONTENT_STATUS} from '../../contents/lib/contentPipeline.ts';
 import {createContentDraft} from '../../contents/lib/createContentDraft.ts';
-import {levarRoteiroAoDia, postItsNaDataDoRoteiro, roteiroPublicado} from './postItsNaData.ts';
+import {diaNoQuadro, levarRoteiroAoDia, postItsNaDataDoRoteiro, quandoFoiAoAr, rotuloPublicadoEm, roteiroPublicado} from './postItsNaData.ts';
 
 function conta(platformId: string, publishDate: string | null, extra: Partial<ContentPlataforma> = {}): ContentPlataforma {
   return {
@@ -114,6 +114,32 @@ function testRoteiroSemContaGanhaODia() {
   assert.equal(movido.publishDate?.slice(0, 10), '2026-11-10');
 }
 
+function testPostItPublicadoVaiParaODiaEmQueFoiAoAr() {
+  const content = roteiro({
+    status: CONTENT_STATUS.POSTADO,
+    publishDate: '2026-11-02',
+    plataformas: [
+      conta('ig', '2026-11-02', {status: 'publicada', publishTime: '18:00', realizadaManualEm: '2026-11-08'}),
+      conta('tt', '2026-11-03', {status: 'publicada', publishTime: '21:00', realizadaManualEm: '2026-11-06'}),
+    ],
+  });
+  const quando = quandoFoiAoAr(content);
+  assert.deepEqual(quando, {date: '2026-11-06', time: null});
+  assert.equal(rotuloPublicadoEm(quando!), 'Publicado em 06/11');
+  assert.equal(diaNoQuadro(postIt('2026-11-02'), content), '2026-11-06');
+  assert.equal(diaNoQuadro(postIt('2026-11-02'), roteiro()), '2026-11-02');
+}
+
+function testPublicadoComHoraMostraOAviso() {
+  const content = roteiro({
+    status: CONTENT_STATUS.POSTADO,
+    publishDate: '2026-11-04',
+    publishTime: '18:30',
+  });
+  const quando = quandoFoiAoAr(content);
+  assert.equal(rotuloPublicadoEm(quando!), 'Publicado em 04/11 18:30');
+}
+
 function testPrevistoMudaDeDiaELimpaAoTirar() {
   const content = roteiro({
     publishDate: '2026-11-04T12:00:00.000Z',
@@ -143,6 +169,8 @@ const tests = [
   ['no day clears the planned dates', testSemDiaRetiraAPrevisao],
   ['roteiro without accounts gets the day', testRoteiroSemContaGanhaODia],
   ['previsto moves to new day and clears when removing date', testPrevistoMudaDeDiaELimpaAoTirar],
+  ['posted post-it sits on the day it went live', testPostItPublicadoVaiParaODiaEmQueFoiAoAr],
+  ['posted label includes the time', testPublicadoComHoraMostraOAviso],
 ] as const;
 
 for (const [name, test] of tests) {
