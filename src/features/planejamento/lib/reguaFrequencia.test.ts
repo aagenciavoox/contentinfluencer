@@ -7,6 +7,7 @@ import {
   linhasDaRegua,
   marcaDaJanela,
   marcasDaLinha,
+  resumoDaRegua,
   rotuloDaMarca,
   textoSeloSoNoPlano,
   vistaTemRoteiroNosPostIts,
@@ -137,5 +138,14 @@ assert.equal(vistaTemRoteiroNosPostIts([{ contentId: null }, { contentId: '' }])
 
 assert.equal(rotuloDaMarca('buraco'), 'ainda em aberto');
 assert.equal(hrefEditorialDaWave('w1'), '/editorial?aba=continuidade&editar=t%3Aw1');
+
+{
+  const m = (marca: 'atendida' | 'reservada' | 'buraco' | 'pausada') => ({ inicio: 'a', fim: 'b', marca, meta: 1, quantidade: 0 });
+  assert.equal(resumoDaRegua([]), 'Sem janela neste período');
+  assert.equal(resumoDaRegua([{ marcas: [m('buraco'), m('atendida')] }, { marcas: [m('buraco')] }]), '2 janelas em aberto');
+  assert.equal(resumoDaRegua([{ marcas: [m('buraco'), m('reservada')] }]), '1 janela em aberto · 1 só com reserva');
+  assert.equal(resumoDaRegua([{ marcas: [m('atendida'), m('pausada')] }]), 'Tudo atendido');
+  assert.equal(resumoDaRegua([{ marcas: [m('pausada')] }]), 'Em pausa');
+}
 
 console.log('reguaFrequencia: ok');

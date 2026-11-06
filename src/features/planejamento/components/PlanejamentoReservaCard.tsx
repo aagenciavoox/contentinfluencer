@@ -23,6 +23,8 @@ export interface PlanejamentoReservaCardProps {
   onEncaixar?: () => void;
   onMove?: () => void;
   onDelete?: () => void;
+  /** "Salvar no calendário…" do item (o mesmo da seleção múltipla do computador). */
+  onSalvarNoCalendario?: () => void;
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
   /** Ctrl/Cmd + clique entra e sai da seleção (desktop). */
@@ -45,6 +47,7 @@ export function PlanejamentoReservaCard({
   onEncaixar,
   onMove,
   onDelete,
+  onSalvarNoCalendario,
   draggable = false,
   onDragStart,
   selected = false,
@@ -81,6 +84,9 @@ export function PlanejamentoReservaCard({
             onClick: onMove,
           },
         ]
+      : []),
+    ...(onSalvarNoCalendario
+      ? [{ id: 'salvar-calendario', label: 'Salvar no calendário…', onClick: onSalvarNoCalendario }]
       : []),
     ...(onDelete
       ? [

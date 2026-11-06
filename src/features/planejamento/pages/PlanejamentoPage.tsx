@@ -1324,6 +1324,12 @@ export function PlanejamentoPage() {
                 onMove={() => abrirMover(postIt)}
                 onRemoveFromDate={() => removePostItById(postIt.id)}
                 onDelete={() => removePostItById(postIt.id)}
+                onSalvarNoCalendario={postIt.date ? () => abrirSalvarNoCalendario([postIt.id]) : undefined}
+                onTirarDoCalendario={
+                  content.publishDate || content.plataformas.some(plataforma => plataforma.publishDate)
+                    ? () => tirarDoCalendario(content.id)
+                    : undefined
+                }
                 selected={!isMobile && selectedIds.has(postIt.id)}
                 onToggleSelect={isMobile ? undefined : () => toggleSelected(postIt.id)}
               />
@@ -1360,6 +1366,7 @@ export function PlanejamentoPage() {
               onEditar={() => abrirEmEdicao(postIt)}
               onMove={() => abrirMover(postIt)}
               onDelete={() => removePostItById(postIt.id)}
+              onSalvarNoCalendario={postIt.date ? () => abrirSalvarNoCalendario([postIt.id]) : undefined}
               selected={!isMobile && selectedIds.has(postIt.id)}
               onToggleSelect={isMobile ? undefined : () => toggleSelected(postIt.id)}
               selo={textoSeloSoNoPlano({semRoteiro: !postIt.contentId, vistaTemRoteiro})}
@@ -1396,6 +1403,8 @@ export function PlanejamentoPage() {
                 onLimparDestaque={limparDestaque}
                 assuntoFiltroId={assuntoFiltroId}
                 onAssuntoFiltroChange={setAssuntoFiltroId}
+                continuidade={monthHealth.continuidade}
+                pausedDateKeys={pausedDateKeys}
               />
             </div>
           );
@@ -1460,12 +1469,16 @@ export function PlanejamentoPage() {
                   </AppButton>
                 </div>
               </Surface>
-            ) : null}
+            ) : (
+              <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
+                Dica: Ctrl (ou ⌘) + clique seleciona vários cards para mover, salvar no calendário ou apagar juntos.
+              </Text>
+            )}
 
             <div className={cn(
               vista === 'semana'
                 ? 'grid gap-3 xl:grid-cols-[minmax(0,1fr)_17rem] xl:items-start 2xl:grid-cols-[minmax(0,1fr)_20rem]'
-                : 'w-full min-w-0'
+                : 'stack-md w-full min-w-0'
             )}>
               <div className="stack-md min-w-0">
                 {vista === 'semana' ? (
@@ -1572,14 +1585,14 @@ export function PlanejamentoPage() {
                 )}
               </div>
 
-              {vista === 'semana' && (
-                <SemDataPanel
+              {/* Sem data: ao lado da semana; abaixo da grade no mês (3.4). */}
+              <SemDataPanel
                   undated={undated}
                   contents={contents}
                   series={state.series}
                   temas={state.temas}
                   pileOver={pileOver}
-                  className="xl:sticky xl:top-32 xl:max-h-[calc(100vh-9rem)] xl:overflow-y-auto"
+                  className={vista === 'semana' ? 'xl:sticky xl:top-32 xl:max-h-[calc(100vh-9rem)] xl:overflow-y-auto' : undefined}
                   onDragOver={event => {
                     event.preventDefault();
                     setPileOver(true);
@@ -1598,7 +1611,6 @@ export function PlanejamentoPage() {
                   }}
                   renderPostIt={renderPlanejamentoReservaCard}
                 />
-              )}
             </div>
           </div>
         );

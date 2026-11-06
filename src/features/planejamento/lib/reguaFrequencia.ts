@@ -156,6 +156,23 @@ export function rotuloDaMarca(marca: MarcaDaJanela): string {
   }
 }
 
+/**
+ * Resumo curto da régua fechada (celular, faixa "Ritmo").
+ * Conta as marcas de todas as linhas; voz gentil, sem cobrança.
+ */
+export function resumoDaRegua(linhas: readonly Pick<LinhaDaRegua, 'marcas'>[]): string {
+  const conta: Record<MarcaDaJanela, number> = { atendida: 0, reservada: 0, buraco: 0, pausada: 0 };
+  for (const linha of linhas) for (const marca of linha.marcas) conta[marca.marca] += 1;
+  const total = conta.atendida + conta.reservada + conta.buraco + conta.pausada;
+  if (total === 0) return 'Sem janela neste período';
+  const partes: string[] = [];
+  if (conta.buraco > 0) partes.push(conta.buraco === 1 ? '1 janela em aberto' : `${conta.buraco} janelas em aberto`);
+  if (conta.reservada > 0) partes.push(`${conta.reservada} só com reserva`);
+  if (partes.length > 0) return partes.join(' · ');
+  if (conta.atendida === 0) return 'Em pausa';
+  return 'Tudo atendido';
+}
+
 /** Link canônico para editar a wave no Editorial (Continuidade). */
 export function hrefEditorialDaWave(temporadaId: string): string {
   return `/editorial?aba=continuidade&editar=${encodeURIComponent(`t:${temporadaId}`)}`;

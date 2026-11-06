@@ -27,6 +27,10 @@ export interface PlanejamentoContentCardProps {
   onMove?: () => void;
   onRemoveFromDate?: () => void;
   onDelete?: () => void;
+  /** "Salvar no calendário…" do item (o mesmo da seleção múltipla do computador). */
+  onSalvarNoCalendario?: () => void;
+  /** "Tirar do calendário": só quando o roteiro já tem data de publicação. */
+  onTirarDoCalendario?: () => void;
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
   /** Ctrl/Cmd + clique entra e sai da seleção (desktop). */
@@ -52,6 +56,8 @@ export function PlanejamentoContentCard({
   onMove,
   onRemoveFromDate,
   onDelete,
+  onSalvarNoCalendario,
+  onTirarDoCalendario,
   draggable = false,
   onDragStart,
   selected = false,
@@ -118,6 +124,12 @@ export function PlanejamentoContentCard({
             onClick: onMove,
           },
         ]
+      : []),
+    ...(onSalvarNoCalendario
+      ? [{ id: 'salvar-calendario', label: 'Salvar no calendário…', onClick: onSalvarNoCalendario }]
+      : []),
+    ...(onTirarDoCalendario
+      ? [{ id: 'tirar-calendario', label: 'Tirar do calendário', onClick: onTirarDoCalendario }]
       : []),
     ...(onTirar
       ? [

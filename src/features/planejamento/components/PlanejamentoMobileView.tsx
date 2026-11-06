@@ -31,6 +31,12 @@ import {BottomSheet} from '../../../components/overlays/BottomSheet';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
 import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
 import {pontosParaRevisar, type AvisoOrientacao} from '../lib/orientacaoEditorial';
+import {ReguaDeFrequencia} from './ReguaDeFrequencia';
+import {classeDiaPausaPublicacao, linhasDaRegua, resumoDaRegua} from '../lib/reguaFrequencia';
+import type {Continuidade} from '../lib/saudeIndicadores';
+
+/** Convite do período sem pauta (celular). */
+export const CONVITE_PERIODO_VAZIO = 'Período livre por aqui. Que tal criar um post-it ou puxar algo da Criação?';
 
 const TODOS_OS_ASSUNTOS = '__todos';
 const WEEK_STARTS_ON = INICIO_DA_SEMANA;
@@ -59,6 +65,10 @@ interface PlanejamentoMobileViewProps {
   temas: readonly Pick<Tema, 'id' | 'nome'>[];
   assuntoFiltroId: string | null;
   onAssuntoFiltroChange: (id: string | null) => void;
+  /** Régua de frequência (3.4): faixa "Ritmo", fechada por padrão. */
+  continuidade?: Continuidade<unknown> | null;
+  /** Dias com pausa de publicação no período (hachura, como no computador). */
+  pausedDateKeys?: ReadonlySet<string> | readonly string[];
 }
 
 function capitalizeFirst(value: string): string {
@@ -94,7 +104,8 @@ function DayList({
   renderPostIt,
   onNovoPostIt,
   onPuxar,
-  showEmptyDays,
+  emptyDays,
+  pausedDateKeys,
 }: {
   days: Date[];
   month: Date;
@@ -103,7 +114,9 @@ function DayList({
   renderPostIt: (postIt: PlanejamentoPostIt) => ReactNode;
   onNovoPostIt: (date: string | null) => void;
   onPuxar: (date: string | null) => void;
-  showEmptyDays: boolean;
+  /** Semana: dia vazio no card cheio. Mês: dia vazio numa linha curta. */
+  emptyDays: 'card' | 'linha';
+  pausedDateKeys?: ReadonlySet<string> | readonly string[];
 }) {
   const entries = days
     .map(day => {
@@ -113,25 +126,51 @@ function DayList({
         key,
         postIts: byDate.get(key) ?? [],
       };
-    })
-    .filter(item => showEmptyDays || item.postIts.length > 0);
-
-  if (entries.length === 0) {
-    return (
-      <Text variant="meta" className="text-[var(--text-secondary)]">
-        Nenhuma pauta neste período.
-      </Text>
-    );
-  }
+    });
 
   return (
-    <div className="stack-md">
+    <div className={emptyDays === 'linha' ? 'stack-sm' : 'stack-md'}>
       {entries.map(item => {
         const isToday = item.key === todayKey;
+        const pausado = classeDiaPausaPublicacao(item.key, pausedDateKeys);
+        const fundo = !isToday && fimDeSemana(item.day) ? 'planejamento-fim-de-semana' : 'bg-[var(--bg-secondary)]';
+        const seloPausa = pausado ? <Badge variant="neutral">Pausa de publicação</Badge> : null;
+        if (emptyDays === 'linha' && item.postIts.length === 0) {
+          return (
+            <div
+              key={item.key}
+              data-dia-vazio={item.key}
+              className={cn(
+                'flex min-w-0 items-center justify-between gap-2 rounded-[var(--radius-card-mobile)] px-3 py-1',
+                fundo,
+                pausado,
+              )}
+            >
+              <Text
+                variant="meta"
+                as="h3"
+                className={cn('flex min-w-0 items-center gap-2 text-[var(--text-secondary)]', !isSameMonth(item.day, month) && 'text-[var(--text-tertiary)]')}
+              >
+                {dayLabel(item.day)}
+                {isToday ? <Badge variant="neutral">Hoje</Badge> : null}
+                {seloPausa}
+              </Text>
+              <div className="flex shrink-0 items-center gap-1">
+                <AppButton variant="ghost" size="xs" leftIcon={<Plus className="h-3 w-3" />} aria-label={`Criar post-it em ${dayLabel(item.day)}`} onClick={() => onNovoPostIt(item.key)}>
+                  Post-it
+                </AppButton>
+                <AppButton variant="ghost" size="xs" leftIcon={<ArrowDownToLine className="h-3 w-3" />} aria-label={`Puxar da Criação para ${dayLabel(item.day)}`} onClick={() => onPuxar(item.key)}>
+                  Puxar
+                </AppButton>
+              </div>
+            </div>
+          );
+        }
         return (
           <div key={item.key} className={cn(
             'stack-sm min-w-0 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] p-3',
-            !isToday && fimDeSemana(item.day) ? 'planejamento-fim-de-semana' : 'bg-[var(--bg-secondary)]',
+            fundo,
+            pausado,
           )}>
             <div className="flex items-center justify-between gap-2">
               <Text
@@ -141,6 +180,7 @@ function DayList({
               >
                 {dayLabel(item.day)}
                 {isToday ? <Badge variant="neutral">Hoje</Badge> : null}
+                {seloPausa}
               </Text>
               <div className="flex items-center gap-1">
                 <AppButton variant="ghost" size="xs" leftIcon={<Plus className="h-3 w-3" />} onClick={() => onNovoPostIt(item.key)}>
@@ -191,6 +231,8 @@ export function PlanejamentoMobileView({
   temas,
   assuntoFiltroId,
   onAssuntoFiltroChange,
+  continuidade = null,
+  pausedDateKeys,
 }: PlanejamentoMobileViewProps) {
   const today = new Date();
   const todayKey = dateKey(today);
@@ -198,6 +240,9 @@ export function PlanejamentoMobileView({
   const [avisosAbertos, setAvisosAbertos] = useState(false);
   const revisar = pontosParaRevisar(avisos);
   const undatedId = useId();
+  const ritmoId = useId();
+  const [ritmoAberto, setRitmoAberto] = useState(false);
+  const linhasRegua = useMemo(() => linhasDaRegua(continuidade), [continuidade]);
   const currentWeekRef = useRef<HTMLElement | null>(null);
 
   const assuntoOptions = useMemo(
@@ -224,6 +269,12 @@ export function PlanejamentoMobileView({
     }
     return list;
   }, [month]);
+
+  // Período sem nenhuma pauta: semana visível ou dias do mês.
+  const periodoVazio = useMemo(() => {
+    const dias = vista === 'semana' ? weekDays : weeks.flatMap(week => week.days).filter(day => isSameMonth(day, month));
+    return dias.every(day => (byDate.get(dateKey(day))?.length ?? 0) === 0);
+  }, [vista, weekDays, weeks, month, byDate]);
 
   useEffect(() => {
     if (vista !== 'mes') return;
@@ -281,6 +332,28 @@ export function PlanejamentoMobileView({
         </AppButton>
       </div>
 
+      {linhasRegua.length > 0 ? (
+        <section className="min-w-0 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-1">
+          <DisclosureButton
+            open={ritmoAberto}
+            onToggle={() => setRitmoAberto(open => !open)}
+            controls={ritmoId}
+            trailing={(
+              <Text variant="meta" as="span" className="truncate text-[var(--text-secondary)]">
+                {resumoDaRegua(linhasRegua)}
+              </Text>
+            )}
+          >
+            <Text variant="sectionTitle" as="span">Ritmo</Text>
+          </DisclosureButton>
+          {ritmoAberto ? (
+            <div id={ritmoId} className="p-2">
+              <ReguaDeFrequencia continuidade={continuidade} compacto />
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
       {temas.length > 0 ? (
         <FilterChips
           ariaLabel="Destacar por assunto"
@@ -292,6 +365,12 @@ export function PlanejamentoMobileView({
         />
       ) : null}
 
+      {periodoVazio ? (
+        <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+          {CONVITE_PERIODO_VAZIO}
+        </Text>
+      ) : null}
+
       {vista === 'semana' ? (
         <DayList
           days={weekDays}
@@ -301,7 +380,8 @@ export function PlanejamentoMobileView({
           renderPostIt={renderPostIt}
           onNovoPostIt={onNovoPostIt}
           onPuxar={onPuxar}
-          showEmptyDays
+          emptyDays="card"
+          pausedDateKeys={pausedDateKeys}
         />
       ) : (
         <div className="stack-sm">
@@ -352,7 +432,8 @@ export function PlanejamentoMobileView({
                   renderPostIt={renderPostIt}
                   onNovoPostIt={onNovoPostIt}
                   onPuxar={onPuxar}
-                  showEmptyDays={false}
+                  emptyDays="linha"
+                  pausedDateKeys={pausedDateKeys}
                 />
               </section>
             );

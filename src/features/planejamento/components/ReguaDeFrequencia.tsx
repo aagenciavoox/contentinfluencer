@@ -27,6 +27,8 @@ export type ReguaDeFrequenciaProps = {
    * o que precisar; o store já atualiza a série.
    */
   onFrequenciaSalva?: (serieId: string) => void;
+  /** Celular (faixa "Ritmo"): sem moldura, sem título e sem subtítulo. */
+  compacto?: boolean;
 };
 
 const MARCA_VISUAL: Record<
@@ -72,12 +74,14 @@ function MarcaSlot({ marca }: { marca: MarcaRegua }) {
 function LinhaRegua({
   linha,
   onFrequenciaSalva,
+  compacto = false,
 }: {
   linha: LinhaDaRegua;
   onFrequenciaSalva?: (serieId: string) => void;
+  compacto?: boolean;
 }) {
   const ehWave = linha.tipo === 'temporada';
-  const subtitulo = [linha.paiNome, linha.progressoTexto].filter(Boolean).join(' · ');
+  const subtitulo = compacto ? '' : [linha.paiNome, linha.progressoTexto].filter(Boolean).join(' · ');
 
   return (
     <div
@@ -159,9 +163,25 @@ export function ReguaDeFrequencia({
   continuidade,
   className,
   onFrequenciaSalva,
+  compacto = false,
 }: ReguaDeFrequenciaProps) {
   const linhas = linhasDaRegua(continuidade);
   if (linhas.length === 0) return null;
+
+  if (compacto) {
+    return (
+      <div className={cn('stack-sm', className)} aria-label="Régua de frequência">
+        {linhas.map(linha => (
+          <LinhaRegua
+            key={linha.chave}
+            linha={linha}
+            compacto
+            onFrequenciaSalva={onFrequenciaSalva}
+          />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <Surface
