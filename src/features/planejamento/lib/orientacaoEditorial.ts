@@ -18,6 +18,10 @@ import {diasDePausa, type PausaEditorial} from '../../editorial/lib/pausas.ts';
 import {contarSerieAgrupada} from '../../editorial/lib/frequenciaAgrupada.ts';
 import {idsDeObras} from './assuntosObras.ts';
 import {itensPendenciaDoDia} from './avisosPendencia.ts';
+import {semanaDe} from '../../editorial/lib/periodoEditorial.ts';
+import {lerFrequencia} from '../../editorial/lib/frequenciaSerie.ts';
+import {roteirosPorSemana} from '../../settings/lib/statusSerie.ts';
+import type {Continuidade, LinhaContinuidade} from './saudeIndicadores.ts';
 import type {PlanejamentoPostIt} from './postIt.ts';
 
 /**
@@ -34,7 +38,23 @@ export type TipoAvisoOrientacao =
   | 'serie-abaixo'
   | 'serie-reservada'
   | 'vespera-sem-pronto'
-  | 'gravacoes-no-dia';
+  | 'gravacoes-no-dia'
+  | 'capacidade-semana'
+  | 'ausencia-12-dias'
+  | 'ausencia-mes';
+
+/** Avisos da semana corrente, dos próximos dias e do fim do mês: valem para todas as redes, não seguem o filtro. */
+export const TIPOS_AVISO_GLOBAIS: ReadonlySet<TipoAvisoOrientacao> = new Set([
+  'gravacoes-no-dia',
+  'capacidade-semana',
+  'ausencia-12-dias',
+  'ausencia-mes',
+]);
+
+/** Janela fixa do aviso "não aparece nos próximos dias", contando hoje. */
+export const DIAS_SEM_APARECER = 12;
+/** O aviso de fim de mês só entra quando hoje está a 7 dias ou menos do fim do mês da vista. */
+export const DIAS_ANTES_DO_FIM_DO_MES = 7;
 
 export type AvisoOrientacao = {
   id: string;
@@ -413,6 +433,138 @@ function avisosDeGravacao(
   return avisos;
 }
 
+type LinhaDaContinuidade = Pick<LinhaContinuidade<{data?: string | null}>, 'chave' | 'serieId' | 'temporadaId' | 'nome' | 'tipo' | 'intervalos' | 'itens' | 'semEpisodios'>;
+type ContinuidadeDosAvisos = Pick<Continuidade<{data?: string | null}>, 'linhas'> & {linhas: LinhaDaContinuidade[]};
+type MetaDaOnda = {id: string; frequenciaVezes?: number | null; frequenciaUnidade?: string | null};
+
+function iso(data: Date): string {
+  return format(data, 'yyyy-MM-dd');
+}
+
+/** Semana corrente, segunda a domingo (INICIO_DA_SEMANA), sem recortar pelo mês da vista. */
+export function semanaCorrente(hoje: Date): PeriodoGrade {
+  return semanaDe(iso(hoje));
+}
+
+/** Próximos 12 dias a partir de hoje, inclusive. */
+export function janelaDosProximosDias(hoje: Date): PeriodoGrade {
+  return {inicio: iso(hoje), fim: iso(addDays(hoje, DIAS_SEM_APARECER - 1))};
+}
+
+/** Linha com alguma janela de fato acompanhada no trecho (fora e pausa inteira não contam). */
+function linhaAtivaNoTrecho(linha: LinhaDaContinuidade): boolean {
+  return linha.intervalos.some(intervalo => !intervalo.pausada);
+}
+
+/** Ritmo por semana da linha, com a mesma conversão do Ajustes (quinzena ÷ 2, mês ÷ 30/7). */
+function roteirosDaLinhaPorSemana(
+  linha: LinhaDaContinuidade,
+  series: readonly Serie[],
+  ondas: readonly MetaDaOnda[],
+): number | null {
+  // Wave: só a meta dela, sem a frase antiga (como na continuidade).
+  const onda = linha.temporadaId ? ondas.find(item => item.id === linha.temporadaId) : null;
+  const serie = linha.temporadaId ? null : series.find(item => item.id === linha.serieId);
+  if (!onda && !serie) return null;
+  const freq = lerFrequencia({
+    frequenciaRecomendada: serie?.frequenciaRecomendada ?? null,
+    vezes: onda ? onda.frequenciaVezes : serie?.frequenciaVezes,
+    unidade: onda ? onda.frequenciaUnidade : serie?.frequenciaUnidade,
+  });
+  if (freq.unidade === 'sob-demanda') return null;
+  return roteirosPorSemana({frequenciaVezes: freq.vezes, frequenciaUnidade: freq.unidade});
+}
+
+function numeroCurto(valor: number): string {
+  return String(Math.round(valor * 10) / 10).replace('.', ',');
+}
+
+/**
+ * Semana corrente: soma do ritmo das séries, quadros e waves acompanhados contra o que cabe gravar
+ * (dias de gravação × limite por dia). Sem dias ou sem limite, não há conta e não há aviso.
+ */
+export function avisoDeCapacidadeDaSemana(input: {
+  continuidadeDaSemana: ContinuidadeDosAvisos | null | undefined;
+  series: readonly Serie[];
+  ondas?: readonly MetaDaOnda[];
+  diasGravacao: readonly number[] | null | undefined;
+  limiteGravacoesDia: number | null | undefined;
+  hoje: Date;
+}): AvisoOrientacao[] {
+  const dias = new Set((input.diasGravacao ?? []).filter(dia => Number.isInteger(dia) && dia >= 1 && dia <= 7));
+  const limite = input.limiteGravacoesDia;
+  if (dias.size === 0 || limite == null || !Number.isFinite(limite) || limite <= 0) return [];
+  if (!input.continuidadeDaSemana) return [];
+  const metas = input.continuidadeDaSemana.linhas
+    .filter(linhaAtivaNoTrecho)
+    .map(linha => roteirosDaLinhaPorSemana(linha, input.series, input.ondas ?? []))
+    .filter((meta): meta is number => meta != null && meta > 0);
+  if (metas.length === 0) return [];
+  const pede = metas.reduce((soma, meta) => soma + meta, 0);
+  const grava = dias.size * limite;
+  if (pede <= grava) return [];
+  const semana = semanaCorrente(input.hoje);
+  return [{
+    id: `capacidade-semana:${semana.inicio}`,
+    tipo: 'capacidade-semana',
+    texto: `Esta semana pede ${numeroCurto(pede)} ${pede === 1 ? 'roteiro' : 'roteiros'} e cabem ${grava} ${grava === 1 ? 'gravação' : 'gravações'} (${dias.size} ${dias.size === 1 ? 'dia' : 'dias'} × ${limite}).`,
+    intervalo: semana,
+    postItIds: [],
+    contentIds: [],
+    severidade: 'revisar',
+  }];
+}
+
+/** Waves, séries e quadros acompanhados sem episódio nem post-it nos próximos 12 dias. */
+export function avisosDeAusenciaProxima(input: {
+  continuidadeProxima: ContinuidadeDosAvisos | null | undefined;
+  hoje: Date;
+}): AvisoOrientacao[] {
+  if (!input.continuidadeProxima) return [];
+  const janela = janelaDosProximosDias(input.hoje);
+  return input.continuidadeProxima.linhas.filter(linhaAtivaNoTrecho).flatMap(linha => {
+    const aparece = linha.itens.some(item => noPeriodo(item.data?.slice(0, 10), janela));
+    if (aparece) return [];
+    return [{
+      id: `ausencia-12-dias:${linha.chave}`,
+      tipo: 'ausencia-12-dias' as const,
+      texto: `${linha.nome} não aparece nos próximos ${DIAS_SEM_APARECER} dias.`,
+      intervalo: janela,
+      postItIds: [],
+      contentIds: [],
+      severidade: 'info' as const,
+    }];
+  });
+}
+
+/**
+ * Fim do mês da vista: quem não apareceu no mês (`semEpisodios` da continuidade).
+ * Só entra a partir de 7 dias antes do fim do mês; mês já encerrado também avisa.
+ */
+export function avisosDeAusenciaNoMes(input: {
+  continuidadeDoMes: ContinuidadeDosAvisos | null | undefined;
+  mes: PeriodoGrade;
+  hoje: Date;
+}): AvisoOrientacao[] {
+  if (!input.continuidadeDoMes) return [];
+  const hoje = iso(input.hoje);
+  const aPartirDe = iso(addDays(parseISO(input.mes.fim), -DIAS_ANTES_DO_FIM_DO_MES));
+  if (hoje < aPartirDe) return [];
+  const encerrado = hoje > input.mes.fim;
+  const nomeDoMes = format(parseISO(input.mes.inicio), 'MMMM', {locale: ptBR});
+  return input.continuidadeDoMes.linhas.filter(linha => linha.semEpisodios).map(linha => ({
+    id: `ausencia-mes:${input.mes.inicio}:${linha.chave}`,
+    tipo: 'ausencia-mes' as const,
+    texto: encerrado
+      ? `${linha.nome} não apareceu em ${nomeDoMes}.`
+      : `${linha.nome} ainda não apareceu em ${nomeDoMes}.`,
+    intervalo: input.mes,
+    postItIds: [],
+    contentIds: [],
+    severidade: 'info' as const,
+  }));
+}
+
 export function avisosDeOrientacao({
   postIts,
   contents,
@@ -433,6 +585,10 @@ export function avisosDeOrientacao({
   antecedenciaPostagemDias = null,
   temporadas = [],
   hoje = new Date(),
+  continuidadeDaSemana = null,
+  continuidadeProxima = null,
+  continuidadeDoMes = null,
+  mesDaVista = null,
 }: {
   postIts: readonly PlanejamentoPostIt[];
   contents: readonly Content[];
@@ -463,8 +619,15 @@ export function avisosDeOrientacao({
   /** Null desliga a antecedência da postagem. */
   antecedenciaPostagemDias?: number | null;
   /** Waves: as com ritmo próprio saem da frequência da série. */
-  temporadas?: readonly OndaDaExclusao[];
+  temporadas?: readonly (OndaDaExclusao & {frequenciaUnidade?: string | null})[];
   hoje?: Date;
+  /** Continuidade da semana corrente (segunda a domingo). Sem ela, não há aviso de capacidade. */
+  continuidadeDaSemana?: ContinuidadeDosAvisos | null;
+  /** Continuidade dos próximos 12 dias, com os itens da janela. */
+  continuidadeProxima?: ContinuidadeDosAvisos | null;
+  /** Continuidade do mês da vista, para o aviso de fim de mês. */
+  continuidadeDoMes?: ContinuidadeDosAvisos | null;
+  mesDaVista?: PeriodoGrade | null;
 }): AvisoOrientacao[] {
   // Período + 14 dias anteriores (obra em 7 dias) + margem à frente nas bordas.
   const margemInicio = format(addDays(parseISO(periodo.inicio), -14), 'yyyy-MM-dd');
@@ -492,6 +655,9 @@ export function avisosDeOrientacao({
       hoje,
     }),
     ...avisosDeGravacao(postIts, contents, periodo, limiteGravacoesDia, pausas),
+    ...avisoDeCapacidadeDaSemana({continuidadeDaSemana, series, ondas: temporadas, diasGravacao, limiteGravacoesDia, hoje}),
+    ...avisosDeAusenciaProxima({continuidadeProxima, hoje}),
+    ...(mesDaVista ? avisosDeAusenciaNoMes({continuidadeDoMes, mes: mesDaVista, hoje}) : []),
     ...avisosDeObra(pautas, periodo, obras, concentracao, excecoesConcentracao),
     ...avisosDeTema(pautas, periodo, temas, concentracao, excecoesConcentracao),
     ...avisosDeFrequenciaSerie(itensSerie ?? itensDasPautas(pautas), periodo, series, pausas, temporadas),

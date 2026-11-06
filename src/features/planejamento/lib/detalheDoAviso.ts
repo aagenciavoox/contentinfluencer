@@ -14,6 +14,9 @@ const BLOCO: Record<TipoAvisoOrientacao, BlocoDoAviso> = {
   'serie-reservada': 'continuidade',
   'vespera-sem-pronto': 'producao',
   'gravacoes-no-dia': 'producao',
+  'capacidade-semana': 'producao',
+  'ausencia-12-dias': 'continuidade',
+  'ausencia-mes': 'continuidade',
 };
 
 const REGRA: Record<TipoAvisoOrientacao, { regra: string; acao: string }> = {
@@ -24,7 +27,17 @@ const REGRA: Record<TipoAvisoOrientacao, { regra: string; acao: string }> = {
   'serie-reservada': { regra: 'frequência só cumprida com post-it', acao: 'desenvolver a reserva em conteúdo' },
   'vespera-sem-pronto': { regra: 'publicação prevista sem conteúdo pronto na véspera', acao: 'finalizar o conteúdo ou mudar a data' },
   'gravacoes-no-dia': { regra: 'limite de gravações por dia e pausas de gravação ou produção', acao: 'mover gravações para outro dia' },
+  'capacidade-semana': { regra: 'ritmo das séries e waves acompanhadas na semana × dias de gravação e limite por dia', acao: 'rever o ritmo no Editorial ou abrir mais um dia de gravação' },
+  'ausencia-12-dias': { regra: 'série, quadro ou wave acompanhada sem episódio nem post-it nos próximos 12 dias', acao: 'planejar um episódio ou uma reserva na janela' },
+  'ausencia-mes': { regra: 'série, quadro ou wave acompanhada sem episódio nem post-it no mês', acao: 'planejar um episódio ou uma reserva no mês, ou rever a frequência no Editorial' },
 };
+
+const ABRE_ANALISE: ReadonlySet<TipoAvisoOrientacao> = new Set(['capacidade-semana', 'ausencia-12-dias', 'ausencia-mes']);
+
+/** Localizar leva ao início da janela; sem pauta para destacar, abre "Ver análise". */
+export function abreAnaliseAoLocalizar(aviso: Pick<AvisoOrientacao, 'tipo' | 'postItIds' | 'contentIds'>): boolean {
+  return ABRE_ANALISE.has(aviso.tipo) && aviso.postItIds.length === 0 && aviso.contentIds.length === 0;
+}
 
 export function blocoDoAviso(aviso: Pick<AvisoOrientacao, 'tipo'>): BlocoDoAviso {
   return BLOCO[aviso.tipo];

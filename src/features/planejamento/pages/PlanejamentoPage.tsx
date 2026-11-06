@@ -1,7 +1,7 @@
 import {INICIO_DA_SEMANA} from '../../../lib/semana.ts';
 import {useEffect, useMemo, useRef, useState, type DragEvent} from 'react';
 import {useLocation, useNavigate, useSearchParams} from 'react-router-dom';
-import {format} from 'date-fns';
+import {endOfMonth, format, startOfMonth} from 'date-fns';
 import {type GradeEntry} from '../../editorial/lib/gradeEntries';
 import {pendenciasNaSaude} from '../lib/pendenciasNaSaude';
 import {gravarContextoPlanejamento, lerContextoPlanejamento, orientacaoDoPlanejamento, roteirosDaSaude, type IntervaloSaude} from '../lib/saudeActions';
@@ -70,7 +70,7 @@ import {continuidadeDasSeries, distribuicaoPorObjetivo, janelaDaContinuidade, pr
 import {linhasDaContinuidadePorEscopo} from '../lib/continuidadePorEscopoNaSaude';
 import {publicacoesNaSaude} from '../lib/publicacoesNaSaude';
 import {contaNoFiltro, contasDoCard, conteudoPassa, filtroAtivo, formatosDoFiltro, indiceDaAgenda, postItPassa, publicacoesDoCard, type FiltroCalendario} from '../lib/filtroCalendario';
-import {diaDoAviso} from '../lib/detalheDoAviso';
+import {abreAnaliseAoLocalizar, diaDoAviso} from '../lib/detalheDoAviso';
 import {
   setDiasPausaPublicacao,
   textoSeloSoNoPlano,
@@ -84,7 +84,7 @@ import {usePostItsNaData} from '../hooks/usePostItsNaData';
 import {levarRoteiroAoDia, roteiroPublicado} from '../lib/postItsNaData';
 import {POST_IT_MIME, PostItAssuntosObras, PostItIdentity, PostItNote, type PostItMark} from '../components/PostItNote';
 import {assuntosEmUso, conteudoTemAssunto, nomesDasObras, nomesDosAssuntos} from '../lib/assuntosObras';
-import {avisosDeOrientacao, type AvisoOrientacao} from '../lib/orientacaoEditorial';
+import {avisosDeOrientacao, janelaDosProximosDias, semanaCorrente, TIPOS_AVISO_GLOBAIS, type AvisoOrientacao} from '../lib/orientacaoEditorial';
 import {fimDeSemana, periodoDaVista, type VistaPlanejamento} from '../lib/periodoPlanejamento';
 import {progressoDasOndas, rotulosDeEpisodio} from '../lib/episodioNaTemporada';
 import type {PublicacaoNoDia} from '../lib/publicacoesDoMes';
@@ -611,8 +611,37 @@ export function PlanejamentoPage() {
 
   // Avisos no mesmo trecho da Saúde (o intervalo, quando escolhido) e no mesmo recorte do filtro.
   // Gravações por dia são capacidade do dia, de todas as redes: esse aviso não segue o filtro.
+  // Semana corrente, próximos 12 dias e fim do mês da vista: continuidade de todas as redes, como na Saúde.
   const avisosOrientacao = useMemo(() => {
-    const avisosDo = (lista: {postIts: PlanejamentoPostIt[]; contents: typeof contents}) => avisosDeOrientacao({
+    const hoje = new Date();
+    const hojeIso = format(hoje, 'yyyy-MM-dd');
+    const continuidadeNo = (trecho: {inicio: string; fim: string}, comItens: boolean) => continuidadeDasSeries({
+      series: state.series,
+      itens: comItens ? saudeDoMes({
+        postIts,
+        contents,
+        series: state.series,
+        pilares: state.pilares,
+        settings: state.editorial,
+        periodo: janelaDaContinuidade(trecho),
+        platforms: state.platforms,
+      }).itens : [],
+      periodo: trecho,
+      pausas: state.editorial.pausas ?? [],
+      temporadas: state.temporadas,
+      hoje: hojeIso,
+    });
+    const mesDaVista = {inicio: format(startOfMonth(month), 'yyyy-MM-dd'), fim: format(endOfMonth(month), 'yyyy-MM-dd')};
+    const globais = {
+      hoje,
+      // Capacidade só usa as metas das linhas acompanhadas na semana, não os itens.
+      continuidadeDaSemana: continuidadeNo(semanaCorrente(hoje), false),
+      continuidadeProxima: continuidadeNo(janelaDosProximosDias(hoje), true),
+      continuidadeDoMes: continuidadeNo(mesDaVista, true),
+      mesDaVista,
+    };
+    const avisosDo = (lista: {postIts: PlanejamentoPostIt[]; contents: typeof contents}, extras: Partial<typeof globais> = {}) => avisosDeOrientacao({
+      ...extras,
       postIts: lista.postIts,
       contents: lista.contents,
       series: state.series,
@@ -639,14 +668,14 @@ export function PlanejamentoPage() {
       antecedenciaPostagemDias: state.editorial.preferencias.antecedenciaPostagemDias,
       temporadas: state.temporadas,
     });
-    const todos = avisosDo({postIts, contents});
+    const todos = avisosDo({postIts, contents}, globais);
     if (!filtroAtivo(filtro)) return todos;
     const doFiltro = avisosDo({postIts: postItsDoFiltro, contents: contentsDoFiltro});
     return [
-      ...doFiltro.filter(aviso => aviso.tipo !== 'gravacoes-no-dia'),
-      ...todos.filter(aviso => aviso.tipo === 'gravacoes-no-dia'),
+      ...doFiltro.filter(aviso => !TIPOS_AVISO_GLOBAIS.has(aviso.tipo)),
+      ...todos.filter(aviso => TIPOS_AVISO_GLOBAIS.has(aviso.tipo)),
     ];
-  }, [postIts, contents, postItsDoFiltro, contentsDoFiltro, filtro, state.series, state.pilares, state.platforms, state.editorial, state.temas, state.bibliotecaItems, state.temporadas, periodoDaSaude]);
+  }, [postIts, contents, postItsDoFiltro, contentsDoFiltro, filtro, state.series, state.pilares, state.platforms, state.editorial, state.temas, state.bibliotecaItems, state.temporadas, periodoDaSaude, month]);
 
   const verPautasDoAviso = (aviso: AvisoOrientacao) => {
     setAvisoAtivoId(aviso.id);
@@ -657,7 +686,8 @@ export function PlanejamentoPage() {
     const dia = diaDoAviso(aviso, postIts, contents);
     if (dia) setMonth(new Date(`${dia}T12:00:00`));
     verPautasDoAviso(aviso);
-    setAnaliseAberta(false);
+    // Ausência e capacidade não têm pauta para destacar: a análise mostra o porquê.
+    setAnaliseAberta(abreAnaliseAoLocalizar(aviso));
   };
 
   const focarIntervalo = (intervalo: IntervaloSaude) => {

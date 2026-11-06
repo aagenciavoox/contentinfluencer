@@ -5,7 +5,9 @@ import {createContentDraft} from '../../contents/lib/createContentDraft.ts';
 import {computeSerieMetrics} from '../../recommendations/computeSerieMetrics.ts';
 import {DEFAULT_EDITORIAL_SETTINGS} from '../../editorial/lib/editorialSettings.ts';
 import {preparoDoPeriodo, saudeDoMes} from './monthHealth.ts';
-import {avisosDeOrientacao} from './orientacaoEditorial.ts';
+import {avisosDeOrientacao, janelaDosProximosDias, semanaCorrente} from './orientacaoEditorial.ts';
+import {abreAnaliseAoLocalizar} from './detalheDoAviso.ts';
+import {continuidadeDasSeries, janelaDaContinuidade} from './saudeIndicadores.ts';
 import type {PlanejamentoPostIt} from './postIt.ts';
 
 const HOJE = new Date(2026, 9, 30, 12);
@@ -159,6 +161,77 @@ function testSerieSomaOsQuadros() {
   assert.equal(computeSerieMetrics(familia, contents, HOJE).episodios, 1);
 }
 
+function serieAcompanhada(id: string, name: string, vezes: number, unidade = 'semana'): Serie {
+  return {id, name, frequenciaVezes: vezes, frequenciaUnidade: unidade, acompanharContinuidade: true} as Serie;
+}
+
+function continuidadeNo(trecho: {inicio: string; fim: string}, series: Serie[], postIts: PlanejamentoPostIt[] = []) {
+  const itens = saudeDoMes({
+    postIts,
+    contents: [],
+    series,
+    pilares: [],
+    settings: DEFAULT_EDITORIAL_SETTINGS,
+    periodo: janelaDaContinuidade(trecho),
+  }).itens;
+  return continuidadeDasSeries({series, itens, periodo: trecho, hoje: '2026-10-30'});
+}
+
+function testCapacidadeDaSemana() {
+  const series = [serieAcompanhada('a', 'Descomplicando', 3), serieAcompanhada('b', 'Cosmere', 2)];
+  const semana = continuidadeNo(semanaCorrente(HOJE), series);
+  assert.deepEqual(semanaCorrente(HOJE), {inicio: '2026-10-26', fim: '2026-11-01'});
+  const lista = avisos({series, continuidadeDaSemana: semana, diasGravacao: [2, 4], limiteGravacoesDia: 2});
+  const aviso = lista.find(item => item.tipo === 'capacidade-semana');
+  assert.equal(aviso?.texto, 'Esta semana pede 5 roteiros e cabem 4 gravações (2 dias × 2).');
+  assert.equal(aviso?.severidade, 'revisar');
+  assert.deepEqual(aviso?.intervalo, {inicio: '2026-10-26', fim: '2026-11-01'});
+  assert.equal(aviso && abreAnaliseAoLocalizar(aviso), true);
+  // Sem limite ou sem dias de gravação não há conta: nada de inventar zero.
+  assert.equal(avisos({series, continuidadeDaSemana: semana, diasGravacao: [2, 4], limiteGravacoesDia: null}).some(item => item.tipo === 'capacidade-semana'), false);
+  assert.equal(avisos({series, continuidadeDaSemana: semana, diasGravacao: [], limiteGravacoesDia: 2}).some(item => item.tipo === 'capacidade-semana'), false);
+  // Cabe tudo: sem aviso.
+  assert.equal(avisos({series, continuidadeDaSemana: semana, diasGravacao: [2, 4, 5], limiteGravacoesDia: 2}).some(item => item.tipo === 'capacidade-semana'), false);
+  // Sem continuidade (Editorial), o aviso nem é montado.
+  assert.equal(avisos({series, diasGravacao: [2], limiteGravacoesDia: 1}).some(item => item.tipo === 'capacidade-semana'), false);
+}
+
+function testCapacidadeConverteMetaMensal() {
+  // 8 por mês vira 8 ÷ (30/7) por semana, como no Ajustes; com 3 por semana passa de 4.
+  const series = [serieAcompanhada('a', 'Descomplicando', 3), serieAcompanhada('m', 'Mensal', 8, 'mes')];
+  const semana = continuidadeNo(semanaCorrente(HOJE), series);
+  const aviso = avisos({series, continuidadeDaSemana: semana, diasGravacao: [2, 4], limiteGravacoesDia: 2}).find(item => item.tipo === 'capacidade-semana');
+  assert.ok(aviso);
+  assert.match(aviso.texto, /^Esta semana pede 4,9 roteiros e cabem 4 gravações/);
+}
+
+function testAusenciaNosProximosDias() {
+  const series = [serieAcompanhada('a', 'Descomplicando', 1), serieAcompanhada('b', 'Cosmere', 1)];
+  const janela = janelaDosProximosDias(HOJE);
+  assert.deepEqual(janela, {inicio: '2026-10-30', fim: '2026-11-10'});
+  const proxima = continuidadeNo(janela, series, [postIt({id: 'p1', date: '2026-11-04', serieId: 'a'})]);
+  const lista = avisos({series, continuidadeProxima: proxima}).filter(item => item.tipo === 'ausencia-12-dias');
+  assert.deepEqual(lista.map(item => item.texto), ['Cosmere não aparece nos próximos 12 dias.']);
+  assert.equal(lista[0].severidade, 'info');
+  assert.equal(lista[0].intervalo?.inicio, '2026-10-30');
+  assert.equal(abreAnaliseAoLocalizar(lista[0]), true);
+}
+
+function testAusenciaNoFimDoMes() {
+  const series = [serieAcompanhada('a', 'Descomplicando', 1), serieAcompanhada('b', 'Cosmere', 1)];
+  const outubro = {inicio: '2026-10-01', fim: '2026-10-31'};
+  const doMes = continuidadeNo(outubro, series, [postIt({id: 'p1', date: '2026-10-14', serieId: 'a'})]);
+  const ausencias = (hoje: Date) => avisos({series, continuidadeDoMes: doMes, mesDaVista: outubro, hoje}).filter(item => item.tipo === 'ausencia-mes');
+  assert.deepEqual(ausencias(HOJE).map(item => item.texto), ['Cosmere ainda não apareceu em outubro.']);
+  assert.equal(ausencias(HOJE)[0].severidade, 'info');
+  assert.equal(ausencias(HOJE)[0].intervalo?.inicio, '2026-10-01');
+  // Antes da última semana do mês, ainda não.
+  assert.equal(ausencias(new Date(2026, 9, 20, 12)).length, 0);
+  assert.equal(ausencias(new Date(2026, 9, 24, 12)).length, 1);
+  // Mês já encerrado também avisa.
+  assert.deepEqual(ausencias(new Date(2026, 10, 5, 12)).map(item => item.texto), ['Cosmere não apareceu em outubro.']);
+}
+
 const tests = [
   ['warns when tomorrow is still a roteiro', testVesperaEmRoteiro],
   ['ready publication does not warn', testVesperaProntaNaoAvisa],
@@ -168,6 +241,10 @@ const tests = [
   ['preparation is separate from filling', testPreparoSeparaDePreenchimento],
   ['a classified reserva counts in its objective', testReservaClassificadaContaNoObjetivo],
   ['series metrics include the quadros once', testSerieSomaOsQuadros],
+  ['current week asks more than recording capacity', testCapacidadeDaSemana],
+  ['monthly goals convert to a weekly rhythm', testCapacidadeConverteMetaMensal],
+  ['tracked series absent in the next 12 days', testAusenciaNosProximosDias],
+  ['tracked series absent in the month near its end', testAusenciaNoFimDoMes],
 ] as const;
 
 for (const [name, test] of tests) {
