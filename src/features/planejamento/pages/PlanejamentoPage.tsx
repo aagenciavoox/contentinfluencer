@@ -1,12 +1,20 @@
 import {INICIO_DA_SEMANA} from '../../../lib/semana.ts';
-import {useEffect, useMemo, useRef, useState, type DragEvent} from 'react';
-import {useLocation, useNavigate, useSearchParams} from 'react-router-dom';
-import {endOfMonth, format, startOfMonth} from 'date-fns';
+import {useEffect, useMemo, useState} from 'react';
+import {useLocation, useNavigate} from 'react-router-dom';
+import {format} from 'date-fns';
 import {type GradeEntry} from '../../editorial/lib/gradeEntries';
-import {pendenciasNaSaude} from '../lib/pendenciasNaSaude';
-import {gravarContextoPlanejamento, lerContextoPlanejamento, orientacaoDoPlanejamento, roteirosDaSaude, type IntervaloSaude} from '../lib/saudeActions';
+import {orientacaoDoPlanejamento} from '../lib/saudeActions';
 import {ptBR} from 'date-fns/locale';
-import {ArrowDownToLine, CalendarDays, Clapperboard, LayoutGrid, Pencil, Plus, StickyNote, Trash2, ExternalLink} from 'lucide-react';
+import {
+  ArrowDownToLine,
+  CalendarDays,
+  Clapperboard,
+  Pencil,
+  Plus,
+  StickyNote,
+  Trash2,
+  ExternalLink,
+} from 'lucide-react';
 import {
   CalendarMonthGrid,
   CalendarPeriodNav,
@@ -26,23 +34,19 @@ import {useAppContext} from '../../../context/AppContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
-import type {Content, Pilar, Serie, Tema} from '../../../lib/database';
 import {cn, tintedTextColor} from '../../../lib/utils';
 import {TemaField} from '../../contents/components/detail/TemaField';
 import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
 import {CONTENT_STATUS, normalizeContentStatus} from '../../contents/lib/contentPipeline';
 import {buildDetailBackState} from '../../../lib/navigation/detailBack';
 import {getCreationCardTags} from '../../creation/lib/creationItemPresentation';
-import {metasDoPeriodo, readProporcao} from '../../editorial/lib/proporcaoObjetivos';
-import {FUNCAO_CURTA, FUNCAO_LABELS, FUNCOES, FUNIL_DA_FUNCAO, isFuncaoEditorial} from '../../editorial/lib/funcoes';
-import {objetivoDoConteudo, objetivoHerdadoDaSerie, pilarDoConteudo, pilarHerdadoDaSerie} from '../../editorial/lib/herancaSerie';
+import {pilarDoConteudo, pilarHerdadoDaSerie} from '../../editorial/lib/herancaSerie';
 import {sortPilares} from '../../settings/lib/activePilares';
 import {CampoDia} from '../components/CampoDia';
 import {EncaixeDialog} from '../components/EncaixeDialog';
 import {AvisosFaixa} from '../components/AvisosFaixa';
 import {ReguaDeFrequencia} from '../components/ReguaDeFrequencia';
 import {PlanejamentoWeekGrid} from '../components/PlanejamentoWeekGrid';
-import {SaudeEditorialPanel} from '../components/SaudeEditorialPanel';
 import {PlanejamentoContentCard} from '../components/PlanejamentoContentCard';
 import {PlanejamentoReservaCard} from '../components/PlanejamentoReservaCard';
 import {ConteudoPuxadoDialog} from '../components/ConteudoPuxadoDialog';
@@ -63,132 +67,48 @@ import {redesDoCartao} from '../lib/redesDoCartao';
 import {diaDaRede, dividirPorRede, weekdayDaData} from '../lib/divisoriaRede';
 import {DivisoriaRede} from '../components/DivisoriaRede';
 import {redeDaRef} from '../../contas/lib/contas';
-import {REDE_ROTULO, ROTULO_REDE_DO_FILTRO, rotuloDaRef} from '../../contas/lib/contas';
-import {entriesDaConcentracao} from '../lib/concentracaoAoColocar';
-import {useAvisoConcentracao} from '../hooks/useAvisoConcentracao';
-import {saudeDoMes} from '../lib/monthHealth';
-import {avisoDoCalendario, rotuloDoPeriodo} from '../lib/periodoDaSaude';
-import {continuidadeDasSeries, distribuicaoPorObjetivo, janelaDaContinuidade, proporcaoDesejadaDoPeriodo} from '../lib/saudeIndicadores';
-import {linhasDaContinuidadePorEscopo} from '../lib/continuidadePorEscopoNaSaude';
-import {publicacoesNaSaude} from '../lib/publicacoesNaSaude';
-import {contaNoFiltro, contasDoCard, conteudoPassa, filtroAtivo, formatosDoFiltro, indiceDaAgenda, postItPassa, publicacoesDoCard, type FiltroCalendario} from '../lib/filtroCalendario';
-import {abreAnaliseAoLocalizar, diaDoAviso} from '../lib/detalheDoAviso';
+import {ROTULO_REDE_DO_FILTRO, rotuloDaRef} from '../../contas/lib/contas';
 import {
-  setDiasPausaPublicacao,
-  textoSeloSoNoPlano,
-  vistaTemRoteiroNosPostIts,
-} from '../lib/reguaFrequencia';
+  contasDoCard,
+  filtroAtivo,
+  formatosDoFiltro,
+  indiceDaAgenda,
+  postItPassa,
+  publicacoesDoCard,
+} from '../lib/filtroCalendario';
+import {textoSeloSoNoPlano} from '../lib/reguaFrequencia';
 import {publicacoesDaAgenda, rotuloDoFormato} from '../../editorial/lib/publicacoes';
-import {Drawer} from '../../../components/overlays/Drawer';
 import {CreationRedeQuickFilter} from '../../creation/components/CreationRedeQuickFilter';
 import {redesDoFiltroRapido} from '../../creation/lib/creationRedeFilter';
 import {usePostItsNaData} from '../hooks/usePostItsNaData';
-import {levarRoteiroAoDia, roteiroPublicado} from '../lib/postItsNaData';
-import {POST_IT_MIME, PostItAssuntosObras, PostItIdentity, PostItNote, type PostItMark} from '../components/PostItNote';
-import {assuntosEmUso, conteudoTemAssunto, nomesDasObras, nomesDosAssuntos} from '../lib/assuntosObras';
-import {avisosDeOrientacao, janelaDosProximosDias, semanaCorrente, TIPOS_AVISO_GLOBAIS, type AvisoOrientacao} from '../lib/orientacaoEditorial';
-import {fimDeSemana, periodoDaVista, type VistaPlanejamento} from '../lib/periodoPlanejamento';
-import {progressoDasOndas, rotulosDeEpisodio} from '../lib/episodioNaTemporada';
+import {roteiroPublicado} from '../lib/postItsNaData';
+import {
+  POST_IT_MIME,
+  PostItAssuntosObras,
+  PostItIdentity,
+  PostItNote,
+} from '../components/PostItNote';
+import {assuntosEmUso, conteudoTemAssunto, nomesDasObras} from '../lib/assuntosObras';
+import {fimDeSemana} from '../lib/periodoPlanejamento';
+import {rotulosDeEpisodio} from '../lib/episodioNaTemporada';
 import type {PublicacaoNoDia} from '../lib/publicacoesDoMes';
-import {decisaoDoPeriodo} from '../../editorial/lib/periodoEditorial';
 import {SelectField} from '../../../components/ui/SelectField';
 import {
   canPullContent,
-  createEmptyPostIt,
   deletePostIt,
   escolherSerieNoPostIt,
-  movePostIt,
-  postItEditDraft,
-  postItMudou,
   postItKind,
   postItTransformOptions,
-  pullExistingContent,
-  savePostItEdit,
-  transformPostIt,
   type PlanejamentoPostIt,
-  type PostItEdit,
 } from '../lib/postIt';
 
-function contentById(contents: Content[], id: string | null): Content | null {
-  if (!id) return null;
-  return contents.find(content => content.id === id) ?? null;
-}
-
-const FUNIL_COLOR = {
-  topo: 'var(--accent-blue)',
-  meio: 'var(--accent-purple)',
-  fundo: 'var(--accent-orange)',
-  fora: 'var(--text-tertiary)',
-} as const;
-
-/**
- * Marcas do post-it. Com conteúdo, as do conteúdo; sem conteúdo, as do próprio espaço.
- * O objetivo é o mesmo que a contagem do Editorial usa.
- */
-function postItAppearance(
-  content: Content | null,
-  series: readonly Serie[],
-  pilares: readonly Pilar[],
-  temas: readonly Tema[],
-  postIt?: PlanejamentoPostIt | null,
-): {seriesColor: string | null; marks: PostItMark[]; assuntos: string[]} {
-  if (!content && !postIt) return {seriesColor: null, marks: [], assuntos: []};
-  const serieId = content ? content.seriesId : postIt?.serieId ?? null;
-  const serie = serieId ? series.find(item => item.id === serieId) ?? null : null;
-  // Mesma resolução da ficha e da Saúde: gravado vale, campo vazio sobe quadro → série.
-  const pilarId = content
-    ? pilarDoConteudo(content, series)
-    : postIt?.pilarId || pilarHerdadoDaSerie(postIt?.serieId, series);
-  const pilar = pilarId ? pilares.find(item => item.id === pilarId) ?? null : null;
-  const funcao = content
-    ? objetivoDoConteudo(content, series)
-    : postIt?.objetivo ?? objetivoHerdadoDaSerie(postIt?.serieId, series);
-  const etapa = funcao ? FUNIL_DA_FUNCAO[funcao] : null;
-  const marks: PostItMark[] = [];
-  if (serie?.name?.trim()) {
-    marks.push({
-      kind: 'serie',
-      nome: serie.name.trim(),
-      cor: serie.cor?.trim() || 'var(--text-tertiary)',
-    });
-  }
-  if (funcao) {
-    marks.push({
-      kind: 'funil',
-      nome: etapa ? `${FUNCAO_CURTA[funcao]} · ${etapa[0].toUpperCase()}${etapa.slice(1)}` : FUNCAO_CURTA[funcao],
-      cor: FUNIL_COLOR[etapa ?? 'fora'],
-    });
-  }
-  if (pilar?.nome?.trim()) {
-    marks.push({
-      kind: 'pilar',
-      nome: pilar.nome.trim(),
-      cor: pilar.cor?.trim() || 'var(--text-tertiary)',
-    });
-  }
-  return {
-    seriesColor: pilar?.cor?.trim() || null,
-    marks,
-    assuntos: content ? nomesDosAssuntos(content, temas) : [],
-  };
-}
-
-function changedPostIts(before: PlanejamentoPostIt[], after: PlanejamentoPostIt[]): {
-  added: PlanejamentoPostIt[];
-  updated: PlanejamentoPostIt[];
-} {
-  const beforeById = new Map(before.map(postIt => [postIt.id, postIt]));
-  const added: PlanejamentoPostIt[] = [];
-  const updated: PlanejamentoPostIt[] = [];
-  for (const postIt of after) {
-    const previous = beforeById.get(postIt.id);
-    if (!previous) added.push(postIt);
-    else if (postItMudou(previous, postIt)) {
-      updated.push(postIt);
-    }
-  }
-  return {added, updated};
-}
+import {contentById, postItAppearance} from '../lib/postItAppearance';
+import {useContextoPlanejamento} from '../hooks/useContextoPlanejamento';
+import {useSaudeEAvisos} from '../hooks/useSaudeEAvisos';
+import {useMovimentacaoPlanejamento} from '../hooks/useMovimentacaoPlanejamento';
+import {useEditorPostIt} from '../hooks/useEditorPostIt';
+import {useSelecaoETeclado} from '../hooks/useSelecaoETeclado';
+import {AnalisePlanejamento} from '../components/AnalisePlanejamento';
 
 export function PlanejamentoPage() {
   const {state, dispatch} = useAppContext();
@@ -196,76 +116,74 @@ export function PlanejamentoPage() {
   const location = useLocation();
   const retornoPlanejamento = `${location.pathname}${location.search}`;
   const isMobile = useIsMobile();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const contextoInicial = useRef(lerContextoPlanejamento(searchParams)).current;
-  const [month, setMonth] = useState(() => new Date(contextoInicial.data + 'T12:00:00'));
-  const [vista, setVistaRaw] = useState<VistaPlanejamento>(contextoInicial.vista);
-  const [intervaloEmFoco, setIntervaloEmFoco] = useState(contextoInicial.foco);
-  const [origemSaude, setOrigemSaude] = useState(contextoInicial.origem);
-  const setVista = (novaVista: VistaPlanejamento) => {
-    setIntervaloEmFoco(null);
-    setOrigemSaude(null);
-    setVistaRaw(novaVista);
-  };
-  const navegarCalendario = (data: Date) => {
-    setIntervaloEmFoco(null);
-    setOrigemSaude(null);
-    setMonth(data);
-  };
-
-  const [dragOverDay, setDragOverDay] = useState<string | null>(null);
-  const [pileOver, setPileOver] = useState(false);
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
-  const [pullOpen, setPullOpen] = useState(false);
-  const [pullDate, setPullDate] = useState<string | null>(null);
-  const [noteDraft, setNoteDraft] = useState('');
-  const [dateDraft, setDateDraft] = useState<string | null>(null);
-  const [classeDraft, setClasseDraft] = useState<PostItEdit>({texto: '', date: null});
-  const [encaixeId, setEncaixeId] = useState<string | null>(null);
-  /** Pré-visualização de um conteúdo do calendário (puxado ou publicação): o clique abre aqui, não o roteiro. */
-  const [preview, setPreview] = useState<{contentId: string; postItId: string | null; dia: string | null} | null>(null);
-  /** Conteúdos escolhidos para entrar num bloco de gravação. Null = diálogo fechado. */
-  const [blocoAlvo, setBlocoAlvo] = useState<Content[] | null>(null);
-  const [assuntoFiltroId, setAssuntoFiltroId] = useState<string | null>(contextoInicial.assuntoId);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
-  const [destaqueIds, setDestaqueIds] = useState<Set<string>>(() => new Set(contextoInicial.destaques));
-  const [avisoAtivoId, setAvisoAtivoId] = useState<string | null>(null);
-  /** Dia do post-it rápido. `undefined` = fechado; `null` = fora do calendário. */
-  const [rapidoDate, setRapidoDate] = useState<string | null | undefined>(undefined);
-  // 2D: filtros por conta e formato; trecho da Saúde (calendário ou intervalo); análise da Saúde.
-  const [filtro, setFiltro] = useState<FiltroCalendario>(contextoInicial.filtro);
-  const [trecho, setTrecho] = useState<'calendario' | 'intervalo'>(contextoInicial.trecho);
-  const [intervalo, setIntervalo] = useState<{inicio: string; fim: string}>(contextoInicial.intervalo);
-  const [analiseAberta, setAnaliseAberta] = useState(() => searchParams.get('saude') === '1');
-  const [seriePlanejandoId, setSeriePlanejandoId] = useState<string | null>(contextoInicial.serieId);
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const next = gravarContextoPlanejamento(params, {
-      data: format(month, 'yyyy-MM-dd'), vista, trecho, intervalo,
-      foco: intervaloEmFoco, serieId: seriePlanejandoId, destaques: [...destaqueIds],
-      filtro, assuntoId: assuntoFiltroId, origem: origemSaude,
-    }, analiseAberta);
-    if (next.toString() !== params.toString()) setSearchParams(next, {replace: true});
-  }, [month, vista, trecho, intervalo, intervaloEmFoco, seriePlanejandoId, destaqueIds, analiseAberta, filtro, assuntoFiltroId, origemSaude, location.search, setSearchParams]);
+  const {
+    searchParams, setSearchParams,
+    month, setMonth, vista, setVista, setVistaRaw,
+    intervaloEmFoco, setIntervaloEmFoco,
+    origemSaude, setOrigemSaude, navegarCalendario,
+    assuntoFiltroId, setAssuntoFiltroId,
+    destaqueIds, setDestaqueIds,
+    filtro, setFiltro, trecho, setTrecho, intervalo, setIntervalo,
+    analiseAberta, setAnaliseAberta,
+    seriePlanejandoId, setSeriePlanejandoId,
+  } = useContextoPlanejamento();
   const seriePlanejando = seriePlanejandoId ? state.series.find(s => s.id === seriePlanejandoId) ?? null : null;
-  /** "Mais opções" abre o post-it recém-criado já no editor completo. */
-  const editarAoAbrir = useRef(false);
-  /** Celular: post-it sendo movido pelo menu ⋯ (ou "Mover para…" do post-it aberto). */
-  const [moveId, setMoveId] = useState<string | null>(null);
-  const [moveDate, setMoveDate] = useState<string | null>(null);
-  /** Ids dos post-its no fluxo "Salvar no calendário". Null = fechado. */
   const [salvarCalendarioIds, setSalvarCalendarioIds] = useState<string[] | null>(null);
 
   const contents = state.contents;
   const episodioPorId = useMemo(() => rotulosDeEpisodio(contents), [contents]);
   // O dia do post-it é rascunho. O Calendário só muda em "Salvar no calendário".
   const postIts = usePostItsNaData();
-  const openPostIt = postIts.find(postIt => postIt.id === openId) ?? null;
-  const openContent = contentById(contents, openPostIt?.contentId ?? null);
 
-  const openPostItId = openPostIt?.id ?? null;
-  const encaixePostIt = postIts.find(postIt => postIt.id === encaixeId) ?? null;
+  // Uma publicação por conta: base dos filtros e da situação de cada conta nos cards.
+  const indiceAgenda = useMemo(
+    () => indiceDaAgenda(publicacoesDaAgenda({contents, contas: state.platforms, series: state.series})),
+    [contents, state.platforms, state.series],
+  );
+
+  const saude = useSaudeEAvisos({
+    month, vista, setMonth, setVistaRaw,
+    intervaloEmFoco, setIntervaloEmFoco,
+    origemSaude, setOrigemSaude,
+    filtro, trecho, intervalo,
+    postIts, contents, indiceAgenda,
+    destaqueIds, setDestaqueIds, setAnaliseAberta, setSeriePlanejandoId,
+    retornoPlanejamento,
+  });
+  const {
+    periodo, periodoDaSaude, contentsDoFiltro, postItsDoFiltro, vistaTemRoteiro,
+    pausedDateKeys, monthHealth, rotuloSaude, avisoSaude, avisosOrientacao,
+    verPautasDoAviso, localizarAviso, handlePlanejarIntervalo, handleReorganizarEpisodios,
+    roteiroIdsDoPeriodo, handleOpenGravacao, foraDoPrazo, avisoAtivoId, setAvisoAtivoId,
+    limparDestaque,
+  } = saude;
+
+  const {
+    dragOverDay, setDragOverDay, pileOver, setPileOver,
+    pullOpen, setPullOpen, pullDate, setPullDate,
+    moveId, setMoveId, moveDate, setMoveDate,
+    moveMany, readDragIds, pullOnto,
+    abrirMover, abrirMoverPublicacao, fecharMover, confirmarMover,
+    confirmarSeCouber,
+  } = useMovimentacaoPlanejamento({postIts, contents, periodoDaSaude, filtro});
+
+  const {
+    openId, setOpenId, editing, setEditing,
+    noteDraft, setNoteDraft, dateDraft, setDateDraft, classeDraft, setClasseDraft,
+    encaixeId, setEncaixeId, preview, setPreview, rapidoDate, setRapidoDate,
+    openPostIt, openContent, openPostItId, encaixePostIt,
+    addEmpty, fecharRapido, salvarRapido, abrirEmEdicao, maisOpcoesDoRapido,
+    closePostIt, startEdit, saveEdit,
+    abrirRoteiro, commitTransform, desenvolverReserva,
+  } = useEditorPostIt({postIts, contents, confirmarSeCouber, retornoPlanejamento, setMonth});
+
+  const {
+    selectedIds, setSelectedIds, blocoAlvo, setBlocoAlvo,
+    toggleSelected, clearSelection, removeSelected, conteudosSelecionados,
+  } = useSelecaoETeclado({
+    postIts, contents, isMobile, openId, pullOpen, preview,
+    setPreview, setEditing, setOpenId, closePostIt,
+  });
 
   // `?postit=<id>` abre o post-it no mês dele: o Editorial manda para cá.
   const postItPedido = searchParams.get('postit');
@@ -282,35 +200,6 @@ export function PlanejamentoPage() {
     }, {replace: true});
   }, [postItPedido, postIts, setSearchParams]);
 
-  useEffect(() => {
-    if (openPostItId && editarAoAbrir.current) {
-      editarAoAbrir.current = false;
-      setEditing(true);
-      return;
-    }
-    setEditing(false);
-  }, [openPostItId]);
-
-  useEffect(() => {
-    if (isMobile) setSelectedIds(new Set());
-  }, [isMobile]);
-
-  const toggleSelected = (id: string) => {
-    setSelectedIds(current => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const clearSelection = () => setSelectedIds(new Set());
-
-  // Uma publicação por conta: base dos filtros e da situação de cada conta nos cards.
-  const indiceAgenda = useMemo(
-    () => indiceDaAgenda(publicacoesDaAgenda({contents, contas: state.platforms, series: state.series})),
-    [contents, state.platforms, state.series],
-  );
 
   const byDate = useMemo(() => {
     const map = new Map<string, PlanejamentoPostIt[]>();
@@ -377,38 +266,6 @@ export function PlanejamentoPage() {
         }}
       />
     );
-  };
-
-  const abrirMover = (postIt: PlanejamentoPostIt) => {
-    setMoveDate(postIt.date ?? null);
-    setMoveId(postIt.id);
-  };
-
-  const abrirMoverPublicacao = (contentId: string) => {
-    const content = contentById(contents, contentId);
-    const dia = content?.publishDate ? content.publishDate.slice(0, 10) : null;
-    setMoveDate(dia);
-    setMoveId(`content:${contentId}`);
-  };
-
-  const fecharMover = () => setMoveId(null);
-
-  const confirmarMover = () => {
-    const id = moveId;
-    setMoveId(null);
-    if (!id) return;
-    if (id.startsWith('content:')) {
-      const cId = id.slice(8);
-      const content = contentById(contents, cId);
-      const currentDia = content?.publishDate ? content.publishDate.slice(0, 10) : null;
-      if (!content || currentDia === moveDate) return;
-      moveMany([id], moveDate);
-      return;
-    }
-    const postIt = postIts.find(item => item.id === id);
-    if (!postIt || (postIt.date ?? null) === moveDate) return;
-    // moveMany mantém os avisos de "Passa do editorial".
-    moveMany([id], moveDate);
   };
 
   const removePostItById = (id: string) => {
@@ -499,433 +356,13 @@ export function PlanejamentoPage() {
     );
   };
 
-  const periodo = useMemo(() => intervaloEmFoco ?? periodoDaVista(month, vista), [month, vista, intervaloEmFoco]);
-
-  // Decisão 3 (03/11): a Saúde segue o trecho visível no calendário (mês ou semana).
-  // O plano do Editorial continua identificado à parte, no card de metas do período.
-  // 2D: "Intervalo" troca o trecho da Saúde por datas escolhidas; incompleto ou invertido, vale o calendário.
-  const intervaloValido = trecho === 'intervalo' && Boolean(intervalo.inicio && intervalo.fim && intervalo.inicio <= intervalo.fim);
-  const periodoDaSaude = useMemo(
-    () => origemSaude?.periodo ?? (intervaloValido ? {inicio: intervalo.inicio, fim: intervalo.fim} : {inicio: periodo.inicio, fim: periodo.fim}),
-    [origemSaude, intervaloValido, intervalo.inicio, intervalo.fim, periodo.inicio, periodo.fim],
-  );
-  // Com filtro, Saúde e calendário olham o mesmo recorte: só os conteúdos e post-its que passam nele.
-  // A continuidade geral fica de todas as contas (o acompanhamento geral é de todas), identificada na análise.
-  const contentsDoFiltro = useMemo(
-    () => (filtroAtivo(filtro) ? contents.filter(content => conteudoPassa(indiceAgenda, content.id, filtro)) : contents),
-    [contents, indiceAgenda, filtro],
-  );
-  const postItsDoFiltro = useMemo(
-    () => (filtroAtivo(filtro) ? postIts.filter(postIt => postItPassa(indiceAgenda, postIt, filtro)) : postIts),
-    [postIts, indiceAgenda, filtro],
-  );
-  const vistaTemRoteiro = useMemo(
-    () => vistaTemRoteiroNosPostIts(postItsDoFiltro),
-    [postItsDoFiltro],
-  );
-  // Hachura: pausa de publicação no período visível da grade (mês/semana/foco).
-  const pausedDateKeys = useMemo(
-    () => setDiasPausaPublicacao(state.editorial.pausas ?? [], {inicio: periodo.inicio, fim: periodo.fim}),
-    [state.editorial.pausas, periodo.inicio, periodo.fim],
-  );
-  const monthHealth = useMemo(() => {
-    const settings = state.editorial;
-    const counts = saudeDoMes({
-      postIts: postItsDoFiltro,
-      contents: contentsDoFiltro,
-      series: state.series,
-      pilares: state.pilares,
-      settings,
-      periodo: periodoDaSaude,
-      platforms: state.platforms,
-    });
-    // Indicadores da Saúde: só leem. Objetivo de cada conteúdo; séries intervalo a intervalo.
-    const proporcao = proporcaoDesejadaDoPeriodo({
-      periodo: periodoDaSaude,
-      limiteSemanal: settings.preferencias?.limiteSemanal ?? null,
-      proporcaoFuncoes: readProporcao(settings.proporcaoFuncoes),
-      vigencias: settings.vigencias,
-    });
-    // As mesmas metas em número do editor do Editorial: o ajuste do período, senão proporção × meta.
-    // Com filtro não há meta de conteúdos daquela rede: os objetivos ficam em percentual contra a proporção.
-    const metasObjetivo = metasDoPeriodo({
-      limite: filtroAtivo(filtro) ? null : counts.limite,
-      proporcao,
-      ajustes: decisaoDoPeriodo(settings.periodos ?? [], periodoDaSaude.inicio, periodoDaSaude.fim)?.metas,
-    });
-    const objetivos = distribuicaoPorObjetivo({itens: counts.itens, contents: contentsDoFiltro, series: state.series, proporcao, metas: metasObjetivo});
-    // Semanas e meses das pontas são avaliados inteiros: busca os itens além do período.
-    const estendido = saudeDoMes({
-      postIts,
-      contents,
-      series: state.series,
-      pilares: state.pilares,
-      settings,
-      periodo: janelaDaContinuidade(periodoDaSaude),
-      platforms: state.platforms,
-    });
-    const continuidade = continuidadeDasSeries({
-      series: state.series,
-      itens: estendido.itens,
-      periodo: periodoDaSaude,
-      pausas: settings.pausas ?? [],
-      temporadas: state.temporadas,
-      // Andamento das waves sobre todos os episódios, não só os do período.
-      progressoDasOndas: progressoDasOndas(state.contents, format(new Date(), 'yyyy-MM-dd')),
-    });
-    // Publicações por conta no trecho, com a meta de cada conta e a soma (incompleta quando falta meta).
-    const publicacoes = publicacoesNaSaude({
-      contents: contentsDoFiltro,
-      platforms: state.platforms,
-      series: state.series,
-      periodo: periodoDaSaude,
-      linhas: settings.metasDasContas ?? [],
-      decisao: decisaoDoPeriodo(settings.periodos ?? [], periodoDaSaude.inicio, periodoDaSaude.fim),
-      proporcaoGeral: readProporcao(settings.proporcaoFuncoes),
-      pausas: settings.pausas ?? [],
-      filtro,
-    });
-    // Acompanhamentos por conta ou formato: cada um conferido à parte, pelas publicações de cada conta.
-    // Com filtro, ficam os acompanhamentos daquela conta ou formato e os que valem para todas.
-    const escopos = linhasDaContinuidadePorEscopo({
-      series: state.series,
-      contents,
-      postIts,
-      platforms: state.platforms,
-      periodo: periodoDaSaude,
-      pausas: settings.pausas ?? [],
-      temporadas: state.temporadas,
-    }).filter(linha =>
-      (filtro.redes.length === 0 || !linha.platformId || contaNoFiltro(redeDaRef(linha.platformId, state.platforms), filtro.redes))
-      && (!filtro.formato || !linha.formato || linha.formato === filtro.formato));
-    return {
-      // A meta absoluta do período já vem na contagem (`metaDoPeriodo`).
-      counts,
-      temDistribuicao: readProporcao(settings.proporcaoFuncoes) != null,
-      objetivos,
-      continuidade,
-      escopos,
-      publicacoes,
-    };
-  }, [postIts, contents, postItsDoFiltro, contentsDoFiltro, state.series, state.pilares, state.platforms, state.editorial, state.temporadas, periodoDaSaude, filtro]);
-  const rotuloSaude = rotuloDoPeriodo(periodoDaSaude);
-  const avisoSaude = avisoDoCalendario(periodoDaSaude, periodo);
-
-  // Avisos no mesmo trecho da Saúde (o intervalo, quando escolhido) e no mesmo recorte do filtro.
-  // Gravações por dia são capacidade do dia, de todas as redes: esse aviso não segue o filtro.
-  // Semana corrente, próximos 12 dias e fim do mês da vista: continuidade de todas as redes, como na Saúde.
-  const avisosOrientacao = useMemo(() => {
-    const hoje = new Date();
-    const hojeIso = format(hoje, 'yyyy-MM-dd');
-    const continuidadeNo = (trecho: {inicio: string; fim: string}, comItens: boolean) => continuidadeDasSeries({
-      series: state.series,
-      itens: comItens ? saudeDoMes({
-        postIts,
-        contents,
-        series: state.series,
-        pilares: state.pilares,
-        settings: state.editorial,
-        periodo: janelaDaContinuidade(trecho),
-        platforms: state.platforms,
-      }).itens : [],
-      periodo: trecho,
-      pausas: state.editorial.pausas ?? [],
-      temporadas: state.temporadas,
-      hoje: hojeIso,
-    });
-    const mesDaVista = {inicio: format(startOfMonth(month), 'yyyy-MM-dd'), fim: format(endOfMonth(month), 'yyyy-MM-dd')};
-    const globais = {
-      hoje,
-      // Capacidade só usa as metas das linhas acompanhadas na semana, não os itens.
-      continuidadeDaSemana: continuidadeNo(semanaCorrente(hoje), false),
-      continuidadeProxima: continuidadeNo(janelaDosProximosDias(hoje), true),
-      continuidadeDoMes: continuidadeNo(mesDaVista, true),
-      mesDaVista,
-    };
-    const avisosDo = (lista: {postIts: PlanejamentoPostIt[]; contents: typeof contents}, extras: Partial<typeof globais> = {}) => avisosDeOrientacao({
-      ...extras,
-      postIts: lista.postIts,
-      contents: lista.contents,
-      series: state.series,
-      temas: state.temas,
-      obras: state.bibliotecaItems,
-      periodo: periodoDaSaude,
-      // Concentração usa os mesmos publicados e reservas da Saúde, também no aviso pontual.
-      entries: entriesDaConcentracao({
-        ...lista, series: state.series, temas: state.temas, obras: state.bibliotecaItems,
-        settings: state.editorial, platforms: state.platforms, periodo: periodoDaSaude,
-      }),
-      // Frequência das séries com a mesma apuração da Saúde: janelas inteiras nas pontas.
-      itensSerie: saudeDoMes({
-        postIts: lista.postIts,
-        contents: lista.contents,
-        series: state.series,
-        pilares: state.pilares,
-        settings: state.editorial,
-        periodo: janelaDaContinuidade(periodoDaSaude),
-        platforms: state.platforms,
-      }).itens,
-      limiteGravacoesDia: state.editorial.preferencias.limiteGravacoesDia,
-      concentracao: state.editorial.concentracao,
-      excecoesConcentracao: state.editorial.excecoesConcentracao,
-      pausas: state.editorial.pausas ?? [],
-      platforms: state.platforms,
-      redeReferenciaId: state.editorial.preferencias.redeReferenciaId,
-      diasGravacao: state.editorial.preferencias.diasGravacao,
-      antecedenciaPostagemDias: state.editorial.preferencias.antecedenciaPostagemDias,
-      temporadas: state.temporadas,
-    });
-    const todos = avisosDo({postIts, contents}, globais);
-    if (!filtroAtivo(filtro)) return todos;
-    const doFiltro = avisosDo({postIts: postItsDoFiltro, contents: contentsDoFiltro});
-    return [
-      ...doFiltro.filter(aviso => !TIPOS_AVISO_GLOBAIS.has(aviso.tipo)),
-      ...todos.filter(aviso => TIPOS_AVISO_GLOBAIS.has(aviso.tipo)),
-    ];
-  }, [postIts, contents, postItsDoFiltro, contentsDoFiltro, filtro, state.series, state.pilares, state.platforms, state.editorial, state.temas, state.bibliotecaItems, state.temporadas, periodoDaSaude, month]);
-
-  const verPautasDoAviso = (aviso: AvisoOrientacao) => {
-    setAvisoAtivoId(aviso.id);
-    setDestaqueIds(new Set(aviso.postItIds));
-  };
-
-  const localizarAviso = (aviso: AvisoOrientacao) => {
-    const dia = diaDoAviso(aviso, postIts, contents);
-    if (dia) setMonth(new Date(`${dia}T12:00:00`));
-    verPautasDoAviso(aviso);
-    // Ausência e capacidade não têm pauta para destacar: a análise mostra o porquê.
-    setAnaliseAberta(abreAnaliseAoLocalizar(aviso));
-  };
-
-  const focarIntervalo = (intervalo: IntervaloSaude) => {
-    setOrigemSaude(prev => prev ?? {periodo: periodoDaSaude, data: format(month, 'yyyy-MM-dd'), vista});
-    setMonth(new Date(intervalo.inicio + 'T12:00:00'));
-    setVistaRaw('semana');
-    setIntervaloEmFoco(intervalo);
-    setAvisoAtivoId(null);
-    setAnaliseAberta(false);
-  };
-  const handlePlanejarIntervalo = ({serieId, inicio, fim}: IntervaloSaude & {serieId: string}) => {
-    focarIntervalo({inicio, fim});
-    setDestaqueIds(new Set());
-    setSeriePlanejandoId(serieId);
-  };
-  const handleReorganizarEpisodios = ({inicio, fim, itemIds}: IntervaloSaude & {itemIds: string[]}) => {
-    focarIntervalo({inicio, fim});
-    setSeriePlanejandoId(null);
-    setDestaqueIds(new Set(itemIds));
-  };
-  const roteiroIdsDoPeriodo = useMemo(() => roteirosDaSaude(monthHealth.counts.itens, contents, state.recordingBlocks), [monthHealth.counts.itens, contents, state.recordingBlocks]);
-  const handleOpenGravacao = (contentIds = roteiroIdsDoPeriodo) => {
-    const elegiveis = new Set(roteiroIdsDoPeriodo);
-    const ids = contentIds.filter(id => elegiveis.has(id));
-    if (ids.length === 0) return;
-    navigate('/gravacao?ids=' + encodeURIComponent(ids.join(',')), buildDetailBackState(retornoPlanejamento));
-  };
-  // Pendências ativas não somem quando o calendário vira o mês ou a semana.
-  const foraDoPrazo = useMemo(() => pendenciasNaSaude({
-    postIts: postItsDoFiltro, contents: contentsDoFiltro, series: state.series,
-    pilares: state.pilares, settings: state.editorial, platforms: state.platforms,
-  }), [postItsDoFiltro, contentsDoFiltro, state.series, state.pilares, state.editorial, state.platforms]);
   const resolverData = (item: GradeEntry) => {
     setMoveId(item.postItId ?? 'content:' + item.contentId);
     setMoveDate(item.data);
   };
 
   /** Análise da Saúde: drawer por cima da tela, em qualquer largura; no celular ocupa a tela inteira. */
-  const renderAnalise = () => (
-    <SaudeEditorialPanel
-      modo="analise"
-      rotuloPeriodo={rotuloSaude}
-      avisoPeriodo={avisoSaude}
-      counts={monthHealth.counts}
-      foraDoPrazo={foraDoPrazo}
-      roteiroIds={roteiroIdsDoPeriodo}
-      onResolverData={resolverData}
-      series={state.series}
-      pilares={state.pilares}
-      temas={state.temas}
-      contents={contents}
-      objetivos={monthHealth.objetivos}
-      continuidade={monthHealth.continuidade}
-      escopos={monthHealth.escopos}
-      publicacoes={monthHealth.publicacoes}
-      filtroRotulo={filtroRotulo}
-      avisos={avisosOrientacao}
-      onLocalizarAviso={localizarAviso}
-      onFechar={() => setAnaliseAberta(false)}
-      onAddReserva={() => addEmpty(format(new Date(), 'yyyy-MM-dd'))}
-      onOpenGravacao={handleOpenGravacao}
-      onPlanejarIntervalo={handlePlanejarIntervalo}
-      onReorganizarEpisodios={handleReorganizarEpisodios}
-    />
-  );
-
-  const limparDestaque = () => {
-    setAvisoAtivoId(null);
-    setDestaqueIds(new Set());
-  };
-
-  const applyList = (next: PlanejamentoPostIt[]) => {
-    const {added, updated} = changedPostIts(postIts, next);
-    return Promise.all([
-      ...added.map(postIt => dispatch({type: 'ADD_POST_IT', payload: postIt})),
-      ...updated.map(postIt => dispatch({type: 'UPDATE_POST_IT', payload: postIt})),
-    ]);
-  };
-
-  // Novo post-it abre primeiro o formulário rápido. O dia clicado vai junto, sem campo de data.
-  const addEmpty = (date: string | null) => {
-    setRapidoDate(date);
-  };
-
-  const fecharRapido = () => setRapidoDate(undefined);
-
-  const criarDoRapido = (draft: PostItEdit): PlanejamentoPostIt => {
-    const postIt = savePostItEdit(createEmptyPostIt({date: rapidoDate ?? null}), draft);
-    dispatch({type: 'ADD_POST_IT', payload: postIt});
-    return postIt;
-  };
-
-  const salvarRapido = (draft: PostItEdit) => {
-    const postIt = criarDoRapido(draft);
-    fecharRapido();
-    if (postIt.date) setMonth(new Date(`${postIt.date}T12:00:00`));
-  };
-
-  /** Abre o post-it já no editor completo ("Mais opções" do rápido, "Editar reserva" do cartão). */
-  const abrirEmEdicao = (postIt: PlanejamentoPostIt) => {
-    const edit = postItEditDraft(postIt);
-    setNoteDraft(edit.texto);
-    setDateDraft(edit.date);
-    setClasseDraft(edit);
-    if (openId === postIt.id) {
-      setEditing(true);
-      return;
-    }
-    editarAoAbrir.current = true;
-    setOpenId(postIt.id);
-  };
-
-  const maisOpcoesDoRapido = (draft: PostItEdit) => {
-    const postIt = criarDoRapido(draft);
-    fecharRapido();
-    abrirEmEdicao(postIt);
-  };
-
   // Move/puxa primeiro; a mesma orientação aparece depois, sem modal bloqueante.
-  const confirmarSeCouber = useAvisoConcentracao(periodoDaSaude, filtro);
-
-  const moveMany = (ids: readonly string[], date: string | null) => {
-    const targets: PlanejamentoPostIt[] = [];
-    const contentTargets: Content[] = [];
-
-    for (const id of ids) {
-      if (id.startsWith('content:')) {
-        const cId = id.slice(8);
-        const content = contentById(contents, cId);
-        if (content && !roteiroPublicado(content) && !contentTargets.some(c => c.id === cId)) {
-          contentTargets.push(content);
-        }
-        continue;
-      }
-
-      const postIt = postIts.find(item => item.id === id);
-      if (postIt) {
-        if (targets.some(item => item.id === id) || postIt.date === date) continue;
-        const content = contentById(contents, postIt.contentId);
-        if (content && roteiroPublicado(content)) continue;
-        targets.push(postIt);
-        continue;
-      }
-
-      const content = contentById(contents, id);
-      if (content && !roteiroPublicado(content) && !contentTargets.some(c => c.id === id)) {
-        contentTargets.push(content);
-      }
-    }
-
-    const movidos = targets.map(postIt => movePostIt(postIt, date));
-    const roteirosMovidos = contentTargets.flatMap(content => {
-      const movido = levarRoteiroAoDia(content, date);
-      return movido ? [movido] : [];
-    });
-    const porPostIt = new Map(movidos.map(item => [item.id, item]));
-    const porConteudo = new Map(roteirosMovidos.map(item => [item.id, item]));
-    void confirmarSeCouber({
-      date,
-      postItIds: movidos.map(item => item.id),
-      contentIds: [...movidos.flatMap(item => item.contentId ? [item.contentId] : []), ...porConteudo.keys()],
-      depois: {
-        postIts: postIts.map(item => porPostIt.get(item.id) ?? item),
-        contents: contents.map(item => porConteudo.get(item.id) ?? item),
-      },
-    }, () => {
-      // Post-it só muda o plano. Cartão do Calendário move a data oficial do roteiro.
-      const gravacoes: Promise<void>[] = [];
-      if (movidos.length > 0) gravacoes.push(dispatch({type: 'UPDATE_POST_ITS', payload: movidos}));
-      for (const content of roteirosMovidos) gravacoes.push(dispatch({type: 'UPDATE_CONTENT', payload: content}));
-      return Promise.all(gravacoes);
-    });
-  };
-
-  const readDragIds = (event: DragEvent) => {
-    const raw = event.dataTransfer.getData(POST_IT_MIME) || event.dataTransfer.getData('text/plain');
-    return raw.split('\n').map(id => id.trim()).filter(Boolean);
-  };
-
-  const pullOnto = (content: Content, date: string | null) => {
-    const result = pullExistingContent({
-      postIts,
-      content,
-      date,
-    });
-    if (!result.pulled) return;
-    void confirmarSeCouber({
-      date, postItIds: [], contentIds: [content.id],
-      depois: {postIts: result.postIts, contents},
-    }, () => {
-      const gravacao = applyList(result.postIts);
-      setPullOpen(false);
-      return gravacao;
-    });
-  };
-
-  /** Fecha o post-it. Em edição, descarta o rascunho: Esc, fundo, "X" e Cancelar fecham tudo. */
-  const closePostIt = () => {
-    setEditing(false);
-    setOpenId(null);
-  };
-
-  const startEdit = () => {
-    if (!openPostIt) return;
-    const draft = postItEditDraft(openPostIt);
-    setNoteDraft(draft.texto);
-    setDateDraft(draft.date);
-    setClasseDraft(draft);
-    setEditing(true);
-  };
-
-  const saveEdit = () => {
-    if (!openPostIt) return;
-    // Com conteúdo ligado, a classificação é a do conteúdo: o post-it não grava a dele.
-    const classe = openContent
-      ? {redes: classeDraft.redes ?? []}
-      : {serieId: classeDraft.serieId, pilarId: classeDraft.pilarId, objetivo: classeDraft.objetivo, redes: classeDraft.redes ?? []};
-    const saved = savePostItEdit(openPostIt, {texto: noteDraft, date: dateDraft, ...classe});
-    void confirmarSeCouber({
-      date: saved.date !== openPostIt.date ? saved.date : null,
-      postItIds: [saved.id], contentIds: saved.contentId ? [saved.contentId] : [],
-      depois: {postIts: postIts.map(item => item.id === saved.id ? saved : item), contents},
-    }, () => {
-      const gravacao = postItMudou(openPostIt, saved)
-        ? dispatch({type: 'UPDATE_POST_IT', payload: saved}) : Promise.resolve();
-      setNoteDraft(saved.texto);
-      setDateDraft(saved.date);
-      setEditing(false);
-      return gravacao;
-    });
-  };
 
   const removeOpenPostIt = () => {
     if (!openPostIt) return;
@@ -946,140 +383,6 @@ export function PlanejamentoPage() {
     closePostIt();
   };
 
-  const removeSelected = () => {
-    const alive = new Set(postIts.map(postIt => postIt.id));
-    const targets = [...selectedIds].filter(id => alive.has(id));
-    if (targets.length === 0) {
-      clearSelection();
-      return;
-    }
-    if (openId && targets.includes(openId)) closePostIt();
-    clearSelection();
-    dispatch({type: 'DELETE_POST_ITS', payload: targets});
-  };
-
-  useEffect(() => {
-    if (isMobile || selectedIds.size === 0) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target;
-      if (target instanceof HTMLElement) {
-        const tag = target.tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable) return;
-      }
-      if (event.key === 'Escape') {
-        clearSelection();
-        return;
-      }
-      if (openId || pullOpen || preview || blocoAlvo) return;
-      // Enter com um só selecionado abre: pré-visualização se tem conteúdo, o post-it se é reserva.
-      if (event.key === 'Enter' && selectedIds.size === 1) {
-        const [id] = [...selectedIds];
-        const postIt = postIts.find(item => item.id === id);
-        if (!postIt) return;
-        event.preventDefault();
-        if (postIt.contentId && contentById(contents, postIt.contentId)) {
-          setPreview({contentId: postIt.contentId, postItId: postIt.id, dia: postIt.date});
-        } else {
-          setEditing(false);
-          setOpenId(postIt.id);
-        }
-        return;
-      }
-      if (event.key !== 'Delete' && event.key !== 'Backspace') return;
-      event.preventDefault();
-      removeSelected();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isMobile, selectedIds, openId, pullOpen, preview, blocoAlvo, postIts, contents]);
-
-  // Post-it aberto em leitura: E entra na edição, como o botão Editar.
-  useEffect(() => {
-    if (!openPostItId || editing) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'e' && event.key !== 'E') return;
-      if (event.ctrlKey || event.metaKey || event.altKey) return;
-      const target = event.target;
-      if (target instanceof HTMLElement) {
-        const tag = target.tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable) return;
-      }
-      event.preventDefault();
-      startEdit();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [openPostItId, editing, startEdit]);
-
-  /** Post-its selecionados que têm conteúdo: são eles que podem ir para um bloco de gravação. */
-  const conteudosSelecionados = useMemo(
-    () => [...selectedIds].flatMap(id => {
-      const postIt = postIts.find(item => item.id === id);
-      const content = contentById(contents, postIt?.contentId ?? null);
-      return content && entraNoBloco(content, state.recordingBlocks) ? [content] : [];
-    }),
-    [selectedIds, postIts, contents, state.recordingBlocks],
-  );
-
-  /** Vai direto à página do roteiro (duplo clique, "Abrir roteiro" do menu e da pré-visualização). */
-  const abrirRoteiro = (contentId: string) => {
-    setPreview(null);
-    navigate(buildContentDetailRoute(contentId, 'roteiro'), buildDetailBackState(retornoPlanejamento));
-  };
-
-  /** Transforma o post-it aberto ou, pelo menu do cartão, o post-it indicado. */
-  const commitTransform = (target: 'ideia' | 'roteiro', alvo: PlanejamentoPostIt | null = openPostIt) => {
-    if (!alvo || (alvo.id === openPostIt?.id && editing)) return;
-    const result = transformPostIt({
-      postIt: alvo,
-      contents,
-      target,
-      contas: state.platforms,
-    });
-    if (!result.ok) return;
-    void (async () => {
-      await dispatch({
-        type: result.mode === 'create' ? 'ADD_CONTENT' : 'UPDATE_CONTENT',
-        payload: result.content,
-      });
-      await dispatch({type: 'UPDATE_POST_IT', payload: result.postIt});
-    })();
-    if (openPostIt?.id === alvo.id) setOpenId(null);
-    setPreview(null);
-    if (result.openScript) {
-      navigate(
-        buildContentDetailRoute(result.content.id, 'roteiro'),
-        buildDetailBackState(retornoPlanejamento),
-      );
-    }
-  };
-
-  const desenvolverReserva = (postIt: PlanejamentoPostIt) => {
-    const result = transformPostIt({
-      postIt,
-      contents,
-      target: 'roteiro',
-      contas: state.platforms,
-    });
-    if (!result.ok) {
-      setEditing(false);
-      setOpenId(postIt.id);
-      return;
-    }
-    void (async () => {
-      await dispatch({
-        type: result.mode === 'create' ? 'ADD_CONTENT' : 'UPDATE_CONTENT',
-        payload: result.content,
-      });
-      await dispatch({type: 'UPDATE_POST_IT', payload: result.postIt});
-    })();
-    if (result.openScript) {
-      navigate(
-        buildContentDetailRoute(result.content.id, 'roteiro'),
-        buildDetailBackState(retornoPlanejamento),
-      );
-    }
-  };
 
   const pulledContentIds = useMemo(
     () => new Set(postIts.flatMap(postIt => postIt.contentId ? [postIt.contentId] : [])),
@@ -1636,16 +939,31 @@ export function PlanejamentoPage() {
         );
       })()}
 
-      <Drawer
-        open={analiseAberta}
-        onClose={() => setAnaliseAberta(false)}
-        widthClassName="max-w-xl"
-        ariaLabel="Análise da Saúde"
-      >
-        <div className="h-full min-h-0 overflow-y-auto bg-[var(--bg-elevated)]">
-          {renderAnalise()}
-        </div>
-      </Drawer>
+      <AnalisePlanejamento
+        aberta={analiseAberta}
+        onFechar={() => setAnaliseAberta(false)}
+        rotuloPeriodo={rotuloSaude}
+        avisoPeriodo={avisoSaude}
+        counts={monthHealth.counts}
+        foraDoPrazo={foraDoPrazo}
+        roteiroIds={roteiroIdsDoPeriodo}
+        onResolverData={resolverData}
+        series={state.series}
+        pilares={state.pilares}
+        temas={state.temas}
+        contents={contents}
+        objetivos={monthHealth.objetivos}
+        continuidade={monthHealth.continuidade}
+        escopos={monthHealth.escopos}
+        publicacoes={monthHealth.publicacoes}
+        filtroRotulo={filtroRotulo}
+        avisos={avisosOrientacao}
+        onLocalizarAviso={localizarAviso}
+        onAddReserva={() => addEmpty(format(new Date(), 'yyyy-MM-dd'))}
+        onOpenGravacao={handleOpenGravacao}
+        onPlanejarIntervalo={handlePlanejarIntervalo}
+        onReorganizarEpisodios={handleReorganizarEpisodios}
+      />
 
       {/* Esc, fundo e alça no modo edição só saem da edição: o post-it continua aberto. */}
       <Dialog open={Boolean(openPostIt)} onClose={closePostIt} desktopMaxW="max-w-lg" ariaLabel="Post-it">
