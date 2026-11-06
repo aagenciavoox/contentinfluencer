@@ -6,6 +6,7 @@ import type {ReactNode} from 'react';
 import {AppButton} from '../../../components/ui/AppButton';
 import {Text} from '../../../components/ui/Text';
 import {cn} from '../../../lib/utils';
+import {classeDiaPausaPublicacao} from '../lib/reguaFrequencia';
 import type {PlanejamentoPostIt} from '../lib/postIt';
 import type {RedeSocial} from '../../../lib/database';
 import {DivisoriaRede} from './DivisoriaRede';
@@ -38,6 +39,7 @@ export function PlanejamentoWeekGrid({
   separarDia,
   onAddPauta,
   onPuxarConteudo,
+  pausedDateKeys,
 }: {
   anchorDate: Date;
   intervalo?: IntervaloSaude | null;
@@ -51,6 +53,8 @@ export function PlanejamentoWeekGrid({
   separarDia?: (dateKey: string) => DiaSeparado | null;
   onAddPauta: (dateKey: string) => void;
   onPuxarConteudo?: (dateKey: string) => void;
+  /** Dias (yyyy-MM-dd) com pausa de publicação — hachura na célula. */
+  pausedDateKeys?: ReadonlySet<string> | readonly string[];
 }) {
   const today = new Date();
   const days = diasDoCalendario(anchorDate, intervalo);
@@ -108,6 +112,7 @@ export function PlanejamentoWeekGrid({
                 dragOverDay === key
                   ? 'bg-[color-mix(in_srgb,var(--accent-orange)_12%,transparent)]'
                   : fimDeSemana(day) && 'planejamento-fim-de-semana',
+                classeDiaPausaPublicacao(key, pausedDateKeys),
               )}
               onDragOver={event => {
                 event.preventDefault();

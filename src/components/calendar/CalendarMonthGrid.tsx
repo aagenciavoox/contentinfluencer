@@ -38,6 +38,8 @@ interface CalendarMonthGridProps {
   tintWeekends?: boolean;
   renderDayContent: (props: CalendarMonthGridDayProps) => ReactNode;
   getDayClassName?: (props: CalendarMonthGridDayProps) => string | undefined;
+  /** Dias (yyyy-MM-dd) com pausa de publicação — aplica hachura na célula. */
+  pausedDateKeys?: ReadonlySet<string> | readonly string[];
   /** Clique ou Enter/Espaço no dia. */
   onDayClick?: (props: CalendarMonthGridDayProps, event: React.MouseEvent | React.KeyboardEvent) => void;
   onDayDragOver?: (props: CalendarMonthGridDayProps, event: React.DragEvent) => void;
@@ -78,6 +80,7 @@ export function CalendarMonthGrid({
   tintWeekends = false,
   renderDayContent,
   getDayClassName,
+  pausedDateKeys,
   onDayClick,
   onDayDragOver,
   onDayDragLeave,
@@ -179,7 +182,15 @@ export function CalendarMonthGrid({
             const isToday = isSameDay(day, today);
             const isSelected = selectedDate ? isSameDay(day, selectedDate) : false;
             const dayProps: CalendarMonthGridDayProps = {day, dateKey, inMonth, isToday, isSelected};
-            const extraClass = getDayClassName?.(dayProps);
+            const paused = !pausedDateKeys
+              ? false
+              : pausedDateKeys instanceof Set
+                ? pausedDateKeys.has(dateKey)
+                : (pausedDateKeys as readonly string[]).includes(dateKey);
+            const extraClass = cn(
+              getDayClassName?.(dayProps),
+              paused && 'planejamento-dia-pausado',
+            );
 
             const interactive = Boolean(onSelectDate || onDayClick);
 

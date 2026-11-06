@@ -2927,6 +2927,17 @@ html.mobile-app-shell .segment-tabs--full .segment-tabs-item-active {
 }
 
 /* Sábado e domingo do planejamento: um tom acima do papel, sem competir com o hoje. */
+/* Dia com pausa de publicação: hachura leve, sem competir com o hoje. */
+.planejamento-dia-pausado {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 5px,
+    color-mix(in srgb, var(--text-tertiary) 14%, transparent) 5px,
+    color-mix(in srgb, var(--text-tertiary) 14%, transparent) 10px
+  );
+}
+
 .planejamento-fim-de-semana {
   background-color: color-mix(in srgb, var(--text-tertiary) 8%, var(--bg-elevated));
 }

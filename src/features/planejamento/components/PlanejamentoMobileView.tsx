@@ -11,7 +11,7 @@ import {
   startOfWeek,
 } from 'date-fns';
 import {ptBR} from 'date-fns/locale';
-import {ArrowDownToLine, LayoutGrid, Plus, StickyNote} from 'lucide-react';
+import {ArrowDownToLine, Bell, LayoutGrid, Plus, StickyNote} from 'lucide-react';
 import {CalendarPeriodNav} from '../../../components/calendar';
 import {AppButton} from '../../../components/ui/AppButton';
 import {Badge} from '../../../components/ui/Badge';
@@ -26,6 +26,11 @@ import type {VistaPlanejamento} from '../lib/periodoPlanejamento';
 import {diasDoCalendario, type IntervaloSaude} from '../lib/saudeActions';
 import {fimDeSemana} from '../lib/periodoPlanejamento';
 import {SemDataPanel} from './SemDataPanel';
+import {AvisosFaixa} from './AvisosFaixa';
+import {BottomSheet} from '../../../components/overlays/BottomSheet';
+import {OverlayBody} from '../../../components/overlays/OverlayBody';
+import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
+import {pontosParaRevisar, type AvisoOrientacao} from '../lib/orientacaoEditorial';
 
 const TODOS_OS_ASSUNTOS = '__todos';
 const WEEK_STARTS_ON = INICIO_DA_SEMANA;
@@ -45,7 +50,12 @@ interface PlanejamentoMobileViewProps {
   onNovoPostIt: (date: string | null) => void;
   onPuxar: (date: string | null) => void;
   onEditorial: () => void;
-  resumo: ReactNode;
+  onVerAnalise?: () => void;
+  /** Avisos do trecho: abrem num sheet, sem empurrar os dias (Fase 3.1). */
+  avisos?: readonly AvisoOrientacao[];
+  avisoAtivoId?: string | null;
+  onLocalizarAviso?: (aviso: AvisoOrientacao) => void;
+  onLimparDestaque?: () => void;
   temas: readonly Pick<Tema, 'id' | 'nome'>[];
   assuntoFiltroId: string | null;
   onAssuntoFiltroChange: (id: string | null) => void;
@@ -173,7 +183,11 @@ export function PlanejamentoMobileView({
   onNovoPostIt,
   onPuxar,
   onEditorial,
-  resumo,
+  onVerAnalise,
+  avisos = [],
+  avisoAtivoId = null,
+  onLocalizarAviso,
+  onLimparDestaque,
   temas,
   assuntoFiltroId,
   onAssuntoFiltroChange,
@@ -181,6 +195,8 @@ export function PlanejamentoMobileView({
   const today = new Date();
   const todayKey = dateKey(today);
   const [undatedOpen, setUndatedOpen] = useState(undated.length > 0);
+  const [avisosAbertos, setAvisosAbertos] = useState(false);
+  const revisar = pontosParaRevisar(avisos);
   const undatedId = useId();
   const currentWeekRef = useRef<HTMLElement | null>(null);
 
@@ -239,8 +255,6 @@ export function PlanejamentoMobileView({
         </AppButton>
       </div>
 
-      {resumo}
-
       <div className="flex flex-wrap items-center gap-2">
         <CalendarPeriodNav
           anchorDate={month}
@@ -256,6 +270,14 @@ export function PlanejamentoMobileView({
         />
         <AppButton variant="secondary" size="sm" leftIcon={<LayoutGrid className="h-4 w-4" />} onClick={onEditorial}>
           Editorial
+        </AppButton>
+        <AppButton
+          variant="secondary"
+          size="sm"
+          leftIcon={<Bell className="h-4 w-4" />}
+          onClick={() => setAvisosAbertos(true)}
+        >
+          {revisar > 0 ? `Avisos (${revisar})` : 'Avisos'}
         </AppButton>
       </div>
 
@@ -361,6 +383,33 @@ export function PlanejamentoMobileView({
           </div>
         ) : null}
       </section>
+
+      <BottomSheet
+        open={avisosAbertos}
+        onClose={() => setAvisosAbertos(false)}
+        ariaLabel="Avisos do planejamento"
+      >
+        <OverlayHeader title="Avisos" onClose={() => setAvisosAbertos(false)} />
+        <OverlayBody className="stack-md">
+          <AvisosFaixa
+            avisos={avisos}
+            avisoAtivoId={avisoAtivoId}
+            onLocalizar={aviso => {
+              onLocalizarAviso?.(aviso);
+              setAvisosAbertos(false);
+            }}
+            onLimparDestaque={onLimparDestaque}
+            onVerAnalise={onVerAnalise ? () => {
+              setAvisosAbertos(false);
+              onVerAnalise();
+            } : undefined}
+            onAbrirEditorial={() => {
+              setAvisosAbertos(false);
+              onEditorial();
+            }}
+          />
+        </OverlayBody>
+      </BottomSheet>
     </div>
   );
 }

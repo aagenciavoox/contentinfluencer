@@ -37,6 +37,7 @@ await import('./features/dashboard/lib/currentRead.test.ts');
 await import('./features/editorial-calendar/lib/calendarMode.test.ts');
 await import('./features/planejamento/lib/postIt.test.ts');
 await import('./features/planejamento/lib/episodioNaTemporada.test.ts');
+await import('./features/planejamento/lib/reguaFrequencia.test.ts');
 await import('./features/planejamento/lib/monthScroll.test.ts');
 await import('./features/planejamento/lib/planningLifecycle.test.ts');
 await import('./features/planejamento/lib/redesPostIt.test.ts');

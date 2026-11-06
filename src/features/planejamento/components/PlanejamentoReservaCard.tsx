@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react';
 import { MoreVertical } from 'lucide-react';
 import { MoreMenu, type MoreMenuItem } from '../../../components/ui/MoreMenu';
 import { RedeIcon } from '../../../components/ui/PlatformIcons';
+import { Badge } from '../../../components/ui/Badge';
 import { Text } from '../../../components/ui/Text';
 import type { PlanejamentoPostIt } from '../lib/postIt';
 import type { Content, Pilar, Serie } from '../../../lib/database';
@@ -27,6 +28,8 @@ export interface PlanejamentoReservaCardProps {
   /** Ctrl/Cmd + clique entra e sai da seleção (desktop). */
   selected?: boolean;
   onToggleSelect?: () => void;
+  /** Selo opcional (ex.: "Só no plano"). A Página calcula com textoSeloSoNoPlano. */
+  selo?: string | null;
   className?: string;
 }
 
@@ -46,6 +49,7 @@ export function PlanejamentoReservaCard({
   onDragStart,
   selected = false,
   onToggleSelect,
+  selo = null,
   className,
 }: PlanejamentoReservaCardProps) {
   // A cor do post-it é a do pilar. Sem pilar, o papel fica branco.
@@ -153,6 +157,11 @@ export function PlanejamentoReservaCard({
           </div>
         </div>
 
+        {selo ? (
+          <Badge variant="tag" className="mb-1 px-1.5 py-0">
+            {selo}
+          </Badge>
+        ) : null}
         <Text variant="bodyStrong" as="p" className="planner-card-title line-clamp-2 pr-6 leading-snug text-[var(--text-primary)]">
           {titulo}
         </Text>

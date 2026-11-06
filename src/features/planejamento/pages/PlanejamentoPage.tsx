@@ -6,7 +6,7 @@ import {type GradeEntry} from '../../editorial/lib/gradeEntries';
 import {pendenciasNaSaude} from '../lib/pendenciasNaSaude';
 import {gravarContextoPlanejamento, lerContextoPlanejamento, orientacaoDoPlanejamento, roteirosDaSaude, type IntervaloSaude} from '../lib/saudeActions';
 import {ptBR} from 'date-fns/locale';
-import {ArrowDownToLine, CalendarDays, ChevronDown, Clapperboard, LayoutGrid, Pencil, Plus, StickyNote, Trash2} from 'lucide-react';
+import {ArrowDownToLine, CalendarDays, Clapperboard, LayoutGrid, Pencil, Plus, StickyNote, Trash2, ExternalLink} from 'lucide-react';
 import {
   CalendarMonthGrid,
   CalendarPeriodNav,
@@ -39,7 +39,8 @@ import {objetivoDoConteudo, objetivoHerdadoDaSerie, pilarDoConteudo, pilarHerdad
 import {sortPilares} from '../../settings/lib/activePilares';
 import {CampoDia} from '../components/CampoDia';
 import {EncaixeDialog} from '../components/EncaixeDialog';
-import {PlanejamentoResumo} from '../components/PlanejamentoResumo';
+import {AvisosFaixa} from '../components/AvisosFaixa';
+import {ReguaDeFrequencia} from '../components/ReguaDeFrequencia';
 import {PlanejamentoWeekGrid} from '../components/PlanejamentoWeekGrid';
 import {SaudeEditorialPanel} from '../components/SaudeEditorialPanel';
 import {PlanejamentoContentCard} from '../components/PlanejamentoContentCard';
@@ -70,6 +71,11 @@ import {linhasDaContinuidadePorEscopo} from '../lib/continuidadePorEscopoNaSaude
 import {publicacoesNaSaude} from '../lib/publicacoesNaSaude';
 import {contaNoFiltro, contasDoCard, conteudoPassa, filtroAtivo, formatosDoFiltro, indiceDaAgenda, postItPassa, publicacoesDoCard, type FiltroCalendario} from '../lib/filtroCalendario';
 import {diaDoAviso} from '../lib/detalheDoAviso';
+import {
+  setDiasPausaPublicacao,
+  textoSeloSoNoPlano,
+  vistaTemRoteiroNosPostIts,
+} from '../lib/reguaFrequencia';
 import {publicacoesDaAgenda, rotuloDoFormato} from '../../editorial/lib/publicacoes';
 import {Drawer} from '../../../components/overlays/Drawer';
 import {CreationRedeQuickFilter} from '../../creation/components/CreationRedeQuickFilter';
@@ -82,9 +88,7 @@ import {avisosDeOrientacao, type AvisoOrientacao} from '../lib/orientacaoEditori
 import {fimDeSemana, periodoDaVista, type VistaPlanejamento} from '../lib/periodoPlanejamento';
 import {progressoDasOndas, rotulosDeEpisodio} from '../lib/episodioNaTemporada';
 import type {PublicacaoNoDia} from '../lib/publicacoesDoMes';
-import {PeriodoPanel} from '../../editorial/components/plano/PeriodoPanel';
-import {periodoInicial, type PeriodoSelecionado} from '../../editorial/components/plano/PeriodoEditorialControl';
-import {decisaoDoPeriodo, lerPeriodoSalvo} from '../../editorial/lib/periodoEditorial';
+import {decisaoDoPeriodo} from '../../editorial/lib/periodoEditorial';
 import {SelectField} from '../../../components/ui/SelectField';
 import {
   canPullContent,
@@ -227,7 +231,6 @@ export function PlanejamentoPage() {
   const [avisoAtivoId, setAvisoAtivoId] = useState<string | null>(null);
   /** Dia do post-it rápido. `undefined` = fechado; `null` = fora do calendário. */
   const [rapidoDate, setRapidoDate] = useState<string | null | undefined>(undefined);
-  const [direcaoAberta, setDirecaoAberta] = useState(false);
   // 2D: filtros por conta e formato; trecho da Saúde (calendário ou intervalo); análise da Saúde.
   const [filtro, setFiltro] = useState<FiltroCalendario>(contextoInicial.filtro);
   const [trecho, setTrecho] = useState<'calendario' | 'intervalo'>(contextoInicial.trecho);
@@ -244,13 +247,6 @@ export function PlanejamentoPage() {
     if (next.toString() !== params.toString()) setSearchParams(next, {replace: true});
   }, [month, vista, trecho, intervalo, intervaloEmFoco, seriePlanejandoId, destaqueIds, analiseAberta, filtro, assuntoFiltroId, origemSaude, location.search, setSearchParams]);
   const seriePlanejando = seriePlanejandoId ? state.series.find(s => s.id === seriePlanejandoId) ?? null : null;
-  const periodoEditorial = useMemo(
-    () => (state.editorialVisao ? lerPeriodoSalvo(state.editorialVisao) : null) ?? periodoInicial(),
-    [state.editorialVisao],
-  );
-  const salvarPeriodoEditorial = (next: PeriodoSelecionado) => {
-    dispatch({ type: 'SET_EDITORIAL_VISAO', payload: next });
-  };
   /** "Mais opções" abre o post-it recém-criado já no editor completo. */
   const editarAoAbrir = useRef(false);
   /** Celular: post-it sendo movido pelo menu ⋯ (ou "Mover para…" do post-it aberto). */
@@ -520,6 +516,15 @@ export function PlanejamentoPage() {
   const postItsDoFiltro = useMemo(
     () => (filtroAtivo(filtro) ? postIts.filter(postIt => postItPassa(indiceAgenda, postIt, filtro)) : postIts),
     [postIts, indiceAgenda, filtro],
+  );
+  const vistaTemRoteiro = useMemo(
+    () => vistaTemRoteiroNosPostIts(postItsDoFiltro),
+    [postItsDoFiltro],
+  );
+  // Hachura: pausa de publicação no período visível da grade (mês/semana/foco).
+  const pausedDateKeys = useMemo(
+    () => setDiasPausaPublicacao(state.editorial.pausas ?? [], {inicio: periodo.inicio, fim: periodo.fim}),
+    [state.editorial.pausas, periodo.inicio, periodo.fim],
   );
   const monthHealth = useMemo(() => {
     const settings = state.editorial;
@@ -1216,12 +1221,10 @@ export function PlanejamentoPage() {
           view={(
             <AppButton
               variant="secondary"
-              aria-expanded={direcaoAberta}
-              aria-controls="direcao-periodo-planejamento"
-              rightIcon={<ChevronDown className={cn('h-4 w-4 transition-transform', direcaoAberta && 'rotate-180')} />}
-              onClick={() => setDirecaoAberta(atual => !atual)}
+              leftIcon={<ExternalLink className="h-4 w-4" />}
+              onClick={() => navigate('/editorial')}
             >
-              Prioridade e metas
+              Abrir Editorial
             </AppButton>
           )}
         />
@@ -1329,6 +1332,7 @@ export function PlanejamentoPage() {
               onDelete={() => removePostItById(postIt.id)}
               selected={!isMobile && selectedIds.has(postIt.id)}
               onToggleSelect={isMobile ? undefined : () => toggleSelected(postIt.id)}
+              selo={textoSeloSoNoPlano({semRoteiro: !postIt.contentId, vistaTemRoteiro})}
             />
           );
         };
@@ -1336,28 +1340,6 @@ export function PlanejamentoPage() {
         if (isMobile) {
           return (
             <div className="stack-md">
-              <SaudeEditorialPanel
-                rotuloPeriodo={rotuloSaude}
-                avisoPeriodo={avisoSaude}
-                counts={monthHealth.counts}
-                foraDoPrazo={foraDoPrazo}
-                roteiroIds={roteiroIdsDoPeriodo}
-                onResolverData={resolverData}
-                series={state.series}
-                pilares={state.pilares}
-                temas={state.temas}
-                contents={contents}
-                objetivos={monthHealth.objetivos}
-                continuidade={monthHealth.continuidade}
-                escopos={monthHealth.escopos}
-                publicacoes={monthHealth.publicacoes}
-                modo="faixa"
-                filtroRotulo={filtroRotulo}
-                avisos={avisosOrientacao}
-                onVerAnalise={() => setAnaliseAberta(true)}
-                onAddReserva={() => addEmpty(format(new Date(), 'yyyy-MM-dd'))}
-                onOpenGravacao={handleOpenGravacao}
-              />
               {orientacaoCalendario}
               <PlanejamentoMobileView
                 intervalo={intervaloEmFoco}
@@ -1377,24 +1359,11 @@ export function PlanejamentoPage() {
                   setPullOpen(true);
                 }}
                 onEditorial={() => navigate('/editorial')}
-                resumo={
-                  <PlanejamentoResumo
-                    counts={monthHealth.counts}
-                    entries={monthHealth.counts.entries}
-                    series={state.series}
-                    pilares={state.pilares}
-                    temas={state.temas}
-                    obras={state.bibliotecaItems}
-                    contents={contents}
-                    temDistribuicao={monthHealth.temDistribuicao}
-                    outrasRedes={monthHealth.counts.outrasRedes}
-                    vista={vista}
-                    avisos={avisosOrientacao}
-                    avisoAtivoId={avisoAtivoId}
-                    onVerPautas={verPautasDoAviso}
-                    onLimparDestaque={limparDestaque}
-                  />
-                }
+                onVerAnalise={() => setAnaliseAberta(true)}
+                avisos={avisosOrientacao}
+                avisoAtivoId={avisoAtivoId}
+                onLocalizarAviso={localizarAviso}
+                onLimparDestaque={limparDestaque}
                 assuntoFiltroId={assuntoFiltroId}
                 onAssuntoFiltroChange={setAssuntoFiltroId}
               />
@@ -1405,40 +1374,22 @@ export function PlanejamentoPage() {
         return (
           // Sem padding lateral próprio: o frame já dá a margem, e assim o conteúdo alinha com o título.
           <div className="stack-md pt-4 pb-8">
-            {direcaoAberta ? (
-              <div id="direcao-periodo-planejamento" className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-4">
-                <PeriodoPanel
-                  periodo={periodoEditorial}
-                  onPeriodoChange={salvarPeriodoEditorial}
-                  onAbrirAjustes={() => navigate('/editorial?aba=ajustes')}
-                />
-              </div>
-            ) : null}
-
-            <SaudeEditorialPanel
-              rotuloPeriodo={rotuloSaude}
-              avisoPeriodo={avisoSaude}
-              counts={monthHealth.counts}
-              foraDoPrazo={foraDoPrazo}
-              roteiroIds={roteiroIdsDoPeriodo}
-              onResolverData={resolverData}
-              series={state.series}
-              pilares={state.pilares}
-              temas={state.temas}
-              contents={contents}
-              objetivos={monthHealth.objetivos}
-              continuidade={monthHealth.continuidade}
-              escopos={monthHealth.escopos}
-              publicacoes={monthHealth.publicacoes}
-              modo="faixa"
-              filtroRotulo={filtroRotulo}
+            <AvisosFaixa
               avisos={avisosOrientacao}
-              onVerAnalise={() => setAnaliseAberta(atual => !atual)}
-              onAddReserva={() => addEmpty(format(new Date(), 'yyyy-MM-dd'))}
-              onOpenGravacao={handleOpenGravacao}
+              avisoAtivoId={avisoAtivoId}
+              onLocalizar={localizarAviso}
+              onLimparDestaque={limparDestaque}
+              onVerAnalise={() => setAnaliseAberta(true)}
+              onAbrirEditorial={() => navigate('/editorial')}
             />
 
             {orientacaoCalendario}
+
+            {/* Régua de frequência (3.2). Só no desktop: no mobile a grade de dias vem primeiro. */}
+            <div data-planejamento-regua-slot>
+              <ReguaDeFrequencia continuidade={monthHealth.continuidade} />
+            </div>
+
 
             {selectedIds.size > 0 ? (
               <Surface variant="outlined" padding="sm" className="flex flex-wrap items-center justify-between gap-3">
@@ -1492,6 +1443,7 @@ export function PlanejamentoPage() {
                     anchorDate={month}
                     intervalo={intervaloEmFoco}
                     byDate={byDate}
+                    pausedDateKeys={pausedDateKeys}
                     dragOverDay={dragOverDay}
                     onDayDragOver={(key) => {
                       setDragOverDay(key);
@@ -1515,6 +1467,7 @@ export function PlanejamentoPage() {
                   <CalendarMonthGrid
                     anchorDate={month}
                     weekStartsOn={INICIO_DA_SEMANA}
+                    pausedDateKeys={pausedDateKeys}
                     headerFormat="short"
                     dayNumberAlign="start"
                     minCellHeight={110}

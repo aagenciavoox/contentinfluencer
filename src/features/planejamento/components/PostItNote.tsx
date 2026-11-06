@@ -45,6 +45,7 @@ export function PostItNote({
   redes = [],
   dimmed = false,
   draggable = true,
+  selo = null,
   className,
 }: {
   postIt: PlanejamentoPostIt;
@@ -63,6 +64,8 @@ export function PostItNote({
   redes?: readonly RedeDoFiltro[];
   dimmed?: boolean;
   draggable?: boolean;
+  /** Selo opcional (ex.: "Só no plano"). */
+  selo?: string | null;
   className?: string;
 }) {
   const kind = postItKind(postIt, content);
@@ -168,9 +171,12 @@ export function PostItNote({
         {/* Redes no rodapé, junto da etapa: na linha do título elas tomavam o espaço dele. */}
         <span className="flex flex-wrap items-center justify-between gap-1">
           {reserva ? (
-            <span className="post-it-label">Reserva editorial</span>
+            <span className="post-it-label">{selo ?? 'Reserva editorial'}</span>
           ) : (
-            <EtapaBadge etapa={kind} compact={compact} />
+            <>
+              {selo ? <Badge variant="tag" className="px-1.5 py-0">{selo}</Badge> : null}
+              <EtapaBadge etapa={kind} compact={compact} />
+            </>
           )}
           {redes.length > 0 ? <PlatformIcons redes={redes} className="shrink-0" /> : null}
         </span>

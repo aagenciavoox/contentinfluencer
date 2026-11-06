@@ -2,6 +2,7 @@ import { useEffect, useRef, type CSSProperties, type MouseEvent } from 'react';
 import { AlertCircle, Check, Clock, MoreVertical } from 'lucide-react';
 import { MoreMenu, type MoreMenuItem } from '../../../components/ui/MoreMenu';
 import { PlatformIcon } from '../../../components/ui/PlatformIcon';
+import { Badge } from '../../../components/ui/Badge';
 import { Text } from '../../../components/ui/Text';
 import type { Content, Pilar, Serie } from '../../../lib/database';
 import type { PublicacaoNoDia } from '../lib/publicacoesDoMes';
@@ -204,9 +205,14 @@ export function PlanejamentoContentCard({
             </Text>
           ) : null}
           {episodio ? (
-            <Text variant="meta" as="span" className="shrink-0 tabular-nums text-[var(--text-secondary)]">
-              {episodio}
-            </Text>
+            <>
+              <Badge variant="tag" className="px-1.5 py-0">
+                Wave
+              </Badge>
+              <Text variant="meta" as="span" className="shrink-0 tabular-nums text-[var(--text-secondary)]">
+                {episodio}
+              </Text>
+            </>
           ) : null}
         </div>
       ) : null}
