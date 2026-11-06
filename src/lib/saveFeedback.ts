@@ -1,4 +1,4 @@
-export type SaveFeedbackStatus = 'idle' | 'saving' | 'success' | 'error';
+export type SaveFeedbackStatus = 'idle' | 'saving' | 'success' | 'error' | 'info';
 
 export type SaveFeedbackState = {
   status: SaveFeedbackStatus;

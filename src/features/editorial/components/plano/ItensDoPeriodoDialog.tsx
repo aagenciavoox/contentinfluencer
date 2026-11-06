@@ -233,7 +233,7 @@ export function ItensDoPeriodoDialog({
           ) : null}
         </div>
       </Dialog>
-      <EncaixeDialog postIt={encaixe} onClose={() => setEncaixe(null)} zIndex="z-[140]" linhasDoRitmo={linhasDoRitmo} />
+      <EncaixeDialog periodo={periodo} postIt={encaixe} onClose={() => setEncaixe(null)} zIndex="z-[140]" linhasDoRitmo={linhasDoRitmo} />
     </>
   );
 }

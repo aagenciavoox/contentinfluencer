@@ -1,7 +1,7 @@
 import { Text } from './Text';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Info, Loader2, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { AppButton } from './AppButton';
 import {
@@ -47,13 +47,15 @@ export function SaveFeedbackToast() {
           <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin" />
         ) : feedback.status === 'success' ? (
           <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[var(--success)]" />
+        ) : feedback.status === 'info' ? (
+          <Info className="mt-0.5 h-5 w-5 shrink-0 text-[var(--text-secondary)]" aria-hidden />
         ) : (
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-[var(--danger)]" />
         )}
         <div className="min-w-0 flex-1">
           <Text variant="itemTitle" as="p" className="text-inherit">{feedback.message}</Text>
           {feedback.detail ? (
-            <Text variant="label" as="p" className="mt-1 opacity-80 text-inherit">{feedback.detail}</Text>
+            <Text variant="label" as="p" className={cn("mt-1 opacity-80 text-inherit", feedback.status === 'info' && 'max-h-[40vh] overflow-y-auto')}>{feedback.detail}</Text>
           ) : null}
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {feedback.href ? (
@@ -80,6 +82,11 @@ export function SaveFeedbackToast() {
             ) : null}
           </div>
         </div>
+        {feedback.status === 'info' ? (
+          <AppButton variant="ghost" size="xs" iconOnly aria-label="Dispensar aviso" onClick={clearSaveFeedback}>
+            <X className="h-4 w-4" />
+          </AppButton>
+        ) : null}
       </div>
     </div>
   );

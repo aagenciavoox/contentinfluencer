@@ -51,6 +51,7 @@ await import('./features/planejamento/lib/temasPlanejamento.test.ts');
 await import('./features/planejamento/lib/assuntosObras.test.ts');
 await import('./features/planejamento/lib/distribuicaoAssuntosNaSaude.test.ts');
 await import('./features/planejamento/lib/orientacaoEditorial.test.ts');
+await import('./features/planejamento/lib/concentracaoAoColocar.test.ts');
 await import('./features/planejamento/lib/filtroPuxar.test.ts');
 await import('./features/planejamento/lib/secoesPuxar.test.ts');
 await import('./features/planejamento/lib/resumoDoPuxado.test.ts');

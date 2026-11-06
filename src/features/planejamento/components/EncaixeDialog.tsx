@@ -15,6 +15,8 @@ import {FUNCAO_CURTA} from '../../editorial/lib/funcoes';
 import {candidatosDoEncaixe, descricaoDoCandidato, type CandidatoEncaixe, type RitmoDoEncaixe} from '../lib/encaixe';
 import {progressoDasOndas} from '../lib/episodioNaTemporada';
 import {encaixarConteudo, type PlanejamentoPostIt} from '../lib/postIt';
+import type {FiltroCalendario} from '../lib/filtroCalendario';
+import {useAvisoConcentracao} from '../hooks/useAvisoConcentracao';
 import {usePostItsNaData} from '../hooks/usePostItsNaData';
 
 function criterioDoPostIt(
@@ -82,8 +84,12 @@ export function EncaixeDialog({
   onEncaixado,
   zIndex,
   linhasDoRitmo,
+  periodo,
+  filtroDosAvisos,
 }: {
   postIt: PlanejamentoPostIt | null;
+  periodo: {inicio: string; fim: string};
+  filtroDosAvisos?: FiltroCalendario;
   /** Linhas da continuidade do período visível (a mesma da régua). Sem elas, o ritmo não ordena. */
   linhasDoRitmo?: RitmoDoEncaixe['linhas'];
   onClose: () => void;
@@ -93,6 +99,7 @@ export function EncaixeDialog({
   const {state, dispatch} = useAppContext();
   const [busca, setBusca] = useState('');
   const postIts = usePostItsNaData();
+  const colocarComAviso = useAvisoConcentracao(periodo, filtroDosAvisos);
 
   const datas = useMemo(() => datasNaGrade({
     contents: state.contents,
@@ -129,10 +136,19 @@ export function EncaixeDialog({
     if (!postIt) return;
     const resultado = encaixarConteudo({postIts, postItId: postIt.id, content: candidato.content});
     if (!resultado.ok) return;
-    void dispatch({type: 'UPDATE_POST_IT', payload: resultado.postIt});
-    // O vínculo fica no post-it. O dia do Calendário só muda em "Salvar no calendário".
-    onEncaixado?.(resultado.postIt);
-    fechar();
+    void colocarComAviso({
+      date: resultado.postIt.date, postItIds: [resultado.postIt.id], contentIds: [candidato.content.id],
+      depois: {
+        postIts: postIts.map(item => item.id === resultado.postIt.id ? resultado.postIt : item),
+        contents: state.contents,
+      },
+    }, () => {
+      const gravacao = dispatch({type: 'UPDATE_POST_IT', payload: resultado.postIt});
+      // O vínculo fica no post-it. O dia do Calendário só muda em "Salvar no calendário".
+      onEncaixado?.(resultado.postIt);
+      fechar();
+      return gravacao;
+    });
   };
 
   return (

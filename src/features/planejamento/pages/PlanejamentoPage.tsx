@@ -64,6 +64,8 @@ import {diaDaRede, dividirPorRede, weekdayDaData} from '../lib/divisoriaRede';
 import {DivisoriaRede} from '../components/DivisoriaRede';
 import {redeDaRef} from '../../contas/lib/contas';
 import {REDE_ROTULO, ROTULO_REDE_DO_FILTRO, rotuloDaRef} from '../../contas/lib/contas';
+import {entriesDaConcentracao} from '../lib/concentracaoAoColocar';
+import {useAvisoConcentracao} from '../hooks/useAvisoConcentracao';
 import {saudeDoMes} from '../lib/monthHealth';
 import {avisoDoCalendario, rotuloDoPeriodo} from '../lib/periodoDaSaude';
 import {continuidadeDasSeries, distribuicaoPorObjetivo, janelaDaContinuidade, proporcaoDesejadaDoPeriodo} from '../lib/saudeIndicadores';
@@ -648,6 +650,11 @@ export function PlanejamentoPage() {
       temas: state.temas,
       obras: state.bibliotecaItems,
       periodo: periodoDaSaude,
+      // Concentração usa os mesmos publicados e reservas da Saúde, também no aviso pontual.
+      entries: entriesDaConcentracao({
+        ...lista, series: state.series, temas: state.temas, obras: state.bibliotecaItems,
+        settings: state.editorial, platforms: state.platforms, periodo: periodoDaSaude,
+      }),
       // Frequência das séries com a mesma apuração da Saúde: janelas inteiras nas pontas.
       itensSerie: saudeDoMes({
         postIts: lista.postIts,
@@ -761,8 +768,10 @@ export function PlanejamentoPage() {
 
   const applyList = (next: PlanejamentoPostIt[]) => {
     const {added, updated} = changedPostIts(postIts, next);
-    added.forEach(postIt => dispatch({type: 'ADD_POST_IT', payload: postIt}));
-    updated.forEach(postIt => dispatch({type: 'UPDATE_POST_IT', payload: postIt}));
+    return Promise.all([
+      ...added.map(postIt => dispatch({type: 'ADD_POST_IT', payload: postIt})),
+      ...updated.map(postIt => dispatch({type: 'UPDATE_POST_IT', payload: postIt})),
+    ]);
   };
 
   // Novo post-it abre primeiro o formulário rápido. O dia clicado vai junto, sem campo de data.
@@ -804,10 +813,8 @@ export function PlanejamentoPage() {
     abrirEmEdicao(postIt);
   };
 
-  /** Move ou puxa sem modal bloqueante; a faixa de orientação atualiza sozinha. */
-  const confirmarSeCouber = (_content: Content | null, _date: string | null, commit: () => void) => {
-    commit();
-  };
+  // Move/puxa primeiro; a mesma orientação aparece depois, sem modal bloqueante.
+  const confirmarSeCouber = useAvisoConcentracao(periodoDaSaude, filtro);
 
   const moveMany = (ids: readonly string[], date: string | null) => {
     const targets: PlanejamentoPostIt[] = [];
@@ -838,23 +845,28 @@ export function PlanejamentoPage() {
       }
     }
 
-    // Post-it só muda o rascunho. A data do Calendário fica para "Salvar no calendário".
-    if (targets.length > 0) {
-      dispatch({
-        type: 'UPDATE_POST_ITS',
-        payload: targets.map(postIt => movePostIt(postIt, date)),
-      });
-    }
-
-    // Cartão de publicação já no Calendário: move a data do roteiro.
-    if (contentTargets.length > 0) {
-      for (const content of contentTargets) {
-        const movido = levarRoteiroAoDia(content, date);
-        if (movido) {
-          void dispatch({type: 'UPDATE_CONTENT', payload: movido});
-        }
-      }
-    }
+    const movidos = targets.map(postIt => movePostIt(postIt, date));
+    const roteirosMovidos = contentTargets.flatMap(content => {
+      const movido = levarRoteiroAoDia(content, date);
+      return movido ? [movido] : [];
+    });
+    const porPostIt = new Map(movidos.map(item => [item.id, item]));
+    const porConteudo = new Map(roteirosMovidos.map(item => [item.id, item]));
+    void confirmarSeCouber({
+      date,
+      postItIds: movidos.map(item => item.id),
+      contentIds: [...movidos.flatMap(item => item.contentId ? [item.contentId] : []), ...porConteudo.keys()],
+      depois: {
+        postIts: postIts.map(item => porPostIt.get(item.id) ?? item),
+        contents: contents.map(item => porConteudo.get(item.id) ?? item),
+      },
+    }, () => {
+      // Post-it só muda o plano. Cartão do Calendário move a data oficial do roteiro.
+      const gravacoes: Promise<void>[] = [];
+      if (movidos.length > 0) gravacoes.push(dispatch({type: 'UPDATE_POST_ITS', payload: movidos}));
+      for (const content of roteirosMovidos) gravacoes.push(dispatch({type: 'UPDATE_CONTENT', payload: content}));
+      return Promise.all(gravacoes);
+    });
   };
 
   const readDragIds = (event: DragEvent) => {
@@ -869,9 +881,13 @@ export function PlanejamentoPage() {
       date,
     });
     if (!result.pulled) return;
-    confirmarSeCouber(content, date, () => {
-      applyList(result.postIts);
+    void confirmarSeCouber({
+      date, postItIds: [], contentIds: [content.id],
+      depois: {postIts: result.postIts, contents},
+    }, () => {
+      const gravacao = applyList(result.postIts);
       setPullOpen(false);
+      return gravacao;
     });
   };
 
@@ -897,13 +913,17 @@ export function PlanejamentoPage() {
       ? {redes: classeDraft.redes ?? []}
       : {serieId: classeDraft.serieId, pilarId: classeDraft.pilarId, objetivo: classeDraft.objetivo, redes: classeDraft.redes ?? []};
     const saved = savePostItEdit(openPostIt, {texto: noteDraft, date: dateDraft, ...classe});
-    confirmarSeCouber(openContent, saved.date, () => {
-      if (postItMudou(openPostIt, saved)) {
-        dispatch({type: 'UPDATE_POST_IT', payload: saved});
-      }
+    void confirmarSeCouber({
+      date: saved.date !== openPostIt.date ? saved.date : null,
+      postItIds: [saved.id], contentIds: saved.contentId ? [saved.contentId] : [],
+      depois: {postIts: postIts.map(item => item.id === saved.id ? saved : item), contents},
+    }, () => {
+      const gravacao = postItMudou(openPostIt, saved)
+        ? dispatch({type: 'UPDATE_POST_IT', payload: saved}) : Promise.resolve();
       setNoteDraft(saved.texto);
       setDateDraft(saved.date);
       setEditing(false);
+      return gravacao;
     });
   };
 
@@ -1910,6 +1930,8 @@ export function PlanejamentoPage() {
 
       <EncaixeDialog
         postIt={encaixePostIt}
+        periodo={periodoDaSaude}
+        filtroDosAvisos={filtro}
         onClose={() => setEncaixeId(null)}
         zIndex="z-[140]"
         linhasDoRitmo={monthHealth.continuidade.linhas}

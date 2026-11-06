@@ -8,6 +8,8 @@ import {PlanejamentoMobileView} from './PlanejamentoMobileView';
 import {RecordingMobileScreen} from '../../../mobile/screens/recording/RecordingMobileScreen';
 import {createContentDraft} from '../../contents/lib/createContentDraft';
 import {CONTENT_STATUS} from '../../contents/lib/contentPipeline';
+import {SaveFeedbackToast} from '../../../components/ui/SaveFeedbackToast';
+import {clearSaveFeedback, getSaveFeedbackState, notifySaveFeedback} from '../../../lib/saveFeedback';
 
 const noop = () => {};
 const postIt = {id:'p1',userId:'',texto:'Episódio de sexta',date:'2026-11-06',contentId:null,createdAt:'',updatedAt:''};
@@ -32,5 +34,25 @@ describe('fluxos visíveis da Saúde', () => {
     const html = renderToStaticMarkup(<MemoryRouter><RecordingMobileScreen readyContents={[content]} selectedIds={new Set(['pronto'])} onSelectionChange={noop} recordingBlocks={[]} allContents={[content]} pilares={[]} series={[]} availableTags={[]} activeTab="queue" onTabChange={noop} onCreateBlock={noop} onAddToExistingBlock={noop} onOpenBlock={noop} onOpenContent={noop} onReadContent={noop} /></MemoryRouter>);
     assert.match(html, /Selecionado/);
     assert.ok(html.includes('Criar bloco (1)'));
+  });
+});
+
+
+describe('aviso pontual de concentração', () => {
+  it('usa o toast existente com informação neutra, texto legível e ação de dispensar', () => {
+    notifySaveFeedback({status: 'info', message: 'Para lembrar', detail: '2 pautas da mesma obra em 7 dias: Livro.', persistent: true});
+    try {
+      const html = renderToStaticMarkup(<MemoryRouter><SaveFeedbackToast /></MemoryRouter>);
+      assert.match(html, /role="status"/);
+      assert.match(html, /aria-live="polite"/);
+      assert.match(html, /Para lembrar/);
+      assert.match(html, /2 pautas da mesma obra/);
+      assert.match(html, /Dispensar aviso/);
+      assert.ok(!html.includes('text-[var(--danger)]'));
+      assert.equal(getSaveFeedbackState().persistent, true);
+    } finally {
+      clearSaveFeedback();
+    }
+    assert.equal(getSaveFeedbackState().status, 'idle');
   });
 });
