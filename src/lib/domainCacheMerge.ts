@@ -2,16 +2,19 @@ import { conteudoApagado } from './conteudosApagados.ts';
 import type { AppData, Content, Platform } from './database';
 
 function mergePlatforms(current: Platform[], incoming: Platform[]): Platform[] {
-  if (current.length === 0) return incoming;
-  const byId = new Map(incoming.map(platform => [platform.id, platform]));
-  for (const platform of current) {
-    byId.set(platform.id, platform);
-  }
-  return [...byId.values()];
+  // Lista vazia é busca que não voltou: não apaga o que a tela já tem.
+  if (incoming.length === 0) return current;
+  const local = new Map(current.map(platform => [platform.id, platform]));
+  return incoming.map(platform => {
+    const atual = local.get(platform.id);
+    // Só a edição local mais nova que o banco fica. Nome ou status de outro aparelho entra.
+    if (atual && updatedAtMs(atual) > updatedAtMs(platform)) return atual;
+    return platform;
+  });
 }
 
-function updatedAtMs(content: Content): number {
-  const value = Date.parse(content.updatedAt ?? '');
+function updatedAtMs(record: { updatedAt?: string | null }): number {
+  const value = Date.parse(record.updatedAt ?? '');
   return Number.isNaN(value) ? 0 : value;
 }
 

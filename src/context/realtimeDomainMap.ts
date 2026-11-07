@@ -114,6 +114,26 @@ const REALTIME_TABLE_MAP: Record<string, RealtimeTableMapping> = {
     domains: ['bootstrap'],
     namespaces: [],
   },
+  editorial_vigencia: {
+    domains: ['bootstrap'],
+    namespaces: [],
+  },
+  editorial_conta_meta: {
+    domains: ['bootstrap'],
+    namespaces: [],
+  },
+  editorial_pausa: {
+    domains: ['bootstrap'],
+    namespaces: [],
+  },
+  concentracao_excecao: {
+    domains: ['bootstrap'],
+    namespaces: [],
+  },
+  dna_voz: {
+    domains: ['voice', 'bootstrap'],
+    namespaces: [],
+  },
   recording_blocks: {
     domains: ['recording'],
     namespaces: [],

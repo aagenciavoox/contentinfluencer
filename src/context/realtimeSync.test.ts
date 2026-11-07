@@ -35,6 +35,12 @@ function testChannelNameMatchesTheMcp() {
 }
 
 function testReadsOnlyKnownTablesFromPayload() {
+  assert.deepEqual(
+    changedTablesFromPayload({
+      tables: ['editorial_vigencia', 'editorial_conta_meta', 'editorial_pausa', 'concentracao_excecao', 'dna_voz', 'tabela_inventada'],
+    }),
+    ['editorial_vigencia', 'editorial_conta_meta', 'editorial_pausa', 'concentracao_excecao', 'dna_voz'],
+  );
   assert.deepEqual(changedTablesFromPayload({ tables: ['contents', 'contents', 'ideas'] }), ['contents', 'ideas']);
   assert.deepEqual(changedTablesFromPayload({ tables: ['tabela_inventada', 42, null, 'series'] }), ['series']);
   assert.deepEqual(changedTablesFromPayload({ tables: 'contents' }), []);

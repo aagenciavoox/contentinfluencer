@@ -39,13 +39,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     };
 
+    let geracao = 0;
+
     supabase.auth.getSession().then(({ data: { session } }) => {
+      const visto = ++geracao;
       applySession(session);
       if (!session) return;
 
       // Confere uma vez no servidor se a sessão salva ainda vale. Com o token explícito o
       // getUser não pega o lock de auth, então as consultas iniciais não esperam essa ida à rede.
       void supabase.auth.getUser(session.access_token).then(({ data, error }) => {
+        // Um logout ou outra sessão chegou antes desta resposta.
+        if (visto !== geracao) return;
         // Sem rede: mantém a sessão local em vez de deslogar.
         if (error && isAuthRetryableFetchError(error)) return;
         if (error || !data.user) {
@@ -61,6 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // volta a ficar visível. Só atualiza o estado: chamar a API de auth daqui segura o lock durante
     // uma ida à rede, e as outras consultas estouram a espera ("Lock ... was not released within 5000ms").
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      geracao += 1;
       applySession(nextSession);
     });
 

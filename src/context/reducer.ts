@@ -1,4 +1,4 @@
-import type { AppState } from '../app/providers/appState';
+import { initialState, type AppState } from '../app/providers/appState';
 import { comCoresDaSerie, nextFreeSerieColor, serieColorKey } from '../features/settings/lib/serieColors';
 import { conteudoApagado, liberarConteudoApagado, liberarConteudosApagados, marcarConteudoApagado, marcarConteudosApagados } from '../lib/conteudosApagados.ts';
 import { upsertContent } from '../features/contents/lib/contentBody';
@@ -29,6 +29,7 @@ import type {
 export type AppAction =
   // ─── Sincronização ──────────────────────────────────────────────────────────
   | { type: 'SET_DATA';    payload: Partial<AppData> }
+  | { type: 'RESET_SESSION' }
   | { type: 'SET_LOADED';  payload?: boolean }
   | { type: 'SET_THEME';   payload: AppTheme }
   | { type: 'SET_PREFERENCE'; payload: { key: string; value: any } }
@@ -222,6 +223,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         theme: deriveTheme(prefs, state.theme),
       };
     }
+    case 'RESET_SESSION':
+      return { ...initialState, theme: state.theme, isLoaded: true };
     case 'SET_LOADED':
       return { ...state, isLoaded: action.payload !== false };
     case 'SET_THEME':

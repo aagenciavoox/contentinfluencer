@@ -77,8 +77,25 @@ function testMergePrefersLocalVersionOnConflict() {
     contents: [content('c1', 'Titulo remoto', '2026-07-05T12:00:00.000Z')],
   };
   const merged = mergeFetchedAppData(current, incoming);
-  assert.equal(merged.platforms?.[0]?.nome, 'Instagram Atualizado');
+  // Sem updatedAt na conta, o banco prevalece. O roteiro local é mais novo e fica.
+  assert.equal(merged.platforms?.[0]?.nome, 'Instagram Antigo');
   assert.equal(merged.contents?.[0]?.title, 'Titulo local');
+}
+
+function testNewerLocalPlatformSurvivesUntilItIsSaved() {
+  const local = { ...platform('p1', 'Nome digitado'), updatedAt: '2026-07-05T13:00:00.000Z' };
+  const remote = { ...platform('p1', 'Nome do banco'), updatedAt: '2026-07-05T12:00:00.000Z' };
+  const merged = mergeFetchedAppData({ platforms: [local], contents: [] }, { platforms: [remote] });
+  assert.equal(merged.platforms?.[0]?.nome, 'Nome digitado');
+}
+
+function testRefreshDropsPlatformRemovedOnAnotherDevice() {
+  const merged = mergeFetchedAppData(
+    { platforms: [platform('p1', 'Fica'), platform('p2', 'Saiu')], contents: [] },
+    { platforms: [{ ...platform('p1', 'Fica no banco'), updatedAt: '2026-07-05T13:00:00.000Z' }] },
+  );
+  assert.deepEqual(merged.platforms?.map(item => item.id), ['p1']);
+  assert.equal(merged.platforms?.[0]?.nome, 'Fica no banco');
 }
 
 function testMergePrefersNewerServerVersionOverStaleCache() {
@@ -186,6 +203,8 @@ function testPatchLeavesContentsToTheirOwnSync() {
 testMergeKeepsLocalPlatformsMissingFromIncoming();
 testMergeKeepsLocalContentsMissingFromIncoming();
 testMergePrefersLocalVersionOnConflict();
+testNewerLocalPlatformSurvivesUntilItIsSaved();
+testRefreshDropsPlatformRemovedOnAnotherDevice();
 testMergePrefersNewerServerVersionOverStaleCache();
 testMergePlatformsHelper();
 testMergeContentsHelper();

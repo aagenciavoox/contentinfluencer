@@ -173,6 +173,15 @@ export function createTranscriptionQueue(deps: QueueDeps) {
     clearDone() {
       setState({ ...state, items: state.items.filter(item => item.status !== 'done') });
     },
+
+    /** Sai da conta: interrompe o vídeo em andamento e esvazia a fila. */
+    clear() {
+      if (active) {
+        active.controller.abort();
+        active = null;
+      }
+      setState({ items: [], pausedMessage: null });
+    },
   };
 }
 

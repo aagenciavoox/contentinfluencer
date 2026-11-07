@@ -39,6 +39,11 @@ export const REALTIME_TABLES = [
   'temporadas',
   'serie_acompanhamento',
   'serie_meta',
+  'editorial_vigencia',
+  'editorial_conta_meta',
+  'editorial_pausa',
+  'concentracao_excecao',
+  'dna_voz',
 ] as const;
 
 const REALTIME_TABLE_SET: ReadonlySet<string> = new Set(REALTIME_TABLES);

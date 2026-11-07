@@ -52,6 +52,7 @@ import {
   writePersistedDomain,
 } from '../lib/persistentDataCache';
 import { aplicarListaCompletaDeConteudos, mergeFetchedAppData } from '../lib/domainCacheMerge';
+import { transcriptionQueue } from '../features/transcription/lib/appTranscriptionQueue';
 import { patchBibliotecaItemsInDomainCaches, patchChangedSlicesInDomainCaches, patchContentsInDomainCaches, patchEditorialInDomainCaches, patchPlatformsInDomainCaches, patchPreferencesInDomainCaches, patchSeriesInDomainCaches, patchTemasInDomainCaches } from '../lib/domainCacheSync';
 import {
   BOOTSTRAP_DATA_DOMAINS,
@@ -522,7 +523,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         clearPersistedDomainsForUser(lastUserIdRef.current);
         lastUserIdRef.current = null;
       }
-      dispatch({ type: 'SET_DATA', payload: {} });
+      transcriptionQueue.clear();
+      dispatch({ type: 'RESET_SESSION' });
       loadedDomains.current.clear();
       inFlightDomains.current.clear();
       resetDomainStatus();
