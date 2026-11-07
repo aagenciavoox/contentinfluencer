@@ -12,6 +12,7 @@ import { Surface } from '../../../../components/ui/Surface';
 import { Text } from '../../../../components/ui/Text';
 import { useAppContext } from '../../../../context/AppContext';
 import type { Platform, Serie } from '../../../../lib/database';
+import { inteiroNaoNegativo } from '../../../../lib/inteiro';
 import type { Temporada } from '../../lib/temporadas';
 import { ondaComRitmoProprio, ritmoProprioMarcado } from '../../lib/metaPropria';
 import { Badge } from '../../../../components/ui/Badge';
@@ -44,8 +45,8 @@ type Linha = AcompanhamentoSerie & {
 
 
 function numeroDeDias(texto: string): number | null {
-  const n = Number.parseInt(texto.replace(/\D/g, ''), 10);
-  return Number.isFinite(n) && n > 0 ? n : null;
+  const n = inteiroNaoNegativo(texto);
+  return n != null && n > 0 ? n : null;
 }
 
 function rotuloDoEscopo(linha: Pick<AcompanhamentoSerie, 'escopo' | 'platformId' | 'formato'>, contas: readonly Platform[]): string {
@@ -189,7 +190,7 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
     }
     setErros([]);
 
-    const vezesNumero = vezes.trim() ? Number.parseInt(vezes, 10) : null;
+    const vezesNumero = inteiroNaoNegativo(vezes);
     const frequencia = frequenciaParaGravar({
       vezes: vezesNumero,
       unidade,
@@ -246,7 +247,7 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
       : comGeral.acompanhamentos;
     const metas: MetaDaSerieNoEscopo[] | undefined = comEscopos
       ? linhas.flatMap(linha => {
-        const quantidade = Number.parseInt(linha.metaVezes, 10);
+        const quantidade = inteiroNaoNegativo(linha.metaVezes);
         if (!Number.isFinite(quantidade) || quantidade <= 0) return [];
         return [{
           serieId: alvo.serie.id,
@@ -451,7 +452,7 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
                       className={CAMPO}
                       style={mensagem(idDoEscopo(linha.id, 'meta-vezes')) ? { borderColor: 'var(--danger)' } : undefined}
                       value={linha.metaVezes}
-                      onChange={event => mudar(linha.id, { metaVezes: event.target.value.replace(/\D/g, '').slice(0, 2) })}
+                      onChange={event => mudar(linha.id, { metaVezes: event.target.value.slice(0, 4) })}
                     />
                     {mensagem(idDoEscopo(linha.id, 'meta-vezes')) ? <TextoErro id={`${idDoEscopo(linha.id, 'meta-vezes')}-erro`}>{mensagem(idDoEscopo(linha.id, 'meta-vezes'))!}</TextoErro> : null}
                   </label>

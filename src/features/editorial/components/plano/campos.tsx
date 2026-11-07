@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { inteiroNaoNegativo } from '../../../../lib/inteiro';
 import { Minus, Plus } from 'lucide-react';
 import { SettingsSectionCard } from '../../../../components/settings/SettingsSectionCard';
 import { Text } from '../../../../components/ui/Text';
@@ -14,14 +15,13 @@ export const CAMPO = `${CAMPO_BASE} w-full`;
 
 export const NUMERO = `${CAMPO} min-h-11 max-w-[8rem] tabular-nums`;
 
+/** Curto, sem apagar o ponto: "1.5" continua "1.5" para a validação recusar. */
 export function digitos(value: string): string {
-  return value.replace(/\D/g, '').slice(0, 4);
+  return value.slice(0, 8);
 }
 
 export function inteiroOuNull(value: string): number | null {
-  const bruto = digitos(value);
-  if (!bruto) return null;
-  return Number.parseInt(bruto, 10);
+  return inteiroNaoNegativo(value);
 }
 
 export function CampoNumero({
@@ -149,7 +149,7 @@ export function CampoStepper({
   onChange: (value: string) => void;
   erro?: string;
 }) {
-  const atual = value === '' ? null : Number.parseInt(value, 10);
+  const atual = inteiroOuNull(value);
   const hintId = hint ? `${id}-hint` : undefined;
   const erroId = erro ? `${id}-erro` : undefined;
   return (

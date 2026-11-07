@@ -4,6 +4,7 @@ import {
   stableCaptionOrder,
   captionClipboardText,
   filtrarFilaLegendas,
+  filtrarFilaRoteiros,
   isCaptionQueueContent,
   paginateCaptionQueue,
   publicacaoNaFila,
@@ -103,6 +104,25 @@ const duasContas = createContent({
     pub({ id: 'duas-ig2', contentId: 'duas', platformId: 'ig-leituras', legendaPropria: true, legenda: '' }),
   ],
 });
+
+const soPostado = createContent({
+  id: 'feito',
+  title: 'Já no ar',
+  status: 'Postado',
+  plataformas: [pub({ id: 'feito-ig', contentId: 'feito', platformId: 'ig-diza', status: 'publicada', legenda: 'foi' })],
+});
+const misto = createContent({
+  id: 'misto',
+  title: 'Uma conta pronta',
+  plataformas: [
+    pub({ id: 'm-ig', contentId: 'misto', platformId: 'ig-diza', legenda: 'pronta' }),
+    pub({ id: 'm-tt', contentId: 'misto', platformId: 'tt', legenda: '' }),
+  ],
+});
+assert.deepEqual(filtrarFilaRoteiros([soPostado], 'todas', '', contas).map(item => item.id), []);
+assert.deepEqual(filtrarFilaRoteiros([duasContas], 'todas', '', contas).map(item => item.id), ['duas']);
+assert.deepEqual(filtrarFilaRoteiros([misto], 'em-branco', '', contas).map(item => item.id), ['misto']);
+assert.deepEqual(filtrarFilaRoteiros([misto], 'preenchidas', '', contas).map(item => item.id), ['misto']);
 
 assert.equal(publicacaoNaFila(duasContas, duasContas.plataformas[0]), false);
 assert.equal(publicacaoNaFila(duasContas, duasContas.plataformas[1]), true);

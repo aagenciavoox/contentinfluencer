@@ -38,7 +38,10 @@ export function usePaginatedQuery<T, Q extends { page: number; pageSize: number 
   const [error, setError] = useState<string | null>(null);
   const [fetchAttempted, setFetchAttempted] = useState(false);
 
+  const geracao = useRef(0);
+
   const load = useCallback(async (options?: { background?: boolean }) => {
+    const pedido = ++geracao.current;
     if (!enabled) {
       setLoading(true);
       setFetchAttempted(false);
@@ -75,6 +78,7 @@ export function usePaginatedQuery<T, Q extends { page: number; pageSize: number 
 
     try {
       const result = await fetchPageRef.current(query);
+      if (pedido !== geracao.current) return;
       dataCache.setPage(namespace, queryKey, query.page, result.items, result.total);
       if (persistKey && query.page === 1) {
         writePersistedPage(persistKey, queryKey, result.items, result.total);
@@ -83,6 +87,7 @@ export function usePaginatedQuery<T, Q extends { page: number; pageSize: number 
       setTotal(result.total);
       setError(null);
     } catch (err) {
+      if (pedido !== geracao.current) return;
       console.error(`[usePaginatedQuery:${namespace}] fetch failed:`, err);
       setError(ERRORS.carregarDados);
       if (!cached && !persisted) {
@@ -90,6 +95,7 @@ export function usePaginatedQuery<T, Q extends { page: number; pageSize: number 
         setTotal(0);
       }
     } finally {
+      if (pedido !== geracao.current) return;
       setLoading(false);
       setRefreshing(false);
       setFetchAttempted(true);

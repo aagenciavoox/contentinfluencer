@@ -9,6 +9,7 @@ import { OverlayBody } from '../../../../components/overlays/OverlayBody';
 import { OverlayFooter } from '../../../../components/overlays/OverlayFooter';
 import { OverlayHeader } from '../../../../components/overlays/OverlayHeader';
 import type { FuncaoEditorial, Platform } from '../../../../lib/database';
+import { inteiroNaoNegativo } from '../../../../lib/inteiro';
 import type { AjusteSemana, DecisaoPeriodo, MetasPeriodo } from '../../lib/editorialSettings';
 import { metasDaProporcao, type OrigemDaMeta, type ProporcaoFuncoes } from '../../lib/proporcaoObjetivos';
 import { rotuloDoPeriodo, type PeriodoSelecionado } from './PeriodoEditorialControl';
@@ -45,10 +46,7 @@ export interface AjustarMetasDialogProps {
 }
 
 function inteiro(texto: string): number | null {
-  const limpo = texto.replace(/\D/g, '');
-  if (!limpo) return null;
-  const n = Number.parseInt(limpo, 10);
-  return Number.isFinite(n) ? n : null;
+  return inteiroNaoNegativo(texto);
 }
 
 function rotuloDaSemana(inicio: string, fim: string): string {
@@ -159,18 +157,24 @@ export function AjustarMetasDialog({
   const bloqueiaDistribuicao = somaDiverge && (distribuicaoMudou || metaMudou);
 
   const [salvando, setSalvando] = useState(false);
+  const numeroInvalido = [
+    metasProducao,
+    metasPublicacao,
+    ...objetivos.map(linha => metasObjetivo[linha.funcao] ?? ''),
+    ...semanasParciais.map(semana => ajustesSemana[semana.inicio] ?? ''),
+  ].some(texto => texto.trim() !== '' && inteiro(texto) == null);
   const handleSave = async () => {
-    if (bloqueiaDistribuicao || salvando) return;
-    const prod = parseInt(metasProducao, 10);
-    const pub = parseInt(metasPublicacao, 10);
+    if (bloqueiaDistribuicao || salvando || numeroInvalido) return;
+    const prod = inteiro(metasProducao);
+    const pub = inteiro(metasPublicacao);
     setSalvando(true);
     try {
       await onSalvar({
         prioridade: prioridade.trim(),
         prioridadeNivel,
         pausaEditorial: pausaEditorial.trim(),
-        metasProducao: Number.isFinite(prod) ? prod : undefined,
-        metasPublicacao: Number.isFinite(pub) ? pub : undefined,
+        metasProducao: prod ?? undefined,
+        metasPublicacao: pub ?? undefined,
         metasPorConta,
         // Distribuição que ninguém mexeu continua exatamente como estava.
         ...(objetivos.length > 0 && distribuicaoMudou ? { metas: metasDoRascunho() } : {}),
@@ -317,8 +321,7 @@ export function AjustarMetasDialog({
                       placeholder={linha.calculada == null ? '—' : `${linha.calculada} pela proporção`}
                       value={metasObjetivo[linha.funcao] ?? ''}
                       onChange={event => {
-                        const valor = event.target.value.replace(/\D/g, '');
-                        setMetasObjetivo(atual => ({ ...atual, [linha.funcao]: valor }));
+                        setMetasObjetivo(atual => ({ ...atual, [linha.funcao]: event.target.value.slice(0, 8) }));
                       }}
                     />
                   </div>
@@ -378,8 +381,7 @@ export function AjustarMetasDialog({
                       placeholder={limiteSemanal == null ? '—' : 'ritmo'}
                       value={ajustesSemana[semana.inicio] ?? ''}
                       onChange={event => {
-                        const valor = event.target.value.replace(/\D/g, '');
-                        setAjustesSemana(atual => ({ ...atual, [semana.inicio]: valor }));
+                        setAjustesSemana(atual => ({ ...atual, [semana.inicio]: event.target.value.slice(0, 8) }));
                       }}
                     />
                   </div>
@@ -424,7 +426,8 @@ export function AjustarMetasDialog({
                         className="input w-full py-1"
                         value={dadosConta.producao ?? ''}
                         onChange={e => {
-                          const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
+                          const val = e.target.value === '' ? undefined : inteiro(e.target.value);
+                          if (e.target.value !== '' && val == null) return;
                           setMetasPorConta(prev => ({
                             ...prev,
                             [conta.id]: { ...prev[conta.id], producao: val },
@@ -446,7 +449,8 @@ export function AjustarMetasDialog({
                         value={dadosConta.publicacao ?? ''}
                         placeholder={metaDaContaPeloRitmo[conta.id] == null ? 'Sem meta na conta' : `${metaDaContaPeloRitmo[conta.id]} pela conta`}
                         onChange={e => {
-                          const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
+                          const val = e.target.value === '' ? undefined : inteiro(e.target.value);
+                          if (e.target.value !== '' && val == null) return;
                           setMetasPorConta(prev => ({
                             ...prev,
                             [conta.id]: { ...prev[conta.id], publicacao: val },
@@ -474,8 +478,14 @@ export function AjustarMetasDialog({
         <AppButton
           variant="primary"
           onClick={() => void handleSave()}
-          disabled={bloqueiaDistribuicao || salvando}
-          disabledReason={bloqueiaDistribuicao ? 'As metas por objetivo precisam somar a meta do período.' : undefined}
+          disabled={bloqueiaDistribuicao || numeroInvalido || salvando}
+          disabledReason={
+            numeroInvalido
+              ? 'Use números inteiros, sem ponto nem sinal.'
+              : bloqueiaDistribuicao
+                ? 'As metas por objetivo precisam somar a meta do período.'
+                : undefined
+          }
         >
           {salvando ? 'Salvando…' : 'Salvar Metas'}
         </AppButton>

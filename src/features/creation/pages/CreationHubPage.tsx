@@ -184,6 +184,10 @@ export function CreationHubPage() {
   const [unpublishTarget, setUnpublishTarget] = useState<{content: Content; tab: CreationKanbanTab} | null>(null);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [persistingIds, setPersistingIds] = useState<Set<string>>(new Set());
+  const contentsRef = useRef(state.contents);
+  contentsRef.current = state.contents;
+  const filaDeMovimento = useRef(Promise.resolve());
+  const epocaDoMovimento = useRef(new Map<string, number>());
   const [scriptComposerOpen, setScriptComposerOpen] = useState(false);
   const isMobile = useIsMobile();
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -825,8 +829,46 @@ export function CreationHubPage() {
     return full ? moveCreationToKanbanTab(full, tab) : next;
   }, [user?.id]);
 
+  const gravarMovimento = useCallback(async (content: Content, tab: CreationKanbanTab) => {
+    const atual = contentsRef.current.find(item => item.id === content.id) ?? content;
+    const next = moveCreationToKanbanTab(atual, tab);
+    if (atual.status === next.status && (atual.postedAt ?? null) === (next.postedAt ?? null)) return;
+    const epoca = (epocaDoMovimento.current.get(atual.id) ?? 0) + 1;
+    epocaDoMovimento.current.set(atual.id, epoca);
+    setPersistingIds(current => new Set(current).add(atual.id));
+    try {
+      await updateContent(await withBodyForIdeaMove(atual, tab, next));
+    } catch (error) {
+      if (epocaDoMovimento.current.get(atual.id) === epoca) {
+        try {
+          await updateContent(atual, { silent: true });
+        } catch {
+          // O refresh do contexto restaura o que o banco confirmou.
+        }
+      }
+      notifySaveFeedback({
+        status: 'error',
+        message: 'Não foi possível mudar a etapa. Tente novamente.',
+        detail: getErrorDetail(error),
+      });
+    } finally {
+      setPersistingIds(current => {
+        const nextSet = new Set(current);
+        nextSet.delete(atual.id);
+        return nextSet;
+      });
+    }
+  }, [updateContent, withBodyForIdeaMove]);
+
+  const enfileirarMovimento = useCallback((content: Content, tab: CreationKanbanTab) => {
+    const pedido = filaDeMovimento.current.then(
+      () => gravarMovimento(content, tab),
+      () => gravarMovimento(content, tab),
+    );
+    filaDeMovimento.current = pedido.then(() => undefined, () => undefined);
+  }, [gravarMovimento]);
+
   const handleMoveToTab = useCallback(async (content: Content, tab: CreationKanbanTab) => {
-    const previous = content;
     // Publicado não grava no arraste: abre o detalhe no formulário de publicação.
     if (tab === 'Publicados') {
       navigate(buildContentDetailRoute(content.id, 'publicacao'), {
@@ -839,74 +881,25 @@ export function CreationHubPage() {
     }
 
     const next = moveCreationToKanbanTab(content, tab);
-    if (
-      previous.status === next.status
-      && (previous.postedAt ?? null) === (next.postedAt ?? null)
-    ) {
-      return;
-    }
+    if (content.status === next.status && (content.postedAt ?? null) === (next.postedAt ?? null)) return;
 
-    // Sair de Publicado pelo Kanban: a data some — confirma antes.
-    const saindoDePublicado = Boolean(previous.postedAt)
-      || previous.status === 'Publicado'
-      || previous.status === 'Postado';
+    const saindoDePublicado = Boolean(content.postedAt)
+      || content.status === 'Publicado'
+      || content.status === 'Postado';
     if (saindoDePublicado) {
       setUnpublishTarget({content, tab});
       return;
     }
 
-    setPersistingIds(current => new Set(current).add(content.id));
-    try {
-      await updateContent(await withBodyForIdeaMove(content, tab, next));
-    } catch (error) {
-      try {
-        await updateContent(previous, { silent: true });
-      } catch {
-        // keep UI on previous via failed update rollback below
-      }
-      notifySaveFeedback({
-        status: 'error',
-        message: 'Não foi possível mudar a etapa. Tente novamente.',
-        detail: getErrorDetail(error),
-      });
-    } finally {
-      setPersistingIds(current => {
-        const nextSet = new Set(current);
-        nextSet.delete(content.id);
-        return nextSet;
-      });
-    }
-  }, [location, navigate, updateContent, withBodyForIdeaMove]);
+    enfileirarMovimento(content, tab);
+  }, [enfileirarMovimento, location, navigate]);
 
   const confirmUnpublishMove = useCallback(async () => {
     const alvo = unpublishTarget;
     if (!alvo) return;
-    const {content, tab} = alvo;
-    const previous = content;
-    const next = moveCreationToKanbanTab(content, tab);
     setUnpublishTarget(null);
-    setPersistingIds(current => new Set(current).add(content.id));
-    try {
-      await updateContent(await withBodyForIdeaMove(content, tab, next));
-    } catch (error) {
-      try {
-        await updateContent(previous, { silent: true });
-      } catch {
-        // keep UI on previous via failed update rollback below
-      }
-      notifySaveFeedback({
-        status: 'error',
-        message: 'Não foi possível mover o item. Tente de novo.',
-        detail: getErrorDetail(error),
-      });
-    } finally {
-      setPersistingIds(current => {
-        const nextSet = new Set(current);
-        nextSet.delete(content.id);
-        return nextSet;
-      });
-    }
-  }, [unpublishTarget, updateContent, withBodyForIdeaMove]);
+    enfileirarMovimento(alvo.content, alvo.tab);
+  }, [enfileirarMovimento, unpublishTarget]);
 
   const itemActions: CreationItemActionHandlers = useMemo(() => ({
     onPromote: content => {

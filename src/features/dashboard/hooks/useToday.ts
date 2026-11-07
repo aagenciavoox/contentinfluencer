@@ -14,10 +14,12 @@ export function useToday() {
     };
     const onVisible = () => { if (document.visibilityState === 'visible') refresh(); };
     refresh();
+    const pulse = setInterval(refresh, 30_000);
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', refresh);
     return () => {
       clearTimeout(timer);
+      clearInterval(pulse);
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', refresh);
     };

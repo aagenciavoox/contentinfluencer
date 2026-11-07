@@ -1,3 +1,4 @@
+import { inteiroNaoNegativo } from '../../../lib/inteiro.ts';
 import { chaveDoEscopo } from './acompanhamento.ts';
 import { frequenciaParaGravar, MAX_VEZES_DA_META } from './metaDaOnda.ts';
 
@@ -50,7 +51,10 @@ export function errosDaMeta(input: {
   comEscopos: boolean;
 }): ErroDaMeta[] {
   const erros: ErroDaMeta[] = [];
-  const vezesNumero = input.vezes.trim() ? Number.parseInt(input.vezes, 10) : null;
+  if (input.vezes.trim() && inteiroNaoNegativo(input.vezes) == null) {
+    erros.push({ id: ID_META.quantidade, mensagem: 'Use um número inteiro, sem ponto nem sinal.' });
+  }
+  const vezesNumero = inteiroNaoNegativo(input.vezes);
   const frequencia = frequenciaParaGravar({
     vezes: vezesNumero,
     unidade: input.unidade,
@@ -95,7 +99,13 @@ export function errosDaMeta(input: {
     if (terminoAntes(linha)) {
       erros.push({ id: idDoEscopo(linha.id, 'termino'), mensagem: `Em ${linha.rotulo}, o término vem antes do início.` });
     }
-    const quantidade = Number.parseInt(linha.metaVezes, 10);
+    const quantidade = inteiroNaoNegativo(linha.metaVezes);
+    if (linha.metaVezes.trim() && quantidade == null) {
+      erros.push({
+        id: idDoEscopo(linha.id, 'meta-vezes'),
+        mensagem: `Em ${linha.rotulo}, use um número inteiro, sem ponto nem sinal.`,
+      });
+    }
     if (linha.metaVezes.trim() === '0' || quantidade === 0) {
       erros.push({
         id: idDoEscopo(linha.id, 'meta-vezes'),

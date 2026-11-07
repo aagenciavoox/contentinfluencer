@@ -43,6 +43,15 @@ export function captionClipboardText(
 
 type ConteudoDaFila = Pick<Content, 'status' | 'deletedAt' | 'archivedAt' | 'legendaBase' | 'plataformas'>;
 
+function textoDaLegenda(
+  content: Pick<Content, 'legendaBase'>,
+  publicacao: Pick<Content['plataformas'][number], 'legenda'>,
+): string {
+  const propria = (publicacao.legenda ?? '').trim();
+  if (propria) return propria;
+  return (content.legendaBase ?? '').trim();
+}
+
 /** O roteiro ainda pode ter legenda pendente. Postado só entra se alguma publicação não foi ao ar. */
 export function isCaptionQueueContent(
   content: Pick<Content, 'status' | 'deletedAt' | 'archivedAt'>,
@@ -94,22 +103,26 @@ export function filtrarFilaRoteiros(
   for (const content of contents) {
     if (!isCaptionQueueContent(content)) continue;
 
-    // Active publications that are not completed/removed
     const activePublicacoes = content.plataformas.filter(p => !publicacaoJaPostada(p, content));
+    const postado = normalizeContentStatus(content.status) === CONTENT_STATUS.POSTADO;
+    // Publicado sem conta pendente sai da fila. Roteiro sem conta nenhuma continua.
+    if (activePublicacoes.length === 0 && (postado || content.plataformas.length > 0)) continue;
 
-    // Account filter: if filtered by an account, the script must have this account configured
     if (accountFilter && accountFilter !== 'todas') {
       const temConta = content.plataformas.some(p => p.platformId === accountFilter);
       if (!temConta) continue;
     }
 
-    // Preenchida logic: has base caption or has active publication with caption
-    const temBase = Boolean((content.legendaBase ?? '').trim());
-    const algumaComLegenda = activePublicacoes.some(p => (p.legenda ?? '').trim().length > 0);
-    const preenchida = temBase || (activePublicacoes.length > 0 && algumaComLegenda);
+    const pendente = (publicacao: Content['plataformas'][number]) => textoDaLegenda(content, publicacao).length === 0;
+    const algumaPendente = activePublicacoes.length === 0
+      ? !(content.legendaBase ?? '').trim()
+      : activePublicacoes.some(pendente);
+    const algumaPreenchida = activePublicacoes.length === 0
+      ? Boolean((content.legendaBase ?? '').trim())
+      : activePublicacoes.some(publicacao => !pendente(publicacao));
 
-    if ((filter === 'sem-legenda' || filter === 'em-branco') && preenchida) continue;
-    if ((filter === 'com-legenda' || filter === 'preenchidas') && !preenchida) continue;
+    if ((filter === 'sem-legenda' || filter === 'em-branco') && !algumaPendente) continue;
+    if ((filter === 'com-legenda' || filter === 'preenchidas') && !algumaPreenchida) continue;
 
     // Search filter
     if (query) {

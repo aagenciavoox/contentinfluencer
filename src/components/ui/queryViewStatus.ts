@@ -15,6 +15,8 @@ export type ResolveQueryViewStatusInput = {
   enabled?: boolean;
   /** Item count for the current view (after filters). */
   itemCount: number;
+  /** Total no banco. Página vazia no fim da lista ainda mostra a paginação. */
+  totalCount?: number;
   /**
    * When true, empty cache during refresh still shows loading if we never settled.
    * Prefer keeping prior items visible while refreshing.
@@ -35,6 +37,7 @@ export function resolveQueryViewStatus(input: ResolveQueryViewStatusInput): Quer
     fetchAttempted,
     enabled = true,
     itemCount,
+    totalCount = 0,
     treatRefreshingAsLoading = false,
   } = input;
 
@@ -47,7 +50,7 @@ export function resolveQueryViewStatus(input: ResolveQueryViewStatusInput): Quer
 
   // Prefer showing cached data over a full-page error when items exist.
   if (error && settled && itemCount === 0) return 'error';
-  if (itemCount > 0) return 'ready';
+  if (itemCount > 0 || totalCount > 0) return 'ready';
   if (itemCount === 0 && settled) return 'empty';
 
   return 'empty';

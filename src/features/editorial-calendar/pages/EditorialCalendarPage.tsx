@@ -726,6 +726,8 @@ export function EditorialCalendarPage() {
               <MonthlyCalendarView
                 contents={state.contents}
                 platforms={state.platforms}
+                series={state.series}
+                redeReferenciaId={editorialSettings.redeReferenciaId}
                 agendaItems={state.agendaItems}
                 projetos={state.projetos}
                 activeLayers={activeLayers}

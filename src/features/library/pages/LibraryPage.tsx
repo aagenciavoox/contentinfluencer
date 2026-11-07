@@ -327,6 +327,7 @@ export function LibraryPage() {
     fetchAttempted: libraryFetchAttempted,
     enabled: !!user,
     itemCount: libraryItems.length,
+    totalCount: libraryTotal,
   });
   const totalLibraryPages = Math.max(1, Math.ceil(libraryTotal / LIBRARY_PAGE_SIZE));
   const livrosFiltrados = libraryItems;
@@ -371,10 +372,14 @@ export function LibraryPage() {
     } catch {
       return; // O erro já foi avisado.
     }
+    void reloadLibrary();
     notifySaveFeedback({
       status: 'success',
       message: `"${item.titulo}" marcado como ${status.toLowerCase()}`,
-      onUndo: () => void dispatch({ type: 'UPDATE_BOOK', payload: { ...item, updatedAt: new Date().toISOString() } }),
+      onUndo: () => {
+        void dispatch({ type: 'UPDATE_BOOK', payload: { ...item, updatedAt: new Date().toISOString() } })
+          .then(() => reloadLibrary());
+      },
     });
   };
 

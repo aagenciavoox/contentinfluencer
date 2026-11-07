@@ -86,10 +86,24 @@ function testReadyWithItems() {
   );
 }
 
+function testReadyWhenPageIsEmptyButTotalRemains() {
+  assert.equal(
+    resolveQueryViewStatus({
+      loading: false,
+      itemCount: 0,
+      totalCount: 24,
+      enabled: true,
+      fetchAttempted: true,
+    }),
+    'ready',
+  );
+}
+
 testLoadingWhileAuthOrDisabled();
 testLoadingWhileFetchInFlight();
 testEmptyOnlyAfterSettled();
 testErrorOnlyAfterSettled();
 testReadyWithItems();
+testReadyWhenPageIsEmptyButTotalRemains();
 
 console.log('queryViewState.test.ts: ok');

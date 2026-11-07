@@ -123,8 +123,10 @@ export function DashboardPage() {
       diasGravacao: state.editorial.preferencias.diasGravacao,
       antecedenciaPostagemDias: state.editorial.preferencias.antecedenciaPostagemDias,
       pausas: state.editorial.pausas ?? [],
+      hoje: today,
     });
   }, [
+    today,
     gentleExperience.calmSuggestions,
     gentleExperience.pauseMode,
     state.contents,

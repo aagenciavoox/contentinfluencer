@@ -8,7 +8,7 @@ export function RequireAuth() {
   const location = useLocation();
 
   if (!user) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    return <Navigate to="/login" replace state={{ from: `${location.pathname}${location.search}${location.hash}` }} />;
   }
 
   return (
@@ -18,11 +18,20 @@ export function RequireAuth() {
   );
 }
 
+function destinoInterno(value: unknown): string {
+  if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) {
+    return '/criacao';
+  }
+  return value;
+}
+
 export function LoginRoute() {
   const { user } = useAuth();
+  const location = useLocation();
 
   if (user) {
-    return <Navigate to="/criacao" replace />;
+    const from = (location.state as { from?: unknown } | null)?.from;
+    return <Navigate to={destinoInterno(from)} replace />;
   }
 
   return <Login />;

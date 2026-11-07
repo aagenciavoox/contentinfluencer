@@ -68,7 +68,7 @@ export function CamposDaMeta({
             className={CAMPO}
             style={erros?.quantidade ? { borderColor: 'var(--danger)' } : undefined}
             value={vezes}
-            onChange={event => onVezes(event.target.value.replace(/\D/g, '').slice(0, 2))}
+            onChange={event => onVezes(event.target.value.slice(0, 4))}
           />
           {erros?.quantidade ? <Text id={`${quantidadeId}-erro`} variant="meta" as="span" className="texto-erro">{erros.quantidade}</Text> : null}
         </label>

@@ -4,6 +4,7 @@ import { Text } from '../../../../components/ui/Text';
 import type { FuncaoEditorial } from '../../../../lib/database';
 import { FUNCAO_CURTA, FUNCOES } from '../../lib/funcoes';
 import { proporcaoIgual, somaDaProporcao, type ProporcaoFuncoes } from '../../lib/proporcaoObjetivos';
+import { inteiroNaoNegativo } from '../../../../lib/inteiro';
 import { cn } from '../../../../lib/utils';
 
 type Rascunho = Record<FuncaoEditorial, string>;
@@ -27,9 +28,9 @@ function rascunhoDe(proporcao: ProporcaoFuncoes | null): Rascunho {
 }
 
 function percentualDoTexto(texto: string): number | null {
-  const limpo = texto.replace(/\D/g, '').slice(0, 3);
-  if (!limpo) return null;
-  return Math.min(100, Number.parseInt(limpo, 10));
+  const n = inteiroNaoNegativo(texto);
+  if (n == null) return null;
+  return Math.min(100, n);
 }
 
 function proporcaoDoRascunho(rascunho: Rascunho): ProporcaoFuncoes | null {
@@ -141,7 +142,11 @@ export function ProporcaoObjetivosEditor({
   const soma = somaDaProporcao(proporcao);
   const vazio = proporcao == null;
   const fecha = soma === 100;
-  const podeSalvar = vazio || fecha;
+  const numeroInvalido = FUNCOES.some(funcao => {
+    const texto = rascunho[funcao].trim();
+    return texto !== '' && inteiroNaoNegativo(texto) == null;
+  });
+  const podeSalvar = !numeroInvalido && (vazio || fecha);
   const somaId = `${idBase}-soma`;
 
   return (
@@ -210,8 +215,7 @@ export function ProporcaoObjetivosEditor({
                     aria-describedby={somaId}
                     value={rascunho[funcao]}
                     onChange={event => {
-                      const valorDigitado = percentualDoTexto(event.target.value);
-                      setRascunho(atual => ({ ...atual, [funcao]: valorDigitado == null ? '' : String(valorDigitado) }));
+                      setRascunho(atual => ({ ...atual, [funcao]: event.target.value.slice(0, 4) }));
                     }}
                     className="input h-9 w-16 px-2 text-center tabular-nums"
                   />
