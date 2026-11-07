@@ -137,11 +137,10 @@ export function SugestaoGravacaoPanel({onClose, onCriado}: {onClose: () => void;
           ...escolha, id: generateUUID(), userId: user.id, hoje, contents: escolhidos,
           looks: state.looks, cenarios: state.cenarios, now: agora,
         });
-        await dispatch({type: 'ADD_RECORDING_BLOCK', payload: montado.block});
         blocoPendente.current = montado;
       }
       const {block, blockContents} = blocoPendente.current;
-      await dispatch({type: 'UPDATE_BLOCK_CONTENTS', payload: {blockId: block.id, contents: blockContents}});
+      await dispatch({type: 'ADD_RECORDING_BLOCK', payload: {...block, contents: blockContents}});
       onCriado();
       onClose();
     } catch (error) {

@@ -109,9 +109,10 @@ export function RecordingBlockPage() {
 
   const progress = block ? getRecordingBlockProgress(block, resolvedContents) : null;
 
-  const handleMarkRecorded = (contentId: string) => {
+  const handleMarkRecorded = async (contentId: string) => {
     if (!block) return;
 
+    const previous = state.contents.find(content => content.id === contentId);
     const transition = buildMarkContentRecordedTransition({
       block,
       contentId,
@@ -119,11 +120,20 @@ export function RecordingBlockPage() {
     });
     if (!transition) return;
 
-    dispatch({type: 'UPDATE_CONTENT', payload: transition.updatedContent} as never);
-    dispatch({
-      type: 'UPDATE_BLOCK_CONTENTS',
-      payload: {blockId: block.id, contents: transition.updatedBlockContents},
-    });
+    try {
+      await dispatch({type: 'UPDATE_CONTENT', payload: transition.updatedContent} as never);
+      try {
+        await dispatch({
+          type: 'UPDATE_BLOCK_CONTENTS',
+          payload: {blockId: block.id, contents: transition.updatedBlockContents},
+        });
+      } catch (error) {
+        if (previous) await dispatch({type: 'UPDATE_CONTENT', payload: previous});
+        throw error;
+      }
+    } catch {
+      // O aviso de erro sai do dispatch; o roteiro volta ao estado anterior se o bloco não gravou.
+    }
   };
 
   const handleUpdateBlock = (nextBlock: NonNullable<typeof block>) => {

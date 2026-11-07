@@ -381,9 +381,38 @@ function testStatusChangeIsTheSameRuleEverywhere() {
   assert.equal(toEdit.status, 'Edição');
   assert.equal(toEdit.recordedAt ?? null, null);
 
-  // Sair de Publicado (já com data) limpa postedAt.
-  const posted = createContent({status: 'Publicado', postedAt: now});
-  assert.equal(applyStatusChange(posted, 'Edição', now).postedAt, null);
+  // Sair de Publicado (já com data) limpa postedAt e a marca de cada conta.
+  const posted = createContent({
+    status: 'Publicado',
+    postedAt: now,
+    plataformas: [
+      {
+        id: 'pub-ig',
+        contentId: 'content-1',
+        platformId: 'ig',
+        legenda: 'foi',
+        hashtags: '',
+        publishDate: '2026-10-20',
+        status: 'publicada',
+        realizadaManualEm: now,
+      },
+      {
+        id: 'pub-tt',
+        contentId: 'content-1',
+        platformId: 'tt',
+        legenda: '',
+        hashtags: '',
+        publishDate: null,
+        status: 'prevista',
+      },
+    ],
+  });
+  const desfeito = applyStatusChange(posted, 'Roteiro', now);
+  assert.equal(desfeito.postedAt, null);
+  assert.equal(desfeito.status, 'Roteiro');
+  assert.equal(desfeito.plataformas[0]?.status, 'programada');
+  assert.equal(desfeito.plataformas[0]?.realizadaManualEm, null);
+  assert.equal(desfeito.plataformas[1]?.status, 'prevista');
 
   // Mesma etapa não muda nada.
   const same = createContent({status: 'Edição'});

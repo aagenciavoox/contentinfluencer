@@ -241,10 +241,15 @@ async function mergeSerieHashtags(
 
 async function replaceSeriePilares(session: Session, lookups: Lookups, serieId: string, refs: string[]) {
   const ids = [...new Set(refs.map(ref => resolvePilar(lookups, ref)).filter((id): id is string => Boolean(id)))];
-  check('limpar pilares da série', await session.client.from('serie_pilares').delete().eq('serie_id', serieId));
   if (ids.length > 0) {
-    check('ligar pilares da série', await session.client.from('serie_pilares').insert(ids.map(pilarId => ({serie_id: serieId, pilar_id: pilarId}))));
+    check('ligar pilares da série', await session.client.from('serie_pilares').upsert(
+      ids.map(pilarId => ({serie_id: serieId, pilar_id: pilarId})),
+      {onConflict: 'serie_id,pilar_id'},
+    ));
   }
+  let apagar = session.client.from('serie_pilares').delete().eq('serie_id', serieId);
+  if (ids.length > 0) apagar = apagar.not('pilar_id', 'in', `(${ids.join(',')})`);
+  check('limpar pilares da série', await apagar);
   return ids;
 }
 

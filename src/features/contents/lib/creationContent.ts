@@ -237,6 +237,18 @@ export function applyStatusChange(
     next.tags = withProductionTag(content.tags ?? [], PRODUCTION_TAGS.GRAVAR);
   }
 
+  if (nextStatus !== CONTENT_STATUS.POSTADO && (from === CONTENT_STATUS.POSTADO || content.postedAt)) {
+    next.plataformas = (content.plataformas ?? []).map(publicacao => {
+      if (publicacao.status !== 'publicada') return publicacao;
+      return {
+        ...publicacao,
+        status: publicacao.publishDate ? 'programada' : 'prevista',
+        realizadaManualEm: null,
+        realizadaApiEm: null,
+      };
+    });
+  }
+
   return next;
 }
 

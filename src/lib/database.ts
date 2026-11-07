@@ -3073,35 +3073,32 @@ export async function saveEditorial(settings: EditorialSettings): Promise<void> 
 
   await gravarTabelasPorConta(uid, settings);
 
-  const { error: destinosDeleteError } = await supabase.from('editorial_destino_padrao').delete().eq('user_id', uid);
-  if (destinosDeleteError) throw new Error(`editorial_destino_padrao: ${destinosDeleteError.message}`);
-  if (settings.destinosPadrao.length > 0) {
-    const { error } = await supabase.from('editorial_destino_padrao').insert(
-      settings.destinosPadrao.map(platformId => ({ user_id: uid, platform_id: platformId })),
-    );
-    if (error) throw new Error(`editorial_destino_padrao: ${error.message}`);
-  }
+  const { error: destinosError } = await upsertEDepoisApagar(
+    'editorial_destino_padrao',
+    'user_id',
+    uid,
+    settings.destinosPadrao.map(platformId => ({ user_id: uid, platform_id: platformId })),
+    'user_id,platform_id',
+    'platform_id',
+    settings.destinosPadrao,
+  );
+  if (destinosError) throw new Error(`editorial_destino_padrao: ${destinosError.message}`);
 
-  const { error: limitesDeleteError } = await supabase.from('editorial_limite_hashtag').delete().eq('user_id', uid);
-  if (limitesDeleteError) throw new Error(`editorial_limite_hashtag: ${limitesDeleteError.message}`);
   const limites = Object.entries(settings.limitesHashtags).filter((entry): entry is [string, number] => (
     Number.isInteger(entry[1]) && entry[1] >= 0
   ));
-  if (limites.length > 0) {
-    const { error } = await supabase.from('editorial_limite_hashtag').insert(
-      limites.map(([platformId, limite]) => ({ user_id: uid, platform_id: platformId, limite })),
-    );
-    if (error) throw new Error(`editorial_limite_hashtag: ${error.message}`);
-  }
+  const { error: limitesError } = await upsertEDepoisApagar(
+    'editorial_limite_hashtag',
+    'user_id',
+    uid,
+    limites.map(([platformId, limite]) => ({ user_id: uid, platform_id: platformId, limite })),
+    'user_id,platform_id',
+    'platform_id',
+    limites.map(([platformId]) => platformId),
+  );
+  if (limitesError) throw new Error(`editorial_limite_hashtag: ${limitesError.message}`);
 
-  const { error: ajustesDeleteError } = await supabase.from('ajuste_semana').delete().eq('user_id', uid);
-  if (ajustesDeleteError) throw new Error(`ajuste_semana: ${ajustesDeleteError.message}`);
-  const { error: decisoesDeleteError } = await supabase.from('decisao_periodo').delete().eq('user_id', uid);
-  if (decisoesDeleteError) throw new Error(`decisao_periodo: ${decisoesDeleteError.message}`);
-
-  if (settings.periodos.length === 0) return;
   const linhas = settings.periodos.map(periodo => ({
-    id: generateUUID(),
     user_id: uid,
     inicio: periodo.inicio,
     fim: periodo.fim,
@@ -3115,37 +3112,69 @@ export async function saveEditorial(settings: EditorialSettings): Promise<void> 
     plano: planoDaDecisao(periodo),
     ajustes: periodo.ajustesSemana,
   }));
-  // O método de cálculo volta para a linha a cada gravação: as decisões são apagadas e regravadas.
-  const comMetodo = linhas.map(({ ajustes: _ajustes, plano, ...linha }, index) => ({
-    ...linha,
-    ...plano,
-    metodo_calculo: settings.periodos[index].metodoCalculo ?? METODO_CALCULO_PADRAO,
-  }));
-  let { error: decisoesError } = await supabase.from('decisao_periodo').insert(comMetodo);
-  // Sem a migração 20261103120000, grava sem a coluna do método (o banco assume conteudos-v1).
-  if (decisoesError && decisoesError.message.includes('metodo_calculo')) {
-    ({ error: decisoesError } = await supabase.from('decisao_periodo').insert(
-      comMetodo.map(({ metodo_calculo: _metodo, ...linha }) => linha),
-    ));
+  if (linhas.length > 0) {
+    const comMetodo = linhas.map(({ ajustes: _ajustes, plano, ...linha }, index) => ({
+      ...linha,
+      ...plano,
+      metodo_calculo: settings.periodos[index].metodoCalculo ?? METODO_CALCULO_PADRAO,
+    }));
+    let { error: decisoesError } = await supabase.from('decisao_periodo').upsert(comMetodo, {
+      onConflict: 'user_id,inicio,fim',
+    });
+    if (decisoesError && decisoesError.message.includes('metodo_calculo')) {
+      ({ error: decisoesError } = await supabase.from('decisao_periodo').upsert(
+        comMetodo.map(({ metodo_calculo: _metodo, ...linha }) => linha),
+        { onConflict: 'user_id,inicio,fim' },
+      ));
+    }
+    if (decisoesError && faltaColunaDoPlano(decisoesError)) {
+      ({ error: decisoesError } = await supabase.from('decisao_periodo').upsert(
+        linhas.map(({ ajustes: _ajustes, plano: _plano, ...linha }) => linha),
+        { onConflict: 'user_id,inicio,fim' },
+      ));
+    }
+    if (decisoesError) throw new Error(`decisao_periodo: ${decisoesError.message}`);
   }
-  // As decisões já foram apagadas acima: sem as colunas do plano no banco, grava o resto
-  // para não perder prioridade e metas por objetivo.
-  if (decisoesError && faltaColunaDoPlano(decisoesError)) {
-    ({ error: decisoesError } = await supabase.from('decisao_periodo').insert(
-      linhas.map(({ ajustes: _ajustes, plano: _plano, ...linha }) => linha),
-    ));
+
+  const gravadas = await supabase.from('decisao_periodo').select('id, inicio, fim').eq('user_id', uid);
+  if (gravadas.error) throw new Error(`decisao_periodo: ${gravadas.error.message}`);
+  const porIntervalo = new Map((gravadas.data ?? []).map(linha => [`${linha.inicio}|${linha.fim}`, linha.id as string]));
+  for (const linha of linhas) {
+    const decisaoId = porIntervalo.get(`${linha.inicio}|${linha.fim}`);
+    if (!decisaoId) continue;
+    if (linha.ajustes.length > 0) {
+      const { error } = await supabase.from('ajuste_semana').upsert(
+        linha.ajustes.map(ajuste => ({
+          decisao_id: decisaoId,
+          user_id: uid,
+          inicio: ajuste.inicio,
+          fim: ajuste.fim,
+          limite: ajuste.limite,
+        })),
+        { onConflict: 'decisao_id,inicio,fim' },
+      );
+      if (error) throw new Error(`ajuste_semana: ${error.message}`);
+    }
+    let apagarAjustes = supabase.from('ajuste_semana').delete().eq('decisao_id', decisaoId);
+    if (linha.ajustes.length > 0) {
+      apagarAjustes = apagarAjustes.not('inicio', 'in', `(${linha.ajustes.map(ajuste => ajuste.inicio).join(',')})`);
+    }
+    const { error: sobra } = await apagarAjustes;
+    if (sobra) throw new Error(`ajuste_semana: ${sobra.message}`);
   }
-  if (decisoesError) throw new Error(`decisao_periodo: ${decisoesError.message}`);
-  const ajustes = linhas.flatMap(linha => linha.ajustes.map(ajuste => ({
-    decisao_id: linha.id,
-    user_id: uid,
-    inicio: ajuste.inicio,
-    fim: ajuste.fim,
-    limite: ajuste.limite,
-  })));
-  if (ajustes.length === 0) return;
-  const { error: ajustesError } = await supabase.from('ajuste_semana').insert(ajustes);
-  if (ajustesError) throw new Error(`ajuste_semana: ${ajustesError.message}`);
+  for (const linha of gravadas.data ?? []) {
+    if (porIntervaloMantido(linhas, linha.inicio, linha.fim)) continue;
+    const { error } = await supabase.from('decisao_periodo').delete().eq('id', linha.id);
+    if (error) throw new Error(`decisao_periodo: ${error.message}`);
+  }
+}
+
+function porIntervaloMantido(
+  linhas: readonly { inicio: string; fim: string }[],
+  inicio: string,
+  fim: string,
+): boolean {
+  return linhas.some(linha => linha.inicio === inicio && linha.fim === fim);
 }
 
 /** Nulo quando são os limites padrão: se o padrão mudar, quem nunca mexeu acompanha. */
@@ -3207,6 +3236,29 @@ function lembrarGravadoPorConta(uid: string, settings: EditorialSettings): void 
   }
 }
 
+/**
+ * Grava a lista nova antes de apagar o que saiu. Se a gravação falha, a lista anterior fica.
+ */
+async function upsertEDepoisApagar(
+  tabela: string,
+  parentColumn: string,
+  parentId: string,
+  rows: Record<string, unknown>[],
+  onConflict: string,
+  keepColumn: string,
+  keepValues: readonly string[],
+): Promise<{ error: { message: string } | null }> {
+  if (!supabase) return { error: null };
+  if (rows.length > 0) {
+    const gravou = await supabase.from(tabela).upsert(rows, { onConflict });
+    if (gravou.error) return { error: gravou.error };
+  }
+  let apagar = supabase.from(tabela).delete().eq(parentColumn, parentId);
+  if (keepValues.length > 0) apagar = apagar.not(keepColumn, 'in', `(${keepValues.join(',')})`);
+  const saiu = await apagar;
+  return { error: saiu.error };
+}
+
 /** Grava apagando as linhas que saíram; linhas com id são atualizadas no lugar. */
 async function sincronizarPorId(tabela: string, uid: string, linhas: Row[]) {
   if (!supabase) return { error: null };
@@ -3227,11 +3279,26 @@ async function gravarTabelasPorConta(uid: string, settings: EditorialSettings): 
   if (!supabase) return;
   const linhas = linhasPorConta(uid, settings);
   const gravar: Record<keyof LinhasPorConta, (rows: Row[]) => PromiseLike<{ error: { code?: string; message: string } | null }>> = {
-    // Sem id próprio: a conta inteira é regravada, como as decisões de período.
     metas: async rows => {
-      const apagou = await supabase!.from('editorial_conta_meta').delete().eq('user_id', uid);
-      if (apagou.error || rows.length === 0) return apagou;
-      return supabase!.from('editorial_conta_meta').insert(rows);
+      if (!supabase) return { error: null };
+      if (rows.length > 0) {
+        const gravou = await supabase.from('editorial_conta_meta').upsert(rows, {
+          onConflict: 'user_id,platform_id,vigente_desde',
+        });
+        if (gravou.error) return gravou;
+      }
+      const atuais = await supabase.from('editorial_conta_meta').select('platform_id, vigente_desde').eq('user_id', uid);
+      if (atuais.error) return atuais;
+      const fica = new Set(rows.map(row => `${row.platform_id}|${row.vigente_desde}`));
+      for (const linha of atuais.data ?? []) {
+        if (fica.has(`${linha.platform_id}|${linha.vigente_desde}`)) continue;
+        const saiu = await supabase.from('editorial_conta_meta').delete()
+          .eq('user_id', uid)
+          .eq('platform_id', linha.platform_id)
+          .eq('vigente_desde', linha.vigente_desde);
+        if (saiu.error) return saiu;
+      }
+      return { error: null };
     },
     pausas: rows => sincronizarPorId('editorial_pausa', uid, rows),
     excecoes: rows => sincronizarPorId('concentracao_excecao', uid, rows),
@@ -3367,24 +3434,28 @@ export async function savePilar(pilar: Omit<Pilar, 'plataformas' | 'createdAt' |
 
 export async function savePilarPlataformas(pilarId: string, plataformas: PilarPlataforma[]): Promise<void> {
   if (!supabase) return;
-  const { error: deleteError } = await supabase.from('pilar_plataformas').delete().eq('pilar_id', pilarId);
-  if (deleteError) throw new Error(`pilar_plataformas delete: ${deleteError.message}`);
-  if (plataformas.length === 0) return;
   const platformIds = await resolvePlatformIds(plataformas.map(p => p.platformId));
-  const { error } = await supabase.from('pilar_plataformas').insert(
-    plataformas
-      .map(p => ({
-        pilar_id: pilarId,
-        platform_id: platformIds.get(p.platformId),
-        hashtags: p.hashtags,
-        melhores_dias: p.melhoresDias.length > 0 ? p.melhoresDias : null,
-        janela_inicio: p.janelaHorarioInicio,
-        janela_fim: p.janelaHorarioFim,
-      }))
-      .filter(
-        (row): row is typeof row & {platform_id: string} =>
-          typeof row.platform_id === 'string',
-      )
+  const rows = plataformas
+    .map(p => ({
+      pilar_id: pilarId,
+      platform_id: platformIds.get(p.platformId),
+      hashtags: p.hashtags,
+      melhores_dias: p.melhoresDias.length > 0 ? p.melhoresDias : null,
+      janela_inicio: p.janelaHorarioInicio,
+      janela_fim: p.janelaHorarioFim,
+    }))
+    .filter(
+      (row): row is typeof row & {platform_id: string} =>
+        typeof row.platform_id === 'string',
+    );
+  const { error } = await upsertEDepoisApagar(
+    'pilar_plataformas',
+    'pilar_id',
+    pilarId,
+    rows,
+    'pilar_id,platform_id',
+    'platform_id',
+    rows.map(row => row.platform_id),
   );
   if (error) throw new Error(`pilar_plataformas: ${error.message}`);
 }
@@ -3493,11 +3564,15 @@ export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 
 
 export async function saveSeriePilares(serieId: string, pilarIds: string[]): Promise<void> {
   if (!supabase) return;
-  const { error: deleteError } = await supabase.from('serie_pilares').delete().eq('serie_id', serieId);
-  if (deleteError) throw new Error(`serie_pilares delete: ${deleteError.message}`);
-  if (pilarIds.length === 0) return;
-  const { error } = await supabase.from('serie_pilares').insert(
-    pilarIds.map(pid => ({ serie_id: serieId, pilar_id: pid }))
+  const ids = [...new Set(pilarIds.filter(Boolean))];
+  const { error } = await upsertEDepoisApagar(
+    'serie_pilares',
+    'serie_id',
+    serieId,
+    ids.map(pid => ({ serie_id: serieId, pilar_id: pid })),
+    'serie_id,pilar_id',
+    'pilar_id',
+    ids,
   );
   if (error) throw new Error(`serie_pilares: ${error.message}`);
 }
@@ -3512,20 +3587,27 @@ export async function saveSeriePlataformas(serieId: string, plataformas: SeriePl
     legenda: plataforma.legenda?.trim() ? plataforma.legenda : null,
   })).filter((row): row is typeof row & { platform_id: string } => !!row.platform_id);
 
-  const { error: deleteError } = await supabase.from('serie_plataformas').delete().eq('serie_id', serieId);
-  if (deleteError) throw new Error(`serie_plataformas delete: ${deleteError.message}`);
-  if (rows.length === 0) return;
-
-  let { error } = await supabase.from('serie_plataformas').insert(rows);
-  if (error && isMissingNamedColumn(error.message ?? '', 'legenda')) {
-    if (rows.some(row => row.legenda != null)) {
-      // Sem a coluna, as versões por conta não têm onde ficar. As hashtags voltam a ser gravadas.
-      await supabase.from('serie_plataformas').insert(rows.map(({ legenda: _legenda, ...rest }) => rest));
-      throw new Error(`Para guardar as versões da legenda por conta, aplique a migração ${MIGRACAO_CONTAS}.`);
+  if (rows.length > 0) {
+    let { error } = await supabase.from('serie_plataformas').upsert(rows, { onConflict: 'serie_id,platform_id' });
+    if (error && isMissingNamedColumn(error.message ?? '', 'legenda')) {
+      if (rows.some(row => row.legenda != null)) {
+        await supabase.from('serie_plataformas').upsert(
+          rows.map(({ legenda: _legenda, ...rest }) => rest),
+          { onConflict: 'serie_id,platform_id' },
+        );
+        throw new Error(`Para guardar as versões da legenda por conta, aplique a migração ${MIGRACAO_CONTAS}.`);
+      }
+      ({ error } = await supabase.from('serie_plataformas').upsert(
+        rows.map(({ legenda: _legenda, ...rest }) => rest),
+        { onConflict: 'serie_id,platform_id' },
+      ));
     }
-    ({ error } = await supabase.from('serie_plataformas').insert(rows.map(({ legenda: _legenda, ...rest }) => rest)));
+    if (error) throw new Error(`serie_plataformas: ${error.message}`);
   }
-  if (error) throw new Error(`serie_plataformas: ${error.message}`);
+  let apagar = supabase.from('serie_plataformas').delete().eq('serie_id', serieId);
+  if (rows.length > 0) apagar = apagar.not('platform_id', 'in', `(${rows.map(row => row.platform_id).join(',')})`);
+  const { error: sobra } = await apagar;
+  if (sobra) throw new Error(`serie_plataformas: ${sobra.message}`);
 }
 
 /**
@@ -3789,16 +3871,19 @@ export async function saveTema(tema: Omit<Tema, 'createdAt'>): Promise<void> {
 export async function saveContentTemas(contentId: string, temaIds: readonly string[]): Promise<void> {
   if (!supabase) return;
   const unique = [...new Set(temaIds.filter(Boolean))];
-  const removed = await supabase.from('content_temas').delete().eq('content_id', contentId);
-  if (removed.error) {
-    if (isMissingTemasTable(removed.error)) return;
-    throw new Error(`content_temas delete: ${removed.error.message}`);
-  }
-  if (unique.length === 0) return;
-  const { error } = await supabase.from('content_temas').insert(
+  const { error } = await upsertEDepoisApagar(
+    'content_temas',
+    'content_id',
+    contentId,
     unique.map(temaId => ({ content_id: contentId, tema_id: temaId })),
+    'content_id,tema_id',
+    'tema_id',
+    unique,
   );
-  if (error) throw new Error(`content_temas: ${error.message}`);
+  if (error) {
+    if (isMissingTemasTable(error)) return;
+    throw new Error(`content_temas: ${error.message}`);
+  }
 }
 
 // ============================================================================
@@ -4571,10 +4656,15 @@ export async function deleteProjetoEtapa(id: string): Promise<void> {
 
 export async function saveProjetoConteudos(projetoId: string, contentIds: string[]): Promise<void> {
   if (!supabase) return;
-  await supabase.from('projeto_conteudos').delete().eq('projeto_id', projetoId);
-  if (contentIds.length === 0) return;
-  const { error } = await supabase.from('projeto_conteudos').insert(
-    contentIds.map(contentId => ({ projeto_id: projetoId, content_id: contentId }))
+  const ids = [...new Set(contentIds.filter(Boolean))];
+  const { error } = await upsertEDepoisApagar(
+    'projeto_conteudos',
+    'projeto_id',
+    projetoId,
+    ids.map(contentId => ({ projeto_id: projetoId, content_id: contentId })),
+    'projeto_id,content_id',
+    'content_id',
+    ids,
   );
   if (error) throw new Error(`projeto_conteudos: ${error.message}`);
 }
@@ -4602,13 +4692,17 @@ export async function saveRecordingBlock(block: Omit<RecordingBlock, 'contents' 
 
 export async function saveRecordingBlockContents(blockId: string, contents: RecordingBlockContent[]): Promise<void> {
   if (!supabase) return;
-  const { error: deleteError } = await supabase.from('recording_block_contents').delete().eq('block_id', blockId);
-  if (deleteError) throw new Error(`recording_block_contents delete: ${deleteError.message}`);
-  if (contents.length === 0) return;
-  const { error } = await supabase.from('recording_block_contents').insert(
-    contents.map(c => ({
-      block_id: blockId, content_id: c.contentId, ordem: c.ordem, gravado: c.gravado,
-    }))
+  const rows = contents.map(c => ({
+    block_id: blockId, content_id: c.contentId, ordem: c.ordem, gravado: c.gravado,
+  }));
+  const { error } = await upsertEDepoisApagar(
+    'recording_block_contents',
+    'block_id',
+    blockId,
+    rows,
+    'block_id,content_id',
+    'content_id',
+    rows.map(row => row.content_id),
   );
   if (error) throw new Error(`recording_block_contents: ${error.message}`);
 }

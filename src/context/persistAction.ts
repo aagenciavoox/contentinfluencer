@@ -435,6 +435,17 @@ export async function persistAction({ action, userId, state, api }: PersistActio
       return;
 
     case 'ADD_RECORDING_BLOCK':
+      await persistenceApi.saveRecordingBlock({ ...action.payload, userId });
+      if (action.payload.contents.length > 0) {
+        try {
+          await persistenceApi.saveRecordingBlockContents(action.payload.id, action.payload.contents);
+        } catch (error) {
+          try { await persistenceApi.deleteRecordingBlock(action.payload.id); } catch { /* Mantém o erro da gravação. */ }
+          throw error;
+        }
+      }
+      return;
+
     case 'UPDATE_RECORDING_BLOCK':
       await persistenceApi.saveRecordingBlock({ ...action.payload, userId });
       return;

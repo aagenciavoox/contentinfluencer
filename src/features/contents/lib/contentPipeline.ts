@@ -378,14 +378,17 @@ export function getPostingAlerts(content: Pick<Content, 'publishDate' | 'status'
 
 /**
  * O que muda ao sair de Publicado. Usado no confirmação "Desfazer publicação".
- * Não apaga publicações por conta aqui — Fase 3 escolhe a conta afetada.
+ * A data do conteúdo some e cada conta publicada volta a programada ou prevista.
  */
 export function effectsOfLeavingPublished(
-  content: Pick<Content, 'postedAt' | 'publishDate'>,
+  content: Pick<Content, 'postedAt' | 'publishDate'> & { plataformas?: Content['plataformas'] },
 ): string[] {
   const effects: string[] = [];
   if (content.postedAt) {
     effects.push('A data de publicação registrada neste conteúdo será apagada.');
+  }
+  if ((content.plataformas ?? []).some(publicacao => publicacao.status === 'publicada')) {
+    effects.push('As contas deixam de constar como publicadas.');
   }
   if (content.publishDate) {
     effects.push('A data prevista continua guardada; o conteúdo deixa de aparecer como Publicado.');
@@ -406,7 +409,7 @@ export type StatusChangePlan =
  * sair de Publicado pede confirmação; demais etapas aplicam direto.
  */
 export function planStatusChange(
-  content: Pick<Content, 'status' | 'postedAt' | 'publishDate'>,
+  content: Pick<Content, 'status' | 'postedAt' | 'publishDate'> & { plataformas?: Content['plataformas'] },
   nextStatus: string,
 ): StatusChangePlan {
   const from = normalizeContentStatus(content.status);

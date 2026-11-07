@@ -310,8 +310,7 @@ export function RecordingPage() {
       contents: orderedSelectedContents,
     });
 
-    await dispatch({type: 'ADD_RECORDING_BLOCK', payload: block});
-    await dispatch({type: 'UPDATE_BLOCK_CONTENTS', payload: {blockId: block.id, contents: blockContents}});
+    await dispatch({type: 'ADD_RECORDING_BLOCK', payload: {...block, contents: blockContents}});
 
     handleClearSelection();
     handleTabChange('blocks');
@@ -339,8 +338,7 @@ export function RecordingPage() {
       contents: orderedSelectedContents,
     });
 
-    await dispatch({type: 'ADD_RECORDING_BLOCK', payload: block});
-    await dispatch({type: 'UPDATE_BLOCK_CONTENTS', payload: {blockId: block.id, contents: blockContents}});
+    await dispatch({type: 'ADD_RECORDING_BLOCK', payload: {...block, contents: blockContents}});
   };
 
   const painelEnergia = energiaAberta ? <SugestaoGravacaoPanel

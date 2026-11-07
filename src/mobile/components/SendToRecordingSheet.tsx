@@ -97,9 +97,9 @@ export function SendToRecordingSheet({
       if (!name) return;
 
       // O bloco nasce vazio e o roteiro entra por attachToBlock, que também sobe a etapa.
-      const { block } = montarBlocoDeGravacao({ id: generateUUID(), userId: content.userId, nome: name, contents: [content] });
+      const { block, blockContents } = montarBlocoDeGravacao({ id: generateUUID(), userId: content.userId, nome: name, contents: [content] });
 
-      await onDispatch({ type: 'ADD_RECORDING_BLOCK', payload: block });
+      await onDispatch({ type: 'ADD_RECORDING_BLOCK', payload: { ...block, contents: blockContents } });
       await attachToBlock(block.id, block);
       setBlockName('');
     } catch (error) {

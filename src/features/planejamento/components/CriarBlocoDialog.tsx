@@ -154,8 +154,7 @@ export function CriarBlocoDialog({
         contents: entram,
         now: agora,
       });
-      await dispatch({type: 'ADD_RECORDING_BLOCK', payload: block});
-      await dispatch({type: 'UPDATE_BLOCK_CONTENTS', payload: {blockId: block.id, contents: blockContents}});
+      await dispatch({type: 'ADD_RECORDING_BLOCK', payload: {...block, contents: blockContents}});
       setResultado({blockId: block.id, nome: block.name, entraram: entram.length, ficaramSemTexto});
       onCriado?.();
     } catch (error) {
