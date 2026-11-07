@@ -101,7 +101,10 @@ function EditorDaPausa({
 
       {rascunho.escopo === 'conta' ? (
         <div className="stack-xs">
-          <Text variant="bodyStrong" as="span">Conta</Text>
+          <Text variant="bodyStrong" as="span">
+            Conta
+            <span className="text-[var(--brand-accent-text)]"> *</span>
+          </Text>
           <SelectField
             ariaLabel="Conta pausada"
             block

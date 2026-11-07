@@ -26,6 +26,7 @@ import { comStatus, podeSerRascunho, roteirosPorSemana, statusDaSerie, textoDaAt
 {
   assert.equal(roteirosPorSemana({ frequenciaVezes: 3, frequenciaUnidade: 'semana' }), 3);
   assert.equal(roteirosPorSemana({ frequenciaVezes: 2, frequenciaUnidade: 'quinzena' }), 1);
+  assert.equal(roteirosPorSemana({ frequenciaVezes: 3, frequenciaUnidade: 'trimestre' }), 0.2);
   assert.equal(roteirosPorSemana({ frequenciaVezes: null, frequenciaUnidade: null }), null);
 }
 

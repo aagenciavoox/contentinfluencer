@@ -1,5 +1,5 @@
 import {generateUUID} from '../../../utils/uuid';
-import {useMemo, useState} from 'react';
+import {useEffect, useMemo, useState} from 'react';
 import {endOfMonth, format, startOfMonth} from 'date-fns';
 import {useNavigate} from 'react-router-dom';
 import {useAppContext} from '../../../context/AppContext';
@@ -23,8 +23,13 @@ import {setDiasPausaPublicacao, vistaTemRoteiroNosPostIts} from '../lib/reguaFre
 import type {Content} from '../../../lib/database';
 import type {PlanejamentoPostIt} from '../lib/postIt';
 import {buildDetailBackState} from '../../../lib/navigation/detailBack';
+import {conteudosNaDataDoQuadro} from '../lib/postItsNaData';
 
 type OrigemSaude = {periodo: {inicio: string; fim: string}; data: string; vista: VistaPlanejamento} | null;
+
+function seletor(valor: string): string {
+  return typeof CSS !== 'undefined' && typeof CSS.escape === 'function' ? CSS.escape(valor) : valor.replace(/["\\]/g, '');
+}
 
 export function useSaudeEAvisos(args: {
   month: Date;
@@ -52,9 +57,12 @@ export function useSaudeEAvisos(args: {
   const {
     month, vista, setMonth, setVistaRaw, intervaloEmFoco, setIntervaloEmFoco,
     origemSaude, setOrigemSaude, filtro, trecho, intervalo, postIts, contents, indiceAgenda,
-    setDestaqueIds, setAnaliseAberta, setSeriePlanejandoId, retornoPlanejamento,
+    destaqueIds, setDestaqueIds, setAnaliseAberta, setSeriePlanejandoId, retornoPlanejamento,
   } = args;
   const [avisoAtivoId, setAvisoAtivoId] = useState<string | null>(null);
+  const [rolarPara, setRolarPara] = useState<{dia: string | null; postItId: string | null} | null>(null);
+  // O quadro mostra o dia do post-it. A data oficial espera "Salvar no calendário".
+  const contentsNoQuadro = useMemo(() => conteudosNaDataDoQuadro(contents, postIts), [contents, postIts]);
 
   const periodo = useMemo(() => intervaloEmFoco ?? periodoDaVista(month, vista), [month, vista, intervaloEmFoco]);
 
@@ -69,8 +77,8 @@ export function useSaudeEAvisos(args: {
   // Com filtro, Saúde e calendário olham o mesmo recorte: só os conteúdos e post-its que passam nele.
   // A continuidade geral fica de todas as contas (o acompanhamento geral é de todas), identificada na análise.
   const contentsDoFiltro = useMemo(
-    () => (filtroAtivo(filtro) ? contents.filter(content => conteudoPassa(indiceAgenda, content.id, filtro)) : contents),
-    [contents, indiceAgenda, filtro],
+    () => (filtroAtivo(filtro) ? contentsNoQuadro.filter(content => conteudoPassa(indiceAgenda, content.id, filtro)) : contentsNoQuadro),
+    [contentsNoQuadro, indiceAgenda, filtro],
   );
   const postItsDoFiltro = useMemo(
     () => (filtroAtivo(filtro) ? postIts.filter(postIt => postItPassa(indiceAgenda, postIt, filtro)) : postIts),
@@ -114,7 +122,7 @@ export function useSaudeEAvisos(args: {
     // Semanas e meses das pontas são avaliados inteiros: busca os itens além do período.
     const estendido = saudeDoMes({
       postIts,
-      contents,
+      contents: contentsNoQuadro,
       series: state.series,
       pilares: state.pilares,
       settings,
@@ -146,7 +154,7 @@ export function useSaudeEAvisos(args: {
     // Com filtro, ficam os acompanhamentos daquela conta ou formato e os que valem para todas.
     const escopos = linhasDaContinuidadePorEscopo({
       series: state.series,
-      contents,
+      contents: contentsNoQuadro,
       postIts,
       platforms: state.platforms,
       periodo: periodoDaSaude,
@@ -164,7 +172,7 @@ export function useSaudeEAvisos(args: {
       escopos,
       publicacoes,
     };
-  }, [postIts, contents, postItsDoFiltro, contentsDoFiltro, state.series, state.pilares, state.platforms, state.editorial, state.temporadas, periodoDaSaude, filtro]);
+  }, [postIts, contentsNoQuadro, postItsDoFiltro, contentsDoFiltro, state.series, state.pilares, state.platforms, state.editorial, state.temporadas, periodoDaSaude, filtro]);
   const rotuloSaude = rotuloDoPeriodo(periodoDaSaude);
   const avisoSaude = avisoDoCalendario(periodoDaSaude, periodo);
 
@@ -178,7 +186,7 @@ export function useSaudeEAvisos(args: {
       series: state.series,
       itens: comItens ? saudeDoMes({
         postIts,
-        contents,
+        contents: contentsNoQuadro,
         series: state.series,
         pilares: state.pilares,
         settings: state.editorial,
@@ -233,14 +241,14 @@ export function useSaudeEAvisos(args: {
       antecedenciaPostagemDias: state.editorial.preferencias.antecedenciaPostagemDias,
       temporadas: state.temporadas,
     });
-    const todos = avisosDo({postIts, contents}, globais);
+    const todos = avisosDo({postIts, contents: contentsNoQuadro}, globais);
     if (!filtroAtivo(filtro)) return todos;
     const doFiltro = avisosDo({postIts: postItsDoFiltro, contents: contentsDoFiltro});
     return [
       ...doFiltro.filter(aviso => !TIPOS_AVISO_GLOBAIS.has(aviso.tipo)),
       ...todos.filter(aviso => TIPOS_AVISO_GLOBAIS.has(aviso.tipo)),
     ];
-  }, [postIts, contents, postItsDoFiltro, contentsDoFiltro, filtro, state.series, state.pilares, state.platforms, state.editorial, state.temas, state.bibliotecaItems, state.temporadas, periodoDaSaude, month]);
+  }, [postIts, contentsNoQuadro, postItsDoFiltro, contentsDoFiltro, filtro, state.series, state.pilares, state.platforms, state.editorial, state.temas, state.bibliotecaItems, state.temporadas, periodoDaSaude, month]);
 
   const marcarFoiDeProposito = (aviso: AvisoOrientacao) => {
     const excecao = excecaoFoiDeProposito(aviso, generateUUID());
@@ -253,16 +261,47 @@ export function useSaudeEAvisos(args: {
 
   const verPautasDoAviso = (aviso: AvisoOrientacao) => {
     setAvisoAtivoId(aviso.id);
-    setDestaqueIds(new Set(aviso.postItIds));
+    setDestaqueIds(new Set([...aviso.postItIds, ...aviso.contentIds]));
   };
 
   const localizarAviso = (aviso: AvisoOrientacao) => {
-    const dia = diaDoAviso(aviso, postIts, contents);
+    const dia = diaDoAviso(aviso, postIts, contentsNoQuadro);
     if (dia) setMonth(new Date(`${dia}T12:00:00`));
     verPautasDoAviso(aviso);
+    const postItNoDia = postIts.find(postIt => aviso.postItIds.includes(postIt.id) && postIt.date?.slice(0, 10) === dia);
+    setRolarPara({dia, postItId: postItNoDia?.id ?? aviso.postItIds[0] ?? null});
     // Ausência e capacidade não têm pauta para destacar: a análise mostra o porquê.
     setAnaliseAberta(abreAnaliseAoLocalizar(aviso));
   };
+
+  // O aviso some quando a pauta sai da janela. O destaque antigo não pode ficar aceso.
+  useEffect(() => {
+    if (!avisoAtivoId) return;
+    const aviso = avisosOrientacao.find(item => item.id === avisoAtivoId);
+    if (!aviso) {
+      setAvisoAtivoId(null);
+      setDestaqueIds(new Set());
+      return;
+    }
+    const ids = [...aviso.postItIds, ...aviso.contentIds];
+    if (destaqueIds.size === ids.length && ids.every(id => destaqueIds.has(id))) return;
+    setDestaqueIds(new Set(ids));
+  }, [avisosOrientacao, avisoAtivoId, destaqueIds, setDestaqueIds]);
+
+  useEffect(() => {
+    if (!rolarPara) return;
+    const frame = requestAnimationFrame(() => {
+      const card = rolarPara.postItId
+        ? document.querySelector(`[data-planejamento-post-it="${seletor(rolarPara.postItId)}"]`)
+        : null;
+      const dia = rolarPara.dia
+        ? document.querySelector(`[data-date="${seletor(rolarPara.dia)}"]`)
+        : null;
+      (card ?? dia)?.scrollIntoView({behavior: 'smooth', block: 'center'});
+      setRolarPara(null);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [rolarPara, month]);
 
   const focarIntervalo = (intervalo: IntervaloSaude) => {
     setOrigemSaude(prev => prev ?? {periodo: periodoDaSaude, data: format(month, 'yyyy-MM-dd'), vista});

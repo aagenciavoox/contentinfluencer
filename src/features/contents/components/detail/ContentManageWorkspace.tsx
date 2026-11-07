@@ -171,6 +171,7 @@ export function ContentManageWorkspace({
     : '';
   const publishDateOnly = draft.publishDate ? draft.publishDate.slice(0, 10) : '';
   const currentStatus = normalizeContentStatus(draft.status);
+  const pilarExibidoId = pilarDoConteudo(draft, series);
   const etapas = getStatusOptions(draft.status);
   // Observações começam recolhidas; abertas quando já há texto.
   const [notesOpen, setNotesOpen] = useState(() => Boolean(draft.notes?.trim()));
@@ -187,8 +188,9 @@ export function ContentManageWorkspace({
     });
   };
 
+  // Publicado trava o resto da gestão. Série, quadro e pilar continuam editáveis.
   const pedirTrocaSerie = (serieId: string | null) => {
-    if (disabled || serieId === (seriePrincipal?.id ?? null)) return;
+    if (serieId === (seriePrincipal?.id ?? null)) return;
     if (draft.seriesId) {
       setSeriePendenteId(serieId);
       return;
@@ -202,6 +204,14 @@ export function ContentManageWorkspace({
 
   return (
     <div className="stack-lg">
+      <AvisoTrocaSerieModal
+        open={seriePendenteId !== undefined}
+        onConfirm={() => {
+          aplicarSerie(seriePendenteId ?? null);
+          setSeriePendenteId(undefined);
+        }}
+        onCancel={() => setSeriePendenteId(undefined)}
+      />
       <Text variant="sectionTitle" as="h2" className="sr-only">Gestão do roteiro</Text>
 
       <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.85fr)]">
@@ -254,7 +264,6 @@ export function ContentManageWorkspace({
                   label="Série"
                   hideLabel
                   id="content-manage-serie"
-                  disabled={disabled}
                   maxSelections={1}
                   placeholder="Selecionar série…"
                   values={seriePrincipal ? [seriePrincipal.id] : []}
@@ -277,7 +286,6 @@ export function ContentManageWorkspace({
                   <FieldLabel icon={<Layers className="h-4 w-4" />}>Quadro</FieldLabel>
                   <ManageSelect
                     ariaLabel="Quadro"
-                    disabled={disabled}
                     value={tipoLinked === 'quadro' && linkedSerie ? linkedSerie.id : ''}
                     onChange={quadroId => aplicarSerie(quadroId || seriePrincipal.id)}
                   >
@@ -335,13 +343,12 @@ export function ContentManageWorkspace({
                     label="Pilar"
                     hideLabel
                     id="content-manage-pilar"
-                    disabled={disabled}
                     maxSelections={1}
                     placeholder="Selecionar pilar…"
-                    values={draft.pilarId ? [draft.pilarId] : []}
+                    values={pilarExibidoId ? [pilarExibidoId] : []}
                     onChange={values => onChange(marcarEscolhaManual(draft, 'pilar', values[0] ?? null))}
                     options={pilares
-                      .filter(item => item.ativo || item.id === draft.pilarId)
+                      .filter(item => item.ativo || item.id === pilarExibidoId)
                       .map(item => ({value: item.id, label: item.nome}))}
                     controlClassName="min-h-11"
                   />

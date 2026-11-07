@@ -1,5 +1,5 @@
 import { situacaoDaFrequencia, TEXTO_SEM_ANCORA, textoFrequencia } from './apuracaoSerie.ts';
-import { frequenciaParaGravar, unidadeDaMeta, type FrequenciaGravada, type UnidadeDaMeta } from './metaDaOnda.ts';
+import { frequenciaParaGravar, unidadeDaMeta, type ErroDeFrequencia, type FrequenciaGravada, type UnidadeDaMeta } from './metaDaOnda.ts';
 
 /** Os quatro campos da frequência, no lugar canônico da série (o mesmo da Continuidade). */
 export type AlvoDaFrequencia = {
@@ -43,7 +43,7 @@ export function rascunhoDaFrequencia(alvo: AlvoDaFrequencia): RascunhoDaFrequenc
 export function frequenciaDoRascunho(
   rascunho: RascunhoDaFrequencia,
   tipo: 'serie' | 'quadro',
-): { erro: string } | FrequenciaGravada {
+): ErroDeFrequencia | FrequenciaGravada {
   const vezes = rascunho.vezes.trim() ? Number.parseInt(rascunho.vezes, 10) : null;
   return frequenciaParaGravar({ vezes, unidade: rascunho.unidade, aPartirDe: rascunho.aPartirDe, tipo });
 }

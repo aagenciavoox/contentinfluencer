@@ -161,33 +161,38 @@ export function SeriesEditPage() {
     });
   };
 
-  const persistSerie = (serie: Serie, aplicar: boolean, alvosLegenda: AlteracaoDeRoteiro[] = []) => {
+  const persistSerie = async (serie: Serie, aplicar: boolean, alvosLegenda: AlteracaoDeRoteiro[] = []) => {
     const payload = {...serie, userId: serie.userId || user?.id || ''};
     const exists = state.series.find(item => item.id === payload.id);
 
-    if (exists) {
-      dispatch({type: 'UPDATE_SERIE', payload});
-    } else {
-      dispatch({type: 'ADD_SERIE', payload});
-    }
+    try {
+      if (exists) {
+        await dispatch({type: 'UPDATE_SERIE', payload});
+      } else {
+        await dispatch({type: 'ADD_SERIE', payload});
+      }
 
-    if (aplicar && isFuncaoEditorial(payload.funcaoPadrao)) {
-      const funcao = payload.funcaoPadrao;
-      for (const content of conteudosParaAplicarFuncao(state.contents, payload.id)) {
-        dispatch({
+      if (aplicar && isFuncaoEditorial(payload.funcaoPadrao)) {
+        const funcao = payload.funcaoPadrao;
+        for (const content of conteudosParaAplicarFuncao(state.contents, payload.id)) {
+          await dispatch({
+            type: 'UPDATE_CONTENT',
+            payload: aplicarFuncaoPublicada(content, funcao),
+          });
+        }
+      }
+
+      for (const alvo of alvosLegenda) {
+        const content = state.contents.find(item => item.id === alvo.contentId);
+        if (!content) continue;
+        await dispatch({
           type: 'UPDATE_CONTENT',
-          payload: aplicarFuncaoPublicada(content, funcao),
+          payload: { ...content, legendaBase: alvo.legendaBase, plataformas: alvo.publicacoes },
         });
       }
-    }
-
-    for (const alvo of alvosLegenda) {
-      const content = state.contents.find(item => item.id === alvo.contentId);
-      if (!content) continue;
-      dispatch({
-        type: 'UPDATE_CONTENT',
-        payload: { ...content, legendaBase: alvo.legendaBase, plataformas: alvo.publicacoes },
-      });
+    } catch {
+      // O aviso de erro já saiu. A página fica aberta com a edição.
+      return;
     }
 
     setPendingApply(null);
@@ -224,9 +229,13 @@ export function SeriesEditPage() {
     ? `${aplicarQuantidade === 1 ? '1 roteiro já publicado ainda usa' : `${aplicarQuantidade} roteiros já publicados ainda usam`} o objetivo herdado. Aplicar ${FUNCAO_LABELS[pendingApply.funcaoPadrao]} a ${aplicarQuantidade === 1 ? 'ele' : 'eles'}?`
     : '';
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!editingSerie) return;
-    dispatch({type: 'DELETE_SERIE', payload: editingSerie.id});
+    try {
+      await dispatch({type: 'DELETE_SERIE', payload: editingSerie.id});
+    } catch {
+      return;
+    }
     voltarLista();
   };
 

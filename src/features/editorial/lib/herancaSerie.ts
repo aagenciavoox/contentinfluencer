@@ -102,15 +102,14 @@ export function objetivoHerdadoDaSerie(serieId: string | null | undefined, serie
 
 /**
  * Pilar do conteúdo em todas as telas (ficha, Saúde, calendário, encaixe, puxar).
- * Congelado mantém o que foi gravado, mesmo vazio. "Nenhum pilar" escolhido continua nenhum.
- * Pilar gravado vale. Só o campo vazio sem escolha sobe quadro → série.
+ * O gravado vale, inclusive no publicado. "Nenhum pilar" escolhido continua nenhum.
+ * Sem pilar gravado, sobe quadro → série — também no publicado, para a série atual aparecer nas telas.
  */
 export function pilarDoConteudo(
   content: Pick<ConteudoHeranca, 'pilarId' | 'classificacaoCongeladaEm' | 'seriesId'> & { pilarOrigem?: string | null },
   series: readonly SerieClassificacao[],
 ): string | null {
   const gravado = content.pilarId?.trim() || null;
-  if (content.classificacaoCongeladaEm) return gravado;
   if (content.pilarOrigem === 'nenhuma') return null;
   if (gravado) return gravado;
   return pilarHerdadoDaSerie(content.seriesId, series);

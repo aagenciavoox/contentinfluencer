@@ -28,12 +28,13 @@ import {
   type Temporada,
 } from '../../src/features/editorial/lib/temporadas.ts';
 import {normalizarRedesPostIt} from '../../src/features/planejamento/lib/redesPostIt.ts';
+import {fraseDaFrequencia} from '../../src/features/editorial/lib/metaDaOnda.ts';
 
 type Row = Record<string, any>;
 
 export const TIPOS_AGRUPAMENTO = ['familia', 'serie', 'quadro'] as const;
 export type TipoAgrupamento = (typeof TIPOS_AGRUPAMENTO)[number];
-export const UNIDADES_FREQUENCIA = ['semana', 'quinzena', 'mes', 'sob-demanda'] as const;
+export const UNIDADES_FREQUENCIA = ['semana', 'quinzena', 'mes', 'bimestre', 'trimestre', 'semestre', 'sob-demanda'] as const;
 export type UnidadeFrequencia = (typeof UNIDADES_FREQUENCIA)[number];
 
 /** Migrações citadas pelo app quando a coluna ainda não existe (database.ts). */
@@ -179,14 +180,9 @@ export function nomeDeQuadroRepetido(nome: string, serieId: string, series: read
     .some(filho => filho.id !== ignorarId && (filho.name ?? '').trim().toLocaleLowerCase('pt-BR') === limpo);
 }
 
-/** Espelho de formatarFrequenciaRecomendada (SerieEditForm.tsx). */
+/** Espelho de formatarFrequenciaRecomendada (SerieEditForm.tsx), na mesma função do app. */
 export function frequenciaRecomendada(vezes: number | null, unidade: string): string | null {
-  const u = unidade.trim().toLowerCase();
-  const qtd = vezes && vezes > 0 ? vezes : 1;
-  if (u === 'semana') return qtd === 1 ? 'Semanal' : `${qtd} por semana`;
-  if (u === 'quinzena') return qtd === 1 ? 'Quinzenal' : `${qtd} por quinzena`;
-  if (u === 'mes') return qtd === 1 ? 'Mensal' : `${qtd} por mês`;
-  return null;
+  return fraseDaFrequencia(vezes, unidade);
 }
 
 export type FrequenciaPedida = {
@@ -405,11 +401,15 @@ function podeHerdar(origem: string | null, vazio: boolean): boolean {
 }
 
 /**
- * Espelho de aplicarEscolhasDaSerie com catálogo: conteúdo congelado (publicado) não muda;
- * pilar e objetivo herdados passam a vir da série nova; escolha manual fica.
+ * Espelho de aplicarEscolhasDaSerie com catálogo: publicado aceita a série nova
+ * e mantém pilar e objetivo; nos demais, o herdado passa a vir da série e a escolha manual fica.
  */
 export function aplicarEscolhasDaSerie(content: EpisodioMcp, serieId: string | null, series: readonly SerieNoMcp[]): EpisodioMcp {
-  if (content.classificacaoCongeladaEm) return content;
+  if (content.classificacaoCongeladaEm) {
+    const destino = serieId && series.some(item => item.id === serieId) ? serieId : null;
+    if ((content.seriesId ?? null) === destino) return content;
+    return {...content, seriesId: destino};
+  }
   if (!serieId || !series.some(item => item.id === serieId)) return {...content, seriesId: null};
   let out: EpisodioMcp = {...content, seriesId: serieId};
   const pilar = pilarResolvido(out, series)?.trim() || null;

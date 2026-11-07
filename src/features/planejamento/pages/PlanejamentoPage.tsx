@@ -242,7 +242,7 @@ export function PlanejamentoPage() {
   const renderPostIt = (postIt: PlanejamentoPostIt, compact: boolean, className?: string) => {
     const content = contentById(contents, postIt.contentId);
     const appearance = postItAppearance(content, state.series, state.pilares, state.temas, postIt);
-    const highlighted = destaqueIds.size > 0 && destaqueIds.has(postIt.id);
+    const highlighted = destaqueIds.size > 0 && (destaqueIds.has(postIt.id) || Boolean(postIt.contentId && destaqueIds.has(postIt.contentId)));
     const dimmedByFiltro = assuntoFiltro ? !conteudoTemAssunto(content, assuntoFiltro.id) : false;
     const dimmedByDestaque = destaqueIds.size > 0 && !highlighted;
     return (
@@ -635,8 +635,8 @@ export function PlanejamentoPage() {
             };
 
             return (
+              <div key={postIt.id} data-planejamento-post-it={postIt.id} className="min-w-0">
               <PlanejamentoContentCard
-                key={postIt.id}
                 className={classeDestaque(content.id, postIt.id)}
                 publicacao={publicacao}
                 content={content}
@@ -672,12 +672,13 @@ export function PlanejamentoPage() {
                 selected={!isMobile && selectedIds.has(postIt.id)}
                 onToggleSelect={isMobile ? undefined : () => toggleSelected(postIt.id)}
               />
+              </div>
             );
           }
 
           return (
+            <div key={postIt.id} data-planejamento-post-it={postIt.id} className="min-w-0">
             <PlanejamentoReservaCard
-              key={postIt.id}
               className={classeDestaque(null, postIt.id)}
               postIt={postIt}
               content={content}
@@ -710,6 +711,7 @@ export function PlanejamentoPage() {
               onToggleSelect={isMobile ? undefined : () => toggleSelected(postIt.id)}
               selo={textoSeloSoNoPlano({semRoteiro: !postIt.contentId, vistaTemRoteiro})}
             />
+            </div>
           );
         };
 
@@ -754,6 +756,7 @@ export function PlanejamentoPage() {
           // Sem padding lateral próprio: o frame já dá a margem, e assim o conteúdo alinha com o título.
           <div className="stack-md pt-4 pb-8">
             <AvisosFaixa
+              modo="ajustes"
               avisos={avisosOrientacao}
               avisoAtivoId={avisoAtivoId}
               onLocalizar={localizarAviso}

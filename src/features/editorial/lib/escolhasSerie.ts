@@ -72,14 +72,19 @@ export function aplicarEscolhasHerdadas<T extends ConteudoHerdavel>(
 
 /**
  * Uma regra para criar da série, escolher a série depois e aplicar em massa.
- * Com `catalogo`, sobe a cadeia (pilar/função). Congelado não muda.
+ * Com `catalogo`, sobe a cadeia (pilar/função).
+ * Congelado (já publicado) aceita a série nova e mantém pilar e função como estão.
  */
 export function aplicarEscolhasDaSerie<T extends ConteudoHerdavel>(
   content: T,
   serie: SerieParaHeranca | null | undefined,
   catalogo?: readonly SerieHeranca[] | null,
 ): T & ConteudoHerdavel {
-  if (content.classificacaoCongeladaEm) return content;
+  if (content.classificacaoCongeladaEm) {
+    const seriesId = serie?.id ?? null;
+    if ((content.seriesId ?? null) === seriesId) return content;
+    return {...content, seriesId};
+  }
   if (!serie) return {...content, seriesId: null};
   const comSerie = {...content, seriesId: serie.id};
   if (catalogo && catalogo.length > 0) {

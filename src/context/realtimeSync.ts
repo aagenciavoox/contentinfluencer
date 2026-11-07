@@ -36,6 +36,9 @@ export const REALTIME_TABLES = [
   'editorial_limite_hashtag',
   'decisao_periodo',
   'ajuste_semana',
+  'temporadas',
+  'serie_acompanhamento',
+  'serie_meta',
 ] as const;
 
 const REALTIME_TABLE_SET: ReadonlySet<string> = new Set(REALTIME_TABLES);
@@ -137,7 +140,20 @@ export function shouldSkipRealtimeRefresh(
   pendingPersistCount = 0,
   suppressionMs = LOCAL_REALTIME_SUPPRESSION_MS
 ): boolean {
-  if (pendingPersistCount > 0) return true;
-  if (lastLocalMutationAt === null) return false;
-  return now - lastLocalMutationAt < suppressionMs;
+  return realtimeHoldDelay(lastLocalMutationAt, now, pendingPersistCount, suppressionMs) > 0;
+}
+
+/**
+ * Quanto o aviso espera a vez: a gravação local ainda está saindo, ou acabou de sair.
+ * O pedido fica na fila. Não é descartado.
+ */
+export function realtimeHoldDelay(
+  lastLocalMutationAt: number | null,
+  now: number,
+  pendingPersistCount = 0,
+  suppressionMs = LOCAL_REALTIME_SUPPRESSION_MS,
+): number {
+  if (pendingPersistCount > 0) return suppressionMs;
+  if (lastLocalMutationAt === null) return 0;
+  return Math.max(0, lastLocalMutationAt + suppressionMs - now);
 }

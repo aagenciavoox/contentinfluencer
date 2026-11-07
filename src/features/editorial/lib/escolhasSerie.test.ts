@@ -83,7 +83,10 @@ function testCongeladoNaoMuda() {
     classificacaoCongeladaEm: '2026-10-01T00:00:00.000Z',
   };
   const content = aplicarEscolhasDaSerie(original, serie);
-  assert.equal(content, original);
+  assert.equal(content.seriesId, 'serie-1');
+  assert.equal(content.pilarId, 'pilar-antigo');
+  assert.equal(content.funcao, 'atrair');
+  assert.equal(content.funcaoOrigem, 'herdada');
   const herdado = aplicarEscolhasHerdadas(original, {pilarId: 'pilar-1', funcao: 'reter'});
   assert.equal(herdado, original);
 }

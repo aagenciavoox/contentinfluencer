@@ -1,6 +1,7 @@
 import { addDays, differenceInCalendarDays, endOfMonth, format, parseISO, startOfMonth } from 'date-fns';
 import type { Serie } from '../../../lib/database.ts';
-import { lerFrequencia, type FrequenciaSerie } from './frequenciaSerie.ts';
+import { complementoDoPeriodo, type UnidadeDaMeta } from './metaDaOnda.ts';
+import { blocoQueContem, blocosNoIntervalo, lerFrequencia, mesesDoBloco, type FrequenciaSerie } from './frequenciaSerie.ts';
 import { semanaDe, semanasNoIntervalo } from './periodoEditorial.ts';
 import { idsDaSubarvore } from './serieArvore.ts';
 
@@ -11,7 +12,8 @@ import { idsDaSubarvore } from './serieArvore.ts';
  * - Episódio é o conteúdo da série ou de um quadro dela, contado uma vez.
  * - Repost não é episódio novo: fica fora desta apuração.
  * - Post-it sem conteúdo é reserva provisória, nunca episódio.
- * - A frequência é conferida janela a janela (semana, ciclo de 14 dias, mês), cada janela inteira.
+ * - A frequência é conferida janela a janela (semana, ciclo de 14 dias, mês e blocos
+ *   fechados de bimestre, trimestre e semestre), cada janela inteira.
  * - Os totais do período só contam as datas do período; episódio fora dele ajuda a janela e aparece à parte.
  */
 
@@ -38,7 +40,7 @@ export type SerieDaApuracao = Pick<
   'id' | 'name' | 'parentId' | 'frequenciaRecomendada' | 'frequenciaVezes' | 'frequenciaUnidade' | 'frequenciaAPartirDe'
 > & Partial<Pick<Serie, 'tipoAgrupamento' | 'ativa' | 'status' | 'acompanharContinuidade' | 'acompanhamentos'>>;
 
-export type FrequenciaDefinida = FrequenciaSerie & { unidade: 'semana' | 'quinzena' | 'mes' };
+export type FrequenciaDefinida = FrequenciaSerie & { unidade: UnidadeDaMeta };
 
 export type SituacaoFrequencia =
   | { tipo: 'definida'; freq: FrequenciaDefinida }
@@ -52,7 +54,10 @@ function chave(value: string | null | undefined): string {
     .replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
 }
 
-const UNIDADES = new Set(['semana', 'semanal', 'quinzena', 'quinzenal', 'mes', 'mensal', 'sob demanda']);
+const UNIDADES = new Set([
+  'semana', 'semanal', 'quinzena', 'quinzenal', 'mes', 'mensal',
+  'bimestre', 'bimestral', 'trimestre', 'trimestral', 'semestre', 'semestral', 'sob demanda',
+]);
 
 /**
  * Lê a frequência como lerFrequencia, mas separa o que falta configurar:
@@ -80,16 +85,17 @@ export function situacaoDaFrequencia(serie: Pick<SerieDaApuracao, 'frequenciaRec
 
 export const TEXTO_SEM_ANCORA = 'Defina o início dos ciclos de 14 dias';
 
-/** "2 por semana", "1 a cada 14 dias", "1 por mês". Mesmo formato do formulário e do chip. */
+/** "2 por semana", "1 a cada 14 dias", "1 por trimestre". Mesmo formato do formulário e do chip. */
 export function textoFrequencia(freq: FrequenciaSerie): string {
   const vezes = freq.vezes ?? 1;
-  if (freq.unidade === 'quinzena') return `${vezes} a cada 14 dias`;
-  return `${vezes} por ${freq.unidade === 'semana' ? 'semana' : 'mês'}`;
+  if (freq.unidade === 'sob-demanda') return 'Sob demanda';
+  return `${vezes} ${complementoDoPeriodo(freq.unidade)}`;
 }
 
 /**
- * Janelas inteiras que tocam o período: semanas segunda–domingo, meses do calendário,
- * ciclos de 14 dias a partir do início da meta. Antes do início da meta, nada.
+ * Janelas inteiras que tocam o período: semanas segunda–domingo, ciclos de 14 dias
+ * a partir do início da meta, e blocos de calendário (mês, bimestre, trimestre, semestre).
+ * Antes do início da meta, nada.
  */
 export function intervalosDaFrequencia(freq: FrequenciaDefinida, periodo: Intervalo): Intervalo[] {
   const aPartirDe = freq.aPartirDe;
@@ -97,14 +103,11 @@ export function intervalosDaFrequencia(freq: FrequenciaDefinida, periodo: Interv
   const fim = periodo.fim;
   if (inicio > fim) return [];
   let lista: Intervalo[] = [];
+  const meses = mesesDoBloco(freq.unidade);
   if (freq.unidade === 'semana') {
     lista = semanasNoIntervalo(inicio, fim).map(semana => ({ inicio: semana.inicio, fim: semana.fim }));
-  } else if (freq.unidade === 'mes') {
-    let cursor = startOfMonth(parseISO(inicio));
-    while (format(cursor, FORMATO) <= fim) {
-      lista.push({ inicio: format(cursor, FORMATO), fim: format(endOfMonth(cursor), FORMATO) });
-      cursor = addDays(endOfMonth(cursor), 1);
-    }
+  } else if (meses) {
+    lista = blocosNoIntervalo(inicio, fim, meses);
   } else {
     // Sem âncora não há ciclo: quem chama trata como pendência antes de chegar aqui.
     if (!aPartirDe) return [];
@@ -121,10 +124,12 @@ export function intervalosDaFrequencia(freq: FrequenciaDefinida, periodo: Interv
 
 /** Janela de datas que os intervalos inteiros podem alcançar: buscar os itens nela. */
 export function janelaDaContinuidade(periodo: Intervalo): Intervalo {
+  const semestreIni = blocoQueContem(periodo.inicio, 6).inicio;
+  const semestreFim = blocoQueContem(periodo.fim, 6).fim;
   const ini = [semanaDe(periodo.inicio).inicio, format(startOfMonth(parseISO(periodo.inicio)), FORMATO),
-    format(addDays(parseISO(periodo.inicio), -13), FORMATO)].sort()[0];
+    format(addDays(parseISO(periodo.inicio), -13), FORMATO), semestreIni].sort()[0];
   const fim = [semanaDe(periodo.fim).fim, format(endOfMonth(parseISO(periodo.fim)), FORMATO),
-    format(addDays(parseISO(periodo.fim), 13), FORMATO)].sort().reverse()[0];
+    format(addDays(parseISO(periodo.fim), 13), FORMATO), semestreFim].sort().reverse()[0];
   return { inicio: ini, fim };
 }
 
@@ -132,13 +137,21 @@ function curta(data: string): string {
   return format(parseISO(data), 'dd/MM');
 }
 
-const NOME_UNIDADE = { semana: 'semana', quinzena: 'ciclo de 14 dias', mes: 'mês' } as const;
+const NOME_UNIDADE: Record<UnidadeDaMeta, string> = {
+  semana: 'semana',
+  quinzena: 'ciclo de 14 dias',
+  mes: 'mês',
+  bimestre: 'bimestre',
+  trimestre: 'trimestre',
+  semestre: 'semestre',
+};
 
-function notaDoIntervalo(unidade: 'semana' | 'quinzena' | 'mes', intervalo: Intervalo, periodo: Intervalo): string | null {
+function notaDoIntervalo(unidade: UnidadeDaMeta, intervalo: Intervalo, periodo: Intervalo): string | null {
   const motivos: string[] = [];
   if (intervalo.inicio < periodo.inicio) motivos.push('começa antes do período');
   if (intervalo.fim > periodo.fim) motivos.push('termina depois do período');
-  if (unidade !== 'mes' && intervalo.inicio.slice(0, 7) !== intervalo.fim.slice(0, 7)) motivos.push('atravessa dois meses');
+  // Mês e blocos maiores atravessam meses por definição.
+  if (!mesesDoBloco(unidade) && intervalo.inicio.slice(0, 7) !== intervalo.fim.slice(0, 7)) motivos.push('atravessa dois meses');
   if (motivos.length === 0) return null;
   const inteira = unidade === 'semana' ? 'avaliada inteira' : 'avaliado inteiro';
   return `${NOME_UNIDADE[unidade]} ${curta(intervalo.inicio)}–${curta(intervalo.fim)} ${inteira} (${motivos.join(', ')})`;
@@ -334,7 +347,14 @@ function plural(n: number, um: string, varios: string): string {
   return `${n} ${n === 1 ? um : varios}`;
 }
 
-const JANELA_PLURAL = { semana: ['semana', 'semanas'], quinzena: ['ciclo', 'ciclos'], mes: ['mês', 'meses'] } as const;
+const JANELA_PLURAL: Record<UnidadeDaMeta, readonly [string, string]> = {
+  semana: ['semana', 'semanas'],
+  quinzena: ['ciclo', 'ciclos'],
+  mes: ['mês', 'meses'],
+  bimestre: ['bimestre', 'bimestres'],
+  trimestre: ['trimestre', 'trimestres'],
+  semestre: ['semestre', 'semestres'],
+};
 
 /** "2 episódios + 1 post-it" com as datas do período. */
 export function textoDoVolume(contagem: ContagemNoPeriodo): string {

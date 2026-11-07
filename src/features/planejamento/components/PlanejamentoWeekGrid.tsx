@@ -106,6 +106,7 @@ export function PlanejamentoWeekGrid({
             <div
               key={key}
               role="gridcell"
+              data-date={key}
               className={cn(
                 // Altura da tela que sobra abaixo da barra: a semana vira um quadro, não uma faixa baixa.
                 'group/day @container/week-day min-h-[max(16rem,calc(100vh-25rem))] min-w-0 border-r border-[var(--border-color)] p-1.5 last:border-r-0',

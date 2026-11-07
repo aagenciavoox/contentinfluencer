@@ -4,6 +4,8 @@ import {CONTENT_STATUS} from '../../contents/lib/contentPipeline.ts';
 import {createContentDraft} from '../../contents/lib/createContentDraft.ts';
 import {LIMITES_CONCENTRACAO_PADRAO, excecaoCobre} from '../../editorial/lib/concentracao.ts';
 import {avisosDeOrientacao, mapaSequenciaPorConteudo, excecaoFoiDeProposito} from './orientacaoEditorial.ts';
+import {saudeDoMes} from './monthHealth.ts';
+import {conteudosNaDataDoQuadro} from './postItsNaData.ts';
 import type {PlanejamentoPostIt} from './postIt.ts';
 import {periodoDaSemana} from './periodoPlanejamento.ts';
 
@@ -175,6 +177,45 @@ function testSerieAcimaDaFrequencia() {
     periodo: {inicio: '2026-11-01', fim: '2026-11-07'},
   });
   assert.ok(avisos.some(aviso => aviso.tipo === 'serie-acima'));
+  const acima = avisos.find(aviso => aviso.tipo === 'serie-acima')!;
+  assert.equal(acima.intervalo?.inicio, '2026-11-02');
+  assert.deepEqual([...acima.postItIds].sort(), ['p1', 'p2']);
+}
+
+// Mover o card tira a pauta da janela mesmo com a data oficial ainda no intervalo.
+function testFrequenciaSegueODiaDoPostIt() {
+  const oficiais = [1, 2].map(n => createContentDraft({
+    id: `f${n}`,
+    status: CONTENT_STATUS.IDEIA,
+    seriesId: serieA.id,
+    publishDate: '2026-11-03',
+  }, serieA));
+  const noQuadro = [
+    postIt({id: 'p1', date: '2026-11-03', contentId: oficiais[0].id}),
+    postIt({id: 'p2', date: '2026-11-20', contentId: oficiais[1].id}),
+  ];
+  const periodo = {inicio: '2026-11-01', fim: '2026-11-30'};
+  const avisosDe = (contents: typeof oficiais) => {
+    const itens = saudeDoMes({
+      postIts: noQuadro,
+      contents,
+      series: [serieA],
+      pilares: [],
+      settings: {redeReferenciaId: null},
+      periodo,
+    }).itens;
+    return avisosDeOrientacao({
+      postIts: noQuadro,
+      contents,
+      series: [serieA],
+      temas: [],
+      obras: [],
+      periodo,
+      itensSerie: itens,
+    });
+  };
+  assert.ok(avisosDe(oficiais).some(aviso => aviso.tipo === 'serie-acima'), 'a data oficial ainda vê as duas pautas na mesma semana');
+  assert.equal(avisosDe(conteudosNaDataDoQuadro(oficiais, noQuadro)).some(aviso => aviso.tipo === 'serie-acima'), false);
 }
 
 // Acompanhamento desligado não gera cobrança, mesmo com meta e acima dela.
@@ -246,6 +287,7 @@ testLimitesEExcecaoDeObra();
 testTemaConcentrado();
 testQuadroEmDiasSeguidos();
 testSerieAcimaDaFrequencia();
+testFrequenciaSegueODiaDoPostIt();
 testSemAcompanhamentoNaoCobra();
 testSobDemandaNaoCobra();
 testPeriodoDaSemanaSegundaADomingo();

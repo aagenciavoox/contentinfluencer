@@ -66,6 +66,14 @@ const REALTIME_TABLE_MAP: Record<string, RealtimeTableMapping> = {
     domains: ['production', 'bootstrap'],
     namespaces: [],
   },
+  serie_acompanhamento: {
+    domains: ['production', 'bootstrap'],
+    namespaces: [],
+  },
+  serie_meta: {
+    domains: ['production', 'bootstrap'],
+    namespaces: [],
+  },
   cenarios: {
     domains: ['production', 'bootstrap'],
     namespaces: [],

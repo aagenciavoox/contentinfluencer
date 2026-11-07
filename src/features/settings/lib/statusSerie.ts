@@ -53,6 +53,9 @@ export function roteirosPorSemana(serie: Pick<Serie, 'frequenciaVezes' | 'freque
   if (unidade === 'semana') return vezes;
   if (unidade === 'quinzena') return arredondar(vezes / 2);
   if (unidade === 'mes') return arredondar(vezes / SEMANAS_NO_MES);
+  if (unidade === 'bimestre') return arredondar(vezes / (SEMANAS_NO_MES * 2));
+  if (unidade === 'trimestre') return arredondar(vezes / (SEMANAS_NO_MES * 3));
+  if (unidade === 'semestre') return arredondar(vezes / (SEMANAS_NO_MES * 6));
   return null;
 }
 

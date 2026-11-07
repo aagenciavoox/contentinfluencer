@@ -91,6 +91,24 @@ testSobDemandaNaoTemNumero();
 testAPartirDeDepoisDoPeriodo();
 testQuinzenalEm14Dias();
 testSemanaParcialArredondaPorSemana();
+function testBlocosFechadosDoCalendario() {
+  const trimestre = lerFrequencia({ vezes: 1, unidade: 'trimestre' });
+  assert.deepEqual(trimestre, { vezes: 1, unidade: 'trimestre', aPartirDe: null });
+  assert.equal(expectativaNoIntervalo(trimestre, '2026-01-01', '2026-03-31'), 1);
+  assert.equal(expectativaNoIntervalo(trimestre, '2026-01-01', '2026-06-30'), 2);
+  assert.equal(expectativaNoIntervalo(trimestre, '2026-10-03', '2026-12-30'), 0);
+  assert.equal(expectativaNoIntervalo(trimestre, '2026-10-01', '2026-12-31'), 1);
+
+  const bimestre = lerFrequencia({ vezes: 1, unidade: 'bimestral' });
+  assert.equal(bimestre.unidade, 'bimestre');
+  assert.equal(expectativaNoIntervalo(bimestre, '2026-01-01', '2026-12-31'), 6);
+
+  const semestre = lerFrequencia({ frequenciaRecomendada: 'Semestral' });
+  assert.equal(expectativaNoIntervalo(semestre, '2026-01-01', '2026-12-31'), 2);
+  assert.equal(expectativaNoIntervalo(semestre, '2026-07-01', '2026-12-31'), 1);
+}
+
 testAntesDaPartidaNaoConta();
+testBlocosFechadosDoCalendario();
 
 console.log('frequenciaSerie tests passed');

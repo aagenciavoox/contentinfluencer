@@ -79,6 +79,7 @@ export function PostItNote({
     <div
       role="button"
       tabIndex={0}
+      data-planejamento-post-it={postIt.id}
       draggable={draggable}
       aria-pressed={onToggleSelect ? selected : undefined}
       onPointerDown={event => {

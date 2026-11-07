@@ -34,7 +34,7 @@ const REGRA: Record<TipoAvisoOrientacao, { regra: string; acao: string }> = {
 
 const ABRE_ANALISE: ReadonlySet<TipoAvisoOrientacao> = new Set(['capacidade-semana', 'ausencia-12-dias', 'ausencia-mes']);
 
-/** Localizar leva ao início da janela; sem pauta para destacar, abre "Ver análise". */
+/** Sem pauta para destacar, Localizar abre "Ver análise". */
 export function abreAnaliseAoLocalizar(aviso: Pick<AvisoOrientacao, 'tipo' | 'postItIds' | 'contentIds'>): boolean {
   return ABRE_ANALISE.has(aviso.tipo) && aviso.postItIds.length === 0 && aviso.contentIds.length === 0;
 }
@@ -55,18 +55,17 @@ export function detalheDoAviso(aviso: AvisoOrientacao): { intervalo: string | nu
   return { intervalo, ...REGRA[aviso.tipo] };
 }
 
-/** Dia para levar o calendário até o aviso: o intervalo, senão o primeiro post-it ou conteúdo envolvido. */
+/** Dia para levar o calendário até a pauta. Sem pauta no quadro, cai no início do intervalo. */
 export function diaDoAviso(
   aviso: AvisoOrientacao,
   postIts: readonly PlanejamentoPostIt[],
   contents: readonly Content[],
 ): string | null {
-  if (aviso.intervalo) return aviso.intervalo.inicio;
   const datas = postIts.filter(postIt => aviso.postItIds.includes(postIt.id) && postIt.date).map(postIt => postIt.date as string);
   for (const content of contents) {
     if (!aviso.contentIds.includes(content.id)) continue;
     const data = content.publishDate?.slice(0, 10) ?? content.recordingDate?.slice(0, 10);
     if (data) datas.push(data);
   }
-  return datas.sort()[0] ?? null;
+  return datas.sort()[0] ?? aviso.intervalo?.inicio ?? null;
 }

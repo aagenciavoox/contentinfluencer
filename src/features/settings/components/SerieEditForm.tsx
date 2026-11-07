@@ -51,7 +51,7 @@ import {
 } from '../../editorial/lib/editorialOptions';
 import { lerFrequencia } from '../../editorial/lib/frequenciaSerie';
 import { FrequenciaChip } from '../../editorial/components/FrequenciaChip';
-import type { FrequenciaGravada } from '../../editorial/lib/metaDaOnda';
+import { complementoDoPeriodo, fraseDaFrequencia, OPCOES_UNIDADE, type FrequenciaGravada } from '../../editorial/lib/metaDaOnda';
 import { pilarPrincipalDaSerie } from '../../editorial/lib/pilarDaSerie';
 import { getSerieOpenItems, type SerieOpenItemKey } from '../../editorial/lib/serieCompleteness';
 import { pilarEfetivoDaSerie } from '../lib/serieAgrupamento';
@@ -62,11 +62,7 @@ import { QuadrosETemporadasSection } from './series-detail/QuadrosETemporadasSec
 
 const SERIE_DEFAULT_COR = '#6366f1';
 
-const UNIDADES_FREQUENCIA = [
-  { value: 'semana', label: 'Semana' },
-  { value: 'quinzena', label: 'A cada 14 dias' },
-  { value: 'mes', label: 'Mês' },
-] as const;
+const UNIDADES_FREQUENCIA = OPCOES_UNIDADE;
 
 const NOME_DO_TIPO: Record<SerieTipoAgrupamento, { artigo: string; exemplo: string }> = {
   familia: { artigo: 'a família', exemplo: 'Ex.: Descomplicando' },
@@ -90,18 +86,13 @@ function unirOrientacoesIniciais(motivoSalvar?: string | null, motivoEnviar?: st
 }
 
 function formatarFrequenciaRecomendada(vezes: number | null, unidade: string): string | null {
-  const u = unidade.trim().toLowerCase();
-  const qtd = vezes && vezes > 0 ? vezes : 1;
-  if (u === 'semana') return qtd === 1 ? 'Semanal' : `${qtd} por semana`;
-  if (u === 'quinzena') return qtd === 1 ? 'Quinzenal' : `${qtd} por quinzena`;
-  if (u === 'mes') return qtd === 1 ? 'Mensal' : `${qtd} por mês`;
-  return null;
+  return fraseDaFrequencia(vezes, unidade);
 }
 
 function formatarResumoMeta(vezes: number | null, unidade: string, aPartirDe: string): string {
   const qtd = vezes && vezes > 0 ? vezes : 1;
   const ep = qtd === 1 ? '1 episódio' : `${qtd} episódios`;
-  const periodo = unidade === 'quinzena' ? 'a cada 14 dias' : unidade === 'mes' ? 'por mês' : 'por semana';
+  const periodo = complementoDoPeriodo(unidade);
   let dataLabel = '';
   if (aPartirDe && /^\d{4}-\d{2}-\d{2}$/.test(aPartirDe)) {
     try {
@@ -871,7 +862,7 @@ export function SerieEditForm({
     <div className="stack-sm pt-1">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <div>
-          <FieldLabel>Quantidade</FieldLabel>
+          <FieldLabel required>Quantidade</FieldLabel>
           <input
             type="number"
             inputMode="numeric"
@@ -888,7 +879,7 @@ export function SerieEditForm({
           />
         </div>
         <div>
-          <FieldLabel>Período</FieldLabel>
+          <FieldLabel required>Período</FieldLabel>
           <SelectField
             block
             ariaLabel="Período"

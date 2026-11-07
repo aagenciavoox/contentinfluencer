@@ -52,7 +52,7 @@ export type MetaDaSerieNoEscopo = {
   platformId: string | null;
   formato: string | null;
   vezes: number;
-  unidade: 'semana' | 'quinzena' | 'mes';
+  unidade: 'semana' | 'quinzena' | 'mes' | 'bimestre' | 'trimestre' | 'semestre';
   aPartirDe: string | null;
 };
 

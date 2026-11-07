@@ -326,22 +326,21 @@ export async function persistAction({ action, userId, state, api }: PersistActio
 
     case 'ADD_SERIE':
     case 'UPDATE_SERIE':
+      // Uma etapa depois da outra. Metas e acompanhamentos gravam o novo antes de apagar o antigo,
+      // então uma falha no meio não deixa a série sem o que já estava salvo.
       await persistenceApi.saveSerie({ ...action.payload, userId });
-      await Promise.all([
-        action.payload.pilarIds
-          ? persistenceApi.saveSeriePilares(action.payload.id, action.payload.pilarIds)
-          : undefined,
-        action.payload.plataformas
-          ? persistenceApi.saveSeriePlataformas(action.payload.id, action.payload.plataformas)
-          : undefined,
-        // undefined = tabela nova ausente: nada a gravar além da coluna antiga.
-        action.payload.acompanhamentos
-          ? persistenceApi.saveSerieAcompanhamentos(action.payload.id, userId, action.payload.acompanhamentos)
-          : undefined,
-        action.payload.metasPorEscopo
-          ? persistenceApi.saveSerieMetas(action.payload.id, userId, action.payload.metasPorEscopo)
-          : undefined,
-      ]);
+      if (action.payload.pilarIds) {
+        await persistenceApi.saveSeriePilares(action.payload.id, action.payload.pilarIds);
+      }
+      if (action.payload.plataformas) {
+        await persistenceApi.saveSeriePlataformas(action.payload.id, action.payload.plataformas);
+      }
+      if (action.payload.acompanhamentos) {
+        await persistenceApi.saveSerieAcompanhamentos(action.payload.id, userId, action.payload.acompanhamentos);
+      }
+      if (action.payload.metasPorEscopo) {
+        await persistenceApi.saveSerieMetas(action.payload.id, userId, action.payload.metasPorEscopo);
+      }
       return;
 
     case 'DELETE_SERIE':

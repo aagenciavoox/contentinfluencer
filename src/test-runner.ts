@@ -97,6 +97,7 @@ await import('./features/editorial/lib/pausas.test.ts');
 await import('./features/editorial/lib/continuidadeEscopo.test.ts');
 await import('./features/editorial/lib/acompanhamento.test.ts');
 await import('./features/editorial/lib/metaDaOnda.test.ts');
+await import('./features/editorial/lib/errosDaMeta.test.ts');
 await import('./features/editorial/lib/frequenciaChip.test.ts');
 await import('./features/editorial/lib/concentracao.test.ts');
 await import('./features/editorial/lib/referenciaPublicacao.test.ts');

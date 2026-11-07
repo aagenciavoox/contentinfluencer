@@ -3,13 +3,17 @@ import {
   classeDiaPausaPublicacao,
   comClasseDiaPausaPublicacao,
   diasDePausaPublicacao,
+  celulasDaLinha,
+  colunasDaRegua,
   hrefEditorialDaWave,
   linhasDaRegua,
+  ordemDaRegua,
   marcaDaJanela,
   marcasDaLinha,
   resumoDaRegua,
   rotuloDaMarca,
   textoSeloSoNoPlano,
+  type MarcaRegua,
   vistaTemRoteiroNosPostIts,
   CLASSE_DIA_PAUSA_PUBLICACAO,
 } from './reguaFrequencia.ts';
@@ -137,6 +141,52 @@ assert.equal(vistaTemRoteiroNosPostIts([{ contentId: null }, { contentId: '' }])
 }
 
 assert.equal(rotuloDaMarca('buraco'), 'ainda em aberto');
+
+{
+  const marca = (inicio: string, fim: string, tipo: MarcaRegua['marca'] = 'buraco'): MarcaRegua => ({
+    inicio, fim, marca: tipo, meta: 1, quantidade: 0,
+  });
+  const base = {
+    serieId: 's',
+    temporadaId: null,
+    frequencia: '1 por semana',
+    seriePausada: false,
+    progressoTexto: null,
+    paiNome: null,
+  };
+  const colunas = colunasDaRegua([
+    { marcas: [marca('2026-10-05', '2026-10-11'), marca('2026-10-12', '2026-10-18')] },
+  ]);
+  assert.equal(colunas.length, 2);
+  assert.equal(colunas[0].inicio, '2026-10-05');
+  const semanas = celulasDaLinha([
+    marca('2026-10-05', '2026-10-11'),
+    marca('2026-10-12', '2026-10-18', 'atendida'),
+  ], colunas);
+  assert.equal(semanas.length, 2);
+  assert.equal(semanas[0].tipo, 'marca');
+  if (semanas[1].tipo === 'marca') assert.equal(semanas[1].ciclo, null);
+
+  const ciclo = celulasDaLinha([marca('2026-10-05', '2026-10-18', 'atendida')], colunas);
+  assert.equal(ciclo.length, 1);
+  if (ciclo[0].tipo === 'marca') {
+    assert.equal(ciclo[0].span, 2);
+    assert.equal(ciclo[0].ciclo, 1);
+  }
+
+  const ordem = ordemDaRegua([
+    { ...base, chave: 'q', nome: 'Seitas', tipo: 'quadro', paiNome: 'Ciência', marcas: [] },
+    { ...base, chave: 's', nome: 'Ciência', tipo: 'serie', marcas: [] },
+    { ...base, chave: 't', nome: 'Onda', tipo: 'temporada', serieId: 's', temporadaId: 't', marcas: [] },
+    { ...base, chave: 'o', nome: 'Solta', tipo: 'quadro', paiNome: 'Outra', marcas: [] },
+  ]);
+  assert.deepEqual(ordem.map(item => `${item.filha ? 'filha' : 'raiz'}:${item.linha.chave}`), [
+    'raiz:s',
+    'filha:q',
+    'filha:t',
+    'raiz:o',
+  ]);
+}
 assert.equal(hrefEditorialDaWave('w1'), '/editorial?aba=continuidade&editar=t%3Aw1');
 
 {

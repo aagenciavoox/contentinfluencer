@@ -2,7 +2,7 @@ import { useAppContext } from '../../../context/AppContext';
 import type { Serie } from '../../../lib/database';
 import { tipoDaSerie } from '../../settings/lib/serieAgrupamento';
 import { comFrequencia, frequenciaDoRascunho, textoDoChip, type RascunhoDaFrequencia } from '../lib/frequenciaChip';
-import type { FrequenciaGravada } from '../lib/metaDaOnda';
+import type { ErroDeFrequencia, FrequenciaGravada } from '../lib/metaDaOnda';
 
 /**
  * Store único da frequência da série: lê a série do estado e grava com UPDATE_SERIE
@@ -14,12 +14,16 @@ export function useFrequenciaDaSerie(serieId: string | null | undefined) {
   const tipo = serie ? tipoDaSerie(serie.id, state.series) : null;
   const editavel = Boolean(serie) && (tipo === 'serie' || tipo === 'quadro');
 
-  /** Devolve o erro de validação, ou a frequência gravada. */
-  const salvar = (rascunho: RascunhoDaFrequencia): { erro: string } | FrequenciaGravada => {
-    if (!serie || !editavel) return { erro: 'Esta série não tem meta de frequência.' };
+  /** Devolve o erro de validação, ou a frequência gravada. Só devolve depois que a gravação confirma. */
+  const salvar = async (rascunho: RascunhoDaFrequencia): Promise<ErroDeFrequencia | FrequenciaGravada> => {
+    if (!serie || !editavel) return { erro: 'Esta série não tem meta de frequência.', campo: 'quantidade' };
     const frequencia = frequenciaDoRascunho(rascunho, tipo === 'quadro' ? 'quadro' : 'serie');
     if ('erro' in frequencia) return frequencia;
-    void dispatch({ type: 'UPDATE_SERIE', payload: { ...comFrequencia(serie, frequencia), updatedAt: new Date().toISOString() } });
+    try {
+      await dispatch({ type: 'UPDATE_SERIE', payload: { ...comFrequencia(serie, frequencia), updatedAt: new Date().toISOString() } });
+    } catch {
+      return { erro: 'A meta não foi salva. O que você digitou continua aqui.', campo: 'quantidade' };
+    }
     return frequencia;
   };
 

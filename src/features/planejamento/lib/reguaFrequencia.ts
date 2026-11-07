@@ -1,5 +1,6 @@
 import type { IntervaloAvaliado, LinhaContinuidade, Continuidade } from './saudeIndicadores.ts';
 import { diasDePausa, type PausaEditorial } from '../../editorial/lib/pausas.ts';
+import { semanasNoIntervalo } from '../../editorial/lib/periodoEditorial.ts';
 
 /** Estado visual de uma janela na régua (mesma regra da Saúde). */
 export type MarcaDaJanela = 'atendida' | 'reservada' | 'buraco' | 'pausada';
@@ -181,4 +182,108 @@ export function hrefEditorialDaWave(temporadaId: string): string {
 /** Link canônico para editar série/quadro no Editorial. */
 export function hrefEditorialDaSerie(serieId: string): string {
   return `/editorial?aba=continuidade&editar=${encodeURIComponent(`s:${serieId}`)}`;
+}
+
+export type ColunaDaRegua = { inicio: string; fim: string };
+
+/** Semanas segunda–domingo cobertas pelas marcas visíveis, na ordem do período. */
+export function colunasDaRegua(linhas: readonly Pick<LinhaDaRegua, 'marcas'>[]): ColunaDaRegua[] {
+  let inicio: string | null = null;
+  let fim: string | null = null;
+  for (const linha of linhas) {
+    for (const marca of linha.marcas) {
+      if (inicio === null || marca.inicio < inicio) inicio = marca.inicio;
+      if (fim === null || marca.fim > fim) fim = marca.fim;
+    }
+  }
+  if (inicio === null || fim === null) return [];
+  return semanasNoIntervalo(inicio, fim).map(semana => ({
+    inicio: semana.inicio,
+    fim: semana.fim,
+  }));
+}
+
+export type CelulaDaRegua =
+  | { tipo: 'vazia'; coluna: number }
+  | { tipo: 'marca'; coluna: number; span: number; marca: MarcaRegua; ciclo: number | null };
+
+function diasInclusivos(inicio: string, fim: string): number {
+  const a = Date.parse(`${inicio}T00:00:00Z`);
+  const b = Date.parse(`${fim}T00:00:00Z`);
+  if (Number.isNaN(a) || Number.isNaN(b)) return 0;
+  return Math.round((b - a) / 86_400_000) + 1;
+}
+
+/**
+ * Encaixa cada marca na semana que ela atravessa.
+ * Meta de 14 dias vira "Ciclo N" e ocupa as colunas que o ciclo cobre.
+ */
+export function celulasDaLinha(
+  marcas: readonly MarcaRegua[],
+  colunas: readonly ColunaDaRegua[],
+): CelulaDaRegua[] {
+  const blocos: Array<Extract<CelulaDaRegua, { tipo: 'marca' }>> = [];
+  let ciclo = 0;
+  for (const marca of marcas) {
+    const indices = colunas
+      .map((coluna, indice) => (marca.inicio <= coluna.fim && marca.fim >= coluna.inicio ? indice : -1))
+      .filter(indice => indice >= 0);
+    if (indices.length === 0) continue;
+    const coluna = indices[0];
+    const span = indices[indices.length - 1] - coluna + 1;
+    const dias = diasInclusivos(marca.inicio, marca.fim);
+    const eCiclo = dias >= 12 && dias <= 16;
+    if (eCiclo) ciclo += 1;
+    blocos.push({ tipo: 'marca', coluna, span, marca, ciclo: eCiclo ? ciclo : null });
+  }
+
+  const celulas: CelulaDaRegua[] = [];
+  let indice = 0;
+  while (indice < colunas.length) {
+    const bloco = blocos.find(item => item.coluna === indice);
+    if (bloco) {
+      celulas.push(bloco);
+      indice += bloco.span;
+      continue;
+    }
+    const coberta = blocos.some(item => indice > item.coluna && indice < item.coluna + item.span);
+    if (!coberta) celulas.push({ tipo: 'vazia', coluna: indice });
+    indice += 1;
+  }
+  return celulas;
+}
+
+export type LinhaNaRegua = { linha: LinhaDaRegua; filha: boolean };
+
+/** Quadro e wave ficam logo abaixo da série pai, recuados. O resto mantém a ordem. */
+export function ordemDaRegua(linhas: readonly LinhaDaRegua[]): LinhaNaRegua[] {
+  const serieIds = new Set(linhas.filter(linha => linha.tipo === 'serie').map(linha => linha.serieId));
+  const nomeParaId = new Map(
+    linhas.filter(linha => linha.tipo === 'serie').map(linha => [linha.nome, linha.serieId]),
+  );
+  const filhos = new Map<string, LinhaDaRegua[]>();
+  const soltas: LinhaDaRegua[] = [];
+
+  for (const linha of linhas) {
+    if (linha.tipo === 'serie') continue;
+    const paiId = linha.tipo === 'temporada'
+      ? (serieIds.has(linha.serieId) ? linha.serieId : null)
+      : (nomeParaId.get(linha.paiNome ?? '') ?? null);
+    if (!paiId) {
+      soltas.push(linha);
+      continue;
+    }
+    const lista = filhos.get(paiId) ?? [];
+    lista.push(linha);
+    filhos.set(paiId, lista);
+  }
+
+  const saida: LinhaNaRegua[] = [];
+  for (const linha of linhas) {
+    if (linha.tipo !== 'serie') continue;
+    saida.push({ linha, filha: false });
+    for (const filha of filhos.get(linha.serieId) ?? []) saida.push({ linha: filha, filha: true });
+  }
+  for (const linha of soltas) saida.push({ linha, filha: false });
+  return saida;
 }

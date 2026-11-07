@@ -580,6 +580,18 @@ select:focus,
   box-shadow: var(--shadow-focus);
 }
 
+input[aria-invalid="true"]:not(.filter-bar-search-input):not(.input-plain):not([type="search"]),
+textarea[aria-invalid="true"],
+select[aria-invalid="true"],
+input[aria-invalid="true"]:hover:not(.filter-bar-search-input):not(.input-plain):not([type="search"]),
+textarea[aria-invalid="true"]:hover,
+select[aria-invalid="true"]:hover,
+input[aria-invalid="true"]:focus:not(.filter-bar-search-input):not(.input-plain):not([type="search"]),
+textarea[aria-invalid="true"]:focus,
+select[aria-invalid="true"]:focus {
+  border-color: var(--danger);
+}
+
 /* Opções do select nativo: o select costuma ter fundo transparente, e a lista aberta caía
    no branco do sistema com o texto claro do tema escuro. */
 select option,
@@ -697,6 +709,16 @@ input.caption-locked:focus {
   font-weight: 400;
   line-height: 1.45;
   color: var(--text-secondary);
+}
+
+/* A cor do .t-meta ganha da utilidade do Tailwind; o aviso de erro precisa desta classe. */
+.t-meta.texto-erro {
+  color: var(--danger);
+}
+
+/* A cor do .t-meta também ganha de `text-inherit`. No selo colorido, o texto segue o ícone. */
+.t-meta.texto-herda {
+  color: inherit;
 }
 
 .t-body {
@@ -2944,6 +2966,7 @@ html.mobile-app-shell .segment-tabs--full .segment-tabs-item-active {
 
 /* ── Cards do Planejamento ───────────────────────────────────────────────
    Conteúdo e reserva: a cor é só a do pilar. Sem pilar, o papel fica branco.
+   Publicado (já no calendário): papel cinza. A cor do pilar fica na faixa esquerda e no ponto.
    Reserva (post-it sem conteúdo): quadrada, com a ponta inferior direita dobrada. */
 .planner-card {
   --card-accent: var(--border-subtle);
@@ -2955,7 +2978,7 @@ html.mobile-app-shell .segment-tabs--full .segment-tabs-item-active {
 
 .planner-card--pilar {
   border-color: color-mix(in srgb, var(--card-accent) 85%, var(--border-subtle));
-  background: color-mix(in srgb, var(--card-accent) 10%, var(--bg-elevated));
+  background: color-mix(in srgb, var(--card-accent) 22%, var(--bg-elevated));
 }
 
 .planner-card:hover {
@@ -2964,6 +2987,19 @@ html.mobile-app-shell .segment-tabs--full .segment-tabs-item-active {
 
 .planner-card--pilar:hover {
   border-color: var(--card-accent);
+}
+
+/* Já foi ao ar e está no calendário: o papel sai da cor do pilar para não parecer pauta em aberto. */
+.planner-card--publicado {
+  background: color-mix(in srgb, var(--status-archived) 14%, var(--bg-elevated));
+  border-color: color-mix(in srgb, var(--status-archived) 50%, var(--border-color));
+  border-left-width: 3px;
+  border-left-color: var(--card-accent, var(--status-archived));
+}
+
+.planner-card--publicado:hover {
+  border-color: color-mix(in srgb, var(--status-archived) 70%, var(--border-strong));
+  border-left-color: var(--card-accent, var(--status-archived));
 }
 
 .planner-card:focus-visible {

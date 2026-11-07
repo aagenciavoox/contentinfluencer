@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Activity, Plus, Trash2 } from 'lucide-react';
+import { Activity, AlertCircle, Plus, Trash2 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { Dialog } from '../../../../components/overlays/Dialog';
 import { OverlayFooter } from '../../../../components/overlays/OverlayFooter';
@@ -22,12 +22,12 @@ import {
   acompanhamentoGeral,
   acompanhamentosPorEscopo,
   acompanhaNoGeral,
-  chaveDoEscopo,
   comAcompanhamentoGeral,
   metaDoEscopo,
   novoAcompanhamento,
 } from '../../lib/acompanhamento';
 import type { AcompanhamentoSerie, MetaDaSerieNoEscopo } from '../../lib/continuidadeEscopo';
+import { errosDaMeta, idDaJanela, idDoEscopo, ID_META, type ErroDaMeta } from '../../lib/errosDaMeta';
 import { frequenciaParaGravar, unidadeDaMeta, type UnidadeDaMeta } from '../../lib/metaDaOnda';
 import { FORMATOS_DA_REDE, rotuloDoFormato } from '../../lib/publicacoes';
 import { CAMPO } from './campos';
@@ -68,23 +68,42 @@ function linhasDaSerie(serie: Serie): Linha[] {
   });
 }
 
+function TextoErro({ id, children }: { id: string; children: string }) {
+  return <Text id={id} variant="meta" as="span" className="texto-erro">{children}</Text>;
+}
+
 function RegrasDoAcompanhamento({
   item,
   onChange,
+  idPrefix,
+  erroTermino,
 }: {
   item: Pick<AcompanhamentoSerie, 'inicio' | 'termino' | 'distanciaMaxDias' | 'evitarDiasSeguidos'>;
   onChange: (patch: Partial<AcompanhamentoSerie>) => void;
+  idPrefix: string;
+  erroTermino?: string;
 }) {
+  const terminoId = idDaJanela(idPrefix, 'termino');
   return (
     <>
       <div className="grid-form">
-        <label className="flex flex-col gap-1">
+        <label className="flex flex-col gap-1" htmlFor={idDaJanela(idPrefix, 'inicio')}>
           <Text variant="meta" as="span">Início do acompanhamento (opcional)</Text>
-          <input type="date" className={CAMPO} value={item.inicio ?? ''} onChange={event => onChange({ inicio: event.target.value || null })} />
+          <input id={idDaJanela(idPrefix, 'inicio')} type="date" className={CAMPO} value={item.inicio ?? ''} onChange={event => onChange({ inicio: event.target.value || null })} />
         </label>
-        <label className="flex flex-col gap-1">
+        <label className="flex flex-col gap-1" htmlFor={terminoId}>
           <Text variant="meta" as="span">Término (opcional)</Text>
-          <input type="date" className={CAMPO} value={item.termino ?? ''} onChange={event => onChange({ termino: event.target.value || null })} />
+          <input
+            id={terminoId}
+            type="date"
+            aria-invalid={erroTermino ? true : undefined}
+            aria-describedby={erroTermino ? `${terminoId}-erro` : undefined}
+            className={CAMPO}
+            style={erroTermino ? { borderColor: 'var(--danger)' } : undefined}
+            value={item.termino ?? ''}
+            onChange={event => onChange({ termino: event.target.value || null })}
+          />
+          {erroTermino ? <TextoErro id={`${terminoId}-erro`}>{erroTermino}</TextoErro> : null}
         </label>
         <label className="flex flex-col gap-1">
           <Text variant="meta" as="span">Distância máxima sem episódio (dias)</Text>
@@ -126,7 +145,8 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
   const [ritmoProprio, setRitmoProprio] = useState(alvo.tipo === 'temporada' ? ritmoProprioMarcado(alvo.temporada) : true);
   const [geral, setGeral] = useState<AcompanhamentoSerie | null>(alvo.tipo === 'temporada' ? null : acompanhamentoGeral(alvo.serie));
   const [linhas, setLinhas] = useState<Linha[]>(alvo.tipo === 'temporada' ? [] : linhasDaSerie(alvo.serie));
-  const [erro, setErro] = useState<string | null>(null);
+  const [erros, setErros] = useState<ErroDaMeta[]>([]);
+  const [gravando, setGravando] = useState(false);
   const [regrasDaOnda, setRegrasDaOnda] = useState(() => ({
     inicio: alvo.tipo === 'temporada' ? alvo.temporada.acompanhamentoInicio ?? null : null,
     termino: alvo.tipo === 'temporada' ? alvo.temporada.acompanhamentoTermino ?? null : null,
@@ -142,7 +162,33 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
     setLinhas(prev => [...prev, { ...criada, metaVezes: '', metaUnidade: 'semana', metaAPartirDe: '' }]);
   };
 
-  const salvar = () => {
+  const mensagem = (id: string) => erros.find(item => item.id === id)?.mensagem;
+  const temAsterisco = vezes.trim() !== ''
+    || linhas.some(linha => linha.escopo === 'conta' || (linha.metaVezes !== '' && linha.metaUnidade === 'quinzena'));
+
+  const salvar = async () => {
+    if (gravando) return;
+    const lista = errosDaMeta({
+      vezes,
+      unidade,
+      inicio,
+      tipo: alvo.tipo,
+      janelaOnda: alvo.tipo === 'temporada' ? regrasDaOnda : null,
+      janelaGeral: comEscopos ? geral : null,
+      comEscopos,
+      linhas: linhas.flatMap(linha => (
+        linha.escopo === 'conta' || linha.escopo === 'formato'
+          ? [{ ...linha, escopo: linha.escopo, rotulo: rotuloDoEscopo(linha, contas) }]
+          : []
+      )),
+    });
+    if (lista.length > 0) {
+      setErros(lista);
+      window.setTimeout(() => document.getElementById(lista[0].id)?.focus(), 0);
+      return;
+    }
+    setErros([]);
+
     const vezesNumero = vezes.trim() ? Number.parseInt(vezes, 10) : null;
     const frequencia = frequenciaParaGravar({
       vezes: vezesNumero,
@@ -150,45 +196,29 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
       aPartirDe: inicio,
       tipo: alvo.tipo,
     });
-    if ('erro' in frequencia) { setErro(frequencia.erro); return; }
+    if ('erro' in frequencia) return;
 
-    if (alvo.tipo === 'temporada') {
-      if (regrasDaOnda.inicio && regrasDaOnda.termino && regrasDaOnda.inicio > regrasDaOnda.termino) {
-        setErro('O término vem antes do início.');
+    setGravando(true);
+    try {
+      if (alvo.tipo === 'temporada') {
+        await dispatch({
+          type: 'UPDATE_TEMPORADA',
+          payload: {
+            ...alvo.temporada,
+            acompanhar,
+            ritmoProprio,
+            frequenciaVezes: frequencia.vezes,
+            frequenciaUnidade: frequencia.unidade,
+            frequenciaAPartirDe: frequencia.aPartirDe,
+            acompanhamentoInicio: regrasDaOnda.inicio,
+            acompanhamentoTermino: regrasDaOnda.termino,
+            distanciaMaxDias: regrasDaOnda.distanciaMaxDias,
+            evitarDiasSeguidos: regrasDaOnda.evitarDiasSeguidos,
+          },
+        });
+        onClose();
         return;
       }
-      void dispatch({
-        type: 'UPDATE_TEMPORADA',
-        payload: {
-          ...alvo.temporada,
-          acompanhar,
-          ritmoProprio,
-          frequenciaVezes: frequencia.vezes,
-          frequenciaUnidade: frequencia.unidade,
-          frequenciaAPartirDe: frequencia.aPartirDe,
-          acompanhamentoInicio: regrasDaOnda.inicio,
-          acompanhamentoTermino: regrasDaOnda.termino,
-          distanciaMaxDias: regrasDaOnda.distanciaMaxDias,
-          evitarDiasSeguidos: regrasDaOnda.evitarDiasSeguidos,
-        },
-      });
-      onClose();
-      return;
-    }
-
-    if (comEscopos) {
-      const chaves = linhas.map(chaveDoEscopo);
-      if (new Set(chaves).size !== chaves.length) { setErro('Há dois acompanhamentos no mesmo escopo. Deixe só um.'); return; }
-      if (linhas.some(linha => linha.escopo === 'conta' && !linha.platformId)) { setErro('Escolha a conta.'); return; }
-      if ([...linhas, ...(geral ? [geral] : [])].some(linha => linha.inicio && linha.termino && linha.inicio > linha.termino)) {
-        setErro('O término vem antes do início.');
-        return;
-      }
-      if (linhas.some(linha => linha.metaVezes && linha.metaUnidade === 'quinzena' && !linha.metaAPartirDe)) {
-        setErro('Meta a cada 14 dias precisa da data de início dos ciclos.');
-        return;
-      }
-    }
 
     const comGeral = comAcompanhamentoGeral(alvo.serie, acompanhar, generateUUID);
     const gerais = (comGeral.acompanhamentos ?? []).filter(item => item.escopo === 'geral').map(item => (
@@ -229,21 +259,26 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
       })
       : alvo.serie.metasPorEscopo;
 
-    void dispatch({
-      type: 'UPDATE_SERIE',
-      payload: {
-        ...alvo.serie,
-        ...comGeral,
-        frequenciaVezes: frequencia.vezes,
-        frequenciaUnidade: frequencia.unidade,
-        frequenciaAPartirDe: frequencia.aPartirDe,
-        frequenciaRecomendada: frequencia.recomendada,
-        acompanhamentos,
-        metasPorEscopo: metas,
-        updatedAt: new Date().toISOString(),
-      },
-    });
-    onClose();
+      await dispatch({
+        type: 'UPDATE_SERIE',
+        payload: {
+          ...alvo.serie,
+          ...comGeral,
+          frequenciaVezes: frequencia.vezes,
+          frequenciaUnidade: frequencia.unidade,
+          frequenciaAPartirDe: frequencia.aPartirDe,
+          frequenciaRecomendada: frequencia.recomendada,
+          acompanhamentos,
+          metasPorEscopo: metas,
+          updatedAt: new Date().toISOString(),
+        },
+      });
+      onClose();
+    } catch {
+      // O aviso de erro já saiu. O diálogo fica aberto com o que foi digitado.
+    } finally {
+      setGravando(false);
+    }
   };
 
   const opcoesConta = contas.map(conta => ({ value: conta.id, label: rotuloConta(conta) }));
@@ -255,9 +290,22 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
       : 'Série inteira. Quadros com meta própria e temporadas com ritmo próprio contam à parte.';
 
   return (
-    <Dialog open onClose={onClose} desktopMaxW="md:max-w-3xl" ariaLabel={`Meta de ${titulo}`}>
-      <OverlayHeader title={titulo} subtitle={subtitulo} onClose={onClose} />
+    <Dialog open onClose={gravando ? () => undefined : onClose} desktopMaxW="md:max-w-3xl" ariaLabel={`Meta de ${titulo}`}>
+      <OverlayHeader title={titulo} subtitle={subtitulo} onClose={gravando ? () => undefined : onClose} />
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4 stack-md">
+        {erros.length > 0 ? (
+          <div id="meta-erros" role="alert" className="rounded-[var(--radius-card)] border border-[var(--danger)] bg-[var(--bg-elevated)] px-4 py-3 stack-xs">
+            <p className="t-body-strong flex items-center gap-2" style={{ color: 'var(--danger)' }}>
+              <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
+              Falta preencher para salvar
+            </p>
+            <div className="stack-xs">
+              {erros.map((item, index) => (
+                <Text key={`${item.id}-${index}`} variant="meta" as="p" className="texto-erro">{item.mensagem}</Text>
+              ))}
+            </div>
+          </div>
+        ) : null}
         <label className="flex w-fit items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
@@ -273,7 +321,25 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
           />
           <Text variant="body" as="span">Acompanhar na Saúde</Text>
         </label>
-        <CamposDaMeta vezes={vezes} unidade={unidade} inicio={inicio} onVezes={setVezes} onUnidade={setUnidade} onInicio={setInicio} />
+        <CamposDaMeta
+          idPrefix="meta-geral"
+          vezes={vezes}
+          unidade={unidade}
+          inicio={inicio}
+          onVezes={setVezes}
+          onUnidade={setUnidade}
+          onInicio={setInicio}
+          erros={{
+            quantidade: mensagem(ID_META.quantidade),
+            periodo: mensagem(ID_META.periodo),
+            inicio: mensagem(ID_META.inicio),
+          }}
+        />
+        {temAsterisco ? (
+          <Text variant="meta" as="p">
+            <span className="text-[var(--brand-accent-text)]">*</span> Campo obrigatório
+          </Text>
+        ) : null}
         {alvo.tipo === 'temporada' && vezes.trim() ? (
           <label className="flex w-fit items-center gap-2 cursor-pointer">
             <input
@@ -294,7 +360,12 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
             <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
               Antes do início não há aviso. Depois do término, sai da conferência.
             </Text>
-            <RegrasDoAcompanhamento item={regrasDaOnda} onChange={patch => setRegrasDaOnda(atual => ({ ...atual, ...patch }))} />
+            <RegrasDoAcompanhamento
+              idPrefix="onda"
+              erroTermino={mensagem(idDaJanela('onda', 'termino'))}
+              item={regrasDaOnda}
+              onChange={patch => setRegrasDaOnda(atual => ({ ...atual, ...patch }))}
+            />
           </div>
         ) : null}
         {comEscopos && geral ? (
@@ -303,7 +374,12 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
             <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
               Antes do início não há aviso. Depois do término, sai da conferência.
             </Text>
-            <RegrasDoAcompanhamento item={geral} onChange={patch => setGeral(atual => (atual ? { ...atual, ...patch } : atual))} />
+            <RegrasDoAcompanhamento
+              idPrefix="geral"
+              erroTermino={mensagem(idDaJanela('geral', 'termino'))}
+              item={geral}
+              onChange={patch => setGeral(atual => (atual ? { ...atual, ...patch } : atual))}
+            />
           </div>
         ) : null}
         {comEscopos ? (
@@ -323,34 +399,61 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
                 </div>
                 <div className="grid-form">
                   {linha.escopo === 'formato' ? (
-                    <SelectField
-                      block
-                      ariaLabel="Formato"
-                      value={linha.formato ?? ''}
-                      onChange={formato => mudar(linha.id, { formato })}
-                      options={FORMATOS.map(formato => ({ value: formato, label: rotuloDoFormato(formato) }))}
-                    />
+                    <label className="flex flex-col gap-1" htmlFor={idDoEscopo(linha.id, 'formato')}>
+                      <Text variant="meta" as="span">Formato</Text>
+                      <SelectField
+                        id={idDoEscopo(linha.id, 'formato')}
+                        block
+                        ariaLabel="Formato"
+                        describedBy={mensagem(idDoEscopo(linha.id, 'formato')) ? `${idDoEscopo(linha.id, 'formato')}-erro` : undefined}
+                        className={mensagem(idDoEscopo(linha.id, 'formato')) ? 'border-[var(--danger)]' : undefined}
+                        value={linha.formato ?? ''}
+                        onChange={formato => mudar(linha.id, { formato })}
+                        options={FORMATOS.map(formato => ({ value: formato, label: rotuloDoFormato(formato) }))}
+                      />
+                      {mensagem(idDoEscopo(linha.id, 'formato')) ? <TextoErro id={`${idDoEscopo(linha.id, 'formato')}-erro`}>{mensagem(idDoEscopo(linha.id, 'formato'))!}</TextoErro> : null}
+                    </label>
                   ) : null}
-                  <SelectField
-                    block
-                    ariaLabel="Conta"
-                    value={linha.platformId ?? ''}
-                    onChange={platformId => mudar(linha.id, { platformId: platformId || null })}
-                    options={linha.escopo === 'formato' ? [{ value: '', label: 'Todas as contas' }, ...opcoesConta] : opcoesConta}
-                  />
+                  <label className="flex flex-col gap-1" htmlFor={idDoEscopo(linha.id, 'conta')}>
+                    <Text variant="meta" as="span">
+                      Conta
+                      {linha.escopo === 'conta' ? <span className="text-[var(--brand-accent-text)]"> *</span> : null}
+                    </Text>
+                    <SelectField
+                      id={idDoEscopo(linha.id, 'conta')}
+                      block
+                      ariaLabel="Conta"
+                      describedBy={mensagem(idDoEscopo(linha.id, 'conta')) ? `${idDoEscopo(linha.id, 'conta')}-erro` : undefined}
+                      className={mensagem(idDoEscopo(linha.id, 'conta')) ? 'border-[var(--danger)]' : undefined}
+                      value={linha.platformId ?? ''}
+                      onChange={platformId => mudar(linha.id, { platformId: platformId || null })}
+                      options={linha.escopo === 'formato' ? [{ value: '', label: 'Todas as contas' }, ...opcoesConta] : opcoesConta}
+                    />
+                    {mensagem(idDoEscopo(linha.id, 'conta')) ? <TextoErro id={`${idDoEscopo(linha.id, 'conta')}-erro`}>{mensagem(idDoEscopo(linha.id, 'conta'))!}</TextoErro> : null}
+                  </label>
                 </div>
-                <RegrasDoAcompanhamento item={linha} onChange={patch => mudar(linha.id, patch)} />
+                <RegrasDoAcompanhamento
+                  idPrefix={`escopo-${linha.id}`}
+                  erroTermino={mensagem(idDoEscopo(linha.id, 'termino'))}
+                  item={linha}
+                  onChange={patch => mudar(linha.id, patch)}
+                />
                 <div className="grid-form">
-                  <label className="flex flex-col gap-1">
+                  <label className="flex flex-col gap-1" htmlFor={idDoEscopo(linha.id, 'meta-vezes')}>
                     <Text variant="meta" as="span">Meta neste escopo (vazio = meta geral)</Text>
                     <input
+                      id={idDoEscopo(linha.id, 'meta-vezes')}
                       type="text"
                       inputMode="numeric"
                       aria-label="Meta neste escopo"
+                      aria-invalid={mensagem(idDoEscopo(linha.id, 'meta-vezes')) ? true : undefined}
+                      aria-describedby={mensagem(idDoEscopo(linha.id, 'meta-vezes')) ? `${idDoEscopo(linha.id, 'meta-vezes')}-erro` : undefined}
                       className={CAMPO}
+                      style={mensagem(idDoEscopo(linha.id, 'meta-vezes')) ? { borderColor: 'var(--danger)' } : undefined}
                       value={linha.metaVezes}
                       onChange={event => mudar(linha.id, { metaVezes: event.target.value.replace(/\D/g, '').slice(0, 2) })}
                     />
+                    {mensagem(idDoEscopo(linha.id, 'meta-vezes')) ? <TextoErro id={`${idDoEscopo(linha.id, 'meta-vezes')}-erro`}>{mensagem(idDoEscopo(linha.id, 'meta-vezes'))!}</TextoErro> : null}
                   </label>
                   <SelectField
                     block
@@ -359,9 +462,23 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
                     onChange={valor => mudar(linha.id, { metaUnidade: unidadeDaMeta(valor) })}
                     options={UNIDADES}
                   />
-                  <label className="flex flex-col gap-1">
-                    <Text variant="meta" as="span">Meta a partir de</Text>
-                    <input type="date" aria-label="Meta a partir de" className={CAMPO} value={linha.metaAPartirDe} onChange={event => mudar(linha.id, { metaAPartirDe: event.target.value })} />
+                  <label className="flex flex-col gap-1" htmlFor={idDoEscopo(linha.id, 'meta-inicio')}>
+                    <Text variant="meta" as="span">
+                      Meta a partir de
+                      {linha.metaVezes !== '' && linha.metaUnidade === 'quinzena' ? <span className="text-[var(--brand-accent-text)]"> *</span> : null}
+                    </Text>
+                    <input
+                      id={idDoEscopo(linha.id, 'meta-inicio')}
+                      type="date"
+                      aria-label="Meta a partir de"
+                      aria-invalid={mensagem(idDoEscopo(linha.id, 'meta-inicio')) ? true : undefined}
+                      aria-describedby={mensagem(idDoEscopo(linha.id, 'meta-inicio')) ? `${idDoEscopo(linha.id, 'meta-inicio')}-erro` : undefined}
+                      className={CAMPO}
+                      style={mensagem(idDoEscopo(linha.id, 'meta-inicio')) ? { borderColor: 'var(--danger)' } : undefined}
+                      value={linha.metaAPartirDe}
+                      onChange={event => mudar(linha.id, { metaAPartirDe: event.target.value })}
+                    />
+                    {mensagem(idDoEscopo(linha.id, 'meta-inicio')) ? <TextoErro id={`${idDoEscopo(linha.id, 'meta-inicio')}-erro`}>{mensagem(idDoEscopo(linha.id, 'meta-inicio'))!}</TextoErro> : null}
                   </label>
                 </div>
                 <label className="flex w-fit items-center gap-2 cursor-pointer">
@@ -376,11 +493,12 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
             </div>
           </div>
         ) : null}
-        {erro ? <Text variant="meta" as="p" className="text-[var(--accent-red)]">{erro}</Text> : null}
       </div>
       <OverlayFooter className="justify-between">
-        <AppButton variant="secondary" onClick={onClose}>Cancelar</AppButton>
-        <AppButton variant="primary" onClick={salvar}>Salvar</AppButton>
+        <AppButton variant="secondary" onClick={onClose} disabled={gravando}>Cancelar</AppButton>
+        <AppButton variant="primary" onClick={() => void salvar()} disabled={gravando}>
+          {gravando ? 'Salvando…' : 'Salvar'}
+        </AppButton>
       </OverlayFooter>
     </Dialog>
   );

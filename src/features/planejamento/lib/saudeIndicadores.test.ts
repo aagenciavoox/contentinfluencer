@@ -135,6 +135,15 @@ assert.equal(situacaoDaFrequencia(serie({ id: 'x', frequenciaRecomendada: 'Sob d
   const semAncora = situacaoDaFrequencia(serie({ id: 'q2', frequenciaVezes: 1, frequenciaUnidade: 'quinzena' }));
   // Sem data de início não há âncora: a avaliação fica suspensa, sem ciclo inventado pelo período.
   assert.equal(semAncora.tipo, 'sem-ancora');
+  const trimestral = situacaoDaFrequencia(serie({ id: 'tri', frequenciaVezes: 1, frequenciaUnidade: 'trimestre' }));
+  assert.equal(trimestral.tipo, 'definida');
+  if (trimestral.tipo === 'definida') {
+    assert.deepEqual(intervalosDaFrequencia(trimestral.freq, PERIODO), [{ inicio: '2026-10-01', fim: '2026-12-31' }]);
+  }
+  const bimestral = situacaoDaFrequencia(serie({ id: 'bi', frequenciaVezes: 1, frequenciaUnidade: 'bimestre' }));
+  if (bimestral.tipo === 'definida') {
+    assert.deepEqual(intervalosDaFrequencia(bimestral.freq, PERIODO).map(item => item.inicio), ['2026-09-01', '2026-11-01']);
+  }
 }
 
 // --- Início da meta no futuro: não avaliada, não conta como abaixo.
@@ -192,7 +201,7 @@ assert.equal(situacaoDaFrequencia(serie({ id: 'x', frequenciaRecomendada: 'Sob d
 }
 
 // --- Janela de busca cobre as pontas inteiras.
-assert.deepEqual(janelaDaContinuidade(PERIODO), { inicio: '2026-09-20', fim: '2027-01-12' });
+assert.deepEqual(janelaDaContinuidade(PERIODO), { inicio: '2026-07-01', fim: '2027-01-12' });
 
 // --- Só quem foi marcado entra: nem pendência aparece para as outras.
 {

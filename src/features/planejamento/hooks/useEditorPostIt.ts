@@ -62,16 +62,20 @@ export function useEditorPostIt(args: {
 
   const fecharRapido = () => setRapidoDate(undefined);
 
-  const criarDoRapido = (draft: PostItEdit): PlanejamentoPostIt => {
+  const criarDoRapido = async (draft: PostItEdit): Promise<PlanejamentoPostIt> => {
     const postIt = savePostItEdit(createEmptyPostIt({date: rapidoDate ?? null}), draft);
-    dispatch({type: 'ADD_POST_IT', payload: postIt});
+    await dispatch({type: 'ADD_POST_IT', payload: postIt});
     return postIt;
   };
 
-  const salvarRapido = (draft: PostItEdit) => {
-    const postIt = criarDoRapido(draft);
-    fecharRapido();
-    if (postIt.date) setMonth(new Date(`${postIt.date}T12:00:00`));
+  const salvarRapido = async (draft: PostItEdit) => {
+    try {
+      const postIt = await criarDoRapido(draft);
+      fecharRapido();
+      if (postIt.date) setMonth(new Date(`${postIt.date}T12:00:00`));
+    } catch {
+      // O aviso de erro já saiu. O diálogo rápido continua aberto.
+    }
   };
 
   /** Abre o post-it já no editor completo ("Mais opções" do rápido, "Editar reserva" do cartão). */
@@ -88,10 +92,14 @@ export function useEditorPostIt(args: {
     setOpenId(postIt.id);
   };
 
-  const maisOpcoesDoRapido = (draft: PostItEdit) => {
-    const postIt = criarDoRapido(draft);
-    fecharRapido();
-    abrirEmEdicao(postIt);
+  const maisOpcoesDoRapido = async (draft: PostItEdit) => {
+    try {
+      const postIt = await criarDoRapido(draft);
+      fecharRapido();
+      abrirEmEdicao(postIt);
+    } catch {
+      // O aviso de erro já saiu. O diálogo rápido continua aberto.
+    }
   };
 
   /** Fecha o post-it. Em edição, descarta o rascunho: Esc, fundo, "X" e Cancelar fecham tudo. */
@@ -120,13 +128,13 @@ export function useEditorPostIt(args: {
       date: saved.date !== openPostIt.date ? saved.date : null,
       postItIds: [saved.id], contentIds: saved.contentId ? [saved.contentId] : [],
       depois: {postIts: postIts.map(item => item.id === saved.id ? saved : item), contents},
-    }, () => {
-      const gravacao = postItMudou(openPostIt, saved)
-        ? dispatch({type: 'UPDATE_POST_IT', payload: saved}) : Promise.resolve();
+    }, async () => {
+      if (postItMudou(openPostIt, saved)) {
+        await dispatch({type: 'UPDATE_POST_IT', payload: saved});
+      }
       setNoteDraft(saved.texto);
       setDateDraft(saved.date);
       setEditing(false);
-      return gravacao;
     });
   };
   /** Vai direto à página do roteiro (duplo clique, "Abrir roteiro" do menu e da pré-visualização). */
@@ -146,20 +154,24 @@ export function useEditorPostIt(args: {
     });
     if (!result.ok) return;
     void (async () => {
-      await dispatch({
-        type: result.mode === 'create' ? 'ADD_CONTENT' : 'UPDATE_CONTENT',
-        payload: result.content,
-      });
-      await dispatch({type: 'UPDATE_POST_IT', payload: result.postIt});
+      try {
+        await dispatch({
+          type: result.mode === 'create' ? 'ADD_CONTENT' : 'UPDATE_CONTENT',
+          payload: result.content,
+        });
+        await dispatch({type: 'UPDATE_POST_IT', payload: result.postIt});
+      } catch {
+        return;
+      }
+      if (openPostIt?.id === alvo.id) setOpenId(null);
+      setPreview(null);
+      if (result.openScript) {
+        navigate(
+          buildContentDetailRoute(result.content.id, 'roteiro'),
+          buildDetailBackState(retornoPlanejamento),
+        );
+      }
     })();
-    if (openPostIt?.id === alvo.id) setOpenId(null);
-    setPreview(null);
-    if (result.openScript) {
-      navigate(
-        buildContentDetailRoute(result.content.id, 'roteiro'),
-        buildDetailBackState(retornoPlanejamento),
-      );
-    }
   };
 
   const desenvolverReserva = (postIt: PlanejamentoPostIt) => {
@@ -175,18 +187,22 @@ export function useEditorPostIt(args: {
       return;
     }
     void (async () => {
-      await dispatch({
-        type: result.mode === 'create' ? 'ADD_CONTENT' : 'UPDATE_CONTENT',
-        payload: result.content,
-      });
-      await dispatch({type: 'UPDATE_POST_IT', payload: result.postIt});
+      try {
+        await dispatch({
+          type: result.mode === 'create' ? 'ADD_CONTENT' : 'UPDATE_CONTENT',
+          payload: result.content,
+        });
+        await dispatch({type: 'UPDATE_POST_IT', payload: result.postIt});
+      } catch {
+        return;
+      }
+      if (result.openScript) {
+        navigate(
+          buildContentDetailRoute(result.content.id, 'roteiro'),
+          buildDetailBackState(retornoPlanejamento),
+        );
+      }
     })();
-    if (result.openScript) {
-      navigate(
-        buildContentDetailRoute(result.content.id, 'roteiro'),
-        buildDetailBackState(retornoPlanejamento),
-      );
-    }
   };
   // Post-it aberto em leitura: E entra na edição, como o botão Editar.
   useEffect(() => {

@@ -140,6 +140,7 @@ function DayList({
           return (
             <div
               key={item.key}
+              data-date={item.key}
               data-dia-vazio={item.key}
               className={cn(
                 'flex min-w-0 items-center justify-between gap-2 rounded-[var(--radius-card-mobile)] px-3 py-1',
@@ -168,7 +169,7 @@ function DayList({
           );
         }
         return (
-          <div key={item.key} className={cn(
+          <div key={item.key} data-date={item.key} className={cn(
             'stack-sm min-w-0 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] p-3',
             fundo,
             pausado,

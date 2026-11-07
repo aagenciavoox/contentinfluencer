@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {Calendar, StickyNote} from 'lucide-react';
 import {AppButton} from '../../../components/ui/AppButton';
 import {TagSelect} from '../../../components/ui/TagSelect';
@@ -47,17 +47,26 @@ export function PostItRapidoDialog({
     }
     return base;
   });
+  // Recarregar as séries (Editorial) não pode apagar o que está sendo digitado.
+  const sessao = useRef<string | null>(null);
 
   useEffect(() => {
-    if (open) {
-      const base = rascunhoVazio(date);
-      if (initialSerieId) {
-        const serie = series.find(s => s.id === initialSerieId) ?? null;
-        setDraft(escolherSerieNoPostIt(base, serie, series));
-      } else {
-        setDraft(base);
-      }
+    if (!open) {
+      sessao.current = null;
+      return;
     }
+    const chave = `${date ?? ''}|${initialSerieId ?? ''}`;
+    const serie = initialSerieId ? series.find(s => s.id === initialSerieId) ?? null : null;
+    if (sessao.current === chave) {
+      setDraft(atual => {
+        if (!serie || atual.serieId || atual.texto.trim() || (atual.redes?.length ?? 0) > 0) return atual;
+        return escolherSerieNoPostIt(atual, serie, series);
+      });
+      return;
+    }
+    sessao.current = chave;
+    const base = rascunhoVazio(date);
+    setDraft(serie ? escolherSerieNoPostIt(base, serie, series) : base);
   }, [open, date, initialSerieId, series]);
 
   const podeSalvar = postItRapidoPodeSalvar(draft);
@@ -96,7 +105,10 @@ export function PostItRapidoDialog({
             {/* Título / Pauta */}
             <div className="stack-xs">
               <label htmlFor="postit-rapido-titulo">
-                <Text variant="label" as="span">Pauta ou ideia</Text>
+                <Text variant="label" as="span">
+                  Pauta ou ideia
+                  <span className="text-[var(--brand-accent-text)]"> *</span>
+                </Text>
               </label>
               <input
                 id="postit-rapido-titulo"
@@ -111,6 +123,7 @@ export function PostItRapidoDialog({
                 }}
                 autoFocus
                 required
+                aria-required="true"
                 placeholder="Ex: Resenha rápida ou bastidores"
                 className="w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-3 py-2 t-body text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
               />

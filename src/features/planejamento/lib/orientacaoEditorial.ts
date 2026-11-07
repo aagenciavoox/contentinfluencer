@@ -282,6 +282,18 @@ function avisosDeTema(
   return avisos;
 }
 
+/** A grade oficial nem sempre traz o post-it. Sem ele, Localizar não acha o card do quadro. */
+function ligarPostIts(itens: readonly ItemDaApuracao[], postIts: readonly PlanejamentoPostIt[]): ItemDaApuracao[] {
+  const porConteudo = new Map<string, string>();
+  for (const postIt of postIts) {
+    if (postIt.contentId && !porConteudo.has(postIt.contentId)) porConteudo.set(postIt.contentId, postIt.id);
+  }
+  return itens.map(item => {
+    if (item.postItId || !porConteudo.has(item.contentId)) return item;
+    return {...item, postItId: porConteudo.get(item.contentId)};
+  });
+}
+
 /** Itens da apuração montados das pautas, quando a grade do período não vem pronta. */
 function itensDasPautas(pautas: readonly PautaNoDia[]): ItemDaApuracao[] {
   return pautas.flatMap(pauta => {
@@ -346,20 +358,18 @@ function avisosDeFrequenciaSerie(
     const faltas = cobradas.filter(janela => janela.estado === 'abaixo' || janela.estado === 'vazia');
     const reservadas = cobradas.filter(janela => janela.estado === 'reservada');
 
-    const postItIds = apuracao.itens.flatMap(item => item.postItId ? [item.postItId] : []);
-    const contentIds = apuracao.itens.flatMap(item => ehReserva(item) ? [] : [item.contentId]);
     const acima = dentro.filter(janela => janela.episodios + janela.reservas > janela.meta);
     if (acima.length > 0) {
       const pautas = acima.reduce((soma, janela) => soma + janela.episodios + janela.reservas, 0);
       const pede = acima.reduce((soma, janela) => soma + janela.meta, 0);
+      const alvos = alvosDasJanelas(apuracao.itens, acima);
       avisos.push({
         id: `serie-acima:${serie.id}`,
         tipo: 'serie-acima',
         texto: acima.length === 1
           ? `${nome} tem ${pautas} pautas em ${rotuloDaJanela(acima[0])}; a frequência pede ${pede}.`
           : `${nome} passa da frequência em ${acima.length} janelas: ${pautas} pautas onde a frequência pede ${pede}.`,
-        postItIds,
-        contentIds,
+        ...alvos,
         severidade: 'revisar',
       });
     }
@@ -371,26 +381,46 @@ function avisosDeFrequenciaSerie(
         texto: faltam === 1
           ? `Mais 1 episódio de ${nome} pra fechar o período.`
           : `Mais ${faltam} episódios de ${nome} pra fechar o período.`,
-        postItIds,
-        contentIds,
+        ...alvosDasJanelas(apuracao.itens, faltas),
         severidade: 'info',
       });
     }
     if (reservadas.length > 0) {
       const n = reservadas.length;
+      const alvos = alvosDasJanelas(apuracao.itens, reservadas);
       avisos.push({
         id: `serie-reservada:${serie.id}`,
         tipo: 'serie-reservada',
         texto: n === 1
           ? `${nome}: 1 janela coberta só por post-it, conteúdo a desenvolver.`
           : `${nome}: ${n} janelas cobertas só por post-it, conteúdo a desenvolver.`,
-        postItIds,
+        postItIds: alvos.postItIds,
         contentIds: [],
+        intervalo: alvos.intervalo,
         severidade: 'info',
       });
     }
   }
   return avisos;
+}
+
+function naJanela(item: ItemDaApuracao, janela: {inicio: string; fim: string}): boolean {
+  const data = item.data?.slice(0, 10);
+  return Boolean(data && data >= janela.inicio && data <= janela.fim);
+}
+
+/** Localizar destaca só as pautas da janela que gerou o aviso e abre o calendário no início dela. */
+function alvosDasJanelas(
+  itens: readonly ItemDaApuracao[],
+  janelas: readonly {inicio: string; fim: string}[],
+): {postItIds: string[]; contentIds: string[]; intervalo?: PeriodoGrade} {
+  const primeira = [...janelas].sort((a, b) => a.inicio.localeCompare(b.inicio))[0];
+  const envolvidos = itens.filter(item => janelas.some(janela => naJanela(item, janela)));
+  return {
+    postItIds: [...new Set(envolvidos.flatMap(item => item.postItId ? [item.postItId] : []))],
+    contentIds: [...new Set(envolvidos.flatMap(item => ehReserva(item) ? [] : [item.contentId]))],
+    intervalo: primeira,
+  };
 }
 
 function rotuloDaJanela(janela: {inicio: string; fim: string}): string {
@@ -708,7 +738,7 @@ export function avisosDeOrientacao({
     ...(mesDaVista ? avisosDeAusenciaNoMes({continuidadeDoMes, mes: mesDaVista, hoje}) : []),
     ...avisosDeObra(pautas, periodo, obras, concentracao, excecoesConcentracao),
     ...avisosDeTema(pautas, periodo, temas, concentracao, excecoesConcentracao),
-    ...avisosDeFrequenciaSerie(itensSerie ?? itensDasPautas(pautas), periodo, series, pausas, temporadas),
+    ...avisosDeFrequenciaSerie(ligarPostIts(itensSerie ?? itensDasPautas(pautas), postIts), periodo, series, pausas, temporadas),
   ];
 }
 

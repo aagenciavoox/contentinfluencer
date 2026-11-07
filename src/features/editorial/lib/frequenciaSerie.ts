@@ -1,21 +1,27 @@
 import {
   addDays,
+  addMonths,
   differenceInCalendarDays,
   endOfMonth,
   endOfWeek,
   format,
   parseISO,
+  setMonth,
   startOfMonth,
   startOfWeek,
 } from 'date-fns';
 import { SEMANA } from '../../../lib/semana.ts';
+import type { UnidadeDaMeta } from './metaDaOnda.ts';
 
 /** Recorrência usada só para comparar. Não escolhe dia nem cria post-it. */
 export type FrequenciaSerie = {
   vezes: number | null;
-  unidade: 'semana' | 'quinzena' | 'mes' | 'sob-demanda';
+  unidade: UnidadeDaMeta | 'sob-demanda';
   aPartirDe: string | null;
 };
+
+/** Meses de cada bloco fechado do calendário, sempre alinhado a janeiro. */
+export const MESES_DO_BLOCO = { mes: 1, bimestre: 2, trimestre: 3, semestre: 6 } as const;
 const DIAS_QUINZENA = 14;
 
 function texto(value: string): string {
@@ -47,6 +53,9 @@ function unidadeDe(value: string | null | undefined): FrequenciaSerie['unidade']
   if (chave === 'semana' || chave === 'semanal') return 'semana';
   if (chave === 'quinzena' || chave === 'quinzenal') return 'quinzena';
   if (chave === 'mes' || chave === 'mensal') return 'mes';
+  if (chave === 'bimestre' || chave === 'bimestral') return 'bimestre';
+  if (chave === 'trimestre' || chave === 'trimestral') return 'trimestre';
+  if (chave === 'semestre' || chave === 'semestral') return 'semestre';
   if (chave === 'sob demanda') return 'sob-demanda';
   return null;
 }
@@ -87,6 +96,9 @@ export function lerFrequencia(input: {
   if (legado === 'semanal') return { vezes: 1, unidade: 'semana', aPartirDe };
   if (legado === 'quinzenal') return { vezes: 1, unidade: 'quinzena', aPartirDe };
   if (legado === 'mensal') return { vezes: 1, unidade: 'mes', aPartirDe };
+  if (legado === 'bimestral') return { vezes: 1, unidade: 'bimestre', aPartirDe };
+  if (legado === 'trimestral') return { vezes: 1, unidade: 'trimestre', aPartirDe };
+  if (legado === 'semestral') return { vezes: 1, unidade: 'semestre', aPartirDe };
   return { vezes: null, unidade: 'sob-demanda', aPartirDe };
 }
 
@@ -125,17 +137,39 @@ function expectativaQuinzena(vezes: number, ancoraIso: string, inicio: string, f
   return total;
 }
 
-function expectativaMes(vezes: number, inicio: string, fim: string): number {
-  let cursor = startOfMonth(parseISO(inicio));
-  let total = 0;
+export function mesesDoBloco(unidade: string): number | null {
+  return unidade in MESES_DO_BLOCO ? MESES_DO_BLOCO[unidade as keyof typeof MESES_DO_BLOCO] : null;
+}
 
+/** Primeiro dia do bloco de calendário que contém `data` (janeiro é o marco). */
+function inicioDoBloco(data: Date, meses: number): Date {
+  const base = startOfMonth(data);
+  return setMonth(base, Math.floor(base.getMonth() / meses) * meses);
+}
+
+/** Blocos inteiros (mês, bimestre, trimestre, semestre) que tocam o recorte. */
+export function blocosNoIntervalo(inicio: string, fim: string, meses: number): { inicio: string; fim: string }[] {
+  let cursor = inicioDoBloco(parseISO(inicio), meses);
+  const lista: { inicio: string; fim: string }[] = [];
   while (iso(cursor) <= fim) {
-    const comeco = iso(cursor);
-    const termo = iso(endOfMonth(cursor));
-    if (comeco >= inicio && termo <= fim) total += vezes;
-    cursor = addDays(endOfMonth(cursor), 1);
+    lista.push({ inicio: iso(cursor), fim: iso(endOfMonth(addMonths(cursor, meses - 1))) });
+    cursor = addMonths(cursor, meses);
   }
+  return lista;
+}
 
+/** Início e fim do bloco de `meses` que contém o dia. A busca da Saúde usa o semestre. */
+export function blocoQueContem(dia: string, meses: number): { inicio: string; fim: string } {
+  const inicio = inicioDoBloco(parseISO(dia), meses);
+  return { inicio: iso(inicio), fim: iso(endOfMonth(addMonths(inicio, meses - 1))) };
+}
+
+/** Conta só o bloco inteiro dentro do recorte. Um pedaço de trimestre não vira meta. */
+function expectativaBloco(vezes: number, inicio: string, fim: string, meses: number): number {
+  let total = 0;
+  for (const bloco of blocosNoIntervalo(inicio, fim, meses)) {
+    if (bloco.inicio >= inicio && bloco.fim <= fim) total += vezes;
+  }
   return total;
 }
 
@@ -160,5 +194,6 @@ export function expectativaNoIntervalo(freq: FrequenciaSerie, inicio: string, fi
   if (freq.unidade === 'quinzena') {
     return expectativaQuinzena(vezes, partida ?? inicioValido, recorte, fimValido);
   }
-  return expectativaMes(vezes, recorte, fimValido);
+  const meses = mesesDoBloco(freq.unidade);
+  return meses ? expectativaBloco(vezes, recorte, fimValido, meses) : 0;
 }

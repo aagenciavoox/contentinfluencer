@@ -113,6 +113,35 @@ export function rotuloPublicadoEm(quando: QuandoFoiAoAr): string {
   return quando.time ? `Publicado em ${data} ${quando.time}` : `Publicado em ${data}`;
 }
 
+/**
+ * No Planejamento a frequência olha o dia do post-it.
+ * A data oficial do roteiro só muda em "Salvar no calendário"; até lá, mover o card tem de atualizar o aviso.
+ * Publicado fica na data em que foi ao ar. Sem post-it, continua na data oficial.
+ */
+export function conteudosNaDataDoQuadro<T extends Content>(
+  contents: readonly T[],
+  postIts: readonly PostItComData[],
+): T[] {
+  const diaPorConteudo = new Map<string, string | null>();
+  for (const postIt of postIts) {
+    if (!postIt.contentId) continue;
+    const dia = postIt.date?.slice(0, 10) ?? null;
+    const atual = diaPorConteudo.get(postIt.contentId);
+    if (atual === undefined) {
+      diaPorConteudo.set(postIt.contentId, dia);
+      continue;
+    }
+    if (!dia) continue;
+    if (!atual || dia < atual) diaPorConteudo.set(postIt.contentId, dia);
+  }
+
+  return contents.map(content => {
+    if (!diaPorConteudo.has(content.id) || roteiroPublicado(content)) return content;
+    const projetado = levarRoteiroAoDia(content, diaPorConteudo.get(content.id) ?? null);
+    return (projetado ?? content) as T;
+  });
+}
+
 /** No quadro, o post-it publicado fica no dia em que foi ao ar. Os outros ficam no dia gravado. */
 export function diaNoQuadro(
   postIt: PostItComData,

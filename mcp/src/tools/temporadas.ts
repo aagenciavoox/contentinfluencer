@@ -37,7 +37,7 @@ import {
   type Temporada,
 } from '../serieEstrutura.ts';
 import {idsDaSubarvore} from '../../../src/features/editorial/lib/serieArvore.ts';
-import {frequenciaParaGravar, linhasDaOnda, ondaDasLinhas, ritmoProprioDaOnda} from '../../../src/features/editorial/lib/metaDaOnda.ts';
+import {frequenciaParaGravar, linhasDaOnda, ondaDasLinhas, ritmoProprioDaOnda, VALORES_UNIDADE, type UnidadeDaMeta} from '../../../src/features/editorial/lib/metaDaOnda.ts';
 import {normalizarRedesPostIt} from '../../../src/features/planejamento/lib/redesPostIt.ts';
 import type {Session} from '../supabase.ts';
 
@@ -188,7 +188,7 @@ const camposDaOnda = {
   acompanhar: z.boolean().optional().describe('Liga o acompanhamento isolado desta temporada na Saúde.'),
   ritmo_proprio: z.boolean().optional().describe('Com meta, a wave anda no próprio ritmo e os episódios dela saem da conta da série (padrão: ligado). false mantém os episódios contando também na série.'),
   frequencia_vezes: z.number().int().min(1).max(60).nullable().optional().describe('Quantidade da meta. null tira a meta'),
-  frequencia_unidade: z.enum(['semana', 'quinzena', 'mes']).nullable().optional().describe('Período da meta. quinzena = ciclo de 14 dias e exige frequencia_a_partir_de'),
+  frequencia_unidade: z.enum(VALORES_UNIDADE).nullable().optional().describe('Período da meta. quinzena = ciclo de 14 dias e exige frequencia_a_partir_de. bimestre, trimestre e semestre são blocos fechados a partir de janeiro'),
   frequencia_a_partir_de: z.string().nullable().optional().describe('Data de início da meta, yyyy-MM-dd'),
 };
 
@@ -196,7 +196,7 @@ function metaDaOnda(args: {
   acompanhar?: boolean;
   ritmo_proprio?: boolean;
   frequencia_vezes?: number | null;
-  frequencia_unidade?: 'semana' | 'quinzena' | 'mes' | null;
+  frequencia_unidade?: UnidadeDaMeta | null;
   frequencia_a_partir_de?: string | null;
 }, atual?: Temporada): {acompanhar: boolean; ritmo_proprio: boolean; frequencia_vezes: number | null; frequencia_unidade: string | null; frequencia_a_partir_de: string | null} {
   const vezes = args.frequencia_vezes === undefined ? atual?.frequenciaVezes ?? null : args.frequencia_vezes;

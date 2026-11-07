@@ -1,6 +1,18 @@
 /** Quantidade, período e início que a Saúde usa na série, no quadro ou na temporada. */
 
-export type UnidadeDaMeta = 'semana' | 'quinzena' | 'mes';
+/** Períodos gravados. Bimestre, trimestre e semestre são blocos fechados a partir de janeiro. */
+export const VALORES_UNIDADE = ['semana', 'quinzena', 'mes', 'bimestre', 'trimestre', 'semestre'] as const;
+
+export type UnidadeDaMeta = (typeof VALORES_UNIDADE)[number];
+
+export const OPCOES_UNIDADE: readonly { value: UnidadeDaMeta; label: string }[] = [
+  { value: 'semana', label: 'Semanal' },
+  { value: 'quinzena', label: 'Quinzenal' },
+  { value: 'mes', label: 'Mensal' },
+  { value: 'bimestre', label: 'Bimestral' },
+  { value: 'trimestre', label: 'Trimestral' },
+  { value: 'semestre', label: 'Semestral' },
+];
 
 export type FrequenciaGravada = {
   vezes: number | null;
@@ -10,20 +22,63 @@ export type FrequenciaGravada = {
   recomendada: string | null;
 };
 
-const UNIDADES = new Set<UnidadeDaMeta>(['semana', 'quinzena', 'mes']);
+const UNIDADES = new Set<string>(VALORES_UNIDADE);
+
+/** Teto da quantidade. Acima disso a gravação recusa, em vez de trocar o número. */
+export const MAX_VEZES_DA_META = 60;
+
+export type ErroDeFrequencia = {
+  erro: string;
+  campo: 'quantidade' | 'periodo' | 'inicio';
+};
+
+export function ehUnidadeDaMeta(valor: unknown): valor is UnidadeDaMeta {
+  return typeof valor === 'string' && UNIDADES.has(valor);
+}
 
 export function unidadeDaMeta(valor: string | null | undefined): UnidadeDaMeta {
-  return valor === 'quinzena' || valor === 'mes' ? valor : 'semana';
+  return ehUnidadeDaMeta(valor) ? valor : 'semana';
+}
+
+const FRASE_UM: Record<UnidadeDaMeta, string> = {
+  semana: 'Semanal',
+  quinzena: 'Quinzenal',
+  mes: 'Mensal',
+  bimestre: 'Bimestral',
+  trimestre: 'Trimestral',
+  semestre: 'Semestral',
+};
+
+const FRASE_VARIOS: Record<UnidadeDaMeta, string> = {
+  semana: 'por semana',
+  quinzena: 'por quinzena',
+  mes: 'por mês',
+  bimestre: 'por bimestre',
+  trimestre: 'por trimestre',
+  semestre: 'por semestre',
+};
+
+/** "por semana", "a cada 14 dias", "por trimestre". O chip e o resumo da meta usam isto. */
+export function complementoDoPeriodo(unidade: string): string {
+  if (unidade === 'quinzena') return 'a cada 14 dias';
+  return ehUnidadeDaMeta(unidade) ? FRASE_VARIOS[unidade] : 'por semana';
 }
 
 function frase(vezes: number, unidade: UnidadeDaMeta): string {
-  if (unidade === 'semana') return vezes === 1 ? 'Semanal' : `${vezes} por semana`;
-  if (unidade === 'quinzena') return vezes === 1 ? 'Quinzenal' : `${vezes} por quinzena`;
-  return vezes === 1 ? 'Mensal' : `${vezes} por mês`;
+  return vezes === 1 ? FRASE_UM[unidade] : `${vezes} ${FRASE_VARIOS[unidade]}`;
+}
+
+/** Frase antiga da série (Semanal, 2 por mês, Trimestral). Unidade desconhecida não vira frase. */
+export function fraseDaFrequencia(vezes: number | null, unidade: string): string | null {
+  const chave = unidade.trim().toLowerCase();
+  if (!ehUnidadeDaMeta(chave)) return null;
+  const qtd = vezes && vezes > 0 ? vezes : 1;
+  return frase(qtd, chave);
 }
 
 /**
- * Meta vazia sai. Com quantidade, a quinzena exige a data de início dos ciclos.
+ * Meta vazia sai. Zero e acima do teto são erro: não apagam nem trocam o número.
+ * Com quantidade, a quinzena exige a data de início dos ciclos.
  * Quadro sem meta fica "Sob demanda", para não herdar uma frase antiga.
  */
 export function frequenciaParaGravar(input: {
@@ -31,9 +86,21 @@ export function frequenciaParaGravar(input: {
   unidade: string | null | undefined;
   aPartirDe: string | null | undefined;
   tipo: 'serie' | 'quadro' | 'temporada';
-}): { erro: string } | FrequenciaGravada {
+}): ErroDeFrequencia | FrequenciaGravada {
+  if (input.vezes != null && Number.isFinite(input.vezes)) {
+    const bruto = Math.trunc(input.vezes);
+    if (bruto === 0) {
+      return { erro: 'Quantidade zero não apaga a meta. Deixe o campo vazio para tirá-la.', campo: 'quantidade' };
+    }
+    if (bruto < 0) {
+      return { erro: 'A quantidade precisa ser pelo menos 1.', campo: 'quantidade' };
+    }
+    if (bruto > MAX_VEZES_DA_META) {
+      return { erro: `A quantidade máxima da meta é ${MAX_VEZES_DA_META}.`, campo: 'quantidade' };
+    }
+  }
   const vezes = input.vezes != null && Number.isFinite(input.vezes) && input.vezes > 0
-    ? Math.min(60, Math.trunc(input.vezes))
+    ? Math.trunc(input.vezes)
     : null;
   if (vezes == null) {
     return {
@@ -43,10 +110,12 @@ export function frequenciaParaGravar(input: {
       recomendada: input.tipo === 'quadro' ? 'Sob demanda' : null,
     };
   }
-  const unidade = UNIDADES.has(input.unidade as UnidadeDaMeta) ? input.unidade as UnidadeDaMeta : null;
-  if (!unidade) return { erro: 'Escolha o período da meta.' };
+  const unidade = ehUnidadeDaMeta(input.unidade) ? input.unidade : null;
+  if (!unidade) return { erro: 'Escolha o período da meta.', campo: 'periodo' };
   const aPartirDe = input.aPartirDe && /^\d{4}-\d{2}-\d{2}$/.test(input.aPartirDe) ? input.aPartirDe : null;
-  if (unidade === 'quinzena' && !aPartirDe) return { erro: 'Meta a cada 14 dias precisa da data de início dos ciclos.' };
+  if (unidade === 'quinzena' && !aPartirDe) {
+    return { erro: 'Meta a cada 14 dias precisa da data de início dos ciclos.', campo: 'inicio' };
+  }
   return {
     vezes,
     unidade,
@@ -89,7 +158,7 @@ export function ondaDasLinhas(temporadaId: string, acompanhamentos: readonly Lin
   const acompanhamento = acompanhamentos.find(row => row.escopo === 'temporada' && String(row.temporada_id ?? '') === temporadaId);
   const meta = metas.find(row => row.temporada_id != null && String(row.temporada_id) === temporadaId);
   const vezes = typeof meta?.vezes === 'number' && meta.vezes > 0 ? meta.vezes : null;
-  const unidade = vezes != null && UNIDADES.has(meta?.unidade as UnidadeDaMeta) ? meta!.unidade as UnidadeDaMeta : null;
+  const unidade = vezes != null && ehUnidadeDaMeta(meta?.unidade) ? meta.unidade : null;
   const aPartirDe = vezes != null && typeof meta?.a_partir_de === 'string' && meta.a_partir_de ? meta.a_partir_de.slice(0, 10) : null;
   return {
     acompanhar: acompanhamento != null && acompanhamento.ativo !== false,
@@ -125,7 +194,7 @@ export function linhasDaOnda(temporada: {
   evitarDiasSeguidos?: boolean;
 }): { acompanhamento: Linha | null; meta: Linha | null } {
   const vezes = typeof temporada.frequenciaVezes === 'number' && temporada.frequenciaVezes > 0 ? Math.trunc(temporada.frequenciaVezes) : null;
-  const unidade = UNIDADES.has(temporada.frequenciaUnidade as UnidadeDaMeta) ? temporada.frequenciaUnidade as UnidadeDaMeta : null;
+  const unidade = ehUnidadeDaMeta(temporada.frequenciaUnidade) ? temporada.frequenciaUnidade : null;
   const meta = vezes != null && unidade && (unidade !== 'quinzena' || temporada.frequenciaAPartirDe)
     ? {
       user_id: temporada.userId,

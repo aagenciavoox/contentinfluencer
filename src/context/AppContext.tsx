@@ -12,9 +12,9 @@ import {
   changedTablesFromPayload,
   consumirConteudosRemovidos,
   createTableAnnouncer,
+  realtimeHoldDelay,
   realtimeRefreshDelay,
   removedContentIdsFromPayload,
-  shouldSkipRealtimeRefresh,
   SYNC_EVENT,
   syncChannelName,
 } from './realtimeSync';
@@ -498,13 +498,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       lastServerRefreshAt.current = Date.now();
     } catch (err) {
       console.error('[Sync] Realtime refresh failed:', err);
-      if (!options?.silent) {
-        notifySaveFeedback({
-          status: 'error',
-          message: ERRORS.sincronizar,
-          detail: getErrorDetail(err),
-        });
-      }
+      notifySaveFeedback({
+        status: 'error',
+        message: ERRORS.sincronizar,
+        detail: getErrorDetail(err),
+      });
+      throw err;
     }
   }, [invalidateListCaches, loadDomains, userId]);
 

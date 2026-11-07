@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { resolverHerancaSerie, resolverFuncaoHerdada, resolverPilar, resolverModelo, resolverLegendaBase } from './herancaSerie.ts';
+import { pilarDoConteudo, resolverHerancaSerie, resolverFuncaoHerdada, resolverPilar, resolverModelo, resolverLegendaBase } from './herancaSerie.ts';
 
 const series = [
   {
@@ -108,6 +108,27 @@ const series = [
   assert.deepEqual(resolvido.formato, ['Reels']); // quadro sem formato próprio herda da série
   assert.equal(resolvido.energia, 'alta'); // quadro sem esforço próprio herda da série
   assert.deepEqual(resolvido.caminho.map(c => c.id), ['pai', 'filho']);
+}
+
+{
+  // Publicado sem pilar gravado acompanha a série. Escolha própria e "nenhum" ficam.
+  assert.equal(pilarDoConteudo({
+    seriesId: 'filho',
+    pilarId: null,
+    classificacaoCongeladaEm: '2026-11-06T00:00:00.000Z',
+  }, series), 'pilar-pai');
+  assert.equal(pilarDoConteudo({
+    seriesId: 'filho',
+    pilarId: 'pilar-meu',
+    pilarOrigem: 'escolhida',
+    classificacaoCongeladaEm: '2026-11-06T00:00:00.000Z',
+  }, series), 'pilar-meu');
+  assert.equal(pilarDoConteudo({
+    seriesId: 'filho',
+    pilarId: null,
+    pilarOrigem: 'nenhuma',
+    classificacaoCongeladaEm: '2026-11-06T00:00:00.000Z',
+  }, series), null);
 }
 
 console.log('ok - herancaSerie');

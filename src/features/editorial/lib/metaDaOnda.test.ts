@@ -14,6 +14,9 @@ assert.ok(!('erro' in quadro) && quadro.recomendada === 'Sob demanda');
 const quinzena = frequenciaParaGravar({ vezes: 1, unidade: 'quinzena', aPartirDe: null, tipo: 'temporada' });
 assert.ok('erro' in quinzena);
 
+const trimestre = frequenciaParaGravar({ vezes: 1, unidade: 'trimestre', aPartirDe: null, tipo: 'serie' });
+assert.ok(!('erro' in trimestre) && trimestre.recomendada === 'Trimestral');
+
 const ok = frequenciaParaGravar({ vezes: 2, unidade: 'semana', aPartirDe: '2026-11-04', tipo: 'serie' });
 assert.ok(!('erro' in ok));
 if (!('erro' in ok)) {

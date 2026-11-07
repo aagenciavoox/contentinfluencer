@@ -1019,6 +1019,8 @@ export const MIGRACAO_SERIE_STATUS = '20261105150000_serie_status';
 export const MIGRACAO_SERIE_MODO_SEQUENCIA = '20261105220000_serie_modo_sequencia';
 /** Meta e acompanhamento isolados da temporada. */
 export const MIGRACAO_TEMPORADA_ACOMPANHAMENTO = '20261104200000_temporada_acompanhamento';
+/** Bimestre, trimestre e semestre em serie_meta. */
+export const MIGRACAO_SERIE_META_PERIODOS = '20261106120000_serie_meta_periodos_calendario';
 
 /** Migração do tipo de agrupamento e do "sem pilar" das séries. */
 export const MIGRACAO_SERIE_TIPO = '20261030120000_serie_tipo_agrupamento';
@@ -2972,7 +2974,9 @@ function acompanhamentoDaLinha(row: Row): AcompanhamentoSerie[] {
 /** serie_meta → frequência da série numa conta ou formato. */
 function metaDaSerieDaLinha(row: Row): MetaDaSerieNoEscopo[] {
   const vezes = inteiroOpcional(row.vezes);
-  const unidade = row.unidade === 'semana' || row.unidade === 'quinzena' || row.unidade === 'mes' ? row.unidade : null;
+  const unidade = row.unidade === 'semana' || row.unidade === 'quinzena' || row.unidade === 'mes'
+    || row.unidade === 'bimestre' || row.unidade === 'trimestre' || row.unidade === 'semestre'
+    ? row.unidade : null;
   // A meta da wave (temporada_id) é lida com a temporada.
   if (typeof row.serie_id !== 'string' || !vezes || !unidade || row.temporada_id != null) return [];
   return [{
@@ -3543,56 +3547,90 @@ export async function saveSerieAcompanhamentos(serieId: string, userId: string, 
   }
   const manter = new Set(lista.map(item => item.id));
   const remover = (atuais.data ?? []).map((row: Row) => String(row.id)).filter(id => !manter.has(id));
-  if (remover.length > 0) {
-    const { error } = await supabase.from('serie_acompanhamento').delete().in('id', remover);
-    if (error) throw new Error(`serie_acompanhamento delete: ${error.message}`);
+  // Grava o que fica antes de apagar o que saiu. Se a gravação falha, o acompanhamento anterior continua.
+  if (lista.length > 0) {
+    const { error } = await supabase.from('serie_acompanhamento').upsert(lista.map(item => ({
+      id: item.id,
+      user_id: userId,
+      serie_id: serieId,
+      escopo: item.escopo,
+      platform_id: item.escopo === 'geral' ? null : item.platformId,
+      formato: item.escopo === 'formato' ? item.formato : null,
+      ativo: item.ativo,
+      inicio: item.inicio || null,
+      termino: item.termino || null,
+      distancia_max_dias: item.distanciaMaxDias && item.distanciaMaxDias > 0 ? item.distanciaMaxDias : null,
+      evitar_dias_seguidos: item.evitarDiasSeguidos === true,
+      updated_at: new Date().toISOString(),
+    })));
+    if (error) throw new Error(`serie_acompanhamento: ${error.message}`);
   }
-  if (lista.length === 0) return;
-  const { error } = await supabase.from('serie_acompanhamento').upsert(lista.map(item => ({
-    id: item.id,
-    user_id: userId,
-    serie_id: serieId,
-    escopo: item.escopo,
-    platform_id: item.escopo === 'geral' ? null : item.platformId,
-    formato: item.escopo === 'formato' ? item.formato : null,
-    ativo: item.ativo,
-    inicio: item.inicio || null,
-    termino: item.termino || null,
-    distancia_max_dias: item.distanciaMaxDias && item.distanciaMaxDias > 0 ? item.distanciaMaxDias : null,
-    evitar_dias_seguidos: item.evitarDiasSeguidos === true,
-    updated_at: new Date().toISOString(),
-  })));
-  if (error) throw new Error(`serie_acompanhamento: ${error.message}`);
+  if (remover.length === 0) return;
+  const { error } = await supabase.from('serie_acompanhamento').delete().in('id', remover);
+  if (error) throw new Error(`serie_acompanhamento delete: ${error.message}`);
+}
+
+function chaveDaMeta(platformId: unknown, formato: unknown): string {
+  return `${platformId ?? ''}\0${formato ?? ''}`;
+}
+
+function erroDaMetaNoBanco(message: string, unidade: string | null | undefined): Error {
+  if (unidade && ['bimestre', 'trimestre', 'semestre'].includes(unidade) && /check constraint/i.test(message)) {
+    return new Error(`Para usar ${unidade} na meta, aplique a migração ${MIGRACAO_SERIE_META_PERIODOS}.`);
+  }
+  return new Error(`serie_meta: ${message}`);
 }
 
 /** Meta da série por conta ou formato (serie_meta). A geral continua nas colunas da série. */
 export async function saveSerieMetas(serieId: string, userId: string, metas: readonly MetaDaSerieNoEscopo[]): Promise<void> {
   if (!supabase) return;
-  // A meta da temporada fica: só sai a da série por conta ou formato.
-  let { error: deleteError } = await supabase.from('serie_meta').delete().eq('serie_id', serieId).is('temporada_id', null);
-  if (deleteError && isMissingNamedColumn(deleteError.message ?? '', 'temporada_id')) {
-    ({ error: deleteError } = await supabase.from('serie_meta').delete().eq('serie_id', serieId));
-  }
-  if (deleteError) {
-    if (tabelaAusente(deleteError)) {
-      if (metas.length > 0) throw new Error(`Para a meta por conta ou formato, aplique a migração ${MIGRACAO_EDITORIAL_POR_CONTA}.`);
-      return;
-    }
-    throw new Error(`serie_meta delete: ${deleteError.message}`);
-  }
   const validas = metas.filter(meta => (meta.platformId || meta.formato) && meta.vezes > 0
     && (meta.unidade !== 'quinzena' || meta.aPartirDe));
-  if (validas.length === 0) return;
-  const { error } = await supabase.from('serie_meta').insert(validas.map(meta => ({
-    user_id: userId,
-    serie_id: serieId,
-    platform_id: meta.platformId || null,
-    formato: meta.formato || null,
-    vezes: meta.vezes,
-    unidade: meta.unidade,
-    a_partir_de: meta.aPartirDe || null,
-  })));
-  if (error) throw new Error(`serie_meta: ${error.message}`);
+
+  // A meta da temporada fica de fora: só a da série por conta ou formato.
+  let consulta = await supabase.from('serie_meta').select('id, platform_id, formato').eq('serie_id', serieId).is('temporada_id', null);
+  if (consulta.error && isMissingNamedColumn(consulta.error.message ?? '', 'temporada_id')) {
+    consulta = await supabase.from('serie_meta').select('id, platform_id, formato').eq('serie_id', serieId);
+  }
+  if (consulta.error) {
+    if (tabelaAusente(consulta.error)) {
+      if (validas.length > 0) throw new Error(`Para a meta por conta ou formato, aplique a migração ${MIGRACAO_EDITORIAL_POR_CONTA}.`);
+      return;
+    }
+    throw new Error(`serie_meta fetch: ${consulta.error.message}`);
+  }
+
+  const atuais = (consulta.data ?? []) as Row[];
+  const porChave = new Map(atuais.map(row => [chaveDaMeta(row.platform_id, row.formato), String(row.id)]));
+  const manter = new Set<string>();
+  // Atualiza ou insere antes de apagar. Uma falha no meio não deixa a série sem as metas que já tinha.
+  for (const meta of validas) {
+    const row = {
+      user_id: userId,
+      serie_id: serieId,
+      platform_id: meta.platformId || null,
+      formato: meta.formato || null,
+      vezes: meta.vezes,
+      unidade: meta.unidade,
+      a_partir_de: meta.aPartirDe || null,
+      updated_at: new Date().toISOString(),
+    };
+    const id = porChave.get(chaveDaMeta(row.platform_id, row.formato));
+    if (id) {
+      const { error } = await supabase.from('serie_meta').update(row).eq('id', id);
+      if (error) throw erroDaMetaNoBanco(error.message ?? '', meta.unidade);
+      manter.add(id);
+    } else {
+      const { data, error } = await supabase.from('serie_meta').insert(row).select('id').single();
+      if (error) throw erroDaMetaNoBanco(error.message ?? '', meta.unidade);
+      if (data && typeof data === 'object' && 'id' in data && data.id) manter.add(String(data.id));
+    }
+  }
+
+  const remover = atuais.map(row => String(row.id)).filter(id => !manter.has(id));
+  if (remover.length === 0) return;
+  const { error: deleteError } = await supabase.from('serie_meta').delete().in('id', remover);
+  if (deleteError) throw new Error(`serie_meta delete: ${deleteError.message}`);
 }
 
 export async function deleteSerie(id: string): Promise<void> {
@@ -3646,30 +3684,53 @@ async function comOndas(uid: string, linhas: Row[]): Promise<Row[]> {
   });
 }
 
-/** Grava a wave nas tabelas da série: troca o acompanhamento e a meta da temporada. */
+/** Grava a wave nas tabelas da série. O que muda é escrito antes de apagar o que saiu. */
 async function gravarOnda(temporada: Omit<Temporada, 'createdAt'>, nome: string): Promise<void> {
   if (!supabase) return;
   const { acompanhamento, meta } = linhasDaOnda(temporada);
   const pediu = Boolean(acompanhamento || meta);
   const migracao = () => new Error(`Para acompanhar a temporada à parte, aplique a migração ${MIGRACAO_TEMPORADA_ACOMPANHAMENTO}.`);
   const semColuna = (message: string) => isMissingNamedColumn(message, 'temporada_id') || isMissingNamedColumn(message, 'ritmo_proprio');
-  const removidoA = await supabase.from('serie_acompanhamento').delete().eq('temporada_id', temporada.id);
-  if (removidoA.error) {
-    if (semColuna(removidoA.error.message ?? '') || tabelaAusente(removidoA.error)) {
+
+  const atualA = await supabase.from('serie_acompanhamento').select('id').eq('temporada_id', temporada.id).eq('escopo', 'temporada');
+  if (atualA.error) {
+    if (semColuna(atualA.error.message ?? '') || tabelaAusente(atualA.error)) {
       if (pediu) throw migracao();
       return;
     }
-    throw new Error(`serie_acompanhamento (${nome}): ${removidoA.error.message}`);
+    throw new Error(`serie_acompanhamento (${nome}): ${atualA.error.message}`);
   }
-  const removidoM = await supabase.from('serie_meta').delete().eq('temporada_id', temporada.id);
-  if (removidoM.error) throw new Error(`serie_meta (${nome}): ${removidoM.error.message}`);
+  const atualM = await supabase.from('serie_meta').select('id').eq('temporada_id', temporada.id);
+  if (atualM.error) throw new Error(`serie_meta (${nome}): ${atualM.error.message}`);
+  const idsA = (atualA.data ?? []).map(row => String((row as Row).id));
+  const idsM = (atualM.data ?? []).map(row => String((row as Row).id));
+
   if (acompanhamento) {
-    const { error } = await supabase.from('serie_acompanhamento').insert(acompanhamento);
-    if (error) throw semColuna(error.message ?? '') ? migracao() : new Error(`serie_acompanhamento (${nome}): ${error.message}`);
+    const gravado = idsA[0]
+      ? await supabase.from('serie_acompanhamento').update(acompanhamento).eq('id', idsA[0])
+      : await supabase.from('serie_acompanhamento').insert(acompanhamento);
+    if (gravado.error) {
+      throw semColuna(gravado.error.message ?? '') ? migracao() : new Error(`serie_acompanhamento (${nome}): ${gravado.error.message}`);
+    }
   }
   if (meta) {
-    const { error } = await supabase.from('serie_meta').insert(meta);
-    if (error) throw semColuna(error.message ?? '') ? migracao() : new Error(`serie_meta (${nome}): ${error.message}`);
+    const gravado = idsM[0]
+      ? await supabase.from('serie_meta').update(meta).eq('id', idsM[0])
+      : await supabase.from('serie_meta').insert(meta);
+    if (gravado.error) {
+      const message = gravado.error.message ?? '';
+      throw semColuna(message) ? migracao() : erroDaMetaNoBanco(message, typeof meta.unidade === 'string' ? meta.unidade : null);
+    }
+  }
+  const apagarA = acompanhamento ? idsA.slice(1) : idsA;
+  const apagarM = meta ? idsM.slice(1) : idsM;
+  if (apagarA.length > 0) {
+    const { error } = await supabase.from('serie_acompanhamento').delete().in('id', apagarA);
+    if (error) throw new Error(`serie_acompanhamento (${nome}): ${error.message}`);
+  }
+  if (apagarM.length > 0) {
+    const { error } = await supabase.from('serie_meta').delete().in('id', apagarM);
+    if (error) throw new Error(`serie_meta (${nome}): ${error.message}`);
   }
 }
 

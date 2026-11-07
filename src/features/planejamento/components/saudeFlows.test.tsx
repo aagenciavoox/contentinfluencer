@@ -63,13 +63,32 @@ describe('aviso pontual de concentração', () => {
 });
 
 
+describe('ajustes do planejamento', () => {
+  it('agrupa capacidade em linha aberta, com o detalhe da semana', () => {
+    const capacidade: AvisoOrientacao = {
+      id: 'cap', tipo: 'capacidade-semana',
+      texto: 'Esta semana pede 30,5 roteiros e cabem 12 gravações (4 dias × 3).',
+      postItIds: [], contentIds: [], severidade: 'revisar',
+    };
+    const html = renderToStaticMarkup(<AvisosFaixa modo="ajustes" avisos={[capacidade]} onLocalizar={noop} onVerAnalise={noop} />);
+    assert.match(html, /Ajustes do planejamento/);
+    assert.match(html, /1 ponto para revisar/);
+    assert.match(html, /30,5 roteiros nesta semana/);
+    assert.match(html, /4 dias de gravação × 3 por dia/);
+    assert.match(html, /Ajustar ritmo/);
+    assert.ok(!html.includes('1 de 1'));
+  });
+});
+
+
 describe('ação de concentração na faixa', () => {
   it('oferece Foi de propósito apenas para concentração identificada e com callback', () => {
     const obra: AvisoOrientacao = {id: 'obra:o:2026-11-02', tipo: 'obra-repetida', alvoId: 'o', intervalo, texto: 'Obra repetida', postItIds: [], contentIds: [], severidade: 'info'};
     const assunto: AvisoOrientacao = {...obra, id: 'tema:t', tipo: 'tema-concentrado', alvoId: 't'};
     const outros: AvisoOrientacao[] = [{...obra, id: 'serie', tipo: 'serie-acima'}, {...obra, id: 'sem-alvo', alvoId: undefined}];
     const html = renderToStaticMarkup(<AvisosFaixa avisos={[obra, assunto, ...outros]} onLocalizar={noop} onFoiDeProposito={noop} />);
-    assert.equal(html.split('Foi de propósito').length - 1, 2);
+    assert.match(html, /1 de 4/);
+    assert.equal(html.split('Foi de propósito').length - 1, 1, 'só o aviso em foco oferece a ação');
     const semAcao = renderToStaticMarkup(<AvisosFaixa avisos={[obra]} onLocalizar={noop} />);
     assert.ok(!semAcao.includes('Foi de propósito'));
     assert.match(semAcao, /Localizar/);

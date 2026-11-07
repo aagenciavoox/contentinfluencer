@@ -13,6 +13,7 @@ import type { Content, Platform, Serie, SerieTipoAgrupamento, Temporada } from '
 import { getStatusColorVar } from '../../../../lib/statusClasses';
 import { cn } from '../../../../lib/utils';
 import { getDisplayStatus, getDisplayStatusLabel } from '../../../contents/lib/contentPipeline';
+import { isPostedContent } from '../../../contents/lib/contentWorkflow';
 import { redesDoItemDeCriacao } from '../../../creation/lib/creationRedeFilter';
 import { cicloDaPublicacao } from '../../../editorial/lib/cicloPublicacao';
 import { publicacaoAtiva } from '../../../editorial/lib/publicacaoSituacao';
@@ -137,6 +138,7 @@ function LinhaConteudo({
     : null;
   const etiquetas = [dono, temporada].filter(Boolean).join(' · ');
   const marcada = selecao.ids.has(content.id);
+  const publicado = isPostedContent(content);
   const Icone = ehIdeia(content) ? Lightbulb : FileText;
   const rota = acoes.rotaDoConteudo(content);
   const navigate = useNavigate();
@@ -162,9 +164,11 @@ function LinhaConteudo({
 
   return (
     <li
+      title={publicado ? 'Publicado' : undefined}
       className={cn(
         'relative flex min-h-12 items-center justify-between gap-3 border-t border-[var(--border-color)] px-4 py-3 hover:bg-[var(--bg-hover)]',
         noBloco && 'pl-8 sm:pl-16',
+        publicado && 'bg-[var(--surface-subtle)]',
         marcada && 'bg-[var(--bg-hover)]',
         celular && 'select-none [-webkit-touch-callout:none]',
       )}

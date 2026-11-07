@@ -70,6 +70,9 @@ assert.ok('erro' in (colunasDaFrequencia({a_partir_de: '2026-01-01'}, vazia, 'se
 assert.ok('erro' in (colunasDaFrequencia({vezes: 1, unidade: 'quinzena'}, vazia, 'serie') ?? {}));
 assert.ok('erro' in (colunasDaFrequencia({vezes: 2}, {vezes: 1, unidade: 'quinzena', aPartirDe: null}, 'serie') ?? {}));
 assert.ok('colunas' in (colunasDaFrequencia({vezes: 1, unidade: 'quinzena', a_partir_de: '2026-11-08'}, vazia, 'serie') ?? {}));
+assert.deepEqual(colunasDaFrequencia({vezes: 1, unidade: 'trimestre'}, vazia, 'serie'), {colunas: {
+  frequencia_vezes: 1, frequencia_unidade: 'trimestre', frequencia_a_partir_de: null, frequencia_recomendada: 'Trimestral',
+}});
 
 // Continuidade: família não; sem frequência vira pendência.
 assert.ok(avisoDaContinuidade(true, 'familia', true).erro);

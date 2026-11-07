@@ -1,21 +1,23 @@
 import type { Content, Pilar, Serie } from '../../../lib/database';
 import { relativo } from '../../../lib/dates';
+import { pilarDoConteudo } from '../../editorial/lib/herancaSerie';
 import { getDisplayStatusLabel } from './contentPipeline';
 import { htmlToReadableText } from '../../../lib/utils';
 import { contentReadableBody } from './carouselSlides.ts';
 
 export function resolveContentEntities(
-  content: Pick<Content, 'pilarId' | 'seriesId'>,
+  content: Pick<Content, 'pilarId' | 'seriesId' | 'pilarOrigem' | 'classificacaoCongeladaEm'>,
   pilares: Pilar[],
   series: Serie[]
 ) {
-  const pillar = content.pilarId ? pilares.find(item => item.id === content.pilarId) ?? null : null;
+  const pilarId = pilarDoConteudo(content, series);
+  const pillar = pilarId ? pilares.find(item => item.id === pilarId) ?? null : null;
   const seriesEntity = content.seriesId ? series.find(item => item.id === content.seriesId) ?? null : null;
 
   return {
     pillar,
     series: seriesEntity,
-    hasRefs: Boolean(content.pilarId || content.seriesId),
+    hasRefs: Boolean(pilarId || content.seriesId),
     isResolved: Boolean(pillar || seriesEntity),
   };
 }

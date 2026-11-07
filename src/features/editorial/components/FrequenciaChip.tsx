@@ -1,5 +1,5 @@
-import { useEffect, useId, useRef, useState } from 'react';
-import { Repeat } from 'lucide-react';
+import { useEffect, useId, useRef, useState, type MouseEvent as CliqueDoMouse } from 'react';
+import { Pencil, Repeat } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { AppButton } from '../../../components/ui/AppButton';
 import { FLOATING_MENU_HIDDEN_STYLE, FLOATING_MENU_Z_INDEX, useAnchoredPosition } from '../../../components/ui/anchoredPosition';
@@ -19,6 +19,7 @@ export function FrequenciaChip({
   id,
   className,
   onSalvo,
+  aparencia = 'botao',
 }: {
   serieId: string;
   /** Id do botão, para foco a partir de avisos. */
@@ -26,11 +27,15 @@ export function FrequenciaChip({
   className?: string;
   /** Depois de gravar (ex.: o formulário da série acompanha o valor novo). */
   onSalvo?: (frequencia: FrequenciaGravada) => void;
+  /** `linha`: texto e lápis, debaixo do nome no Ritmo do Planejamento. */
+  aparencia?: 'botao' | 'linha';
 }) {
   const { serie, editavel, texto, salvar } = useFrequenciaDaSerie(serieId);
   const [aberto, setAberto] = useState(false);
   const [rascunho, setRascunho] = useState<RascunhoDaFrequencia>(() => rascunhoDaFrequencia(serie ?? {}));
-  const [erro, setErro] = useState<string | null>(null);
+  const [erro, setErro] = useState<{ mensagem: string; campo: 'quantidade' | 'periodo' | 'inicio' } | null>(null);
+  const [gravando, setGravando] = useState(false);
+  const campoId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const painelRef = useRef<HTMLDivElement>(null);
   const painelId = useId();
@@ -39,6 +44,7 @@ export function FrequenciaChip({
   useEffect(() => {
     if (!aberto) return undefined;
     const fora = (event: MouseEvent | TouchEvent) => {
+      if (gravando) return;
       const alvo = event.target as Node | null;
       if (alvo && (triggerRef.current?.contains(alvo) || painelRef.current?.contains(alvo))) return;
       setAberto(false);
@@ -54,40 +60,83 @@ export function FrequenciaChip({
       document.removeEventListener('touchstart', fora);
       document.removeEventListener('keydown', tecla);
     };
-  }, [aberto]);
+  }, [aberto, gravando]);
 
-  if (!serie || !editavel) return null;
+  if (!serie || !editavel) {
+    if (aparencia === 'linha' && texto) {
+      return <span className={cn('t-meta truncate', className)}>{texto}</span>;
+    }
+    return null;
+  }
+
+  const linha = aparencia === 'linha';
 
   const abrir = () => {
     setRascunho(rascunhoDaFrequencia(serie));
     setErro(null);
     setAberto(atual => !atual);
   };
-  const gravar = () => {
-    const resultado = salvar(rascunho);
-    if ('erro' in resultado) { setErro(resultado.erro); return; }
-    onSalvo?.(resultado);
-    setAberto(false);
+  const gravar = async () => {
+    if (gravando) return;
+    setGravando(true);
+    try {
+      const resultado = await salvar(rascunho);
+      if ('erro' in resultado) {
+        setErro({ mensagem: resultado.erro, campo: resultado.campo });
+        window.setTimeout(() => document.getElementById(`${campoId}-${resultado.campo}`)?.focus(), 0);
+        return;
+      }
+      onSalvo?.(resultado);
+      setAberto(false);
+    } finally {
+      setGravando(false);
+    }
   };
+
+  const abrirComClique = (event: CliqueDoMouse) => {
+    event.stopPropagation();
+    abrir();
+  };
+  const rotulo = `Frequência: ${texto}. Editar`;
 
   return (
     <>
-      <AppButton
-        ref={triggerRef}
-        id={id}
-        type="button"
-        variant="secondary"
-        size="sm"
-        className={className}
-        leftIcon={<Repeat className="h-3.5 w-3.5" aria-hidden />}
-        aria-haspopup="dialog"
-        aria-expanded={aberto}
-        aria-controls={aberto ? painelId : undefined}
-        aria-label={`Frequência: ${texto}. Editar`}
-        onClick={event => { event.stopPropagation(); abrir(); }}
-      >
-        {texto}
-      </AppButton>
+      {linha ? (
+        <button
+          ref={triggerRef}
+          id={id}
+          type="button"
+          className={cn(
+            't-meta inline-flex max-w-full items-center gap-1 rounded-[var(--radius-input)] py-1 text-left focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+            className,
+          )}
+          aria-haspopup="dialog"
+          aria-expanded={aberto}
+          aria-controls={aberto ? painelId : undefined}
+          aria-label={rotulo}
+          onClick={abrirComClique}
+        >
+          <span className="truncate">{texto}</span>
+          <Pencil className="h-3 w-3 shrink-0" aria-hidden />
+        </button>
+      ) : (
+        <AppButton
+          ref={triggerRef}
+          id={id}
+          type="button"
+          variant="secondary"
+          size="sm"
+          className={className}
+          leftIcon={<Repeat className="h-3.5 w-3.5" aria-hidden />}
+          aria-haspopup="dialog"
+          aria-expanded={aberto}
+          aria-controls={aberto ? painelId : undefined}
+          aria-label={rotulo}
+          onClick={abrirComClique}
+        >
+          {texto}
+        </AppButton>
+      )}
       {aberto && typeof document !== 'undefined' ? createPortal(
         <div
           ref={painelRef}
@@ -102,20 +151,24 @@ export function FrequenciaChip({
         >
           <Text variant="bodyStrong" as="span">Frequência</Text>
           <CamposDaMeta
+            idPrefix={campoId}
             vezes={rascunho.vezes}
             unidade={rascunho.unidade}
             inicio={rascunho.aPartirDe}
             onVezes={vezes => setRascunho(atual => ({ ...atual, vezes }))}
             onUnidade={unidade => setRascunho(atual => ({ ...atual, unidade }))}
             onInicio={aPartirDe => setRascunho(atual => ({ ...atual, aPartirDe }))}
+            mostrarLegenda
+            erros={erro ? { [erro.campo]: erro.mensagem } : undefined}
           />
           <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
             Quantidade vazia tira a meta. Acompanhamento e regras ficam na Continuidade.
           </Text>
-          {erro ? <Text variant="meta" as="p" className="text-[var(--accent-red)]">{erro}</Text> : null}
           <div className="flex justify-end gap-2">
-            <AppButton type="button" variant="ghost" size="sm" onClick={() => setAberto(false)}>Cancelar</AppButton>
-            <AppButton type="button" variant="primary" size="sm" onClick={gravar}>Salvar</AppButton>
+            <AppButton type="button" variant="ghost" size="sm" onClick={() => setAberto(false)} disabled={gravando}>Cancelar</AppButton>
+            <AppButton type="button" variant="primary" size="sm" onClick={() => void gravar()} disabled={gravando}>
+              {gravando ? 'Salvando…' : 'Salvar'}
+            </AppButton>
           </div>
         </div>,
         document.body,

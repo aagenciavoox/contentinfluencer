@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import type {Content, ContentPlataforma} from '../../../lib/database.ts';
 import {CONTENT_STATUS} from '../../contents/lib/contentPipeline.ts';
 import {createContentDraft} from '../../contents/lib/createContentDraft.ts';
-import {diaNoQuadro, levarRoteiroAoDia, postItsNaDataDoRoteiro, quandoFoiAoAr, rotuloPublicadoEm, roteiroPublicado} from './postItsNaData.ts';
+import {conteudosNaDataDoQuadro, diaNoQuadro, levarRoteiroAoDia, postItsNaDataDoRoteiro, quandoFoiAoAr, rotuloPublicadoEm, roteiroPublicado} from './postItsNaData.ts';
 
 function conta(platformId: string, publishDate: string | null, extra: Partial<ContentPlataforma> = {}): ContentPlataforma {
   return {
@@ -158,6 +158,18 @@ function testPrevistoMudaDeDiaELimpaAoTirar() {
   assert.equal(semData.plataformas[0].publishDate, null);
 }
 
+function testQuadroUsaODiaDoPostIt() {
+  const oficial = roteiro({id: 'r1', publishDate: '2026-11-10', plataformas: [conta('ig', '2026-11-10')]});
+  const [projetado] = conteudosNaDataDoQuadro([oficial], [postIt('2026-11-25')]);
+  assert.equal(projetado.publishDate?.slice(0, 10), '2026-11-25');
+  assert.equal(projetado.plataformas[0].publishDate?.slice(0, 10), '2026-11-25');
+  const publicado = roteiro({id: 'r1', status: CONTENT_STATUS.POSTADO, postedAt: '2026-11-10T12:00:00.000Z', publishDate: '2026-11-10'});
+  const [intacto] = conteudosNaDataDoQuadro([publicado], [postIt('2026-11-25')]);
+  assert.equal(intacto.publishDate?.slice(0, 10), '2026-11-10');
+  const [semDia] = conteudosNaDataDoQuadro([oficial], [postIt(null)]);
+  assert.equal(semDia.publishDate, null);
+}
+
 const tests = [
   ['linked post-it sits on the roteiro day', testPostItFicaNoDiaDoRoteiro],
   ['undated roteiro keeps the post-it day', testRoteiroSemDataMantemODiaDoPostIt],
@@ -171,6 +183,7 @@ const tests = [
   ['previsto moves to new day and clears when removing date', testPrevistoMudaDeDiaELimpaAoTirar],
   ['posted post-it sits on the day it went live', testPostItPublicadoVaiParaODiaEmQueFoiAoAr],
   ['posted label includes the time', testPublicadoComHoraMostraOAviso],
+  ['the board date replaces the official date until it is saved', testQuadroUsaODiaDoPostIt],
 ] as const;
 
 for (const [name, test] of tests) {

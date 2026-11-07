@@ -502,7 +502,7 @@ export function ContentOperationalPanel({
     ? `Da série: ${pilarHerdado.nome}`
     : draft.pilarOrigem === 'nenhuma' ? 'Nenhum pilar' : 'Selecionar pilar…';
   // Pilar inativo continua aparecendo para quem já usa; só não entra como escolha nova.
-  const opcoesDePilar = pilares.filter(pilar => pilar.ativo || pilar.id === draft.pilarId);
+  const opcoesDePilar = pilares.filter(pilar => pilar.ativo || pilar.id === pilarEfetivoId);
   const temporadas = (state.temporadas ?? []) as readonly Temporada[];
   const escopoTemp = draft.seriesId ? escopoTemporadas(draft.seriesId, series) : null;
   const tempsDoEscopo = escopoTemp ? temporadasDoEscopo(escopoTemp.id, temporadas) : [];
@@ -516,7 +516,7 @@ export function ContentOperationalPanel({
     : null;
   // Pilares ativos; o pilar já escolhido entra mesmo inativo, para a etiqueta mostrar o nome.
   const pilarTagOptions = pilares
-    .filter(pilar => pilar.ativo || pilar.id === draft.pilarId)
+    .filter(pilar => pilar.ativo || pilar.id === pilarEfetivoId)
     .map(pilar => ({value: pilar.id, label: pilar.nome}));
   const visualFormats = useMemo(
     () => Array.from(new Set([
@@ -681,9 +681,9 @@ export function ContentOperationalPanel({
 
       <PropertyRow label="Pilar" icon={<Palette />}>
         <ColoredSelect
-          value={draft.pilarId ?? ''}
+          value={pilarEfetivoId ?? ''}
           onChange={event => onChange(marcarEscolhaManual(draft, 'pilar', event.target.value || null))}
-          empty={!draft.pilarId && !pilarHerdado}
+          empty={!pilarEfetivoId}
           dotColor={linkedPilar?.cor ?? null}
         >
           <option value="">{rotuloSemPilar}</option>
@@ -827,7 +827,7 @@ export function ContentOperationalPanel({
             id="content-form-pilar"
             maxSelections={1}
             placeholder="Selecionar pilar…"
-            values={draft.pilarId ? [draft.pilarId] : []}
+            values={pilarEfetivoId ? [pilarEfetivoId] : []}
             onChange={values => onChange(marcarEscolhaManual(draft, 'pilar', values[0] ?? null))}
             options={pilarTagOptions}
           />
@@ -980,7 +980,7 @@ export function ContentOperationalPanel({
 
           <RoteiroField label="Pilar" icon={<Target className="h-3.5 w-3.5" />}>
             <RoteiroSelect
-              value={draft.pilarId ?? ''}
+              value={pilarEfetivoId ?? ''}
               onChange={event => onChange(marcarEscolhaManual(draft, 'pilar', event.target.value || null))}
               dotColor={linkedPilar?.cor ?? null}
             >
