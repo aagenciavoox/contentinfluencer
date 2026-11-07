@@ -99,7 +99,8 @@ export function PostingTimesEditor({
   const [editando, setEditando] = useState(comecarEditando);
   // Enquanto ninguém mexeu, o rascunho acompanha o que chega do servidor.
   const [touched, setTouched] = useState(false);
-  const pendentesRef = useRef<Partial<Record<Weekday, string>>>({});
+  const pendentesRef = useRef<Partial<Record<string, Partial<Record<Weekday, string>>>>>({});
+  const [salvando, setSalvando] = useState(false);
   const saveEpoch = useRef(0);
   const manterRascunhoSalvo = useRef(false);
   const isDirty = editando && touched && !draftsMatch(draft, savedDraft);
@@ -140,25 +141,31 @@ export function PostingTimesEditor({
     }));
   }
 
-  function incluirHorario(base: ScheduleDraft, weekday: Weekday, time: string): ScheduleDraft {
+  function incluirHorarioNa(base: ScheduleDraft, key: string, weekday: Weekday, time: string): ScheduleDraft {
     const normalized = normalizeTime(time);
     if (!normalized) return base;
-    const current = timesFor(base, selectedKey, weekday);
+    const current = timesFor(base, key, weekday);
     if (current.length >= MAX_TIMES_PER_DAY || current.includes(normalized)) return base;
     return {
       ...base,
-      [selectedKey]: {
-        ...base[selectedKey],
+      [key]: {
+        ...base[key],
         [weekday]: [...current, normalized].sort(),
       },
     };
   }
 
+  function incluirHorario(base: ScheduleDraft, weekday: Weekday, time: string): ScheduleDraft {
+    return incluirHorarioNa(base, selectedKey, weekday, time);
+  }
+
   function rascunhoPronto(base: ScheduleDraft): ScheduleDraft {
     let next = base;
-    for (const weekday of WEEKDAYS) {
-      const pendente = pendentesRef.current[weekday];
-      if (pendente) next = incluirHorario(next, weekday, pendente);
+    for (const [key, dias] of Object.entries(pendentesRef.current)) {
+      for (const weekday of WEEKDAYS) {
+        const pendente = dias?.[weekday];
+        if (pendente) next = incluirHorarioNa(next, key, weekday, pendente);
+      }
     }
     return next;
   }
@@ -166,7 +173,8 @@ export function PostingTimesEditor({
   function handleAdd(weekday: Weekday, time: string) {
     const next = incluirHorario(draft, weekday, time);
     if (next === draft) return;
-    delete pendentesRef.current[weekday];
+    const daConta = pendentesRef.current[selectedKey];
+    if (daConta) delete daConta[weekday];
     setTouched(true);
     setDraft(next);
   }
@@ -204,45 +212,47 @@ export function PostingTimesEditor({
   }
 
   async function handleSave() {
+    if (salvando) return;
     const pronto = rascunhoPronto(draft);
-    pendentesRef.current = {};
     if (draftsMatch(pronto, savedDraft)) {
+      pendentesRef.current = {};
       setDraft(savedDraft);
       setTouched(false);
       setEditando(false);
       return;
     }
-    manterRascunhoSalvo.current = true;
     setDraft(pronto);
-    setTouched(false);
-    setEditando(false);
+    setSalvando(true);
     const epoch = saveEpoch.current;
     const keys = new Set([...Object.keys(savedDraft), ...Object.keys(pronto)]);
     notifySaveFeedback({status: 'saving', message: 'Salvando horários…'});
-    void (async () => {
-      try {
-        for (const key of keys) {
-          const platformId = key === GLOBAL_TAB_ID ? null : key;
-          for (const weekday of WEEKDAYS) {
-            const next = timesFor(pronto, key, weekday);
-            const previous = timesFor(savedDraft, key, weekday);
-            if (next.join('|') === previous.join('|')) continue;
-            await replacePostingTimesForPlatform(platformId, weekday, next);
-          }
+    try {
+      for (const key of keys) {
+        const platformId = key === GLOBAL_TAB_ID ? null : key;
+        for (const weekday of WEEKDAYS) {
+          const next = timesFor(pronto, key, weekday);
+          const previous = timesFor(savedDraft, key, weekday);
+          if (next.join('|') === previous.join('|')) continue;
+          await replacePostingTimesForPlatform(platformId, weekday, next);
         }
-        await ensureDataDomains(['schedule'], {force: true});
-        broadcastDataSync();
-        if (saveEpoch.current !== epoch) return;
-        notifySaveFeedback({status: 'success', message: 'Horários salvos'});
-        aoSalvar?.();
-      } catch (err) {
-        if (saveEpoch.current !== epoch) return;
-        notifySaveFeedback({status: 'error', message: 'Não foi possível salvar os horários. Verifique sua conexão e tente novamente.', detail: getErrorDetail(err)});
-        setDraft(pronto);
-        setTouched(true);
-        setEditando(true);
       }
-    })();
+      await ensureDataDomains(['schedule'], {force: true});
+      broadcastDataSync();
+      if (saveEpoch.current !== epoch) return;
+      pendentesRef.current = {};
+      manterRascunhoSalvo.current = true;
+      setTouched(false);
+      setEditando(false);
+      notifySaveFeedback({status: 'success', message: 'Horários salvos'});
+      aoSalvar?.();
+    } catch (err) {
+      if (saveEpoch.current !== epoch) return;
+      notifySaveFeedback({status: 'error', message: 'Não foi possível salvar os horários. Verifique sua conexão e tente novamente.', detail: getErrorDetail(err)});
+      setDraft(pronto);
+      setTouched(true);
+    } finally {
+      if (saveEpoch.current === epoch) setSalvando(false);
+    }
   }
 
   const acoes = editando ? (
@@ -254,8 +264,9 @@ export function PostingTimesEditor({
         variant="primary"
         size="sm"
         onClick={() => void handleSave()}
+        disabled={salvando}
       >
-        Salvar alterações
+        {salvando ? 'Salvando…' : 'Salvar alterações'}
       </AppButton>
     </div>
   ) : (
@@ -335,7 +346,10 @@ export function PostingTimesEditor({
                 fallbackTimes={fallbackTimes}
                 editando={editando}
                 onPending={time => {
-                  pendentesRef.current = {...pendentesRef.current, [day]: time};
+                  pendentesRef.current = {
+                    ...pendentesRef.current,
+                    [selectedKey]: {...pendentesRef.current[selectedKey], [day]: time},
+                  };
                 }}
                 onAdd={time => handleAdd(day, time)}
                 onRemove={time => handleRemove(day, time)}

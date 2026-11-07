@@ -130,13 +130,14 @@ export function PostingTimesOverview() {
     />
   );
 
-  const salvarDia = (atual: Alvo, times: string[]) => {
-    setAlvo(null);
-    if (times.join('|') === atual.proprios.join('|')) return;
-    void gravar(atual.platformId, atual.weekday, times, 'Horários salvos').then(ok => {
-      // Se não salvou, o diálogo volta com o que a pessoa tinha escolhido.
-      if (!ok) setAlvo({...atual, proprios: times});
-    });
+  const salvarDia = async (atual: Alvo, times: string[]) => {
+    if (times.join('|') === atual.proprios.join('|')) {
+      setAlvo(null);
+      return;
+    }
+    const ok = await gravar(atual.platformId, atual.weekday, times, 'Horários salvos');
+    if (ok) setAlvo(null);
+    else setAlvo({...atual, proprios: times});
   };
 
   return (

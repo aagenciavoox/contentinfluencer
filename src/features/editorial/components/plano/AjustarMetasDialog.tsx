@@ -41,7 +41,7 @@ export interface AjustarMetasDialogProps {
   metaDoPeriodo?: number | null;
   /** Meta de cada conta pelo ritmo dela (Contas e formatos), sem o número do período. */
   metaDaContaPeloRitmo?: Record<string, number | null>;
-  onSalvar: (patch: Partial<Omit<DecisaoPeriodo, 'inicio' | 'fim'>>) => void;
+  onSalvar: (patch: Partial<Omit<DecisaoPeriodo, 'inicio' | 'fim'>>) => void | Promise<void>;
 }
 
 function inteiro(texto: string): number | null {
@@ -158,22 +158,30 @@ export function AjustarMetasDialog({
   // Só bloqueia o que a pessoa mexeu agora; distribuição antiga que não fecha fica como pendência.
   const bloqueiaDistribuicao = somaDiverge && (distribuicaoMudou || metaMudou);
 
-  const handleSave = () => {
-    if (bloqueiaDistribuicao) return;
+  const [salvando, setSalvando] = useState(false);
+  const handleSave = async () => {
+    if (bloqueiaDistribuicao || salvando) return;
     const prod = parseInt(metasProducao, 10);
     const pub = parseInt(metasPublicacao, 10);
-    onSalvar({
-      prioridade: prioridade.trim(),
-      prioridadeNivel,
-      pausaEditorial: pausaEditorial.trim(),
-      metasProducao: Number.isFinite(prod) ? prod : undefined,
-      metasPublicacao: Number.isFinite(pub) ? pub : undefined,
-      metasPorConta,
-      // Distribuição que ninguém mexeu continua exatamente como estava.
-      ...(objetivos.length > 0 && distribuicaoMudou ? { metas: metasDoRascunho() } : {}),
-      ...(semanasParciais.length > 0 ? { ajustesSemana: ajustesDoRascunho() } : {}),
-    });
-    onClose();
+    setSalvando(true);
+    try {
+      await onSalvar({
+        prioridade: prioridade.trim(),
+        prioridadeNivel,
+        pausaEditorial: pausaEditorial.trim(),
+        metasProducao: Number.isFinite(prod) ? prod : undefined,
+        metasPublicacao: Number.isFinite(pub) ? pub : undefined,
+        metasPorConta,
+        // Distribuição que ninguém mexeu continua exatamente como estava.
+        ...(objetivos.length > 0 && distribuicaoMudou ? { metas: metasDoRascunho() } : {}),
+        ...(semanasParciais.length > 0 ? { ajustesSemana: ajustesDoRascunho() } : {}),
+      });
+      onClose();
+    } catch {
+      // O aviso de erro já saiu. O que foi digitado continua no formulário.
+    } finally {
+      setSalvando(false);
+    }
   };
 
   const placeholderMeta = (calculada: number | null) =>
@@ -465,11 +473,11 @@ export function AjustarMetasDialog({
         </AppButton>
         <AppButton
           variant="primary"
-          onClick={handleSave}
-          disabled={bloqueiaDistribuicao}
+          onClick={() => void handleSave()}
+          disabled={bloqueiaDistribuicao || salvando}
           disabledReason={bloqueiaDistribuicao ? 'As metas por objetivo precisam somar a meta do período.' : undefined}
         >
-          Salvar Metas
+          {salvando ? 'Salvando…' : 'Salvar Metas'}
         </AppButton>
       </OverlayFooter>
     </Dialog>

@@ -37,7 +37,7 @@ export function useEditorialPlano() {
   const settings = comDiasDeGravacao(state.editorial);
 
   const gravar = (value: EditorialSettings) => {
-    dispatch({ type: 'SET_EDITORIAL', payload: value });
+    return dispatch({ type: 'SET_EDITORIAL', payload: value });
   };
 
   const salvarPreferencias = (patch: Partial<PreferenciasGerais>) => {
@@ -57,7 +57,7 @@ export function useEditorialPlano() {
       metas: {},
       ajustesSemana: [],
     };
-    gravar(upsertDecisaoPeriodo(settings, {
+    return gravar(upsertDecisaoPeriodo(settings, {
       ...atual,
       ...patch,
       inicio: periodo.inicio,

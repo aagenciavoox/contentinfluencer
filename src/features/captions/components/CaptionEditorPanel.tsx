@@ -52,7 +52,7 @@ export function CaptionEditorPanel({
     return activePublicacoes[0] || null;
   }, [activePublicacoes, selectedPublicacaoId]);
 
-  const [savingStatus, setSavingStatus] = useState<'saved' | 'saving'>('saved');
+  const [savingStatus, setSavingStatus] = useState<'saved' | 'saving' | 'error'>('saved');
   const [copyModalOpen, setCopyModalOpen] = useState(false);
   const [copiedPronto, setCopiedPronto] = useState(false);
   const [newTagInput, setNewTagInput] = useState('');
@@ -109,45 +109,61 @@ export function CaptionEditorPanel({
   const onSaveRef = useRef(onSaveContent);
   onSaveRef.current = onSaveContent;
 
+  const pendenteRef = useRef<{ text: string; tags: string[]; publicacaoId: string } | null>(null);
+
+  const gravarAgora = useCallback(async (textToSave: string, tagsToSave: string[], publicacaoId: string) => {
+    const updatedPlataformas = content.plataformas.map(p => {
+      if (p.id === publicacaoId) {
+        return {
+          ...p,
+          legenda: textToSave,
+          hashtags: joinHashtags(tagsToSave),
+          legendaPropria: true,
+        };
+      }
+      return p;
+    });
+    setSavingStatus('saving');
+    try {
+      await onSaveRef.current({
+        ...content,
+        plataformas: updatedPlataformas,
+      });
+      const atual = pendenteRef.current;
+      if (atual?.text === textToSave && atual.publicacaoId === publicacaoId && atual.tags.join('\0') === tagsToSave.join('\0')) {
+        pendenteRef.current = null;
+      }
+      setSavingStatus(pendenteRef.current ? 'saving' : 'saved');
+    } catch {
+      setSavingStatus('error');
+    }
+  }, [content]);
+
   const triggerSave = useCallback(
     (textToSave: string, tagsToSave: string[]) => {
       if (!publicacao) return;
+      pendenteRef.current = { text: textToSave, tags: tagsToSave, publicacaoId: publicacao.id };
       setSavingStatus('saving');
       if (timerRef.current) window.clearTimeout(timerRef.current);
 
-      timerRef.current = window.setTimeout(async () => {
+      timerRef.current = window.setTimeout(() => {
         timerRef.current = null;
-        const updatedPlataformas = content.plataformas.map(p => {
-          if (p.id === publicacao.id) {
-            return {
-              ...p,
-              legenda: textToSave,
-              hashtags: joinHashtags(tagsToSave),
-              legendaPropria: true,
-            };
-          }
-          return p;
-        });
-
-        try {
-          await onSaveRef.current({
-            ...content,
-            plataformas: updatedPlataformas,
-          });
-          setSavingStatus('saved');
-        } catch {
-          setSavingStatus('saved');
-        }
+        const pendente = pendenteRef.current;
+        if (!pendente) return;
+        void gravarAgora(pendente.text, pendente.tags, pendente.publicacaoId);
       }, 600);
     },
-    [content, publicacao],
+    [gravarAgora, publicacao],
   );
 
+  const gravarAgoraRef = useRef(gravarAgora);
+  gravarAgoraRef.current = gravarAgora;
   useEffect(() => {
     return () => {
-      if (timerRef.current) {
-        window.clearTimeout(timerRef.current);
-      }
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+      const pendente = pendenteRef.current;
+      if (pendente) void gravarAgoraRef.current(pendente.text, pendente.tags, pendente.publicacaoId);
     };
   }, []);
 
@@ -448,6 +464,8 @@ export function CaptionEditorPanel({
               </span>
               {savingStatus === 'saving' ? (
                 <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">Salvando…</Text>
+              ) : savingStatus === 'error' ? (
+                <Text variant="meta" as="span" role="status" style={{ color: 'var(--danger)' }}>Não salvou. O texto continua aqui.</Text>
               ) : null}
             </div>
 

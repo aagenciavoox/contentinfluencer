@@ -443,8 +443,9 @@ export function LibraryPage() {
     }));
   };
 
-  const handleCriarLivro = () => {
-    if (!form.titulo.trim()) return;
+  const [criando, setCriando] = useState(false);
+  const handleCriarLivro = async () => {
+    if (!form.titulo.trim() || criando) return;
 
     const totalPaginas =
       form.tipo === 'filme'
@@ -501,11 +502,17 @@ export function LibraryPage() {
       ficha: metadata,
     };
 
-    dispatch({ type: 'ADD_BOOK', payload: novoLivro });
-
-    setModalAberto(false);
-    resetForm();
-    navigate(`/biblioteca/${novoLivro.id}`);
+    setCriando(true);
+    try {
+      await dispatch({ type: 'ADD_BOOK', payload: novoLivro });
+      setModalAberto(false);
+      resetForm();
+      navigate(`/biblioteca/${novoLivro.id}`);
+    } catch {
+      // O aviso de erro já saiu. O formulário continua com o que foi digitado.
+    } finally {
+      setCriando(false);
+    }
   };
 
   const handleSetPrimaryMobileBook = (bookId: string) => {
@@ -567,11 +574,11 @@ export function LibraryPage() {
       </AppButton>
       <AppButton
         variant="primary"
-        onClick={handleCriarLivro}
-        disabled={!form.titulo.trim()}
+        onClick={() => void handleCriarLivro()}
+        disabled={!form.titulo.trim() || criando}
         className="flex-1 md:ml-auto md:max-w-[240px]"
       >
-        Criar obra
+        {criando ? 'Salvando…' : 'Criar obra'}
       </AppButton>
     </OverlayFooter>
   );

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { isAuthRetryableFetchError, Session, User } from '@supabase/supabase-js';
+import { notifySaveFeedback } from '../lib/saveFeedback';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 
 interface AuthContextType {
@@ -67,7 +68,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = async () => {
-    await supabase?.auth.signOut();
+    if (!supabase) {
+      notifySaveFeedback({
+        status: 'error',
+        message: 'Não foi possível sair. Verifique sua conexão e tente novamente.',
+      });
+      throw new Error('Não foi possível sair.');
+    }
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    } catch (error) {
+      notifySaveFeedback({
+        status: 'error',
+        message: 'Não foi possível sair. Verifique sua conexão e tente novamente.',
+        detail: error instanceof Error ? error.message : undefined,
+      });
+      throw error;
+    }
   };
 
   const ensureAuthAvailable = () => {

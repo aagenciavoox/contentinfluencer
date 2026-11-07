@@ -108,8 +108,9 @@ export function ProjectsPage() {
 
   const avisoInvalido = avisoDiasInvalido(tipo, avisoDias);
 
-  const handleCreate = () => {
-    if (!nome.trim() || avisoInvalido) return;
+  const [criando, setCriando] = useState(false);
+  const handleCreate = async () => {
+    if (!nome.trim() || avisoInvalido || criando) return;
     const aviso = avisoDiasParaSalvar(tipo, avisoDias);
     if (aviso === 'invalid') return;
     const projeto: Projeto = {
@@ -138,9 +139,16 @@ export function ProjectsPage() {
       etapas: [],
       contentIds: [],
     };
-    dispatch({ type: 'ADD_PROJETO', payload: projeto });
-    resetForm();
-    setShowForm(false);
+    setCriando(true);
+    try {
+      await dispatch({ type: 'ADD_PROJETO', payload: projeto });
+      resetForm();
+      setShowForm(false);
+    } catch {
+      // O aviso de erro já saiu. O formulário continua com o que foi digitado.
+    } finally {
+      setCriando(false);
+    }
   };
 
   const handleClose = () => { resetForm(); setShowForm(false); };
@@ -158,7 +166,7 @@ export function ProjectsPage() {
                 autoFocus
                 value={nome}
                 onChange={e => setNome(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleCreate()}
+                onKeyDown={e => { if (e.key === 'Enter') void handleCreate(); }}
                 placeholder="Nome do projeto"
                 className="input"
               />
@@ -222,11 +230,11 @@ export function ProjectsPage() {
             </AppButton>
             <AppButton
               variant="primary"
-              onClick={handleCreate}
-              disabled={!nome.trim() || avisoInvalido}
+              onClick={() => void handleCreate()}
+              disabled={!nome.trim() || avisoInvalido || criando}
               className="flex-1"
             >
-              Criar projeto
+              {criando ? 'Salvando…' : 'Criar projeto'}
             </AppButton>
           </OverlayFooter>
         </Dialog>

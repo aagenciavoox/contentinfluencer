@@ -92,6 +92,34 @@ const SLOT_ROTULO: Record<string, string> = {
 // As mesmas categorias do formulário de nova anotação, a padrão ("Anotação") inclusa.
 const TIPOS: TipoAnotacao[] = ANNOTATION_TYPES;
 const STATUS_LEITURA = STATUS_BY_TYPE;
+
+function montarInfoLocal(livro: BibliotecaItem | undefined) {
+  const itemType = livro?.tipo ?? 'livro';
+  const metadata = livro?.ficha ?? {};
+  return {
+    titulo: livro?.titulo ?? '',
+    autor: livro?.autorDiretor ?? '',
+    statusLeitura: livro?.status ?? (STATUS_LEITURA[itemType][0] as StatusLeitura),
+    capaUrl: livro?.capaUrl ?? '',
+    dataInicio: livro?.dataInicio ?? '',
+    dataFim: livro?.dataFim ?? '',
+    avaliacao: livro?.avaliacao as 1 | 2 | 3 | 4 | 5 | undefined,
+    generos: livro?.generoIds ? [...livro.generoIds] : [] as GeneroLivro[],
+    paginasLidas: livro?.paginasLidas ?? ('' as number | ''),
+    totalPaginas: livro?.totalPaginas ?? ('' as number | ''),
+    editora: metadata.editora ?? '',
+    anoPublicacao: metadata.anoPublicacao ?? '',
+    isbn: metadata.isbn ?? '',
+    idioma: metadata.idioma ?? '',
+    traducao: metadata.traducao ?? '',
+    serieColecao: metadata.serieColecao || metadata.colecaoNome || '',
+    generoAutor: metadata.generoAutor ?? '',
+    paisAutor: metadata.paisAutor ?? '',
+    racaAutor: metadata.racaAutor ?? '',
+    duracaoPorEpisodio: metadata.duracaoPorEpisodio ?? '',
+    avaliacaoCriterios: metadata.avaliacaoCriterios as AvaliacaoCriterios | undefined,
+  };
+}
 type Tab = 'info' | 'anotacoes' | 'conteudos';
 type OrdemAnotacoes = 'recentes' | 'leitura';
 
@@ -203,12 +231,18 @@ export function BookDetailPage() {
   const bibliotecaItemsRef = useRef(state.bibliotecaItems);
   bibliotecaItemsRef.current = state.bibliotecaItems;
 
+  const [obraAusente, setObraAusente] = useState(false);
   useEffect(() => {
     if (!id || !user || livro) return;
     let cancelled = false;
+    setObraAusente(false);
     // O livro acabou de vir do servidor: entra só no estado, sem gravar de volta nem avisar "Alterações salvas".
     void fetchBibliotecaItemById(user.id, id).then(item => {
-      if (cancelled || !item) return;
+      if (cancelled) return;
+      if (!item) {
+        setObraAusente(true);
+        return;
+      }
       const atuais = bibliotecaItemsRef.current;
       if (atuais.some(b => b.id === item.id)) return;
       dispatch({ type: 'SET_DATA', payload: { bibliotecaItems: [item, ...atuais] } });
@@ -269,33 +303,11 @@ export function BookDetailPage() {
   const technicalLabels = getTechnicalLabels(itemType);
   const coverageLabels = getCoverageLabels(itemType);
   const ItemIcon = itemType === 'livro' || itemType === 'manga' || itemType === 'quadrinho' ? BookOpen : Film;
-  const [infoLocal, setInfoLocal] = useState(() => ({
-    titulo: livro?.titulo ?? '',
-    autor: livro?.autorDiretor ?? '',
-    statusLeitura: livro?.status ?? (STATUS_LEITURA[itemType][0] as StatusLeitura),
-    capaUrl: livro?.capaUrl ?? '',
-    dataInicio: livro?.dataInicio ?? '',
-    dataFim: livro?.dataFim ?? '',
-    avaliacao: livro?.avaliacao as 1 | 2 | 3 | 4 | 5 | undefined,
-    generos: livro?.generoIds ? [...livro.generoIds] : [] as GeneroLivro[],
-    paginasLidas: livro?.paginasLidas ?? ('' as number | ''),
-    totalPaginas: livro?.totalPaginas ?? ('' as number | ''),
-    editora: metadata.editora ?? '',
-    anoPublicacao: metadata.anoPublicacao ?? '',
-    isbn: metadata.isbn ?? '',
-    idioma: metadata.idioma ?? '',
-    traducao: metadata.traducao ?? '',
-    // Um campo só para série/coleção; o nome antigo de "Qual coleção?" entra quando o outro está vazio.
-    serieColecao: metadata.serieColecao || metadata.colecaoNome || '',
-    generoAutor: metadata.generoAutor ?? '',
-    paisAutor: metadata.paisAutor ?? '',
-    racaAutor: metadata.racaAutor ?? '',
-    duracaoPorEpisodio: metadata.duracaoPorEpisodio ?? '',
-    avaliacaoCriterios: metadata.avaliacaoCriterios as AvaliacaoCriterios | undefined,
-  }));
+  const [infoLocal, setInfoLocal] = useState(() => montarInfoLocal(livro));
+  const [fichaId, setFichaId] = useState(livro?.id ?? null);
   // Ficha editada e ainda não salva segura a troca de versão do app.
   const infoSavedSnapshotRef = useRef(JSON.stringify(infoLocal));
-  const salvarInfoRef = useRef<() => void>(() => {});
+  const salvarInfoRef = useRef<() => void | Promise<void>>(() => {});
   useUnsavedChangesRegistration(
     Boolean(livro) && JSON.stringify(infoLocal) !== infoSavedSnapshotRef.current,
     () => salvarInfoRef.current(),
@@ -305,25 +317,38 @@ export function BookDetailPage() {
   const infoJson = JSON.stringify(infoLocal);
   const hasLivro = Boolean(livro);
   useEffect(() => {
-    if (!hasLivro || infoJson === infoSavedSnapshotRef.current) return;
-    const timer = window.setTimeout(() => salvarInfoRef.current(), 900);
+    if (!hasLivro || fichaId !== id || infoJson === infoSavedSnapshotRef.current) return;
+    const timer = window.setTimeout(() => void salvarInfoRef.current(), 900);
     return () => window.clearTimeout(timer);
-  }, [hasLivro, infoJson]);
+  }, [fichaId, hasLivro, id, infoJson]);
   const infoJsonRef = useRef(infoJson);
   infoJsonRef.current = infoJson;
   const infoPendente = infoJson !== infoSavedSnapshotRef.current;
   useEffect(() => () => {
-    if (infoJsonRef.current !== infoSavedSnapshotRef.current) salvarInfoRef.current();
+    if (infoJsonRef.current !== infoSavedSnapshotRef.current) void salvarInfoRef.current();
   }, []);
 
-  if (!livro) {
+  if (livro && fichaId !== livro.id) {
+    const next = montarInfoLocal(livro);
+    infoSavedSnapshotRef.current = JSON.stringify(next);
+    setInfoLocal(next);
+    setFichaId(livro.id);
+  }
+
+  if (!livro || fichaId !== livro.id) {
     return (
       <div className="flex min-h-full items-center justify-center px-4 py-16">
         <div className="stack-lg text-center">
-          <Text variant="bodyStrong">Item não encontrado</Text>
-          <AppButton variant="secondary" onClick={() => navigate('/biblioteca')}>
-            Voltar à biblioteca
-          </AppButton>
+          {livro || !obraAusente ? (
+            <Text variant="bodyStrong">Carregando a ficha…</Text>
+          ) : (
+            <>
+              <Text variant="bodyStrong">Item não encontrado</Text>
+              <AppButton variant="secondary" onClick={() => navigate('/biblioteca')}>
+                Voltar à biblioteca
+              </AppButton>
+            </>
+          )}
         </div>
       </div>
     );
@@ -472,8 +497,10 @@ export function BookDetailPage() {
 
   // Notas gerais, quem indicou, por que escolheu e potencial saíram da tela;
   // o que já estava gravado segue no item pelo ...livro e pelo ...metadata.
-  const handleSalvarInfo = (info = infoLocal) => {
-    dispatch({
+  const handleSalvarInfo = async (info = infoLocal) => {
+    const json = JSON.stringify(info);
+    try {
+      await dispatch({
       type: 'UPDATE_BOOK',
       payload: {
         ...livro,
@@ -508,9 +535,13 @@ export function BookDetailPage() {
         },
       },
     });
-    infoSavedSnapshotRef.current = JSON.stringify(info);
-    setInfoSalvo(true);
-    setTimeout(() => setInfoSalvo(false), 2000);
+      if (infoJsonRef.current !== json) return;
+      infoSavedSnapshotRef.current = json;
+      setInfoSalvo(true);
+      window.setTimeout(() => setInfoSalvo(false), 2000);
+    } catch {
+      // O aviso de erro já saiu. O que foi digitado continua na ficha.
+    }
   };
   salvarInfoRef.current = handleSalvarInfo;
 
