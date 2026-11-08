@@ -107,6 +107,8 @@ function idsDaAcaoDeApagar(action: AppAction): string[] | undefined {
 
 export type RefreshFromServerOptions = {
   silent?: boolean;
+  /** Não mostra o aviso de sincronização: quem chamou já avisou a falha da gravação. */
+  quiet?: boolean;
   force?: boolean;
   domains?: db.AppDataDomain[];
   namespaces?: string[];
@@ -462,16 +464,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await Promise.all([loadPromise, ...pending]);
   }, [mergeSnapshot, updateDomainStatus, userId]);
 
-  const refreshFromServer = useCallback(async (options?: RefreshFromServerOptions) => {
+  const refreshFromServer = useCallback(async (options?: RefreshFromServerOptions): Promise<void | 'wait'> => {
     if (!supabase || !userId) return;
-    if (pendingPersistCount.current > 0) return;
+    if (pendingPersistCount.current > 0) return 'wait';
 
     if (
       !options?.force
       && lastServerRefreshAt.current > 0
       && Date.now() - lastServerRefreshAt.current < MIN_SERVER_REFRESH_INTERVAL_MS
     ) {
-      return;
+      return 'wait';
     }
 
     try {
@@ -499,14 +501,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       lastServerRefreshAt.current = Date.now();
     } catch (err) {
       console.error('[Sync] Realtime refresh failed:', err);
-      notifySaveFeedback({
-        status: 'error',
-        message: ERRORS.sincronizar,
-        detail: getErrorDetail(err),
-      });
+      if (!options?.quiet) {
+        notifySaveFeedback({
+          status: 'error',
+          message: ERRORS.sincronizar,
+          detail: getErrorDetail(err),
+        });
+      }
       throw err;
     }
   }, [invalidateListCaches, loadDomains, userId]);
+
+  const reporSeARecargaNaoConfirmou = useCallback(async (snapshot: AppState | null) => {
+    try {
+      const resultado = await refreshFromServer({ silent: true, quiet: true, force: true });
+      // Outra gravação seguia em fila e a recarga nem saiu. O que falhou volta para a tela.
+      if (resultado === 'wait' && snapshot) dispatch({ type: 'SET_DATA', payload: snapshot });
+    } catch (refreshErr) {
+      console.error('[Sync] Server refresh also failed, restoring from snapshot:', refreshErr);
+      if (snapshot) dispatch({ type: 'SET_DATA', payload: snapshot });
+    }
+  }, [refreshFromServer]);
 
   useEffect(() => {
     if (!supabase) {
@@ -610,13 +625,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!supabase || !userId) return;
 
     const runPendingRefresh = () => {
-      // refreshFromServer descarta pedidos dentro da janela mínima; outra recarga pode ter
-      // rodado durante a espera, então o pedido espera o resto da janela em vez de se perder.
-      const wait = realtimeRefreshDelay(
-        lastServerRefreshAt.current,
-        Date.now(),
-        MIN_SERVER_REFRESH_INTERVAL_MS,
-        0
+      // A janela mínima e a gravação local só adiam o pedido. Ele fica na fila.
+      const now = Date.now();
+      const wait = Math.max(
+        realtimeRefreshDelay(lastServerRefreshAt.current, now, MIN_SERVER_REFRESH_INTERVAL_MS, 0),
+        realtimeHoldDelay(lastLocalMutationAt.current, now, pendingPersistCount.current),
       );
       if (wait > 0) {
         realtimeRefreshTimeout.current = setTimeout(runPendingRefresh, wait);
@@ -638,7 +651,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         silent: true,
         domains,
         namespaces: tableNamespaces,
-      });
+      }).then(outcome => {
+        if (outcome !== 'wait') return;
+        domains.forEach(domain => pendingRealtimeDomains.current.add(domain));
+        tableNamespaces.forEach(namespace => pendingRealtimeNamespaces.current.add(namespace));
+        realtimeRefreshTimeout.current = setTimeout(
+          runPendingRefresh,
+          Math.max(250, realtimeHoldDelay(lastLocalMutationAt.current, Date.now(), pendingPersistCount.current)),
+        );
+      }).catch(() => undefined);
     };
 
     const scheduleRefresh = (table: string) => {
@@ -660,15 +681,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
 
     const handleTableChange = (table: string) => {
-      if (
-        shouldSkipRealtimeRefresh(
-          lastLocalMutationAt.current,
-          Date.now(),
-          pendingPersistCount.current
-        )
-      ) {
-        return;
-      }
       scheduleRefresh(table);
     };
 
@@ -722,7 +734,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     return subscribeDataSync(message => {
       esquecerConteudosRef.current(message.removedContentIds ?? []);
-      void refreshFromServer({ silent: true });
+      void refreshFromServer({ silent: true }).catch(() => undefined);
     });
   }, [refreshFromServer]);
 
@@ -733,10 +745,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const handleVisibility = () => {
       if (document.visibilityState !== 'visible') return;
-      if (pendingPersistCount.current > 0) return;
+      if (pendingPersistCount.current > 0) {
+        debounceTimer = setTimeout(handleVisibility, realtimeHoldDelay(lastLocalMutationAt.current, Date.now(), pendingPersistCount.current));
+        return;
+      }
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
-        void refreshFromServer({ silent: true });
+        void refreshFromServer({ silent: true }).catch(() => undefined);
       }, 400);
     };
 
@@ -761,6 +776,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       notifySaveFeedback({ status: 'saving', message: LOADING.criandoRoteiro });
     }
 
+    const anterior = stateRef.current;
     try {
       dispatch({ type: 'ADD_CONTENT', payload: normalizedContent });
       await runPersist(() => persistContentRecord(normalizedContent, userId));
@@ -772,10 +788,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         message: ERRORS.criarRoteiro,
         detail: getErrorDetail(err),
       });
-      await refreshFromServer({ silent: true, force: true });
+      await reporSeARecargaNaoConfirmou(anterior);
       throw err;
     }
-  }, [finishPersist, refreshFromServer, runPersist, userId]);
+  }, [finishPersist, reporSeARecargaNaoConfirmou, runPersist, userId]);
 
   const updateContent = useCallback(async (content: db.Content, options?: PersistOptions) => {
     const normalizedContent = normalizeContentId(content);
@@ -791,6 +807,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       notifySaveFeedback({ status: 'saving', message: LOADING.salvandoRoteiro });
     }
 
+    const anterior = stateRef.current;
     try {
       // Depois de uma falha nao ha base confiavel: regrava plataformas e temas por inteiro.
       const previousContent = failedContentSaves.current.has(normalizedContent.id)
@@ -808,10 +825,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         message: ERRORS.salvarRoteiro,
         detail: getErrorDetail(err),
       });
-      await refreshFromServer({ silent: true, force: true });
+      await reporSeARecargaNaoConfirmou(anterior);
       throw err;
     }
-  }, [finishPersist, refreshFromServer, runPersist, userId]);
+  }, [finishPersist, reporSeARecargaNaoConfirmou, runPersist, userId]);
 
   const enhancedDispatch = useCallback(async (action: AppAction, options?: PersistOptions) => {
     const normalizedAction = normalizeAction(action);
@@ -873,18 +890,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         message: ERRORS.salvarGenerico,
         detail: getErrorDetail(err),
       });
-      try {
-        await refreshFromServer({ silent: true, force: true });
-      } catch (refreshErr) {
-        // Server refresh also failed: restore from pre-dispatch snapshot.
-        console.error('[Sync] Server refresh also failed, restoring from snapshot:', refreshErr);
-        if (snapshot) {
-          dispatch({ type: 'SET_DATA', payload: snapshot });
-        }
-      }
+      await reporSeARecargaNaoConfirmou(snapshot);
       throw err;
     }
-  }, [createContent, finishPersist, refreshFromServer, runPersist, updateContent, userId]);
+  }, [createContent, finishPersist, reporSeARecargaNaoConfirmou, runPersist, updateContent, userId]);
 
   esquecerConteudosRef.current = ids => {
     for (const id of ids) {
@@ -912,17 +921,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [domainStatus, hasRemoteData],
   );
 
+  const syncFromServer = useCallback(async (options?: RefreshFromServerOptions): Promise<void> => {
+    await refreshFromServer(options);
+  }, [refreshFromServer]);
+
   const contextValue = React.useMemo(() => ({
     state,
     dispatch: enhancedDispatch,
     createContent,
     updateContent,
-    syncFromServer: refreshFromServer,
+    syncFromServer,
     ensureDataDomains: loadDomains,
     invalidateListCaches,
     domainStatus,
     isDomainReady,
-  }), [state, enhancedDispatch, createContent, updateContent, refreshFromServer, loadDomains, invalidateListCaches, domainStatus, isDomainReady]);
+  }), [state, enhancedDispatch, createContent, updateContent, syncFromServer, loadDomains, invalidateListCaches, domainStatus, isDomainReady]);
 
   return (
     <AppContext.Provider value={contextValue}>

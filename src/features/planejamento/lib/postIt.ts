@@ -32,6 +32,8 @@ export interface PlanejamentoPostIt {
   contaIds?: string[];
   /** true/false manda; null herda do texto. */
   pautaDefinida?: boolean | null;
+  /** Posição dentro do dia. Sem número, fica na ordem em que foi criado. */
+  ordem?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -157,7 +159,47 @@ export function movePostIt(
   date: string | null,
   now?: string,
 ): PlanejamentoPostIt {
-  return {...postIt, date: dayKey(date), updatedAt: nowIso(now)};
+  const dia = dayKey(date);
+  const mudouDia = dia !== (postIt.date ?? null);
+  return {...postIt, date: dia, ...(mudouDia ? {ordem: null} : {}), updatedAt: nowIso(now)};
+}
+
+/** Sem ordem gravada, o dia segue a criação. */
+export function compararOrdemNoDia(
+  a: Pick<PlanejamentoPostIt, 'id' | 'createdAt' | 'ordem'>,
+  b: Pick<PlanejamentoPostIt, 'id' | 'createdAt' | 'ordem'>,
+): number {
+  const ao = typeof a.ordem === 'number' ? a.ordem : Number.POSITIVE_INFINITY;
+  const bo = typeof b.ordem === 'number' ? b.ordem : Number.POSITIVE_INFINITY;
+  if (ao !== bo) return ao - bo;
+  if (a.createdAt !== b.createdAt) return a.createdAt < b.createdAt ? -1 : 1;
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+}
+
+/**
+ * Tira os post-its arrastados e encaixa antes ou depois do alvo.
+ * A lista volta numerada; quem já estava naquela posição não é regravado.
+ */
+export function encaixarPostIts(
+  dia: readonly PlanejamentoPostIt[],
+  ids: readonly string[],
+  alvoId: string,
+  antes: boolean,
+  now?: string,
+): PlanejamentoPostIt[] {
+  const ordemAtual = [...dia].sort(compararOrdemNoDia);
+  const movendo = new Set(ids);
+  if (movendo.size === 0 || (movendo.size === 1 && movendo.has(alvoId))) return ordemAtual;
+  const bloco = ordemAtual.filter(item => movendo.has(item.id));
+  if (bloco.length === 0) return ordemAtual;
+  const resto = ordemAtual.filter(item => !movendo.has(item.id));
+  let indice = resto.findIndex(item => item.id === alvoId);
+  if (indice < 0) indice = resto.length;
+  else if (!antes) indice += 1;
+  const proxima = [...resto.slice(0, indice), ...bloco, ...resto.slice(indice)];
+  if (proxima.every((item, i) => item.id === ordemAtual[i]?.id)) return ordemAtual;
+  const gravadoEm = nowIso(now);
+  return proxima.map((item, ordem) => item.ordem === ordem ? item : {...item, ordem, updatedAt: gravadoEm});
 }
 
 export function updatePostItText(

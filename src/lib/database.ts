@@ -740,6 +740,8 @@ export interface PlanejamentoPostIt {
   contaIds?: string[];
   /** true/false manda; null herda do texto. */
   pautaDefinida?: boolean | null;
+  /** Posição dentro do dia. Sem número, fica na ordem em que foi criado. */
+  ordem?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1039,7 +1041,7 @@ const CONTENT_CONTAGEM_ORIGEM_COLUMNS = [
   'pilar_origem',
 ] as const;
 
-const POSTIT_OPTIONAL_COLUMNS = ['serie_id', 'pilar_id', 'objetivo', 'redes', 'pauta_definida'] as const;
+const POSTIT_OPTIONAL_COLUMNS = ['serie_id', 'pilar_id', 'objetivo', 'redes', 'pauta_definida', 'ordem'] as const;
 
 function isMissingLegendaBaseColumn(error: {message?: string} | null | undefined) {
   return !!error?.message && isMissingNamedColumn(error.message, 'legenda_base');
@@ -1522,7 +1524,10 @@ const mp = {
     link: r.link,
     publishDateEnabled: r.publish_date_enabled ?? (r.publish_date != null),
     recordingDateEnabled: r.recording_date_enabled ?? (r.recording_date != null),
-    script: r.script, scriptNotes: r.script_notes || [], tags: r.tags || [],
+    script: r.script,
+    // Sem a coluna, fica undefined: lista vazia de verdade não pode ser lida como "não carregou".
+    scriptNotes: 'script_notes' in r ? (Array.isArray(r.script_notes) ? r.script_notes : []) : undefined as unknown as Content['scriptNotes'],
+    tags: r.tags || [],
     origemConteudoId: typeof r.origem_conteudo_id === 'string' && r.origem_conteudo_id
       ? r.origem_conteudo_id
       : null,
@@ -1612,6 +1617,7 @@ const mp = {
     redes: normalizarRedesPostIt(r.redes),
     contaIds: Array.isArray(r.conta_ids) ? r.conta_ids.filter((id: unknown): id is string => typeof id === 'string' && id.length > 0) : [],
     pautaDefinida: typeof r.pauta_definida === 'boolean' ? r.pauta_definida : null,
+    ordem: typeof r.ordem === 'number' ? r.ordem : null,
     createdAt: r.created_at,
     updatedAt: r.updated_at ?? r.created_at,
   }),
@@ -4791,6 +4797,7 @@ export async function savePlanejamentoPostIt(item: PlanejamentoPostIt): Promise<
     objetivo: item.objetivo ?? null,
     redes: normalizarRedesPostIt(item.redes ?? []),
     pauta_definida: item.pautaDefinida ?? null,
+    ...(item.ordem !== undefined ? {ordem: item.ordem} : {}),
     updated_at: item.updatedAt || new Date().toISOString(),
   };
 

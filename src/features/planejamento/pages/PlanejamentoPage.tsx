@@ -1,5 +1,5 @@
 import {INICIO_DA_SEMANA} from '../../../lib/semana.ts';
-import {useEffect, useMemo, useState} from 'react';
+import {useEffect, useMemo, useState, type DragEvent as ReactDragEvent} from 'react';
 import {useLocation, useNavigate} from 'react-router-dom';
 import {format} from 'date-fns';
 import {type GradeEntry} from '../../editorial/lib/gradeEntries';
@@ -96,6 +96,7 @@ import type {PublicacaoNoDia} from '../lib/publicacoesDoMes';
 import {SelectField} from '../../../components/ui/SelectField';
 import {
   canPullContent,
+  compararOrdemNoDia,
   deletePostIt,
   escolherSerieNoPostIt,
   postItKind,
@@ -163,10 +164,11 @@ export function PlanejamentoPage() {
     dragOverDay, setDragOverDay, pileOver, setPileOver,
     pullOpen, setPullOpen, pullDate, setPullDate,
     moveId, setMoveId, moveDate, setMoveDate,
-    moveMany, readDragIds, pullOnto,
+    moveMany, encaixarNoDia, readDragIds, pullOnto,
     abrirMover, abrirMoverPublicacao, fecharMover, confirmarMover,
     confirmarSeCouber,
   } = useMovimentacaoPlanejamento({postIts, contents, periodoDaSaude, filtro});
+  const [encaixe, setEncaixe] = useState<{id: string; antes: boolean} | null>(null);
 
   const {
     openId, setOpenId, editing, setEditing,
@@ -213,6 +215,7 @@ export function PlanejamentoPage() {
       list.push(postIt);
       map.set(dia, list);
     });
+    for (const list of map.values()) list.sort(compararOrdemNoDia);
     return map;
   }, [postIts, contents, indiceAgenda, filtro, intervaloEmFoco]);
 
@@ -602,17 +605,55 @@ export function PlanejamentoPage() {
           return {rede: 'youtube' as const, postItsAcima: postIts.acima, postItsAbaixo: postIts.abaixo};
         };
 
-        const renderPlanejamentoReservaCard = (postIt: PlanejamentoPostIt) => {
+        const listaParaEncaixe = (dateKey: string, alvoId: string) => {
+          const dia = byDate.get(dateKey) ?? [];
+          const separado = separarDia(dateKey);
+          if (!separado) return dia;
+          return separado.postItsAbaixo.some(item => item.id === alvoId)
+            ? separado.postItsAbaixo
+            : separado.postItsAcima;
+        };
+
+        const soltarNoDia = (dateKey: string, alvo: PlanejamentoPostIt, antes: boolean, event: ReactDragEvent) => {
+          event.preventDefault();
+          event.stopPropagation();
+          setEncaixe(null);
+          setDragOverDay(null);
+          const ids = readDragIds(event);
+          if (!encaixarNoDia(listaParaEncaixe(dateKey, alvo.id), ids, alvo.id, antes)) moveMany(ids, dateKey);
+        };
+
+        const soltarNoFim = (dateKey: string, ids: readonly string[]) => {
+          const separado = separarDia(dateKey);
+          const dia = byDate.get(dateKey) ?? [];
+          const visivel = separado ? [...separado.postItsAcima, ...separado.postItsAbaixo] : dia;
+          const ultimo = visivel[visivel.length - 1];
+          if (!ultimo) return false;
+          return encaixarNoDia(listaParaEncaixe(dateKey, ultimo.id), ids, ultimo.id, false);
+        };
+
+        const renderPlanejamentoReservaCard = (postIt: PlanejamentoPostIt, dateKey?: string) => {
           const content = contentById(contents, postIt.contentId);
-          const serie = (postIt.serieId || content?.seriesId)
-            ? state.series.find(s => s.id === (postIt.serieId || content?.seriesId))
-            : null;
+          // Com roteiro ligado, a série é a de agora. A gravada no post-it fica para a reserva sem roteiro.
+          const serieId = content ? content.seriesId : postIt.serieId;
+          const serie = serieId ? state.series.find(s => s.id === serieId) ?? null : null;
           // Com conteúdo ligado vale o pilar do conteúdo, como na contagem; sem conteúdo, o do post-it ou o herdado da série.
           const pilarId = content
             ? pilarDoConteudo(content, state.series)
             : postIt.pilarId || pilarHerdadoDaSerie(postIt.serieId, state.series);
           // Sem pilar escolhido não há pilar: o cartão fica com a cor de post-it, não com o primeiro da lista.
           const pilar = pilarId ? state.pilares.find(p => p.id === pilarId) ?? null : null;
+          const marcaAntes = Boolean(dateKey && encaixe?.id === postIt.id && encaixe.antes);
+          const marcaDepois = Boolean(dateKey && encaixe?.id === postIt.id && !encaixe.antes);
+          const aoArrastarSobre = (event: ReactDragEvent<HTMLDivElement>) => {
+            if (!dateKey || isMobile) return;
+            event.preventDefault();
+            event.stopPropagation();
+            const rect = event.currentTarget.getBoundingClientRect();
+            const antes = event.clientY < rect.top + rect.height / 2;
+            setEncaixe(atual => atual?.id === postIt.id && atual.antes === antes ? atual : {id: postIt.id, antes});
+            setDragOverDay(null);
+          };
 
           if (content) {
             const publicado = roteiroPublicado(content);
@@ -635,7 +676,15 @@ export function PlanejamentoPage() {
             };
 
             return (
-              <div key={postIt.id} data-planejamento-post-it={postIt.id} className="min-w-0">
+              <div
+                key={postIt.id}
+                data-planejamento-post-it={postIt.id}
+                className="min-w-0"
+                onDragOver={aoArrastarSobre}
+                onDrop={event => dateKey && soltarNoDia(dateKey, postIt, event.clientY < event.currentTarget.getBoundingClientRect().top + event.currentTarget.getBoundingClientRect().height / 2, event)}
+                onDragEnd={() => setEncaixe(null)}
+              >
+              {marcaAntes ? <div className="mb-1 h-1 rounded-full bg-[var(--brand-accent-strong)]" aria-hidden /> : null}
               <PlanejamentoContentCard
                 className={classeDestaque(content.id, postIt.id)}
                 publicacao={publicacao}
@@ -672,12 +721,21 @@ export function PlanejamentoPage() {
                 selected={!isMobile && selectedIds.has(postIt.id)}
                 onToggleSelect={isMobile ? undefined : () => toggleSelected(postIt.id)}
               />
+              {marcaDepois ? <div className="mt-1 h-1 rounded-full bg-[var(--brand-accent-strong)]" aria-hidden /> : null}
               </div>
             );
           }
 
           return (
-            <div key={postIt.id} data-planejamento-post-it={postIt.id} className="min-w-0">
+            <div
+              key={postIt.id}
+              data-planejamento-post-it={postIt.id}
+              className="min-w-0"
+              onDragOver={aoArrastarSobre}
+              onDrop={event => dateKey && soltarNoDia(dateKey, postIt, event.clientY < event.currentTarget.getBoundingClientRect().top + event.currentTarget.getBoundingClientRect().height / 2, event)}
+              onDragEnd={() => setEncaixe(null)}
+            >
+            {marcaAntes ? <div className="mb-1 h-1 rounded-full bg-[var(--brand-accent-strong)]" aria-hidden /> : null}
             <PlanejamentoReservaCard
               className={classeDestaque(null, postIt.id)}
               postIt={postIt}
@@ -711,6 +769,7 @@ export function PlanejamentoPage() {
               onToggleSelect={isMobile ? undefined : () => toggleSelected(postIt.id)}
               selo={textoSeloSoNoPlano({semRoteiro: !postIt.contentId, vistaTemRoteiro})}
             />
+            {marcaDepois ? <div className="mt-1 h-1 rounded-full bg-[var(--brand-accent-strong)]" aria-hidden /> : null}
             </div>
           );
         };
@@ -839,8 +898,11 @@ export function PlanejamentoPage() {
                     onDayDragLeave={() => setDragOverDay(null)}
                     onDayDrop={(key, event) => {
                       setDragOverDay(null);
+                      setEncaixe(null);
                       const ids = readDragIds(event);
-                      if (ids.length > 0) moveMany(ids, key);
+                      if (ids.length === 0) return;
+                      if (soltarNoFim(key, ids)) return;
+                      moveMany(ids, key);
                     }}
                     renderPostIt={renderPlanejamentoReservaCard}
                     separarDia={separarDia}
@@ -876,8 +938,11 @@ export function PlanejamentoPage() {
                     onDayDrop={(day, event) => {
                       event.preventDefault();
                       setDragOverDay(null);
+                      setEncaixe(null);
                       const ids = readDragIds(event);
-                      if (ids.length > 0) moveMany(ids, day.dateKey);
+                      if (ids.length === 0) return;
+                      if (soltarNoFim(day.dateKey, ids)) return;
+                      moveMany(ids, day.dateKey);
                     }}
                     renderDayContent={day => {
                       const dayPostIts = byDate.get(day.dateKey) ?? [];
@@ -885,11 +950,11 @@ export function PlanejamentoPage() {
                         <div className="@container stack-sm">
                           {(() => {
                             const dia = separarDia(day.dateKey);
-                            if (!dia) return dayPostIts.map(renderPlanejamentoReservaCard);
+                            if (!dia) return dayPostIts.map(postIt => renderPlanejamentoReservaCard(postIt, day.dateKey));
                             return (<>
-                              {dia.postItsAcima.map(renderPlanejamentoReservaCard)}
+                              {dia.postItsAcima.map(postIt => renderPlanejamentoReservaCard(postIt, day.dateKey))}
                               <DivisoriaRede rede={dia.rede}>
-                                {dia.postItsAbaixo.map(renderPlanejamentoReservaCard)}
+                                {dia.postItsAbaixo.map(postIt => renderPlanejamentoReservaCard(postIt, day.dateKey))}
                               </DivisoriaRede>
                             </>);
                           })()}

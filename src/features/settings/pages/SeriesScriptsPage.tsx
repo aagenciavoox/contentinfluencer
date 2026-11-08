@@ -61,6 +61,7 @@ import {
   filtrosValidos,
   montarLista,
   opcoesDeAgrupar,
+  podeReordenarEpisodio,
   opcoesDeOrdem,
   ordenarLista,
   resolverAgrupar,
@@ -270,8 +271,15 @@ export function SeriesScriptsPage() {
   const itensDaJanela = useItensDaJanela(periodoDaMeta.inicio, periodoDaMeta.fim);
   const meta = useMemo(() => {
     if (!serie) return null;
-    return metaDoCabecalho({ serie, series: state.series, itens: itensDaJanela, periodo: periodoDaMeta, hoje: hojeIso() });
-  }, [itensDaJanela, periodoDaMeta, serie, state.series]);
+    return metaDoCabecalho({
+      serie,
+      series: state.series,
+      itens: itensDaJanela,
+      periodo: periodoDaMeta,
+      hoje: hojeIso(),
+      temporadas: state.temporadas,
+    });
+  }, [itensDaJanela, periodoDaMeta, serie, state.series, state.temporadas]);
 
   const escopoTemporada = useMemo(
     () => (serie ? escopoTemporadas(serie.id, state.series) : null),
@@ -404,6 +412,9 @@ export function SeriesScriptsPage() {
   // Uma operação só no banco (mover_episodios): grava apenas ordem_episodio, sem updated_at. Se falhar, a lista volta.
   const reordenar = async (lista: readonly Content[], content: Content, direcao: 'subir' | 'descer') => {
     // A seta troca com o vizinho da mesma seção; a ordem completa da série é gravada de uma vez.
+    // Episódio já postado não entra na troca: a sequência dele ficou fixa na postagem.
+    const indice = lista.findIndex(item => item.id === content.id);
+    if (!podeReordenarEpisodio(lista, indice, direcao)) return;
     const global = ordenarLista(episodios, 'manual').map(item => item.id);
     const ordemNova = ordemAposSetaNaSecao(global, lista, content.id, direcao);
     if (!ordemNova) return;

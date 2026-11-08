@@ -18,6 +18,7 @@ import { entriesDaConcentracao } from '../../../planejamento/lib/concentracaoAoC
 import { avisosDeOrientacao, mapaSequenciaPorConteudo } from '../../../planejamento/lib/orientacaoEditorial';
 import { ETAPA_LABEL, ETAPAS, ETAPAS_DE_CONTEUDO, contagemPorEtapaVazia, somaDasEtapas, type ContagemPorEtapa, type Etapa } from '../../lib/etapas';
 import { apurarSerie, textoDaFrequencia, textoDoVolume } from '../../lib/apuracaoSerie';
+import { exclusaoDeMetaPropria } from '../../lib/metaPropria';
 import { FUNCAO_CURTA, FUNCOES } from '../../lib/funcoes';
 import { decisaoDoPeriodo } from '../../lib/periodoEditorial';
 import {
@@ -543,7 +544,13 @@ export function PeriodoPanel({
     .filter(serie => serie.ativa)
     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
     .map(serie => {
-      const apuracao = apurarSerie({ serie, series: state.series, itens: itensJanela, periodo });
+      const apuracao = apurarSerie({
+        serie,
+        series: state.series,
+        itens: itensJanela,
+        periodo,
+        excluir: exclusaoDeMetaPropria(serie, state.series, state.temporadas),
+      });
       return {
         id: serie.id,
         nome: serie.name,

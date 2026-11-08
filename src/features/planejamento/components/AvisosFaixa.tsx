@@ -182,7 +182,8 @@ function AjustesDoPlanejamento({
   className,
 }: AvisosFaixaProps) {
   const revisar = pontosParaRevisar(avisos);
-  const [painelAberto, setPainelAberto] = useState(true);
+  // Começa fechado. O detalhe só entra na página quando a pessoa abre o título.
+  const [painelAberto, setPainelAberto] = useState(false);
   const [escolhidos, setEscolhidos] = useState<Record<string, boolean>>({});
   const grupos = GRUPOS.map(grupo => ({
     ...grupo,

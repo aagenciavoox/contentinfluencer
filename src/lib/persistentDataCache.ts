@@ -77,7 +77,7 @@ function stripContentForCache(content: Content): Content {
     // `undefined` diferencia "campo não carregado" de um roteiro carregado e vazio.
     // JSON.stringify omite essas chaves e força o detalhe a buscar o corpo no servidor.
     script: undefined,
-    scriptNotes: [],
+    scriptNotes: undefined,
     notes: undefined,
     referencias: undefined,
     writingNotes: undefined,

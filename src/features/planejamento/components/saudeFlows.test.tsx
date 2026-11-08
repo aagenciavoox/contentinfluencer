@@ -64,7 +64,7 @@ describe('aviso pontual de concentração', () => {
 
 
 describe('ajustes do planejamento', () => {
-  it('agrupa capacidade em linha aberta, com o detalhe da semana', () => {
+  it('começa fechado e mostra só o resumo até o clique', () => {
     const capacidade: AvisoOrientacao = {
       id: 'cap', tipo: 'capacidade-semana',
       texto: 'Esta semana pede 30,5 roteiros e cabem 12 gravações (4 dias × 3).',
@@ -73,9 +73,9 @@ describe('ajustes do planejamento', () => {
     const html = renderToStaticMarkup(<AvisosFaixa modo="ajustes" avisos={[capacidade]} onLocalizar={noop} onVerAnalise={noop} />);
     assert.match(html, /Ajustes do planejamento/);
     assert.match(html, /1 ponto para revisar/);
-    assert.match(html, /30,5 roteiros nesta semana/);
-    assert.match(html, /4 dias de gravação × 3 por dia/);
-    assert.match(html, /Ajustar ritmo/);
+    assert.match(html, /aria-expanded="false"/);
+    assert.ok(!html.includes('30,5 roteiros nesta semana'));
+    assert.ok(!html.includes('Ajustar ritmo'));
     assert.ok(!html.includes('1 de 1'));
   });
 });

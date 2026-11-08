@@ -157,6 +157,7 @@ await import('./components/ui/platformName.test.ts');
 await import('./styles/tokenContrast.test.ts');
 await import('./features/projects/lib/entrega.test.ts');
 await import('./lib/dates.test.ts');
+await import('./lib/portugueseEditing.test.ts');
 await import('./lib/textMeasure.test.ts');
 await import('./lib/unsavedChanges.test.ts');
 await import('./features/planejamento/lib/divisoriaRede.test.ts');

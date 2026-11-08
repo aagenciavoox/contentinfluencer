@@ -1650,6 +1650,16 @@ textarea.property-input {
 .status-calendar-posted { --status-color: var(--status-posted); }
 .status-calendar-archived { --status-color: var(--status-archived); }
 
+/* Linha de episódio já postado na página da série. Mais forte que o cinza dos cartões, para não se confundir com eles. */
+.serie-episodio-postado {
+  background: color-mix(in srgb, var(--status-posted) 34%, var(--bg-elevated));
+  box-shadow: inset 4px 0 0 var(--status-posted);
+}
+.serie-episodio-postado:hover,
+.serie-episodio-postado-selecionado {
+  background: color-mix(in srgb, var(--status-posted) 48%, var(--bg-elevated));
+}
+
 .desktop-header-sticky {
   position: static;
   border-bottom: 0;

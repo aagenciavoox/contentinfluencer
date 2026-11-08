@@ -19,7 +19,7 @@ import { cicloDaPublicacao } from '../../../editorial/lib/cicloPublicacao';
 import { publicacaoAtiva } from '../../../editorial/lib/publicacaoSituacao';
 import { TIPO_AGRUPAMENTO_LABEL, ehIdeia, textoConteudos } from '../../lib/serieAgrupamento';
 import type { BlocoRede, GrupoConteudos } from '../../lib/seriesGrupos';
-import { contagemDoGrupo, exibidosDoGrupo, ordenarLista, type AgruparLista } from '../../lib/seriesLista';
+import { contagemDoGrupo, episodioPostado, exibidosDoGrupo, ordenarParaExibir, podeReordenarEpisodio, type AgruparLista } from '../../lib/seriesLista';
 import { destinoDoConteudo } from '../../lib/seriesSecoes';
 import { estadoDaMarcacao, type EstadoMarcacao } from '../../lib/selecaoEpisodios';
 import { CaixaMarcacao } from './SeriesAcoesEmMassa';
@@ -161,15 +161,25 @@ function LinhaConteudo({
   );
   const redes = redesSelecionadas(content, contas);
   const podeMover = Boolean(acoes.onMoverEpisodio) && !selecao.ativa && lista.length > 1;
+  const sobe = podeReordenarEpisodio(lista, indice, 'subir');
+  const desce = podeReordenarEpisodio(lista, indice, 'descer');
+  const tituloDaSeta = (direcao: 'subir' | 'descer', permitido: boolean, padrao: string) => {
+    if (permitido) return padrao;
+    if (publicado) return 'A ordem ficou fixa quando este episódio foi postado';
+    const vizinho = lista[direcao === 'subir' ? indice - 1 : indice + 1];
+    if (vizinho && episodioPostado(vizinho)) return 'A ordem para antes dos episódios já postados';
+    return padrao;
+  };
 
   return (
     <li
       title={publicado ? 'Publicado' : undefined}
       className={cn(
-        'relative flex min-h-12 items-center justify-between gap-3 border-t border-[var(--border-color)] px-4 py-3 hover:bg-[var(--bg-hover)]',
+        'relative flex min-h-12 items-center justify-between gap-3 border-t border-[var(--border-color)] px-4 py-3',
         noBloco && 'pl-8 sm:pl-16',
-        publicado && 'bg-[var(--surface-subtle)]',
-        marcada && 'bg-[var(--bg-hover)]',
+        publicado ? 'serie-episodio-postado' : 'hover:bg-[var(--bg-hover)]',
+        marcada && publicado && 'serie-episodio-postado-selecionado',
+        marcada && !publicado && 'bg-[var(--bg-hover)]',
         celular && 'select-none [-webkit-touch-callout:none]',
       )}
       onPointerDown={event => {
@@ -229,7 +239,14 @@ function LinhaConteudo({
         ) : null}
 
         {numerar ? (
-          <Text variant="meta" as="span" className="min-w-6 shrink-0 text-right tabular-nums text-[var(--text-secondary)]">
+          <Text
+            variant="meta"
+            as="span"
+            className={cn(
+              'min-w-6 shrink-0 text-right tabular-nums',
+              publicado ? 'text-[var(--status-posted)]' : 'text-[var(--text-secondary)]',
+            )}
+          >
             {numero}.
           </Text>
         ) : null}
@@ -250,8 +267,8 @@ function LinhaConteudo({
               size="sm"
               iconOnly
               aria-label="Subir episódio"
-              title="Subir episódio"
-              disabled={indice === 0}
+              title={tituloDaSeta('subir', sobe, 'Subir episódio')}
+              disabled={!sobe}
               onClick={() => acoes.onMoverEpisodio?.(lista, content, 'subir')}
             >
               <ChevronUp className="h-4 w-4" aria-hidden />
@@ -261,8 +278,8 @@ function LinhaConteudo({
               size="sm"
               iconOnly
               aria-label="Descer episódio"
-              title="Descer episódio"
-              disabled={indice === lista.length - 1}
+              title={tituloDaSeta('descer', desce, 'Descer episódio')}
+              disabled={!desce}
               onClick={() => acoes.onMoverEpisodio?.(lista, content, 'descer')}
             >
               <ChevronDown className="h-4 w-4" aria-hidden />
@@ -275,8 +292,8 @@ function LinhaConteudo({
           label={`Mais opções de ${titulo}`}
           items={[
             ...(podeMover ? [
-              { label: 'Subir', disabled: indice === 0, onClick: () => acoes.onMoverEpisodio?.(lista, content, 'subir') },
-              { label: 'Descer', disabled: indice === lista.length - 1, onClick: () => acoes.onMoverEpisodio?.(lista, content, 'descer') },
+              { label: 'Subir', disabled: !sobe, onClick: () => acoes.onMoverEpisodio?.(lista, content, 'subir') },
+              { label: 'Descer', disabled: !desce, onClick: () => acoes.onMoverEpisodio?.(lista, content, 'descer') },
             ] : []),
             ...(celular ? [{ label: 'Selecionar', onClick: () => selecao.entrar(content.id) }] : []),
             { label: 'Abrir no editor', onClick: () => navigate(rota.to, { state: rota.state }) },
@@ -554,9 +571,9 @@ function Grupo({
     ] : []),
   ];
   const vazio = grupo.contents.length === 0 && grupo.blocos.length === 0;
-  // O número é a posição na ordem manual do grupo, a mesma que o Puxar mostra. O bloco "YouTube longo" não renumera.
+  // O número é a posição na página: postados na sequência da postagem, depois a ordem ajustável. O bloco "YouTube longo" não renumera.
   const posicoes = useMemo(() => {
-    const manual = ordenarLista(
+    const manual = ordenarParaExibir(
       [...grupo.contents, ...grupo.blocos.flatMap(bloco => bloco.contents)],
       'manual',
     );

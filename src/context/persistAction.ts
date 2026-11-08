@@ -513,6 +513,7 @@ export async function persistAction({ action, userId, state, api }: PersistActio
     case 'LOG_ENERGY':
     case 'SET_DATA':
     case 'SET_LOADED':
+    case 'RESET_SESSION':
       return;
 
     default: {

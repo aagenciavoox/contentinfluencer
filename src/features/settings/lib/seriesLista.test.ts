@@ -10,6 +10,8 @@ import {
   filtrosValidos,
   montarLista,
   ordenarLista,
+  ordenarParaExibir,
+  podeReordenarEpisodio,
   passaNosFiltros,
   planoMoverParaOFim,
   resolverAgrupar,
@@ -147,6 +149,21 @@ assert.deepEqual(ordenarLista([c, p1, p2, p3], 'publicacao').map(x => x.id), ['p
 // Ordenar em grupo reproduz a ordem relativa da manual.
 const grupos = montarLista({ episodios: [a, b, c, d], filtros: FILTROS_LISTA_PADRAO, agrupar: 'nenhum', ordem: 'manual', ctx, temporadas });
 assert.deepEqual(grupos[0].contents.map(x => x.id), ['b', 'a', 'c', 'd']);
+
+// Postado entra na sequência da postagem e fica na frente. O planejado como 2, postado primeiro, vira o 1.
+const plano1 = ep('plano1', 's', { ordemEpisodio: 1 } as never);
+const postadoMeio = ep('postadoMeio', 's', { ordemEpisodio: 2, status: 'Publicado', postedAt: '2026-03-02T12:00:00Z', publishDate: '2026-03-02' } as never);
+const plano3 = ep('plano3', 's', { ordemEpisodio: 3 } as never);
+const postadoAntes = ep('postadoAntes', 's', { ordemEpisodio: 4, status: 'Publicado', postedAt: '2026-02-01T12:00:00Z' } as never);
+assert.deepEqual(ordenarParaExibir([plano1, postadoMeio, plano3, postadoAntes], 'manual').map(x => x.id), ['postadoAntes', 'postadoMeio', 'plano1', 'plano3']);
+// Data prevista, sem indicar a postagem, continua na ordem ajustável.
+const agendado = ep('agendado', 's', { ordemEpisodio: 2, publishDate: '2026-04-01' } as never);
+assert.deepEqual(ordenarParaExibir([agendado, plano1], 'manual').map(x => x.id), ['plano1', 'agendado']);
+const faixa = [postadoAntes, plano1, plano3];
+assert.equal(podeReordenarEpisodio(faixa, 0, 'descer'), false);
+assert.equal(podeReordenarEpisodio(faixa, 1, 'subir'), false);
+assert.equal(podeReordenarEpisodio(faixa, 1, 'descer'), true);
+assert.equal(podeReordenarEpisodio([plano1, plano3], 0, 'descer'), true);
 
 // Mover para o fim: sem número nos outros, renumera tudo e o movido vai por último.
 assert.deepEqual(planoMoverParaOFim([c, d, ep('e', 's')], new Set(['c'])).map(x => [x.id, x.ordemEpisodio]), [['d', 1], ['e', 2], ['c', 3]]);

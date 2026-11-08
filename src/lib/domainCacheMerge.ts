@@ -28,7 +28,8 @@ function mergeContentRecords(local: Content, remote: Content): Content {
       ...local,
       ...remote,
       script: remote.script ?? local.script,
-      scriptNotes: remote.scriptNotes?.length ? remote.scriptNotes : local.scriptNotes,
+      // Lista vazia é comentário apagado. Ausente (undefined) é campo que a lista leve não trouxe.
+      scriptNotes: remote.scriptNotes ?? local.scriptNotes,
       notes: remote.notes ?? local.notes,
       referencias: remote.referencias ?? local.referencias,
       writingNotes: remote.writingNotes ?? local.writingNotes,
@@ -42,7 +43,7 @@ function mergeContentRecords(local: Content, remote: Content): Content {
     ...remote,
     ...local,
     script: local.script ?? remote.script,
-    scriptNotes: local.scriptNotes?.length ? local.scriptNotes : remote.scriptNotes,
+    scriptNotes: local.scriptNotes ?? remote.scriptNotes,
     notes: local.notes ?? remote.notes,
     referencias: local.referencias ?? remote.referencias,
     writingNotes: local.writingNotes ?? remote.writingNotes,

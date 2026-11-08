@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { BookOpen, ChevronLeft, ChevronRight, ImagePlus, Loader2, Pin, Plus, SearchCheck } from 'lucide-react';
 import type { BibliotecaItem, BibliotecaItemMeta } from '../../../lib/database';
@@ -38,9 +38,6 @@ interface LibraryMobileScreenProps {
   queryStatus?: QueryViewStatus;
   errorMessage?: string | null;
   onRetry?: () => void;
-  page?: number;
-  totalPages?: number;
-  onPageChange?: (page: number) => void;
   onOpenItem: (itemId: string) => void;
   onOpenCreate: () => void;
   onTogglePrimary: (itemId: string) => void;
@@ -169,9 +166,6 @@ export function LibraryMobileScreen({
   queryStatus = 'ready',
   errorMessage = null,
   onRetry,
-  page,
-  totalPages,
-  onPageChange,
 }: LibraryMobileScreenProps) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -206,6 +200,11 @@ export function LibraryMobileScreen({
       .filter((item) => (typeFilter === 'all' ? true : item.tipo === typeFilter))
       .filter((item) => (statusFilter === 'all' ? true : item.status === statusFilter))
       .filter((item) => {
+        if (filtroCapa === 'sem') return !item.capaUrl;
+        if (filtroCapa === 'com') return Boolean(item.capaUrl);
+        return true;
+      })
+      .filter((item) => {
         if (!normalizedSearch) return true;
         const metadata = getItemMeta(item.id);
         return [
@@ -219,7 +218,15 @@ export function LibraryMobileScreen({
           .includes(normalizedSearch);
       })
       .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime());
-  }, [activeTab, getItemMeta, items, search, statusFilter, typeFilter]);
+  }, [activeTab, filtroCapa, getItemMeta, items, search, statusFilter, typeFilter]);
+
+  const [page, setPage] = useState(1);
+  useEffect(() => {
+    setPage(1);
+  }, [search, activeTab, typeFilter, statusFilter, filtroCapa]);
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / 24));
+  const pageSafe = Math.min(page, totalPages);
+  const visibleItems = filteredItems.slice((pageSafe - 1) * 24, pageSafe * 24);
 
   const statusOptions = useMemo(
     () => Array.from(new Set(items.map((item) => item.status))).sort((a, b) => a.localeCompare(b, 'pt-BR')),
@@ -329,7 +336,7 @@ export function LibraryMobileScreen({
         ) : (
         <>
           <div className="grid grid-cols-2 gap-3">
-            {filteredItems.map((item) => {
+            {visibleItems.map((item) => {
               const metadata = getItemMeta(item.id);
               const relatedContents = countContents(item.id);
               const isPrimary = mobilePrimaryBookId === item.id;
@@ -391,26 +398,26 @@ export function LibraryMobileScreen({
             })}
           </div>
 
-          {onPageChange && typeof page === 'number' && typeof totalPages === 'number' && totalPages > 1 ? (
+          {totalPages > 1 ? (
             <div className="flex items-center justify-between gap-3 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2">
               <AppButton
                 variant="secondary"
                 size="sm"
-                disabled={page <= 1}
+                disabled={pageSafe <= 1}
                 leftIcon={<ChevronLeft className="h-4 w-4" />}
-                onClick={() => onPageChange(Math.max(1, page - 1))}
+                onClick={() => setPage(Math.max(1, pageSafe - 1))}
               >
                 Anterior
               </AppButton>
               <Text variant="meta">
-                Página {page} de {totalPages}
+                Página {pageSafe} de {totalPages}
               </Text>
               <AppButton
                 variant="secondary"
                 size="sm"
-                disabled={page >= totalPages}
+                disabled={pageSafe >= totalPages}
                 rightIcon={<ChevronRight className="h-4 w-4" />}
-                onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+                onClick={() => setPage(Math.min(totalPages, pageSafe + 1))}
               >
                 Próxima
               </AppButton>

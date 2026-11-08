@@ -298,6 +298,10 @@ export function LibraryPage() {
 
   // A lista completa (já carregada para Hoje e Anotações) dá as contagens sem outra consulta ao banco.
   const libraryReady = useDomainsReady(['library']);
+  const acervo = useMemo(
+    () => state.bibliotecaItems.filter(item => !item.deletedAt),
+    [state.bibliotecaItems],
+  );
   const contagem = useMemo(() => {
     if (!libraryReady) return null;
     const porFase: Record<StatusFase | 'Todos', number> = { Todos: 0, andamento: 0, quero: 0, concluido: 0, abandonado: 0 };
@@ -411,15 +415,20 @@ export function LibraryPage() {
     });
   };
 
-  const handleCoverChange = (item: BibliotecaItem, capaUrl: string) => {
-    dispatch({
-      type: 'UPDATE_BOOK',
-      payload: {
-        ...itemCompleto(item),
-        capaUrl: capaUrl || null,
-        updatedAt: new Date().toISOString(),
-      },
-    });
+  const handleCoverChange = async (item: BibliotecaItem, capaUrl: string) => {
+    try {
+      await dispatch({
+        type: 'UPDATE_BOOK',
+        payload: {
+          ...itemCompleto(item),
+          capaUrl: capaUrl || null,
+          updatedAt: new Date().toISOString(),
+        },
+      });
+      await reloadLibrary();
+    } catch {
+      // O aviso de erro já saiu do dispatch. A capa antiga continua na grade.
+    }
   };
 
   const resetForm = () => {
@@ -593,17 +602,19 @@ export function LibraryPage() {
       <>
         <div className="min-h-full bg-[var(--bg-primary)]">
           <LibraryMobileScreen
-            items={libraryItems}
-            libraryTotal={libraryTotal}
+            items={acervo}
+            libraryTotal={acervo.length}
             mobilePrimaryBookId={mobilePrimaryBookId}
             getItemMeta={getItemMeta}
             countContents={contarConteudos}
-            queryStatus={libraryQueryStatus}
+            queryStatus={
+              libraryQueryStatus === 'error' ? 'error'
+              : !libraryReady ? 'loading'
+              : acervo.length === 0 ? 'empty'
+              : 'ready'
+            }
             errorMessage={libraryError}
             onRetry={() => void reloadLibrary()}
-            page={libraryPage}
-            totalPages={totalLibraryPages}
-            onPageChange={setLibraryPage}
             onOpenItem={(itemId) => openItem(itemId, 'anotacoes')}
             onOpenCreate={handleOpenModal}
             onTogglePrimary={handleSetPrimaryMobileBook}

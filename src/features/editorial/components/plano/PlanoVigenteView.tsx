@@ -9,6 +9,7 @@ import { useAppContext } from '../../../../context/AppContext';
 import { CONTENT_STATUS, normalizeContentStatus } from '../../../contents/lib/contentPipeline';
 import type { Pilar, Platform, Serie } from '../../../../lib/database';
 import { apurarSerie, textoDaFrequencia, textoDoVolume, type ItemDaApuracao } from '../../lib/apuracaoSerie';
+import { exclusaoDeMetaPropria } from '../../lib/metaPropria';
 import type { DecisaoPeriodo } from '../../lib/editorialSettings';
 import type { GradeCounts } from '../../lib/gradeCounts';
 import { pilarHerdadoDaSerie } from '../../lib/herancaSerie';
@@ -203,7 +204,13 @@ export function PlanoVigenteView({
     .filter(s => s.ativa)
     .map(s => {
       const pilarId = pilarHerdadoDaSerie(s.id, series);
-      const apuracao = apurarSerie({ serie: s, series, itens: itensSerie, periodo });
+      const apuracao = apurarSerie({
+        serie: s,
+        series,
+        itens: itensSerie,
+        periodo,
+        excluir: exclusaoDeMetaPropria(s, series, state.temporadas),
+      });
       return {
         id: s.id,
         nome: s.name,

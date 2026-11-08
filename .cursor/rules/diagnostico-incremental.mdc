@@ -1,0 +1,24 @@
+---
+description: Diagnóstico de referência e leitura só do que mudou, até o fechamento da entrega
+alwaysApply: true
+---
+
+# Diagnóstico de referência
+
+Cada chat guarda um diagnóstico curto da área em que está trabalhando: o que foi lido, o que estava verdade e o que já foi alterado. Pedidos seguintes partem desse diagnóstico e olham só a mudança nova.
+
+- Delimite a tarefa antes de abrir arquivo. Leia o trecho, o símbolo ou o diff que o pedido toca.
+- Não releia o projeto, o módulo inteiro nem arquivos grandes já diagnosticados (`database.ts`, `BookDetailPage.tsx`, `CreationHubPage.tsx`, `AppContext.tsx`) se o pedido não os altera.
+- Não repita busca, teste ou passagem no navegador que o diagnóstico já cobriu e que o diff não tocou.
+- Problema fora do pedaço em curso fica para o fechamento. Não abra uma revisão geral no meio do pedido.
+
+No fechamento da entrega, aí sim: confira o que mudou, os fluxos que compartilham esse estado e os checks do escopo (teste, `lint:design`, navegador). Relate o que apareceu fora do recorte.
+
+```text
+Pedido: "no card publicado, mostre o nome da conta"
+Diagnóstico já tem PlanejamentoContentCard e o papel cinza.
+Ler: o diff do card e o trecho das contas.
+Não ler: PlanejamentoPage inteira, calendário, saúde.
+
+Fechamento: abrir o card publicado no mês, na semana e no celular.
+```

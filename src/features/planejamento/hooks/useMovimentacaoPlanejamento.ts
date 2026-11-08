@@ -3,7 +3,7 @@ import {useAppContext} from '../../../context/AppContext';
 import {useAvisoConcentracao} from './useAvisoConcentracao';
 import {changedPostIts, contentById} from '../lib/postItAppearance';
 import {levarRoteiroAoDia, roteiroPublicado} from '../lib/postItsNaData';
-import {movePostIt, pullExistingContent, type PlanejamentoPostIt} from '../lib/postIt';
+import {encaixarPostIts, movePostIt, pullExistingContent, type PlanejamentoPostIt} from '../lib/postIt';
 import type {Content} from '../../../lib/database';
 import type {FiltroCalendario} from '../lib/filtroCalendario';
 import {POST_IT_MIME} from '../components/PostItNote';
@@ -86,6 +86,15 @@ export function useMovimentacaoPlanejamento(args: {
     });
   };
 
+  const encaixarNoDia = (dia: readonly PlanejamentoPostIt[], ids: readonly string[], alvoId: string, antes: boolean) => {
+    const presentes = new Set(dia.map(item => item.id));
+    if (ids.length === 0 || ids.some(id => !presentes.has(id))) return false;
+    const proximos = encaixarPostIts(dia, ids, alvoId, antes);
+    const mudados = proximos.filter(item => dia.find(atual => atual.id === item.id)?.ordem !== item.ordem);
+    if (mudados.length > 0) void dispatch({type: 'UPDATE_POST_ITS', payload: mudados});
+    return true;
+  };
+
   const readDragIds = (event: DragEvent) => {
     const raw = event.dataTransfer.getData(POST_IT_MIME) || event.dataTransfer.getData('text/plain');
     return raw.split('\n').map(id => id.trim()).filter(Boolean);
@@ -150,6 +159,7 @@ export function useMovimentacaoPlanejamento(args: {
     applyList,
     confirmarSeCouber,
     moveMany,
+    encaixarNoDia,
     readDragIds,
     pullOnto,
     abrirMover,

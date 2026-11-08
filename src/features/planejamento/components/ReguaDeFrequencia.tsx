@@ -370,7 +370,8 @@ function CabecalhoDaColuna({ semanas }: { semanas: ColunaDaRegua[] }) {
  * Régua de frequência do Planejamento: uma linha por série/quadro/wave
  * acompanhada, com meta atingida, atenção, sem registro ou pausa.
  *
- * No desktop o painel é a lista "Ritmo no período", em duas colunas, e pode ser recolhido.
+ * No desktop o painel é a lista "Ritmo no período", em duas colunas.
+ * Começa fechado e só abre no clique do título (ou em "Ajustar ritmo").
  * No celular (`compacto`) continua a faixa simples, dentro do disclosure da página.
  */
 export function ReguaDeFrequencia({
@@ -380,7 +381,7 @@ export function ReguaDeFrequencia({
   compacto = false,
 }: ReguaDeFrequenciaProps) {
   const linhas = linhasDaRegua(continuidade);
-  const [aberto, setAberto] = useState(true);
+  const [aberto, setAberto] = useState(false);
   const painelId = useId();
 
   useEffect(() => {

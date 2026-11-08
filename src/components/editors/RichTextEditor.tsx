@@ -23,6 +23,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { EDITING_LANG } from '../../lib/portugueseEditing';
 import { cn } from '../../lib/utils';
 import '../../styles/editor.css';
 import { useIsMobile } from '../../hooks/useIsMobile';
@@ -723,6 +724,7 @@ function RichTextEditorInstance({
       attributes: {
         class: 'tiptap min-h-[inherit] max-w-none text-base text-[var(--text-primary)] focus:outline-none md:text-[inherit]',
         role: 'textbox', 'aria-multiline': 'true', 'aria-label': documentTitle,
+        lang: EDITING_LANG, spellcheck: 'true',
       },
       handlePaste: (view, event) => {
         const clipboard = event.clipboardData;

@@ -17,6 +17,13 @@ assert.ok('erro' in quinzena);
 const trimestre = frequenciaParaGravar({ vezes: 1, unidade: 'trimestre', aPartirDe: null, tipo: 'serie' });
 assert.ok(!('erro' in trimestre) && trimestre.recomendada === 'Trimestral');
 
+const acima = frequenciaParaGravar({ vezes: 99, unidade: 'semana', aPartirDe: null, tipo: 'serie' });
+assert.ok('erro' in acima && acima.campo === 'quantidade');
+assert.match(acima && 'erro' in acima ? acima.erro : '', /60/);
+
+const zero = frequenciaParaGravar({ vezes: 0, unidade: 'semana', aPartirDe: null, tipo: 'serie' });
+assert.ok('erro' in zero && zero.campo === 'quantidade');
+
 const ok = frequenciaParaGravar({ vezes: 2, unidade: 'semana', aPartirDe: '2026-11-04', tipo: 'serie' });
 assert.ok(!('erro' in ok));
 if (!('erro' in ok)) {

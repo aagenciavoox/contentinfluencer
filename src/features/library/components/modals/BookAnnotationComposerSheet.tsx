@@ -11,6 +11,7 @@ import { FilterChips } from '../../../../components/ui/FilterChips';
 import { Text } from '../../../../components/ui/Text';
 import type { BibliotecaItem } from '../../../../lib/database';
 import { cn } from '../../../../lib/utils';
+import { EDITING_LANG } from '../../../../lib/portugueseEditing';
 import { ANNOTATION_TYPES, createAnnotationDraft, persistAnnotationDraft, readAnnotationDraft, writeAnnotationDraft, type AnnotationDraft } from '../../lib/annotationDraft';
 import { ANNOTATION_MAX_LENGTH, ENTER_HINT } from '../BookAnnotationCard';
 
@@ -64,6 +65,15 @@ function AnnotationComposerForm({
     setDraftStored(writeAnnotationDraft(userId, book.id, next));
   };
 
+  const keepWriting = () => {
+    // Enter salva a anotação e o cursor permanece no campo para a próxima.
+    requestAnimationFrame(() => {
+      const field = textareaRef.current;
+      if (!field?.isConnected) return;
+      field.focus({ preventScroll: true });
+    });
+  };
+
   const handleAddAnotacao = async () => {
     if (savingRef.current) return;
     // Sem texto, o botão leva ao campo em vez de ficar apagado.
@@ -88,11 +98,14 @@ function AnnotationComposerForm({
       setSaveError(userId
         ? 'Não foi possível salvar. Seu texto foi mantido. Verifique a conexão e tente novamente.'
         : 'Entre novamente na sua conta para salvar. Seu texto foi mantido.');
+      keepWriting();
       return;
     } finally {
       savingRef.current = false;
       setSaving(false);
     }
+    // No painel da obra o campo continua aberto. No celular, onSubmitted fecha a folha.
+    if (!onSubmitted) keepWriting();
     onSubmitted?.();
   };
 
@@ -108,8 +121,10 @@ function AnnotationComposerForm({
         <textarea
           ref={textareaRef}
           id={`${fieldId}-texto`}
+          lang={EDITING_LANG}
           value={novaAnotacao}
-          disabled={saving}
+          readOnly={saving}
+          aria-busy={saving}
           onChange={event => updateDraft({ texto: event.target.value })}
           placeholder="Escreva uma nova anotação…"
           rows={5}
@@ -150,8 +165,9 @@ function AnnotationComposerForm({
         <input
           id={`${fieldId}-ref`}
           type="text"
+          lang={EDITING_LANG}
           value={novoCapitulo}
-          disabled={saving}
+          readOnly={saving}
           onChange={event => updateDraft({ capituloRef: event.target.value })}
           onKeyDown={event => {
             // Enter na referência também salva (sem texto, leva ao campo da anotação).

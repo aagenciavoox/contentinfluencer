@@ -11,6 +11,7 @@ import {
   type ItemDaApuracao,
   type SerieDaApuracao,
 } from '../../editorial/lib/apuracaoSerie.ts';
+import { exclusaoDeMetaPropria, type OndaDaExclusao } from '../../editorial/lib/metaPropria.ts';
 import type { ModoPeriodo } from '../../editorial/lib/periodoEditorial.ts';
 import { idsDaSubarvore } from '../../editorial/lib/serieArvore.ts';
 
@@ -92,14 +93,23 @@ export function metaDoCabecalho({
   itens,
   periodo,
   hoje,
+  temporadas = [],
 }: {
   serie: SerieDaApuracao;
   series: readonly SerieDaApuracao[];
   itens: readonly ItemDaApuracao[];
   periodo: { modo: ModoPeriodo; inicio: string; fim: string };
   hoje: string;
+  /** Waves com ritmo próprio e quadros com meta própria saem da conta, como na Saúde. */
+  temporadas?: readonly OndaDaExclusao[];
 }): MetaDoCabecalho {
-  const apuracao = apurarSerie({ serie, series, itens, periodo });
+  const apuracao = apurarSerie({
+    serie,
+    series,
+    itens,
+    periodo,
+    excluir: exclusaoDeMetaPropria(serie, series, temporadas),
+  });
   const { situacao } = apuracao;
   if (situacao.tipo === 'sem-ancora') return { estado: 'sem-meta', texto: TEXTO_SEM_ANCORA };
   if (situacao.tipo !== 'definida') return { estado: 'sem-meta', texto: 'Sem meta definida' };

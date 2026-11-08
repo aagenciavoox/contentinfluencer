@@ -8,6 +8,8 @@ import {
   deletePostIt,
   encaixarConteudo,
   escolherSerieNoPostIt,
+  compararOrdemNoDia,
+  encaixarPostIts,
   movePostIt,
   postItEditDraft,
   postItKind,
@@ -497,6 +499,26 @@ function testClassificaOPostIt() {
   assert.equal(postItMudou(salvo, {...salvo}), false);
 }
 
+function nota(id: string, createdAt: string, ordem?: number | null) {
+  return {...createEmptyPostIt({id, date: '2026-11-07', now: createdAt}), ordem: ordem ?? null};
+}
+
+function testEncaixarReordenaDentroDoDia() {
+  const dia = [nota('a', '2026-11-07T10:00:00.000Z'), nota('b', '2026-11-07T11:00:00.000Z'), nota('c', '2026-11-07T12:00:00.000Z')];
+  assert.deepEqual([...dia].sort(compararOrdemNoDia).map(item => item.id), ['a', 'b', 'c']);
+
+  const cAntesDeA = encaixarPostIts(dia, ['c'], 'a', true, '2026-11-07T13:00:00.000Z');
+  assert.deepEqual(cAntesDeA.map(item => item.id), ['c', 'a', 'b']);
+  assert.deepEqual(cAntesDeA.map(item => item.ordem), [0, 1, 2]);
+
+  const aDepoisDeB = encaixarPostIts(cAntesDeA, ['a'], 'b', false, '2026-11-07T14:00:00.000Z');
+  assert.deepEqual(aDepoisDeB.map(item => item.id), ['c', 'b', 'a']);
+
+  const noMesmoLugar = encaixarPostIts(aDepoisDeB, ['b'], 'b', true, '2026-11-07T15:00:00.000Z');
+  assert.deepEqual(noMesmoLugar.map(item => item.id), ['c', 'b', 'a']);
+  assert.equal(noMesmoLugar[1]?.updatedAt, aDepoisDeB[1]?.updatedAt);
+}
+
 function testMoverParaSemDataEDesfazer() {
   const postIt = createEmptyPostIt({id: 'mover', texto: 'gancho', date: '2026-10-15', now: NOW});
   const semData = movePostIt(postIt, null, NOW);
@@ -590,6 +612,7 @@ const tests = [
   ['places a pulled ideia on the calendar without changing status', testTransformPulledIdeiaIntoIdeiaKeepsStatusAndDay],
   ['places a pulled roteiro on the post-it day without demoting it', testTransformPulledRoteiroKeepsStatusAndDay],
   ['does not create content when the pulled item is gone', testMissingPulledContentDoesNotCreateAnother],
+  ['reorders a post-it inside the day and leaves a self-drop alone', testEncaixarReordenaDentroDoDia],
   ['saves post-it text and day', testSavePersistsTextAndDay],
   ['saves a post-it with the day cleared', testSaveCanClearTheDay],
   ['saves a note on a pulled post-it without changing the content', testSaveDoesNotChangePulledContent],

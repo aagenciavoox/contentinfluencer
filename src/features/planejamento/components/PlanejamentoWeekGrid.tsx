@@ -48,7 +48,7 @@ export function PlanejamentoWeekGrid({
   onDayDragOver: (dateKey: string, event: React.DragEvent) => void;
   onDayDragLeave: () => void;
   onDayDrop: (dateKey: string, event: React.DragEvent) => void;
-  renderPostIt: (postIt: PlanejamentoPostIt, compact: boolean) => ReactNode;
+  renderPostIt: (postIt: PlanejamentoPostIt, dateKey: string) => ReactNode;
   /** Dia de postagem de uma rede: devolve a divisão; null mantém o dia como está. */
   separarDia?: (dateKey: string) => DiaSeparado | null;
   onAddPauta: (dateKey: string) => void;
@@ -161,11 +161,11 @@ export function PlanejamentoWeekGrid({
                 </div>
                 {(() => {
                   const dia = separarDia?.(key) ?? null;
-                  if (!dia) return dayPostIts.map(postIt => renderPostIt(postIt, false));
+                  if (!dia) return dayPostIts.map(postIt => renderPostIt(postIt, key));
                   return (<>
-                    {dia.postItsAcima.map(postIt => renderPostIt(postIt, false))}
+                    {dia.postItsAcima.map(postIt => renderPostIt(postIt, key))}
                     <DivisoriaRede rede={dia.rede}>
-                      {dia.postItsAbaixo.map(postIt => renderPostIt(postIt, false))}
+                      {dia.postItsAbaixo.map(postIt => renderPostIt(postIt, key))}
                     </DivisoriaRede>
                   </>);
                 })()}

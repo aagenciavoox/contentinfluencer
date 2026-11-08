@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import {AppButton} from '../../../../components/ui/AppButton';
 import {Text} from '../../../../components/ui/Text';
+import {EDITING_LANG} from '../../../../lib/portugueseEditing';
 import {cn} from '../../../../lib/utils';
 import {DOMParser as ProseMirrorDOMParser} from '@tiptap/pm/model';
 import {writingNotesToHtml} from '../../lib/writingDraftLayout';
@@ -112,6 +113,8 @@ export function WritingNotesPane({
         role: 'textbox',
         'aria-multiline': 'true',
         'aria-label': 'Rascunho de apoio',
+        lang: EDITING_LANG,
+        spellcheck: 'true',
       },
       handlePaste: (view, event) => {
         const clipboard = event.clipboardData;

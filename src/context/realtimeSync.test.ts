@@ -6,6 +6,7 @@ import {
   createTableAnnouncer,
   LOCAL_REALTIME_SUPPRESSION_MS,
   REALTIME_REFRESH_DEBOUNCE_MS,
+  realtimeHoldDelay,
   realtimeRefreshDelay,
   removedContentIdsFromPayload,
   shouldSkipRealtimeRefresh,
@@ -40,6 +41,10 @@ function testReadsOnlyKnownTablesFromPayload() {
       tables: ['editorial_vigencia', 'editorial_conta_meta', 'editorial_pausa', 'concentracao_excecao', 'dna_voz', 'tabela_inventada'],
     }),
     ['editorial_vigencia', 'editorial_conta_meta', 'editorial_pausa', 'concentracao_excecao', 'dna_voz'],
+  );
+  assert.deepEqual(
+    changedTablesFromPayload({ tables: ['contents', 'serie_meta', 'serie_acompanhamento', 'temporadas', 'tabela_inventada'] }),
+    ['contents', 'serie_meta', 'serie_acompanhamento', 'temporadas'],
   );
   assert.deepEqual(changedTablesFromPayload({ tables: ['contents', 'contents', 'ideas'] }), ['contents', 'ideas']);
   assert.deepEqual(changedTablesFromPayload({ tables: ['tabela_inventada', 42, null, 'series'] }), ['series']);
@@ -84,6 +89,13 @@ function testRemovedContentIdsRideAlongAndAreReadBack() {
   assert.deepEqual(removedContentIdsFromPayload({ tables: ['contents'] }), []);
 }
 
+function testHoldWaitsInsteadOfDropping() {
+  assert.equal(realtimeHoldDelay(1_000, 1_000 + LOCAL_REALTIME_SUPPRESSION_MS - 1), 1);
+  assert.equal(realtimeHoldDelay(1_000, 1_000 + LOCAL_REALTIME_SUPPRESSION_MS + 1), 0);
+  assert.equal(realtimeHoldDelay(null, 5_000, 1), LOCAL_REALTIME_SUPPRESSION_MS);
+  assert.equal(realtimeHoldDelay(null, 5_000, 0), 0);
+}
+
 function testRefreshWaitsForTheRestOfTheWindow() {
   // Sem recarga anterior: só a folga de 1,5 s.
   assert.equal(realtimeRefreshDelay(0, 10_000, 30_000), REALTIME_REFRESH_DEBOUNCE_MS);
@@ -106,6 +118,7 @@ const tests: Array<[string, () => void | Promise<void>]> = [
   ['batches writes made close together into one sync message', testAnnouncerBatchesWritesIntoOneMessage],
   ['flush sends pending tables immediately and only once', testAnnouncerFlushSendsPendingNow],
   ['removed content ids travel with the next sync notice and are read back', testRemovedContentIdsRideAlongAndAreReadBack],
+  ['a notice during a local save waits its turn instead of being dropped', testHoldWaitsInsteadOfDropping],
   ['a refresh asked inside the minimum window waits instead of being dropped', testRefreshWaitsForTheRestOfTheWindow],
 ];
 

@@ -115,6 +115,35 @@ function testMergePrefersNewerServerVersionOverStaleCache() {
   assert.equal(merged.contents?.[0]?.script, '<p>corpo local</p>');
 }
 
+function testEmptyCommentListIsARealDeletion() {
+  const nota = {
+    id: 'n1',
+    text: 'trecho',
+    selection: { from: 0, to: 3 },
+    comment: 'antigo',
+    color: '#fff',
+    createdAt: '2026-07-01T00:00:00.000Z',
+  };
+  const local = {
+    ...content('c1', 'Roteiro', '2026-07-05T12:00:00.000Z'),
+    scriptNotes: [nota],
+    updatedAt: '2026-07-05T12:00:00.000Z',
+  };
+  const apagado = {
+    ...content('c1', 'Roteiro', '2026-07-05T12:00:00.000Z'),
+    scriptNotes: [],
+    updatedAt: '2026-07-05T14:00:00.000Z',
+  };
+  const semCampo = {
+    ...apagado,
+    scriptNotes: undefined as unknown as Content['scriptNotes'],
+  };
+  const limpo = mergeFetchedAppData({ platforms: [], contents: [local] }, { contents: [apagado] });
+  assert.deepEqual(limpo.contents?.[0]?.scriptNotes, []);
+  const listaLeve = mergeFetchedAppData({ platforms: [], contents: [local] }, { contents: [semCampo] });
+  assert.equal(listaLeve.contents?.[0]?.scriptNotes?.length, 1);
+}
+
 function testMergePlatformsHelper() {
   const merged = mergePlatforms([platform('p1', 'Local')], []);
   assert.equal(merged.length, 1);
@@ -206,6 +235,7 @@ testMergePrefersLocalVersionOnConflict();
 testNewerLocalPlatformSurvivesUntilItIsSaved();
 testRefreshDropsPlatformRemovedOnAnotherDevice();
 testMergePrefersNewerServerVersionOverStaleCache();
+testEmptyCommentListIsARealDeletion();
 testMergePlatformsHelper();
 testMergeContentsHelper();
 testMergeDropsDeletedContentEvenWhenServerStillReturnsIt();

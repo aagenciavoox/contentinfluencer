@@ -6,6 +6,7 @@ import { AppButton } from '../../../components/ui/AppButton';
 import { MoreMenu, type MoreMenuItem } from '../../../components/ui/MoreMenu';
 import type { Anotacao } from '../../../lib/database';
 import { dia, hora } from '../../../lib/dates';
+import { EDITING_LANG } from '../../../lib/portugueseEditing';
 import { cn } from '../../../lib/utils';
 
 export const ANNOTATION_MAX_LENGTH = 2000;
@@ -147,6 +148,7 @@ export function BookAnnotationCard({
       {editing ? (
         <div className="mt-2 stack-sm">
           <textarea
+            lang={EDITING_LANG}
             value={draft}
             onChange={event => setDraft(event.target.value)}
             onKeyDown={event => {

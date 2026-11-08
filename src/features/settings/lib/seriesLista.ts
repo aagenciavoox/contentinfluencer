@@ -1,5 +1,5 @@
 import type { Content, Platform, Serie, Temporada } from '../../../lib/database.ts';
-import { isActiveCreation } from '../../contents/lib/contentWorkflow.ts';
+import { isActiveCreation, isPostedContent } from '../../contents/lib/contentWorkflow.ts';
 import { REDE_ROTULO, redeDaConta } from '../../contas/lib/contas.ts';
 import { etapaDoStatus } from '../../editorial/lib/etapas.ts';
 import { filhosDaSerie, idsDaSubarvore } from '../../editorial/lib/serieArvore.ts';
@@ -120,6 +120,46 @@ function porManual(a: Ordenavel, b: Ordenavel): number {
   return compararOrdemEpisodio(a, b) || (a.createdAt || '').localeCompare(b.createdAt || '') || a.id.localeCompare(b.id);
 }
 
+type ComPostagem = Partial<Pick<Content, 'status' | 'postedAt' | 'publishDate'>>;
+
+/** Publicado de verdade: etapa Publicado ou data em que a pessoa indicou a postagem. */
+export function episodioPostado(item: ComPostagem): boolean {
+  return isPostedContent({ status: item.status ?? '', postedAt: item.postedAt ?? null });
+}
+
+/**
+ * Ordem manual da página: quem já foi postado fica na frente, na sequência em que foi postado,
+ * e essa posição não se mexe. Os demais seguem a ordem ajustável até serem postados.
+ * Data prevista, sozinha, não entra nessa sequência.
+ */
+export function compararManualComPostados(a: Ordenavel & ComPostagem, b: Ordenavel & ComPostagem): number {
+  const pa = episodioPostado(a);
+  const pb = episodioPostado(b);
+  if (pa !== pb) return pa ? -1 : 1;
+  if (pa && pb) {
+    const da = a.postedAt || a.publishDate || '';
+    const db = b.postedAt || b.publishDate || '';
+    if (da !== db) {
+      if (!da) return 1;
+      if (!db) return -1;
+      return da.localeCompare(db);
+    }
+  }
+  return porManual(a, b);
+}
+
+/** A seta só troca dois episódios que ainda não foram postados. */
+export function podeReordenarEpisodio(
+  lista: readonly ComPostagem[],
+  indice: number,
+  direcao: 'subir' | 'descer',
+): boolean {
+  const atual = lista[indice];
+  const vizinho = lista[direcao === 'subir' ? indice - 1 : indice + 1];
+  if (!atual || !vizinho) return false;
+  return !episodioPostado(atual) && !episodioPostado(vizinho);
+}
+
 /**
  * Ordena sem mudar nada. Empates sempre caem na ordem manual e, por fim, no id: o resultado é estável.
  * Data de publicação: a data do episódio (`publishDate`), a mesma que a linha mostra. Sem data, vai para o fim.
@@ -140,6 +180,12 @@ export function ordenarLista<T extends Ordenavel>(lista: readonly T[], ordem: Or
     }
     return porManual(a, b);
   });
+}
+
+/** A lista da página. Na ordem manual, os postados ocupam a sequência fixa; nas outras, nada muda. */
+export function ordenarParaExibir<T extends Ordenavel & ComPostagem>(lista: readonly T[], ordem: OrdemLista): T[] {
+  if (ordem !== 'manual') return ordenarLista(lista, ordem);
+  return [...lista].sort(compararManualComPostados);
 }
 
 /** Episódios ativos da série e dos quadros; na página de uma temporada, só os dela. */
@@ -263,7 +309,7 @@ export function montarLista({
   return brutos
     .filter(bruto => bruto.lista.length > 0 || (semFiltro && bruto.fixo))
     .map(bruto => {
-      const visiveis = ordenarLista(bruto.lista.filter(content => passaNosFiltros(content, filtros, ctx)), ordem);
+      const visiveis = ordenarParaExibir(bruto.lista.filter(content => passaNosFiltros(content, filtros, ctx)), ordem);
       const { principais, soYt, totalSoYt } = separarSoYoutube(bruto.lista, visiveis, soYoutube);
       return {
         id: bruto.id,

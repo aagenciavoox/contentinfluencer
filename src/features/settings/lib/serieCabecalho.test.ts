@@ -73,6 +73,22 @@ assert.equal(metaDoCabecalho({ serie: legado, series: [legado], itens: [], perio
 const quinzenal = { ...base, frequenciaVezes: 1, frequenciaUnidade: 'quinzena' };
 assert.deepEqual(metaDoCabecalho({ serie: quinzenal, series: [quinzenal], itens: [], periodo: semana, hoje: '2026-11-02' }), { estado: 'sem-meta', texto: 'Defina o início dos ciclos de 14 dias' });
 
+// Quadro com meta própria sai da conta do pai, como na Saúde.
+const quadroProprio = {
+  ...base,
+  id: 'q1',
+  parentId: 's',
+  tipoAgrupamento: 'quadro' as const,
+  ativa: true,
+  acompanharContinuidade: true,
+  frequenciaVezes: 1,
+  frequenciaUnidade: 'semana',
+};
+const pai = { ...base, frequenciaVezes: 1, frequenciaUnidade: 'semana', acompanharContinuidade: true, ativa: true, tipoAgrupamento: 'serie' as const };
+const soNoQuadro = [{ id: 'q:original', contentId: 'q', serieId: 'q1', data: '2026-11-03', tipo: 'original' as const, etapa: 'roteiro' }];
+const doPai = metaDoCabecalho({ serie: pai, series: [pai, quadroProprio], itens: soNoQuadro, periodo: semana, hoje: '2026-11-02' });
+assert.equal(doPai.texto, '0 episódios nesta semana · meta de 1 · 0 de 1 semana atendida');
+
 const futura = { ...comMeta, frequenciaAPartirDe: '2026-12-01' };
 const f = metaDoCabecalho({ serie: futura, series: [futura], itens, periodo: semana, hoje: '2026-11-02' });
 assert.equal(f.estado, 'futura');
