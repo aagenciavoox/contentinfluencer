@@ -1,8 +1,9 @@
+import type {ReactNode} from 'react';
 import {RedeIcon} from '../../../components/ui/PlatformIcons';
 import type {Platform} from '../../../lib/database';
 import {cn} from '../../../lib/utils';
 import {REDE_ROTULO, redeDaConta, rotuloCurtoConta, type RedeDoFiltro} from '../../contas/lib/contas';
-import {alternarRedeNoFoco, ordenarChipsDoFoco} from '../lib/redesPostIt';
+import {agruparPorBlocoVisual, alternarRedeNoFoco, compararExibicaoRede} from '../lib/redesPostIt';
 
 export interface RedeChipsProps {
   value: readonly RedeDoFiltro[];
@@ -26,8 +27,8 @@ function rotuloDoChip(conta: Parameters<typeof rotuloCurtoConta>[0], rede: strin
 
 const VARIANTES_POR_REDE: Partial<Record<string, Array<{rede: RedeDoFiltro; sufixo: string}>>> = {
   youtube: [
-    {rede: 'youtube', sufixo: 'Vídeo longo'},
     {rede: 'youtube-shorts', sufixo: 'Shorts'},
+    {rede: 'youtube', sufixo: 'Vídeo longo'},
   ],
   instagram: [
     {rede: 'instagram-video', sufixo: 'Vídeo'},
@@ -40,9 +41,31 @@ const chipClass = (active: boolean) => cn(
   active && 'filter-chip-active',
 );
 
+function ChipsEmBlocos({
+  chips,
+  rotulo,
+}: {
+  chips: ReadonlyArray<{destino: RedeDoFiltro; node: ReactNode}>;
+  rotulo: string;
+}) {
+  const grupos = agruparPorBlocoVisual(
+    [...chips].sort((a, b) => compararExibicaoRede(a.destino, b.destino)),
+    chip => chip.destino,
+  );
+  return (
+    <div role="group" aria-label={rotulo} className="flex flex-wrap items-center gap-4">
+      {grupos.map(grupo => (
+        <div key={grupo[0].destino} className="flex flex-wrap items-center gap-2">
+          {grupo.map(chip => chip.node)}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /**
  * Chips de seleção de contas de publicação para post-its e temporadas.
- * Selecionados aparecem primeiro, na ordem gravada/clicada; os demais na ordem de exibição.
+ * A fileira fica fixa: Reels, TikTok e Shorts, depois o YouTube longo e o carrossel.
  * Uma conta só na rede aparece pelo nome da rede; o @ entra quando há outra conta para distinguir.
  */
 export function RedeChips({value, onChange, platforms = []}: RedeChipsProps) {
@@ -94,42 +117,38 @@ export function RedeChips({value, onChange, platforms = []}: RedeChipsProps) {
       }];
     });
 
-    const ordenados = ordenarChipsDoFoco(chips, value);
-
-    return (
-      <div role="group" aria-label="Redes" className="flex flex-wrap gap-2">
-        {ordenados.map(chip => chip.node)}
-      </div>
-    );
+    return <ChipsEmBlocos chips={chips} rotulo="Redes" />;
   }
 
   const redesPadrao: Array<{destino: RedeDoFiltro; label: string}> = [
     {destino: 'instagram-video', label: 'Instagram (vídeo)'},
     {destino: 'tiktok', label: 'TikTok'},
     {destino: 'youtube-shorts', label: 'YouTube Shorts'},
-    {destino: 'instagram-carrossel', label: 'Instagram (carrossel)'},
     {destino: 'youtube', label: 'YouTube (vídeo longo)'},
+    {destino: 'instagram-carrossel', label: 'Instagram (carrossel)'},
   ];
 
-  const padraoOrdenado = ordenarChipsDoFoco(redesPadrao, value);
-
   return (
-    <div role="group" aria-label="Redes sociais" className="flex flex-wrap gap-2">
-      {padraoOrdenado.map(({destino: rede, label}) => {
+    <ChipsEmBlocos
+      rotulo="Redes sociais"
+      chips={redesPadrao.map(({destino: rede, label}) => {
         const active = value.includes(rede);
-        return (
-          <button
-            key={rede}
-            type="button"
-            aria-pressed={active}
-            onClick={() => onChange(alternarRedeNoFoco(value, rede))}
-            className={chipClass(active)}
-          >
-            <RedeIcon rede={rede} className="h-3.5 w-3.5 shrink-0" />
-            <span>{label}</span>
-          </button>
-        );
+        return {
+          destino: rede,
+          node: (
+            <button
+              key={rede}
+              type="button"
+              aria-pressed={active}
+              onClick={() => onChange(alternarRedeNoFoco(value, rede))}
+              className={chipClass(active)}
+            >
+              <RedeIcon rede={rede} className="h-3.5 w-3.5 shrink-0" />
+              <span>{label}</span>
+            </button>
+          ),
+        };
       })}
-    </div>
+    />
   );
 }

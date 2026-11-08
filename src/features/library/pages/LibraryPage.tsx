@@ -43,6 +43,7 @@ import {
 } from '../lib/libraryStatus';
 import { GENEROS_SUGERIDOS, GENEROS_POR_TIPO } from '../lib/libraryGenres';
 import { createIdeaContent } from '../../contents/lib/creationContent';
+import { pilarEscolhidoDaBiblioteca } from '../lib/pilarDeItemDaBiblioteca';
 import { LibrarySectionTabs } from '../components/LibrarySectionTabs';
 import { LibraryCreateForm, type LibraryCreateFormValue } from '../components/LibraryCreateForm';
 
@@ -398,7 +399,7 @@ export function LibraryPage() {
     const ideia = createIdeaContent({
       title: fields.title || 'Ideia sem título',
       notes: fields.notes || null,
-      pilarId: null,
+      ...(pilarEscolhidoDaBiblioteca(state.pilares) ?? { pilarId: null }),
       seriesId: null,
       bibliotecaItemId: item.id,
     });

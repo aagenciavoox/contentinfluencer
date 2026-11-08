@@ -4,6 +4,7 @@ import {passaNoFiltroRede} from '../../creation/lib/creationRedeFilter.ts';
 import type {RedeDoFiltro} from '../../contas/lib/contas.ts';
 import {pilarDoConteudo, type SerieClassificacao} from '../../editorial/lib/herancaSerie.ts';
 import {caminhoDaSerie, conteudoNaSubarvore} from '../../editorial/lib/serieArvore.ts';
+import {seriesParaFiltro} from '../../settings/lib/serieAgrupamento.ts';
 
 type ConteudoFiltravel = Pick<Content, 'seriesId' | 'pilarId' | 'tags' | 'temaIds'>
   & Partial<Pick<Content, 'pilarOrigem' | 'classificacaoCongeladaEm'>>;
@@ -94,11 +95,10 @@ export function opcoesDoFiltroPuxar(
     }
   }
   return {
-    // Quadro aparece com a série na frente ("Resenhas · Clássicos") e fica logo abaixo dela na lista.
-    series: series
+    // Quadros não entram na lista: escolher a série já traz o conteúdo deles.
+    series: seriesParaFiltro(series)
       .filter(serie => serieIds.has(serie.id))
-      .map(serie => ({value: serie.id, label: caminhoDaSerie(serie.id, series).map(no => no.name?.trim() || 'Sem nome').join(' · ')}))
-      .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR')),
+      .map(serie => ({value: serie.id, label: serie.name?.trim() || 'Sem nome'})),
     pilares: pilares
       .filter(pilar => pilarIds.has(pilar.id))
       .map(pilar => ({value: pilar.id, label: pilar.nome})),

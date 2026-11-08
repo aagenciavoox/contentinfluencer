@@ -52,7 +52,7 @@ export function SeriesSettingsPage() {
       else if (item.tipo === 'familia') familia += 1;
     }
     return {
-      todos: modelo.total,
+      todos: serie + familia,
       serie,
       quadro,
       familia,
@@ -97,7 +97,7 @@ export function SeriesSettingsPage() {
     dispatch({ type: 'ADD_SERIE', payload: serie });
     setQuickCreateOpen(false);
     setQuickName('');
-    navigate(`/series/${serie.id}`);
+    if (quickTipo !== 'familia') navigate(`/series/${serie.id}`);
   };
 
   const quickSheet = (
@@ -167,7 +167,6 @@ export function SeriesSettingsPage() {
               {[
                 { id: 'todos', label: 'Todos', count: contagensPorTipo.todos },
                 { id: 'serie', label: 'Séries', count: contagensPorTipo.serie },
-                { id: 'quadro', label: 'Quadros', count: contagensPorTipo.quadro },
                 { id: 'familia', label: 'Famílias', count: contagensPorTipo.familia },
               ].map(tab => {
                 const ativo = modelo.filtros.tipo === tab.id;

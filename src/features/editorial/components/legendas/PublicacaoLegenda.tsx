@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { AppButton } from '../../../../components/ui/AppButton';
-import type { ContentPlataforma, Pilar, Serie } from '../../../../lib/database';
+import type { Content, ContentPlataforma, Pilar, Serie } from '../../../../lib/database';
 import { suggestHashtags } from '../../../contents/lib/captionHashtags';
 import {
   complementoDoRotulo,
@@ -22,12 +22,15 @@ import {
 } from '../../lib/captions';
 import { limiteHashtagsDaRede, type EditorialSettings } from '../../lib/editorialSettings';
 import { limiteDeCaracteres, platformShowsField } from '../../lib/platformFields';
+import { formatoNoYoutube } from '../../lib/publicacoes';
 import { HashtagsField } from './HashtagsField';
 import { LegendaVersaoField } from './LegendaVersaoField';
 
 export type ConteudoComLegenda = Omit<ConteudoDaLegenda, 'plataformas'> & {
   legendaBase?: string | null;
   plataformas: ContentPlataforma[];
+  formatoVisual?: string | null;
+  writingMode?: Content['writingMode'] | null;
 };
 
 /** Texto pronto para colar: legenda efetiva e, quando a rede usa, as hashtags no fim, sem repetir. */
@@ -71,6 +74,11 @@ export function PublicacaoLegenda({
   const conta = contaDaRef(publicacao.platformId, contas);
   const rede = redeDaRef(publicacao.platformId, contas);
   const chaveDaRede = rede && rede !== 'outra' ? rede : conta?.nome ?? publicacao.platformId;
+  const shorts = rede === 'youtube' && formatoNoYoutube(
+    {formatoVisual: conteudo.formatoVisual ?? null, writingMode: conteudo.writingMode},
+    publicacao,
+  ).formato === 'short';
+  const icone = shorts ? 'youtube-shorts' : (conta ? iconeDaConta(conta) : publicacao.platformId);
   const rotulo = conta ? rotuloConta(conta) : publicacao.platformId;
   const estado = estadoLegenda(publicacao, conteudo);
   const base = conteudo.legendaBase;
@@ -96,7 +104,7 @@ export function PublicacaoLegenda({
     <div className={painel ? 'stack-md' : 'stack-sm'}>
       <LegendaVersaoField
         id={`legenda-${publicacao.id}`}
-        icone={conta ? iconeDaConta(conta) : publicacao.platformId}
+        icone={icone}
         rotulo={repost ? `${rotulo} (repost)` : rotulo}
         detalhe={conta ? complementoDoRotulo(conta) : null}
         estado={estado}

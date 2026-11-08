@@ -78,15 +78,16 @@ export function NovoConteudoDialog({
 
   // Enter continua criando e abrindo.
   const criar = (abrir = true) => {
-    if (!titulo.trim()) {
-      setErro('Dê um título ao conteúdo.');
+    const tituloLimpo = titulo.trim();
+    if (!tituloLimpo && plataformas.length === 0) {
+      setErro('Escolha uma plataforma ou dê um título.');
       return;
     }
     const sugestao = sugestaoDoFoco(focoRedes);
     onCreate({
       id,
       modo,
-      titulo: titulo.trim(),
+      titulo: tituloLimpo || (modo === 'roteiro' ? 'Novo roteiro' : 'Ideia sem título'),
       texto,
       plataformas,
       writingMode: sugestao?.writingMode,
@@ -127,7 +128,7 @@ export function NovoConteudoDialog({
         <div className="stack-xs">
           <label htmlFor="novo-conteudo-titulo">
             <Text variant="label" as="span">
-              Título <span className="text-[var(--brand-accent-text)]">*</span>
+              Título <span className="text-[var(--text-tertiary)]">· opcional</span>
             </Text>
           </label>
           <input

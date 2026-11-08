@@ -31,7 +31,7 @@ assert.deepEqual(parseRedesFilter('youtube-shorts,instagram'), ['instagram', 'yo
 assert.deepEqual(parseRedesFilter('sem-rede'), []);
 assert.deepEqual(parseRedesFilter(null), []);
 assert.equal(serializeRedesFilter(['tiktok', 'instagram']), 'instagram,tiktok');
-assert.equal(serializeRedesFilter(['youtube-shorts', 'youtube']), 'youtube,youtube-shorts');
+assert.equal(serializeRedesFilter(['youtube-shorts', 'youtube']), 'youtube-shorts,youtube');
 assert.equal(serializeRedesFilter([]), '');
 console.log('ok - rede filter: reads and writes several networks in the query param');
 
@@ -131,23 +131,23 @@ console.log('ok - rede filter: passes items only on the marked networks');
 
 assert.deepEqual(
   redesDoFiltroRapido([conta('a', 'TikTok', 'tiktok'), conta('b', 'Instagram', 'instagram'), conta('c', 'Insta 2', 'instagram')]),
-  ['instagram-video', 'instagram-carrossel', 'tiktok'],
+  ['instagram-video', 'tiktok', 'instagram-carrossel'],
 );
 // Conta desativada não entra; rede marcada fora das contas continua para ser desmarcada.
 assert.deepEqual(
   redesDoFiltroRapido([conta('a', 'Instagram', 'instagram'), conta('b', 'YouTube', 'youtube', false)], ['youtube']),
-  ['instagram-video', 'instagram-carrossel', 'youtube'],
+  ['instagram-video', 'youtube', 'instagram-carrossel'],
 );
 assert.deepEqual(
   redesDoFiltroRapido([conta('a', 'Instagram', 'instagram'), conta('b', 'YouTube', 'youtube', false)], ['youtube-shorts']),
-  ['instagram-video', 'instagram-carrossel', 'youtube-shorts'],
+  ['instagram-video', 'youtube-shorts', 'instagram-carrossel'],
 );
 assert.deepEqual(
   redesDoFiltroRapido(contas),
   [
-    'instagram-video', 'instagram-carrossel',
-    'tiktok',
-    'youtube', 'youtube-shorts', 'blog', 'outra',
+    'instagram-video', 'tiktok', 'youtube-shorts',
+    'youtube',
+    'instagram-carrossel', 'blog', 'outra',
   ],
 );
 console.log('ok - rede filter: quick icons follow the active accounts');

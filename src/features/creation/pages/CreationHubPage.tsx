@@ -50,6 +50,7 @@ import { CONTENT_STATUS, normalizeContentStatus } from '../../contents/lib/conte
 import { aplicarEscolhasDaSerie, marcarEscolhaManual } from '../../editorial/lib/escolhasSerie';
 import { datasNaGrade } from '../../editorial/lib/datasNaGrade';
 import { FUNCAO_LABELS, FUNCOES } from '../../editorial/lib/funcoes';
+import { seriesParaFiltro } from '../../settings/lib/serieAgrupamento';
 import {
   aplicarFiltroData,
   lerFiltroData,
@@ -76,6 +77,7 @@ import {
   type CreationTab,
   type CreationViewMode,
 } from '../../contents/lib/creationContent';
+import { pilarEscolhidoDaBiblioteca } from '../../library/lib/pilarDeItemDaBiblioteca';
 import { CreationComposer, type CreationIdeaInput } from '../components/CreationComposer';
 import { CreationDisplayMenu } from '../components/CreationDisplayMenu';
 import { CreationGridView } from '../components/CreationGridView';
@@ -667,19 +669,30 @@ export function CreationHubPage() {
   }, [mutateSearchParams]);
 
   const saveIdea = useCallback(async (input: CreationIdeaInput) => {
-    const serie = input.seriesId
-      ? state.series.find(item => item.id === input.seriesId) ?? {id: input.seriesId}
+    const {abrirDetalhe, plataformas, ...campos} = input;
+    const serie = campos.seriesId
+      ? state.series.find(item => item.id === campos.seriesId) ?? {id: campos.seriesId}
+      : null;
+    const pilarDaObra = !campos.pilarId && campos.bibliotecaItemId
+      ? pilarEscolhidoDaBiblioteca(state.pilares)
       : null;
     let content = createIdeaContent({
-      ...input,
-      pilarOrigem: input.pilarId ? 'escolhida' : null,
+      ...campos,
+      pilarId: pilarDaObra?.pilarId ?? campos.pilarId,
+      pilarOrigem: pilarDaObra || campos.pilarId ? 'escolhida' : null,
       plataformas: [],
     });
     if (serie) content = aplicarEscolhasDaSerie(content, serie);
     content = comModoDaEscolha({
       ...content,
-      plataformas: input.plataformas.map(plataforma => ({...plataforma, contentId: content.id})),
+      plataformas: plataformas.map(plataforma => ({...plataforma, contentId: content.id})),
     });
+    // Só as plataformas: abre a ideia para preencher título e texto lá.
+    if (abrirDetalhe) {
+      void dispatch({ type: 'ADD_CONTENT', payload: content });
+      navigate(buildContentDetailRoute(content.id), buildDetailBackState('/criacao?tab=ideias'));
+      return;
+    }
     // Fecha o modal e vai para Ideias antes do await, como o roteiro faz: o
     // `previous` é a URL do render em que o modal abriu, então navegar depois
     // do await trazia o compose=idea de volta e reabria o modal.
@@ -693,7 +706,7 @@ export function CreationHubPage() {
       return next;
     });
     await dispatch({ type: 'ADD_CONTENT', payload: content });
-  }, [dispatch, mutateSearchParams, state.series]);
+  }, [dispatch, mutateSearchParams, navigate, state.pilares, state.series]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -1104,7 +1117,7 @@ export function CreationHubPage() {
       onChange: (value: string) => updateSearchParam('serie', value),
       options: [
         { label: 'Todas as séries', value: '' },
-        ...state.series.map(series => ({ label: series.name, value: series.id })),
+        ...seriesParaFiltro(state.series, seriesId).map(series => ({ label: series.name, value: series.id })),
       ],
     },
     {
@@ -1504,9 +1517,7 @@ export function CreationHubPage() {
             options={[
               {value: '__none__', label: assignField === 'seriesId' ? 'Sem série' : 'Sem pilar'},
               ...(assignField === 'seriesId'
-                ? [...state.series]
-                  .sort((left, right) => left.name.localeCompare(right.name, 'pt-BR'))
-                  .map(series => ({value: series.id, label: series.name}))
+                ? seriesParaFiltro(state.series).map(series => ({value: series.id, label: series.name}))
                 : [...state.pilares]
                   .sort((left, right) => left.nome.localeCompare(right.nome, 'pt-BR'))
                   .map(pilar => ({value: pilar.id, label: pilar.nome}))),

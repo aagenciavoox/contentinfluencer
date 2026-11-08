@@ -9,7 +9,7 @@ import type { AppDataDomain } from '../../../lib/database';
 import { atualizarPreferencias } from '../../editorial/lib/editorialSettings';
 import { getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
 import type { SerieCreateModalTarget } from '../components/SerieCreateModal';
-import { TIPOS_AGRUPAMENTO, TIPO_AGRUPAMENTO_PLURAL } from '../lib/serieAgrupamento';
+import { TIPOS_AGRUPAMENTO, TIPO_AGRUPAMENTO_PLURAL, tipoDaSerie } from '../lib/serieAgrupamento';
 import { rotaParaCriarFilho } from '../lib/serieHierarquia';
 import { useStatusDaSerie } from './useStatusDaSerie';
 import {
@@ -28,7 +28,7 @@ function validarFiltros(valor: unknown): FiltrosLista | null {
   const bruto = valor as Partial<FiltrosLista>;
   return {
     busca: typeof bruto.busca === 'string' ? bruto.busca : '',
-    tipo: bruto.tipo === 'familia' || bruto.tipo === 'serie' || bruto.tipo === 'quadro' ? bruto.tipo : 'todos',
+    tipo: bruto.tipo === 'familia' || bruto.tipo === 'serie' ? bruto.tipo : 'todos',
     pilar: typeof bruto.pilar === 'string' && bruto.pilar ? bruto.pilar : 'todos',
     situacao: bruto.situacao === 'inativas' || bruto.situacao === 'rascunho' || bruto.situacao === 'todas' || bruto.situacao === 'abertas'
       ? bruto.situacao
@@ -103,8 +103,17 @@ export function useSeriesLista(onAbrirModalCriacao?: (target: SerieCreateModalTa
   const { alternarAtiva, mudarStatus, modalAtivacao } = useStatusDaSerie();
 
   const acoes = useMemo(() => ({
-    onOpen: (serieId: string) => navigate(`/series/${serieId}`),
-    onOpenFilhos: (serieId: string) => navigate(`/series/${serieId}?aba=quadros`),
+    onOpen: (serieId: string) => {
+      if (tipoDaSerie(serieId, state.series) === 'familia') {
+        navigate(`/series/${serieId}/editar`);
+        return;
+      }
+      navigate(`/series/${serieId}`);
+    },
+    onOpenFilhos: (serieId: string) => {
+      if (tipoDaSerie(serieId, state.series) === 'familia') return;
+      navigate(`/series/${serieId}?aba=quadros`);
+    },
     onEdit: (serieId: string) => navigate(`/series/${serieId}/editar`),
     onToggleAtiva: alternarAtiva,
     onMudarStatus: mudarStatus,
@@ -116,11 +125,13 @@ export function useSeriesLista(onAbrirModalCriacao?: (target: SerieCreateModalTa
       const rota = rotaParaCriarFilho(item.serie.id, item.tipo);
       if (rota) navigate(rota);
     },
-  }), [alternarAtiva, mudarStatus, navigate, onAbrirModalCriacao]);
+  }), [alternarAtiva, mudarStatus, navigate, onAbrirModalCriacao, state.series]);
 
   const opcoesTipo = [
     { value: 'todos', label: 'Todos' },
-    ...TIPOS_AGRUPAMENTO.map(tipo => ({ value: tipo, label: TIPO_AGRUPAMENTO_PLURAL[tipo] })),
+    ...TIPOS_AGRUPAMENTO
+      .filter(tipo => tipo !== 'quadro')
+      .map(tipo => ({ value: tipo, label: TIPO_AGRUPAMENTO_PLURAL[tipo] })),
   ];
   const pilaresUsados = new Set([...lista.itens.values()].map(item => item.pilar.pilarId).filter(Boolean));
   const opcoesPilar = [

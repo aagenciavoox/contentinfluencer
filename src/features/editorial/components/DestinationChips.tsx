@@ -29,12 +29,11 @@ import {
   publicacaoPublicada,
   type DestinoPlataforma,
 } from '../lib/destinations';
+import {agruparPorBlocoVisual, ORDEM_EXIBICAO_REDE} from '../../planejamento/lib/redesPostIt';
 
-const DESTINOS_PRINCIPAIS: readonly RedeDoFiltro[] = [
-  'instagram-video', 'instagram-carrossel',
-  'tiktok',
-  'youtube', 'youtube-shorts',
-];
+const DESTINOS_PRINCIPAIS: readonly RedeDoFiltro[] = ORDEM_EXIBICAO_REDE.filter(rede =>
+  rede === 'instagram-video' || rede === 'tiktok' || rede === 'youtube-shorts' || rede === 'youtube' || rede === 'instagram-carrossel',
+);
 
 const iconButtonClass =
   'inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius-input)] border transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-40';
@@ -43,8 +42,8 @@ const contaChipClass =
   'inline-flex min-h-11 max-w-full items-center gap-2 rounded-[var(--radius-input)] border px-3 text-left t-body transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50';
 
 /**
- * Onde o conteúdo vai ser publicado. Primeiro a plataforma, só com o ícone (Instagram, TikTok,
- * YouTube longo e YouTube Shorts); depois, quando a plataforma tem mais de uma conta, a conta,
+ * Onde o conteúdo vai ser publicado. Primeiro a plataforma, só com o ícone (Reels, TikTok,
+ * Shorts, YouTube longo e carrossel); depois, quando a plataforma tem mais de uma conta, a conta,
  * pelo @. Cada conta marcada vira uma publicação própria, com legenda, datas, status, link e métricas dela.
  */
 export function DestinationChips({
@@ -220,48 +219,52 @@ export function DestinationChips({
         </Text>
       ) : (
         <>
-          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Plataformas">
-            {DESTINOS_PRINCIPAIS.map(destino => {
-              const contas = contasDaRede(redeBaseDoFiltro(destino));
-              const marcadas = contas.filter(conta => contaNoDestino(conta, destino));
-              const nome = ROTULO_REDE_DO_FILTRO[destino];
-              const dica = contas.length === 0
-                ? `${nome}: nenhuma conta ativa`
-                : contas.length === 1
-                  ? `${nome}: ${rotuloConta(contas[0])}`
-                  : `${nome}: ${marcadas.length} de ${contas.length} contas`;
-              return (
-                <Tooltip key={destino} label={dica} side="top">
-                  <button
-                    type="button"
-                    aria-label={dica}
-                    aria-pressed={marcadas.length > 0}
-                    aria-expanded={contas.length > 1 ? redesComLista.includes(destino) : undefined}
-                    disabled={disabled || contas.length === 0}
-                    onClick={() => clicarNaPlataforma(destino)}
-                    className={cn(
-                      iconButtonClass,
-                      'relative',
-                      marcadas.length > 0
-                        ? 'border-[var(--accent)] bg-[var(--accent)] text-[var(--bg-primary)]'
-                        : 'border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]',
-                    )}
-                  >
-                    <RedeIcon rede={destino} className="h-[18px] w-[18px]" />
-                    {contas.length > 1 && marcadas.length > 0 ? (
-                      <span
-                        aria-hidden
-                        className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-[var(--bg-primary)] bg-[var(--text-primary)] px-1 text-[var(--bg-primary)]"
+          <div className="flex flex-wrap items-center gap-4" role="group" aria-label="Plataformas">
+            {agruparPorBlocoVisual(DESTINOS_PRINCIPAIS.map(destino => ({destino})), item => item.destino).map(grupo => (
+              <div key={grupo[0].destino} className="flex flex-wrap items-center gap-2">
+                {grupo.map(({destino}) => {
+                  const contas = contasDaRede(redeBaseDoFiltro(destino));
+                  const marcadas = contas.filter(conta => contaNoDestino(conta, destino));
+                  const nome = ROTULO_REDE_DO_FILTRO[destino];
+                  const dica = contas.length === 0
+                    ? `${nome}: nenhuma conta ativa`
+                    : contas.length === 1
+                      ? `${nome}: ${rotuloConta(contas[0])}`
+                      : `${nome}: ${marcadas.length} de ${contas.length} contas`;
+                  return (
+                    <Tooltip key={destino} label={dica} side="top">
+                      <button
+                        type="button"
+                        aria-label={dica}
+                        aria-pressed={marcadas.length > 0}
+                        aria-expanded={contas.length > 1 ? redesComLista.includes(destino) : undefined}
+                        disabled={disabled || contas.length === 0}
+                        onClick={() => clicarNaPlataforma(destino)}
+                        className={cn(
+                          iconButtonClass,
+                          'relative',
+                          marcadas.length > 0
+                            ? 'border-[var(--accent)] bg-[var(--accent)] text-[var(--bg-primary)]'
+                            : 'border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]',
+                        )}
                       >
-                        <Text variant="label" as="span" className="text-[var(--bg-primary)]">
-                          {marcadas.length}
-                        </Text>
-                      </span>
-                    ) : null}
-                  </button>
-                </Tooltip>
-              );
-            })}
+                        <RedeIcon rede={destino} className="h-[18px] w-[18px]" />
+                        {contas.length > 1 && marcadas.length > 0 ? (
+                          <span
+                            aria-hidden
+                            className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-[var(--bg-primary)] bg-[var(--text-primary)] px-1 text-[var(--bg-primary)]"
+                          >
+                            <Text variant="label" as="span" className="text-[var(--bg-primary)]">
+                              {marcadas.length}
+                            </Text>
+                          </span>
+                        ) : null}
+                      </button>
+                    </Tooltip>
+                  );
+                })}
+              </div>
+            ))}
           </div>
 
           {redesComLista.map(destino => (

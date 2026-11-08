@@ -4,6 +4,7 @@ import type { AppState } from '../../../app/providers/appState';
 import { AppButton } from '../../../components/ui/AppButton';
 import { SelectMenu } from '../../../components/ui/SelectMenu';
 import { getActivePilares } from '../../settings/lib/activePilares';
+import { seriesParaFiltro } from '../../settings/lib/serieAgrupamento';
 import { cn, getEntityTagStyle } from '../../../lib/utils';
 
 interface IdeaQuickCaptureProps {
@@ -21,6 +22,9 @@ interface IdeaQuickCaptureProps {
   onSave: () => void;
   variant?: 'compact' | 'default' | 'single-line';
   autoFocus?: boolean;
+  /** Com plataformas já escolhidas, o título deixa de ser obrigatório. */
+  allowEmptyText?: boolean;
+  disabledReason?: string;
 }
 
 type MetaField = 'pilar' | 'serie' | 'origem';
@@ -43,6 +47,8 @@ export function IdeaQuickCapture({
   onSave,
   variant = 'compact',
   autoFocus = true,
+  allowEmptyText = false,
+  disabledReason = 'Escreva um título para salvar a ideia.',
 }: IdeaQuickCaptureProps) {
   const [expanded, setExpanded] = useState(variant === 'default');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -51,7 +57,7 @@ export function IdeaQuickCapture({
     ['Consumindo', 'Lendo', 'Assistindo'].includes(item.status),
   );
 
-  const canSave = title.trim().length > 0 || notes.trim().length > 0;
+  const canSave = title.trim().length > 0 || notes.trim().length > 0 || allowEmptyText;
   const isCompact = variant === 'compact';
   const isSingleLine = variant === 'single-line';
 
@@ -97,7 +103,7 @@ export function IdeaQuickCapture({
       field === 'pilar'
         ? getActivePilares(state.pilares).map((pilar) => ({ value: pilar.id, label: pilar.nome }))
         : field === 'serie'
-          ? state.series.map((serie) => ({ value: serie.id, label: serie.name }))
+          ? seriesParaFiltro(state.series, selectedSeries).map((serie) => ({ value: serie.id, label: serie.name }))
           : consumindo.map((item) => ({ value: item.id, label: item.titulo.slice(0, 40) }));
 
     return (
@@ -188,7 +194,7 @@ export function IdeaQuickCapture({
             size="sm"
             onClick={onSave}
             disabled={!canSave}
-            disabledReason="Escreva um título para salvar a ideia."
+            disabledReason={disabledReason}
             leftIcon={<CornerDownLeft className="h-3.5 w-3.5" />}
             className="h-9 shrink-0"
           >
@@ -333,7 +339,7 @@ export function IdeaQuickCapture({
           size="sm"
           onClick={onSave}
           disabled={!canSave}
-          disabledReason="Escreva um título para salvar a ideia."
+          disabledReason={disabledReason}
           leftIcon={<CornerDownLeft className="h-3.5 w-3.5" />}
           className="shrink-0"
         >

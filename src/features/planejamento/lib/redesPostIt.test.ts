@@ -50,10 +50,10 @@ function testOrdenaChipsSelecionadosNaOrdemGravada() {
     ordenarChipsDoFoco(chips, ['instagram-carrossel', 'youtube']).map(item => item.id),
     ['car', 'yt', 'ig', 'tt', 'sh'],
   );
-  // Sem seleção: só a ordem de exibição.
+  // Sem seleção: curtos, YouTube longo e carrossel por último.
   assert.deepEqual(
     ordenarChipsDoFoco(chips, []).map(item => item.id),
-    ['ig', 'tt', 'sh', 'car', 'yt'],
+    ['ig', 'tt', 'sh', 'yt', 'car'],
   );
 }
 

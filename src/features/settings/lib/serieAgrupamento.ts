@@ -50,6 +50,19 @@ export function tiposDasSeries(series: readonly SerieTipoNo[]): Map<string, Seri
   return new Map(series.map(serie => [serie.id, tipoDaSerie(serie.id, series)]));
 }
 
+/**
+ * Opções de um filtro ou seletor chamado Série: só séries.
+ * O id atual entra mesmo se for quadro, para a escolha já gravada não sumir da tela.
+ */
+export function seriesParaFiltro<T extends SerieTipoNo>(series: readonly T[], atualId?: string | null): T[] {
+  const soSeries = series
+    .filter(item => tipoDaSerie(item.id, series) === 'serie')
+    .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '', 'pt-BR'));
+  if (!atualId || soSeries.some(item => item.id === atualId)) return soSeries;
+  const atual = series.find(item => item.id === atualId);
+  return atual ? [...soSeries, atual] : soSeries;
+}
+
 /** Tipo sugerido para um agrupamento novo dentro de `paiId`. */
 export function tipoSugeridoParaFilho(
   paiId: string | null | undefined,

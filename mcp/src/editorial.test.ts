@@ -8,7 +8,7 @@ import {
   resolveFuncao,
   unirLivros,
 } from './editorial.ts';
-import {columnAbsence, stripSelectColumn} from './lib.ts';
+import {columnAbsence, pilarIdDeItemDaBiblioteca, stripSelectColumn} from './lib.ts';
 
 function testGrade() {
   assert.equal(contaNaGradePadrao('Reels', 'atrair'), true);
@@ -83,9 +83,20 @@ function testSelect() {
   });
 }
 
+function testPilarDaBiblioteca() {
+  assert.equal(pilarIdDeItemDaBiblioteca([
+    {id: 'humor', nome: 'Humor', ativo: true},
+    {id: 'off', nome: 'Indicação / Resenha', ativo: false},
+    {id: 'ind', nome: 'Indicação/Resenha', ativo: true},
+  ]), 'ind');
+  assert.equal(pilarIdDeItemDaBiblioteca([{id: 'off', nome: 'indicacao/resenha', ativo: false}]), 'off');
+  assert.equal(pilarIdDeItemDaBiblioteca([{id: 'h', nome: 'Humor'}]), null);
+}
+
 testGrade();
 testFuncao();
 testLivros();
 testPostECongelamento();
 testSelect();
+testPilarDaBiblioteca();
 console.log('editorial mcp ok');

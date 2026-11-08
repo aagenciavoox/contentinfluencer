@@ -14,6 +14,7 @@ import { getModuleFlags } from '../../settings/lib/moduleFlags';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import { buildDetailBackState } from '../../../lib/navigation/detailBack';
 import { createIdeaContent, createScriptWithPublications } from '../../contents/lib/creationContent';
+import { pilarEscolhidoDaBiblioteca } from '../../library/lib/pilarDeItemDaBiblioteca';
 import { ScriptComposer } from '../../creation/components/ScriptComposer';
 import { aplicarEscolhasDaSerie } from '../../editorial/lib/escolhasSerie';
 import { getGentleExperienceSettings } from '../../settings/lib/gentleExperience';
@@ -217,9 +218,11 @@ export function DashboardPage() {
     let content = pendingIdea.current?.snapshot === snapshot ? pendingIdea.current.content : null;
     if (!content) {
       const serie = ideaSeriesId ? state.series.find(item => item.id === ideaSeriesId) ?? { id: ideaSeriesId } : null;
+      const pilarDaObra = !ideaPilarId && ideaOriginId ? pilarEscolhidoDaBiblioteca(state.pilares) : null;
       content = createIdeaContent({
         userId: user?.id || '', title: title || 'Ideia sem título', notes: notes || null,
-        pilarId: ideaPilarId || null, pilarOrigem: ideaPilarId ? 'escolhida' : null,
+        pilarId: pilarDaObra?.pilarId ?? (ideaPilarId || null),
+        pilarOrigem: pilarDaObra || ideaPilarId ? 'escolhida' : null,
         seriesId: ideaSeriesId || null, bibliotecaItemId: ideaOriginId || null,
       });
       if (serie) content = aplicarEscolhasDaSerie(content, serie);

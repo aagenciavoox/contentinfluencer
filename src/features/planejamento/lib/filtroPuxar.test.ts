@@ -83,7 +83,6 @@ function testSerieTrazOsQuadrosEOsQuadrosMostramOCaminho() {
   const opcoes = opcoesDoFiltroPuxar([episodioDoQuadro], comQuadro, pilares, temas);
   assert.deepEqual(opcoes.series, [
     {value: 's-res', label: 'Resenhas'},
-    {value: 'q-cla', label: 'Resenhas · Clássicos'},
   ]);
 }
 

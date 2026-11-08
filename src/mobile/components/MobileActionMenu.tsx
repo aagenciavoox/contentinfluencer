@@ -1,3 +1,4 @@
+import { InlineNotice } from '../../components/ui/InlineNotice';
 import { Text } from '../../components/ui/Text';
 import { useEffect, useMemo, useState } from 'react';
 import { BookOpen, BookPlus, FileText, Lightbulb, Pin, X } from 'lucide-react';
@@ -21,8 +22,6 @@ interface MobileActionMenuProps {
   onClose: () => void;
 }
 
-const ACTIVE_READING_STATUSES = ['Consumindo', 'Lendo', 'Assistindo'] as const;
-
 export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
   const { state, ensureDataDomains, dispatch } = useAppContext();
   const { user } = useAuth();
@@ -30,23 +29,18 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
   const [isBookComposerOpen, setIsBookComposerOpen] = useState(false);
   const [isScriptComposerOpen, setIsScriptComposerOpen] = useState(false);
   const [fetchedBook, setFetchedBook] = useState<BibliotecaItem | null>(null);
+  const [pinnedLookup, setPinnedLookup] = useState<'idle' | 'loading' | 'missing'>('idle');
 
-  const preferredBookId = typeof state.preferences.mobile_notes_primary_book_id === 'string'
+  const pinnedBookId = typeof state.preferences.mobile_notes_primary_book_id === 'string'
     ? state.preferences.mobile_notes_primary_book_id
     : null;
 
   const bookFromState = useMemo(() => {
-    if (preferredBookId) {
-      const pinned = state.bibliotecaItems.find(book => book.id === preferredBookId);
-      if (pinned) return pinned;
-    }
+    if (!pinnedBookId) return null;
+    return state.bibliotecaItems.find(book => book.id === pinnedBookId) ?? null;
+  }, [pinnedBookId, state.bibliotecaItems]);
 
-    return state.bibliotecaItems.find((book) =>
-      ACTIVE_READING_STATUSES.includes(book.status as (typeof ACTIVE_READING_STATUSES)[number])
-    ) ?? null;
-  }, [preferredBookId, state.bibliotecaItems]);
-
-  const currentBook = bookFromState ?? fetchedBook;
+  const pinnedBook = bookFromState ?? (fetchedBook?.id === pinnedBookId ? fetchedBook : null);
 
   useBodyScrollLock(open);
 
@@ -55,25 +49,30 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
   }, [ensureDataDomains]);
 
   useEffect(() => {
-    if (bookFromState) {
+    if (!pinnedBookId || bookFromState) {
       setFetchedBook(null);
+      setPinnedLookup('idle');
       return undefined;
     }
 
-    if (!preferredBookId || !user?.id) {
+    if (!user?.id) {
       setFetchedBook(null);
+      setPinnedLookup('missing');
       return undefined;
     }
 
     let cancelled = false;
-    void fetchBibliotecaItemById(user.id, preferredBookId).then(book => {
-      if (!cancelled) setFetchedBook(book);
+    setPinnedLookup('loading');
+    void fetchBibliotecaItemById(user.id, pinnedBookId).then(book => {
+      if (cancelled) return;
+      setFetchedBook(book);
+      setPinnedLookup(book ? 'idle' : 'missing');
     });
 
     return () => {
       cancelled = true;
     };
-  }, [bookFromState, preferredBookId, user?.id]);
+  }, [bookFromState, pinnedBookId, user?.id]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -115,8 +114,13 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
   };
 
   const handleNewAnnotation = () => {
-    if (!currentBook) return;
+    if (!pinnedBook) return;
     setIsBookComposerOpen(true);
+    onClose();
+  };
+
+  const openLibraryToPin = () => {
+    navigate('/biblioteca');
     onClose();
   };
 
@@ -149,9 +153,15 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
       icon: <BookOpen className="h-5 w-5" />,
       onClick: handleNewAnnotation,
       accentClassName: 'text-[var(--accent-purple)] bg-[var(--accent-purple)]/10',
-      disabled: !currentBook,
+      disabled: false,
     },
   ];
+
+  const pinNotice = !pinnedBookId
+    ? 'Fixe um item na biblioteca. A anotação rápida só entra no item com o alfinete.'
+    : pinnedLookup === 'missing'
+      ? 'O item fixado não está mais na biblioteca. Fixe outro para anotar.'
+      : null;
 
   return (
     <>
@@ -217,17 +227,20 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
                 ))}
               </div>
 
-              {currentBook ? (
+              {pinnedBook ? (
                 <Text variant="meta" as="p" className="px-4 pb-2 text-center text-[var(--text-tertiary)]">
-                  {preferredBookId === currentBook.id ? (
-                    <span className="inline-flex items-center gap-1">
-                      <Pin className="h-3 w-3 text-[var(--accent-purple)]" />
-                      Anotação em {currentBook.titulo}
-                    </span>
-                  ) : (
-                    <>Anotação em {currentBook.titulo}</>
-                  )}
+                  <span className="inline-flex items-center gap-1">
+                    <Pin className="h-3 w-3 text-[var(--accent-purple)]" />
+                    Anotação em {pinnedBook.titulo}
+                  </span>
                 </Text>
+              ) : pinNotice ? (
+                <div className="px-4 pb-3">
+                  <InlineNotice
+                    texto={pinNotice}
+                    acao={{ rotulo: 'Abrir biblioteca', onClick: openLibraryToPin }}
+                  />
+                </div>
               ) : null}
             </motion.section>
           </>
@@ -240,9 +253,9 @@ export function MobileActionMenu({ open, onClose }: MobileActionMenuProps) {
         onCreate={handleCreateScript}
       />
 
-      {currentBook ? (
+      {pinnedBook ? (
         <BookAnnotationComposerSheet
-          book={currentBook}
+          book={pinnedBook}
           open={isBookComposerOpen}
           onClose={() => setIsBookComposerOpen(false)}
         />

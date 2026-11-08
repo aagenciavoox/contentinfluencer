@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Layers, Plus } from 'lucide-react';
+import { Layers } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { Text } from '../../../components/ui/Text';
@@ -32,7 +32,6 @@ import { SeriesGruposLista, type AcoesDosGrupos, type SelecaoDaLista } from '../
 import { BarraDeAcoes, CaixaMarcacao, DefinirQuadroSheet, DefinirTemporadaSheet } from '../components/series-detail/SeriesAcoesEmMassa';
 import { ExcluirEstruturaDialog, type AlvoExclusao } from '../components/series-detail/ExcluirEstruturaDialog';
 import { TemporadaDialogs, type EdicaoTemporada } from '../components/series-detail/TemporadaDialogs';
-import { rotaParaCriarFilho } from '../lib/serieHierarquia';
 import { metaDoCabecalho, totaisDoCabecalho } from '../lib/serieCabecalho';
 import { hojeIso, periodoInicial, useItensDaJanela } from '../../editorial/components/plano/PeriodoEditorialControl';
 import { lerPeriodoSalvo } from '../../editorial/lib/periodoEditorial';
@@ -171,6 +170,10 @@ export function SeriesScriptsPage() {
   const tipos = useMemo(() => tiposDasSeries(state.series), [state.series]);
   const filhos = useMemo(() => (serie ? filhosDaSerie(serie.id, state.series) : []), [serie, state.series]);
   const tipo = serie ? tipos.get(serie.id) ?? tipoDaSerie(serie.id, state.series) : 'serie';
+  // Família agrupa séries. A página de episódios não serve para ela.
+  useEffect(() => {
+    if (pronto && serie && tipo === 'familia') navigate('/series', { replace: true });
+  }, [navigate, pronto, serie, tipo]);
 
   // Lista: busca, filtros, agrupamento e ordem. Só apresentação: nada aqui grava episódio.
   const episodios = useMemo(
@@ -506,24 +509,18 @@ export function SeriesScriptsPage() {
     );
   }
 
-  const pilar = tipo === 'familia' ? null : pilarEfetivoDaSerie(serie.id, state.series);
+  if (tipo === 'familia') return null;
+
+  const pilar = pilarEfetivoDaSerie(serie.id, state.series);
   const pilarNome = pilar?.pilarId ? state.pilares.find(item => item.id === pilar.pilarId)?.nome ?? null : null;
-  const objetivo = tipo !== 'familia' && isFuncaoEditorial(serie.funcaoPadrao) ? FUNCAO_LABELS[serie.funcaoPadrao] : null;
+  const objetivo = isFuncaoEditorial(serie.funcaoPadrao) ? FUNCAO_LABELS[serie.funcaoPadrao] : null;
   const resumo = [
-    filhos.length > 0 ? plural(filhos.length, tipo === 'familia' ? 'série' : 'quadro', tipo === 'familia' ? 'séries' : 'quadros') : null,
+    filhos.length > 0 ? plural(filhos.length, 'quadro', 'quadros') : null,
     !temporada && temporadasDaSerie.length > 0 ? plural(temporadasDaSerie.length, 'temporada', 'temporadas') : null,
     pilarNome,
     objetivo,
   ].filter(Boolean).join(' · ');
-  const abertos = tipo === 'familia' ? [] : getSerieOpenItems(serie, { series: state.series, contents: state.contents });
-  const rotaCriarFilho = rotaParaCriarFilho(serie.id, tipo);
-  const criarFilho = () => {
-    if (tipo === 'serie') {
-      setModalTarget({ tipo: 'quadro', seriePaiId: serie.id });
-      return;
-    }
-    if (rotaCriarFilho) navigate(rotaCriarFilho);
-  };
+  const abertos = getSerieOpenItems(serie, { series: state.series, contents: state.contents });
   const ondeVaiFicar = novoEm
     ? [
       state.series.find(item => item.id === novoEm.serieId)?.name?.trim() || 'Sem nome',
@@ -553,12 +550,7 @@ export function SeriesScriptsPage() {
       acoes={undefined}
     />
   );
-  const rodape = tipo === 'familia' && rotaCriarFilho ? (
-    <AppButton variant="ghost" size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={criarFilho}>
-      Nova série
-    </AppButton>
-  ) : null;
-  const adicionar = tipo !== 'familia' && !temporada ? {
+  const adicionar = !temporada ? {
     onEpisodio: () => setNovoEm({ serieId: serie.id, temporadaId: temporadaId ?? null }),
     ...(serieDasTemporadas ? { onTemporada: () => setEdicaoTemporada({ modo: 'criar' }) } : {}),
     ...(tipo === 'serie' ? { onQuadro: () => setModalTarget({ tipo: 'quadro', seriePaiId: serie.id }) } : {}),
@@ -664,7 +656,6 @@ export function SeriesScriptsPage() {
               acoes={acoes}
               selecao={selecaoDaLista}
               numerar={ordem === 'manual' && !filtrando}
-              rodape={rotaCriarFilho || (serieDasTemporadas && !temporada) ? rodape : undefined}
             />
             </>
           )}

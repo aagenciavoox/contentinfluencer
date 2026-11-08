@@ -23,6 +23,7 @@ import {
   nowIso,
   readCompat,
   statusRank,
+  pilarIdDeItemDaBiblioteca,
   resolvePilar,
   resolveSerie,
   textToHtml,
@@ -330,14 +331,24 @@ export function registerConteudos(server: McpServer) {
     const lookups = await loadLookups(session);
     const serieId = resolveSerie(lookups, input.serie) ?? null;
     const serie = serieId ? lookups.series.find(s => s.id === serieId) : null;
+    const livros = unirLivros(input.livro_ids, input.biblioteca_item_id);
+    let pilarOrigem: 'escolhida' | null = null;
     let pilarId = resolvePilar(lookups, input.pilar) ?? null;
+    if (input.pilar) {
+      pilarOrigem = pilarId ? 'escolhida' : null;
+    } else if (livros.length > 0) {
+      const daObra = pilarIdDeItemDaBiblioteca(lookups.pilares);
+      if (daObra) {
+        pilarId = daObra;
+        pilarOrigem = 'escolhida';
+      }
+    }
     if (!pilarId && serie?.serie_pilares?.length) pilarId = serie.serie_pilares[0].pilar_id;
     const formato = input.formato?.trim() || primeiroFormato(serie?.formato_visual_padrao);
     const herdada = funcaoHerdavel(serie);
     const escolha = input.funcao ?? (herdada ? 'da_serie' : null);
     const funcao = funcaoColumns(escolha);
     const funcaoInicial = escolha === 'da_serie' ? herdada : escolha === 'nenhuma' ? null : escolha;
-    const livros = unirLivros(input.livro_ids, input.biblioteca_item_id);
     const horaPublicacao = horaEscolhida(input.hora_publicacao, input.janela);
     const temporadaId = await temporadaPedida(session, lookups, input.temporada, serieId);
     const now = nowIso();
@@ -355,6 +366,7 @@ export function registerConteudos(server: McpServer) {
       series_id: serieId,
       slot_type: serie?.slot_padrao ?? null,
       pilar_id: pilarId,
+      ...(pilarOrigem ? {pilar_origem: pilarOrigem} : {}),
       biblioteca_item_id: livros[0] ?? null,
       livro_ids: livros,
       formato_visual: formato,
@@ -396,7 +408,7 @@ export function registerConteudos(server: McpServer) {
     'criar_ideia',
     {
       title: 'Criar ideia',
-      description: 'Guarda uma ideia nova na aba Ideias do Content OS.',
+      description: 'Guarda uma ideia nova na aba Ideias do Content OS. Ligada a um item da biblioteca, sem pilar informado, entra em Indicação/Resenha.',
       inputSchema: createShape,
     },
     tool(async (args, session) => json(await createContent(session, {...args, status: 'Ideia'}))),
@@ -410,6 +422,7 @@ export function registerConteudos(server: McpServer) {
         'Cria um conteúdo já como roteiro (ou outro status). Se a série tiver formato ou energia padrão, eles são aplicados. ' +
         'O roteiro pode ser texto simples: parágrafos separados por linha em branco. ' +
         'livro_ids aceita vários itens da biblioteca; o primeiro também fica como origem antiga. ' +
+        'Sem pilar informado, um roteiro ligado a um item da biblioteca entra em Indicação/Resenha. ' +
         'Num episódio de série com temporadas, envie temporada (id ou nome) e, se quiser, ordem_episodio.',
       inputSchema: {
         ...createShape,

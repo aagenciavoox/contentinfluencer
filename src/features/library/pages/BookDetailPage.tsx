@@ -22,13 +22,14 @@ import {
 } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
-import { Anotacao, BibliotecaItem, Content, fetchBibliotecaItemById, Projeto } from '../../../lib/database';
+import { Anotacao, BibliotecaItem, Content, type ContentPlataforma, fetchBibliotecaItemById, Projeto } from '../../../lib/database';
 import { generateUUID as _uuid } from '../../../utils/uuid';
 import { GENEROS_SUGERIDOS } from '../lib/libraryGenres';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { CONFIRM, type ConfirmState } from '../../../lib/uiCopy';
-import { createContentDraft } from '../../contents/lib/createContentDraft';
-import { createIdeaContent, promoteContentToScript } from '../../contents/lib/creationContent';
+import { createIdeaContent, createScriptWithPublications, promoteContentToScript } from '../../contents/lib/creationContent';
+import { pilarEscolhidoDaBiblioteca } from '../lib/pilarDeItemDaBiblioteca';
+import { ScriptComposer } from '../../creation/components/ScriptComposer';
 import { buildIdeaFields, getIdeaNotes, getIdeaTitle, parseLegacyIdeaText } from '../../ideas/lib/ideaText';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import { CONTENT_STATUS, getDisplayStatus, type ContentDetailTab } from '../../contents/lib/contentPipeline';
@@ -287,6 +288,11 @@ export function BookDetailPage() {
 
   // Brainstorm state
   const [brainstormMode, setBrainstormMode] = useState(false);
+  const [origemRoteiro, setOrigemRoteiro] = useState<{
+    title: string;
+    notes: string | null;
+    annotationId?: string;
+  } | null>(null);
   const [brainstormIdx, setBrainstormIdx] = useState(0);
 
   // Info state
@@ -462,7 +468,7 @@ export function BookDetailPage() {
     const ideia = createIdeaContent({
       title: fields.title || 'Ideia sem título',
       notes: fields.notes || null,
-      pilarId: null,
+      ...(pilarEscolhidoDaBiblioteca(state.pilares) ?? { pilarId: null }),
       seriesId: null,
       bibliotecaItemId: livro.id,
     });
@@ -471,15 +477,12 @@ export function BookDetailPage() {
   };
 
   const handleTransformarEmConteudo = (anotacao: BookAnnotation) => {
-    const novoConteudo = createContentDraft({
+    setBrainstormMode(false);
+    setOrigemRoteiro({
       title: anotacao.texto.slice(0, 60),
-      status: CONTENT_STATUS.ROTEIRO,
-      bibliotecaItemId: livro.id,
       notes: anotacao.texto,
+      annotationId: anotacao.id,
     });
-    dispatch({ type: 'ADD_CONTENT', payload: novoConteudo });
-    openContentDetail(novoConteudo.id);
-    dispatch({ type: 'DISTILL_ANNOTATION', payload: { livroId: livro.id, annotationId: anotacao.id } });
   };
 
   const handleToggleContentPotential = (anotacao: BookAnnotation) => {
@@ -603,34 +606,27 @@ export function BookDetailPage() {
   };
 
   const handleCriarConteudo = () => {
-    const novoConteudo = createContentDraft({
-      id: generateUUID(),
-      userId: '',
-      title: `Roteiro sobre "${livro.titulo}"`,
-      status: CONTENT_STATUS.ROTEIRO,
-      slotType: null,
-      seriesId: null,
-      pilarId: null,
-      lookId: null,
-      cenarioId: null,
+    setOrigemRoteiro({ title: `Roteiro sobre "${livro.titulo}"`, notes: null });
+  };
+
+  const criarRoteiroNasPlataformas = (plataformas: ContentPlataforma[]) => {
+    const origem = origemRoteiro;
+    setOrigemRoteiro(null);
+    if (!origem) return;
+    const content = createScriptWithPublications(plataformas, {
+      title: origem.title,
+      notes: origem.notes,
       bibliotecaItemId: livro.id,
-      formatoVisual: null,
-      energiaNecessaria: null,
-      publishDate: null,
-      recordingDate: null,
-      link: null,
-      script: null,
-      scriptNotes: [],
-      tags: [],
-      notes: null,
-      referencias: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      deletedAt: null,
-      plataformas: [],
+      ...(pilarEscolhidoDaBiblioteca(state.pilares) ?? {}),
     });
-    dispatch({ type: 'ADD_CONTENT', payload: novoConteudo });
-    openContentDetail(novoConteudo.id);
+    dispatch({ type: 'ADD_CONTENT', payload: content });
+    if (origem.annotationId) {
+      dispatch({ type: 'DISTILL_ANNOTATION', payload: { livroId: livro.id, annotationId: origem.annotationId } });
+    }
+    navigate(
+      `${buildContentDetailRoute(content.id)}&focus=script`,
+      buildDetailBackState(`${location.pathname}${location.search}`),
+    );
   };
 
   const handlePromoteIdeia = (ideia: Content) => {
@@ -708,11 +704,6 @@ export function BookDetailPage() {
 
   const handleBrainstormConteudo = (anotacao: BookAnnotation) => {
     handleTransformarEmConteudo(anotacao);
-    if (brainstormIdx < anotacoesDestaque.length - 1) {
-      setBrainstormIdx(i => i + 1);
-    } else {
-      setBrainstormMode(false);
-    }
   };
 
   const handleBrainstormIdeia = (anotacao: BookAnnotation) => {
@@ -1057,6 +1048,14 @@ export function BookDetailPage() {
     </div>
   );
 
+  const roteiroComposer = (
+    <ScriptComposer
+      open={origemRoteiro !== null}
+      onClose={() => setOrigemRoteiro(null)}
+      onCreate={criarRoteiroNasPlataformas}
+    />
+  );
+
   const brainstormModal = (
     <Dialog
       open={brainstormMode && anotacoesDestaque.length > 0}
@@ -1158,6 +1157,7 @@ export function BookDetailPage() {
           />
         </div>
         {brainstormModal}
+        {roteiroComposer}
         {confirmModal}
         <BookAnnotationComposerSheet
           book={livro}
@@ -1527,6 +1527,7 @@ export function BookDetailPage() {
       </div>
     </PageLayout>
     {brainstormModal}
+    {roteiroComposer}
     {confirmModal}
     </>
   );

@@ -145,9 +145,9 @@ export function SeriesEditPage() {
   const voltarSerie = (id: string) => navigate(`/series/${id}`);
   const destinoDeVolta = criandoQuadro && serieId
     ? `/series/${serieId}?aba=quadros`
-    : familiaInicial
-      ? `/series/${familiaInicial}?aba=quadros`
-      : isCreate || !serieId ? '/series' : `/series/${serieId}`;
+    : familiaInicial || isCreate || !serieId
+      ? '/series'
+      : `/series/${serieId}`;
   const voltar = () => navigate(destinoDeVolta);
 
   const alteracoesDeLegenda = (serie: Serie) => {
@@ -197,8 +197,9 @@ export function SeriesEditPage() {
 
     setPendingApply(null);
     setLegendaPendente(null);
-    // Quadro novo volta para a série, na lista de quadros; o resto abre a própria página.
+    // Quadro novo volta para a série. Família volta para a lista: ela agrupa séries, não episódios.
     if (!exists && tipo === 'quadro' && payload.parentId) navigate(`/series/${payload.parentId}?aba=quadros`);
+    else if (tipo === 'familia') voltarLista();
     else voltarSerie(payload.id);
   };
 

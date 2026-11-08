@@ -117,6 +117,11 @@
   color: var(--text-primary);
 }
 
+/* A casca mobile reduz .text-base para 1.5 e o compositor zera o recuo. A ideia precisa dos dois abertos. */
+html.mobile-app-shell .idea-mobile-sheet .script-sheet .tiptap {
+  line-height: 1.85;
+}
+
 .script-sheet .tiptap h1,
 .script-sheet .tiptap h2,
 .script-sheet .tiptap h3 {

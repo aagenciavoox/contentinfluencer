@@ -7,6 +7,7 @@ import { BibliotecaItem, Anotacao } from '../../../../lib/database';
 import { generateUUID } from '../../../../utils/uuid';
 import { buildIdeaFields, parseLegacyIdeaText } from '../../../ideas/lib/ideaText';
 import { createIdeaContent } from '../../../contents/lib/creationContent';
+import { pilarEscolhidoDaBiblioteca } from '../../lib/pilarDeItemDaBiblioteca';
 import { cn } from '../../../../lib/utils';
 import { Dialog } from '../../../../components/overlays/Dialog';
 import { Badge } from '../../../../components/ui/Badge';
@@ -28,7 +29,7 @@ function formatNoteDate(value: string) {
 }
 
 export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
-  const { dispatch } = useAppContext();
+  const { state, dispatch } = useAppContext();
   const [filtroTipo, setFiltroTipo] = useState<string>('Todos');
   const [novaAnotacao, setNovaAnotacao] = useState('');
   const [novoTipo, setNovoTipo] = useState<TipoAnotacao>('Anotação');
@@ -70,6 +71,7 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
       payload: createIdeaContent({
         title: fields.title || 'Ideia sem título',
         notes: fields.notes || null,
+        ...(pilarEscolhidoDaBiblioteca(state.pilares) ?? { pilarId: null }),
         bibliotecaItemId: book.id,
       }),
     });

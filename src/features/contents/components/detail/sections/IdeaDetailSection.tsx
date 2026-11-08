@@ -14,6 +14,7 @@ import {TemaField} from '../TemaField';
 import {DraftSaveBar} from '../DraftSaveBar';
 import type {ScriptDraft} from './RoteiroSection';
 import {contasAtivas} from '../../../../contas/lib/contas';
+import {seriesParaFiltro} from '../../../../settings/lib/serieAgrupamento';
 
 type IdeaDraft = Pick<
   ScriptDraft,
@@ -27,6 +28,8 @@ interface IdeaOrganizationPanelProps {
   bibliotecaItems: BibliotecaItem[];
   contentId: string;
   onChange: (updates: Partial<ScriptDraft>) => void;
+  /** No computador, classificação e referências ficam lado a lado. No celular, uma coluna. */
+  layout?: 'stack' | 'split';
 }
 
 export function IdeaOrganizationPanel({
@@ -36,18 +39,13 @@ export function IdeaOrganizationPanel({
   bibliotecaItems,
   contentId,
   onChange,
+  layout = 'stack',
 }: IdeaOrganizationPanelProps) {
   const {state} = useAppContext();
   const plataformasAtivas = contasAtivas(state.platforms);
-  return (
-    <Surface variant="outlined" padding="md" className="grid gap-4 md:grid-cols-3">
-      <div className="stack-sm md:col-span-3">
-        <Text variant="sectionTitle">Organização</Text>
-        <Text variant="secondary">
-          Só o essencial enquanto a ideia ainda está tomando forma.
-        </Text>
-      </div>
-
+  const classificacao = (
+    <div className="stack-md">
+      {layout === 'split' ? <Text variant="eyebrow">Classificação</Text> : null}
       <div className="stack-sm">
         <Text variant="label" as="span" className="inline-flex items-center gap-2">
           <Palette className="h-3.5 w-3.5" aria-hidden />
@@ -83,7 +81,7 @@ export function IdeaOrganizationPanel({
             draft,
             series.find(serie => serie.id === values[0]) ?? null,
           ))}
-          options={series.map(serie => ({value: serie.id, label: serie.name}))}
+          options={seriesParaFiltro(series, draft.seriesId).map(serie => ({value: serie.id, label: serie.name}))}
         />
       </div>
 
@@ -91,23 +89,50 @@ export function IdeaOrganizationPanel({
         temaIds={draft.temaIds}
         onChange={temaIds => onChange({temaIds})}
       />
+    </div>
+  );
+  const referencias = (
+    <div className="stack-md">
+      <Text variant="eyebrow">Referências e destino</Text>
+      <LivroMultiSelect
+        livroIds={draft.livroIds}
+        bibliotecaItemId={draft.bibliotecaItemId}
+        bibliotecaItems={bibliotecaItems}
+        onChange={onChange}
+      />
+      <DestinationChips
+        platforms={plataformasAtivas}
+        publications={draft.plataformas}
+        contentId={contentId}
+        onChange={plataformas => onChange({plataformas})}
+      />
+    </div>
+  );
 
-      <div className="stack-sm md:col-span-3">
-        <LivroMultiSelect
-          livroIds={draft.livroIds}
-          bibliotecaItemId={draft.bibliotecaItemId}
-          bibliotecaItems={bibliotecaItems}
-          onChange={onChange}
-        />
+  return (
+    <Surface variant="outlined" padding="md" className="stack-lg">
+      <div className="stack-sm">
+        <Text variant="sectionTitle">Organização</Text>
+        <Text variant="secondary">
+          Só o essencial enquanto a ideia ainda está tomando forma.
+        </Text>
       </div>
-      <div className="md:col-span-3">
-        <DestinationChips
-          platforms={plataformasAtivas}
-          publications={draft.plataformas}
-          contentId={contentId}
-          onChange={plataformas => onChange({plataformas})}
-        />
-      </div>
+
+      {layout === 'split' ? (
+        <div className="grid items-start gap-[var(--space-xl)] lg:grid-cols-2">
+          {classificacao}
+          <div className="stack-md border-t border-[var(--border-subtle)] pt-[var(--space-lg)] lg:border-l lg:border-t-0 lg:pl-[var(--space-xl)] lg:pt-0">
+            {referencias}
+          </div>
+        </div>
+      ) : (
+        <>
+          {classificacao}
+          <div className="stack-md border-t border-[var(--border-subtle)] pt-[var(--space-lg)]">
+            {referencias}
+          </div>
+        </>
+      )}
     </Surface>
   );
 }
@@ -171,7 +196,7 @@ export function IdeaDetailSection({
       as="section"
       variant="outlined"
       padding="none"
-      className="flex min-h-[640px] flex-col overflow-visible"
+      className="flex flex-col overflow-visible"
     >
       <div className="stack-sm border-b border-[var(--border-color)] px-4 py-4 md:px-6">
         <Text variant="sectionTitle">Texto da ideia</Text>
@@ -215,9 +240,9 @@ export function IdeaDetailSection({
               />
             ) : null
           }
-          editorCanvasClassName="min-h-[500px]"
+          editorCanvasClassName={mobile ? 'min-h-[18rem] px-4 pt-4' : 'min-h-[18rem]'}
           editorViewportClassName="overflow-visible"
-          className="min-h-[560px] rounded-none border-0"
+          className={mobile ? 'idea-mobile-sheet rounded-none border-0' : 'rounded-none border-0'}
           compactMobileComposer={mobile}
           {...annotationHandlers}
         />
@@ -264,6 +289,7 @@ export function IdeaDetailSection({
     <div className="stack-md">
       {editor}
       <IdeaOrganizationPanel
+        layout="split"
         draft={draft}
         series={series}
         pilares={pilares}

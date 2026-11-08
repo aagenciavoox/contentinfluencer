@@ -47,7 +47,7 @@ export function SeriesMobileScreen({
           <MobileSearchBar
             value={filtros.busca}
             onChange={valor => atualizarFiltro('busca', valor)}
-            placeholder="Buscar séries e quadros"
+            placeholder="Buscar séries"
             onFilterClick={() => setFiltrosAbertos(true)}
             filterLabel={ativos.length > 0 ? `Abrir filtros (${ativos.length} ativos)` : 'Abrir filtros'}
           />

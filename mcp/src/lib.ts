@@ -272,6 +272,16 @@ function resolveRef(rows: Row[], ref: string, nameKey: string, label: string): s
   throw new Error(`${label} "${ref}" não encontrado. Opções: ${options}`);
 }
 
+/** Espelha src/features/library/lib/pilarDeItemDaBiblioteca.ts. */
+const PILAR_DE_ITEM_DA_BIBLIOTECA = 'indicacao/resenha';
+
+export function pilarIdDeItemDaBiblioteca(pilares: readonly Row[]): string | null {
+  const bate = (row: Row) => fold(String(row.nome ?? '')).replace(/\s+/g, '') === PILAR_DE_ITEM_DA_BIBLIOTECA;
+  const escolhido = pilares.find(row => row.ativo !== false && bate(row)) ?? pilares.find(bate);
+  const id = escolhido?.id;
+  return typeof id === 'string' && id ? id : null;
+}
+
 /** Aceita id ou nome (sem diferenciar acentos e maiúsculas). */
 export function resolvePilar(lookups: Lookups, ref: string | null | undefined): string | null | undefined {
   if (ref === undefined || ref === null) return ref;

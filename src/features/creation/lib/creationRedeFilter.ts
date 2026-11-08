@@ -1,16 +1,12 @@
 import type {Content, ContentPlataforma, RedeSocial} from '../../../lib/database.ts';
 import {contasAtivas, redeDaConta, redeDaRef, type ContaRef, type RedeDoFiltro} from '../../contas/lib/contas.ts';
 import {formatoDaPublicacao, formatoNoYoutube, type FormatoPublicacao} from '../../editorial/lib/publicacoes.ts';
-import {normalizarRedesPostIt} from '../../planejamento/lib/redesPostIt.ts';
+import {normalizarRedesPostIt, ORDEM_EXIBICAO_REDE} from '../../planejamento/lib/redesPostIt.ts';
 
 export type {RedeDoFiltro};
 
-/** Ordem dos ícones do filtro: o Shorts logo depois do YouTube. */
-const ORDEM_DO_FILTRO: readonly RedeDoFiltro[] = [
-  'instagram', 'instagram-video', 'instagram-carrossel',
-  'tiktok', 'tiktok-video', 'tiktok-carrossel',
-  'youtube', 'youtube-shorts', 'blog', 'outra',
-];
+/** Mesma ordem dos seletores: Reels, TikTok, Shorts, YouTube longo, carrossel. */
+const ORDEM_DO_FILTRO: readonly RedeDoFiltro[] = ORDEM_EXIBICAO_REDE;
 
 /** Só itens conhecidos, sem repetir, na ordem do filtro. */
 export function normalizarRedesDoFiltro(value: unknown): RedeDoFiltro[] {

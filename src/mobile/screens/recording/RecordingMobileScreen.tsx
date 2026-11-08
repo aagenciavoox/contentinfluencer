@@ -1,4 +1,6 @@
 import {energiaDaSerie} from '../../../features/editorial/lib/herancaSerie';
+import {contentPassaFiltroSerie} from '../../../features/editorial/lib/filtroSubarvore';
+import {seriesParaFiltro} from '../../../features/settings/lib/serieAgrupamento';
 import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { BookOpenText, Check, Clapperboard, ExternalLink, Layers3, Plus, SearchCheck, Tags, Video } from 'lucide-react';
 import type { Content, Pilar, RecordingBlock, Serie } from '../../../lib/database';
@@ -111,7 +113,7 @@ export function RecordingMobileScreen({
 
     return orderedQueueContents
       .filter((content) => (pilarFilter === 'all' ? true : content.pilarId === pilarFilter))
-      .filter((content) => (seriesFilter === 'all' ? true : content.seriesId === seriesFilter))
+      .filter((content) => (seriesFilter === 'all' ? true : contentPassaFiltroSerie(content.seriesId, seriesFilter, series)))
       .filter((content) =>
         tagFilter === 'all' ? true : normalizeRecordingTags(content.tags || []).includes(tagFilter)
       )
@@ -532,7 +534,7 @@ export function RecordingMobileScreen({
           label="Série"
           value={seriesFilter}
           onChange={setSeriesFilter}
-          options={[{ value: 'all', label: 'Todas' }, ...series.map(serie => ({ value: serie.id, label: serie.name }))]}
+          options={[{ value: 'all', label: 'Todas' }, ...seriesParaFiltro(series, seriesFilter === 'all' ? null : seriesFilter).map(serie => ({ value: serie.id, label: serie.name }))]}
         />
         <MobileFilterSelect
           label="Marcador"

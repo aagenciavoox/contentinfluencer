@@ -38,7 +38,7 @@ assert.equal(semFoco[0]?.formatoPublicacao, 'short');
 assert.equal(rotuloDoFoco(['tiktok', 'instagram', 'youtube-shorts']), 'Instagram · TikTok · YouTube Shorts');
 assert.equal(
   rotuloDoFoco(['youtube', 'instagram-carrossel', 'youtube-shorts', 'tiktok', 'instagram-video']),
-  'Instagram (vídeo) · TikTok · YouTube Shorts · Instagram (carrossel) · YouTube (vídeo longo)',
+  'Instagram (vídeo) · TikTok · YouTube Shorts · YouTube (vídeo longo) · Instagram (carrossel)',
 );
 assert.deepEqual(
   focoEfetivo(['youtube'], ['instagram', 'tiktok']).map(rede => rede),

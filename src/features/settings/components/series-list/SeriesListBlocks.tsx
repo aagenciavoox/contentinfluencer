@@ -1,6 +1,5 @@
-import { useId, type ReactNode } from 'react';
+import { useId, type DragEvent, type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { Badge } from '../../../../components/ui/Badge';
 import { MoreMenu } from '../../../../components/ui/MoreMenu';
 import { Text } from '../../../../components/ui/Text';
@@ -12,7 +11,7 @@ import {
 } from '../../lib/serieAgrupamento';
 import { textoTipoEOnde, type ItemLista } from '../../lib/seriesListaView';
 import type { StatusSerie } from '../../lib/statusSerie';
-import { itensDoMenuDaSerie, rotuloDosFilhos } from './SerieCard';
+import { ARRASTO_SERIE, itensDoMenuDaSerie, rotuloDosFilhos } from './SerieCard';
 
 type AcoesDaSerie = {
   onOpen: (serieId: string) => void;
@@ -20,26 +19,84 @@ type AcoesDaSerie = {
   onToggleAtiva: (serieId: string) => void;
   onMudarStatus?: (serieId: string, status: StatusSerie) => void;
   onCriarFilho?: (item: Pick<ItemLista, 'serie' | 'tipo'>) => void;
+  onMoverParaFamilia?: (serieId: string) => void;
 };
 
-/** Cabeçalho da família: abre e fecha os cards; o nome leva à página dela. */
+function soltaSerie(
+  event: DragEvent,
+  onSoltar?: (serieId: string) => void,
+) {
+  if (!onSoltar || !event.dataTransfer.types.includes(ARRASTO_SERIE)) return;
+  event.preventDefault();
+  const id = event.dataTransfer.getData(ARRASTO_SERIE);
+  if (id) onSoltar(id);
+}
+
+/** Área que recebe uma série arrastada. Sem família, a série volta a ficar independente. */
+export function ZonaSoltar({
+  soltando = false,
+  onArrastarSobre,
+  onSoltarSerie,
+  className,
+  ariaLabel,
+  children,
+}: {
+  soltando?: boolean;
+  onArrastarSobre?: () => void;
+  onSoltarSerie?: (serieId: string) => void;
+  className?: string;
+  ariaLabel: string;
+  children: ReactNode;
+}) {
+  return (
+    <section
+      aria-label={ariaLabel}
+      className={cn(className, soltando && 'rounded-[var(--radius-card)] bg-[var(--bg-hover)]')}
+      onDragOver={event => {
+        if (!onSoltarSerie || !event.dataTransfer.types.includes(ARRASTO_SERIE)) return;
+        event.preventDefault();
+        onArrastarSobre?.();
+      }}
+      onDrop={event => soltaSerie(event, onSoltarSerie)}
+    >
+      {children}
+    </section>
+  );
+}
+
+/** Cabeçalho da família: abre e fecha as séries. Soltar um card move a série para cá. */
 export function FamiliaSecao({
   item,
   aberta,
   onToggle,
   acoes,
+  soltando = false,
+  onArrastarSobre,
+  onSoltarSerie,
   children,
 }: {
   item: ItemLista;
   aberta: boolean;
   onToggle: () => void;
   acoes: AcoesDaSerie;
+  soltando?: boolean;
+  onArrastarSobre?: () => void;
+  onSoltarSerie?: (serieId: string) => void;
   children: ReactNode;
 }) {
   const corpoId = useId();
   const nome = item.serie.name.trim() || 'Sem nome';
   return (
-    <section className="stack-md" aria-label={nome}>
+    <section
+      className={cn('stack-md rounded-[var(--radius-card)]', soltando && 'bg-[var(--bg-hover)]')}
+      aria-label={nome}
+      onDragOver={event => {
+        if (!onSoltarSerie || !event.dataTransfer.types.includes(ARRASTO_SERIE)) return;
+        event.preventDefault();
+        onArrastarSobre?.();
+      }}
+      onDrop={event => soltaSerie(event, onSoltarSerie)}
+    >
       <div className="flex min-h-11 items-center gap-2 border-b border-[var(--border-color)] pb-2">
         <button
           type="button"
@@ -57,12 +114,7 @@ export function FamiliaSecao({
             className="entity-color-dot h-2.5 w-2.5 shrink-0 rounded-full"
             style={{ backgroundColor: item.serie.cor || 'var(--text-tertiary)' }}
           />
-          <Link
-            to={`/series/${item.serie.id}`}
-            className="min-w-0 break-words rounded-[var(--radius-sm)] text-[var(--text-primary)] hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-          >
-            <Text variant="sectionTitle" as="span">{nome}</Text>
-          </Link>
+          <Text variant="sectionTitle" as="span" className="min-w-0 break-words">{nome}</Text>
           <Badge variant="neutral">{TIPO_AGRUPAMENTO_LABEL[item.tipo]}</Badge>
           {!item.serie.ativa ? <Badge variant="neutral">Inativa</Badge> : null}
         </span>

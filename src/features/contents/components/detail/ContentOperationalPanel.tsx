@@ -841,11 +841,26 @@ export function ContentOperationalPanel({
             id="content-form-serie"
             maxSelections={1}
             placeholder="Selecionar série…"
-            values={draft.seriesId ? [draft.seriesId] : []}
+            values={seriePrincipal ? [seriePrincipal.id] : []}
             onChange={values => pedirTrocaSerie(values[0] ?? null)}
-            options={series.map(serie => ({value: serie.id, label: serie.name}))}
+            options={seriesPrincipais.map(serie => ({value: serie.id, label: serie.name}))}
           />
         </div>
+        {seriePrincipal && quadrosDaSerie.length > 0 ? (
+          <div className="flex flex-col gap-1">
+            <Text variant="label" as="span" className="text-[var(--text-secondary)]" aria-hidden>Quadro</Text>
+            <TagSelect
+              label="Quadro"
+              hideLabel
+              id="content-form-quadro"
+              maxSelections={1}
+              placeholder="Sem quadro"
+              values={tipoLinked === 'quadro' && linkedSerie ? [linkedSerie.id] : []}
+              onChange={values => aplicarSerie(values[0] || seriePrincipal.id)}
+              options={quadrosDaSerie.map(quadro => ({value: quadro.id, label: quadro.name}))}
+            />
+          </div>
+        ) : null}
 
         {temasField}
 

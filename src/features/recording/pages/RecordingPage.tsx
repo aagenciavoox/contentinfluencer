@@ -1,5 +1,6 @@
 import {SugestaoGravacaoPanel} from '../components/SugestaoGravacaoPanel';
 import {energiaDaSerie} from '../../editorial/lib/herancaSerie';
+import {seriesParaFiltro} from '../../settings/lib/serieAgrupamento';
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {useLocation, useNavigate, useSearchParams} from 'react-router-dom';
 import {Plus} from 'lucide-react';
@@ -472,7 +473,7 @@ export function RecordingPage() {
                     onChange: setFilterSerie,
                     options: [
                       {label: 'Série', value: ''},
-                      ...state.series.map(serie => ({label: serie.name, value: serie.id})),
+                      ...seriesParaFiltro(state.series, filterSerie).map(serie => ({label: serie.name, value: serie.id})),
                     ],
                   },
                   {

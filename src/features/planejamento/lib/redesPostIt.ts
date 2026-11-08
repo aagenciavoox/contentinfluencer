@@ -1,13 +1,35 @@
 import type {RedeDoFiltro} from '../../contas/lib/contas.ts';
 
 /**
- * Ordem na tela: formatos curtos primeiro (vídeo, TikTok, Shorts),
- * carrossel e vídeo longo depois.
+ * Ordem na tela: primeiro os três curtos (Reels, TikTok, Shorts),
+ * depois o YouTube longo e por último o carrossel.
  */
 export const ORDEM_EXIBICAO_REDE: readonly RedeDoFiltro[] = [
   'instagram-video', 'instagram', 'tiktok', 'tiktok-video', 'youtube-shorts',
-  'instagram-carrossel', 'tiktok-carrossel', 'youtube', 'blog', 'outra',
+  'youtube',
+  'instagram-carrossel', 'tiktok-carrossel',
+  'blog', 'outra',
 ];
+
+/** Bloco visual do seletor: 0 curtos, 1 YouTube longo, 2 carrossel, 3 o resto. */
+export function grupoVisualDaRede(rede: RedeDoFiltro): 0 | 1 | 2 | 3 {
+  if (rede === 'youtube') return 1;
+  if (rede === 'instagram-carrossel' || rede === 'tiktok-carrossel') return 2;
+  if (rede === 'blog' || rede === 'outra') return 3;
+  return 0;
+}
+
+/** Fatia a lista já ordenada em blocos visuais contíguos. */
+export function agruparPorBlocoVisual<T>(itens: readonly T[], redeDe: (item: T) => RedeDoFiltro): T[][] {
+  const grupos: T[][] = [];
+  for (const item of itens) {
+    const grupo = grupoVisualDaRede(redeDe(item));
+    const ultimo = grupos[grupos.length - 1];
+    if (!ultimo || grupoVisualDaRede(redeDe(ultimo[0])) !== grupo) grupos.push([item]);
+    else ultimo.push(item);
+  }
+  return grupos;
+}
 
 export function compararExibicaoRede(a: RedeDoFiltro, b: RedeDoFiltro): number {
   const indice = (rede: RedeDoFiltro) => {

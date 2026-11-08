@@ -10,13 +10,28 @@ import { useAppContext } from '../../../../context/AppContext';
 import { temporadasDoEscopo } from '../../../editorial/lib/temporadas';
 import { ondaComRitmoProprio } from '../../../editorial/lib/metaPropria';
 import type { SeriesListaModelo } from '../../hooks/useSeriesLista';
+import { tipoDaSerie } from '../../lib/serieAgrupamento';
+import { erroDoVinculo } from '../../lib/serieHierarquia';
 import type { ItemLista } from '../../lib/seriesListaView';
+import { MoverSerieDialog } from './MoverSerieDialog';
 import { SerieCard } from './SerieCard';
-import { FamiliaSecao, SerieLinha } from './SeriesListBlocks';
+import { FamiliaSecao, SerieLinha, ZonaSoltar } from './SeriesListBlocks';
 
 /** Corpo da lista: agrupado por família, em cards planos ou em linhas. */
 export function ResultadoDaLista({ modelo, celular = false }: { modelo: SeriesListaModelo; celular?: boolean }) {
-  const { state } = useAppContext();
+  const { state, dispatch } = useAppContext();
+  const [moverId, setMoverId] = useState<string | null>(null);
+  const [sobre, setSobre] = useState<string | null>(null);
+  const acoes = { ...modelo.acoes, onMoverParaFamilia: setMoverId };
+
+  const mover = (serieId: string, familiaId: string | null) => {
+    const serie = state.series.find(item => item.id === serieId);
+    if (!serie || tipoDaSerie(serie.id, state.series) !== 'serie') return;
+    if ((serie.parentId ?? null) === familiaId) return;
+    if (erroDoVinculo('serie', familiaId, serie.id, state.series)) return;
+    void dispatch({ type: 'UPDATE_SERIE', payload: { ...serie, parentId: familiaId } });
+  };
+
   const card = (item: ItemLista, mostrarOnde: boolean) => (
     <SerieCard
       key={item.serie.id}
@@ -26,17 +41,26 @@ export function ResultadoDaLista({ modelo, celular = false }: { modelo: SeriesLi
       ondasComRitmoProprio={state.temporadas.filter(onda => onda.serieId === item.serie.id && ondaComRitmoProprio(onda)).length}
       mostrarOnde={mostrarOnde}
       emAberto={modelo.emAberto(item.serie.id)}
-      onOpen={modelo.acoes.onOpen}
-      onOpenFilhos={modelo.acoes.onOpenFilhos}
-      onEdit={modelo.acoes.onEdit}
-      onToggleAtiva={modelo.acoes.onToggleAtiva}
-      onCriarFilho={modelo.acoes.onCriarFilho}
+      onOpen={acoes.onOpen}
+      onOpenFilhos={acoes.onOpenFilhos}
+      onEdit={acoes.onEdit}
+      onToggleAtiva={acoes.onToggleAtiva}
+      onMudarStatus={acoes.onMudarStatus}
+      onCriarFilho={acoes.onCriarFilho}
+      onMoverParaFamilia={acoes.onMoverParaFamilia}
+      arrastavel={!celular && item.tipo === 'serie'}
     />
   );
 
   return (
     <>
-      <CorpoDaLista modelo={modelo} celular={celular} card={card} />
+      <CorpoDaLista modelo={modelo} celular={celular} card={card} acoes={acoes} sobre={sobre} onSobre={setSobre} onSoltar={mover} />
+      <MoverSerieDialog
+        serie={moverId ? state.series.find(item => item.id === moverId) ?? null : null}
+        series={state.series}
+        onClose={() => setMoverId(null)}
+        onMover={familiaId => { if (moverId) mover(moverId, familiaId); }}
+      />
       {modelo.modalAtivacao}
     </>
   );
@@ -46,10 +70,18 @@ function CorpoDaLista({
   modelo,
   celular,
   card,
+  acoes,
+  sobre,
+  onSobre,
+  onSoltar,
 }: {
   modelo: SeriesListaModelo;
   celular: boolean;
   card: (item: ItemLista, mostrarOnde: boolean) => ReactElement;
+  acoes: SeriesListaModelo['acoes'] & { onMoverParaFamilia: (serieId: string) => void };
+  sobre: string | null;
+  onSobre: (id: string | null) => void;
+  onSoltar: (serieId: string, familiaId: string | null) => void;
 }) {
   const { lista, filtros } = modelo;
   const grade = celular ? 'grid grid-cols-1 gap-3' : 'grid-content';
@@ -76,7 +108,13 @@ function CorpoDaLista({
             item={grupo.familia}
             aberta={modelo.familiaAberta(grupo.familia.serie.id)}
             onToggle={() => modelo.alternarFamilia(grupo.familia.serie.id)}
-            acoes={modelo.acoes}
+            acoes={acoes}
+            soltando={sobre === grupo.familia.serie.id}
+            onArrastarSobre={() => onSobre(grupo.familia.serie.id)}
+            onSoltarSerie={serieId => {
+              onSobre(null);
+              onSoltar(serieId, grupo.familia.serie.id);
+            }}
           >
             {grupo.itens.length > 0 ? (
               <div className={grade}>{grupo.itens.map(item => card(item, false))}</div>
@@ -85,15 +123,28 @@ function CorpoDaLista({
             )}
           </FamiliaSecao>
         ))}
-        {independentes.length > 0 ? (
-          <section className="stack-md" aria-label="Séries independentes">
-            {familias.length > 0 ? (
+        {independentes.length > 0 || (!celular && familias.length > 0) ? (
+          <ZonaSoltar
+            ariaLabel="Séries independentes"
+            className="stack-md"
+            soltando={sobre === 'independentes'}
+            onArrastarSobre={() => onSobre('independentes')}
+            onSoltarSerie={serieId => {
+              onSobre(null);
+              onSoltar(serieId, null);
+            }}
+          >
+            {familias.length > 0 && independentes.length > 0 ? (
               <Text variant="sectionTitle" as="h2" className="border-b border-[var(--border-color)] pb-3">
                 Séries independentes
               </Text>
             ) : null}
-            <div className={grade}>{independentes.map(item => card(item, false))}</div>
-          </section>
+            {independentes.length > 0 ? (
+              <div className={grade}>{independentes.map(item => card(item, false))}</div>
+            ) : (
+              <Text variant="secondary">Solte aqui para tirar a série da família.</Text>
+            )}
+          </ZonaSoltar>
         ) : null}
       </div>
     );
@@ -110,7 +161,7 @@ function CorpoDaLista({
               pilarNome={modelo.pilarNome(item)}
               recuo={!filtros.busca.trim()}
               emAberto={modelo.emAberto(item.serie.id)}
-              acoes={modelo.acoes}
+              acoes={acoes}
             />
           ))}
         </ul>

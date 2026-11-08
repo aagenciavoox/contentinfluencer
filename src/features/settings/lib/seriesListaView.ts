@@ -81,8 +81,9 @@ export function passaSituacao(serie: Serie, situacao: FiltroSituacao, emAberto: 
 }
 
 /**
- * Lista de séries e quadros. Sem busca nem filtro de tipo ou pilar, os cards ficam agrupados
- * por família, e as séries sem família vêm em "Séries independentes". Com filtro, a lista
+ * Lista de famílias e séries. Quadros ficam dentro da série, não nesta lista.
+ * Sem busca nem filtro de tipo ou pilar, os cards ficam agrupados por família,
+ * e as séries sem família vêm em "Séries independentes". Com filtro, a lista
  * fica plana e cada card diz o tipo e onde está.
  */
 export function montarListaSeries({
@@ -117,6 +118,7 @@ export function montarListaSeries({
 
   const busca = semAcento(filtros.busca.trim());
   const passa = (item: ItemLista) => {
+    if (item.tipo === 'quadro') return false;
     if (!passaSituacao(item.serie, filtros.situacao, emAberto(item.serie.id))) return false;
     if (filtros.tipo !== 'todos' && item.tipo !== filtros.tipo) return false;
     if (filtros.pilar === 'sem' && item.pilar.pilarId) return false;

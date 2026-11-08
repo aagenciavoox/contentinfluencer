@@ -1375,7 +1375,7 @@ function RichTextEditorInstance({
       {(!compactMobileComposer || isFullscreen) ? <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-2.5 t-meta text-[var(--text-secondary)]">
         {meter !== 'none' ? <span className="ml-auto inline-flex items-baseline gap-1"><TextCount as="span" count={wordCount} mode="words" />{meter === 'spoken-range' ? <span aria-hidden className="px-1 text-[var(--border-strong)]">|</span> : ' · '}{durationLabel}</span> : <span />}
         <div className="flex min-w-0 flex-wrap items-center gap-3">{!isFullscreen ? saveStatus : null}{saveAction}</div>
-      </div> : saveAction || status ? <div className="flex flex-wrap items-center gap-3 pb-20 pt-3">{saveStatus}{saveAction}</div> : null}
+      </div> : status && status !== 'Salvo' ? <div className="flex flex-wrap items-center justify-end gap-3 px-4 pb-20 pt-3">{saveStatus}{saveAction}</div> : null}
     </div>
   );
 

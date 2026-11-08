@@ -2,6 +2,7 @@ import type { AppState } from '../../../app/providers/appState';
 import { FilterBar } from '../../../components/ui/FilterBar';
 import { cn } from '../../../lib/utils';
 import { getActivePilares } from '../../settings/lib/activePilares';
+import { seriesParaFiltro } from '../../settings/lib/serieAgrupamento';
 import type { IdeasQuickFilter, IdeasSort } from '../lib/ideaFilters';
 
 const QUICK_FILTERS: { value: IdeasQuickFilter; label: string }[] = [
@@ -105,7 +106,7 @@ export function IdeasInboxToolbar({
             onChange: onFilterSeriesIdChange,
             options: [
               { label: 'Todas as séries', value: '' },
-              ...state.series.map((serie) => ({
+              ...seriesParaFiltro(state.series, filterSeriesId).map((serie) => ({
                 label: serie.name,
                 value: serie.id,
               })),

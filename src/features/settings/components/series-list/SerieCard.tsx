@@ -7,7 +7,7 @@ import {
   useAnchoredPosition,
 } from '../../../../components/ui/anchoredPosition';
 import { Badge } from '../../../../components/ui/Badge';
-import { type MoreMenuItem } from '../../../../components/ui/MoreMenu';
+import { MoreMenu, type MoreMenuItem } from '../../../../components/ui/MoreMenu';
 import { Text } from '../../../../components/ui/Text';
 import { cn } from '../../../../lib/utils';
 import {
@@ -17,6 +17,8 @@ import {
 import { type ItemLista } from '../../lib/seriesListaView';
 import { podeSerRascunho, ROTULO_STATUS, statusDaSerie, type StatusSerie } from '../../lib/statusSerie';
 
+export const ARRASTO_SERIE = 'application/x-criaki-serie';
+
 /** Menu do agrupamento, igual no card, na linha e no cabeçalho da família. */
 export function itensDoMenuDaSerie(
   item: Pick<ItemLista, 'serie' | 'tipo'>,
@@ -25,6 +27,7 @@ export function itensDoMenuDaSerie(
     onToggleAtiva: (serieId: string) => void;
     onMudarStatus?: (serieId: string, status: StatusSerie) => void;
     onCriarFilho?: (item: Pick<ItemLista, 'serie' | 'tipo'>) => void;
+    onMoverParaFamilia?: (serieId: string) => void;
   },
 ): MoreMenuItem[] {
   const status = statusDaSerie(item.serie);
@@ -38,8 +41,15 @@ export function itensDoMenuDaSerie(
       onClick: () => acoes.onCriarFilho?.(item),
     }]
     : [];
+  const mover = acoes.onMoverParaFamilia && item.tipo === 'serie'
+    ? [{
+      label: item.serie.parentId ? 'Mudar de família' : 'Mover para família',
+      onClick: () => acoes.onMoverParaFamilia?.(item.serie.id),
+    }]
+    : [];
   return [
     ...criarFilho,
+    ...mover,
     { label: 'Configurar', onClick: () => acoes.onEdit(item.serie.id) },
     { label: rotuloAlternar, onClick: () => acoes.onToggleAtiva(item.serie.id) },
     ...voltarParaRascunho,
@@ -70,6 +80,12 @@ export function SerieCard({
   emAberto = false,
   onOpen,
   onOpenFilhos,
+  onEdit,
+  onToggleAtiva,
+  onMudarStatus,
+  onCriarFilho,
+  onMoverParaFamilia,
+  arrastavel = false,
 }: {
   item: ItemLista;
   pilarNome?: string | null;
@@ -82,7 +98,11 @@ export function SerieCard({
   onOpenFilhos: (serieId: string) => void;
   onEdit?: (serieId: string) => void;
   onToggleAtiva?: (serieId: string) => void;
+  onMudarStatus?: (serieId: string, status: StatusSerie) => void;
   onCriarFilho?: (item: Pick<ItemLista, 'serie' | 'tipo'>) => void;
+  onMoverParaFamilia?: (serieId: string) => void;
+  /** No celular o arrasto atrapalha a rolagem; lá a mudança fica no menu. */
+  arrastavel?: boolean;
 }) {
   const { serie } = item;
   const nome = serie.name.trim() || 'Sem nome';
@@ -139,6 +159,12 @@ export function SerieCard({
         ref={cardRef}
         role="button"
         tabIndex={0}
+        draggable={arrastavel}
+        onDragStart={event => {
+          if (!arrastavel) return;
+          event.dataTransfer.setData(ARRASTO_SERIE, serie.id);
+          event.dataTransfer.effectAllowed = 'move';
+        }}
         onClick={() => onOpen(serie.id)}
         onKeyDown={e => {
           if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
@@ -191,16 +217,37 @@ export function SerieCard({
               {tipoLabel.toUpperCase()}
             </Badge>
 
-            <Text variant="meta" as="span" className="flex items-center gap-1.5 shrink-0">
-              <span
-                className={cn(
-                  'h-2 w-2 rounded-full',
-                  serie.ativa ? 'bg-emerald-500' : statusDaSerie(serie) === 'rascunho' ? 'bg-amber-400' : 'bg-zinc-400',
-                )}
-                aria-hidden="true"
-              />
-              <span>{ROTULO_STATUS[statusDaSerie(serie)]}</span>
-            </Text>
+            <span className="flex items-center gap-1 shrink-0">
+              <Text variant="meta" as="span" className="flex items-center gap-1.5">
+                <span
+                  className={cn(
+                    'h-2 w-2 rounded-full',
+                    serie.ativa ? 'bg-emerald-500' : statusDaSerie(serie) === 'rascunho' ? 'bg-amber-400' : 'bg-zinc-400',
+                  )}
+                  aria-hidden="true"
+                />
+                <span>{ROTULO_STATUS[statusDaSerie(serie)]}</span>
+              </Text>
+              {onEdit && onToggleAtiva ? (
+                <span
+                  className="relative z-10"
+                  onClick={event => event.stopPropagation()}
+                  onKeyDown={event => event.stopPropagation()}
+                >
+                  <MoreMenu
+                    size="sm"
+                    label={`Mais opções de ${nome}`}
+                    items={itensDoMenuDaSerie(item, {
+                      onEdit,
+                      onToggleAtiva,
+                      onMudarStatus,
+                      onCriarFilho,
+                      onMoverParaFamilia,
+                    })}
+                  />
+                </span>
+              ) : null}
+            </span>
           </div>
 
           {/* Título da série */}

@@ -16,6 +16,8 @@ export interface CreationIdeaInput {
   seriesId: string | null;
   bibliotecaItemId: string | null;
   plataformas: ContentPlataforma[];
+  /** Sem título e sem texto: abre a ideia para preencher o resto. */
+  abrirDetalhe?: boolean;
 }
 
 interface CreationComposerProps {
@@ -68,7 +70,8 @@ export function CreationComposer({
   const save = () => {
     const normalizedTitle = title.trim();
     const normalizedNotes = notes.trim();
-    if (!normalizedTitle && !normalizedNotes) return;
+    const temTexto = Boolean(normalizedTitle || normalizedNotes);
+    if (!temTexto && plataformas.length === 0) return;
 
     const input: CreationIdeaInput = {
       title: normalizedTitle || 'Ideia sem título',
@@ -77,6 +80,7 @@ export function CreationComposer({
       seriesId: seriesId || null,
       bibliotecaItemId: originId || null,
       plataformas,
+      abrirDetalhe: !temTexto,
     };
     reset();
     onClose();
@@ -120,6 +124,8 @@ export function CreationComposer({
           onSelectedBibliotecaIdChange={setOriginId}
           onSave={() => void save()}
           variant="default"
+          allowEmptyText={plataformas.length > 0}
+          disabledReason="Escreva um título ou escolha uma plataforma."
         />
       </OverlayBody>
     </Dialog>
