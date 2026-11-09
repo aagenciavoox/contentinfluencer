@@ -45,6 +45,8 @@ function postIt(partial: Partial<PlanejamentoPostIt> & Pick<PlanejamentoPostIt, 
 function saude(input: {
   postIts?: PlanejamentoPostIt[];
   contents?: ReturnType<typeof createContentDraft>[];
+  /** Fixo no começo de outubro: os post-its do mês ainda não venceram. */
+  hoje?: string;
 }) {
   return saudeDoMes({
     postIts: input.postIts ?? [],
@@ -53,6 +55,7 @@ function saude(input: {
     pilares: [pilar],
     settings: {redeReferenciaId: null, proporcaoFuncoes: PERCENTUAIS},
     periodo: PERIODO,
+    hoje: input.hoje ?? '2026-10-01',
   });
 }
 
@@ -96,6 +99,12 @@ function testPostItVazioNaoTemPautaESemDataNaoEntra() {
   });
   assert.equal(comNota.previsto, 1);
   assert.equal(comNota.comPauta, 1);
+
+  // Reserva pendente: sem roteiro e com o dia (12/10) já passado, deixa de contar como previsto.
+  const vencida = saude({postIts: [postIt({id: 'nota', contentId: null, texto: 'nota'})], hoje: '2026-10-13'});
+  assert.equal(vencida.previsto, 0);
+  const noDia = saude({postIts: [postIt({id: 'nota', contentId: null, texto: 'nota'})], hoje: '2026-10-12'});
+  assert.equal(noDia.previsto, 1);
 }
 
 function testDataOficialContaQuandoNaoHaPostIt() {

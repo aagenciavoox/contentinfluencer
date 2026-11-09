@@ -1609,7 +1609,7 @@ export function SerieEditForm({
 
                 {renderBlocoModeloRoteiro(true)}
 
-                {serieGravada ? renderChipDaMeta('O episódio deste quadro conta nas duas metas.') : (
+                {serieGravada ? renderChipDaMeta('Com meta própria e acompanhamento ligado, o episódio conta só na linha do quadro e sai da conta da série.') : (
                 <div className="stack-sm">
                   <FieldLabel optional>Ritmo de episódios</FieldLabel>
                   <SelectField
@@ -1626,12 +1626,12 @@ export function SerieEditForm({
                       }));
                     }}
                     options={[
-                      { value: 'serie', label: 'Seguir apenas a meta da série' },
-                      { value: 'quadro', label: 'Definir também uma meta para este quadro' },
+                      { value: 'serie', label: 'Contar só na meta da série' },
+                      { value: 'quadro', label: 'Definir uma meta própria para este quadro' },
                     ]}
                   />
                   {form.temMeta
-                    ? renderCamposMeta('O episódio deste quadro conta nas duas metas.')
+                    ? renderCamposMeta('Com meta própria e acompanhamento ligado, o episódio conta só na linha do quadro e sai da conta da série.')
                     : null}
                 </div>
                 )}

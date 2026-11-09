@@ -6,7 +6,7 @@ import { FLOATING_MENU_HIDDEN_STYLE, FLOATING_MENU_Z_INDEX, useAnchoredPosition 
 import { Text } from '../../../components/ui/Text';
 import { cn } from '../../../lib/utils';
 import { useFrequenciaDaSerie } from '../hooks/useFrequenciaDaSerie';
-import { rascunhoDaFrequencia, type RascunhoDaFrequencia } from '../lib/frequenciaChip';
+import { cliqueDentroDoPainel, rascunhoDaFrequencia, type RascunhoDaFrequencia } from '../lib/frequenciaChip';
 import type { FrequenciaGravada } from '../lib/metaDaOnda';
 import { CamposDaMeta } from './plano/CamposDaMeta';
 
@@ -46,7 +46,7 @@ export function FrequenciaChip({
     const fora = (event: MouseEvent | TouchEvent) => {
       if (gravando) return;
       const alvo = event.target as Node | null;
-      if (alvo && (triggerRef.current?.contains(alvo) || painelRef.current?.contains(alvo))) return;
+      if (alvo && (triggerRef.current?.contains(alvo) || cliqueDentroDoPainel(alvo, painelRef.current))) return;
       setAberto(false);
     };
     const tecla = (event: KeyboardEvent) => {

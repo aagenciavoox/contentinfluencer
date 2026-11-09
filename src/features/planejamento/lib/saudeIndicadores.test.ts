@@ -6,7 +6,10 @@ import {
   janelaDaContinuidade,
   objetivoEfetivo,
   proporcaoDesejadaDoPeriodo,
+  resumoDosDesvios,
+  resumoSemFrequencia,
   situacaoDaFrequencia,
+  textoPorTipo,
   textoRitmoAbaixo,
   textoSemObjetivo,
   type ConteudoDaSaude,
@@ -414,3 +417,34 @@ console.log('saudeIndicadores (acompanhamento geral): ok');
 }
 
 console.log('saudeIndicadores (wave): ok');
+
+// --- Acompanhadas sem frequência: pendência própria, fora das linhas (nem em dia nem abaixo), e o resumo por tipo.
+{
+  const cont = continuidadeDasSeries({
+    series: [
+      serie({ id: 's-sem', name: 'Sem ritmo', tipoAgrupamento: 'serie' }),
+      serie({ id: 'q-sem', name: 'Quadro sem ritmo', parentId: 's-sem', tipoAgrupamento: 'quadro' }),
+      serie({ id: 's-com', name: 'Com ritmo', tipoAgrupamento: 'serie', frequenciaVezes: 1, frequenciaUnidade: 'semana' }),
+    ],
+    itens: [],
+    periodo: { inicio: '2026-11-02', fim: '2026-11-08' },
+    hoje: '2026-11-04',
+  });
+  assert.deepEqual(cont.linhas.map(linha => linha.serieId), ['s-com']);
+  const semFrequencia = cont.pendencias.filter(pendencia => pendencia.motivo === 'sem-frequencia');
+  assert.deepEqual(semFrequencia.map(pendencia => [pendencia.serieId, pendencia.tipo]), [['q-sem', 'quadro'], ['s-sem', 'serie']]);
+  // A mesma série vinda do geral e de um acompanhamento por conta conta uma vez só.
+  assert.deepEqual(resumoSemFrequencia([...semFrequencia, { serieId: 's-sem', tipo: 'serie' }]), { texto: '1 série e 1 quadro sem frequência definida', total: 2 });
+  assert.equal(resumoSemFrequencia([]), null);
+  assert.equal(textoPorTipo([{ tipo: 'serie' }, { tipo: 'serie' }, { tipo: 'temporada' }]), '2 séries e 1 temporada');
+}
+
+// --- Resumo da seção 3: abaixo e acima à parte, só as partes não-zero (nunca "0 séries com ritmo em aberto").
+{
+  assert.equal(resumoDosDesvios([], [{ tipo: 'serie' }, { tipo: 'quadro' }]), '1 série e 1 quadro acima da meta');
+  assert.equal(resumoDosDesvios([{ tipo: 'serie' }], [{ tipo: 'serie' }, { tipo: 'serie' }]), '1 série abaixo do ritmo · 2 séries acima da meta');
+  assert.equal(resumoDosDesvios([{ tipo: 'temporada' }], []), '1 temporada abaixo do ritmo');
+  assert.equal(resumoDosDesvios([], []), '');
+}
+
+console.log('saudeIndicadores (sem frequência): ok');

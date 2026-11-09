@@ -2,6 +2,7 @@ import {useEffect, useMemo, useState} from 'react';
 import {AppButton} from '../../../components/ui/AppButton';
 import {SelectField} from '../../../components/ui/SelectField';
 import {Text} from '../../../components/ui/Text';
+import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
 import {Dialog} from '../../../components/overlays/Dialog';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
 import {OverlayFooter} from '../../../components/overlays/OverlayFooter';
@@ -14,6 +15,7 @@ import {
   type DestinoSalvar,
   type LinhaSalvarCalendario,
   linhasParaSalvarNoCalendario,
+  textoDataSubstituida,
   textoHorariosDescartados,
 } from '../lib/salvarNoCalendario';
 
@@ -56,12 +58,15 @@ export function SalvarNoCalendarioDialog({
   const [modo, setModo] = useState<ModoData>('mesmo');
   const [time, setTime] = useState('');
   const [porConta, setPorConta] = useState<Record<string, ContaNoCalendario[]>>({});
+  /** Roteiros que já têm outro dia: pede confirmação antes de trocar. */
+  const [trocaDeData, setTrocaDeData] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setLinhas(iniciais);
     setModo('mesmo');
     setTime('');
+    setTrocaDeData(null);
     const mapa: Record<string, ContaNoCalendario[]> = {};
     for (const linha of iniciais) {
       const postIt = postIts.find(item => item.id === linha.postItId);
@@ -108,7 +113,8 @@ export function SalvarNoCalendarioDialog({
     }));
   };
 
-  const confirmar = () => {
+  const enviar = () => {
+    setTrocaDeData(null);
     onConfirm({
       linhas,
       time: time.trim() || null,
@@ -116,6 +122,25 @@ export function SalvarNoCalendarioDialog({
         ? new Map(Object.entries(porConta))
         : null,
     });
+  };
+
+  // O dia do post-it vai para o roteiro vinculado. Se o roteiro já estava em outro dia, avisa antes.
+  const confirmar = () => {
+    const trocas = linhas.flatMap(linha => {
+      const postIt = postIts.find(item => item.id === linha.postItId);
+      const content = postIt?.contentId ? contents.find(item => item.id === postIt.contentId) : null;
+      if (!postIt?.date || !content) return [];
+      const contas = modo === 'por-conta' ? porConta[linha.postItId] ?? [] : [];
+      const texto = contas.length > 0
+        ? textoDataSubstituida(content, {contas})
+        : textoDataSubstituida(content, {date: postIt.date});
+      return texto ? [texto] : [];
+    });
+    if (trocas.length > 0) {
+      setTrocaDeData(`${trocas.length === 1 ? 'Este roteiro já tem outro dia' : 'Estes roteiros já têm outro dia'} no Calendário e ${trocas.length === 1 ? 'vai' : 'vão'} mudar: ${trocas.join('; ')}. Salvar mesmo assim?`);
+      return;
+    }
+    enviar();
   };
 
   const rotuloConta = (platformId: string) => {
@@ -286,6 +311,14 @@ export function SalvarNoCalendarioDialog({
           </AppButton>
         </OverlayFooter>
       </div>
+      <ConfirmModal
+        open={trocaDeData != null}
+        message={trocaDeData ?? ''}
+        confirmLabel="Trocar a data"
+        cancelLabel="Voltar"
+        onConfirm={enviar}
+        onCancel={() => setTrocaDeData(null)}
+      />
     </Dialog>
   );
 }

@@ -287,7 +287,7 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
   const subtitulo = alvo.tipo === 'temporada'
     ? `Temporada de ${alvo.serie.name}. A Saúde conta só os episódios desta wave.`
     : alvo.tipo === 'quadro'
-      ? 'Quadro com meta própria. Os episódios dele contam aqui e saem da conta da série.'
+      ? 'Com meta própria e acompanhamento ligado, os episódios deste quadro contam aqui e saem da conta da série.'
       : 'Série inteira. Quadros com meta própria e temporadas com ritmo próprio contam à parte.';
 
   return (
@@ -617,7 +617,7 @@ export function ContinuidadePanel() {
   return (
     <Section
       title="Continuidade"
-      description="Ligue o acompanhamento e defina quantidade, período e data de início de cada série. Quadro e temporada podem ter uma wave própria: os episódios continuam na série, e a Saúde cobra cada wave à parte."
+      description="Ligue o acompanhamento e defina quantidade, período e data de início de cada série. Quadro e temporada podem ter uma wave própria: com meta própria e acompanhamento ligado, os episódios saem da conta da série, e a Saúde cobra o quadro ou a temporada à parte."
     >
       {semTabela ? (
         <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">

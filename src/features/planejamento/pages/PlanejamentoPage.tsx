@@ -77,6 +77,7 @@ import {
   publicacoesDoCard,
 } from '../lib/filtroCalendario';
 import {textoSeloSoNoPlano} from '../lib/reguaFrequencia';
+import {reservaPendente} from '../../editorial/lib/reservaPendente';
 import {publicacoesDaAgenda, rotuloDoFormato} from '../../editorial/lib/publicacoes';
 import {CreationRedeQuickFilter} from '../../creation/components/CreationRedeQuickFilter';
 import {redesDoFiltroRapido} from '../../creation/lib/creationRedeFilter';
@@ -768,6 +769,7 @@ export function PlanejamentoPage() {
               selected={!isMobile && selectedIds.has(postIt.id)}
               onToggleSelect={isMobile ? undefined : () => toggleSelected(postIt.id)}
               selo={textoSeloSoNoPlano({semRoteiro: !postIt.contentId, vistaTemRoteiro})}
+              pendente={reservaPendente(postIt, format(new Date(), 'yyyy-MM-dd'))}
             />
             {marcaDepois ? <div className="mt-1 h-1 rounded-full bg-[var(--brand-accent-strong)]" aria-hidden /> : null}
             </div>

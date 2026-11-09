@@ -1,5 +1,5 @@
 import type { FuncaoEditorial } from '../../../lib/database.ts';
-import { differenceInCalendarDays, parseISO } from 'date-fns';
+import { differenceInCalendarDays, format, parseISO } from 'date-fns';
 import type { AjusteSemana, DecisaoPeriodo, PreferenciasGerais, VigenciaEditorial } from './editorialSettings.ts';
 import type { GradeEntry } from './gradeEntries.ts';
 import { percentuaisFechamEm100, percentuaisNaOrdem } from './distribuirEspacos.ts';
@@ -12,6 +12,7 @@ import { diasDePausa, type PausaEditorial } from './pausas.ts';
 import { decisaoDoPeriodo } from './periodoEditorial.ts';
 import { metasDoPeriodo, type ProporcaoFuncoes } from './proporcaoObjetivos.ts';
 import { proporcaoDoPeriodo } from './vigencias.ts';
+import { reservaPendente } from './reservaPendente.ts';
 
 export type PeriodoGrade = {
   /** Inclusivo, `aaaa-mm-dd`. */
@@ -196,12 +197,14 @@ function itemDeEntrada(entry: GradeEntry, temPauta: boolean): ItemContado {
  * Ciclos datados no período: original (ciclo 1) e cada reaproveitamento.
  * Post-it ligado a um original não vira segundo item.
  * Post-it sem data não entra. Várias redes do mesmo ciclo já vêm agregadas na entrada.
+ * Reserva pendente (post-it sem roteiro com o dia já passado) também não entra.
  */
 function montarItens(
   entries: readonly GradeEntry[],
   postIts: readonly PostItContagem[],
   periodo: PeriodoGrade,
   series: readonly SerieClassificacao[],
+  hoje: string,
 ): ItemContado[] {
   const originais = entries.filter(entry => entry.tipo === 'original');
   const reposts = entries.filter(entry => entry.tipo === 'repost');
@@ -240,6 +243,7 @@ function montarItens(
     const data = dia(postIt.date);
     if (!data || !noPeriodo(data, periodo)) continue;
     if (postIt.contentId && contados.has(postIt.contentId)) continue;
+    if (reservaPendente({ contentId: postIt.contentId, date: data }, hoje)) continue;
     if (postIt.contentId) {
       const lista = ligadosFora.get(postIt.contentId) ?? [];
       lista.push({ ...postIt, date: data });
@@ -397,7 +401,7 @@ export function contarPeriodo({
     vigencias: settings.vigencias,
     hoje,
   });
-  const itens = montarItens(entries, postIts, periodo, series);
+  const itens = montarItens(entries, postIts, periodo, series, hoje ?? format(new Date(), 'yyyy-MM-dd'));
 
   let comPauta = 0;
   let publicado = 0;

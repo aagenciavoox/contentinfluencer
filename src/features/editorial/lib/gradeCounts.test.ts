@@ -243,6 +243,7 @@ function testPostItLigadoContaUmaVez() {
       entrada({ id: 'c1', contentId: 'c1', temPauta: false, scriptOrigem: 'modelo' } as Partial<GradeEntry> & Pick<GradeEntry, 'id'>),
     ],
     postIts,
+    hoje: '2026-04-27',
   });
 
   assert.equal(resultado.previsto, 4);
@@ -250,6 +251,21 @@ function testPostItLigadoContaUmaVez() {
   assert.equal(resultado.itens.find(item => item.contentId === 'c1')?.temPauta, true);
   assert.equal(resultado.comPauta, 2);
   assert.equal(resultado.espacosLivres, 2);
+
+  // Depois de 29/04, os dois post-its sem roteiro viram reserva pendente e saem do previsto.
+  // Os que têm roteiro ligado continuam.
+  const depois = countGrade({
+    pilares: pilaresGrandes,
+    settings: {},
+    periodo: SEMANA,
+    entries: [
+      entrada({ id: 'c1', contentId: 'c1', temPauta: false, scriptOrigem: 'modelo' } as Partial<GradeEntry> & Pick<GradeEntry, 'id'>),
+    ],
+    postIts,
+    hoje: '2026-05-01',
+  });
+  assert.equal(depois.previsto, 2);
+  assert.equal(depois.itens.some(item => item.postItId === 'solto' || item.postItId === 'vazio'), false);
 }
 
 function conteudoGrade(partial: Partial<GradeContent> & Pick<GradeContent, 'id'>): GradeContent {
@@ -414,6 +430,8 @@ function testContaPorEtapa() {
     settings: {},
     periodo: SEMANA,
     postIts,
+    // Antes dos post-its soltos vencerem.
+    hoje: '2026-04-27',
   });
 
   assert.equal(entries.find(entry => entry.contentId === 'ideia')?.etapa, 'ideia');

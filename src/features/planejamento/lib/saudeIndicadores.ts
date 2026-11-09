@@ -553,7 +553,7 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
 type LinhaResumo = Pick<LinhaContinuidade<unknown>, 'tipo' | 'precisaAtencao' | 'semEpisodios' | 'abaixo' | 'concentrada'>
   & Partial<Pick<LinhaContinuidade<unknown>, 'reservadas'>>;
 
-function seriesEQuadros(linhas: readonly LinhaResumo[]): { texto: string; total: number } {
+function seriesEQuadros(linhas: readonly Pick<LinhaResumo, 'tipo'>[]): { texto: string; total: number } {
   const series = linhas.filter(l => l.tipo === 'serie').length;
   const quadros = linhas.filter(l => l.tipo === 'quadro').length;
   const temporadas = linhas.filter(l => l.tipo === 'temporada').length;
@@ -564,6 +564,42 @@ function seriesEQuadros(linhas: readonly LinhaResumo[]): { texto: string; total:
   ].filter(Boolean);
   const texto = partes.length <= 1 ? (partes[0] ?? '') : `${partes.slice(0, -1).join(', ')} e ${partes.at(-1)}`;
   return { texto, total: series + quadros + temporadas };
+}
+
+/** "2 séries e 1 quadro": conta cada tipo à parte (série, quadro, temporada). Vazio quando não há nenhum. */
+export function textoPorTipo(linhas: readonly Pick<LinhaResumo, 'tipo'>[]): string {
+  return seriesEQuadros(linhas).texto;
+}
+
+/**
+ * "1 série abaixo do ritmo · 2 quadros acima da meta": só as partes não-zero. Vazio quando as duas são zero.
+ * Quem decide "abaixo" e "acima" é a Saúde (intervalos ainda abertos); aqui só se monta o texto.
+ */
+export function resumoDosDesvios(
+  abaixo: readonly Pick<LinhaResumo, 'tipo'>[],
+  acima: readonly Pick<LinhaResumo, 'tipo'>[],
+): string {
+  return [
+    abaixo.length > 0 ? `${textoPorTipo(abaixo)} abaixo do ritmo` : null,
+    acima.length > 0 ? `${textoPorTipo(acima)} acima da meta` : null,
+  ].filter(Boolean).join(' · ');
+}
+
+/** Mensagem neutra para quem está acompanhado sem ritmo: não conta como em dia nem como abaixo. */
+export const TEXTO_ACOMPANHADA_SEM_RITMO = 'Acompanhamento ligado, mas sem ritmo definido. Defina um ritmo ou desligue o acompanhamento.';
+
+/**
+ * Acompanhadas sem frequência definida (pendência "sem-frequencia" e acompanhamento por conta ou formato sem meta),
+ * uma vez por série, quadro ou temporada: "1 série e 1 quadro sem frequência definida". Null quando não há.
+ */
+export function resumoSemFrequencia(
+  itens: readonly { serieId: string; temporadaId?: string | null; tipo: LinhaResumo['tipo'] }[],
+): { texto: string; total: number } | null {
+  const unicos = new Map<string, { tipo: LinhaResumo['tipo'] }>();
+  for (const item of itens) unicos.set(item.temporadaId ? `t:${item.temporadaId}` : `s:${item.serieId}`, { tipo: item.tipo });
+  if (unicos.size === 0) return null;
+  const grupo = seriesEQuadros([...unicos.values()]);
+  return { texto: `${grupo.texto} sem frequência definida`, total: grupo.total };
 }
 
 /** "1 série com ritmo em aberto · 2 sem episódios no período". Cada grupo conta à parte. */

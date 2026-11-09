@@ -134,6 +134,8 @@ function testReservaClassificadaContaNoObjetivo() {
     pilares: [],
     settings: {...DEFAULT_EDITORIAL_SETTINGS, preferencias: {...DEFAULT_EDITORIAL_SETTINGS.preferencias, limiteSemanal: 7}},
     periodo: {inicio: '2026-11-01', fim: '2026-11-07'},
+    // Antes do dia do post-it: ainda não é reserva pendente.
+    hoje: '2026-11-01',
   });
   assert.equal(saude.semObjetivoPorEtapa.planejamento, 0);
   assert.equal(saude.objetivos.find(linha => linha.id === 'atrair')?.previsto, 1);
@@ -173,6 +175,7 @@ function continuidadeNo(trecho: {inicio: string; fim: string}, series: Serie[], 
     pilares: [],
     settings: DEFAULT_EDITORIAL_SETTINGS,
     periodo: janelaDaContinuidade(trecho),
+    hoje: '2026-10-30',
   }).itens;
   return continuidadeDasSeries({series, itens, periodo: trecho, hoje: '2026-10-30'});
 }
@@ -220,7 +223,8 @@ function testAusenciaNosProximosDias() {
 function testAusenciaNoFimDoMes() {
   const series = [serieAcompanhada('a', 'Descomplicando', 1), serieAcompanhada('b', 'Cosmere', 1)];
   const outubro = {inicio: '2026-10-01', fim: '2026-10-31'};
-  const doMes = continuidadeNo(outubro, series, [postIt({id: 'p1', date: '2026-10-14', serieId: 'a'})]);
+  // Post-it sem roteiro no dia de hoje (30/10): ainda conta. Num dia já passado seria reserva pendente.
+  const doMes = continuidadeNo(outubro, series, [postIt({id: 'p1', date: '2026-10-30', serieId: 'a'})]);
   const ausencias = (hoje: Date) => avisos({series, continuidadeDoMes: doMes, mesDaVista: outubro, hoje}).filter(item => item.tipo === 'ausencia-mes');
   assert.deepEqual(ausencias(HOJE).map(item => item.texto), ['Cosmere ainda não apareceu em outubro.']);
   assert.equal(ausencias(HOJE)[0].severidade, 'info');

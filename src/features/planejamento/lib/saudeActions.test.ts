@@ -77,5 +77,15 @@ describe('ações da Saúde Editorial', () => {
     assert.equal(linhas[0].atencao, false);
     assert.match(linhas[0].texto, /Histórico/);
   });
+  it('marca acompanhamento por conta sem frequência como estado próprio, sem atenção e com o tipo do dono', () => {
+    const acompanhamento = (serieId: string) => ({id:`a-${serieId}`,serieId,escopo:'conta' as const,platformId:'p1',formato:null,ativo:true,inicio:null,termino:null,distanciaMaxDias:null,evitarDiasSeguidos:false});
+    const serie = {id:'s1', name:'Série', ativa:true, tipoAgrupamento:'serie', frequenciaVezes:null, frequenciaUnidade:null, acompanhamentos:[acompanhamento('s1')]} as unknown as Serie;
+    const quadro = {id:'q1', name:'Quadro', ativa:true, parentId:'s1', tipoAgrupamento:'quadro', frequenciaVezes:null, frequenciaUnidade:null, acompanhamentos:[acompanhamento('q1')]} as unknown as Serie;
+    const linhas = linhasDaContinuidadePorEscopo({series:[serie, quadro], contents:[], postIts:[], platforms:[], periodo:{inicio:'2026-11-02',fim:'2026-11-08'}, pausas:[], hoje:'2026-11-04'});
+    assert.deepEqual(linhas.map(l => [l.serieId, l.semFrequencia, l.tipo, l.atencao, l.texto]), [
+      ['q1', true, 'quadro', false, 'Sem frequência definida'],
+      ['s1', true, 'serie', false, 'Sem frequência definida'],
+    ]);
+  });
 
 });

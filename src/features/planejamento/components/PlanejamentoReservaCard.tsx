@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { MoreVertical } from 'lucide-react';
+import { AlertTriangle, MoreVertical } from 'lucide-react';
 import { MoreMenu, type MoreMenuItem } from '../../../components/ui/MoreMenu';
 import { RedeIcon } from '../../../components/ui/PlatformIcons';
 import { Badge } from '../../../components/ui/Badge';
@@ -7,6 +7,7 @@ import { Text } from '../../../components/ui/Text';
 import type { PlanejamentoPostIt } from '../lib/postIt';
 import type { Content, Pilar, Serie } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
+import { TEXTO_RESERVA_PENDENTE } from '../../editorial/lib/reservaPendente';
 
 export interface PlanejamentoReservaCardProps {
   postIt: PlanejamentoPostIt;
@@ -32,6 +33,8 @@ export interface PlanejamentoReservaCardProps {
   onToggleSelect?: () => void;
   /** Selo opcional (ex.: "Só no plano"). A Página calcula com textoSeloSoNoPlano. */
   selo?: string | null;
+  /** Sem roteiro e com o dia já passado: alerta amarelo, e não conta mais como previsto. */
+  pendente?: boolean;
   className?: string;
 }
 
@@ -53,6 +56,7 @@ export function PlanejamentoReservaCard({
   selected = false,
   onToggleSelect,
   selo = null,
+  pendente = false,
   className,
 }: PlanejamentoReservaCardProps) {
   // A cor do post-it é a do pilar. Sem pilar, o papel fica branco.
@@ -163,7 +167,20 @@ export function PlanejamentoReservaCard({
           </div>
         </div>
 
-        {selo ? (
+        {pendente ? (
+          <Badge
+            variant="tag"
+            className="mb-1 inline-flex items-center gap-1 px-1.5 py-0"
+            style={{
+              backgroundColor: 'var(--warning-bg-hover)',
+              color: 'var(--warning)',
+              border: '1px solid color-mix(in srgb, var(--warning) 45%, transparent)',
+            }}
+          >
+            <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden />
+            {TEXTO_RESERVA_PENDENTE}
+          </Badge>
+        ) : selo ? (
           <Badge variant="tag" className="mb-1 px-1.5 py-0">
             {selo}
           </Badge>

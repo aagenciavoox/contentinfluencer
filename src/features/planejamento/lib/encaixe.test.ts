@@ -213,4 +213,50 @@ testSequenciaIntercalarEUltimoQuadro();
 testOrdemDaTemporadaSemModo();
 testWaveIncompletaNaMesmaSerie();
 
+// ---------------------------------------------------------------- Etapa Edição e objetivo abaixo da proporção
+
+function testEdicaoEObjetivoAbaixoDaProporcao() {
+  const espaco = createEmptyPostIt({id: 'espaco', date: '2026-10-15', now: NOW});
+  const contents = [
+    conteudo('a-ideia', {status: CONTENT_STATUS.IDEIA}),
+    conteudo('b-roteiro-atrair', {funcao: 'atrair', funcaoOrigem: 'escolhida'}),
+    conteudo('c-roteiro-converter', {funcao: 'converter', funcaoOrigem: 'escolhida'}),
+    conteudo('d-roteiro-sem-objetivo'),
+    conteudo('e-edicao', {status: CONTENT_STATUS.EDICAO}),
+    conteudo('f-producao', {status: CONTENT_STATUS.PRODUCAO}),
+  ];
+
+  // Edição > Produção > Roteiro > Ideia. Sem proporção, o título desempata.
+  const semPlano = candidatosDoEncaixe({postIt: espaco, postIts: [espaco], contents, series: [], datas: vazio});
+  assert.deepEqual(semPlano.outros.map(c => c.content.id),
+    ['e-edicao', 'f-producao', 'b-roteiro-atrair', 'c-roteiro-converter', 'd-roteiro-sem-objetivo', 'a-ideia']);
+
+  // Converter está 25 pontos abaixo do plano e Atrair 10 acima: dentro de Roteiro, Converter sobe. Sem objetivo vai por último.
+  const ritmo = {
+    linhas: [],
+    objetivos: [
+      {funcao: 'atrair' as const, previstoPct: 50, desejadoPct: 40},
+      {funcao: 'converter' as const, previstoPct: 5, desejadoPct: 30},
+    ],
+  };
+  const comPlano = candidatosDoEncaixe({postIt: espaco, postIts: [espaco], contents, series: [], datas: vazio, ritmo});
+  assert.deepEqual(comPlano.outros.map(c => c.content.id),
+    ['e-edicao', 'f-producao', 'c-roteiro-converter', 'b-roteiro-atrair', 'd-roteiro-sem-objetivo', 'a-ideia']);
+
+  // A etapa vem antes do objetivo; o ritmo vem antes da etapa.
+  const seriesRitmo = [{id: 's-atras', funcaoPadrao: null}];
+  const comAtraso = candidatosDoEncaixe({
+    postIt: espaco,
+    postIts: [espaco],
+    contents: [...contents, conteudo('g-ideia-atras', {status: CONTENT_STATUS.IDEIA, seriesId: 's-atras'})],
+    series: seriesRitmo,
+    datas: vazio,
+    ritmo: {...ritmo, linhas: [linhaAbaixo('s-atras')]},
+  });
+  assert.equal(comAtraso.outros[0].content.id, 'g-ideia-atras');
+  assert.equal(comAtraso.outros[1].content.id, 'e-edicao');
+}
+
+testEdicaoEObjetivoAbaixoDaProporcao();
+
 console.log('encaixe tests passed');

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { comFrequencia, frequenciaDoRascunho, rascunhoDaFrequencia, textoDoChip } from './frequenciaChip.ts';
+import { cliqueDentroDoPainel, comFrequencia, frequenciaDoRascunho, rascunhoDaFrequencia, textoDoChip } from './frequenciaChip.ts';
 
 // Texto do chip.
 assert.equal(textoDoChip({ frequenciaVezes: 2, frequenciaUnidade: 'semana' }), '2 por semana');
@@ -24,6 +24,23 @@ assert.ok('erro' in frequenciaDoRascunho({ vezes: '1', unidade: 'quinzena', aPar
   const sem = frequenciaDoRascunho({ vezes: '', unidade: 'semana', aPartirDe: '' }, 'quadro');
   assert.ok(!('erro' in sem));
   assert.deepEqual(sem, { vezes: null, unidade: null, aPartirDe: null, recomendada: 'Sob demanda' });
+}
+
+// Clique na lista do seletor de período (portal fora do painel) não fecha o popover.
+{
+  const dentro = { closest: () => null };
+  const opcao = { closest: (s: string) => (s === '[role="listbox"]' ? { id: 'periodo-listbox' } : null) };
+  const outraLista = { closest: () => ({ id: 'outra-listbox' }) };
+  const fora = { closest: () => null };
+  const painel = {
+    contains: (no: unknown) => no === dentro,
+    querySelector: (s: string) => (s === '[aria-controls="periodo-listbox"]' ? {} : null),
+  };
+  assert.equal(cliqueDentroDoPainel(dentro, painel), true);
+  assert.equal(cliqueDentroDoPainel(opcao, painel), true);
+  assert.equal(cliqueDentroDoPainel(outraLista, painel), false);
+  assert.equal(cliqueDentroDoPainel(fora, painel), false);
+  assert.equal(cliqueDentroDoPainel(opcao, null), false);
 }
 
 console.log('frequenciaChip: ok');

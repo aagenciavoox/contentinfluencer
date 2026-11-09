@@ -144,6 +144,46 @@ export function tirarRoteiroDoCalendario(content: Content): Content | null {
   };
 }
 
+function diaCurto(day: string): string {
+  const [, mes, diaDoMes] = day.split('-');
+  return `${diaDoMes}/${mes}`;
+}
+
+/**
+ * Roteiro vinculado que já tem outro dia no Calendário: o salvamento troca essa data.
+ * Devolve o texto para confirmar antes (ex.: `"Título": 12/11 → 14/11`), ou null se nada muda de dia.
+ * Conta publicada e roteiro publicado não mudam, então não entram.
+ */
+export function textoDataSubstituida(
+  content: Content,
+  novas: {date: string} | {contas: readonly ContaNoCalendario[]},
+): string | null {
+  if (content.deletedAt || roteiroPublicado(content)) return null;
+  const trocas = new Set<string>();
+  const comparar = (atual: string | null, nova: string | null) => {
+    if (atual && nova && atual !== nova) trocas.add(`${diaCurto(atual)} → ${diaCurto(nova)}`);
+  };
+  const previstas = content.plataformas.filter(plataforma => contaAindaPrevista(plataforma.status));
+  if ('date' in novas) {
+    const nova = dia(novas.date);
+    const comData = previstas.filter(plataforma => dia(plataforma.publishDate));
+    if (comData.length > 0) comData.forEach(plataforma => comparar(dia(plataforma.publishDate), nova));
+    else if (content.plataformas.length === 0 || previstas.length > 0) comparar(dia(content.publishDate), nova);
+  } else {
+    for (const conta of novas.contas) {
+      const plataforma = content.plataformas.find(item => item.platformId === conta.platformId);
+      if (plataforma) {
+        if (contaAindaPrevista(plataforma.status)) comparar(dia(plataforma.publishDate), dia(conta.date));
+      } else if (content.plataformas.length === 0) {
+        comparar(dia(content.publishDate), dia(conta.date));
+      }
+    }
+  }
+  if (trocas.size === 0) return null;
+  const nome = content.title?.trim() || 'Sem título';
+  return `"${nome}": ${[...trocas].join(', ')}`;
+}
+
 export type DestinoSalvar = PostItTarget | 'manter';
 
 export type LinhaSalvarCalendario = {

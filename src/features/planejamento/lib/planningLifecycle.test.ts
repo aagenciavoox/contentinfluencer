@@ -12,11 +12,15 @@ const novembro = periodoDoMes(new Date(2026, 10, 1));
 const custom = {inicio: '2026-10-15', fim: '2026-11-14', prioridade:'Preservar decisão', metas:{comunidade:4}, ajustesSemana:[]};
 const settings = {...DEFAULT_EDITORIAL_SETTINGS, preferencias:{...DEFAULT_EDITORIAL_SETTINGS.preferencias, limiteSemanal:7, reservaProntos:20}, periodos:[custom]};
 const savedSettings = JSON.stringify(settings);
-const counts = (postIts: Parameters<typeof saudeDoMes>[0]['postIts'], contents: Content[] = [], periodo = outubro) =>
-  saudeDoMes({postIts, contents, series:[], pilares:[], settings, periodo});
+// Antes de outubro acabar: o post-it de 31/10 ainda não é reserva pendente.
+const counts = (postIts: Parameters<typeof saudeDoMes>[0]['postIts'], contents: Content[] = [], periodo = outubro, hoje = '2026-10-01') =>
+  saudeDoMes({postIts, contents, series:[], pilares:[], settings, periodo, hoje});
 const pauta = createEmptyPostIt({id:'pauta', texto:'Título e notas reais', date:'2026-10-31', serieId:'serie', pilarId:'pilar', objetivo:'comunidade', redes:['instagram']});
 const before = counts([pauta]);
 assert.deepEqual(ocupacaoDoMes(before), {preenchidos:1, capacidade:31, livres:30, excesso:0, percentual:100/31});
+// Reserva pendente: sem roteiro e com o dia passado, sai do previsto. Com roteiro ligado, continua.
+assert.equal(counts([pauta], [], outubro, '2026-11-01').previsto, 0);
+assert.equal(counts([pauta], [], outubro, '2026-10-31').previsto, 1);
 assert.equal(before.funcoes.find(item => item.id === 'comunidade')?.meta, null, 'o mês não herda metas do intervalo salvo');
 assert.equal(counts([pauta], [], custom).funcoes.find(item => item.id === 'comunidade')?.meta, 4);
 assert.equal(JSON.stringify(settings), savedSettings, 'consultar meses não grava decisões ou metas');
@@ -36,6 +40,7 @@ for (const target of ['ideia','roteiro'] as const) {
   assert.equal(result.content.funcao,pauta.objetivo);
   assert.equal(result.content.notes,pauta.texto);
   assert.equal(counts([result.postIt],[result.content]).previsto,1, 'conversão mantém um único espaço');
+  assert.equal(counts([result.postIt],[result.content], outubro, '2026-11-01').previsto,1, 'com roteiro ligado, o dia passado continua contando');
   assert.ok(result.content.plataformas.every(item => item.status !== 'programada'));
 }
 const publicacao = (id:string, platformId:string, publishDate:string, ciclo=1): ContentPlataforma => ({

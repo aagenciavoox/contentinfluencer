@@ -5,7 +5,7 @@ import type { GradeSerie } from '../../editorial/lib/gradeEntries.ts';
 import { objetivoDoConteudo, pilarDoConteudo } from '../../editorial/lib/herancaSerie.ts';
 import { compararPeloModoSequencia } from '../../settings/lib/modoSequencia.ts';
 import type { ProgressoDaOnda } from './episodioNaTemporada.ts';
-import type { LinhaContinuidade } from './saudeIndicadores.ts';
+import type { LinhaContinuidade, LinhaObjetivoSaude } from './saudeIndicadores.ts';
 import { canPullContent, type PlanejamentoPostIt } from './postIt.ts';
 
 export type MotivoEncaixe = 'objetivo' | 'serie' | 'pilar';
@@ -34,12 +34,14 @@ export type RitmoDoEncaixe = {
   linhas: readonly Pick<LinhaContinuidade<unknown>, 'serieId' | 'temporadaId' | 'abaixo'>[];
   temporadas?: readonly TemporadaDoEncaixe[];
   progressoDasOndas?: ReadonlyMap<string, ProgressoDaOnda>;
+  /** Objetivos do período (os mesmos da Saúde): previsto × proporção do plano. Sem eles, o objetivo não ordena. */
+  objetivos?: readonly Pick<LinhaObjetivoSaude<unknown>, 'funcao' | 'previstoPct' | 'desejadoPct'>[];
 };
 
 const PESO: Record<MotivoEncaixe, number> = { objetivo: 4, serie: 2, pilar: 1 };
 
-/** Mais adiantado primeiro: preenche o espaço com menos trabalho. */
-const ORDEM_DA_ETAPA: Partial<Record<Etapa, number>> = { producao: 0, roteiro: 1, ideia: 2 };
+/** Mais adiantado primeiro: preenche o espaço com menos trabalho. Edição > Produção > Roteiro > Ideia. */
+const ORDEM_DA_ETAPA: Partial<Record<Etapa, number>> = { edicao: 0, producao: 1, roteiro: 2, ideia: 3 };
 
 function peso(motivos: readonly MotivoEncaixe[]): number {
   return motivos.reduce((total, motivo) => total + PESO[motivo], 0);
@@ -151,16 +153,37 @@ function porEtapaETitulo(a: CandidatoEncaixe, b: CandidatoEncaixe): number {
   return (a.content.title || '').localeCompare(b.content.title || '', 'pt-BR');
 }
 
-type Interno = CandidatoEncaixe & { atras: boolean; wave: boolean; grupo: string | null; posicao: number };
+/**
+ * Quanto o objetivo do candidato está abaixo da proporção do plano no período (pontos percentuais).
+ * Maior = mais longe da proporção. Sem objetivo fica por último; sem proporção no plano, todos empatam.
+ */
+export function faltaDoObjetivo(objetivo: FuncaoEditorial | null, ritmo: RitmoDoEncaixe | undefined): number {
+  const linhas = ritmo?.objetivos ?? [];
+  if (!linhas.some(linha => linha.desejadoPct != null)) return 0;
+  if (!objetivo) return Number.NEGATIVE_INFINITY;
+  const linha = linhas.find(item => item.funcao === objetivo);
+  return (linha?.desejadoPct ?? 0) - (linha?.previstoPct ?? 0);
+}
+
+/** Etapa; depois o objetivo mais abaixo da proporção; o título só desempata. */
+function porEtapaEObjetivo(a: Interno, b: Interno): number {
+  const porEtapa = (ORDEM_DA_ETAPA[a.etapa] ?? 9) - (ORDEM_DA_ETAPA[b.etapa] ?? 9);
+  if (porEtapa !== 0) return porEtapa;
+  if (a.falta !== b.falta) return a.falta > b.falta ? -1 : 1;
+  return (a.content.title || '').localeCompare(b.content.title || '', 'pt-BR');
+}
+
+type Interno = CandidatoEncaixe & { atras: boolean; wave: boolean; grupo: string | null; posicao: number; falta: number };
 
 /**
- * Dentro de um bloco: quem está atrás no ritmo; depois, na mesma série, a wave em andamento
- * e o modo de sequência; por fim a etapa e o título.
+ * Dentro de um bloco: quem está atrás no ritmo; depois a etapa (Edição > Produção > Roteiro > Ideia);
+ * depois o objetivo mais abaixo da proporção do plano. Na mesma série, a wave em andamento
+ * e o modo de sequência trocam os episódios de lugar entre si. O título só desempata.
  */
 function ordenarBloco(bloco: Interno[]): CandidatoEncaixe[] {
   const ordenado = [...bloco].sort((a, b) => {
     if (a.atras !== b.atras) return a.atras ? -1 : 1;
-    return porEtapaETitulo(a, b);
+    return porEtapaEObjetivo(a, b);
   });
   // Na mesma série (e no mesmo lado do ritmo), os episódios trocam de lugar entre si:
   // a wave em andamento e o modo de sequência decidem quem fica com a primeira vaga.
@@ -192,11 +215,11 @@ function ordenarBloco(bloco: Interno[]): CandidatoEncaixe[] {
     const pelaSequencia = [...itens].sort((a, b) =>
       (a.atras === b.atras ? 0 : a.atras ? -1 : 1) || (a.wave === b.wave ? 0 : a.wave ? -1 : 1) || a.posicao - b.posicao);
     const semSequencia = [...itens].sort((a, b) =>
-      (a.atras === b.atras ? 0 : a.atras ? -1 : 1) || (a.wave === b.wave ? 0 : a.wave ? -1 : 1) || porEtapaETitulo(a, b));
+      (a.atras === b.atras ? 0 : a.atras ? -1 : 1) || (a.wave === b.wave ? 0 : a.wave ? -1 : 1) || porEtapaEObjetivo(a, b));
     if (pelaSequencia[0] !== semSequencia[0]) sobe.add(pelaSequencia[0].content.id);
   }
 
-  return resultado.map(({ atras, wave: _wave, grupo: _grupo, posicao: _posicao, ...candidato }) => {
+  return resultado.map(({ atras, wave: _wave, grupo: _grupo, posicao: _posicao, falta: _falta, ...candidato }) => {
     const destaques: DestaqueEncaixe[] = [];
     if (atras && temSemAtraso) destaques.push('ritmo');
     if (sobe.has(candidato.content.id)) destaques.push('sequencia');
@@ -208,7 +231,7 @@ function ordenarBloco(bloco: Interno[]): CandidatoEncaixe[] {
  * O que pode ocupar um espaço planejado: ideia, roteiro ou conteúdo em Produção,
  * sem dia na grade e sem outro post-it. Nada é ligado aqui: a lista só mostra.
  * `combinam` tem o mesmo objetivo, série ou pilar do post-it; `outros`, o resto.
- * Dentro de cada bloco a ordem segue o plano (ritmo, sequência), depois a etapa.
+ * Dentro de cada bloco: ritmo, etapa, objetivo abaixo da proporção; wave e sequência dentro da série.
  */
 export function candidatosDoEncaixe({
   postIt,
@@ -248,6 +271,7 @@ export function candidatosDoEncaixe({
         wave: waveIncompleta(content, ritmo),
         grupo: grupo && !emRascunho(porId.get(grupo)) ? grupo : null,
         posicao: 0,
+        falta: faltaDoObjetivo(objetivo, ritmo),
       };
     });
 
@@ -273,7 +297,7 @@ export function candidatosDoEncaixe({
     for (const item of itens) item.posicao = indice.get(item.content.id) ?? 0;
   }
 
-  // O peso só separa os blocos; dentro de cada um vale o plano, depois a etapa.
+  // O peso só separa os blocos; dentro de cada um vale o plano: ritmo, etapa, objetivo.
   return {
     combinam: ordenarBloco(base.filter(item => item.motivos.length > 0)),
     outros: ordenarBloco(base.filter(item => item.motivos.length === 0)),

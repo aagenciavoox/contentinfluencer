@@ -1,6 +1,24 @@
 import { situacaoDaFrequencia, TEXTO_SEM_ANCORA, textoFrequencia } from './apuracaoSerie.ts';
 import { frequenciaParaGravar, unidadeDaMeta, type ErroDeFrequencia, type FrequenciaGravada, type UnidadeDaMeta } from './metaDaOnda.ts';
 
+/**
+ * O clique conta como dentro do popover do chip? Os seletores do painel (SelectMenu) abrem a
+ * lista em portal no body, fora do painel; sem esta checagem, o mousedown na opção fechava o
+ * popover antes do clique escolher o período.
+ */
+export function cliqueDentroDoPainel(
+  alvo: unknown,
+  painel: { contains(no: never): boolean; querySelector(seletor: string): unknown } | null,
+): boolean {
+  if (!alvo || !painel) return false;
+  if (painel.contains(alvo as never)) return true;
+  const closest = (alvo as { closest?: (seletor: string) => { id?: string } | null }).closest;
+  const lista = typeof closest === 'function' ? closest.call(alvo, '[role="listbox"]') : null;
+  if (!lista?.id) return false;
+  const id = lista.id.replace(/["\\]/g, '\\$&');
+  return painel.querySelector(`[aria-controls="${id}"]`) != null;
+}
+
 /** Os quatro campos da frequência, no lugar canônico da série (o mesmo da Continuidade). */
 export type AlvoDaFrequencia = {
   frequenciaRecomendada?: string | null;

@@ -1,12 +1,14 @@
 import { format, parseISO } from 'date-fns';
 import type { Content, Platform, Serie } from '../../../lib/database.ts';
 import { rotuloConta } from '../../contas/lib/contas.ts';
+import { tipoDaSerie } from '../../settings/lib/serieAgrupamento.ts';
 import { acompanhamentosPorEscopo } from '../../editorial/lib/acompanhamento.ts';
 import { TEXTO_SEM_ANCORA } from '../../editorial/lib/apuracaoSerie.ts';
 import { continuidadePorEscopo, type ContinuidadeDoEscopo } from '../../editorial/lib/continuidadeEscopo.ts';
 import type { OndaDaExclusao } from '../../editorial/lib/metaPropria.ts';
 import type { PausaEditorial } from '../../editorial/lib/pausas.ts';
 import { publicacoesDaAgenda, rotuloDoFormato } from '../../editorial/lib/publicacoes.ts';
+import { reservaPendente } from '../../editorial/lib/reservaPendente.ts';
 import type { PlanejamentoPostIt } from './postIt.ts';
 
 /** Uma linha da Saúde para um acompanhamento por conta ou formato. */
@@ -19,6 +21,10 @@ export type LinhaDoEscopoNaSaude = {
   /** Para os filtros do calendário: conta e formato do acompanhamento (null = todas). */
   platformId: string | null;
   formato: string | null;
+  /** Acompanhamento ligado sem frequência definida: não conta como em dia nem como abaixo. */
+  semFrequencia?: boolean;
+  /** Série ou quadro dono do acompanhamento, para o resumo da Saúde. */
+  tipo?: 'serie' | 'quadro';
 };
 
 function dia(iso: string): string {
@@ -87,12 +93,14 @@ export function linhasDaContinuidadePorEscopo(input: {
     .flatMap(acompanhamentosPorEscopo)
     .filter(item => item.ativo);
   if (acompanhamentos.length === 0) return [];
+  const hoje = input.hoje ?? format(new Date(), 'yyyy-MM-dd');
   const resultados = continuidadePorEscopo({
     acompanhamentos,
     series: input.series,
     metas: input.series.flatMap(serie => serie.metasPorEscopo ?? []),
     publicacoes: publicacoesDaAgenda({ contents: input.contents, contas: input.platforms, series: input.series }),
-    reservas: input.postIts.map(postIt => ({
+    // Reserva pendente (sem roteiro, dia passado) não segura mais a janela.
+    reservas: input.postIts.filter(postIt => !reservaPendente(postIt, hoje)).map(postIt => ({
       id: postIt.id,
       data: postIt.date,
       serieId: postIt.serieId ?? null,
@@ -101,7 +109,7 @@ export function linhasDaContinuidadePorEscopo(input: {
     periodo: input.periodo,
     pausas: input.pausas,
     temporadas: input.temporadas ?? [],
-    hoje: input.hoje ?? format(new Date(), 'yyyy-MM-dd'),
+    hoje,
   });
   const nomes = new Map(input.series.map(serie => [serie.id, serie.name]));
   return resultados.flatMap(resultado => {
@@ -114,6 +122,8 @@ export function linhasDaContinuidadePorEscopo(input: {
       formato: resultado.formato ?? null,
       titulo: `${nomes.get(resultado.serieId) ?? 'Série'} · ${rotuloDoEscopo(resultado, input.platforms)}`,
       ...leitura,
+      semFrequencia: resultado.estado === 'pendente' && resultado.situacao.tipo === 'sem-frequencia',
+      tipo: tipoDaSerie(resultado.serieId, input.series) === 'quadro' ? 'quadro' as const : 'serie' as const,
     }];
   }).sort((a, b) => Number(b.atencao) - Number(a.atencao) || a.titulo.localeCompare(b.titulo, 'pt-BR'));
 }

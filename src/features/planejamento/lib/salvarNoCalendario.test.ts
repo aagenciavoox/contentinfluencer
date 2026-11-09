@@ -7,6 +7,7 @@ import {
   executarSalvarNoCalendario,
   linhasParaSalvarNoCalendario,
   salvarRoteiroNoCalendario,
+  textoDataSubstituida,
   textoHorariosDescartados,
   tirarRoteiroDoCalendario,
 } from './salvarNoCalendario.ts';
@@ -164,6 +165,22 @@ function roteiro(overrides: Partial<Content> = {}): Content {
   assert.equal(resultado.avisos.length, 1);
   assert.match(resultado.avisos[0] ?? '', /19:00/);
   assert.deepEqual(resultado.contents[0]?.plataformas.map(item => item.publishTime), ['19:00', '19:00']);
+}
+
+// Roteiro vinculado já em outro dia: avisa a troca antes de salvar. Mesmo dia, sem data ou publicado: nada a avisar.
+{
+  const content = roteiro({plataformas: [conta('ig', '2026-11-12T12:00:00.000Z'), conta('tt', null)]});
+  assert.equal(textoDataSubstituida(content, {date: '2026-11-14'}), '"Cosmere sem TCC": 12/11 → 14/11');
+  assert.equal(textoDataSubstituida(content, {date: '2026-11-12'}), null);
+  assert.equal(textoDataSubstituida(roteiro({plataformas: [conta('ig', null)]}), {date: '2026-11-14'}), null);
+  const publicada = roteiro({plataformas: [conta('ig', '2026-11-02T12:00:00.000Z', {status: 'publicada'}), conta('tt', null)]});
+  assert.equal(textoDataSubstituida(publicada, {date: '2026-11-14'}), null);
+  assert.equal(
+    textoDataSubstituida(content, {contas: [{platformId: 'ig', date: '2026-11-13', time: null}, {platformId: 'tt', date: '2026-11-13', time: null}]}),
+    '"Cosmere sem TCC": 12/11 → 13/11',
+  );
+  const semContas = roteiro({publishDate: '2026-11-09T12:00:00.000Z'});
+  assert.equal(textoDataSubstituida(semContas, {date: '2026-11-10'}), '"Cosmere sem TCC": 09/11 → 10/11');
 }
 
 console.log('salvarNoCalendario tests passed');

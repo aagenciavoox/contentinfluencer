@@ -298,6 +298,7 @@ export function saudeDoMes({
   settings,
   periodo,
   platforms = [],
+  hoje,
 }: {
   postIts: readonly PlanejamentoPostIt[];
   contents: readonly Content[];
@@ -306,6 +307,8 @@ export function saudeDoMes({
   settings: AjustesDoMes;
   periodo: PeriodoGrade;
   platforms?: readonly DestinoPlataforma[];
+  /** yyyy-MM-dd; padrão, hoje. Decide também a reserva pendente (post-it sem roteiro com dia passado). */
+  hoje?: string;
 }): SaudeDoMes {
   const oficiais = buildGradeEntries({
     contents,
@@ -320,6 +323,7 @@ export function saudeDoMes({
     settings,
     periodo,
     series,
+    hoje,
   });
   return {
     ...contagem,

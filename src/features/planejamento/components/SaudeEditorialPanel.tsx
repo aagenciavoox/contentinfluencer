@@ -29,7 +29,7 @@ import { distribuicaoPorPilar } from '../lib/periodoDaSaude';
 import { distribuicaoAssuntosNaSaude } from '../lib/distribuicaoAssuntosNaSaude';
 import { cn } from '../../../lib/utils';
 import type { GradeEntry } from '../../editorial/lib/gradeEntries';
-import { rotuloIntervalo, textoMaisPraFechar, textoRitmoAbaixo, textoSemObjetivo, type Continuidade, type LinhaContinuidade, type DistribuicaoObjetivos } from '../lib/saudeIndicadores';
+import { resumoDosDesvios, resumoSemFrequencia, rotuloIntervalo, TEXTO_ACOMPANHADA_SEM_RITMO, textoMaisPraFechar, textoRitmoAbaixo, textoSemObjetivo, type Continuidade, type LinhaContinuidade, type DistribuicaoObjetivos } from '../lib/saudeIndicadores';
 import { textoDaJanela } from '../../editorial/lib/apuracaoSerie';
 import { ItensDaSaudeDialog, type ListaDaSaude } from './ItensDaSaudeDialog';
 import type { LinhaDoEscopoNaSaude } from '../lib/continuidadePorEscopoNaSaude';
@@ -407,6 +407,20 @@ export function SaudeEditorialPanel({
     || (l.diasSeguidos ?? []).some(d => d.seguinte >= hojeIso)
     || (l.distancias ?? []).some(d => d.fim >= hojeIso)
     || escopos.some(e => e.serieId === l.serieId && e.atencao));
+  const nenhumaAcompanhada = (!continuidade || continuidade.nenhumaAcompanhada) && escopos.length === 0;
+  // Intervalo já encerrado abaixo da meta: não há mais o que planejar nele, mas também não está "em dia".
+  const seriesFecharamAbaixo = linhasContinuidade.filter(l =>
+    l.intervalos.some(i => i.fim < hojeIso && i.abaixo && !i.pausada && !i.parcial));
+  const textoSeriesSemPendencia = nenhumaAcompanhada
+    ? 'Nenhuma série acompanhada no período'
+    : seriesFecharamAbaixo.length > 0 ? 'Em dia daqui pra frente' : 'Frequência em dia';
+  // Acompanhadas sem frequência: estado próprio, nem em dia nem abaixo. Reaproveita a pendência "sem-frequencia".
+  const semFrequencia = resumoSemFrequencia([
+    ...(continuidade?.pendencias ?? []).filter(pendencia => pendencia.motivo === 'sem-frequencia'),
+    ...escopos.filter(escopo => escopo.semFrequencia).map(escopo => ({ serieId: escopo.serieId, tipo: escopo.tipo ?? 'serie' as const })),
+  ]);
+  // Resumo da seção 3: abaixo do ritmo e acima da meta à parte, com os mesmos critérios de seriesAbaixo e seriesConcentradas.
+  const resumoDesvios = resumoDosDesvios(seriesAbaixo, seriesConcentradas);
 
   // Status visual geral
   const statusGeral = foraDoPrazo.length > 0 ? 'erro' : seriesComPendencias.length > 0 || gravacao > 0 ? 'aviso' : 'ok';
@@ -649,11 +663,11 @@ export function SaudeEditorialPanel({
                   <Text variant="label" as="span" className="text-[var(--text-tertiary)] uppercase tracking-wider truncate">
                     Séries
                   </Text>
-                  <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', seriesComPendencias.length > 0 ? 'bg-[var(--accent-orange)]' : 'bg-[var(--accent-green)]')} />
+                  <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', seriesComPendencias.length > 0 ? 'bg-[var(--accent-orange)]' : semFrequencia ? 'bg-[var(--warning)]' : nenhumaAcompanhada || seriesFecharamAbaixo.length > 0 ? 'bg-[var(--text-tertiary)]' : 'bg-[var(--accent-green)]')} />
                 </div>
                 <div className="mt-1">
                   <Text variant="bodyStrong" as="p" className="text-[var(--text-primary)] truncate">
-                    {seriesComPendencias.length > 0 ? `${seriesComPendencias.length} para revisar` : 'Frequência em dia'}
+                    {seriesComPendencias.length > 0 ? `${seriesComPendencias.length} para revisar` : semFrequencia ? `${semFrequencia.total} sem ritmo definido` : textoSeriesSemPendencia}
                   </Text>
                 </div>
               </button>
@@ -672,7 +686,7 @@ export function SaudeEditorialPanel({
                 </div>
                 <div className="mt-1">
                   <Text variant="bodyStrong" as="p" className="text-[var(--text-primary)] truncate">
-                    {objetivos?.semObjetivo.length ? `${objetivos.semObjetivo.length} sem objetivo` : 'Equilibrado'}
+                    {objetivos?.semObjetivo.length ? `${objetivos.semObjetivo.length} sem objetivo definido` : 'Sem roteiros pendentes'}
                   </Text>
                 </div>
               </button>
@@ -993,14 +1007,16 @@ export function SaudeEditorialPanel({
                 onToggle={() => toggleSecao('series')}
                 alerta={seriesAbaixo.length > 0 ? 'aviso' : seriesConcentradas.length > 0 ? 'aviso' : 'ok'}
                 resumo={
-                  seriesComPendencias.length > 0
-                    ? `${seriesAbaixo.length === 1 ? '1 série com ritmo em aberto' : `${seriesAbaixo.length} séries com ritmo em aberto`}`
-                    : seriesConcentradas.length > 0
-                    ? `${seriesConcentradas.length} com excesso`
-                    : seriesComPendencias.length > 0 ? `${seriesComPendencias.length} para revisar` : `${linhasContinuidade.length} acompanhadas · em dia`
+                  [
+                    resumoDesvios || (seriesComPendencias.length > 0 ? `${seriesComPendencias.length} para revisar` : ''),
+                    semFrequencia?.texto ?? '',
+                  ].filter(Boolean).join(' · ')
+                    || (nenhumaAcompanhada ? 'Nenhuma série acompanhada no período'
+                    : seriesFecharamAbaixo.length > 0 ? `${linhasContinuidade.length} acompanhadas · em dia daqui pra frente`
+                    : `${linhasContinuidade.length} acompanhadas · em dia`)
                 }
               >
-                {(!continuidade || continuidade.nenhumaAcompanhada) && escopos.length === 0 ? (
+                {nenhumaAcompanhada ? (
                   <div className="p-3 rounded-[var(--radius-sm)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] stack-xs">
                     <Text variant="body" as="p">
                       Nada marcado para acompanhamento neste período.
@@ -1017,6 +1033,21 @@ export function SaudeEditorialPanel({
                   </div>
                 ) : (
                   <div className="stack-sm">
+                    {/* Acompanhadas sem ritmo: aviso neutro, fora de "em dia" e de "abaixo" */}
+                    {semFrequencia ? (
+                      <div
+                        role="status"
+                        className="rounded-[var(--radius-sm)] border p-3 stack-xs"
+                        style={{ backgroundColor: 'var(--warning-bg)', borderColor: 'color-mix(in srgb, var(--warning) 30%, transparent)' }}
+                      >
+                        <Text variant="bodyStrong" as="p" className="text-[var(--text-primary)]">
+                          {semFrequencia.texto}
+                        </Text>
+                        <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+                          {TEXTO_ACOMPANHADA_SEM_RITMO}
+                        </Text>
+                      </div>
+                    ) : null}
                     {/* Lista Agrupada por Série */}
                     {linhasContinuidade.map(linha => {
                       const futuros = linha.intervalos.filter(i => i.fim >= hojeIso);
@@ -1071,6 +1102,8 @@ export function SaudeEditorialPanel({
                                   <span className="ml-1 text-[var(--text-tertiary)]">· {passados.length} intervalo(s) encerrado(s)</span>
                                 ) : escopos.some(e => e.serieId === linha.serieId && e.atencao) ? (
                                   <span className="ml-1 text-[var(--accent-orange)]">· Revisar acompanhamento</span>
+                                ) : linha.intervalos.length === 0 && escopos.some(e => e.serieId === linha.serieId && e.semFrequencia) ? (
+                                  <span className="ml-1 text-[var(--text-tertiary)]">· Sem ritmo definido</span>
                                 ) : (
                                   <span className="ml-1 text-[var(--accent-green)]">· Em dia</span>
                                 )}
@@ -1314,8 +1347,8 @@ export function SaudeEditorialPanel({
                 resumo={
                   objetivos
                     ? objetivos.semObjetivo.length > 0
-                      ? `${objetivos.semObjetivo.length} sem objetivo`
-                      : 'Equilibrado'
+                      ? `${objetivos.semObjetivo.length} sem objetivo definido`
+                      : 'Sem roteiros pendentes'
                     : 'Sem dados'
                 }
               >

@@ -14,6 +14,9 @@ import {datasNaGrade} from '../../editorial/lib/datasNaGrade';
 import {FUNCAO_CURTA} from '../../editorial/lib/funcoes';
 import {candidatosDoEncaixe, descricaoDoCandidato, type CandidatoEncaixe, type RitmoDoEncaixe} from '../lib/encaixe';
 import {progressoDasOndas} from '../lib/episodioNaTemporada';
+import {saudeDoMes} from '../lib/monthHealth';
+import {distribuicaoPorObjetivo, proporcaoDesejadaDoPeriodo} from '../lib/saudeIndicadores';
+import {readProporcao} from '../../editorial/lib/proporcaoObjetivos';
 import {encaixarConteudo, type PlanejamentoPostIt} from '../lib/postIt';
 import type {FiltroCalendario} from '../lib/filtroCalendario';
 import {useAvisoConcentracao} from '../hooks/useAvisoConcentracao';
@@ -111,10 +114,27 @@ export function EncaixeDialog({
 
   const lista = useMemo(() => {
     if (!postIt) return {combinam: [], outros: []};
+    // Objetivos do período, como na Saúde: o que está mais abaixo da proporção do plano sobe.
+    const contagem = saudeDoMes({
+      postIts,
+      contents: state.contents,
+      series: state.series,
+      pilares: state.pilares,
+      settings: state.editorial,
+      periodo,
+      platforms: state.platforms,
+    });
+    const proporcao = proporcaoDesejadaDoPeriodo({
+      periodo,
+      limiteSemanal: state.editorial.preferencias?.limiteSemanal ?? null,
+      proporcaoFuncoes: readProporcao(state.editorial.proporcaoFuncoes),
+      vigencias: state.editorial.vigencias,
+    });
     const ritmo: RitmoDoEncaixe = {
       linhas: linhasDoRitmo ?? [],
       temporadas: state.temporadas,
       progressoDasOndas: progressoDasOndas(state.contents, format(new Date(), 'yyyy-MM-dd')),
+      objetivos: distribuicaoPorObjetivo({itens: contagem.itens, contents: state.contents, series: state.series, proporcao}).linhas,
     };
     const todos = candidatosDoEncaixe({postIt, postIts, contents: state.contents, series: state.series, datas, ritmo});
     const termo = busca.trim().toLocaleLowerCase('pt-BR');
@@ -122,7 +142,7 @@ export function EncaixeDialog({
     const passa = (candidato: CandidatoEncaixe) =>
       (candidato.content.title || '').toLocaleLowerCase('pt-BR').includes(termo);
     return {combinam: todos.combinam.filter(passa), outros: todos.outros.filter(passa)};
-  }, [busca, datas, postIt, postIts, state.contents, state.series, state.temporadas, linhasDoRitmo]);
+  }, [busca, datas, postIt, postIts, state.contents, state.series, state.pilares, state.editorial, state.platforms, state.temporadas, linhasDoRitmo, periodo]);
 
   const criterio = postIt ? criterioDoPostIt(postIt, state.series, state.pilares) : null;
   const vazio = lista.combinam.length === 0 && lista.outros.length === 0;

@@ -1,5 +1,6 @@
 await import('./context/persistAction.test.ts');
 await import('./features/editorial/lib/metaPropria.test.ts');
+await import('./features/editorial/lib/reservaPendente.test.ts');
 await import('./features/planejamento/lib/periodoPlanejamento.test.ts');
 await import('./context/realtimeSync.test.ts');
 await import('./lib/tableWrites.test.ts');
