@@ -133,6 +133,7 @@ assert.match((colunasDaFrequencia({vezes: 2, unidade: 'semana'}, vazia, 'serie')
 assert.match((colunasDaFrequencia({vezes: 3}, {vezes: 1, unidade: 'quinzena', aPartirDe: '2026-01-01'}, 'serie') as {erro: string}).erro, /até 2 a cada 14 dias/);
 assert.ok('colunas' in (colunasDaFrequencia({vezes: 4, unidade: 'mes'}, vazia, 'serie') ?? {}));
 assert.match((colunasDaFrequencia({vezes: 1, unidade: 'semana'}, vazia, 'quadro') as {erro: string}).erro, /sob demanda/);
+assert.match((colunasDaFrequencia({vezes: 1, unidade: 'semana'}, vazia, 'familia') as {erro: string}).erro, /agrupamento visual/);
 assert.match(avisoDaContinuidade(true, 'quadro', true).aviso ?? '', /sob demanda/);
 
 console.log('serieEstrutura ok');

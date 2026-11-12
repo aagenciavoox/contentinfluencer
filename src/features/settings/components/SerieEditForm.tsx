@@ -743,13 +743,15 @@ export function SerieEditForm({
         cor: form.cor,
         capaUrl: form.capaUrl.trim() || null,
         ativa: form.ativa,
-        // Ritmo opcional da família: conta episódios únicos das séries e quadros dela.
-        frequenciaRecomendada: form.temMeta && unidade ? formatarFrequenciaRecomendada(vezes, unidade) : null,
-        frequenciaVezes: vezes,
-        frequenciaUnidade: unidade,
-        frequenciaAPartirDe: aPartirDe,
+        // Família é pasta visual: não grava ritmo novo; o que já está no banco permanece.
+        frequenciaRecomendada: initial.frequenciaRecomendada ?? null,
+        frequenciaVezes: initial.frequenciaVezes ?? null,
+        frequenciaUnidade: initial.frequenciaUnidade ?? null,
+        frequenciaAPartirDe: initial.frequenciaAPartirDe ?? null,
         ...(initial.status ? { status: initial.status } : {}),
-        ...acompanhamentoGeral(),
+        acompanharContinuidade: initial.acompanharContinuidade,
+        acompanhamentos: initial.acompanhamentos,
+        metasPorEscopo: initial.metasPorEscopo,
         funcaoPadrao: null,
         energiaPadrao: null,
         pilarPrincipalId: null,
@@ -1207,41 +1209,6 @@ export function SerieEditForm({
                     className={cn(inputClass, 'resize-y leading-relaxed')}
                   />
                 </div>
-              </Surface>
-
-              <Surface id="familia-ritmo" variant="outlined" padding="md" className="scroll-mt-24 stack-md">
-                {serieGravada ? renderChipDaMeta('Na família, cada episódio de série conta uma vez; quadros ficam fora. Regra de Ouro: até 1 por semana por série ativa da família.') : (
-                  <>
-                    <div>
-                      <label htmlFor="familia-meta">
-                        <FieldLabel optional>Ritmo da família</FieldLabel>
-                      </label>
-                      <SelectField
-                        id="familia-meta"
-                        block
-                        ariaLabel="Ritmo da família"
-                        value={form.temMeta ? 'com-meta' : 'sem-meta'}
-                        onChange={valor => {
-                          const ativar = valor === 'com-meta';
-                          setForm(previous => ({
-                            ...previous,
-                            temMeta: ativar,
-                            frequenciaVezes: ativar ? (previous.frequenciaVezes ?? 1) : null,
-                            frequenciaUnidade: ativar ? (previous.frequenciaUnidade || 'semana') : 'semana',
-                          }));
-                        }}
-                        options={[
-                          { value: 'sem-meta', label: 'Sem ritmo (opcional)' },
-                          { value: 'com-meta', label: 'Definir ritmo' },
-                        ]}
-                      />
-                      <Text variant="meta" as="p" className="mt-1.5 text-[var(--text-secondary)]">
-                        Conta episódios únicos das séries da família (quadros ficam fora), na Continuidade e no Plano do período. Regra de Ouro: até 1 por semana por série ativa.
-                      </Text>
-                    </div>
-                    {form.temMeta ? renderCamposMeta() : null}
-                  </>
-                )}
               </Surface>
 
               <CollapsibleSection

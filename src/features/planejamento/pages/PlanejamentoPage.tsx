@@ -94,6 +94,7 @@ import {assuntosEmUso, conteudoTemAssunto, nomesDasObras} from '../lib/assuntosO
 import {fimDeSemana} from '../lib/periodoPlanejamento';
 import {rotulosDeEpisodio} from '../lib/episodioNaTemporada';
 import type {PublicacaoNoDia} from '../lib/publicacoesDoMes';
+import {opcoesSerieDoPostIt} from '../lib/opcoesSerieDoPostIt';
 import {SelectField} from '../../../components/ui/SelectField';
 import {
   canPullContent,
@@ -419,10 +420,7 @@ export function PlanejamentoPage() {
   const previewAgenda = preview ? publicacoesDoCard(indiceAgenda, preview.contentId, preview.dia) : [];
   const previewAppearance = postItAppearance(previewContent, state.series, state.pilares, state.temas, previewPostIt);
 
-  const opcoesDeSerie = [...state.series]
-    .filter(serie => serie.ativa || serie.id === classeDraft.serieId)
-    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
-    .map(serie => ({value: serie.id, label: serie.name}));
+  const opcoesDeSerie = opcoesSerieDoPostIt(state.series, classeDraft.serieId);
   const redeReferencia = rotuloDaRef(
     state.editorial.preferencias?.redeReferenciaId ?? state.editorial.redeReferenciaId,
     state.platforms,

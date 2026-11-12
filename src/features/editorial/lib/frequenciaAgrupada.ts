@@ -1,6 +1,6 @@
 import type { Serie } from '../../../lib/database.ts';
 import { expectativaNoIntervalo, lerFrequencia, type FrequenciaSerie } from './frequenciaSerie.ts';
-import { ehQuadroNaArvore, unidadesDaRegraDeOuro, vezesNaRegraDeOuro, type NoDaRegra } from './regraDeOuro.ts';
+import { ehFamiliaNaArvore, ehQuadroNaArvore, unidadesDaRegraDeOuro, vezesNaRegraDeOuro, type NoDaRegra } from './regraDeOuro.ts';
 import { filhosDaSerie, idsDaSubarvore, type SerieNo } from './serieArvore.ts';
 
 export type SerieFrequencia = Pick<
@@ -62,7 +62,7 @@ function frequenciaDe(serie: SerieFrequencia): FrequenciaSerie {
   });
 }
 
-/** Quadro é sob demanda (sem número); série até 1 por semana; família, uma vaga por série ativa. */
+/** Quadro e família não têm meta; série até 1 por semana. */
 function expectativaDe(
   serie: SerieFrequencia,
   series: readonly SerieFrequencia[],
@@ -70,7 +70,7 @@ function expectativaDe(
   fim: string,
 ): number | null {
   const arvore = series as readonly NoDaRegra[];
-  if (ehQuadroNaArvore(serie.id, arvore)) return null;
+  if (ehQuadroNaArvore(serie.id, arvore) || ehFamiliaNaArvore(serie.id, arvore)) return null;
   const freq = frequenciaDe(serie);
   if (freq.unidade === 'sob-demanda') return null;
   const vezes = vezesNaRegraDeOuro(freq.vezes, freq.unidade, unidadesDaRegraDeOuro(serie.id, arvore)) ?? freq.vezes;

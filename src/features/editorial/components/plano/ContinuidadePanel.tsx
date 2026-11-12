@@ -161,7 +161,7 @@ type Alvo = AlvoSerie | AlvoTemporada;
 
 function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly Platform[]; onClose: () => void }) {
   const { state, dispatch } = useAppContext();
-  // Regra de Ouro: série e wave, até 1 por semana; família, uma vaga por série ativa dela.
+  // Regra de Ouro: série e wave, até 1 por semana.
   const unidadesDaRegra = alvo.tipo === 'temporada' ? 1 : unidadesDaRegraDeOuro(alvo.serie.id, state.series);
   const base = alvo.tipo === 'temporada' ? alvo.temporada : alvo.serie;
   const [acompanhar, setAcompanhar] = useState(alvo.tipo === 'temporada' ? alvo.temporada.acompanhar === true : acompanhaNoGeral(alvo.serie));
@@ -565,7 +565,6 @@ const ROTULO_DO_TIPO: Record<TipoDaLinha, string> = {
 const FILTROS: Array<{ value: FiltroDoPlano; label: string }> = [
   { value: 'todos', label: 'Todos' },
   { value: 'conta', label: 'Contas' },
-  { value: 'familia', label: 'Famílias' },
   { value: 'serie', label: 'Séries' },
   { value: 'temporada', label: 'Temporadas' },
 ];
@@ -575,7 +574,7 @@ function diaMes(data: string): string {
 }
 
 /**
- * Plano do período em tabela: contas, famílias, séries e temporadas, com ritmo,
+ * Plano do período em tabela: contas, séries e temporadas, com ritmo,
  * meta no período, episódios com data, publicados e programados. Liga o acompanhamento
  * e edita o ritmo sem sair do Editorial.
  */
@@ -651,9 +650,9 @@ export function ContinuidadePanel({ periodo }: { periodo: Intervalo }) {
     }
 
     const ativas = state.series.filter(serie => serie.ativa !== false);
-    const linhaDaSerie = (serie: Serie, tipo: 'familia' | 'serie', nivel: 0 | 1, detalhe: string | null): LinhaDoPlano => {
+    const linhaDaSerie = (serie: Serie, tipo: 'serie', nivel: 0 | 1, detalhe: string | null): LinhaDoPlano => {
       const rascunho = serie.status === 'rascunho';
-      // Regra de Ouro: até 1 por semana por série; a família tem uma vaga por série ativa.
+      // Regra de Ouro: até 1 por semana por série.
       const meta = rascunho ? null : metaDoRitmo(serie, intervalo, unidadesDaRegraDeOuro(serie.id, state.series));
       return {
         chave: `s:${serie.id}`,
@@ -673,10 +672,7 @@ export function ContinuidadePanel({ periodo }: { periodo: Intervalo }) {
       };
     };
 
-    for (const familia of ativas.filter(serie => tipoDaSerie(serie.id, state.series) === 'familia').sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))) {
-      lista.push(linhaDaSerie(familia, 'familia', 0, 'Episódios únicos das séries da família'));
-    }
-    // Quadro é sob demanda: sem meta, não vira linha do plano (o limite dele é o aviso de saturação).
+    // Família é pasta visual: não vira linha do plano. Quadro é sob demanda: sem meta.
     const series = ativas
       .filter(serie => tipoDaSerie(serie.id, state.series) === 'serie')
       .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
@@ -757,8 +753,8 @@ export function ContinuidadePanel({ periodo }: { periodo: Intervalo }) {
       const serie = state.series.find(item => item.id === editar.slice(2));
       if (!serie) return null;
       const tipo = tipoDaSerie(serie.id, state.series);
-      if (tipo === 'quadro') return null;
-      return { tipo: 'serie', serie, familia: tipo === 'familia' };
+      if (tipo === 'quadro' || tipo === 'familia') return null;
+      return { tipo: 'serie', serie };
     }
     return null;
   })();

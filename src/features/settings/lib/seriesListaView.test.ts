@@ -17,7 +17,7 @@ console.log('seriesListaView.test.ts ok');
 
 // --- Vitrine: séries e quadros lado a lado, cards planos; família só no filtro dela; pilar filtra os dois.
 {
-  const { montarListaSeries, etiquetaDoCard, secoesDaVitrine, FILTROS_LISTA_PADRAO } = await import('./seriesListaView.ts');
+  const { montarListaSeries, etiquetaDoCard, secoesPorFamilia, FILTROS_LISTA_PADRAO } = await import('./seriesListaView.ts');
   const { TIPO_AGRUPAMENTO_LABEL } = await import('./serieAgrupamento.ts');
   const no = (id: string, extra: Record<string, unknown> = {}) =>
     ({ id, name: id, ativa: true, status: 'ativa', parentId: null, pilarIds: [], ...extra }) as unknown as Serie;
@@ -33,15 +33,16 @@ console.log('seriesListaView.test.ts ok');
   const ids = (filtros: Partial<typeof FILTROS_LISTA_PADRAO>) => lista(filtros).visiveis.map(item => item.serie.id);
   assert.deepEqual(ids({}), ['Ser', 'Qua', 'Solo'], 'Todos: séries e quadros, quadro logo depois da série dele');
   assert.deepEqual(lista({}).elegiveis.map(item => item.serie.id), ['Fam', 'Ser', 'Qua', 'Solo'], 'elegíveis incluem a família para as seções');
+  const resultado = lista({});
   assert.deepEqual(
-    secoesDaVitrine(lista({}).elegiveis).map(secao => [secao.tipo, secao.itens.map(item => item.serie.id)]),
-    [['serie', ['Ser', 'Solo']], ['quadro', ['Qua']], ['familia', ['Fam']]],
-    'seções na ordem Séries, Quadros, Famílias',
+    secoesPorFamilia(resultado.visiveis, resultado.itens).map(secao => [secao.id, secao.titulo, secao.itens.map(item => item.serie.id)]),
+    [['Fam', 'Família: Fam', ['Ser', 'Qua']], ['avulsos', 'Outros / Avulsos', ['Solo']]],
+    'seções por família, avulsos no fim',
   );
-  assert.equal('agrupada' in lista({}), false, 'sem pasta de família');
   assert.deepEqual(ids({ tipo: 'serie' }), ['Ser', 'Solo']);
   assert.deepEqual(ids({ tipo: 'quadro' }), ['Qua']);
-  assert.deepEqual(ids({ tipo: 'familia' }), ['Fam'], 'família continua alcançável');
+  assert.deepEqual(ids({ tipo: 'familia' }), ['Ser', 'Qua', 'Solo'], 'filtro antigo de Famílias vira a vitrine de séries e quadros');
+  assert.deepEqual(ids({ familia: 'Fam' }), ['Ser', 'Qua'], 'chip da família mostra só o que está nela');
   // O quadro herda o pilar da série.
   assert.deepEqual(ids({ pilar: 'p1' }), ['Ser', 'Qua']);
   assert.deepEqual(ids({ pilar: 'p2' }), ['Solo']);

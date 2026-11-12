@@ -58,7 +58,7 @@ const familia = contarSerieAgrupada({
   ...semana,
 });
 
-assert.equal(familia.expectativa, 3);
+assert.equal(familia.expectativa, null, 'família não tem meta própria');
 assert.equal(familia.diretos, 0);
 assert.equal(familia.filhos.length, 2);
 const branbran = familia.filhos.find(f => f.serieId === 'branbran');
@@ -67,11 +67,10 @@ assert.equal(branbran?.quantidade, 3); // 2 comece + 1 branbran
 assert.equal(tolkien?.quantidade, 1);
 assert.equal(familia.total, 4);
 assert.equal(familia.somaRecortesFilhos, 1); // só Tolkien tem número
-// Metas dos filhos somando menos que a do pai não é conflito: o resto fica livre.
 assert.equal(familia.recorteIncompativel, false);
 
 const texto = textoDaContagemSerie(familia);
-assert.equal(texto, '4 de 3');
+assert.equal(texto, '4 · quando houver pauta');
 
 // Neto não entra de novo na soma do pai além da contribuição do filho.
 const branbranConta = contarSerieAgrupada({

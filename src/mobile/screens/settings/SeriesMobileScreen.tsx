@@ -27,6 +27,7 @@ export function SeriesMobileScreen({
     opcoes.find(opcao => opcao.value === valor)?.label ?? valor;
   const ativos = [
     filtros.tipo !== 'todos' ? `Tipo: ${rotuloOpcao(modelo.opcoesTipo, filtros.tipo)}` : null,
+    filtros.familia !== 'todas' ? `Família: ${modelo.familias.find(item => item.serie.id === filtros.familia)?.serie.name.trim() || 'Selecionada'}` : null,
     filtros.pilar !== 'todos' ? `Pilar: ${rotuloOpcao(modelo.opcoesPilar, filtros.pilar)}` : null,
     filtros.situacao !== 'ativas' ? `Situação: ${modelo.rotulosSituacao[filtros.situacao]}` : null,
   ].filter((item): item is string => Boolean(item));
@@ -51,6 +52,28 @@ export function SeriesMobileScreen({
             onFilterClick={() => setFiltrosAbertos(true)}
             filterLabel={ativos.length > 0 ? `Abrir filtros (${ativos.length} ativos)` : 'Abrir filtros'}
           />
+          {modelo.familias.length > 0 ? (
+            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="group" aria-label="Filtrar por família">
+              {[{ id: 'todas', label: 'Todas' }, ...modelo.familias.map(item => ({ id: item.serie.id, label: item.serie.name.trim() || 'Sem nome' }))].map(chip => {
+                const ativo = filtros.familia === chip.id;
+                return (
+                  <button
+                    key={chip.id}
+                    type="button"
+                    aria-pressed={ativo}
+                    onClick={() => atualizarFiltro('familia', chip.id)}
+                    className={`shrink-0 rounded-full border px-3 py-1.5 ${
+                      ativo
+                        ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                        : 'border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-secondary)]'
+                    }`}
+                  >
+                    <span className="t-button">{chip.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
           {ativos.length > 0 ? (
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1">
               <Text variant="meta" as="span">{ativos.join(' · ')}</Text>
@@ -100,6 +123,17 @@ export function SeriesMobileScreen({
           onChange={valor => atualizarFiltro('tipo', valor as FiltroTipoLista)}
           options={modelo.opcoesTipo}
         />
+        {modelo.familias.length > 0 ? (
+          <MobileFilterSelect
+            label="Família"
+            value={filtros.familia}
+            onChange={valor => atualizarFiltro('familia', valor)}
+            options={[
+              { value: 'todas', label: 'Todas' },
+              ...modelo.familias.map(item => ({ value: item.serie.id, label: item.serie.name.trim() || 'Sem nome' })),
+            ]}
+          />
+        ) : null}
         <MobileFilterSelect
           label="Pilar"
           value={filtros.pilar}

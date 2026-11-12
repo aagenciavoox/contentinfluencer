@@ -22,7 +22,7 @@ import {semanaDe} from '../../editorial/lib/periodoEditorial.ts';
 import {avisoLigado, limiteSaturacaoQuadro, semAvisosDesligados, type AvisosLigados} from '../../editorial/lib/avisosEditoriais.ts';
 import {avaliarFaixa, type IndicadoresProducao} from '../../editorial/lib/indicadoresProducao.ts';
 import {lerFrequencia} from '../../editorial/lib/frequenciaSerie.ts';
-import {ehQuadroNaArvore, unidadesDaRegraDeOuro, vezesNaRegraDeOuro} from '../../editorial/lib/regraDeOuro.ts';
+import {ehFamiliaNaArvore, ehQuadroNaArvore, unidadesDaRegraDeOuro, vezesNaRegraDeOuro} from '../../editorial/lib/regraDeOuro.ts';
 import {roteirosPorSemana} from '../../settings/lib/statusSerie.ts';
 import type {Continuidade, LinhaContinuidade} from './saudeIndicadores.ts';
 import type {PlanejamentoPostIt} from './postIt.ts';
@@ -335,8 +335,8 @@ function avisosDeFrequenciaSerie(
 
   for (const serie of series) {
     if (serie.ativa === false) continue;
-    // Quadro é sob demanda: sem meta, não cobra frequência (o aviso dele é o de saturação).
-    if (ehQuadroNaArvore(serie.id, series)) continue;
+    // Quadro é sob demanda; família é pasta visual: sem meta, sem aviso de ritmo.
+    if (ehQuadroNaArvore(serie.id, series) || ehFamiliaNaArvore(serie.id, series)) continue;
     const nome = serie.name.trim() || 'Série';
     // Metas dos quadros somando menos que a da série não é erro: o resto fica para os outros episódios.
     // É configuração, não cobrança, mas só aparece para série acompanhada (decisão da Anne).
@@ -345,7 +345,7 @@ function avisosDeFrequenciaSerie(
       avisos.push({
         id: `serie-recorte:${serie.id}`,
         tipo: 'serie-acima',
-        texto: `${nome}: as metas das séries somam ${agrupada.somaRecortesFilhos} e passam do ritmo da família (${agrupada.expectativa}).`,
+        texto: `${nome}: as metas das séries somam ${agrupada.somaRecortesFilhos} e passam do ritmo (${agrupada.expectativa}).`,
         postItIds: [],
         contentIds: [],
         severidade: 'info',
@@ -663,7 +663,7 @@ function roteirosDaLinhaPorSemana(
     unidade: onda ? onda.frequenciaUnidade : serie?.frequenciaUnidade,
   });
   if (freq.unidade === 'sob-demanda') return null;
-  // Regra de Ouro: série e wave pedem no máximo 1 por semana; família, uma por série ativa dela.
+  // Regra de Ouro: série e wave pedem no máximo 1 por semana.
   const unidades = onda ? 1 : unidadesDaRegraDeOuro(linha.serieId, series);
   const vezes = vezesNaRegraDeOuro(freq.vezes, freq.unidade, unidades) ?? freq.vezes;
   return roteirosPorSemana({frequenciaVezes: vezes, frequenciaUnidade: freq.unidade});

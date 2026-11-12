@@ -9,6 +9,7 @@ import {OverlayFooter} from '../../../components/overlays/OverlayFooter';
 import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
 import {dia} from '../../../lib/dates';
 import type {Pilar, Platform, Serie} from '../../../lib/database';
+import {opcoesSerieDoPostIt} from '../lib/opcoesSerieDoPostIt';
 import {escolherSerieNoPostIt, type PostItEdit} from '../lib/postIt';
 import {postItRapidoPodeSalvar} from '../lib/redesPostIt';
 import {RedeChips} from './RedeChips';
@@ -75,13 +76,9 @@ export function PostItRapidoDialog({
     onSalvar({...draft, texto: draft.texto.trim()});
   };
 
-  const seriesAtivas = series.filter(s => s.ativa);
   const opcoesDeSerie = [
     {value: '', label: 'Sem série (pauta avulsa)'},
-    ...seriesAtivas.map(s => ({
-      value: s.id,
-      label: s.name,
-    })),
+    ...opcoesSerieDoPostIt(series, draft.serieId ?? initialSerieId),
   ];
 
   return (
@@ -137,6 +134,7 @@ export function PostItRapidoDialog({
                 label="Série ou quadro"
                 hideLabel
                 placeholder="Sem série (cor neutra)"
+                searchable
                 maxSelections={1}
                 values={draft.serieId ? [draft.serieId] : []}
                 options={opcoesDeSerie}

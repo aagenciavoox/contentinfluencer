@@ -14,6 +14,7 @@ import { rotaParaCriarFilho } from '../lib/serieHierarquia';
 import { useStatusDaSerie } from './useStatusDaSerie';
 import {
   FILTROS_LISTA_PADRAO,
+  familiasParaFiltro,
   filtrosDaListaAtivos,
   montarListaSeries,
   type FiltroSituacao,
@@ -28,8 +29,9 @@ function validarFiltros(valor: unknown): FiltrosLista | null {
   const bruto = valor as Partial<FiltrosLista>;
   return {
     busca: typeof bruto.busca === 'string' ? bruto.busca : '',
-    tipo: bruto.tipo === 'familia' || bruto.tipo === 'serie' || bruto.tipo === 'quadro' ? bruto.tipo : 'todos',
+    tipo: bruto.tipo === 'serie' || bruto.tipo === 'quadro' ? bruto.tipo : 'todos',
     pilar: typeof bruto.pilar === 'string' && bruto.pilar ? bruto.pilar : 'todos',
+    familia: typeof bruto.familia === 'string' && bruto.familia ? bruto.familia : 'todas',
     situacao: bruto.situacao === 'inativas' || bruto.situacao === 'rascunho' || bruto.situacao === 'todas' || bruto.situacao === 'abertas'
       ? bruto.situacao
       : 'ativas',
@@ -116,12 +118,13 @@ export function useSeriesLista(onAbrirModalCriacao?: (target: SerieCreateModalTa
     },
   }), [alternarAtiva, mudarStatus, navigate, onAbrirModalCriacao, state.series]);
 
-  // Todos = séries e quadros. A família segue alcançável pelo filtro dela.
+  // Todos = séries e quadros, agrupados por família na mesma página.
   const opcoesTipo = [
     { value: 'todos', label: 'Todos' },
-    ...(['serie', 'quadro', 'familia'] as const)
+    ...(['serie', 'quadro'] as const)
       .map(tipo => ({ value: tipo, label: TIPO_AGRUPAMENTO_PLURAL[tipo] })),
   ];
+  const familias = familiasParaFiltro(lista.itens);
   const pilaresUsados = new Set([...lista.itens.values()].map(item => item.pilar.pilarId).filter(Boolean));
   const opcoesPilar = [
     { value: 'todos', label: 'Todos' },
@@ -174,6 +177,7 @@ export function useSeriesLista(onAbrirModalCriacao?: (target: SerieCreateModalTa
     acoes,
     modalAtivacao,
     opcoesTipo,
+    familias,
     opcoesPilar,
     opcoesSituacao,
     rotulosSituacao,

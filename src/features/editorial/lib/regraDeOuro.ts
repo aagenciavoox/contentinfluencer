@@ -9,7 +9,7 @@ import type { UnidadeDaMeta } from './metaDaOnda.ts';
  * - Série, wave da série e meta da série numa conta ou formato: 1 por semana.
  * - Janela maior que a semana: no máximo uma por semana inteira da janela
  *   (14 dias = 2, mês = 4, bimestre = 8, trimestre = 13, semestre = 26).
- * - Família com ritmo: uma vaga por série ativa da família (mínimo 1).
+ * - Família é só pasta visual: não tem meta, não entra no teto e não ocupa vaga.
  */
 
 /** Máximo de episódios de uma série em cada janela da meta. */
@@ -83,18 +83,17 @@ export function quadrosDaSubarvore(raizId: string, series: readonly NoDaRegra[])
   return ids;
 }
 
+/** Família é só pasta visual: não tem meta própria. */
+export function ehFamiliaNaArvore(serieId: string, series: readonly NoDaRegra[]): boolean {
+  return tipoNaArvore(serieId, series) === 'familia';
+}
+
 /**
- * Quantas séries a meta cobre: a família tem uma vaga por série ativa dela (mínimo 1);
- * série e wave, 1.
+ * Quantas séries a meta cobre. Série e wave: 1.
+ * Família não tem cota — o número gravado no banco é ignorado nas contas.
  */
-export function unidadesDaRegraDeOuro(serieId: string, series: readonly NoDaRegra[]): number {
-  if (tipoNaArvore(serieId, series) !== 'familia') return 1;
-  const ativas = filhosDaSerie(serieId, series).filter(filho => {
-    const no = series.find(item => item.id === filho.id);
-    if (!no || no.ativa === false || no.status === 'rascunho' || no.status === 'arquivada') return false;
-    return tipoNaArvore(no.id, series) === 'serie';
-  });
-  return Math.max(1, ativas.length);
+export function unidadesDaRegraDeOuro(_serieId: string, _series: readonly NoDaRegra[]): number {
+  return 1;
 }
 
 /** Teto da quantidade numa janela da unidade. Unidade desconhecida: sem teto. */
@@ -125,7 +124,7 @@ export function erroDaRegraDeOuro(vezes: number | null | undefined, unidade: str
   const teto = tetoDaRegraDeOuro(unidade, unidades);
   if (teto == null || vezes <= teto) return null;
   if (unidades > 1) {
-    return `Regra de Ouro: cada série da família ocupa no máximo 1 episódio por semana. Com ${unidades} séries ativas, o máximo é ${teto} ${NOME_DA_JANELA[unidade]}.`;
+    return `Regra de Ouro: no máximo 1 episódio por semana da mesma série (até ${teto} ${NOME_DA_JANELA[unidade]}).`;
   }
   if (unidade === 'semana') return 'Regra de Ouro: no máximo 1 episódio por semana da mesma série.';
   return `Regra de Ouro: no máximo 1 episódio por semana da mesma série (até ${teto} ${NOME_DA_JANELA[unidade]}).`;

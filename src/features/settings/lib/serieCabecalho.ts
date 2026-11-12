@@ -14,7 +14,7 @@ import {
 } from '../../editorial/lib/apuracaoSerie.ts';
 import { complementoDoPeriodo } from '../../editorial/lib/metaDaOnda.ts';
 import { exclusaoDeMetaPropria, type OndaDaExclusao } from '../../editorial/lib/metaPropria.ts';
-import { ehQuadroNaArvore } from '../../editorial/lib/regraDeOuro.ts';
+import { ehFamiliaNaArvore, ehQuadroNaArvore } from '../../editorial/lib/regraDeOuro.ts';
 import type { ModoPeriodo } from '../../editorial/lib/periodoEditorial.ts';
 import { idsDaSubarvore } from '../../editorial/lib/serieArvore.ts';
 
@@ -86,6 +86,7 @@ export function textoDaCadencia(
   tipo: 'serie' | 'quadro' | 'familia',
 ): string {
   if (tipo === 'quadro') return 'Cadência: sob demanda';
+  if (tipo === 'familia') return 'Pasta visual: sem meta própria';
   const situacao = situacaoDaFrequencia(serie);
   if (situacao.tipo === 'definida') {
     const vezes = situacao.freq.vezes ?? 1;
@@ -136,8 +137,9 @@ export function metaDoCabecalho({
     excluir: exclusaoDeMetaPropria(serie, series, temporadas),
   });
   const { situacao } = apuracao;
-  // Quadro não tem meta semanal: aparece quando a série precisa dele.
+  // Quadro não tem meta semanal. Família é pasta visual: sem meta.
   if (ehQuadroNaArvore(serie.id, series)) return { estado: 'sem-meta', texto: 'Sob demanda: sem meta semanal' };
+  if (ehFamiliaNaArvore(serie.id, series)) return { estado: 'sem-meta', texto: 'Pasta visual: sem meta própria' };
   if (situacao.tipo === 'sem-ancora') return { estado: 'sem-meta', texto: TEXTO_SEM_ANCORA };
   if (situacao.tipo !== 'definida') return { estado: 'sem-meta', texto: 'Sem meta definida' };
   const regra = `Meta: ${textoFrequencia(situacao.freq)}`;

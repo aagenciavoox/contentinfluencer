@@ -181,7 +181,7 @@ export function episodiosDaLinha(input: {
 /**
  * Meta do ritmo no intervalo: quantidade × janelas inteiras que tocam o intervalo.
  * Sem ritmo definido, null (a tabela mostra "Sem ritmo", nunca zero).
- * Regra de Ouro: a quantidade vale até 1 por semana por série (`unidades` séries; família, uma por série ativa).
+ * Regra de Ouro: a quantidade vale até 1 por semana por série.
  */
 export function metaDoRitmo(
   alvo: Pick<SerieDaApuracao, 'frequenciaRecomendada' | 'frequenciaVezes' | 'frequenciaUnidade' | 'frequenciaAPartirDe' | 'frequenciaAncora'>,

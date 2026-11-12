@@ -8,6 +8,12 @@ import {FLOATING_MENU_HIDDEN_STYLE, FLOATING_MENU_Z_INDEX, useAnchoredPosition} 
 export interface TagSelectOption {
   value: string;
   label?: string;
+  /** Cabeçalho de grupo: aparece na lista e não entra na seleção. */
+  disabled?: boolean;
+  /** Recuo visual, para um item que fica sob o anterior (ex.: quadro sob a série). */
+  indent?: boolean;
+  /** Agrupa o item a um cabeçalho, para a busca manter a seção junta. */
+  group?: string;
 }
 
 export interface TagSelectProps {
@@ -114,15 +120,29 @@ export function TagSelect({
     [options]
   );
 
-  const availableOptions = useMemo(
-    () =>
-      options.filter(
-        option =>
-          !values.some(value => value.toLowerCase() === option.value.toLowerCase()) &&
-          (option.label ?? option.value).toLowerCase().includes(query.trim().toLowerCase())
-      ),
-    [options, query, values]
-  );
+  const availableOptions = useMemo(() => {
+    const termo = query.trim().toLowerCase();
+    const selecionada = (option: TagSelectOption) =>
+      !option.disabled && values.some(value => value.toLowerCase() === option.value.toLowerCase());
+    const textoDe = (option: TagSelectOption) => (option.label ?? option.value).toLowerCase();
+    const serve = (option: TagSelectOption) => !termo || textoDe(option).includes(termo);
+    if (!termo) return options.filter(option => option.disabled || !selecionada(option));
+    const cabecalhosQueServem = new Set(
+      options.filter(option => option.disabled && serve(option)).map(option => option.group ?? option.value),
+    );
+    const gruposComItem = new Set(
+      options.filter(option => !option.disabled && serve(option)).map(option => option.group).filter(Boolean),
+    );
+    return options.filter(option => {
+      if (option.disabled) {
+        const grupo = option.group ?? option.value;
+        return cabecalhosQueServem.has(grupo) || gruposComItem.has(grupo);
+      }
+      if (selecionada(option)) return false;
+      if (serve(option)) return true;
+      return Boolean(option.group && cabecalhosQueServem.has(option.group));
+    });
+  }, [options, query, values]);
 
   const canAddMore = maxSelections ? values.length < maxSelections : true;
   const showInput = (creatable || searchable) && canAddMore;
@@ -171,8 +191,9 @@ export function TagSelect({
       if (!query.trim()) return;
       if (creatable) {
         addValue(query);
-      } else if (availableOptions[0]) {
-        addValue(availableOptions[0].value);
+      } else {
+        const primeira = availableOptions.find(option => !option.disabled);
+        if (primeira) addValue(primeira.value);
       }
       return;
     }
@@ -188,6 +209,7 @@ export function TagSelect({
   };
 
   const toggleOption = (value: string) => {
+    if (options.some(option => option.value === value && option.disabled)) return;
     if (values.some(item => item.toLowerCase() === value.toLowerCase())) {
       removeValue(value);
       return;
@@ -326,15 +348,28 @@ export function TagSelect({
           >
             {availableOptions.length > 0 ? (
               availableOptions.map(option => (
-                <button
-                  key={option.value}
-                  type="button"
-                  role="option"
-                  onClick={() => toggleOption(option.value)}
-                  className="flex w-full items-center px-3 py-2 text-left t-body text-[var(--text-primary)] transition hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-                >
-                  {option.label ?? option.value}
-                </button>
+                option.disabled ? (
+                  <div
+                    key={option.value}
+                    role="presentation"
+                    className="px-3 pb-1 pt-2 t-meta text-[var(--text-tertiary)]"
+                  >
+                    {option.label ?? option.value}
+                  </div>
+                ) : (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="option"
+                    onClick={() => toggleOption(option.value)}
+                    className={cn(
+                      'flex w-full items-center py-2 text-left t-body text-[var(--text-primary)] transition hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                      option.indent ? 'pr-3 pl-8' : 'px-3',
+                    )}
+                  >
+                    {option.label ?? option.value}
+                  </button>
+                )
               ))
             ) : null}
 

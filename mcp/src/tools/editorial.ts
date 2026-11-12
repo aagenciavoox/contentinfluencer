@@ -388,7 +388,7 @@ function estruturaDaSerie(
     a_partir_de: args.frequencia_a_partir_de,
   };
   if (tipo === 'familia' && (pedidaFreq.vezes != null || (pedidaFreq.unidade && pedidaFreq.unidade !== 'sob-demanda'))) {
-    throw new Error('Família não tem frequência; defina na série ou no quadro.');
+    throw new Error('Família é só um agrupamento visual e não tem meta. Defina a meta na série.');
   }
   const freq = colunasDaFrequencia(pedidaFreq, {
     vezes: freqAtual.vezes,

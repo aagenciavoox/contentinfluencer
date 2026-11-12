@@ -9,6 +9,7 @@ import type {
 } from '../../../lib/database.ts';
 import { isFuncaoEditorial } from './funcoes.ts';
 import { pilarPrincipalDaSerie } from './pilarDaSerie.ts';
+import { tipoNaArvore } from './regraDeOuro.ts';
 import { ancestraisDaSerie, caminhoDaSerie, type SerieNo } from './serieArvore.ts';
 
 export type SerieHeranca = Pick<
@@ -67,7 +68,7 @@ function propriaEAncestrais<S extends SerieNo & { tipoAgrupamento?: SerieTipoAgr
     .map(no => porId.get(no.id))
     .filter((serie): serie is S => Boolean(serie));
   const lista = propria ? [propria, ...acima] : acima;
-  return lista.filter(serie => serie.tipoAgrupamento !== 'familia');
+  return lista.filter(serie => tipoNaArvore(serie.id, series) !== 'familia');
 }
 
 /** O mínimo da série para resolver pilar e objetivo de um conteúdo. */

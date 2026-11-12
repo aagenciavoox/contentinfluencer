@@ -47,8 +47,8 @@ export function exclusaoDeMetaPropria(
 }
 
 /**
- * Família com ritmo: conta os episódios únicos das séries dela. Wave com ritmo próprio também
- * conta aqui (a família é a soma); o rascunho fica fora, e os quadros (sob demanda) também.
+ * Recorte dos episódios únicos das séries de uma família (quadros e rascunho ficam fora).
+ * A família em si não tem mais meta: esta função só serve se alguém ainda pedir a soma visual.
  */
 export function exclusaoDaFamilia(
   temporadas: readonly OndaDaExclusao[] = [],

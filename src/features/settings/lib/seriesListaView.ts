@@ -20,6 +20,8 @@ export type FiltrosLista = {
   tipo: FiltroTipoLista;
   /** 'todos', 'sem' ou o id do pilar. */
   pilar: string;
+  /** 'todas' ou o id da família. */
+  familia: string;
   situacao: FiltroSituacao;
   vista: VistaLista;
 };
@@ -28,9 +30,12 @@ export const FILTROS_LISTA_PADRAO: FiltrosLista = {
   busca: '',
   tipo: 'todos',
   pilar: 'todos',
+  familia: 'todas',
   situacao: 'ativas',
   vista: 'cards',
 };
+
+export const ID_SECAO_AVULSOS = 'avulsos';
 
 /** Filtros que mudam o que aparece (a vista não conta). */
 export function filtrosDaListaAtivos(filtros: FiltrosLista): number {
@@ -38,6 +43,7 @@ export function filtrosDaListaAtivos(filtros: FiltrosLista): number {
     filtros.busca.trim() !== '',
     filtros.tipo !== FILTROS_LISTA_PADRAO.tipo,
     filtros.pilar !== FILTROS_LISTA_PADRAO.pilar,
+    filtros.familia !== FILTROS_LISTA_PADRAO.familia,
     filtros.situacao !== FILTROS_LISTA_PADRAO.situacao,
   ].filter(Boolean).length;
 }
@@ -58,26 +64,73 @@ export type ListaSeries = {
   /** O que passa nos filtros, na ordem da árvore (série antes dos quadros dela). */
   visiveis: ItemLista[];
   /**
-   * Passa em busca, pilar e situação, sem o recorte de tipo.
-   * No computador, "Todos" monta as seções a partir daqui (incluindo famílias).
+   * Passa em busca, pilar, família e situação, sem o recorte de tipo.
+   * Inclui as famílias, para montar as seções e os chips.
    */
   elegiveis: ItemLista[];
   situacoes: Record<FiltroSituacao, number>;
 };
 
-/** Ordem das seções na vitrine do computador. */
-export const ORDEM_SECOES_VITRINE: readonly SerieTipoAgrupamento[] = ['serie', 'quadro', 'familia'];
+/** Família ancestral do item (a própria, se ele for a família). */
+export function idDaFamiliaDoItem(item: ItemLista, itens: Map<string, ItemLista>): string | null {
+  let cursor: ItemLista | undefined = item;
+  const vistos = new Set<string>();
+  while (cursor) {
+    if (vistos.has(cursor.serie.id)) break;
+    vistos.add(cursor.serie.id);
+    if (cursor.tipo === 'familia') return cursor.serie.id;
+    const paiId = cursor.serie.parentId?.trim();
+    cursor = paiId ? itens.get(paiId) : undefined;
+  }
+  return null;
+}
 
-export type SecaoVitrine = {
-  tipo: SerieTipoAgrupamento;
+export type SecaoFamiliaVitrine = {
+  id: string;
+  titulo: string;
   itens: ItemLista[];
+  familia: ItemLista | null;
 };
 
-/** Agrupa a página em Séries, Quadros e Famílias. Seção vazia sai. */
-export function secoesDaVitrine(itens: readonly ItemLista[]): SecaoVitrine[] {
-  return ORDEM_SECOES_VITRINE
-    .map(tipo => ({ tipo, itens: itens.filter(item => item.tipo === tipo) }))
-    .filter(secao => secao.itens.length > 0);
+/**
+ * Agrupa séries e quadros por família, como gavetas na mesma página.
+ * Família não entra como card: vira o cabeçalho da seção. Avulsos vão por último.
+ */
+export function secoesPorFamilia(itens: readonly ItemLista[], porId: Map<string, ItemLista>): SecaoFamiliaVitrine[] {
+  const trabalho = itens.filter(item => item.tipo !== 'familia');
+  const porFamilia = new Map<string, ItemLista[]>();
+  const avulsos: ItemLista[] = [];
+  for (const item of trabalho) {
+    const familiaId = idDaFamiliaDoItem(item, porId);
+    if (!familiaId) {
+      avulsos.push(item);
+      continue;
+    }
+    const lista = porFamilia.get(familiaId) ?? [];
+    lista.push(item);
+    porFamilia.set(familiaId, lista);
+  }
+  const familias = [...porFamilia.keys()]
+    .map(id => porId.get(id))
+    .filter((item): item is ItemLista => Boolean(item))
+    .sort((a, b) => a.serie.name.localeCompare(b.serie.name, 'pt-BR'));
+  const secoes: SecaoFamiliaVitrine[] = familias.map(familia => ({
+    id: familia.serie.id,
+    titulo: `Família: ${familia.serie.name.trim() || 'Sem nome'}`,
+    itens: porFamilia.get(familia.serie.id) ?? [],
+    familia,
+  }));
+  if (avulsos.length > 0) {
+    secoes.push({ id: ID_SECAO_AVULSOS, titulo: 'Outros / Avulsos', itens: avulsos, familia: null });
+  }
+  return secoes.filter(secao => secao.itens.length > 0);
+}
+
+/** Famílias da lista, para os chips de filtro rápido. */
+export function familiasParaFiltro(itens: Map<string, ItemLista>): ItemLista[] {
+  return [...itens.values()]
+    .filter(item => item.tipo === 'familia')
+    .sort((a, b) => a.serie.name.localeCompare(b.serie.name, 'pt-BR'));
 }
 
 function semAcento(valor: string): string {
@@ -94,10 +147,8 @@ export function passaSituacao(serie: Serie, situacao: FiltroSituacao, emAberto: 
 }
 
 /**
- * Vitrine (Inventário & Projetos): séries e quadros lado a lado, em cards planos.
- * A família continua no banco (e com o ritmo dela), mas não é pasta obrigatória:
- * em "Todos" a lista filtrada traz séries e quadros; famílias entram nas seções
- * do computador (via `elegiveis`) e no filtro "Famílias".
+ * Vitrine (Inventário & Projetos): séries e quadros agrupados por família (pasta visual).
+ * Família é opcional: quem não tem vai para "Outros / Avulsos".
  * O pilar filtra séries e quadros (o do quadro é herdado da série quando não tem o dele).
  */
 export function montarListaSeries({
@@ -139,9 +190,17 @@ export function montarListaSeries({
     const texto = [item.serie.name, item.serie.notes].filter(Boolean).join(' ');
     return semAcento(texto).includes(busca);
   };
-  const passaTipo = (item: ItemLista) =>
-    // "Todos" é a vitrine de trabalho: séries e quadros. Família só no filtro dela.
-    filtros.tipo === 'todos' ? item.tipo !== 'familia' : item.tipo === filtros.tipo;
+  const passaFamilia = (item: ItemLista) => {
+    if (filtros.familia === 'todas' || item.tipo === 'familia') return true;
+    const familiaId = idDaFamiliaDoItem(item, itens);
+    if (filtros.familia === ID_SECAO_AVULSOS) return !familiaId;
+    return familiaId === filtros.familia;
+  };
+  const passaTipo = (item: ItemLista) => {
+    // "Todos" e o antigo filtro "Famílias": a vitrine mostra séries e quadros nas gavetas.
+    if (filtros.tipo === 'todos' || filtros.tipo === 'familia') return item.tipo !== 'familia';
+    return item.tipo === filtros.tipo;
+  };
 
   const ordenar = (filtradas: Serie[]) => {
     const ordem = busca
@@ -150,10 +209,13 @@ export function montarListaSeries({
     return ordem.map(serie => itens.get(serie.id)!);
   };
 
-  const elegiveis = ordenar(series.filter(serie => passaBase(itens.get(serie.id)!)));
+  const elegiveis = ordenar(series.filter(serie => {
+    const item = itens.get(serie.id)!;
+    return passaBase(item) && passaFamilia(item);
+  }));
   const visiveis = ordenar(series.filter(serie => {
     const item = itens.get(serie.id)!;
-    return passaBase(item) && passaTipo(item);
+    return passaBase(item) && passaFamilia(item) && passaTipo(item);
   }));
 
   const situacoes: Record<FiltroSituacao, number> = { ativas: 0, rascunho: 0, inativas: 0, todas: series.length, abertas: 0 };

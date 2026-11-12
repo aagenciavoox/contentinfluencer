@@ -133,7 +133,7 @@ console.log('metaPropria.test.ts ok');
   assert.equal(comDataDoArquivo(arq('arquivada'), arq('arquivada'), '2026-11-11').arquivadaEm, undefined, 'arquivada antiga sem data não ganha data inventada');
   assert.equal(comDataDoArquivo(arq('ativa', '2026-10-01'), arq('arquivada', '2026-10-01'), '2026-11-11').arquivadaEm, null);
 }
-// --- Regra de Ouro na árvore: família vale 1 vaga por série ativa; quadro não tem meta; série fica em 1 por semana.
+// --- Regra de Ouro na árvore: família não tem meta; quadro é sob demanda; série fica em 1 por semana.
 {
   const regra = await import('./regraDeOuro.ts');
   const { situacaoNaArvore } = await import('./apuracaoSerie.ts');
@@ -147,17 +147,19 @@ console.log('metaPropria.test.ts ok');
     no('S3', { parentId: 'F', tipoAgrupamento: 'serie', ativa: false, status: 'rascunho' }),
     no('Q', { parentId: 'S1', tipoAgrupamento: 'quadro' }),
   ];
-  assert.equal(regra.unidadesDaRegraDeOuro('F', arvore), 2, 'rascunho não ocupa vaga');
+  assert.equal(regra.unidadesDaRegraDeOuro('F', arvore), 1, 'família não tem cota própria');
   assert.equal(regra.unidadesDaRegraDeOuro('S1', arvore), 1);
   assert.deepEqual([...regra.quadrosDaSubarvore('F', arvore)], ['Q']);
   const familia = situacaoNaArvore(arvore[0], arvore);
-  assert.equal(familia.tipo === 'definida' ? familia.freq.vezes : null, 2);
+  assert.equal(familia.tipo, 'sem-frequencia', 'ritmo gravado na família é ignorado');
   const serie = situacaoNaArvore(arvore[1], arvore);
   assert.equal(serie.tipo === 'definida' ? serie.freq.vezes : null, 1);
   assert.equal(situacaoNaArvore(arvore[4], arvore).tipo, 'sob-demanda');
-  // Família não conta episódio de quadro.
+  // Família não tem meta: a apuração não abre janelas, mesmo com número gravado.
   const periodo = { inicio: '2026-11-02', fim: '2026-11-08' };
   const itens = [item('a', 'S1'), item('b', 'S2'), item('c', 'Q')];
-  assert.equal(apurarSerie({ serie: arvore[0], series: arvore, itens, periodo }).noPeriodo.episodios, 2);
+  const apuracaoFamilia = apurarSerie({ serie: arvore[0], series: arvore, itens, periodo });
+  assert.equal(apuracaoFamilia.situacao.tipo, 'sem-frequencia');
+  assert.equal(apuracaoFamilia.janelas.length, 0);
   console.log('metaPropria.test.ts (regra de ouro) ok');
 }

@@ -53,8 +53,7 @@ export function SeriesSettingsPage() {
       else if (item.tipo === 'familia') familia += 1;
     }
     return {
-      // "Todos" abre as seções na mesma página; a contagem cobre os três tipos.
-      todos: serie + quadro + familia,
+      todos: serie + quadro,
       serie,
       quadro,
       familia,
@@ -148,7 +147,7 @@ export function SeriesSettingsPage() {
         <DesktopPageHeader
           section="Produção"
           title="Inventário & Projetos"
-          subtitle="Séries com ritmo, quadros sob demanda, temporadas e padrões de legendas editoriais."
+          subtitle="Séries com ritmo, quadros sob demanda e famílias só para organizar a vitrine."
           actions={[
             <AppButton key="novo" variant="primary" onClick={criarSerie} leftIcon={<Plus className="h-4 w-4" />}>
               Novo Agrupamento
@@ -174,7 +173,6 @@ export function SeriesSettingsPage() {
                 { id: 'todos', label: 'Todos', count: contagensPorTipo.todos },
                 { id: 'serie', label: 'Séries', count: contagensPorTipo.serie },
                 { id: 'quadro', label: 'Quadros', count: contagensPorTipo.quadro },
-                { id: 'familia', label: 'Famílias', count: contagensPorTipo.familia },
               ].map(tab => {
                 const ativo = modelo.filtros.tipo === tab.id;
                 return (
@@ -205,6 +203,30 @@ export function SeriesSettingsPage() {
               ariaLabel="Filtrar por pilar"
               selected={modelo.filtros.pilar !== 'todos'}
             />
+            {modelo.familias.length > 0 ? (
+              <div className="flex w-full flex-wrap items-center gap-2" role="group" aria-label="Filtrar por família">
+                <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">Família</Text>
+                {[{ id: 'todas', label: 'Todas' }, ...modelo.familias.map(item => ({ id: item.serie.id, label: item.serie.name.trim() || 'Sem nome' }))].map(chip => {
+                  const ativo = modelo.filtros.familia === chip.id;
+                  return (
+                    <button
+                      key={chip.id}
+                      type="button"
+                      aria-pressed={ativo}
+                      onClick={() => modelo.atualizarFiltro('familia', chip.id)}
+                      className={cn(
+                        'rounded-full border px-3 py-1 transition-colors',
+                        ativo
+                          ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                          : 'border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
+                      )}
+                    >
+                      <span className="t-button">{chip.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
           </div>
         ) : undefined
       }

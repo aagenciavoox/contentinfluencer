@@ -4,7 +4,7 @@ import { complementoDoPeriodo, type UnidadeDaMeta } from './metaDaOnda.ts';
 import { blocoQueContem, blocosNoIntervalo, lerFrequencia, mesesDoBloco, type FrequenciaSerie } from './frequenciaSerie.ts';
 import { semanaDe, semanasNoIntervalo } from './periodoEditorial.ts';
 import { idsDaSubarvore } from './serieArvore.ts';
-import { ehQuadroNaArvore, quadrosDaSubarvore, unidadesDaRegraDeOuro, vezesNaRegraDeOuro } from './regraDeOuro.ts';
+import { ehFamiliaNaArvore, ehQuadroNaArvore, quadrosDaSubarvore, unidadesDaRegraDeOuro, vezesNaRegraDeOuro } from './regraDeOuro.ts';
 
 /**
  * Apuração de uma série (ou quadro) num período: a mesma conta para o Editorial,
@@ -67,7 +67,7 @@ const UNIDADES = new Set([
  */
 export function situacaoDaFrequencia(
   serie: Pick<SerieDaApuracao, 'frequenciaRecomendada' | 'frequenciaVezes' | 'frequenciaUnidade' | 'frequenciaAPartirDe' | 'frequenciaAncora'>,
-  /** Séries que a meta cobre na Regra de Ouro (família: uma por série ativa). Null: sem teto. */
+  /** Séries que a meta cobre na Regra de Ouro (sempre 1 por série). Null: sem teto. */
   unidadesDaRegra: number | null = 1,
 ): SituacaoFrequencia {
   const unidade = chave(serie.frequenciaUnidade);
@@ -95,10 +95,12 @@ export function situacaoDaFrequencia(
 
 /**
  * Situação da meta com a árvore: quadro é sob demanda (sem meta, mesmo com número antigo gravado);
- * série e wave valem até 1 por semana; família, uma vaga por série ativa dela.
+ * série e wave valem até 1 por semana; família é pasta visual (ignora ritmo gravado).
  */
 export function situacaoNaArvore(serie: SerieDaApuracao, series: readonly SerieDaApuracao[]): SituacaoFrequencia {
-  if (ehQuadroNaArvore(serie.id, series.some(item => item.id === serie.id) ? series : [...series, serie])) return { tipo: 'sob-demanda' };
+  const arvore = series.some(item => item.id === serie.id) ? series : [...series, serie];
+  if (ehQuadroNaArvore(serie.id, arvore)) return { tipo: 'sob-demanda' };
+  if (ehFamiliaNaArvore(serie.id, arvore)) return { tipo: 'sem-frequencia' };
   return situacaoDaFrequencia(serie, unidadesDaRegraDeOuro(serie.id, series));
 }
 

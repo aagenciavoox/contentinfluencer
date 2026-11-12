@@ -109,3 +109,4 @@ assert.equal(textoDaCadencia(umaVez, 'serie'), 'Cadência: 1 episódio por seman
 assert.equal(textoDaCadencia(comMeta, 'serie'), 'Cadência: 1 episódio por semana');
 assert.equal(textoDaCadencia(base, 'serie'), 'Cadência: sem compromisso definido');
 assert.equal(textoDaCadencia({ ...base, frequenciaVezes: 2, frequenciaUnidade: 'semana' }, 'quadro'), 'Cadência: sob demanda');
+assert.equal(textoDaCadencia({ ...base, frequenciaVezes: 8, frequenciaUnidade: 'semana' }, 'familia'), 'Pasta visual: sem meta própria');

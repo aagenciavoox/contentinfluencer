@@ -3,6 +3,7 @@ import { Layers, SlidersHorizontal } from 'lucide-react';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { DisclosureButton } from '../../../../components/ui/DisclosureButton';
 import { EmptyState } from '../../../../components/ui/EmptyState';
+import { MoreMenu } from '../../../../components/ui/MoreMenu';
 import { Surface } from '../../../../components/ui/Surface';
 import { Text } from '../../../../components/ui/Text';
 import { ToggleRow } from '../../../../components/ui/ToggleSwitch';
@@ -10,14 +11,14 @@ import { useAppContext } from '../../../../context/AppContext';
 import { temporadasDoEscopo } from '../../../editorial/lib/temporadas';
 import { ondaComRitmoProprio } from '../../../editorial/lib/metaPropria';
 import type { SeriesListaModelo } from '../../hooks/useSeriesLista';
-import { TIPO_AGRUPAMENTO_PLURAL, tipoDaSerie } from '../../lib/serieAgrupamento';
+import { tipoDaSerie } from '../../lib/serieAgrupamento';
 import { erroDoVinculo } from '../../lib/serieHierarquia';
-import { secoesDaVitrine, type ItemLista } from '../../lib/seriesListaView';
+import { secoesPorFamilia, type ItemLista, type SecaoFamiliaVitrine } from '../../lib/seriesListaView';
 import { MoverSerieDialog } from './MoverSerieDialog';
-import { SerieCard } from './SerieCard';
+import { itensDoMenuDaSerie, SerieCard } from './SerieCard';
 import { SerieLinha } from './SeriesListBlocks';
 
-/** Corpo da lista. No computador, "Todos" separa Séries, Quadros e Famílias em seções; no celular a grade continua plana. */
+/** Corpo da lista. Séries e quadros entram em seções colapsáveis por família; avulsos ficam no fim. */
 export function ResultadoDaLista({ modelo, celular = false }: { modelo: SeriesListaModelo; celular?: boolean }) {
   const { state, dispatch } = useAppContext();
   const [moverId, setMoverId] = useState<string | null>(null);
@@ -76,8 +77,9 @@ function CorpoDaLista({
   acoes: SeriesListaModelo['acoes'] & { onMoverParaFamilia: (serieId: string) => void };
 }) {
   const { lista, filtros } = modelo;
-  const emSecoes = !celular && filtros.tipo === 'todos';
-  const fonte = emSecoes ? lista.elegiveis : lista.visiveis;
+  const fonte = lista.visiveis;
+  const secoes = secoesPorFamilia(fonte, lista.itens);
+  const temFamilia = [...lista.itens.values()].some(item => item.tipo === 'familia') || secoes.some(secao => secao.familia);
   const grade = celular ? 'grid grid-cols-1 gap-3' : 'grid-content';
   if (fonte.length === 0) {
     const busca = filtros.busca.trim();
@@ -92,13 +94,14 @@ function CorpoDaLista({
     );
   }
 
-  if (emSecoes) {
+  if (temFamilia && secoes.length > 0) {
     return (
       <SecoesDaVitrine
-        itens={lista.elegiveis}
-        vista={filtros.vista}
+        secoes={secoes}
+        vista={celular ? 'cards' : filtros.vista}
         grade={grade}
         card={card}
+        acoes={acoes}
         linha={(item, recuo) => (
           <SerieLinha
             key={item.serie.id}
@@ -136,40 +139,84 @@ function CorpoDaLista({
 }
 
 function SecoesDaVitrine({
-  itens,
+  secoes,
   vista,
   grade,
   card,
   linha,
+  acoes,
 }: {
-  itens: ItemLista[];
+  secoes: SecaoFamiliaVitrine[];
   vista: 'cards' | 'lista';
   grade: string;
   card: (item: ItemLista, mostrarOnde: boolean) => ReactElement;
   linha: (item: ItemLista, recuo: boolean) => ReactElement;
+  acoes: SeriesListaModelo['acoes'] & { onMoverParaFamilia: (serieId: string) => void };
 }) {
-  const secoes = secoesDaVitrine(itens);
+  const [recolhidas, setRecolhidas] = useState<Set<string>>(() => new Set());
+  const alternar = (id: string) => {
+    setRecolhidas(atual => {
+      const proxima = new Set(atual);
+      if (proxima.has(id)) proxima.delete(id);
+      else proxima.add(id);
+      return proxima;
+    });
+  };
+
   return (
     <div className="stack-2xl">
-      {secoes.map(secao => (
-        <section key={secao.tipo} className="stack-md" aria-labelledby={`vitrine-secao-${secao.tipo}`}>
-          <div className="flex items-baseline gap-2">
-            <Text variant="sectionTitle" as="h2" id={`vitrine-secao-${secao.tipo}`}>
-              {TIPO_AGRUPAMENTO_PLURAL[secao.tipo]}
-            </Text>
-            <Text variant="meta" as="span" className="tabular-nums text-[var(--text-tertiary)]">
-              {secao.itens.length}
-            </Text>
-          </div>
-          {vista === 'lista' ? (
-            <Surface variant="outlined" padding="none" className="overflow-hidden">
-              <ul>{secao.itens.map(item => linha(item, false))}</ul>
-            </Surface>
-          ) : (
-            <div className={grade}>{secao.itens.map(item => card(item, true))}</div>
-          )}
-        </section>
-      ))}
+      {secoes.map(secao => {
+        const aberta = !recolhidas.has(secao.id);
+        const painelId = `vitrine-secao-${secao.id}`;
+        const n = secao.itens.length;
+        const menu = secao.familia
+          ? itensDoMenuDaSerie(secao.familia, {
+            onEdit: acoes.onEdit,
+            onToggleAtiva: acoes.onToggleAtiva,
+            onMudarStatus: acoes.onMudarStatus,
+            onCriarFilho: acoes.onCriarFilho,
+          })
+          : [];
+        return (
+          <section key={secao.id} className="stack-md" aria-labelledby={`${painelId}-titulo`}>
+            <div className="flex items-center gap-2">
+              <DisclosureButton
+                open={aberta}
+                onToggle={() => alternar(secao.id)}
+                controls={painelId}
+                className="flex-1 px-2"
+                trailing={
+                  <Text variant="meta" as="span" className="tabular-nums text-[var(--text-tertiary)]">
+                    {n} {n === 1 ? 'item' : 'itens'}
+                  </Text>
+                }
+              >
+                <Text variant="sectionTitle" as="span" id={`${painelId}-titulo`}>
+                  {secao.titulo}
+                </Text>
+              </DisclosureButton>
+              {menu.length > 0 ? (
+                <MoreMenu
+                  items={menu}
+                  label={`Ações de ${secao.titulo}`}
+                  size="sm"
+                />
+              ) : null}
+            </div>
+            {aberta ? (
+              <div id={painelId}>
+                {vista === 'lista' ? (
+                  <Surface variant="outlined" padding="none" className="overflow-hidden">
+                    <ul>{secao.itens.map(item => linha(item, false))}</ul>
+                  </Surface>
+                ) : (
+                  <div className={grade}>{secao.itens.map(item => card(item, true))}</div>
+                )}
+              </div>
+            ) : null}
+          </section>
+        );
+      })}
     </div>
   );
 }

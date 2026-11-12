@@ -229,6 +229,9 @@ export function colunasDaFrequencia(
   if (tipo === 'quadro') {
     return {erro: 'Quadro é sob demanda e não tem meta. Use frequencia_unidade=sob-demanda (ou null) ou defina a meta na série.'};
   }
+  if (tipo === 'familia') {
+    return {erro: 'Família é só um agrupamento visual e não tem meta. Defina a meta na série.'};
+  }
   if (tipo === 'serie') {
     const regraDeOuro = erroDaRegraDeOuro(vezes, unidade);
     if (regraDeOuro) return {erro: regraDeOuro};

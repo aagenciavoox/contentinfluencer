@@ -11,8 +11,8 @@ import {
   type JanelaApurada,
   type SerieDaApuracao,
 } from '../../editorial/lib/apuracaoSerie.ts';
-import { exclusaoDaFamilia, exclusaoDeMetaPropria } from '../../editorial/lib/metaPropria.ts';
-import { tipoNaArvore, unidadesDaRegraDeOuro } from '../../editorial/lib/regraDeOuro.ts';
+import { exclusaoDeMetaPropria } from '../../editorial/lib/metaPropria.ts';
+import { ehFamiliaNaArvore, tipoNaArvore, unidadesDaRegraDeOuro } from '../../editorial/lib/regraDeOuro.ts';
 import { acompanhamentoGeral, acompanhaNoGeral, coberturaNoGeral, idsComAncestrais, serieAcompanhada } from '../../editorial/lib/acompanhamento.ts';
 import {
   diasSeguidosDosItens,
@@ -264,8 +264,9 @@ function avaliado(janela: JanelaApurada): IntervaloAvaliado {
 }
 
 /**
- * Continuidade: cada série (e família com ritmo) marcada, conferida janela a janela
- * pela apuração comum (`apurarSerie`). Quadro é sob demanda: não tem linha e não conta na série;
+ * Continuidade: cada série marcada, conferida janela a janela
+ * pela apuração comum (`apurarSerie`). Família é pasta visual: não tem linha nem meta.
+ * Quadro é sob demanda: não tem linha e não conta na série;
  * wave com ritmo próprio conta só na linha dela. Regra de Ouro: até 1 episódio por semana por série.
  * Repost não é episódio novo. Post-it é reserva. Sobra não compensa falta.
  * `itens` pode ir além do período: os intervalos das pontas são avaliados inteiros.
@@ -321,8 +322,8 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
   for (const serie of series) {
     // Rascunho organiza sem cobrar; arquivada já saiu.
     if (serie.ativa === false || serie.status === 'rascunho') continue;
-    // Quadro é sob demanda: sem meta, sem linha e sem pendência na Continuidade (o aviso é o de saturação).
-    if (tipoNaArvore(serie.id, series) === 'quadro') continue;
+    // Quadro é sob demanda; família é pasta visual: sem meta, sem linha e sem pendência.
+    if (tipoNaArvore(serie.id, series) === 'quadro' || ehFamiliaNaArvore(serie.id, series)) continue;
     // Só entra quem foi marcado para acompanhar; as outras nem aparecem como pendência.
     if (!acompanhaNoGeral(serie)) {
       // Acompanhada só por conta ou formato: conta como acompanhada; a linha vem da continuidade por escopo.
@@ -343,7 +344,7 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
       continue;
     }
     const tipoLinha = tipo === 'quadro' ? 'quadro' : 'serie';
-    // Regra de Ouro: até 1 por semana por série; a família tem uma vaga por série ativa.
+    // Regra de Ouro: até 1 por semana por série.
     const situacao = situacaoDaFrequencia(serie, unidadesDaRegraDeOuro(serie.id, series));
     if (situacao.tipo === 'incompleta') {
       pendencias.push({ serieId: serie.id, nome, tipo: tipoLinha, motivo: 'incompleta', texto: 'Frequência incompleta: escolha a unidade' });
@@ -369,10 +370,7 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
       series,
       itens,
       periodo,
-      // Família soma os episódios únicos das séries dela; série e quadro tiram o que conta à parte.
-      excluir: tipo === 'familia'
-        ? exclusaoDaFamilia(input.temporadas ?? [], serie, series)
-        : exclusaoDeMetaPropria(serie, series, input.temporadas ?? []),
+      excluir: exclusaoDeMetaPropria(serie, series, input.temporadas ?? []),
     });
     if (apuracao.inicioFuturo) {
       naoAvaliadas.push({
@@ -423,7 +421,6 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
       temporadaId: null,
       nome,
       tipo: tipoLinha,
-      ...(tipo === 'familia' ? { familia: true } : {}),
       paiNome: pai?.name?.trim() || null,
       frequencia: textoFrequencia(situacao.freq),
       intervalos,

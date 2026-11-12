@@ -1,5 +1,6 @@
 import type { Content, Serie } from '../../../lib/database.ts';
 import { pilarPrincipalDaSerie } from './pilarDaSerie.ts';
+import { tipoNaArvore } from './regraDeOuro.ts';
 
 export type SerieOpenItemKey = 'pilar' | 'funcao' | 'frequencia' | 'formato' | 'energia';
 
@@ -49,12 +50,13 @@ export function getSerieOpenItems(
     contents?: readonly Pick<Content, 'seriesId' | 'deletedAt'>[];
   },
 ): SerieOpenItem[] {
-  if (serie.tipoAgrupamento === 'familia') return [];
+  const arvore = (opts?.series ?? (serie.id ? [serie] : [])).filter((item): item is SerieCompletenessFields & { id: string } => Boolean(item.id));
+  if (serie.id && tipoNaArvore(serie.id, arvore) === 'familia') return [];
 
   const pai = serie.parentId && opts?.series
     ? opts.series.find(item => item.id === serie.parentId) ?? null
     : null;
-  const paiEhSerie = pai && pai.tipoAgrupamento !== 'familia' ? pai : null;
+  const paiEhSerie = pai && pai.id && tipoNaArvore(pai.id, arvore) !== 'familia' ? pai : null;
 
   const soAgrupa = opts?.series && serie.id
     ? serieSoAgrupa(
