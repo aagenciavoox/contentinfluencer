@@ -29,6 +29,8 @@ export function ClubeCabecalho({
   pastas,
   pecas,
   onNovaSerie,
+  onNovaPeca,
+  onNovaPasta,
   menu,
 }: {
   clube: Clube;
@@ -37,6 +39,8 @@ export function ClubeCabecalho({
   pastas: number;
   pecas: number;
   onNovaSerie: () => void;
+  onNovaPeca: () => void;
+  onNovaPasta: () => void;
   menu: MoreMenuItem[];
 }) {
   const navigate = useNavigate();
@@ -90,9 +94,15 @@ export function ClubeCabecalho({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <AppButton variant="primary" onClick={onNovaSerie} leftIcon={<Plus className="h-4 w-4" />}>
             Nova série
+          </AppButton>
+          <AppButton variant="secondary" onClick={onNovaPeca} leftIcon={<Plus className="h-4 w-4" />}>
+            Novo arquivo
+          </AppButton>
+          <AppButton variant="secondary" onClick={onNovaPasta} leftIcon={<Plus className="h-4 w-4" />}>
+            Nova pasta
           </AppButton>
           <MoreMenu items={menu} label={`Mais ações de ${nome}`} />
         </div>

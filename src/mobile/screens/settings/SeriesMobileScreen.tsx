@@ -90,6 +90,7 @@ export function SeriesMobileScreen({
         </section>
       ) : null}
 
+      <ClubesSecao grande celular />
       <PreferenciasSeries preferencias={modelo.preferencias} />
 
       <QueryViewState
@@ -108,7 +109,6 @@ export function SeriesMobileScreen({
       >
         <ResultadoDaLista modelo={modelo} celular />
       </QueryViewState>
-      <ClubesSecao celular />
 
       <MobileFilterSheet
         open={filtrosAbertos}

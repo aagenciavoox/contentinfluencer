@@ -243,6 +243,7 @@ function SeriesListaDesktop({ modelo, onCreate }: { modelo: SeriesListaModelo; o
 
   return (
     <div ref={rolagem} className="stack-lg">
+      <ClubesSecao grande />
       <PreferenciasSeries preferencias={modelo.preferencias} />
 
       <QueryViewState
@@ -261,7 +262,6 @@ function SeriesListaDesktop({ modelo, onCreate }: { modelo: SeriesListaModelo; o
       >
         <ResultadoDaLista modelo={modelo} />
       </QueryViewState>
-      <ClubesSecao />
     </div>
   );
 }

@@ -101,7 +101,7 @@ export function ClubePage() {
     if (!clube || !user?.id) return;
     const draft = createContentDraft({
       userId: user.id,
-      title: 'Nova peça',
+      title: 'Novo arquivo',
       clubeId: clube.id,
       seriesId: null,
       script: htmlInicialDoClube(),
@@ -382,9 +382,7 @@ export function ClubePage() {
   };
 
   const menu = [
-    { id: 'pasta', label: 'Nova pasta', onClick: () => abrirPasta(null) },
     { id: 'vincular', label: 'Vincular série', onClick: () => abrirVincular(null) },
-    { id: 'peca', label: 'Nova peça', onClick: () => { void criarPeca(null); } },
     { id: 'roteiro', label: 'Puxar roteiro', onClick: () => { setPastaAlvo(''); setBusca(''); setPuxarAberto(true); } },
     { id: 'editar', label: 'Editar clube', onClick: () => setEditarAberto(true) },
     { id: 'apagar', label: 'Apagar clube', tone: 'danger' as const, onClick: apagarClube },
@@ -398,6 +396,8 @@ export function ClubePage() {
       pastas={pastas.length}
       pecas={itens.length}
       onNovaSerie={() => abrirSerieDialogo(null)}
+      onNovaPeca={() => { void criarPeca(null); }}
+      onNovaPasta={() => abrirPasta(null)}
       menu={menu}
     />
   );
@@ -437,6 +437,7 @@ export function ClubePage() {
                 label={`Ações de ${nome}`}
                 items={[
                   { id: 'abrir', label: 'Abrir série', onClick: () => navigate(`/series/${item.serie.id}`) },
+                  { id: 'editar', label: 'Editar série', onClick: () => navigate(`/series/${item.serie.id}/editar`) },
                   ...pastas
                     .filter(pasta => pasta.id !== item.vinculo.pastaId)
                     .map(pasta => ({
@@ -587,14 +588,13 @@ export function ClubePage() {
         { id: 'serie', label: 'Nova série nesta pasta', onClick: () => abrirSerieDialogo(pastaId) },
         { id: 'vincular', label: 'Vincular série nesta pasta', onClick: () => abrirVincular(pastaId) },
         { id: 'roteiro', label: 'Puxar roteiro nesta pasta', onClick: () => { setPastaAlvo(pastaId); setBusca(''); setPuxarAberto(true); } },
-        { id: 'renomear', label: 'Renomear pasta', onClick: () => abrirPasta(pastas.find(pasta => pasta.id === pastaId) ?? null) },
+        { id: 'renomear', label: 'Editar pasta', onClick: () => abrirPasta(pastas.find(pasta => pasta.id === pastaId) ?? null) },
         { id: 'apagar', label: 'Apagar pasta', tone: 'danger' as const, onClick: () => {
           const pasta = pastas.find(item => item.id === pastaId);
           if (pasta) apagarPasta(pasta);
         } },
       ]
       : [
-        { id: 'serie', label: 'Nova série', onClick: () => abrirSerieDialogo(null) },
         { id: 'vincular', label: 'Vincular série', onClick: () => abrirVincular(null) },
         { id: 'roteiro', label: 'Puxar roteiro', onClick: () => { setPastaAlvo(''); setBusca(''); setPuxarAberto(true); } },
       ];
@@ -634,7 +634,7 @@ export function ClubePage() {
           </div>
           <div className="flex items-center gap-2">
             <AppButton variant="secondary" size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => { void criarPeca(pastaId); }}>
-              Adicionar
+              Novo arquivo
             </AppButton>
             <button
               type="button"
