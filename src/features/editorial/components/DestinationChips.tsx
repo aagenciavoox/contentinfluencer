@@ -54,6 +54,7 @@ export function DestinationChips({
   activePlatformId = null,
   onActivate,
   onChange,
+  rotulo = 'Onde você pretende publicar?',
 }: {
   platforms: DestinoPlataforma[];
   publications: ContentPlataforma[];
@@ -62,6 +63,8 @@ export function DestinationChips({
   activePlatformId?: string | null;
   onActivate?: (platformId: string) => void;
   onChange: (publications: ContentPlataforma[]) => void;
+  /** Pergunta acima dos ícones. A ficha do episódio usa um rótulo mais curto. */
+  rotulo?: string;
 }) {
   const [abertas, setAbertas] = useState<string[]>([]);
 
@@ -211,7 +214,7 @@ export function DestinationChips({
   return (
     <div className="stack-sm">
       <Text variant="label" className="text-[var(--text-tertiary)]">
-        Onde você pretende publicar?
+        {rotulo}
       </Text>
       {platforms.length === 0 ? (
         <Text variant="secondary">

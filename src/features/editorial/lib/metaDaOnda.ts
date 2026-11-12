@@ -1,4 +1,5 @@
-/** Quantidade, período e início que a Saúde usa na série, no quadro ou na temporada. */
+/** Quantidade, período e início que a Saúde usa na série, na família ou na temporada. Quadro é sob demanda. */
+import { erroDaRegraDeOuro } from './regraDeOuro.ts';
 
 /** Períodos gravados. Bimestre, trimestre e semestre são blocos fechados a partir de janeiro. */
 export const VALORES_UNIDADE = ['semana', 'quinzena', 'mes', 'bimestre', 'trimestre', 'semestre'] as const;
@@ -78,7 +79,8 @@ export function fraseDaFrequencia(vezes: number | null, unidade: string): string
 
 /**
  * Meta vazia sai. Zero e acima do teto são erro: não apagam nem trocam o número.
- * Com quantidade, a quinzena exige a data de início dos ciclos.
+ * A quinzena não exige mais a data de início: sem ela, vale a âncora da semana da primeira
+ * ativação (`ancoraDaQuinzena`), gravada junto com a meta.
  * Quadro sem meta fica "Sob demanda", para não herdar uma frase antiga.
  */
 export function frequenciaParaGravar(input: {
@@ -86,6 +88,8 @@ export function frequenciaParaGravar(input: {
   unidade: string | null | undefined;
   aPartirDe: string | null | undefined;
   tipo: 'serie' | 'quadro' | 'temporada';
+  /** Séries que a meta cobre na Regra de Ouro: 1 na série e na wave; na família, uma por série ativa. */
+  unidadesDaRegra?: number;
 }): ErroDeFrequencia | FrequenciaGravada {
   if (input.vezes != null && Number.isFinite(input.vezes)) {
     const bruto = Math.trunc(input.vezes);
@@ -110,12 +114,15 @@ export function frequenciaParaGravar(input: {
       recomendada: input.tipo === 'quadro' ? 'Sob demanda' : null,
     };
   }
+  // Quadro é sob demanda: não grava meta (o limite dele é o aviso de saturação).
+  if (input.tipo === 'quadro') {
+    return { erro: 'Quadro é sob demanda e não tem meta. Deixe a quantidade vazia.', campo: 'quantidade' };
+  }
   const unidade = ehUnidadeDaMeta(input.unidade) ? input.unidade : null;
   if (!unidade) return { erro: 'Escolha o período da meta.', campo: 'periodo' };
+  const regraDeOuro = erroDaRegraDeOuro(vezes, unidade, input.unidadesDaRegra ?? 1);
+  if (regraDeOuro) return { erro: regraDeOuro, campo: 'quantidade' };
   const aPartirDe = input.aPartirDe && /^\d{4}-\d{2}-\d{2}$/.test(input.aPartirDe) ? input.aPartirDe : null;
-  if (unidade === 'quinzena' && !aPartirDe) {
-    return { erro: 'Meta a cada 14 dias precisa da data de início dos ciclos.', campo: 'inicio' };
-  }
   return {
     vezes,
     unidade,
@@ -133,6 +140,8 @@ export type OndaGravada = {
   frequenciaVezes: number | null;
   frequenciaUnidade: UnidadeDaMeta | null;
   frequenciaAPartirDe: string | null;
+  /** Meta de 14 dias sem início: a segunda da semana da primeira ativação (serie_meta.ancora). */
+  frequenciaAncora: string | null;
   /** Janela e regras do acompanhamento da wave, como no acompanhamento geral da série. */
   inicio: string | null;
   termino: string | null;
@@ -166,6 +175,7 @@ export function ondaDasLinhas(temporadaId: string, acompanhamentos: readonly Lin
     frequenciaVezes: unidade ? vezes : null,
     frequenciaUnidade: unidade,
     frequenciaAPartirDe: unidade ? aPartirDe : null,
+    frequenciaAncora: unidade && typeof meta?.ancora === 'string' && meta.ancora ? meta.ancora.slice(0, 10) : null,
     inicio: dia(acompanhamento?.inicio),
     termino: dia(acompanhamento?.termino),
     distanciaMaxDias: typeof acompanhamento?.distancia_max_dias === 'number' && acompanhamento.distancia_max_dias > 0
@@ -188,6 +198,7 @@ export function linhasDaOnda(temporada: {
   frequenciaVezes?: number | null;
   frequenciaUnidade?: string | null;
   frequenciaAPartirDe?: string | null;
+  frequenciaAncora?: string | null;
   acompanhamentoInicio?: string | null;
   acompanhamentoTermino?: string | null;
   distanciaMaxDias?: number | null;
@@ -195,7 +206,8 @@ export function linhasDaOnda(temporada: {
 }): { acompanhamento: Linha | null; meta: Linha | null } {
   const vezes = typeof temporada.frequenciaVezes === 'number' && temporada.frequenciaVezes > 0 ? Math.trunc(temporada.frequenciaVezes) : null;
   const unidade = ehUnidadeDaMeta(temporada.frequenciaUnidade) ? temporada.frequenciaUnidade : null;
-  const meta = vezes != null && unidade && (unidade !== 'quinzena' || temporada.frequenciaAPartirDe)
+  // Ciclo de 14 dias: o início ou, sem ele, a âncora da primeira ativação.
+  const meta = vezes != null && unidade && (unidade !== 'quinzena' || temporada.frequenciaAPartirDe || temporada.frequenciaAncora)
     ? {
       user_id: temporada.userId,
       serie_id: temporada.serieId,
@@ -205,6 +217,8 @@ export function linhasDaOnda(temporada: {
       vezes,
       unidade,
       a_partir_de: temporada.frequenciaAPartirDe || null,
+      // Só vai quando existe: banco sem a migração da âncora continua gravando as outras metas.
+      ...(temporada.frequenciaAncora ? { ancora: temporada.frequenciaAncora } : {}),
     }
     : null;
   const acompanhamento = temporada.acompanhar === true || meta

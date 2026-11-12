@@ -126,3 +126,13 @@ assert.equal(consolidarMetas([]).total, null);
 }
 
 console.log('metasPorConta (agendamento): ok');
+
+// --- Fonte da meta da conta: temporária do período, base da conta ou "Sem meta para este período".
+{
+  const base = { linhas: [linha('ig', '2026-11-01', 3)], periodo: DEZEMBRO, proporcaoGeral: null, hoje: HOJE };
+  assert.equal(metaDaConta({ ...base, platformId: 'ig' }).fonte, 'base');
+  assert.equal(metaDaConta({ ...base, platformId: 'tt' }).fonte, 'nenhuma');
+  const temporaria = metaDaConta({ ...base, platformId: 'ig', decisao: { metasPorConta: { ig: { publicacao: 20 } } } as never });
+  assert.equal(temporaria.fonte, 'periodo');
+  assert.equal(temporaria.valor, 20);
+}

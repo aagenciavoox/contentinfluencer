@@ -40,6 +40,11 @@ export type MetaDaConta = MetaDoPeriodo & {
   platformId: string;
   /** Sem ritmo nem número do período. Entra como "sem meta", não como zero. */
   semMeta: boolean;
+  /**
+   * Fonte do número: `periodo` = meta temporária só deste período; `base` = ritmo vigente da conta;
+   * `nenhuma` = "Sem meta para este período". A temporária nunca vaza para outro período.
+   */
+  fonte: 'periodo' | 'base' | 'nenhuma';
   proporcao: ProporcaoFuncoes | null;
   /** A proporção veio do Editorial geral, não da conta. */
   proporcaoHerdada: boolean;
@@ -189,6 +194,7 @@ export function metaDaConta(input: {
     ...meta,
     platformId: input.platformId,
     semMeta: meta.valor == null,
+    fonte: meta.valor == null ? 'nenhuma' : absoluta != null ? 'periodo' : 'base',
     proporcao,
     proporcaoHerdada: propria == null,
     porObjetivo,

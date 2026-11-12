@@ -190,7 +190,7 @@ export function buildAppRoutes(): RouteObject[] {
                 { path: '/menu', element: <MenuMobileScreen /> },
                 { path: '/configuracoes', element: <Settings /> },
                 { path: '/configuracoes/perfil', element: <PerfilSettings /> },
-                { path: '/configuracoes/pilares', element: <Navigate to="/editorial" replace /> },
+                { path: '/configuracoes/pilares', element: <Navigate to="/editorial?aba=direcao" replace /> },
                 { path: '/configuracoes/pilares/nova', element: <Navigate to="/editorial/pilares/nova" replace /> },
                 {
                   path: '/configuracoes/pilares/:pilarId/editar',
@@ -198,7 +198,7 @@ export function buildAppRoutes(): RouteObject[] {
                 },
                 { path: '/configuracoes/aparencia', element: <Navigate to="/configuracoes" replace /> },
                 { path: '/configuracoes/looks', element: <Navigate to="/configuracoes" replace /> },
-                { path: '/configuracoes/regras', element: <Navigate to="/editorial" replace /> },
+                { path: '/configuracoes/regras', element: <Navigate to="/editorial?aba=ajustes" replace /> },
                 { path: '/series', element: <SeriesSettings /> },
                 { path: '/series/novo', element: <SeriesEditar /> },
                 { path: '/series/nova', element: <LegacySeriesNewRedirect /> },

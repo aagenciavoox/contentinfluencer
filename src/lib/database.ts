@@ -9,7 +9,9 @@ import { normalizarRedesPostIt } from '../features/planejamento/lib/redesPostIt.
 import { normalizeWritingMode, readCarouselSlides, slidesHaveContent } from '../features/contents/lib/carouselSlides.ts';
 import { nomeIndicaBlog, type RedeDoFiltro } from '../features/contas/lib/contas.ts';
 import { readAvisoDias } from '../features/projects/lib/evento.ts';
-import { DEFAULT_EDITORIAL_SETTINGS, lerMetodoCalculo, METODO_CALCULO_PADRAO, type EditorialSettings } from '../features/editorial/lib/editorialSettings.ts';
+import { DEFAULT_EDITORIAL_SETTINGS, lerMetodoCalculo, lerPerfilEditorial, METODO_CALCULO_PADRAO, type EditorialSettings } from '../features/editorial/lib/editorialSettings.ts';
+import { lerAvisosLigados } from '../features/editorial/lib/avisosEditoriais.ts';
+import { indicadoresVazios, lerIndicadoresProducao } from '../features/editorial/lib/indicadoresProducao.ts';
 import { LIMITES_CONCENTRACAO_PADRAO, lerLimitesConcentracao, type ExcecaoConcentracao, type LimitesConcentracao } from '../features/editorial/lib/concentracao.ts';
 import type { AcompanhamentoSerie, MetaDaSerieNoEscopo } from '../features/editorial/lib/continuidadeEscopo.ts';
 import { comCoresDaSerie } from '../features/settings/lib/serieColors.ts';
@@ -93,6 +95,8 @@ export interface Pilar {
   frequenciaSemanal?: number | null;
   /** Legado: a coluna existe, mas o app não grava nem usa. */
   metaCiclo?: number | null;
+  /** Legenda-base sugerida para os roteiros do pilar (migração 20261111150000). */
+  legendaBase?: string | null;
   createdAt: string;
   updatedAt: string;
   plataformas: PilarPlataforma[];
@@ -105,6 +109,8 @@ export interface SeriePlataforma {
   hashtags: string;
   /** Versão da legenda da série para esta conta. Vazio usa a legenda-base da série. */
   legenda?: string | null;
+  /** Formato do destino nesta conta (conta + formato). Nulo = dedução do app. Migração 20261111150000. */
+  formato?: FormatoEscolhidoNaPublicacao | null;
 }
 
 /** Seis funções fixas do produto. O agrupamento topo/meio/fundo é calculado. */
@@ -188,6 +194,11 @@ export interface Serie {
   frequenciaUnidade?: string | null;
   /** Primeiro dia em que a frequência passa a valer. */
   frequenciaAPartirDe?: string | null;
+  /**
+   * Meta a cada 14 dias sem início: segunda-feira da semana da primeira ativação, fixa
+   * (coluna frequencia_ancora, migração 20261111120000). Ausente no banco antigo.
+   */
+  frequenciaAncora?: string | null;
   /** Função herdada pelos roteiros que ainda não escolhem a própria. */
   funcaoPadrao: FuncaoPadraoSerie | null;
   /** Energia aplicada aos conteúdos criados a partir da série. */
@@ -252,8 +263,10 @@ export interface Temporada {
   frequenciaVezes?: number | null;
   /** semana, quinzena ou mes. */
   frequenciaUnidade?: string | null;
-  /** Primeiro dia da meta. Obrigatório no ciclo de 14 dias. */
+  /** Primeiro dia da meta. Opcional: sem ele, o ciclo de 14 dias usa `frequenciaAncora`. */
   frequenciaAPartirDe?: string | null;
+  /** Segunda-feira da semana da primeira ativação da meta de 14 dias (serie_meta.ancora). */
+  frequenciaAncora?: string | null;
   /** Wave isolada na Saúde: conta só os episódios desta temporada. */
   acompanhar?: boolean;
   /**
@@ -270,6 +283,11 @@ export interface Temporada {
   evitarDiasSeguidos?: boolean;
   /** Rascunho ou arquivada: fora da Saúde e da conta da série. Ausente no banco antigo = ativa. */
   status?: StatusSerie;
+  /**
+   * Dia em que foi arquivada (temporadas.arquivada_em). Daí em diante os episódios voltam para a série;
+   * antes, vale o acompanhamento próprio. Nulo em arquivada antiga = regra de antes.
+   */
+  arquivadaEm?: string | null;
   createdAt: string;
 }
 
@@ -506,7 +524,7 @@ export interface ContentPlataforma {
 }
 
 /** Formato marcado na publicação ao criar ou ao trocar o chip da rede. */
-export type FormatoEscolhidoNaPublicacao = 'short' | 'video-longo' | 'reels' | 'carrossel';
+export type FormatoEscolhidoNaPublicacao = 'short' | 'video-longo' | 'reels' | 'carrossel' | 'stories';
 
 /** Migração do formato por publicação (Shorts ou vídeo longo no YouTube). */
 export const MIGRACAO_FORMATO_PUBLICACAO = '20261103200000_formato_da_publicacao';
@@ -1005,7 +1023,14 @@ const SERIE_OPTIONAL_COLUMNS = [
   'foco_redes',
   'status',
   'modo_sequencia',
+  'frequencia_ancora',
 ] as const;
+
+/** Migração das três bases do Editorial: âncora da quinzena, perfil editorial e avisos. */
+export const MIGRACAO_EDITORIAL_BASES = '20261111120000_editorial_bases';
+
+/** Destino conta + formato, arquivo da temporada, indicadores da rotina, legenda do pilar e Stories. */
+export const MIGRACAO_EDITORIAL_RESTANTE = '20261111150000_editorial_restante';
 
 /** Migração da escolha "Acompanhar continuidade na Saúde". */
 export const MIGRACAO_SERIE_CONTINUIDADE = '20261102240000_serie_acompanhar_continuidade';
@@ -1201,7 +1226,7 @@ function readRede(value: unknown): RedeSocial | null {
 }
 
 function readFormatoPublicacao(value: unknown): FormatoEscolhidoNaPublicacao | null {
-  return value === 'short' || value === 'video-longo' || value === 'reels' || value === 'carrossel' ? value : null;
+  return value === 'short' || value === 'video-longo' || value === 'reels' || value === 'carrossel' || value === 'stories' ? value : null;
 }
 
 function readConexaoStatus(value: unknown): ConexaoStatus {
@@ -1387,6 +1412,7 @@ const mp = {
     cor: r.cor, ativo: r.ativo,
     frequenciaSemanal: r.frequencia_semanal ?? null,
     metaCiclo: r.meta_ciclo ?? null,
+    legendaBase: typeof r.legenda_base === 'string' && r.legenda_base.trim() ? r.legenda_base : null,
     createdAt: r.created_at, updatedAt: r.updated_at,
     plataformas: (r.pilar_plataformas || []).map((p: Row) => ({
       pilarId: p.pilar_id, platformId: p.platform_id, hashtags: p.hashtags || '',
@@ -1409,6 +1435,9 @@ const mp = {
       : null,
     frequenciaAPartirDe: typeof r.frequencia_a_partir_de === 'string' && r.frequencia_a_partir_de
       ? String(r.frequencia_a_partir_de).slice(0, 10)
+      : null,
+    frequenciaAncora: typeof r.frequencia_ancora === 'string' && r.frequencia_ancora
+      ? String(r.frequencia_ancora).slice(0, 10)
       : null,
     funcaoPadrao: readFuncaoPadrao(r.funcao_padrao),
     energiaPadrao: readEnergiaNivel(r.energia_padrao),
@@ -1434,6 +1463,7 @@ const mp = {
       platformId: String(sp.platform_id),
       hashtags: sp.hashtags || '',
       legenda: typeof sp.legenda === 'string' ? sp.legenda : null,
+      formato: readFormatoPublicacao(sp.formato),
     })),
   }),
   temporada: (r: Row): Temporada => ({
@@ -1448,6 +1478,9 @@ const mp = {
     frequenciaAPartirDe: typeof r.frequencia_a_partir_de === 'string' && r.frequencia_a_partir_de
       ? String(r.frequencia_a_partir_de).slice(0, 10)
       : null,
+    frequenciaAncora: typeof r.frequencia_ancora === 'string' && r.frequencia_ancora
+      ? String(r.frequencia_ancora).slice(0, 10)
+      : null,
     acompanhar: r.acompanhar === true,
     ritmoProprio: r.ritmo_proprio === true,
     acompanhamentoInicio: typeof r.acompanhamento_inicio === 'string' && r.acompanhamento_inicio ? r.acompanhamento_inicio.slice(0, 10) : null,
@@ -1455,6 +1488,7 @@ const mp = {
     distanciaMaxDias: typeof r.distancia_max_dias === 'number' && r.distancia_max_dias > 0 ? r.distancia_max_dias : null,
     evitarDiasSeguidos: r.evitar_dias_seguidos === true,
     status: readStatusSerie(r.status),
+    arquivadaEm: typeof r.arquivada_em === 'string' && r.arquivada_em ? r.arquivada_em.slice(0, 10) : null,
     createdAt: r.created_at,
   }),
   tema: (r: Row): Tema => ({
@@ -2882,6 +2916,10 @@ function editorialDasLinhas(
     vigencias,
     ...daConta,
     concentracao: lerLimitesConcentracao(conta.concentracao),
+    // Sem perfil gravado (ou antes da migração), o texto antigo vira o público.
+    perfil: lerPerfilEditorial(conta.perfil_editorial, typeof conta.publico_linguagem === 'string' ? conta.publico_linguagem : ''),
+    avisos: lerAvisosLigados(conta.avisos),
+    indicadoresProducao: lerIndicadoresProducao(conta.indicadores_producao),
   };
   // Mudança agendada que passou a valer depois da última gravação: o ritmo de hoje passa a ser o dela.
   return alinharComVigenciaAgendada(montado, typeof conta.updated_at === 'string' ? conta.updated_at : null);
@@ -2992,6 +3030,7 @@ function metaDaSerieDaLinha(row: Row): MetaDaSerieNoEscopo[] {
     vezes,
     unidade,
     aPartirDe: diaDaLinha(row.a_partir_de),
+    ancora: diaDaLinha(row.ancora),
   }];
 }
 
@@ -3034,12 +3073,18 @@ export async function saveEditorial(settings: EditorialSettings): Promise<void> 
     dias_gravacao: preferencias.diasGravacao ?? [],
     antecedencia_postagem_dias: preferencias.antecedenciaPostagemDias ?? null,
     concentracao: concentracaoParaGravar(settings.concentracao),
+    ...(settings.perfil ? { perfil_editorial: settings.perfil } : {}),
+    ...(settings.avisos ? { avisos: settings.avisos } : {}),
+    ...(settings.indicadoresProducao ? { indicadores_producao: settings.indicadoresProducao } : {}),
     updated_at: new Date().toISOString(),
   };
   // Sem a migração da coluna, o resto grava e o valor fica só nesta sessão.
   // O PostgREST avisa uma coluna ausente por vez, então cada falha tira a coluna citada e tenta de novo.
   // (proporção: 20261016220000; gravações por dia: 20261030130000; concentração: 20261103120000; avisos: 20261104160000).
-  const colunasOpcionais = ['proporcao_funcoes', 'limite_gravacoes_dia', 'concentracao', 'dias_gravacao', 'antecedencia_postagem_dias'];
+  // (perfil editorial e avisos: 20261111120000).
+  // (indicadores da rotina de criação: 20261111150000).
+  const colunasOpcionais = ['proporcao_funcoes', 'limite_gravacoes_dia', 'concentracao', 'dias_gravacao', 'antecedencia_postagem_dias', 'perfil_editorial', 'avisos', 'indicadores_producao'];
+  const semMigracao: string[] = [];
   let linhaConta = contaRow;
   let { error: contaError } = await supabase.from('editorial_conta').upsert(linhaConta, { onConflict: 'user_id' });
   while (contaError) {
@@ -3047,10 +3092,19 @@ export async function saveEditorial(settings: EditorialSettings): Promise<void> 
     const ausente = colunasOpcionais.find(coluna => coluna in linhaConta && erro.message.includes(coluna));
     if (!ausente) break;
     const { [ausente]: _removida, ...semColuna } = linhaConta;
+    semMigracao.push(ausente);
     linhaConta = semColuna;
     ({ error: contaError } = await supabase.from('editorial_conta').upsert(linhaConta, { onConflict: 'user_id' }));
   }
   if (contaError) throw new Error(`editorial_conta: ${contaError.message}`);
+  // Perfil além do público, ou aviso desligado, sem a coluna: o resto gravou, mas isso não pode parecer salvo.
+  const perfilPerdido = semMigracao.includes('perfil_editorial') && Boolean(
+    settings.perfil && (settings.perfil.motivacaoPublico || settings.perfil.linguagens || settings.perfil.assuntos),
+  );
+  const avisosPerdidos = semMigracao.includes('avisos') && Object.values(settings.avisos ?? {}).some(valor => valor === false || valor === 1);
+  // O aviso sai no fim, depois de gravar o resto (vigências, destinos, decisões).
+  const faltaMigracaoDasBases = perfilPerdido || avisosPerdidos;
+  const indicadoresPerdidos = semMigracao.includes('indicadores_producao') && !indicadoresVazios(settings.indicadoresProducao);
 
   // Vigência do limite e da proporção. Sem a tabela, a conta usa os valores de hoje.
   if (settings.vigencias && settings.vigencias.length > 0) {
@@ -3172,6 +3226,12 @@ export async function saveEditorial(settings: EditorialSettings): Promise<void> 
     if (porIntervaloMantido(linhas, linha.inicio, linha.fim)) continue;
     const { error } = await supabase.from('decisao_periodo').delete().eq('id', linha.id);
     if (error) throw new Error(`decisao_periodo: ${error.message}`);
+  }
+  if (faltaMigracaoDasBases) {
+    throw new Error(`Para guardar o perfil editorial e os avisos desligados, aplique a migração ${MIGRACAO_EDITORIAL_BASES}.`);
+  }
+  if (indicadoresPerdidos) {
+    throw new Error(`Para guardar os indicadores da rotina de criação, aplique a migração ${MIGRACAO_EDITORIAL_RESTANTE}.`);
   }
 }
 
@@ -3331,8 +3391,8 @@ export async function saveEditorialVisao(visao: PeriodoSelecionado): Promise<voi
   if (!uid) return;
   const { error } = await supabase.from('editorial_visao').upsert({
     user_id: uid,
-    // A coluna só aceita semana, mês e intervalo; lerPeriodoSalvo reconhece o trimestre de volta.
-    modo: visao.modo === 'trimestre' ? 'intervalo' : visao.modo,
+    // A coluna só aceita semana, mês e intervalo; lerPeriodoSalvo reconhece trimestre e quinzena de volta.
+    modo: visao.modo === 'trimestre' || visao.modo === 'quinzena' ? 'intervalo' : visao.modo,
     inicio: visao.inicio,
     fim: visao.fim,
     updated_at: new Date().toISOString(),
@@ -3431,10 +3491,20 @@ export async function saveDnaVoz(
 
 export async function savePilar(pilar: Omit<Pilar, 'plataformas' | 'createdAt' | 'updatedAt'>): Promise<void> {
   if (!supabase) return;
-  const { error } = await supabase.from('pilares').upsert({
+  const row: Record<string, unknown> = {
     id: pilar.id, user_id: pilar.userId, nome: pilar.nome,
     descricao: pilar.descricao, cor: pilar.cor, ativo: pilar.ativo,
-  });
+  };
+  if ('legendaBase' in pilar) row.legenda_base = pilar.legendaBase?.trim() ? pilar.legendaBase : null;
+  let { error } = await supabase.from('pilares').upsert(row);
+  if (error && 'legenda_base' in row && isMissingNamedColumn(error.message ?? '', 'legenda_base')) {
+    const { legenda_base: legenda, ...semLegenda } = row;
+    ({ error } = await supabase.from('pilares').upsert(semLegenda));
+    // A legenda do pilar não pode sumir calada: o resto gravou, ela pede a migração.
+    if (!error && legenda != null) {
+      throw new Error(`Para guardar a legenda do pilar, aplique a migração ${MIGRACAO_EDITORIAL_RESTANTE}.`);
+    }
+  }
   if (error) throw new Error(`pilares: ${error.message}`);
 }
 
@@ -3508,6 +3578,7 @@ export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 
   if ('frequenciaVezes' in serie) row.frequencia_vezes = serie.frequenciaVezes ?? null;
   if ('frequenciaUnidade' in serie) row.frequencia_unidade = serie.frequenciaUnidade?.trim() || null;
   if ('frequenciaAPartirDe' in serie) row.frequencia_a_partir_de = serie.frequenciaAPartirDe || null;
+  if (serie.frequenciaAncora) row.frequencia_ancora = serie.frequenciaAncora;
   if ('legendaBase' in serie) row.legenda_base = serie.legendaBase?.trim() ? serie.legendaBase : null;
   if ('parentId' in serie) row.parent_id = serie.parentId?.trim() || null;
   if ('usaTemporadas' in serie) row.usa_temporadas = serie.usaTemporadas === true;
@@ -3548,6 +3619,10 @@ export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 
       if (missing === 'usa_cor_da_serie' && row.usa_cor_da_serie === true) {
         throw new Error(`Para o quadro usar a cor da série, aplique a migração ${MIGRACAO_EDITORIAL_POR_CONTA}.`);
       }
+      // A âncora da quinzena precisa ficar fixa: sem a coluna, recalcular depois mudaria os ciclos.
+      if (missing === 'frequencia_ancora' && row.frequencia_ancora != null) {
+        throw new Error(`Para guardar a meta a cada 14 dias sem data de início, aplique a migração ${MIGRACAO_EDITORIAL_BASES}.`);
+      }
       if (missing === 'status' && row.status === 'rascunho') {
         throw new Error(`Para guardar a série como rascunho, aplique a migração ${MIGRACAO_SERIE_STATUS}.`);
       }
@@ -3586,15 +3661,24 @@ export async function saveSeriePilares(serieId: string, pilarIds: string[]): Pro
 export async function saveSeriePlataformas(serieId: string, plataformas: SeriePlataforma[]): Promise<void> {
   if (!supabase) return;
   const platformIds = await resolvePlatformIds(plataformas.map(plataforma => plataforma.platformId));
-  const rows = plataformas.map(plataforma => ({
+  const comFormato = plataformas.map(plataforma => ({
     serie_id: serieId,
     platform_id: platformIds.get(plataforma.platformId),
     hashtags: plataforma.hashtags,
     legenda: plataforma.legenda?.trim() ? plataforma.legenda : null,
+    formato: plataforma.formato ?? null,
   })).filter((row): row is typeof row & { platform_id: string } => !!row.platform_id);
+  let rows: Array<Omit<(typeof comFormato)[number], 'formato'> & { formato?: string | null }> = comFormato;
+  let formatoPerdido = false;
 
   if (rows.length > 0) {
     let { error } = await supabase.from('serie_plataformas').upsert(rows, { onConflict: 'serie_id,platform_id' });
+    // Sem a coluna do formato do destino: grava o resto e avisa no fim, se algum formato foi escolhido.
+    if (error && isMissingNamedColumn(error.message ?? '', 'formato')) {
+      formatoPerdido = comFormato.some(row => row.formato != null);
+      rows = comFormato.map(({ formato: _formato, ...rest }) => rest);
+      ({ error } = await supabase.from('serie_plataformas').upsert(rows, { onConflict: 'serie_id,platform_id' }));
+    }
     if (error && isMissingNamedColumn(error.message ?? '', 'legenda')) {
       if (rows.some(row => row.legenda != null)) {
         await supabase.from('serie_plataformas').upsert(
@@ -3614,6 +3698,9 @@ export async function saveSeriePlataformas(serieId: string, plataformas: SeriePl
   if (rows.length > 0) apagar = apagar.not('platform_id', 'in', `(${rows.map(row => row.platform_id).join(',')})`);
   const { error: sobra } = await apagar;
   if (sobra) throw new Error(`serie_plataformas: ${sobra.message}`);
+  if (formatoPerdido) {
+    throw new Error(`Para guardar o formato de cada destino, aplique a migração ${MIGRACAO_EDITORIAL_RESTANTE}.`);
+  }
 }
 
 /**
@@ -3663,6 +3750,9 @@ function chaveDaMeta(platformId: unknown, formato: unknown): string {
 }
 
 function erroDaMetaNoBanco(message: string, unidade: string | null | undefined): Error {
+  if (isMissingNamedColumn(message, 'ancora')) {
+    return new Error(`Para guardar a meta a cada 14 dias sem data de início, aplique a migração ${MIGRACAO_EDITORIAL_BASES}.`);
+  }
   if (unidade && ['bimestre', 'trimestre', 'semestre'].includes(unidade) && /check constraint/i.test(message)) {
     return new Error(`Para usar ${unidade} na meta, aplique a migração ${MIGRACAO_SERIE_META_PERIODOS}.`);
   }
@@ -3673,7 +3763,7 @@ function erroDaMetaNoBanco(message: string, unidade: string | null | undefined):
 export async function saveSerieMetas(serieId: string, userId: string, metas: readonly MetaDaSerieNoEscopo[]): Promise<void> {
   if (!supabase) return;
   const validas = metas.filter(meta => (meta.platformId || meta.formato) && meta.vezes > 0
-    && (meta.unidade !== 'quinzena' || meta.aPartirDe));
+    && (meta.unidade !== 'quinzena' || meta.aPartirDe || meta.ancora));
 
   // A meta da temporada fica de fora: só a da série por conta ou formato.
   let consulta = await supabase.from('serie_meta').select('id, platform_id, formato').eq('serie_id', serieId).is('temporada_id', null);
@@ -3701,6 +3791,7 @@ export async function saveSerieMetas(serieId: string, userId: string, metas: rea
       vezes: meta.vezes,
       unidade: meta.unidade,
       a_partir_de: meta.aPartirDe || null,
+      ...(meta.ancora ? { ancora: meta.ancora } : {}),
       updated_at: new Date().toISOString(),
     };
     const id = porChave.get(chaveDaMeta(row.platform_id, row.formato));
@@ -3730,8 +3821,8 @@ export async function deleteSerie(id: string): Promise<void> {
 /** Lê temporadas. Colunas novas somem do select se o banco ainda não as tem. */
 async function lerTemporadas(uid: string) {
   if (!supabase) return { data: [], error: null };
-  let colunas = 'id, user_id, serie_id, nome, descricao, foco_redes, status, created_at';
-  const opcionais = ['status', 'foco_redes', 'descricao'];
+  let colunas = 'id, user_id, serie_id, nome, descricao, foco_redes, status, arquivada_em, created_at';
+  const opcionais = ['arquivada_em', 'status', 'foco_redes', 'descricao'];
   for (let tentativa = 0; tentativa < opcionais.length + 1; tentativa += 1) {
     const result = await supabase.from('temporadas').select(colunas).eq('user_id', uid).order('nome');
     if (!result.error) return { ...result, data: await comOndas(uid, (result.data ?? []) as unknown as Row[]) };
@@ -3749,10 +3840,15 @@ async function lerTemporadas(uid: string) {
  */
 async function comOndas(uid: string, linhas: Row[]): Promise<Row[]> {
   if (!supabase || linhas.length === 0) return linhas;
-  const [acompanhamentos, metas] = await Promise.all([
+  const lerMetas = (colunas: string) => supabase!.from('serie_meta').select(colunas).eq('user_id', uid).not('temporada_id', 'is', null);
+  const [acompanhamentos, metasComAncora] = await Promise.all([
     supabase.from('serie_acompanhamento').select('temporada_id, escopo, ativo, ritmo_proprio, inicio, termino, distancia_max_dias, evitar_dias_seguidos').eq('user_id', uid).eq('escopo', 'temporada'),
-    supabase.from('serie_meta').select('temporada_id, vezes, unidade, a_partir_de').eq('user_id', uid).not('temporada_id', 'is', null),
+    lerMetas('temporada_id, vezes, unidade, a_partir_de, ancora'),
   ]);
+  // Sem a migração da âncora, lê as metas sem ela.
+  const metas = metasComAncora.error && isMissingNamedColumn(metasComAncora.error.message ?? '', 'ancora')
+    ? await lerMetas('temporada_id, vezes, unidade, a_partir_de')
+    : metasComAncora;
   const acomp = acompanhamentos.error ? [] : (acompanhamentos.data ?? []) as Row[];
   const meta = metas.error ? [] : (metas.data ?? []) as Row[];
   return linhas.map(row => {
@@ -3764,6 +3860,7 @@ async function comOndas(uid: string, linhas: Row[]): Promise<Row[]> {
       frequencia_vezes: onda.frequenciaVezes,
       frequencia_unidade: onda.frequenciaUnidade,
       frequencia_a_partir_de: onda.frequenciaAPartirDe,
+      frequencia_ancora: onda.frequenciaAncora,
       acompanhamento_inicio: onda.inicio,
       acompanhamento_termino: onda.termino,
       distancia_max_dias: onda.distanciaMaxDias,
@@ -3834,20 +3931,27 @@ export async function saveTemporada(temporada: Omit<Temporada, 'createdAt'>): Pr
     descricao: temporada.descricao?.trim() || null,
     foco_redes: normalizarRedesPostIt(temporada.focoRedes ?? []),
     ...(temporada.status ? { status: temporada.status } : {}),
+    ...('arquivadaEm' in temporada ? { arquivada_em: temporada.arquivadaEm || null } : {}),
   };
-  for (let tentativa = 0; tentativa < 5; tentativa += 1) {
+  let arquivoPerdido = false;
+  for (let tentativa = 0; tentativa < 6; tentativa += 1) {
     const { error } = await supabase.from('temporadas').upsert(row);
     if (!error) {
       // Meta e acompanhamento da wave ficam nas tabelas da série, não em colunas da temporada.
       await gravarOnda(temporada, nome);
+      // Arquivou sem a coluna da data: o status gravou, mas a volta dos episódios para a série não tem data.
+      if (arquivoPerdido) {
+        throw new Error(`Para guardar a data do arquivo da temporada, aplique a migração ${MIGRACAO_EDITORIAL_RESTANTE}.`);
+      }
       return;
     }
     const message = error.message ?? '';
-    const ausente = ['status', 'foco_redes', 'descricao'].find(coluna => isMissingNamedColumn(message, coluna) && coluna in row);
+    const ausente = ['arquivada_em', 'status', 'foco_redes', 'descricao'].find(coluna => isMissingNamedColumn(message, coluna) && coluna in row);
     if (!ausente) throw new Error(`temporadas: ${message}`);
     if (ausente === 'status' && row.status !== 'ativa') {
       throw new Error(`Para guardar o status da wave, aplique a migração ${MIGRACAO_SERIE_STATUS}.`);
     }
+    if (ausente === 'arquivada_em' && row.arquivada_em != null) arquivoPerdido = true;
     const { [ausente]: _omitida, ...resto } = row;
     row = resto;
   }
@@ -4466,6 +4570,10 @@ export async function saveContentPlataformas(
         }
         includeFormato = false;
         continue;
+      }
+      // Stories escolhido antes da regra nova do banco: não pode parecer salvo.
+      if (includeFormato && /formato_publicacao_check/i.test(error.message ?? '') && rows.some(row => row.formato_publicacao === 'stories')) {
+        throw new Error(`Para publicar como Stories, aplique a migração ${MIGRACAO_EDITORIAL_RESTANTE}.`);
       }
       throw new Error(`content_plataformas: ${error.message}`);
     }

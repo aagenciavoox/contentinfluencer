@@ -50,15 +50,16 @@ assert.match(erroDoVinculo('quadro', 'nao-existe', 'novo', series) ?? '', /não 
 
 // Frequência como o formulário do app.
 const vazia = {vezes: null, unidade: null, aPartirDe: null};
+const FRASE_SEMANAL = (colunasDaFrequencia({vezes: 1, unidade: 'semana'}, vazia, 'serie') as {colunas: Record<string, unknown>}).colunas.frequencia_recomendada;
 assert.equal(colunasDaFrequencia({}, vazia, 'serie'), null);
-assert.deepEqual(colunasDaFrequencia({vezes: 2, unidade: 'semana', a_partir_de: '2026-11-09'}, vazia, 'serie'), {colunas: {
-  frequencia_vezes: 2, frequencia_unidade: 'semana', frequencia_a_partir_de: '2026-11-09', frequencia_recomendada: '2 por semana',
+assert.deepEqual(colunasDaFrequencia({vezes: 1, unidade: 'semana', a_partir_de: '2026-11-09'}, vazia, 'serie'), {colunas: {
+  frequencia_vezes: 1, frequencia_unidade: 'semana', frequencia_a_partir_de: '2026-11-09', frequencia_recomendada: FRASE_SEMANAL,
 }});
 assert.deepEqual(colunasDaFrequencia({unidade: 'mes'}, vazia, 'serie'), {colunas: {
   frequencia_vezes: 1, frequencia_unidade: 'mes', frequencia_a_partir_de: null, frequencia_recomendada: 'Mensal',
 }});
-assert.deepEqual(colunasDaFrequencia({vezes: 3}, {vezes: 1, unidade: 'quinzena', aPartirDe: '2026-01-01'}, 'serie'), {colunas: {
-  frequencia_vezes: 3, frequencia_unidade: 'quinzena', frequencia_a_partir_de: '2026-01-01', frequencia_recomendada: '3 por quinzena',
+assert.deepEqual(colunasDaFrequencia({vezes: 2}, {vezes: 1, unidade: 'quinzena', aPartirDe: '2026-01-01'}, 'serie'), {colunas: {
+  frequencia_vezes: 2, frequencia_unidade: 'quinzena', frequencia_a_partir_de: '2026-01-01', frequencia_recomendada: '2 por quinzena',
 }});
 assert.deepEqual(colunasDaFrequencia({unidade: 'sob-demanda'}, vazia, 'serie'), {colunas: {
   frequencia_vezes: null, frequencia_unidade: null, frequencia_a_partir_de: null, frequencia_recomendada: 'Sob demanda',
@@ -126,5 +127,12 @@ const semPilar = [...series, serieDaLinha({id: 'q3', name: 'Quadro C', parent_id
 const aplicada = episodioDaLinha({id: 'e5', series_id: 's1', pilar_origem: 'herdada', pilar_id: 'p1', funcao_origem: 'aplicada', funcao: null, created_at: '5'});
 const movida = planoMover([aplicada], {quadroId: 'q3', temporada: 'manter'}, semPilar, temporadas).mudam[0];
 assert.deepEqual([movida.pilarId, movida.pilarOrigem, movida.funcao, movida.funcaoOrigem], [null, 'herdada', null, 'aplicada']);
+
+// Regra de Ouro: série no máximo 1 por semana (janelas maiores, o equivalente); quadro não grava meta.
+assert.match((colunasDaFrequencia({vezes: 2, unidade: 'semana'}, vazia, 'serie') as {erro: string}).erro, /Regra de Ouro/);
+assert.match((colunasDaFrequencia({vezes: 3}, {vezes: 1, unidade: 'quinzena', aPartirDe: '2026-01-01'}, 'serie') as {erro: string}).erro, /até 2 a cada 14 dias/);
+assert.ok('colunas' in (colunasDaFrequencia({vezes: 4, unidade: 'mes'}, vazia, 'serie') ?? {}));
+assert.match((colunasDaFrequencia({vezes: 1, unidade: 'semana'}, vazia, 'quadro') as {erro: string}).erro, /sob demanda/);
+assert.match(avisoDaContinuidade(true, 'quadro', true).aviso ?? '', /sob demanda/);
 
 console.log('serieEstrutura ok');

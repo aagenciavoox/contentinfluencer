@@ -3,6 +3,7 @@ import {
   classeDiaPausaPublicacao,
   comClasseDiaPausaPublicacao,
   diasDePausaPublicacao,
+  seriePausadaNoDia,
   celulasDaLinha,
   colunasDaRegua,
   hrefEditorialDaWave,
@@ -132,6 +133,15 @@ assert.equal(vistaTemRoteiroNosPostIts([{ contentId: null }, { contentId: '' }])
     '2026-11-10',
     '2026-11-11',
   ]);
+  assert.equal(seriePausadaNoDia('s1', '2026-11-13', pausas, [{ id: 's1' }]), true);
+  assert.equal(seriePausadaNoDia('s2', '2026-11-13', pausas, [{ id: 's2' }]), false);
+  assert.equal(seriePausadaNoDia('s1', '2026-11-10', pausas, [{ id: 's1' }]), false);
+  assert.equal(seriePausadaNoDia('s1', '2026-11-12', pausas, [{ id: 's1' }]), false);
+  assert.equal(seriePausadaNoDia('filha', '2026-11-14', [
+    { id: '4', inicio: '2026-11-14', fim: '2026-11-14', escopo: 'serie', platformId: null, serieId: 'familia', nota: '' },
+  ], [{ id: 'familia' }, { id: 'filha', parentId: 'familia' }]), true);
+  assert.equal(seriePausadaNoDia('familia', '2026-11-13', pausas, [{ id: 'familia' }, { id: 's1', parentId: 'familia' }]), false);
+  assert.equal(seriePausadaNoDia(null, '2026-11-13', pausas, []), false);
   assert.equal(classeDiaPausaPublicacao('2026-11-10', ['2026-11-10']), CLASSE_DIA_PAUSA_PUBLICACAO);
   assert.equal(classeDiaPausaPublicacao('2026-11-12', ['2026-11-10']), undefined);
   assert.equal(
@@ -187,7 +197,7 @@ assert.equal(rotuloDaMarca('buraco'), 'ainda em aberto');
     'raiz:o',
   ]);
 }
-assert.equal(hrefEditorialDaWave('w1'), '/editorial?aba=continuidade&editar=t%3Aw1');
+assert.equal(hrefEditorialDaWave('w1'), '/editorial?editar=t%3Aw1');
 
 {
   const m = (marca: 'atendida' | 'reservada' | 'buraco' | 'pausada') => ({ inicio: 'a', fim: 'b', marca, meta: 1, quantidade: 0 });

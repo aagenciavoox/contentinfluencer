@@ -2,6 +2,7 @@ import type { Content, Platform, Serie } from '../../../lib/database.ts';
 import { REDE_ROTULO, ehRedePrincipal, redeDaConta } from '../../contas/lib/contas.ts';
 import { etapaDoStatus, type Etapa } from '../../editorial/lib/etapas.ts';
 import { cicloDaPublicacao } from '../../editorial/lib/cicloPublicacao.ts';
+import { rotuloDoFormato } from '../../editorial/lib/publicacoes.ts';
 import { progressoPublicacao, publicacaoAtiva } from '../../editorial/lib/publicacaoSituacao.ts';
 import { idsDaSubarvore } from '../../editorial/lib/serieArvore.ts';
 import { contarConteudos, ehIdeia, type ContagemConteudos } from './serieAgrupamento.ts';
@@ -116,4 +117,44 @@ export function destinoDoConteudo(
       ? `${progresso.publicadas} de ${progresso.previstas} ${progresso.previstas === 1 ? 'publicado' : 'publicados'}`
       : null,
   };
+}
+
+/** Selo do fluxo na lista da série: ideia, roteiro, gravado (produção ou edição) e publicado. */
+export function seloDoFluxo(status: string | null | undefined): 'Em Ideia' | 'Roteirizado' | 'Gravado' | 'Publicado' {
+  const etapa = etapaDoStatus(status);
+  if (etapa === 'ideia' || etapa === 'planejamento') return 'Em Ideia';
+  if (etapa === 'roteiro') return 'Roteirizado';
+  if (etapa === 'postado') return 'Publicado';
+  return 'Gravado';
+}
+
+function mesmoRotulo(atual: string, proximo: string): boolean {
+  return atual.localeCompare(proximo, 'pt-BR', { sensitivity: 'accent' }) === 0;
+}
+
+/**
+ * Formato e redes do episódio, por extenso.
+ * "Reels · TikTok", "Vídeo longo · YouTube". Sem os dois, o que existir.
+ */
+export function textoDoFormatoDoEpisodio(
+  content: Pick<Content, 'formatoVisual' | 'plataformas'>,
+  contas: readonly Pick<Platform, 'id' | 'nome' | 'rede'>[],
+): string | null {
+  const formatos: string[] = [];
+  const visual = content.formatoVisual?.trim();
+  if (visual) formatos.push(visual);
+  else {
+    for (const conta of contasDoCicloAtual(content, contas)) {
+      const publicacao = (content.plataformas ?? []).find(item => item.platformId === conta.id && publicacaoAtiva(item));
+      const formato = publicacao?.formatoPublicacao;
+      if (!formato) continue;
+      const rotulo = rotuloDoFormato(formato, redeDaConta(conta));
+      if (!rotulo || rotulo === 'Sem formato' || formatos.some(item => mesmoRotulo(item, rotulo))) continue;
+      formatos.push(rotulo);
+    }
+  }
+  const redes = destinoDoConteudo(content, contas).rotulo;
+  const formato = formatos.join(' / ');
+  if (formato && redes) return `${formato} · ${redes}`;
+  return formato || redes || null;
 }

@@ -34,6 +34,7 @@ import { buildIdeaFields, getIdeaNotes, getIdeaTitle, parseLegacyIdeaText } from
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import { CONTENT_STATUS, getDisplayStatus, type ContentDetailTab } from '../../contents/lib/contentPipeline';
 import { buildDetailBackState } from '../../../lib/navigation/detailBack';
+import { returnTo } from '../../../lib/navigation/goBack';
 import { BookAnnotationComposer, BookAnnotationComposerSheet } from '../components/modals/BookAnnotationComposerSheet';
 import { generateUUID } from '../../../utils/uuid';
 import { PageLayout } from '../../../layouts/page/PageLayout';
@@ -350,7 +351,7 @@ export function BookDetailPage() {
           ) : (
             <>
               <Text variant="bodyStrong">Item não encontrado</Text>
-              <AppButton variant="secondary" onClick={() => navigate('/biblioteca')}>
+              <AppButton variant="secondary" onClick={() => returnTo(navigate, '/biblioteca')}>
                 Voltar à biblioteca
               </AppButton>
             </>
@@ -574,7 +575,7 @@ export function BookDetailPage() {
     ...CONFIRM.excluirBiblioteca(livro.titulo),
     onConfirm: () => {
       dispatch({ type: 'DELETE_BOOK', payload: livro.id });
-      navigate(backTo);
+      navigate(backTo, { replace: true });
     },
   });
 

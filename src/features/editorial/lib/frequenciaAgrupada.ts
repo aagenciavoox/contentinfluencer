@@ -1,11 +1,12 @@
 import type { Serie } from '../../../lib/database.ts';
 import { expectativaNoIntervalo, lerFrequencia, type FrequenciaSerie } from './frequenciaSerie.ts';
+import { ehQuadroNaArvore, unidadesDaRegraDeOuro, vezesNaRegraDeOuro, type NoDaRegra } from './regraDeOuro.ts';
 import { filhosDaSerie, idsDaSubarvore, type SerieNo } from './serieArvore.ts';
 
 export type SerieFrequencia = Pick<
   Serie,
   'id' | 'name' | 'parentId' | 'frequenciaRecomendada' | 'frequenciaVezes' | 'frequenciaUnidade' | 'frequenciaAPartirDe'
-> & SerieNo;
+> & Partial<Pick<Serie, 'frequenciaAncora'>> & SerieNo;
 
 export type ItemContagemSerie = {
   serieId: string | null;
@@ -21,6 +22,8 @@ export type ContribuicaoFilho = {
   quantidade: number;
   /** Expectativa própria do filho, se houver número. */
   expectativa: number | null;
+  /** Quadro: sob demanda, fica fora do total da série. */
+  quadro?: boolean;
 };
 
 export type ContagemSerieAgrupada = {
@@ -33,7 +36,7 @@ export type ContagemSerieAgrupada = {
   /** Contribuição de cada filho direto (já com netos do filho). */
   filhos: ContribuicaoFilho[];
   /**
-   * Total único nesta árvore: diretos + contribuições dos filhos.
+   * Total único nesta árvore: diretos + contribuições dos filhos que não são quadros.
    * Neto incluído no filho não entra de novo aqui.
    */
   total: number;
@@ -55,17 +58,23 @@ function frequenciaDe(serie: SerieFrequencia): FrequenciaSerie {
     vezes: serie.frequenciaVezes,
     unidade: serie.frequenciaUnidade,
     aPartirDe: serie.frequenciaAPartirDe,
+    ancora: serie.frequenciaAncora,
   });
 }
 
+/** Quadro é sob demanda (sem número); série até 1 por semana; família, uma vaga por série ativa. */
 function expectativaDe(
   serie: SerieFrequencia,
+  series: readonly SerieFrequencia[],
   inicio: string,
   fim: string,
 ): number | null {
+  const arvore = series as readonly NoDaRegra[];
+  if (ehQuadroNaArvore(serie.id, arvore)) return null;
   const freq = frequenciaDe(serie);
   if (freq.unidade === 'sob-demanda') return null;
-  return expectativaNoIntervalo(freq, inicio, fim);
+  const vezes = vezesNaRegraDeOuro(freq.vezes, freq.unidade, unidadesDaRegraDeOuro(serie.id, arvore)) ?? freq.vezes;
+  return expectativaNoIntervalo({ ...freq, vezes }, inicio, fim);
 }
 
 /** Espaços únicos cuja série está no conjunto. */
@@ -110,7 +119,7 @@ export function contarSerieAgrupada({
   inicio: string;
   fim: string;
 }): ContagemSerieAgrupada {
-  const expectativa = expectativaDe(serie, inicio, fim);
+  const expectativa = expectativaDe(serie, series, inicio, fim);
   const diretos = contarDiretos(itens, serie.id);
   const filhosNos = filhosDaSerie(serie.id, series);
   const filhos: ContribuicaoFilho[] = filhosNos.map(filhoNo => {
@@ -120,17 +129,22 @@ export function contarSerieAgrupada({
       frequenciaVezes: null,
       frequenciaUnidade: null,
       frequenciaAPartirDe: null,
+      frequenciaAncora: null,
     };
     const sub = idsDaSubarvore(filho.id, series);
+    // Quadro é sob demanda: os episódios dele aparecem na contribuição, mas não somam no total da série.
+    const ehQuadro = ehQuadroNaArvore(filho.id, series as readonly NoDaRegra[]);
+    if (!ehQuadro) for (const id of [...sub]) if (ehQuadroNaArvore(id, series as readonly NoDaRegra[])) sub.delete(id);
     return {
       serieId: filho.id,
       nome: filho.name?.trim() || 'Quadro',
       quantidade: contarEspacos(itens, sub),
-      expectativa: expectativaDe(filho as SerieFrequencia, inicio, fim),
+      expectativa: expectativaDe(filho as SerieFrequencia, series, inicio, fim),
+      quadro: ehQuadro,
     };
   });
 
-  const total = diretos + filhos.reduce((soma, filho) => soma + filho.quantidade, 0);
+  const total = diretos + filhos.reduce((soma, filho) => soma + (filho.quadro ? 0 : filho.quantidade), 0);
   const recortes = filhos
     .map(filho => filho.expectativa)
     .filter((valor): valor is number => valor != null);

@@ -88,7 +88,7 @@ export function PillarsSettingsPage() {
           section="Estratégia"
           title="Pilares"
           backLabel="Editorial"
-          backTo="/editorial"
+          backTo="/editorial?aba=direcao"
           subtitle="Pilares organizam os assuntos e a frequência de publicação por plataforma."
           actions={
             <AppButton

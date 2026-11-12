@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { cliqueDentroDoPainel, comFrequencia, frequenciaDoRascunho, rascunhoDaFrequencia, textoDoChip } from './frequenciaChip.ts';
 
 // Texto do chip.
-assert.equal(textoDoChip({ frequenciaVezes: 2, frequenciaUnidade: 'semana' }), '2 por semana');
+// Regra de Ouro: série gravada com 2 por semana mostra o que vale (1 por semana).
+assert.equal(textoDoChip({ frequenciaVezes: 2, frequenciaUnidade: 'semana' }), '1 por semana');
 assert.equal(textoDoChip({}), 'Sem meta definida');
 assert.equal(textoDoChip({ frequenciaRecomendada: 'Sob demanda' }), 'Sob demanda');
 
@@ -18,8 +19,8 @@ assert.equal(textoDoChip({ frequenciaRecomendada: 'Sob demanda' }), 'Sob demanda
   assert.deepEqual([nova.frequenciaVezes, nova.frequenciaUnidade, nova.frequenciaRecomendada], [1, 'semana', 'Semanal']);
 }
 
-// Quinzena sem início não grava; quantidade vazia tira a meta (quadro fica sob demanda).
-assert.ok('erro' in frequenciaDoRascunho({ vezes: '1', unidade: 'quinzena', aPartirDe: '' }, 'serie'));
+// Quinzena sem início grava (a âncora vem da ativação); quantidade vazia tira a meta (quadro fica sob demanda).
+assert.ok(!('erro' in frequenciaDoRascunho({ vezes: '1', unidade: 'quinzena', aPartirDe: '' }, 'serie')));
 {
   const sem = frequenciaDoRascunho({ vezes: '', unidade: 'semana', aPartirDe: '' }, 'quadro');
   assert.ok(!('erro' in sem));
@@ -44,3 +45,10 @@ assert.ok('erro' in frequenciaDoRascunho({ vezes: '1', unidade: 'quinzena', aPar
 }
 
 console.log('frequenciaChip: ok');
+
+// Regra de Ouro no chip: família com 2 séries ativas vale até 2; quadro é sempre sob demanda.
+assert.equal(textoDoChip({ frequenciaVezes: 3, frequenciaUnidade: 'semana' }, { unidades: 2 }), '2 por semana');
+assert.equal(textoDoChip({ frequenciaVezes: 1, frequenciaUnidade: 'semana' }, { quadro: true }), 'Sob demanda');
+assert.ok('erro' in frequenciaDoRascunho({ vezes: '2', unidade: 'semana', aPartirDe: '' }, 'serie'));
+assert.ok(!('erro' in frequenciaDoRascunho({ vezes: '2', unidade: 'semana', aPartirDe: '' }, 'serie', 2)));
+console.log('frequenciaChip (regra de ouro): ok');

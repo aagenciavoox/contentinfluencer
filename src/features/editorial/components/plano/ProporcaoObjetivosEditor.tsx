@@ -1,8 +1,9 @@
 import { useState } from 'react';
+import { Ajuda } from '../../../../components/ui/Ajuda';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { Text } from '../../../../components/ui/Text';
 import type { FuncaoEditorial } from '../../../../lib/database';
-import { FUNCAO_CURTA, FUNCOES } from '../../lib/funcoes';
+import { FUNCAO_CURTA, FUNCAO_DESCRICOES, FUNCOES } from '../../lib/funcoes';
 import { proporcaoIgual, somaDaProporcao, type ProporcaoFuncoes } from '../../lib/proporcaoObjetivos';
 import { inteiroNaoNegativo } from '../../../../lib/inteiro';
 import { cn } from '../../../../lib/utils';
@@ -57,7 +58,7 @@ export function proporcaoEmTexto(proporcao: ProporcaoFuncoes | null): string {
 /** Exibição visual da proporção com barra segmentada e mini-cards por objetivo. */
 export function ResumoDaProporcao({ proporcao }: { proporcao: ProporcaoFuncoes | null }) {
   if (!proporcao) {
-    return <Text variant="secondary">Nenhuma proporção definida. As metas ficam em branco até você definir.</Text>;
+    return <Text variant="secondary">Nenhuma distribuição definida. As metas ficam em branco até você definir.</Text>;
   }
   const efetiva = proporcao;
   const soma = somaDaProporcao(efetiva);
@@ -95,6 +96,7 @@ export function ResumoDaProporcao({ proporcao }: { proporcao: ProporcaoFuncoes |
                 <Text variant="meta" as="span" className="truncate text-[var(--text-secondary)]">
                   {FUNCAO_CURTA[funcao]}
                 </Text>
+                <Ajuda rotulo={`Sobre ${FUNCAO_CURTA[funcao]}`} texto={FUNCAO_DESCRICOES[funcao]} />
               </div>
               <div className="mt-2 flex items-baseline gap-1">
                 <Text variant="sectionTitle" as="span" className="tabular-nums text-[var(--text-primary)]">
@@ -112,9 +114,11 @@ export function ResumoDaProporcao({ proporcao }: { proporcao: ProporcaoFuncoes |
         })}
       </div>
 
+      <Text variant="bodyStrong" as="p" className="tabular-nums">Total: {soma}%</Text>
+
       {soma !== 100 ? (
         <Text variant="meta" as="p" className="text-[var(--accent-orange)]">
-          Pendência: a proporção salva soma {soma}%. Nada foi ajustado sozinho; as metas usam esse total até você editar e fechar em 100%.
+          {soma < 100 ? `Faltam ${100 - soma}% para fechar 100%.` : `Passou ${soma - 100}%. Ajuste os percentuais para somarem 100%.`}
         </Text>
       ) : null}
     </div>
@@ -129,7 +133,7 @@ export function ProporcaoObjetivosEditor({
   valor,
   onSalvar,
   onCancelar,
-  rotuloSalvar = 'Salvar proporção',
+  rotuloSalvar = 'Salvar distribuição',
 }: {
   idBase: string;
   valor: ProporcaoFuncoes | null;
@@ -183,9 +187,12 @@ export function ProporcaoObjetivosEditor({
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: cfg.cor }} />
                   <label htmlFor={id} className="cursor-pointer min-w-0">
-                    <Text variant="bodyStrong" as="span" className="truncate text-[var(--text-primary)]">
-                      {FUNCAO_CURTA[funcao]}
-                    </Text>
+                    <span className="inline-flex min-w-0 items-center">
+                      <Text variant="bodyStrong" as="span" className="truncate text-[var(--text-primary)]">
+                        {FUNCAO_CURTA[funcao]}
+                      </Text>
+                      <Ajuda rotulo={`Sobre ${FUNCAO_CURTA[funcao]}`} texto={FUNCAO_DESCRICOES[funcao]} />
+                    </span>
                   </label>
                 </div>
                 <span
@@ -245,7 +252,7 @@ export function ProporcaoObjetivosEditor({
           </span>
           {!fecha && !vazio ? (
             <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">
-              ({soma < 100 ? `faltam ${100 - soma}%` : `passou ${soma - 100}%`})
+              {soma < 100 ? `Faltam ${100 - soma}% para fechar 100%.` : `Passou ${soma - 100}%. Ajuste os percentuais para somarem 100%.`}
             </Text>
           ) : null}
         </div>

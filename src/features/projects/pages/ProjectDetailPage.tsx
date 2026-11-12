@@ -17,6 +17,7 @@ import {
 } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
 import { buildDetailBackState } from '../../../lib/navigation/detailBack';
+import { returnTo } from '../../../lib/navigation/goBack';
 import { CONFIRM, type ConfirmState } from '../../../lib/uiCopy';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
@@ -155,7 +156,7 @@ export function ProjectDetailPage() {
         <Surface variant="info" padding="lg" className="stack-md">
           <Text variant="secondary">O projeto solicitado não existe ou foi removido.</Text>
           <div>
-            <AppButton variant="secondary" onClick={() => navigate('/projetos')}>
+            <AppButton variant="secondary" onClick={() => returnTo(navigate, '/projetos')}>
               Voltar aos projetos
             </AppButton>
           </div>

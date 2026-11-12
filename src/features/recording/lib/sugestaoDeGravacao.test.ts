@@ -62,10 +62,12 @@ assert.equal(pontos(deSerie, {series: [serie], settings: {...base.settings, paus
 // Os pesos se somam, e as pausas parciais também usam a regra da Saúde.
 const completo = criar('completo', {seriesId: 's', recordingDate: hoje, publishDate: '2026-11-07', lookId: 'l', cenarioId: 'c', temaIds: ['t'], bibliotecaItemId: 'o'});
 const jaNaSemana = criar('ja-na-semana', {status: 'Publicado', postedAt: '2026-11-04T12:00:00Z', publishDate: '2026-11-04', temaIds: ['t'], bibliotecaItemId: 'o'});
-assert.equal(sugerir([completo, jaNaSemana], {series: [{...serie, frequenciaVezes: 3}], energia: 'baixa', lookId: 'l', cenarioId: 'c'})[0].pontos, 260);
+// Regra de ouro: 3/semana gravado vale 1 por semana; o próprio roteiro já ocupa a semana, então sem o +25.
+assert.equal(sugerir([completo, jaNaSemana], {series: [{...serie, frequenciaVezes: 3}], energia: 'baixa', lookId: 'l', cenarioId: 'c'})[0].pontos, 235);
 assert.equal(pontos(deSerie, {series: [serie], settings: {...base.settings, pausas: [{id: 'parcial', inicio: '2026-11-02', fim: '2026-11-03', escopo: 'serie', serieId: 's', platformId: null, nota: ''}]}}), 0);
 const quadro = {...serie, id: 'q', name: 'Quadro', parentId: 's', tipoAgrupamento: 'quadro', frequenciaVezes: 1} as Serie;
-assert.equal(pontos(criar('quadro', {seriesId: 'q'}), {series: [serie, quadro]}), 25, 'bônus único, não duplica por série e quadro');
+// Quadro é sob demanda: não tem ritmo a cobrir nem ocupa a vaga da série, então não ganha o +25.
+assert.equal(pontos(criar('quadro', {seriesId: 'q'}), {series: [serie, quadro]}), 0, 'quadro não ganha bônus de continuidade');
 const onda = {id: 'onda', serieId: 's', nome: 'Wave', acompanhar: true, ritmoProprio: true, frequenciaVezes: 1, frequenciaUnidade: 'semana', status: 'ativa' as const};
 assert.equal(pontos(criar('onda', {seriesId: 's', temporadaId: 'onda'}), {series: [serie], temporadas: [onda]}), 25);
 assert.equal(pontos(deSerie, {series: [{...serie, frequenciaAPartirDe: '2026-12-01'}]}), 0);

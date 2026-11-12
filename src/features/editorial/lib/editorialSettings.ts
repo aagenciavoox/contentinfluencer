@@ -2,6 +2,8 @@ import { platformKey } from '../../../components/ui/platformName.ts';
 import type { FuncaoEditorial } from '../../../lib/database.ts';
 import { FUNCOES } from './funcoes.ts';
 import { readProporcao, type ProporcaoFuncoes } from './proporcaoObjetivos.ts';
+import { CHAVE_LIMITE_SATURACAO, lerAvisosLigados, type AvisosLigados, type LimiteSaturacaoQuadro, type TipoAvisoConfiguravel } from './avisosEditoriais.ts';
+import { lerIndicadoresProducao, type FaixaDoIndicador, type IndicadorDeProducao, type IndicadoresProducao } from './indicadoresProducao.ts';
 import { LIMITES_CONCENTRACAO_PADRAO, type ExcecaoConcentracao, type LimitesConcentracao } from './concentracao.ts';
 import type { MetaDaContaVigencia } from './metasPorConta.ts';
 import type { PausaEditorial } from './pausas.ts';
@@ -39,6 +41,37 @@ export interface PreferenciasGerais {
    * Null desliga a antecedência.
    */
   antecedenciaPostagemDias: number | null;
+}
+
+/**
+ * Perfil editorial (Editorial › Direção editorial). Referência ao escrever: não muda a grade sozinho.
+ * `publico` herda o antigo "Público, linguagem e assuntos" (`publicoLinguagem`) enquanto não houver perfil gravado.
+ */
+export interface PerfilEditorial {
+  /** Com quem você quer conversar? */
+  publico: string;
+  /** O que faz essas pessoas procurarem ou acompanharem esse conteúdo? */
+  motivacaoPublico: string;
+  /** Que tons, referências e formas de falar combinam com esse público? */
+  linguagens: string;
+  /** Quais temas você quer abordar com frequência? */
+  assuntos: string;
+}
+
+export const PERFIL_EDITORIAL_VAZIO: PerfilEditorial = { publico: '', motivacaoPublico: '', linguagens: '', assuntos: '' };
+
+/** Lê o perfil gravado. Sem perfil (ou sem público nele), o texto antigo vira o público. */
+export function lerPerfilEditorial(value: unknown, publicoLegado = ''): PerfilEditorial {
+  const raw = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  const texto = (campo: unknown) => (typeof campo === 'string' ? campo : '');
+  const publico = texto(raw.publico);
+  return {
+    // Apagar o público também apaga o campo antigo (`atualizarPerfilEditorial`), então o legado não volta sozinho.
+    publico: publico || publicoLegado,
+    motivacaoPublico: texto(raw.motivacaoPublico),
+    linguagens: texto(raw.linguagens),
+    assuntos: texto(raw.assuntos),
+  };
 }
 
 /** Exceção de uma semana fechada, segunda a domingo. */
@@ -132,6 +165,12 @@ export interface EditorialSettings {
   concentracao?: LimitesConcentracao;
   /** Concentrações marcadas como intencionais, com validade. */
   excecoesConcentracao?: ExcecaoConcentracao[];
+  /** Perfil editorial da Direção editorial. */
+  perfil?: PerfilEditorial;
+  /** Avisos desligados em Editorial › Avisos. Ausente é ligado. */
+  avisos?: AvisosLigados;
+  /** Indicadores opcionais da Rotina de criação (faixa mínimo/meta/máximo). */
+  indicadoresProducao?: IndicadoresProducao;
 }
 
 function readDiasGravacao(value: unknown): number[] {
@@ -330,7 +369,7 @@ function versaoNova(value: unknown): boolean {
 
 function montar(
   base: Pick<EditorialSettings, 'quickSeriesCreate' | 'openInfoNotices' | 'destinosPadrao' | 'limitesHashtags'>
-    & Partial<Pick<EditorialSettings, 'proporcaoFuncoes' | 'vigencias' | 'metasDasContas' | 'pausas' | 'concentracao' | 'excecoesConcentracao'>>,
+    & Partial<Pick<EditorialSettings, 'proporcaoFuncoes' | 'vigencias' | 'metasDasContas' | 'pausas' | 'concentracao' | 'excecoesConcentracao' | 'perfil' | 'avisos' | 'indicadoresProducao'>>,
   preferencias: PreferenciasGerais,
   periodos: DecisaoPeriodo[],
 ): EditorialSettings {
@@ -352,7 +391,42 @@ function montar(
     pausas: base.pausas ?? [],
     concentracao: base.concentracao ?? LIMITES_CONCENTRACAO_PADRAO,
     excecoesConcentracao: base.excecoesConcentracao ?? [],
+    perfil: base.perfil ?? lerPerfilEditorial(null, preferencias.publicoLinguagem),
+    avisos: base.avisos ?? {},
+    indicadoresProducao: base.indicadoresProducao ?? {},
   };
+}
+
+/** Grava ou tira (null) a faixa de um indicador da rotina. Os outros ficam como estão. */
+export function atualizarIndicador(
+  settings: EditorialSettings,
+  id: IndicadorDeProducao,
+  faixa: FaixaDoIndicador | null,
+): EditorialSettings {
+  const atuais: Record<string, unknown> = { ...(settings.indicadoresProducao ?? {}) };
+  if (faixa) atuais[id] = faixa;
+  else delete atuais[id];
+  return montar({ ...settings, indicadoresProducao: lerIndicadoresProducao(atuais) }, settings.preferencias, settings.periodos);
+}
+
+/** Muda campos do perfil editorial. O público também vai para o campo antigo, que segue sendo lido. */
+export function atualizarPerfilEditorial(settings: EditorialSettings, patch: Partial<PerfilEditorial>): EditorialSettings {
+  const atual = settings.perfil ?? lerPerfilEditorial(null, settings.preferencias.publicoLinguagem);
+  const perfil = { ...atual, ...Object.fromEntries(Object.entries(patch).filter(([, valor]) => typeof valor === 'string')) };
+  const preferencias = typeof patch.publico === 'string'
+    ? { ...settings.preferencias, publicoLinguagem: patch.publico }
+    : settings.preferencias;
+  return montar({ ...settings, perfil }, preferencias, settings.periodos);
+}
+
+/** Liga ou desliga um tipo de aviso. */
+export function atualizarAviso(settings: EditorialSettings, tipo: TipoAvisoConfiguravel, ligado: boolean): EditorialSettings {
+  return montar({ ...settings, avisos: lerAvisosLigados({ ...(settings.avisos ?? {}), [tipo]: ligado }) }, settings.preferencias, settings.periodos);
+}
+
+/** Limite da saturação de quadro (1 ou 2 por semana), no mesmo jsonb dos avisos. */
+export function atualizarLimiteSaturacao(settings: EditorialSettings, limite: LimiteSaturacaoQuadro): EditorialSettings {
+  return montar({ ...settings, avisos: lerAvisosLigados({ ...(settings.avisos ?? {}), [CHAVE_LIMITE_SATURACAO]: limite }) }, settings.preferencias, settings.periodos);
 }
 
 export const LIMITE_HASHTAGS_PADRAO = 10;

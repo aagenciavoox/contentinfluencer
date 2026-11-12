@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
-import { RichTextEditor } from '../../../../components/editors/RichTextEditor';
 import { BottomSheetModal } from '../../../../components/feedback/modals/BottomSheetModal';
 import { DestinationChips } from '../../../editorial/components/DestinationChips';
-import { publicacoesDoEpisodioNaTemporada, sugestaoDoFoco, textoDaSugestaoDoFoco } from '../../../editorial/lib/focoTemporada';
+import {
+  publicacoesDoEpisodioNaTemporada,
+  ROTULO_ORIGEM_DOS_DESTINOS,
+  sugestaoDoFoco,
+  textoDaSugestaoDoFoco,
+  type OrigemDosDestinos,
+} from '../../../editorial/lib/focoTemporada';
 import type { WritingMode } from '../../../../lib/database';
 import { OverlayBody } from '../../../../components/overlays/OverlayBody';
 import { OverlayFooter } from '../../../../components/overlays/OverlayFooter';
@@ -12,6 +17,7 @@ import { SegmentTabs } from '../../../../components/ui/SegmentTabs';
 import { Text } from '../../../../components/ui/Text';
 import type { ContentPlataforma, Platform } from '../../../../lib/database';
 import type { RedeDoFiltro } from '../../../contas/lib/contas';
+import { cn } from '../../../../lib/utils';
 import { generateUUID } from '../../../../utils/uuid';
 import type { ModoBloco } from '../../lib/seriesBulkDraft';
 
@@ -19,7 +25,7 @@ export type PedidoNovoConteudo = {
   id: string;
   modo: ModoBloco;
   titulo: string;
-  /** HTML do editor; vazio quando nada foi colado. */
+  /** Anotação ou roteiro colado. Vazio quando nada foi escrito. */
   texto: string;
   plataformas: ContentPlataforma[];
   /** Sugestão do foco de redes; ausente quando não há foco. */
@@ -30,11 +36,11 @@ export type PedidoNovoConteudo = {
 };
 
 const inputClass =
-  'ds-input w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-3 py-2 t-body text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
+  'ds-input w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-3 py-2 t-body text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
 /**
- * Um conteúdo só, sem sair da série: ideia ou roteiro, título e o texto colado.
- * Criar já abre a página do conteúdo; vários de uma vez ficam no "Em massa".
+ * Um episódio só, sem sair da série: ideia ou roteiro, título e uma anotação.
+ * O editor completo fica em "Criar e abrir". Vários de uma vez ficam no "Em massa".
  */
 export function NovoConteudoDialog({
   open,
@@ -42,6 +48,7 @@ export function NovoConteudoDialog({
   contas,
   destinosPadrao,
   focoRedes,
+  destinosIniciais,
   onClose,
   onCreate,
 }: {
@@ -51,6 +58,8 @@ export function NovoConteudoDialog({
   contas: readonly Platform[];
   destinosPadrao: readonly string[];
   focoRedes?: readonly RedeDoFiltro[] | null;
+  /** Seleção inicial já resolvida (temporada → quadro → série → padrão). Continua editável. */
+  destinosIniciais?: { publicacoes: ContentPlataforma[]; origem: OrigemDosDestinos } | null;
   onClose: () => void;
   onCreate: (pedido: PedidoNovoConteudo) => void;
 }) {
@@ -67,14 +76,18 @@ export function NovoConteudoDialog({
     setModo('ideia');
     setTitulo('');
     setTexto('');
-    setPlataformas(publicacoesDoEpisodioNaTemporada({
-      contentId: '',
-      focoRedes,
-      contas,
-      destinosPadrao,
-    }));
+    setPlataformas(destinosIniciais
+      ? destinosIniciais.publicacoes.map(item => ({ ...item }))
+      : publicacoesDoEpisodioNaTemporada({
+        contentId: '',
+        focoRedes,
+        contas,
+        destinosPadrao,
+      }));
     setErro(null);
-  }, [contas, destinosPadrao, focoRedes, open]);
+    // A seleção inicial só é refeita ao abrir: mexer nos chips não volta ao padrão.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   // Enter continua criando e abrindo.
   const criar = (abrir = true) => {
@@ -96,43 +109,37 @@ export function NovoConteudoDialog({
     });
   };
 
-  return (
-    <BottomSheetModal open={open} onClose={onClose} desktopMaxW="max-w-xl" ariaLabel="Novo conteúdo">
-      <OverlayHeader title="Novo conteúdo" subtitle={`Em ${ondeVaiFicar}`} onClose={onClose} />
-      <OverlayBody className="stack-md">
-        <SegmentTabs<ModoBloco>
-          ariaLabel="Tipo do conteúdo"
-          value={modo}
-          onChange={setModo}
-          options={[
-            { id: 'ideia', label: 'Ideia' },
-            { id: 'roteiro', label: 'Roteiro' },
-          ]}
-        />
-        <DestinationChips
-          platforms={contas.filter(conta => conta.ativo)}
-          publications={plataformas}
-          contentId=""
-          onChange={setPlataformas}
-        />
+  const sugestao = sugestaoDoFoco(focoRedes);
 
-        {(() => {
-          const sugestao = sugestaoDoFoco(focoRedes);
-          if (!sugestao) return null;
-          return (
-            <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-              {textoDaSugestaoDoFoco(sugestao)}
-            </Text>
-          );
-        })()}
+  return (
+    <BottomSheetModal open={open} onClose={onClose} desktopMaxW="max-w-xl" ariaLabel="Novo episódio">
+      <OverlayHeader title="Novo episódio" subtitle={`Em ${ondeVaiFicar}`} onClose={onClose} />
+      <OverlayBody className="stack-md">
         <div className="stack-xs">
-          <label htmlFor="novo-conteudo-titulo">
+          <SegmentTabs<ModoBloco>
+            ariaLabel="Etapa do episódio"
+            value={modo}
+            onChange={setModo}
+            options={[
+              { id: 'ideia', label: 'Ideia' },
+              { id: 'roteiro', label: 'Roteiro' },
+            ]}
+          />
+          <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+            {modo === 'ideia'
+              ? 'Entra na lista como ideia. A anotação fica nas notas.'
+              : 'Entra como roteiro. Criar e abrir leva para a página de escrita.'}
+          </Text>
+        </div>
+
+        <div className="stack-xs">
+          <label htmlFor="novo-episodio-titulo">
             <Text variant="label" as="span">
               Título <span className="text-[var(--text-tertiary)]">· opcional</span>
             </Text>
           </label>
           <input
-            id="novo-conteudo-titulo"
+            id="novo-episodio-titulo"
             autoFocus
             value={titulo}
             onChange={event => {
@@ -146,24 +153,49 @@ export function NovoConteudoDialog({
               }
             }}
             aria-invalid={erro ? true : undefined}
-            aria-describedby={erro ? 'novo-conteudo-erro' : undefined}
+            aria-describedby={erro ? 'novo-episodio-erro' : undefined}
+            placeholder={modo === 'ideia' ? 'A ideia em uma frase' : 'Nome do episódio'}
             className={inputClass}
           />
           {erro ? (
-            <p id="novo-conteudo-erro" className="t-meta" style={{ color: 'var(--danger)' }}>{erro}</p>
+            <p id="novo-episodio-erro" className="t-meta" style={{ color: 'var(--danger)' }}>{erro}</p>
           ) : null}
         </div>
+
         <div className="stack-xs">
-          <Text variant="label" as="p">Texto <span className="text-[var(--text-tertiary)]">· opcional</span></Text>
-          <RichTextEditor
-            documentId={id}
-            content={texto}
-            onChange={setTexto}
-            formatBar="writing"
-            meter="none"
+          <label htmlFor="novo-episodio-texto">
+            <Text variant="label" as="span">
+              Texto <span className="text-[var(--text-tertiary)]">· opcional</span>
+            </Text>
+          </label>
+          <textarea
+            id="novo-episodio-texto"
+            value={texto}
+            onChange={event => setTexto(event.target.value)}
+            rows={4}
             placeholder={modo === 'ideia' ? 'Anote ou cole a ideia…' : 'Escreva ou cole o roteiro…'}
-            editorViewportClassName="max-h-72 min-h-28"
+            className={cn(inputClass, 'min-h-28 resize-y leading-relaxed')}
           />
+        </div>
+
+        <div className="stack-xs">
+          <DestinationChips
+            rotulo="Publicar em"
+            platforms={contas.filter(conta => conta.ativo)}
+            publications={plataformas}
+            contentId=""
+            onChange={setPlataformas}
+          />
+          {destinosIniciais ? (
+            <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+              {ROTULO_ORIGEM_DOS_DESTINOS[destinosIniciais.origem]}, sem data. Vale só para este episódio.
+            </Text>
+          ) : null}
+          {sugestao ? (
+            <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+              {textoDaSugestaoDoFoco(sugestao)}
+            </Text>
+          ) : null}
         </div>
       </OverlayBody>
       <OverlayFooter>

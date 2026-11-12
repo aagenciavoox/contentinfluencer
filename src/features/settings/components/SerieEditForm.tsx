@@ -8,7 +8,6 @@ import {
 import { AppButton } from '../../../components/ui/AppButton';
 import { ChoiceChips } from '../../../components/ui/ChoiceChips';
 import { MultiFilterChips } from '../../../components/ui/MultiFilterChips';
-import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { Surface } from '../../../components/ui/Surface';
 import { SelectField } from '../../../components/ui/SelectField';
 import { Text } from '../../../components/ui/Text';
@@ -42,7 +41,9 @@ import { acompanhaNoGeral, comAcompanhamentoGeral } from '../../editorial/lib/ac
 import { OpenInfoNotice } from '../../editorial/components/OpenInfoNotice';
 import { LegendaBaseField } from '../../editorial/components/legendas/LegendaBaseField';
 import { LegendaVersaoField } from '../../editorial/components/legendas/LegendaVersaoField';
-import { complementoDoRotulo, iconeDaConta, rotuloConta } from '../../contas/lib/contas';
+import { complementoDoRotulo, iconeDaConta, redeDaConta, rotuloConta } from '../../contas/lib/contas';
+import { FORMATOS_DE_DESTINO, rotuloDoFormato } from '../../editorial/lib/publicacoes';
+import type { FormatoEscolhidoNaPublicacao } from '../../../lib/database';
 import { PlatformIcon } from '../../../components/ui/PlatformIcon';
 import {
   collectFormatoSuggestions,
@@ -56,7 +57,8 @@ import { pilarPrincipalDaSerie } from '../../editorial/lib/pilarDaSerie';
 import { getSerieOpenItems, type SerieOpenItemKey } from '../../editorial/lib/serieCompleteness';
 import { pilarEfetivoDaSerie } from '../lib/serieAgrupamento';
 import { erroDoVinculo, opcoesDePai } from '../lib/serieHierarquia';
-import { FUNCAO_DESCRICOES, FUNCAO_LABELS, FUNCOES } from '../../editorial/lib/funcoes';
+import { erroDaRegraDeOuro, unidadesDaRegraDeOuro } from '../../editorial/lib/regraDeOuro';
+import { FUNCAO_DESCRICOES, FUNCAO_LABELS, FUNCOES, rotuloFuncaoPadrao } from '../../editorial/lib/funcoes';
 import { useAppContext } from '../../../context/AppContext';
 import { QuadrosETemporadasSection } from './series-detail/QuadrosETemporadasSection';
 
@@ -104,6 +106,20 @@ function formatarResumoMeta(vezes: number | null, unidade: string, aPartirDe: st
   return `${ep} ${periodo}${dataLabel}`;
 }
 
+function fraseLegendaDasContas(total: number, proprias: number): string {
+  if (total === 0) return 'Cadastre uma conta para configurar legendas e hashtags.';
+  const base = total - proprias;
+  if (proprias === 0) {
+    return total === 1 ? 'A conta usa a legenda-base.' : `As ${total} contas usam a legenda-base.`;
+  }
+  if (base === 0) {
+    return total === 1 ? 'A conta tem legenda própria.' : `As ${total} contas têm legenda própria.`;
+  }
+  const baseFrase = base === 1 ? '1 conta usa a legenda-base' : `${base} contas usam a legenda-base`;
+  const propriaFrase = proprias === 1 ? '1 tem legenda própria' : `${proprias} têm legenda própria`;
+  return `${baseFrase}; ${propriaFrase}.`;
+}
+
 function limparHtmlModelo(html: string): string {
   return html
     .replace(/<\/p>\s*<p>/gi, '\n')
@@ -112,14 +128,24 @@ function limparHtmlModelo(html: string): string {
     .trim();
 }
 
-type AbaSerie = 'publicacao' | 'definicoes';
+type SecaoSerie = 'identidade' | 'direcao' | 'modelo' | 'estrutura' | 'ritmo' | 'destinos' | 'textos';
 
-const CAMPO_DA_PENDENCIA: Record<SerieOpenItemKey, { aba: AbaSerie; id: string }> = {
-  frequencia: { aba: 'publicacao', id: 'serie-meta' },
-  formato: { aba: 'publicacao', id: 'serie-formatos' },
-  pilar: { aba: 'definicoes', id: 'serie-pilar' },
-  funcao: { aba: 'definicoes', id: 'serie-objetivo' },
-  energia: { aba: 'definicoes', id: 'serie-esforco' },
+const SECOES_ABERTAS: Record<SecaoSerie, boolean> = {
+  identidade: true,
+  direcao: false,
+  modelo: false,
+  estrutura: false,
+  ritmo: true,
+  destinos: false,
+  textos: true,
+};
+
+const CAMPO_DA_PENDENCIA: Record<SerieOpenItemKey, { secao: SecaoSerie; id: string }> = {
+  frequencia: { secao: 'ritmo', id: 'serie-meta' },
+  formato: { secao: 'destinos', id: 'serie-formatos' },
+  pilar: { secao: 'identidade', id: 'serie-pilar' },
+  funcao: { secao: 'direcao', id: 'serie-objetivo' },
+  energia: { secao: 'direcao', id: 'serie-esforco' },
 };
 
 function focarElemento(elementId: string) {
@@ -131,28 +157,53 @@ function focarElemento(elementId: string) {
   });
 }
 
-function EditorSection({
-  index,
+function FichaSecao({
+  id,
   title,
-  description,
+  summary,
+  open,
+  onToggle,
   children,
 }: {
-  index: string;
+  id: string;
   title: string;
-  description?: string;
+  summary: string;
+  open: boolean;
+  onToggle: () => void;
   children: React.ReactNode;
 }) {
+  const painelId = `${id}-painel`;
   return (
-    <section className="border-t border-[var(--border-color)] pt-6 first:border-t-0 first:pt-0 stack-md">
-      <div className="stack-xs">
-        <Text variant="meta" className="tabular-nums text-[var(--text-tertiary)]">{index}</Text>
-        <Text variant="itemTitle" as="h3">{title}</Text>
-        {description ? (
-          <Text variant="meta" as="p" className="text-[var(--text-secondary)]">{description}</Text>
-        ) : null}
-      </div>
-      {children}
-    </section>
+    <Surface id={id} variant="outlined" padding="md" className="scroll-mt-24">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={painelId}
+        onClick={onToggle}
+        className="flex w-full items-start justify-between gap-3 text-left focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+      >
+        <span className="min-w-0 stack-xs">
+          <Text variant="itemTitle" as="span">{title}</Text>
+          {open ? null : (
+            <Text variant="meta" as="span" className="block truncate text-[var(--text-secondary)]">
+              {summary}
+            </Text>
+          )}
+        </span>
+        <ChevronDown
+          className={cn(
+            'mt-0.5 h-4 w-4 shrink-0 text-[var(--text-secondary)] transition-transform',
+            open && 'rotate-180',
+          )}
+          aria-hidden
+        />
+      </button>
+      {open ? (
+        <div id={painelId} className="mt-4 stack-lg">
+          {children}
+        </div>
+      ) : null}
+    </Surface>
   );
 }
 
@@ -434,7 +485,7 @@ export function SerieEditForm({
 }) {
   const { state } = useAppContext();
   const [tentouSalvar, setTentouSalvar] = useState(false);
-  const [abaSerie, setAbaSerie] = useState<AbaSerie>('publicacao');
+  const [secoesAbertas, setSecoesAbertas] = useState(SECOES_ABERTAS);
   const focoPendente = useRef<string | null>(null);
   const [contasAbertas, setContasAbertas] = useState<Record<string, boolean>>(() => {
     const aberto: Record<string, boolean> = {};
@@ -467,7 +518,7 @@ export function SerieEditForm({
       cor: initial.cor || SERIE_DEFAULT_COR,
       capaUrl: initial.capaUrl || '',
       ativa: initial.ativa ?? true,
-      temMeta: tipo === 'familia' ? false : temMetaInicial,
+      temMeta: temMetaInicial,
       frequenciaVezes: temMetaInicial ? (frequenciaInicial.vezes ?? 1) : null,
       frequenciaUnidade: (temMetaInicial ? frequenciaInicial.unidade : 'semana') as string,
       frequenciaAPartirDe: diaFrequencia(initial.frequenciaAPartirDe),
@@ -561,16 +612,15 @@ export function SerieEditForm({
     form.cor,
   );
   const erroVinculo = erroDoVinculo(tipo, form.parentId, form.id, series);
-  // Ciclo de 14 dias precisa de início para saber onde cada ciclo começa.
-  // Só cobra ao configurar ou mudar a meta: registro antigo pendente segue editável no resto.
-  const metaInicial = initialSnapshot.current.form;
-  const metaMudou = form.temMeta !== metaInicial.temMeta
-    || form.frequenciaVezes !== metaInicial.frequenciaVezes
-    || form.frequenciaUnidade !== metaInicial.frequenciaUnidade
-    || form.frequenciaAPartirDe !== metaInicial.frequenciaAPartirDe;
+  // Ciclo de 14 dias sem início: começa na segunda da semana em que a meta foi ativada (fica fixo).
   const quinzenaSemInicio = form.temMeta && form.frequenciaUnidade === 'quinzena' && !form.frequenciaAPartirDe;
-  const faltaInicioQuinzena = quinzenaSemInicio && metaMudou;
-  const valido = Boolean(form.name.trim()) && !colorTaken && !erroVinculo && !faltaInicioQuinzena;
+  // Regra de Ouro na criação (a série já gravada edita a meta no chip, que valida a mesma regra).
+  // Quadro é sob demanda: não tem meta.
+  const metaNoFormulario = !(initial.id && state.series.some(item => item.id === initial.id));
+  const erroRegraDeOuro = metaNoFormulario && form.temMeta && tipo !== 'quadro'
+    ? erroDaRegraDeOuro(form.frequenciaVezes, form.frequenciaUnidade || 'semana', unidadesDaRegraDeOuro(form.id, series))
+    : null;
+  const valido = Boolean(form.name.trim()) && !colorTaken && !erroVinculo && !erroRegraDeOuro;
   const erroNome = tentouSalvar && !form.name.trim() ? `Dê um nome para identificar ${NOME_DO_TIPO[tipo].artigo}.` : null;
   const erroCor = colorTaken ? 'Esta cor já está em outra série. Escolha outra.' : null;
 
@@ -588,6 +638,56 @@ export function SerieEditForm({
         return existing ?? { serieId: form.id, platformId: conta.id, hashtags: '', legenda: null };
       });
     setForm(previous => ({ ...previous, plataformas: updated }));
+  };
+
+  const updatePlatformFormato = (platformId: string, formato: FormatoEscolhidoNaPublicacao | null) => {
+    setForm(previous => ({
+      ...previous,
+      plataformas: previous.plataformas.map(item => (
+        item.platformId === platformId ? { ...item, formato } : item
+      )),
+    }));
+  };
+
+  /** Destino = conta + formato. Sem formato escolhido, o episódio novo usa o padrão da rede. */
+  const renderFormatosDosDestinos = (prefixo: string) => {
+    const selecionadas = contas.filter(conta => contasDestinoIds.includes(conta.id));
+    if (selecionadas.length === 0) return null;
+    return (
+      <div className="stack-sm">
+        <FieldLabel optional>Formato em cada conta</FieldLabel>
+        {selecionadas.map(conta => {
+          const rede = redeDaConta(conta);
+          const opcoes = (rede ? FORMATOS_DE_DESTINO[rede] : undefined) ?? [];
+          const atual = form.plataformas.find(item => item.platformId === conta.id)?.formato ?? '';
+          return (
+            <div key={conta.id} className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <PlatformIcon platform={iconeDaConta(conta)} className="h-4 w-4 shrink-0" />
+                <Text variant="body" as="span" className="truncate">{rotuloConta(conta)}</Text>
+              </div>
+              {opcoes.length > 0 ? (
+                <SelectField
+                  id={`${prefixo}-formato-${conta.id}`}
+                  ariaLabel={`Formato em ${rotuloConta(conta)}`}
+                  value={atual}
+                  onChange={valor => updatePlatformFormato(conta.id, (valor || null) as FormatoEscolhidoNaPublicacao | null)}
+                  options={[
+                    { value: '', label: 'Padrão da rede' },
+                    ...opcoes.map(formato => ({
+                      value: formato,
+                      label: formato === 'stories' ? 'Stories (fora das metas)' : rotuloDoFormato(formato, rede),
+                    })),
+                  ]}
+                />
+              ) : (
+                <Text variant="meta" className="text-[var(--text-tertiary)]">Sem formatos para esta rede</Text>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   const updatePlatformHashtags = (platformId: string, hashtags: string) => {
@@ -615,6 +715,21 @@ export function SerieEditForm({
 
   const buildPayload = useCallback((): Serie => {
     const now = new Date().toISOString();
+    const vezes = form.temMeta ? (form.frequenciaVezes && form.frequenciaVezes > 0 ? form.frequenciaVezes : 1) : null;
+    const unidade = form.temMeta ? (form.frequenciaUnidade.trim() || 'semana') : null;
+    const aPartirDe = form.temMeta ? (form.frequenciaAPartirDe || null) : null;
+    const acompanhamentoGeral = () => {
+      const comGeral = comAcompanhamentoGeral({
+        id: form.id,
+        acompanharContinuidade: initial.acompanharContinuidade,
+        acompanhamentos: (initial.acompanhamentos ?? []).map(item => ({ ...item, serieId: form.id })),
+      }, form.acompanharContinuidade, generateUUID);
+      return {
+        acompanharContinuidade: form.acompanharContinuidade,
+        acompanhamentos: comGeral.acompanhamentos,
+        metasPorEscopo: initial.metasPorEscopo,
+      };
+    };
     if (tipo === 'familia') {
       return {
         id: form.id,
@@ -628,10 +743,13 @@ export function SerieEditForm({
         cor: form.cor,
         capaUrl: form.capaUrl.trim() || null,
         ativa: form.ativa,
-        frequenciaRecomendada: null,
-        frequenciaVezes: null,
-        frequenciaUnidade: null,
-        frequenciaAPartirDe: null,
+        // Ritmo opcional da família: conta episódios únicos das séries e quadros dela.
+        frequenciaRecomendada: form.temMeta && unidade ? formatarFrequenciaRecomendada(vezes, unidade) : null,
+        frequenciaVezes: vezes,
+        frequenciaUnidade: unidade,
+        frequenciaAPartirDe: aPartirDe,
+        ...(initial.status ? { status: initial.status } : {}),
+        ...acompanhamentoGeral(),
         funcaoPadrao: null,
         energiaPadrao: null,
         pilarPrincipalId: null,
@@ -649,9 +767,6 @@ export function SerieEditForm({
       };
     }
 
-    const vezes = form.temMeta ? (form.frequenciaVezes && form.frequenciaVezes > 0 ? form.frequenciaVezes : 1) : null;
-    const unidade = form.temMeta ? (form.frequenciaUnidade.trim() || 'semana') : null;
-    const aPartirDe = form.temMeta ? (form.frequenciaAPartirDe || null) : null;
     const frequenciaRecomendada = form.temMeta && unidade
       ? formatarFrequenciaRecomendada(vezes, unidade)
       : tipo === 'quadro'
@@ -684,6 +799,7 @@ export function SerieEditForm({
           platformId: item.platformId,
           hashtags: item.hashtags.trim(),
           legenda: item.legenda?.trim() || null,
+          formato: item.formato ?? null,
         }));
 
     return {
@@ -718,18 +834,7 @@ export function SerieEditForm({
       semPilar: !form.pilarPrincipalId && form.semPilar,
       // Acompanhamento geral na tabela nova (coluna antiga espelhada); por conta/formato e metas seguem como estavam.
       // Série nova começa com a lista vazia: sem isso a marcação ia só para a coluna antiga e sumia ao recarregar.
-      ...(() => {
-        const comGeral = comAcompanhamentoGeral({
-          id: form.id,
-          acompanharContinuidade: initial.acompanharContinuidade,
-          acompanhamentos: (initial.acompanhamentos ?? []).map(item => ({ ...item, serieId: form.id })),
-        }, form.acompanharContinuidade, generateUUID);
-        return {
-          acompanharContinuidade: form.acompanharContinuidade,
-          acompanhamentos: comGeral.acompanhamentos,
-          metasPorEscopo: initial.metasPorEscopo,
-        };
-      })(),
+      ...acompanhamentoGeral(),
       // Quadro em "Usar da série": a cor acompanha a série na hora.
       ...(tipo === 'quadro' ? { usaCorDaSerie: !quadroIdentidadePropria } : {}),
       pilarIds: form.pilarPrincipalId ? [form.pilarPrincipalId] : [],
@@ -754,23 +859,28 @@ export function SerieEditForm({
     tipo,
   ]);
 
-  const irParaCampoSerie = useCallback((abaAlvo: AbaSerie, elementId: string) => {
-    if (abaSerie === abaAlvo) {
+  const irParaCampoSerie = useCallback((secao: SecaoSerie, elementId: string) => {
+    if (secoesAbertas[secao]) {
       focarElemento(elementId);
       return;
     }
     focoPendente.current = elementId;
-    setAbaSerie(abaAlvo);
-  }, [abaSerie]);
+    setSecoesAbertas(atual => ({ ...atual, [secao]: true }));
+  }, [secoesAbertas]);
 
   const handleSave = useCallback(() => {
-    if (!form.name.trim() || colorTaken || erroVinculo || faltaInicioQuinzena) {
+    if (erroRegraDeOuro && !(!form.name.trim() || colorTaken || erroVinculo)) {
+      setTentouSalvar(true);
+      if (tipo === 'serie') irParaCampoSerie('ritmo', 'serie-meta-quantidade');
+      else document.getElementById('serie-meta-quantidade')?.focus();
+      return;
+    }
+    if (!form.name.trim() || colorTaken || erroVinculo) {
       setTentouSalvar(true);
       if (tipo === 'serie') {
-        if (!form.name.trim()) irParaCampoSerie('definicoes', 'serie-nome');
-        else if (erroVinculo) irParaCampoSerie('definicoes', 'serie-familia');
-        else if (colorTaken) irParaCampoSerie('definicoes', 'serie-cor');
-        else irParaCampoSerie('publicacao', 'serie-inicio');
+        if (!form.name.trim()) irParaCampoSerie('identidade', 'serie-nome');
+        else if (erroVinculo) irParaCampoSerie('identidade', 'serie-familia');
+        else irParaCampoSerie('identidade', 'serie-cor');
       } else {
         const alvo = !form.name.trim() ? 'serie-nome' : 'serie-principal';
         document.getElementById(alvo)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -778,7 +888,7 @@ export function SerieEditForm({
       return;
     }
     onSave(buildPayload());
-  }, [buildPayload, colorTaken, erroVinculo, faltaInicioQuinzena, form.name, irParaCampoSerie, onSave, tipo]);
+  }, [buildPayload, colorTaken, erroRegraDeOuro, erroVinculo, form.name, irParaCampoSerie, onSave, tipo]);
 
   useUnsavedChangesRegistration(!inModal && isDirty, () => {
     if (valido) handleSaveRef.current();
@@ -805,7 +915,7 @@ export function SerieEditForm({
     if (!id) return;
     focoPendente.current = null;
     focarElemento(id);
-  }, [abaSerie]);
+  }, [secoesAbertas]);
 
   const copyHashtags = async (value: string) => {
     if (!value.trim()) return;
@@ -858,17 +968,53 @@ export function SerieEditForm({
     ? (templateEscolhidoId ? `tpl:${templateEscolhidoId}` : 'proprio')
     : (tipo === 'quadro' ? 'herdar' : 'nenhum');
 
+  const alternarSecao = (secao: SecaoSerie) => {
+    setSecoesAbertas(atual => ({ ...atual, [secao]: !atual[secao] }));
+  };
+  const resumoDirecao = rotuloFuncaoPadrao(form.funcaoPadrao) ?? 'Sem objetivo definido';
+  const resumoModelo = modoModelo === 'nenhum'
+    ? 'Sem modelo definido'
+    : templateEscolhidoId
+      ? (roteiroTemplates.find(item => item.id === templateEscolhidoId)?.nome ?? 'Estrutura própria')
+      : (form.estruturaRoteiro.trim() ? 'Estrutura própria' : 'Sem modelo definido');
+  const resumoEstrutura = form.usaTemporadas ? 'Temporadas ativas' : 'Temporadas desativadas';
+  const modoSequencia = lerModoSequencia(form.modoSequencia) ?? 'ordem_temporada';
+  const resumoRitmo = [
+    form.temMeta
+      ? formatarResumoMeta(form.frequenciaVezes, form.frequenciaUnidade || 'semana', form.frequenciaAPartirDe)
+      : 'Sem ritmo definido',
+    ROTULO_MODO_SEQUENCIA[modoSequencia],
+  ].join(' · ');
+  const resumoDestinos = contasDestinoIds.length === 0 && form.formatoVisualPadrao.length === 0
+    ? 'Contas de destino e formatos padrão'
+    : [
+      contasDestinoIds.length === 0
+        ? 'Nenhuma conta'
+        : contasDestinoIds.length === 1 ? '1 conta' : `${contasDestinoIds.length} contas`,
+      form.formatoVisualPadrao.length > 0
+        ? form.formatoVisualPadrao.slice(0, 2).join(', ')
+        : 'sem formato padrão',
+    ].join(' · ');
+  const resumoTextos = form.legendaBase.trim() ? 'Legenda-base definida' : 'Sem legenda-base';
+  const contasComLegendaPropria = contas.filter(conta => (
+    form.plataformas.find(item => item.platformId === conta.id)?.legenda ?? ''
+  ).trim().length > 0).length;
+
   const renderCamposMeta = (notaAdicional?: string) => (
     <div className="stack-sm pt-1">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <div>
           <FieldLabel required>Quantidade</FieldLabel>
           <input
+            id="serie-meta-quantidade"
             type="number"
             inputMode="numeric"
             min={1}
             step={1}
             aria-label="Quantidade"
+            aria-invalid={erroRegraDeOuro ? true : undefined}
+            aria-describedby={erroRegraDeOuro ? 'serie-meta-regra-de-ouro' : undefined}
+            style={erroRegraDeOuro ? { borderColor: 'var(--danger)' } : undefined}
             value={form.frequenciaVezes ?? 1}
             onChange={event => {
               const parsed = parseVezes(event.target.value);
@@ -892,12 +1038,11 @@ export function SerieEditForm({
           />
         </div>
         <div>
-          <FieldLabel optional={form.frequenciaUnidade !== 'quinzena'} required={form.frequenciaUnidade === 'quinzena'}>Data de início</FieldLabel>
+          <FieldLabel optional>Data de início</FieldLabel>
           <input
             id="serie-inicio"
             type="date"
             aria-label="Data de início"
-            aria-invalid={faltaInicioQuinzena ? true : undefined}
             aria-describedby={quinzenaSemInicio ? 'serie-inicio-ciclo' : undefined}
             value={form.frequenciaAPartirDe}
             onChange={event => setForm(previous => ({
@@ -905,15 +1050,14 @@ export function SerieEditForm({
               frequenciaAPartirDe: event.target.value,
             }))}
             className={cn(inputClass, 'scroll-mt-28')}
-            style={faltaInicioQuinzena && tentouSalvar ? { borderColor: 'var(--danger)' } : undefined}
           />
           {quinzenaSemInicio ? (
             <p
               id="serie-inicio-ciclo"
               className="mt-1.5 t-meta"
-              style={{ color: faltaInicioQuinzena && tentouSalvar ? 'var(--danger)' : 'var(--text-secondary)' }}
+              style={{ color: 'var(--text-secondary)' }}
             >
-              Defina o início dos ciclos de 14 dias.
+              Sem data, os ciclos de 14 dias começam na segunda da semana em que você ativa a meta.
             </p>
           ) : null}
         </div>
@@ -927,6 +1071,9 @@ export function SerieEditForm({
         />
         <Text variant="body" as="span">Acompanhar continuidade na Saúde</Text>
       </label>
+      {erroRegraDeOuro ? (
+        <p id="serie-meta-regra-de-ouro" className="t-meta" style={{ color: 'var(--danger)' }}>{erroRegraDeOuro}</p>
+      ) : null}
       <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
         {formatarResumoMeta(form.frequenciaVezes, form.frequenciaUnidade || 'semana', form.frequenciaAPartirDe)}
         {notaAdicional ? ` · ${notaAdicional}` : ''}
@@ -952,6 +1099,10 @@ export function SerieEditForm({
     <div className="stack-sm scroll-mt-28">
       <FieldLabel optional>Ritmo de episódios</FieldLabel>
       <FrequenciaChip id="serie-meta" serieId={initial.id!} className="w-fit" onSalvo={aplicarFrequencia} />
+      <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+        O ritmo é salvo ao confirmar o ajuste, no mesmo lugar do cabeçalho e da Continuidade.
+        {notaAdicional ? ` ${notaAdicional}` : ''}
+      </Text>
       {form.temMeta ? (
         <label className="flex items-center gap-2 w-fit cursor-pointer">
           <input
@@ -963,10 +1114,6 @@ export function SerieEditForm({
           <Text variant="body" as="span">Acompanhar continuidade na Saúde</Text>
         </label>
       ) : null}
-      <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-        O chip grava na hora, no mesmo lugar do cabeçalho da série e da Continuidade.
-        {notaAdicional ? ` ${notaAdicional}` : ''}
-      </Text>
     </div>
   );
 
@@ -1062,6 +1209,41 @@ export function SerieEditForm({
                 </div>
               </Surface>
 
+              <Surface id="familia-ritmo" variant="outlined" padding="md" className="scroll-mt-24 stack-md">
+                {serieGravada ? renderChipDaMeta('Na família, cada episódio de série conta uma vez; quadros ficam fora. Regra de Ouro: até 1 por semana por série ativa da família.') : (
+                  <>
+                    <div>
+                      <label htmlFor="familia-meta">
+                        <FieldLabel optional>Ritmo da família</FieldLabel>
+                      </label>
+                      <SelectField
+                        id="familia-meta"
+                        block
+                        ariaLabel="Ritmo da família"
+                        value={form.temMeta ? 'com-meta' : 'sem-meta'}
+                        onChange={valor => {
+                          const ativar = valor === 'com-meta';
+                          setForm(previous => ({
+                            ...previous,
+                            temMeta: ativar,
+                            frequenciaVezes: ativar ? (previous.frequenciaVezes ?? 1) : null,
+                            frequenciaUnidade: ativar ? (previous.frequenciaUnidade || 'semana') : 'semana',
+                          }));
+                        }}
+                        options={[
+                          { value: 'sem-meta', label: 'Sem ritmo (opcional)' },
+                          { value: 'com-meta', label: 'Definir ritmo' },
+                        ]}
+                      />
+                      <Text variant="meta" as="p" className="mt-1.5 text-[var(--text-secondary)]">
+                        Conta episódios únicos das séries da família (quadros ficam fora), na Continuidade e no Plano do período. Regra de Ouro: até 1 por semana por série ativa.
+                      </Text>
+                    </div>
+                    {form.temMeta ? renderCamposMeta() : null}
+                  </>
+                )}
+              </Surface>
+
               <CollapsibleSection
                 id="familia-aparencia"
                 title="Personalizar aparência"
@@ -1099,14 +1281,14 @@ export function SerieEditForm({
               2. SÉRIE
              ============================================================== */}
           {tipo === 'serie' ? (
-            <div className="mx-auto w-full max-w-3xl stack-lg">
+            <div className="w-full stack-lg">
               {showOpenInfoNotice ? (
                 <OpenInfoNotice
                   items={getSerieOpenItems(serieForMetrics, { series, contents })}
                   description="Escolha um item para ir ao campo."
                   onItemSelect={item => {
                     const destino = CAMPO_DA_PENDENCIA[item.key];
-                    irParaCampoSerie(destino.aba, destino.id);
+                    irParaCampoSerie(destino.secao, destino.id);
                   }}
                 />
               ) : null}
@@ -1116,415 +1298,389 @@ export function SerieEditForm({
                 </div>
               ) : null}
 
-              <SegmentTabs<AbaSerie>
-                ariaLabel="Edição da série"
-                fullWidth
-                value={abaSerie}
-                onChange={setAbaSerie}
-                options={[
-                  { id: 'publicacao', label: 'Publicação' },
-                  { id: 'definicoes', label: 'Definições da série' },
-                ]}
-              />
-
-              <div className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-4 sm:p-6 stack-lg">
-                {abaSerie === 'publicacao' ? (
-                  <div role="tabpanel" aria-label="Publicação" className="stack-lg">
-                    <div className="stack-xs">
-                      <Text variant="sectionTitle" as="h2">Publicação</Text>
-                      <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-                        Defina o ritmo da série e os padrões de publicação herdados pelos novos episódios.
-                      </Text>
+              <div className="grid w-full grid-cols-1 items-start gap-3 lg:grid-cols-2">
+                <div className="flex min-w-0 flex-col gap-3">
+                  <FichaSecao
+                    id="serie-identidade"
+                    title="Identidade"
+                    summary={form.name.trim() || 'Sem nome'}
+                    open={secoesAbertas.identidade}
+                    onToggle={() => alternarSecao('identidade')}
+                  >
+                    <div>
+                      <FieldLabel optional>Capa</FieldLabel>
+                      <CoverUploadField
+                        appearance="series"
+                        value={form.capaUrl}
+                        onChange={capaUrl => setForm(previous => ({ ...previous, capaUrl }))}
+                        itemId={form.id}
+                        title={form.name.trim() || 'Série'}
+                        plain
+                      />
                     </div>
 
-                    <EditorSection
-                      index="01"
-                      title="Ritmo e meta"
-                      description="Quantidade, período e o dia em que a contagem começa."
-                    >
-                      {serieGravada ? renderChipDaMeta() : (<>
+                    <div className="scroll-mt-28">
+                      <label htmlFor="serie-nome">
+                        <FieldLabel required>Nome da série</FieldLabel>
+                      </label>
+                      <input
+                        id="serie-nome"
+                        type="text"
+                        value={form.name}
+                        aria-invalid={erroNome ? true : undefined}
+                        aria-describedby={erroNome ? 'serie-nome-erro' : undefined}
+                        onChange={event => setForm(previous => ({ ...previous, name: event.target.value }))}
+                        placeholder={NOME_DO_TIPO.serie.exemplo}
+                        className={inputClass}
+                        style={erroNome ? { borderColor: 'var(--danger)' } : undefined}
+                      />
+                      {erroNome ? (
+                        <p id="serie-nome-erro" className="mt-1.5 t-meta" style={{ color: 'var(--danger)' }}>{erroNome}</p>
+                      ) : null}
+                    </div>
+
+                    <div>
+                      <label htmlFor="serie-descricao">
+                        <FieldLabel optional>Descrição</FieldLabel>
+                      </label>
+                      <textarea
+                        id="serie-descricao"
+                        value={form.notes}
+                        onChange={event => setForm(previous => ({ ...previous, notes: event.target.value }))}
+                        placeholder="Sobre o que é essa série?"
+                        rows={4}
+                        className={cn(inputClass, 'min-h-[96px] resize-y leading-relaxed')}
+                      />
+                    </div>
+
+                    <div className="grid-form">
                       <div className="scroll-mt-28">
-                        <label htmlFor="serie-meta">
-                          <FieldLabel optional>Ritmo de episódios</FieldLabel>
+                        <label htmlFor="serie-familia">
+                          <FieldLabel optional>Família</FieldLabel>
                         </label>
                         <SelectField
-                          id="serie-meta"
+                          id="serie-familia"
                           block
-                          ariaLabel="Ritmo de episódios"
-                          value={form.temMeta ? 'com-meta' : 'sem-meta'}
-                          onChange={valor => {
-                            const ativar = valor === 'com-meta';
-                            setForm(previous => ({
-                              ...previous,
-                              temMeta: ativar,
-                              frequenciaVezes: ativar ? (previous.frequenciaVezes ?? 1) : null,
-                              frequenciaUnidade: ativar ? (previous.frequenciaUnidade || 'semana') : 'semana',
-                            }));
+                          ariaLabel="Família"
+                          value={form.parentId ?? ''}
+                          onChange={parentId => {
+                            const next = parentId || null;
+                            if (next === (form.parentId ?? null)) return;
+                            if (existe && (form.parentId || next)) {
+                              setConfirmParent({
+                                next,
+                                message: 'Mudar a família atualiza como esta série é agrupada. Os episódios e padrões desta série continuam aqui.',
+                              });
+                              return;
+                            }
+                            setForm(previous => ({ ...previous, parentId: next }));
                           }}
                           options={[
-                            { value: 'sem-meta', label: 'Sem meta definida' },
-                            { value: 'com-meta', label: 'Definir meta' },
+                            { value: '', label: 'Sem família' },
+                            ...(paiForaDaOrdem ? [{ value: paiForaDaOrdem.id, label: paiForaDaOrdem.name }] : []),
+                            ...opcoesDoPai.map(item => ({ value: item.id, label: item.name })),
                           ]}
                         />
+                        {erroVinculo && (tentouSalvar || form.parentId) ? (
+                          <p className="mt-1.5 t-meta" style={{ color: 'var(--danger)' }}>{erroVinculo}</p>
+                        ) : null}
                       </div>
-                      {form.temMeta ? renderCamposMeta() : null}
-                      </>)}
-                    </EditorSection>
 
-
-                    <EditorSection
-                      index="02"
-                      title="Modo de sequência"
-                      description="Como o Planejamento prioriza o próximo episódio em Ver o que encaixa."
-                    >
                       <div className="scroll-mt-28">
-                        <label htmlFor="serie-modo-sequencia">
-                          <FieldLabel optional>Sequência dos episódios</FieldLabel>
+                        <label htmlFor="serie-pilar">
+                          <FieldLabel optional>Pilar editorial</FieldLabel>
                         </label>
                         <SelectField
-                          id="serie-modo-sequencia"
+                          id="serie-pilar"
                           block
-                          ariaLabel="Modo de sequência"
-                          value={form.modoSequencia}
+                          ariaLabel="Pilar editorial"
+                          value={form.pilarPrincipalId ?? ''}
+                          leadingIcon={selectedPilar ? (
+                            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: selectedPilar.cor }} />
+                          ) : undefined}
                           onChange={valor => setForm(previous => ({
                             ...previous,
-                            modoSequencia: (lerModoSequencia(valor) ?? 'ordem_temporada') as ModoSequenciaSerie,
+                            pilarPrincipalId: valor || null,
+                            semPilar: !valor,
                           }))}
                           options={[
-                            { value: 'intercalar', label: ROTULO_MODO_SEQUENCIA.intercalar },
-                            { value: 'seguir_um', label: ROTULO_MODO_SEQUENCIA.seguir_um },
-                            { value: 'ordem_temporada', label: ROTULO_MODO_SEQUENCIA.ordem_temporada },
+                            { value: '', label: 'Sem pilar' },
+                            ...pilarChoices.map(item => ({ value: item.id, label: item.nome })),
                           ]}
                         />
-                        <Text variant="meta" as="p" className="mt-1.5 text-[var(--text-secondary)]">
-                          {AJUDA_MODO_SEQUENCIA[form.modoSequencia as ModoSequenciaSerie]}
-                        </Text>
                       </div>
-                    </EditorSection>
-
-                    <EditorSection
-                      index="03"
-                      title="Destinos e formatos"
-                      description="Onde a série publica e os formatos que os episódios novos recebem."
-                    >
-                      <div>
-                        <FieldLabel optional>Contas de destino</FieldLabel>
-                        {contas.length === 0 ? (
-                          <Text variant="meta" className="text-[var(--text-tertiary)]">
-                            Nenhuma conta ativa cadastrada.
-                          </Text>
-                        ) : (
-                          <MultiFilterChips
-                            value={contasDestinoIds}
-                            onChange={toggleContasDestino}
-                            options={contas.map(conta => ({ id: conta.id, label: rotuloConta(conta) }))}
-                            ariaLabel="Contas de destino"
-                          />
-                        )}
-                      </div>
-                      <div id="serie-formatos" tabIndex={-1} className="scroll-mt-28 outline-none stack-sm">
-                        <FieldLabel optional>Formatos habituais de publicação</FieldLabel>
-                        <MultiChoiceField
-                          id="serie-formato-publicacao"
-                          label="Formatos habituais de publicação"
-                          value={form.formatoVisualPadrao}
-                          onChange={formatoVisualPadrao => setForm(previous => ({ ...previous, formatoVisualPadrao }))}
-                          options={formatoOptions}
-                        />
-                        <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-                          {form.formatoVisualPadrao[0]
-                            ? `Padrão dos novos episódios: ${form.formatoVisualPadrao[0]}.`
-                            : 'O primeiro formato marcado é o padrão dos novos episódios.'}
-                        </Text>
-                      </div>
-                    </EditorSection>
-
-                    <EditorSection
-                      index="04"
-                      title="Textos de publicação"
-                      description="A legenda-base vale para todas as contas, até que uma delas tenha um texto próprio."
-                    >
-                      <LegendaBaseField
-                        id={`serie-legenda-base-${form.id}`}
-                        label="Legenda-base"
-                        value={form.legendaBase}
-                        minRows={6}
-                        placeholder="Texto padrão para os novos episódios desta série."
-                        onChange={legendaBase => setForm(previous => ({ ...previous, legendaBase }))}
-                      />
-                      <div className="stack-sm">
-                        <div className="stack-xs">
-                          <Text variant="itemTitle" as="h4">Ajustes por conta</Text>
-                          <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-                            Legenda e hashtags específicas de cada conta.
-                          </Text>
-                        </div>
-                        {contas.length === 0 ? (
-                          <Text variant="meta">Cadastre uma conta para configurar legendas e hashtags por plataforma.</Text>
-                        ) : (
-                          <div>
-                            {contas.map(conta => {
-                              const item = form.plataformas.find(entry => entry.platformId === conta.id);
-                              return (
-                                <LinhaAjusteConta
-                                  key={conta.id}
-                                  contaId={conta.id}
-                                  icone={iconeDaConta(conta)}
-                                  rotulo={rotuloConta(conta)}
-                                  detalhe={complementoDoRotulo(conta)}
-                                  aberta={contasAbertas[conta.id] === true}
-                                  onToggle={() => setContasAbertas(previous => ({
-                                    ...previous,
-                                    [conta.id]: !previous[conta.id],
-                                  }))}
-                                  legendaBase={form.legendaBase}
-                                  versao={item?.legenda ?? ''}
-                                  hashtags={item?.hashtags ?? ''}
-                                  onLegenda={valor => updatePlatformLegenda(conta.id, valor)}
-                                  onHashtags={valor => updatePlatformHashtags(conta.id, valor)}
-                                  onCopiar={valor => { void copyHashtags(valor); }}
-                                />
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </EditorSection>
-                  </div>
-                ) : (
-                  <div role="tabpanel" aria-label="Definições da série" className="stack-lg">
-                    <div className="stack-xs">
-                      <Text variant="sectionTitle" as="h2">Definições da série</Text>
-                      <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-                        Personalidade, posicionamento e padrões que orientam a criação dos episódios.
-                      </Text>
                     </div>
 
-                    <EditorSection
-                      index="01"
-                      title="Identidade"
-                      description="Como a série é reconhecida na lista e nos episódios."
-                    >
-                      <div className="scroll-mt-28">
-                        <label htmlFor="serie-nome">
-                          <FieldLabel required>Nome da série</FieldLabel>
-                        </label>
-                        <input
-                          id="serie-nome"
-                          type="text"
-                          value={form.name}
-                          aria-invalid={erroNome ? true : undefined}
-                          aria-describedby={erroNome ? 'serie-nome-erro' : undefined}
-                          onChange={event => setForm(previous => ({ ...previous, name: event.target.value }))}
-                          placeholder={NOME_DO_TIPO.serie.exemplo}
-                          className={inputClass}
-                          style={erroNome ? { borderColor: 'var(--danger)' } : undefined}
-                        />
-                        {erroNome ? (
-                          <p id="serie-nome-erro" className="mt-1.5 t-meta" style={{ color: 'var(--danger)' }}>{erroNome}</p>
-                        ) : null}
-                      </div>
+                    <div id="serie-cor" tabIndex={-1} className="scroll-mt-28 outline-none">
+                      <FieldLabel>Cor da série</FieldLabel>
+                      <EntityColorPicker
+                        variant="inline"
+                        value={form.cor}
+                        unavailableColors={takenColors}
+                        onChange={cor => setForm(previous => ({ ...previous, cor }))}
+                      />
+                      {erroCor ? <p className="mt-1.5 t-meta" style={{ color: 'var(--danger)' }}>{erroCor}</p> : null}
+                    </div>
+                  </FichaSecao>
 
-                      <div className="grid-form">
-                        <div className="scroll-mt-28">
-                          <label htmlFor="serie-familia">
-                            <FieldLabel optional>Família</FieldLabel>
-                          </label>
-                          <SelectField
-                            id="serie-familia"
-                            block
-                            ariaLabel="Família"
-                            value={form.parentId ?? ''}
-                            onChange={parentId => {
-                              const next = parentId || null;
-                              if (next === (form.parentId ?? null)) return;
-                              if (existe && (form.parentId || next)) {
-                                setConfirmParent({
-                                  next,
-                                  message: 'Mudar a família atualiza como esta série é agrupada. Os episódios e padrões desta série continuam aqui.',
-                                });
-                                return;
-                              }
-                              setForm(previous => ({ ...previous, parentId: next }));
-                            }}
-                            options={[
-                              { value: '', label: 'Sem família' },
-                              ...(paiForaDaOrdem ? [{ value: paiForaDaOrdem.id, label: paiForaDaOrdem.name }] : []),
-                              ...opcoesDoPai.map(item => ({ value: item.id, label: item.name })),
-                            ]}
-                          />
-                          {erroVinculo && (tentouSalvar || form.parentId) ? (
-                            <p className="mt-1.5 t-meta" style={{ color: 'var(--danger)' }}>{erroVinculo}</p>
-                          ) : null}
-                        </div>
-
-                        <div className="scroll-mt-28">
-                          <label htmlFor="serie-pilar">
-                            <FieldLabel optional>Pilar editorial</FieldLabel>
-                          </label>
-                          <SelectField
-                            id="serie-pilar"
-                            block
-                            ariaLabel="Pilar editorial"
-                            value={form.pilarPrincipalId ?? ''}
-                            leadingIcon={selectedPilar ? (
-                              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: selectedPilar.cor }} />
-                            ) : undefined}
-                            onChange={valor => setForm(previous => ({
-                              ...previous,
-                              pilarPrincipalId: valor || null,
-                              semPilar: !valor,
-                            }))}
-                            options={[
-                              { value: '', label: 'Sem pilar' },
-                              ...pilarChoices.map(item => ({ value: item.id, label: item.nome })),
-                            ]}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label htmlFor="serie-descricao">
-                          <FieldLabel optional>Descrição</FieldLabel>
-                        </label>
-                        <textarea
-                          id="serie-descricao"
-                          value={form.notes}
-                          onChange={event => setForm(previous => ({ ...previous, notes: event.target.value }))}
-                          placeholder="Do que a série trata, em uma ou duas frases."
-                          rows={4}
-                          className={cn(inputClass, 'min-h-[96px] resize-y leading-relaxed')}
-                        />
-                      </div>
-
-                      <div className="grid-form">
-                        <div id="serie-cor" tabIndex={-1} className="scroll-mt-28 outline-none">
-                          <FieldLabel>Cor da série</FieldLabel>
-                          <EntityColorPicker
-                            variant="inline"
-                            value={form.cor}
-                            unavailableColors={takenColors}
-                            onChange={cor => setForm(previous => ({ ...previous, cor }))}
-                          />
-                          {erroCor ? <p className="mt-1.5 t-meta" style={{ color: 'var(--danger)' }}>{erroCor}</p> : null}
-                        </div>
-                        <div>
-                          <FieldLabel optional>Capa</FieldLabel>
-                          <CoverUploadField
-                            appearance="series"
-                            value={form.capaUrl}
-                            onChange={capaUrl => setForm(previous => ({ ...previous, capaUrl }))}
-                            itemId={form.id}
-                            title={form.name.trim() || 'Série'}
-                            plain
-                          />
-                        </div>
-                      </div>
-                    </EditorSection>
-
-                    <EditorSection
-                      index="02"
-                      title="Direção editorial"
-                      description="O que os roteiros novos assumem quando ninguém escolhe outro valor."
-                    >
-                      <div className="scroll-mt-28">
-                        <label htmlFor="serie-objetivo">
-                          <FieldLabel optional>Objetivo padrão</FieldLabel>
-                        </label>
-                        <SelectField
-                          id="serie-objetivo"
-                          block
-                          ariaLabel="Objetivo padrão"
-                          value={form.funcaoPadrao ?? ''}
-                          onChange={value => setForm(previous => ({
-                            ...previous,
-                            funcaoPadrao: (value || null) as typeof previous.funcaoPadrao,
-                          }))}
-                          options={[
-                            { value: '', label: 'Sem objetivo definido' },
-                            ...FUNCAO_OPTIONS.map(option => ({ value: option.value, label: option.label })),
-                          ]}
-                        />
-                        {funcaoDescription ? (
-                          <Text variant="meta" className="mt-1.5 block text-[var(--text-tertiary)]">
-                            {funcaoDescription}
-                          </Text>
-                        ) : null}
-                      </div>
-
-                      <div id="serie-esforco" tabIndex={-1} className="scroll-mt-28 outline-none stack-sm">
-                        <FieldLabel optional>Esforço de produção</FieldLabel>
-                        <ChoiceChips
-                          label="Esforço de produção"
-                          value={form.energiaPadrao}
-                          onChange={energiaPadrao => setForm(previous => ({ ...previous, energiaPadrao }))}
-                          options={ENERGIA_NIVEIS.map(value => ({ value, label: ENERGIA_LABELS[value] }))}
-                        />
-                      </div>
-                    </EditorSection>
-
-                    <EditorSection
-                      index="03"
-                      title="Modelo de criação"
-                      description="Estrutura e orientações copiadas para os episódios novos."
-                    >
-                      {renderBlocoModeloRoteiro(false)}
-                      <div>
-                        <label htmlFor="serie-orientacoes">
-                          <FieldLabel optional>Orientações editoriais</FieldLabel>
-                        </label>
-                        <textarea
-                          id="serie-orientacoes"
-                          value={form.orientacoesEditoriais}
-                          onChange={event => setForm(previous => ({ ...previous, orientacoesEditoriais: event.target.value }))}
-                          placeholder="Proposta da série, motivos para salvar ou compartilhar e outros direcionamentos…"
-                          rows={8}
-                          className={cn(inputClass, 'min-h-[180px] resize-y leading-relaxed')}
-                        />
-                      </div>
-                    </EditorSection>
-
-                    <EditorSection
-                      index="04"
-                      title="Estrutura interna"
-                      description="Quadros desta série e temporadas compartilhadas entre eles. Uma temporada reúne episódios de quadros diferentes e pode focar um grupo de redes."
-                    >
-                      <label className="flex w-fit cursor-pointer items-start gap-2">
-                        <input
-                          type="checkbox"
-                          checked={form.usaTemporadas}
-                          onChange={event => setForm(previous => ({ ...previous, usaTemporadas: event.target.checked }))}
-                          className="mt-1 h-4 w-4 accent-[var(--brand-accent)]"
-                        />
-                        <span>
-                          <Text variant="body" as="span">Usa temporadas</Text>
-                          <Text variant="meta" as="span" className="mt-0.5 block text-[var(--text-secondary)]">
-                            Vale para a série e para os quadros. Cada temporada pode focar um grupo de redes. A criação usa o valor já salvo.
-                          </Text>
-                        </span>
+                  <FichaSecao
+                    id="serie-direcao"
+                    title="Direção editorial"
+                    summary={resumoDirecao}
+                    open={secoesAbertas.direcao}
+                    onToggle={() => alternarSecao('direcao')}
+                  >
+                    <div className="scroll-mt-28">
+                      <label htmlFor="serie-objetivo">
+                        <FieldLabel optional>Objetivo padrão</FieldLabel>
                       </label>
-                      {serieSalva && form.usaTemporadas !== (serieSalva.usaTemporadas === true) ? (
-                        <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-                          Essa escolha passa a valer quando você salvar a série.
+                      <SelectField
+                        id="serie-objetivo"
+                        block
+                        ariaLabel="Objetivo padrão"
+                        value={form.funcaoPadrao ?? ''}
+                        onChange={value => setForm(previous => ({
+                          ...previous,
+                          funcaoPadrao: (value || null) as typeof previous.funcaoPadrao,
+                        }))}
+                        options={[
+                          { value: '', label: 'Sem objetivo definido' },
+                          ...FUNCAO_OPTIONS.map(option => ({ value: option.value, label: option.label })),
+                        ]}
+                      />
+                      {funcaoDescription ? (
+                        <Text variant="meta" className="mt-1.5 block text-[var(--text-tertiary)]">
+                          {funcaoDescription}
                         </Text>
                       ) : null}
-                      {serieSalva ? (
-                        <QuadrosETemporadasSection
-                          serie={serieSalva}
-                          usaTemporadasMarcado={form.usaTemporadas}
-                        />
-                      ) : (
-                        <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-                          Quadros e temporadas ficam disponíveis depois de criar a série.
+                    </div>
+
+                    <div id="serie-esforco" tabIndex={-1} className="scroll-mt-28 outline-none stack-sm">
+                      <FieldLabel optional>Esforço de produção</FieldLabel>
+                      <ChoiceChips
+                        label="Esforço de produção"
+                        value={form.energiaPadrao}
+                        onChange={energiaPadrao => setForm(previous => ({ ...previous, energiaPadrao }))}
+                        options={ENERGIA_NIVEIS.map(value => ({ value, label: ENERGIA_LABELS[value] }))}
+                      />
+                    </div>
+                  </FichaSecao>
+
+                  <FichaSecao
+                    id="serie-modelo"
+                    title="Modelo de criação"
+                    summary={resumoModelo}
+                    open={secoesAbertas.modelo}
+                    onToggle={() => alternarSecao('modelo')}
+                  >
+                    {renderBlocoModeloRoteiro(false)}
+                    <div>
+                      <label htmlFor="serie-orientacoes">
+                        <FieldLabel optional>Orientações editoriais</FieldLabel>
+                      </label>
+                      <textarea
+                        id="serie-orientacoes"
+                        value={form.orientacoesEditoriais}
+                        onChange={event => setForm(previous => ({ ...previous, orientacoesEditoriais: event.target.value }))}
+                        placeholder="Proposta da série, motivos para salvar ou compartilhar e outros direcionamentos…"
+                        rows={8}
+                        className={cn(inputClass, 'min-h-[180px] resize-y leading-relaxed')}
+                      />
+                    </div>
+                  </FichaSecao>
+
+                  <FichaSecao
+                    id="serie-estrutura"
+                    title="Estrutura interna"
+                    summary={resumoEstrutura}
+                    open={secoesAbertas.estrutura}
+                    onToggle={() => alternarSecao('estrutura')}
+                  >
+                    <label className="flex w-fit cursor-pointer items-start gap-2">
+                      <input
+                        type="checkbox"
+                        checked={form.usaTemporadas}
+                        onChange={event => setForm(previous => ({ ...previous, usaTemporadas: event.target.checked }))}
+                        className="mt-1 h-4 w-4 accent-[var(--brand-accent)]"
+                      />
+                      <span>
+                        <Text variant="body" as="span">Usa temporadas</Text>
+                        <Text variant="meta" as="span" className="mt-0.5 block text-[var(--text-secondary)]">
+                          Vale para a série e para os quadros. Cada temporada pode focar um grupo de redes. A criação usa o valor já salvo.
                         </Text>
+                      </span>
+                    </label>
+                    {serieSalva && form.usaTemporadas !== (serieSalva.usaTemporadas === true) ? (
+                      <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+                        Essa escolha passa a valer quando você salvar a série.
+                      </Text>
+                    ) : null}
+                    {serieSalva ? (
+                      <QuadrosETemporadasSection
+                        serie={serieSalva}
+                        usaTemporadasMarcado={form.usaTemporadas}
+                      />
+                    ) : (
+                      <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+                        Quadros e temporadas ficam disponíveis depois de criar a série.
+                      </Text>
+                    )}
+                  </FichaSecao>
+                </div>
+
+                <div className="flex min-w-0 flex-col gap-3">
+                  <FichaSecao
+                    id="serie-ritmo"
+                    title="Ritmo e sequência"
+                    summary={resumoRitmo}
+                    open={secoesAbertas.ritmo}
+                    onToggle={() => alternarSecao('ritmo')}
+                  >
+                    {serieGravada ? renderChipDaMeta() : (
+                      <>
+                        <div className="scroll-mt-28">
+                          <label htmlFor="serie-meta">
+                            <FieldLabel optional>Ritmo de episódios</FieldLabel>
+                          </label>
+                          <SelectField
+                            id="serie-meta"
+                            block
+                            ariaLabel="Ritmo de episódios"
+                            value={form.temMeta ? 'com-meta' : 'sem-meta'}
+                            onChange={valor => {
+                              const ativar = valor === 'com-meta';
+                              setForm(previous => ({
+                                ...previous,
+                                temMeta: ativar,
+                                frequenciaVezes: ativar ? (previous.frequenciaVezes ?? 1) : null,
+                                frequenciaUnidade: ativar ? (previous.frequenciaUnidade || 'semana') : 'semana',
+                              }));
+                            }}
+                            options={[
+                              { value: 'sem-meta', label: 'Sem meta definida' },
+                              { value: 'com-meta', label: 'Definir meta' },
+                            ]}
+                          />
+                        </div>
+                        {form.temMeta ? renderCamposMeta() : null}
+                      </>
+                    )}
+                    <div className="scroll-mt-28">
+                      <label htmlFor="serie-modo-sequencia">
+                        <FieldLabel optional>Sequência dos episódios</FieldLabel>
+                      </label>
+                      <SelectField
+                        id="serie-modo-sequencia"
+                        block
+                        ariaLabel="Modo de sequência"
+                        value={form.modoSequencia}
+                        onChange={valor => setForm(previous => ({
+                          ...previous,
+                          modoSequencia: (lerModoSequencia(valor) ?? 'ordem_temporada') as ModoSequenciaSerie,
+                        }))}
+                        options={[
+                          { value: 'intercalar', label: ROTULO_MODO_SEQUENCIA.intercalar },
+                          { value: 'seguir_um', label: ROTULO_MODO_SEQUENCIA.seguir_um },
+                          { value: 'ordem_temporada', label: ROTULO_MODO_SEQUENCIA.ordem_temporada },
+                        ]}
+                      />
+                      <Text variant="meta" as="p" className="mt-1.5 text-[var(--text-secondary)]">
+                        {AJUDA_MODO_SEQUENCIA[modoSequencia]}
+                      </Text>
+                    </div>
+                  </FichaSecao>
+
+                  <FichaSecao
+                    id="serie-destinos"
+                    title="Destinos e formatos"
+                    summary={resumoDestinos}
+                    open={secoesAbertas.destinos}
+                    onToggle={() => alternarSecao('destinos')}
+                  >
+                    <div>
+                      <FieldLabel optional>Contas de destino</FieldLabel>
+                      {contas.length === 0 ? (
+                        <Text variant="meta" className="text-[var(--text-tertiary)]">
+                          Nenhuma conta ativa cadastrada.
+                        </Text>
+                      ) : (
+                        <MultiFilterChips
+                          value={contasDestinoIds}
+                          onChange={toggleContasDestino}
+                          options={contas.map(conta => ({ id: conta.id, label: rotuloConta(conta) }))}
+                          ariaLabel="Contas de destino"
+                        />
                       )}
-                    </EditorSection>
-                  </div>
-                )}
+                    </div>
+                    {renderFormatosDosDestinos('serie')}
+                    <div id="serie-formatos" tabIndex={-1} className="scroll-mt-28 outline-none stack-sm">
+                      <FieldLabel optional>Formatos habituais de publicação</FieldLabel>
+                      <MultiChoiceField
+                        id="serie-formato-publicacao"
+                        label="Formatos habituais de publicação"
+                        value={form.formatoVisualPadrao}
+                        onChange={formatoVisualPadrao => setForm(previous => ({ ...previous, formatoVisualPadrao }))}
+                        options={formatoOptions}
+                      />
+                      <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+                        {form.formatoVisualPadrao[0]
+                          ? `Padrão dos novos episódios: ${form.formatoVisualPadrao[0]}.`
+                          : 'O primeiro formato marcado é o padrão dos novos episódios.'}
+                      </Text>
+                    </div>
+                  </FichaSecao>
+
+                  <FichaSecao
+                    id="serie-textos"
+                    title="Textos de publicação"
+                    summary={resumoTextos}
+                    open={secoesAbertas.textos}
+                    onToggle={() => alternarSecao('textos')}
+                  >
+                    <LegendaBaseField
+                      id={`serie-legenda-base-${form.id}`}
+                      label="Legenda-base"
+                      value={form.legendaBase}
+                      minRows={4}
+                      placeholder="Texto padrão para os novos episódios desta série."
+                      onChange={legendaBase => setForm(previous => ({ ...previous, legendaBase }))}
+                    />
+                    <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+                      {fraseLegendaDasContas(contas.length, contasComLegendaPropria)}
+                    </Text>
+                    {contas.length === 0 ? null : (
+                      <div>
+                        {contas.map(conta => {
+                          const item = form.plataformas.find(entry => entry.platformId === conta.id);
+                          return (
+                            <LinhaAjusteConta
+                              key={conta.id}
+                              contaId={conta.id}
+                              icone={iconeDaConta(conta)}
+                              rotulo={rotuloConta(conta)}
+                              detalhe={complementoDoRotulo(conta)}
+                              aberta={contasAbertas[conta.id] === true}
+                              onToggle={() => setContasAbertas(previous => ({
+                                ...previous,
+                                [conta.id]: !previous[conta.id],
+                              }))}
+                              legendaBase={form.legendaBase}
+                              versao={item?.legenda ?? ''}
+                              hashtags={item?.hashtags ?? ''}
+                              onLegenda={valor => updatePlatformLegenda(conta.id, valor)}
+                              onHashtags={valor => updatePlatformHashtags(conta.id, valor)}
+                              onCopiar={valor => { void copyHashtags(valor); }}
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
+                  </FichaSecao>
+                </div>
               </div>
 
               {!inModal ? (
-                <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="hidden flex-wrap items-center justify-end gap-2 lg:flex">
                   <AppButton variant="secondary" onClick={onCancel}>Cancelar</AppButton>
                   <AppButton variant="primary" onClick={handleSave}>
                     {existe ? 'Salvar alterações' : 'Criar série'}
@@ -1533,6 +1689,7 @@ export function SerieEditForm({
               ) : null}
             </div>
           ) : null}
+
 
           {/* ==============================================================
               3. QUADRO
@@ -1609,32 +1766,14 @@ export function SerieEditForm({
 
                 {renderBlocoModeloRoteiro(true)}
 
-                {serieGravada ? renderChipDaMeta('Com meta própria e acompanhamento ligado, o episódio conta só na linha do quadro e sai da conta da série.') : (
-                <div className="stack-sm">
+                {/* Quadro é sob demanda: sem meta semanal e fora da meta da série. O teto é o aviso de saturação. */}
+                <div className="stack-xs">
                   <FieldLabel optional>Ritmo de episódios</FieldLabel>
-                  <SelectField
-                    block
-                    ariaLabel="Ritmo de episódios"
-                    value={form.temMeta ? 'quadro' : 'serie'}
-                    onChange={valor => {
-                      const ativar = valor === 'quadro';
-                      setForm(previous => ({
-                        ...previous,
-                        temMeta: ativar,
-                        frequenciaVezes: ativar ? (previous.frequenciaVezes ?? 1) : null,
-                        frequenciaUnidade: ativar ? (previous.frequenciaUnidade || 'semana') : 'semana',
-                      }));
-                    }}
-                    options={[
-                      { value: 'serie', label: 'Contar só na meta da série' },
-                      { value: 'quadro', label: 'Definir uma meta própria para este quadro' },
-                    ]}
-                  />
-                  {form.temMeta
-                    ? renderCamposMeta('Com meta própria e acompanhamento ligado, o episódio conta só na linha do quadro e sai da conta da série.')
-                    : null}
+                  <Text variant="body" as="p">Sob demanda</Text>
+                  <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+                    Quadro não tem meta semanal e não entra na conta da série nem no limite da semana. Para não cansar a audiência, o aviso “Mesmo quadro na semana” (Rotina de criação › Avisos) avisa quando o mesmo quadro passa do limite na semana.
+                  </Text>
                 </div>
-                )}
               </Surface>
 
               <CollapsibleSection
@@ -1862,6 +2001,7 @@ export function SerieEditForm({
                         />
                       )}
                     </div>
+                    {renderFormatosDosDestinos('quadro')}
                     {contas.map(conta => {
                       const hashtagsValue = form.plataformas.find(item => item.platformId === conta.id)?.hashtags || '';
                       return (

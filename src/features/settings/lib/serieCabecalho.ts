@@ -4,6 +4,7 @@ import { isActiveCreation } from '../../contents/lib/contentWorkflow.ts';
 import { etapaDoStatus, type Etapa } from '../../editorial/lib/etapas.ts';
 import {
   apurarSerie,
+  situacaoDaFrequencia,
   TEXTO_SEM_ANCORA,
   textoDaFrequencia,
   textoDoVolume,
@@ -11,7 +12,9 @@ import {
   type ItemDaApuracao,
   type SerieDaApuracao,
 } from '../../editorial/lib/apuracaoSerie.ts';
+import { complementoDoPeriodo } from '../../editorial/lib/metaDaOnda.ts';
 import { exclusaoDeMetaPropria, type OndaDaExclusao } from '../../editorial/lib/metaPropria.ts';
+import { ehQuadroNaArvore } from '../../editorial/lib/regraDeOuro.ts';
 import type { ModoPeriodo } from '../../editorial/lib/periodoEditorial.ts';
 import { idsDaSubarvore } from '../../editorial/lib/serieArvore.ts';
 
@@ -74,9 +77,31 @@ export type MetaDoCabecalho =
     barra: number;
   };
 
+/**
+ * Compromisso no calendário, sem a conta de cotas do período.
+ * Quadro não tem ritmo: aparece quando a série precisa dele.
+ */
+export function textoDaCadencia(
+  serie: Pick<SerieDaApuracao, 'frequenciaRecomendada' | 'frequenciaVezes' | 'frequenciaUnidade' | 'frequenciaAPartirDe' | 'frequenciaAncora'>,
+  tipo: 'serie' | 'quadro' | 'familia',
+): string {
+  if (tipo === 'quadro') return 'Cadência: sob demanda';
+  const situacao = situacaoDaFrequencia(serie);
+  if (situacao.tipo === 'definida') {
+    const vezes = situacao.freq.vezes ?? 1;
+    const nome = vezes === 1 ? 'episódio' : 'episódios';
+    return `Cadência: ${vezes} ${nome} ${complementoDoPeriodo(situacao.freq.unidade)}`;
+  }
+  if (situacao.tipo === 'sob-demanda') return 'Cadência: sob demanda';
+  if (situacao.tipo === 'sem-ancora') return 'Cadência: defina o início dos ciclos de 14 dias';
+  if (situacao.tipo === 'incompleta') return 'Cadência: frequência incompleta';
+  return 'Cadência: sem compromisso definido';
+}
+
 function noPeriodo(modo: ModoPeriodo, dentro: boolean): string {
   if (!dentro) return 'no período selecionado';
   if (modo === 'semana') return 'nesta semana';
+  if (modo === 'quinzena') return 'nesta quinzena';
   if (modo === 'mes') return 'neste mês';
   if (modo === 'trimestre') return 'neste trimestre';
   return 'no período';
@@ -111,6 +136,8 @@ export function metaDoCabecalho({
     excluir: exclusaoDeMetaPropria(serie, series, temporadas),
   });
   const { situacao } = apuracao;
+  // Quadro não tem meta semanal: aparece quando a série precisa dele.
+  if (ehQuadroNaArvore(serie.id, series)) return { estado: 'sem-meta', texto: 'Sob demanda: sem meta semanal' };
   if (situacao.tipo === 'sem-ancora') return { estado: 'sem-meta', texto: TEXTO_SEM_ANCORA };
   if (situacao.tipo !== 'definida') return { estado: 'sem-meta', texto: 'Sem meta definida' };
   const regra = `Meta: ${textoFrequencia(situacao.freq)}`;

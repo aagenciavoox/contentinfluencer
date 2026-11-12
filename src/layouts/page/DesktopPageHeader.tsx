@@ -2,6 +2,7 @@ import { Children, ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import { Text } from '../../components/ui/Text';
+import { interceptBackLink } from '../../lib/navigation/goBack';
 
 interface DesktopPageHeaderProps {
   /** Breadcrumb / section label shown above the title (e.g. 'Produção', 'Criação', 'Configurações'). */
@@ -51,8 +52,7 @@ export function DesktopPageHeader({
   rowAlign = 'start',
 }: DesktopPageHeaderProps) {
   const navigate = useNavigate();
-  const handleBack = onBack ?? (backTo ? () => navigate(backTo) : undefined);
-  const hasBack = Boolean(backTo || handleBack);
+  const hasBack = Boolean(backTo || onBack);
   const eyebrow = hasBack ? (backLabel === 'Roteiros' ? 'Criação' : (backLabel || section)) : section;
   const actionItems = Children.toArray(actions);
   const supportText = subtitle ?? meta;
@@ -65,11 +65,16 @@ export function DesktopPageHeader({
         <div className="mb-1 flex items-center">
           {hasBack ? (
             backTo ? (
-              <Link to={backTo} className={crumbInteractiveClass} aria-label={`Voltar para ${eyebrow}`}>
+              <Link
+                to={backTo}
+                onClick={event => interceptBackLink(event, navigate, backTo)}
+                className={crumbInteractiveClass}
+                aria-label={`Voltar para ${eyebrow}`}
+              >
                 <span>{eyebrow}</span>
               </Link>
             ) : (
-              <button type="button" onClick={handleBack} className={crumbInteractiveClass} aria-label={`Voltar para ${eyebrow}`}>
+              <button type="button" onClick={onBack} className={crumbInteractiveClass} aria-label={`Voltar para ${eyebrow}`}>
                 <span>{eyebrow}</span>
               </button>
             )

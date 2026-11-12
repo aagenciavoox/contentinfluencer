@@ -1,4 +1,5 @@
 import type { IntervaloAvaliado, LinhaContinuidade, Continuidade } from './saudeIndicadores.ts';
+import { idsComAncestrais } from '../../editorial/lib/acompanhamento.ts';
 import { diasDePausa, type PausaEditorial } from '../../editorial/lib/pausas.ts';
 import { semanasNoIntervalo } from '../../editorial/lib/periodoEditorial.ts';
 
@@ -111,6 +112,28 @@ export function diasDePausaPublicacao(
   return diasDePausa(pausas, { tipo: 'publicacao' }, intervalo);
 }
 
+/**
+ * O card desta série, neste dia, está em pausa de série.
+ * Pausa na família vale para a série filha, como na continuidade. Pausa de publicação não marca o card: o dia inteiro já é hachurado.
+ */
+export function seriePausadaNoDia(
+  serieId: string | null | undefined,
+  dia: string | null | undefined,
+  pausas: readonly PausaEditorial[],
+  series: readonly { id: string; parentId?: string | null }[],
+): boolean {
+  const data = dia?.slice(0, 10);
+  if (!serieId || !data) return false;
+  const ids = idsComAncestrais(serieId, series);
+  return pausas.some(pausa =>
+    pausa.escopo === 'serie'
+    && pausa.serieId != null
+    && ids.has(pausa.serieId)
+    && pausa.inicio <= data
+    && pausa.fim >= data,
+  );
+}
+
 export function setDiasPausaPublicacao(
   pausas: readonly PausaEditorial[],
   intervalo: { inicio: string; fim: string },
@@ -176,12 +199,12 @@ export function resumoDaRegua(linhas: readonly Pick<LinhaDaRegua, 'marcas'>[]): 
 
 /** Link canônico para editar a wave no Editorial (Continuidade). */
 export function hrefEditorialDaWave(temporadaId: string): string {
-  return `/editorial?aba=continuidade&editar=${encodeURIComponent(`t:${temporadaId}`)}`;
+  return `/editorial?editar=${encodeURIComponent(`t:${temporadaId}`)}`;
 }
 
 /** Link canônico para editar série/quadro no Editorial. */
 export function hrefEditorialDaSerie(serieId: string): string {
-  return `/editorial?aba=continuidade&editar=${encodeURIComponent(`s:${serieId}`)}`;
+  return `/editorial?editar=${encodeURIComponent(`s:${serieId}`)}`;
 }
 
 export type ColunaDaRegua = { inicio: string; fim: string };

@@ -9,6 +9,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { fetchContentsByIds } from '../../../lib/database';
 import { resolveContentDetailBack } from '../../../lib/navigation/detailBack';
+import { returnTo } from '../../../lib/navigation/goBack';
 import { ERRORS } from '../../../lib/uiCopy';
 import { ContentDetailShell } from '../components/detail/ContentDetailShell';
 import { isContentBodyLoaded } from '../lib/contentBody';
@@ -84,7 +85,7 @@ export function ContentDetailPage() {
   const { user, loading: authLoading } = useAuth();
   const backTo = resolveContentDetailBack(location.state as { from?: string } | null);
   const goBack = useCallback(() => {
-    navigate(backTo, { replace: true });
+    returnTo(navigate, backTo);
   }, [backTo, navigate]);
 
   if (!id) return <Navigate to="/criacao" replace />;

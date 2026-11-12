@@ -7,6 +7,7 @@ import { AppButton } from '../../../components/ui/AppButton';
 import { Text } from '../../../components/ui/Text';
 import type { Content } from '../../../lib/database';
 import { resolveContentDetailBack } from '../../../lib/navigation/detailBack';
+import { returnTo } from '../../../lib/navigation/goBack';
 import { useVisualViewportKeyboard } from '../../../hooks/useVisualViewportKeyboard';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
 import { MobileSectionHeader } from '../../components/MobileSectionHeader';
@@ -89,7 +90,7 @@ export function ContentDetailMobileScreen({
       onBack();
       return;
     }
-    navigate(resolveContentDetailBack(location.state as { from?: string } | null));
+    returnTo(navigate, resolveContentDetailBack(location.state as { from?: string } | null));
   };
 
   const dismissKeyboard = () => {

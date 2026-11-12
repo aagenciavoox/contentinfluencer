@@ -1,4 +1,4 @@
-import type { Content, ContentPlataforma, FuncaoEditorial, RedeSocial } from '../../../lib/database.ts';
+import type { Content, ContentPlataforma, FormatoEscolhidoNaPublicacao, FuncaoEditorial, RedeSocial } from '../../../lib/database.ts';
 import { redeDaConta, type ContaRef } from '../../contas/lib/contas.ts';
 import { cicloDaPublicacao } from './cicloPublicacao.ts';
 import { contaNaGradeEfetiva } from './contaNaGradeOrigem.ts';
@@ -36,6 +36,21 @@ export const FORMATOS_DA_REDE: Partial<Record<RedeSocial, readonly FormatoPublic
   instagram: ['reels', 'carrossel', 'post-estatico'],
   tiktok: ['reels', 'carrossel'],
 };
+
+/**
+ * Formatos que um destino (conta + formato) pode receber. Stories é formato do Instagram,
+ * mas não entra em FORMATOS_DA_REDE: não divide nem conta nas metas.
+ */
+export const FORMATOS_DE_DESTINO: Partial<Record<RedeSocial, readonly FormatoEscolhidoNaPublicacao[]>> = {
+  youtube: ['short', 'video-longo'],
+  instagram: ['reels', 'carrossel', 'stories'],
+  tiktok: ['reels', 'carrossel'],
+};
+
+/** Stories não contam em meta, salvo quando a pessoa marcou "conta na grade" à mão. */
+export function formatoContaNaMeta(formato: FormatoPublicacao, origemManual: boolean): boolean {
+  return formato !== 'stories' || origemManual;
+}
 
 const ROTULO_FORMATO: Record<string, string> = {
   reels: 'Reels',
@@ -230,6 +245,7 @@ export function publicacoesDaAgenda(input: {
       else situacao = 'prevista';
 
       const etapa: Etapa = realizada ? 'postado' : etapaDoConteudo;
+      const formato = formatoDaPublicacao(content, rede, publicacao);
       lista.push({
         id: publicacao.id,
         contentId: content.id,
@@ -237,12 +253,14 @@ export function publicacoesDaAgenda(input: {
         platformId: publicacao.platformId,
         rede,
         ciclo: cicloDaPublicacao(publicacao),
-        formato: formatoDaPublicacao(content, rede, publicacao),
+        formato,
         data,
         hora,
         situacao,
         programado: publicacaoProgramada({ situacao, etapa, data, hora, agora }),
-        contaNaMeta: contaNoConteudo && publicacao.contaNaGrade !== false,
+        contaNaMeta: contaNoConteudo
+          && publicacao.contaNaGrade !== false
+          && formatoContaNaMeta(formato, content.contaNaGradeOrigem === 'manual' && content.contaNaGrade !== false),
         etapa,
         objetivo,
       });

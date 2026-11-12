@@ -11,7 +11,7 @@ import { janelaDaContinuidade } from '../../lib/apuracaoSerie';
 import { buildGradeEntries } from '../../lib/gradeEntries';
 import { contarPeriodo, type GradeCounts } from '../../lib/gradeCounts';
 import { usePostItsNaData } from '../../../planejamento/hooks/usePostItsNaData';
-import { semanaDe, trimestreDe, type ModoPeriodo, type PeriodoSelecionado } from '../../lib/periodoEditorial';
+import { MODOS_DO_PERIODO, quinzenaDe, semanaDe, trimestreDe, type ModoPeriodo, type PeriodoSelecionado } from '../../lib/periodoEditorial';
 
 export type { ModoPeriodo, PeriodoSelecionado };
 
@@ -28,8 +28,9 @@ export function periodoInicial(hoje = hojeIso()): PeriodoSelecionado {
   return { modo: 'mes', ...intervaloDoModo('mes', hoje) };
 }
 
-export function intervaloDoModo(modo: 'semana' | 'mes' | 'trimestre', hoje = hojeIso()): { inicio: string; fim: string } {
+export function intervaloDoModo(modo: 'semana' | 'quinzena' | 'mes' | 'trimestre', hoje = hojeIso()): { inicio: string; fim: string } {
   if (modo === 'semana') return semanaDe(hoje);
+  if (modo === 'quinzena') return quinzenaDe(hoje);
   if (modo === 'trimestre') return trimestreDe(hoje);
   const dia = parseISO(hoje);
   return {
@@ -83,7 +84,9 @@ export function rotuloDoPeriodo(periodo: PeriodoSelecionado): string {
   const texto = mesmoMes
     ? `${format(inicio, 'd', { locale: ptBR })} a ${format(fim, "d 'de' MMMM 'de' yyyy", { locale: ptBR })}`
     : `${format(inicio, "d 'de' MMM", { locale: ptBR })} a ${format(fim, "d 'de' MMM 'de' yyyy", { locale: ptBR })}`;
-  return periodo.modo === 'semana' ? `Semana de ${texto}` : capitalizar(texto);
+  if (periodo.modo === 'semana') return `Semana de ${texto}`;
+  if (periodo.modo === 'quinzena') return `Quinzena de ${texto}`;
+  return capitalizar(texto);
 }
 
 /**
@@ -133,15 +136,11 @@ export function useContagemDoPeriodo(inicio: string, fim: string): GradeCounts {
   ]);
 }
 
-const MODOS: Array<{ id: ModoPeriodo; rotulo: string }> = [
-  { id: 'mes', rotulo: 'Mês' },
-  { id: 'trimestre', rotulo: 'Trimestre' },
-  { id: 'intervalo', rotulo: 'Personalizado' },
-];
+const MODOS = MODOS_DO_PERIODO;
 
-/** Semana não é mais escolha, mas um período salvo antes ainda pode chegar como semana. */
 const ROTULO_DO_MODO: Record<ModoPeriodo, string> = {
   semana: 'Semana',
+  quinzena: 'Quinzena',
   mes: 'Mês',
   trimestre: 'Trimestre',
   intervalo: 'Personalizado',
@@ -152,6 +151,9 @@ export function periodoVizinho(periodo: PeriodoSelecionado, direcao: -1 | 1): Pe
   const inicio = parseISO(periodo.inicio);
   if (periodo.modo === 'semana') {
     return { modo: 'semana', ...semanaDe(format(addDays(inicio, 7 * direcao), 'yyyy-MM-dd')) };
+  }
+  if (periodo.modo === 'quinzena') {
+    return { modo: 'quinzena', ...quinzenaDe(format(addDays(inicio, 14 * direcao), 'yyyy-MM-dd')) };
   }
   if (periodo.modo === 'mes') {
     const mes = addMonths(inicio, direcao);
@@ -198,8 +200,7 @@ export function PeriodoEditorialControl({
   }, [editando, periodo]);
 
   const comecarEdicao = () => {
-    // Semana não está entre as escolhas: abre como personalizado, com as mesmas datas.
-    setRascunho(periodo.modo === 'semana' ? { ...periodo, modo: 'intervalo' } : periodo);
+    setRascunho(periodo);
     setEditando(true);
   };
 
@@ -288,7 +289,7 @@ export function PeriodoEditorialControl({
           ) : null}
           <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
             <Text variant="secondary" as="p" className="mr-auto max-w-xl">
-              Escolha mês, trimestre ou datas personalizadas e salve. Os dados e a análise são calculados a partir deste intervalo.
+              Escolha semana, quinzena, mês, trimestre ou datas personalizadas e salve. Semana e quinzena começam na segunda. Os dados e a análise são calculados a partir deste intervalo.
             </Text>
             <AppButton variant="secondary" size="sm" onClick={cancelar}>
               Cancelar

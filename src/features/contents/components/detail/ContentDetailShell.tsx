@@ -4,6 +4,7 @@ import {useLocation, useNavigate, useSearchParams} from 'react-router-dom';
 import {useNavigationBlocker} from '../../../../lib/navigation/NavigationBlockerContext';
 import {useUnsavedChangesRegistration} from '../../../../hooks/useUnsavedChangesRegistration';
 import {resolveContentDetailBack} from '../../../../lib/navigation/detailBack';
+import {returnTo} from '../../../../lib/navigation/goBack';
 import {SendToRecordingSheet} from '../../../../mobile/components/SendToRecordingSheet';
 import {ConfirmModal} from '../../../../components/feedback/modals/ConfirmModal';
 import {useAppContext} from '../../../../context/AppContext';
@@ -711,7 +712,7 @@ export function ContentDetailShell({
   };
 
   const handleMobileBack = () => {
-    navigate(resolveContentDetailBack(location.state as {from?: string} | null));
+    returnTo(navigate, resolveContentDetailBack(location.state as {from?: string} | null));
   };
 
   const setTab = (tab: ContentDetailTab) => {
@@ -992,6 +993,7 @@ export function ContentDetailShell({
                 onChange={handleDraftChange}
                 density="compact"
                 showTitle={false}
+                hidePublishSchedule={activeTab === 'publicacao'}
               />
             )
           }
@@ -1096,6 +1098,7 @@ export function ContentDetailShell({
                   onChange={handleDraftChange}
                   density="compact"
                   showTitle={false}
+                  hidePublishSchedule={activeTab === 'publicacao'}
                 />
               </aside>
             </div>

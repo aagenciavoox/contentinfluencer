@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import type { DecisaoPeriodo } from './editorialSettings.ts';
 import {
+  MODOS_DO_PERIODO,
+  quinzenaDe,
   decisaoDoPeriodo,
   limiteDoIntervalo,
   lerPeriodoSalvo,
@@ -149,9 +151,33 @@ function testPeriodoSalvoVoltaComoFoiConfirmado() {
     lerPeriodoSalvo({ modo: 'intervalo', inicio: '2026-10-05', fim: '2026-10-20' }),
     { modo: 'intervalo', inicio: '2026-10-05', fim: '2026-10-20' },
   );
+  // Semana antiga com datas fora de segunda–domingo abre como personalizado, com as datas salvas.
   assert.deepEqual(
     lerPeriodoSalvo({ modo: 'semana', inicio: '2026-10-14', fim: '2026-10-14' }),
+    { modo: 'intervalo', inicio: '2026-10-14', fim: '2026-10-14' },
+  );
+  assert.deepEqual(
+    lerPeriodoSalvo({ modo: 'semana', inicio: '2026-10-11', fim: '2026-10-17' }),
+    { modo: 'intervalo', inicio: '2026-10-11', fim: '2026-10-17' },
+  );
+  // Semana nova (segunda a domingo) volta como semana.
+  assert.deepEqual(
+    lerPeriodoSalvo({ modo: 'semana', inicio: '2026-10-12', fim: '2026-10-18' }),
     { modo: 'semana', inicio: '2026-10-12', fim: '2026-10-18' },
+  );
+  // Semana antiga que a migração passou para intervalo continua personalizada, mesmo de segunda a domingo.
+  assert.deepEqual(
+    lerPeriodoSalvo({ modo: 'intervalo', inicio: '2026-10-12', fim: '2026-10-18' }),
+    { modo: 'intervalo', inicio: '2026-10-12', fim: '2026-10-18' },
+  );
+  // Quinzena é gravada como intervalo de 14 dias a partir da segunda e volta como quinzena.
+  assert.deepEqual(
+    lerPeriodoSalvo({ modo: 'intervalo', inicio: '2026-11-09', fim: '2026-11-22' }),
+    { modo: 'quinzena', inicio: '2026-11-09', fim: '2026-11-22' },
+  );
+  assert.deepEqual(
+    lerPeriodoSalvo({ modo: 'intervalo', inicio: '2026-11-10', fim: '2026-11-23' }),
+    { modo: 'intervalo', inicio: '2026-11-10', fim: '2026-11-23' },
   );
   assert.deepEqual(
     lerPeriodoSalvo({ modo: 'mes', inicio: '2026-10-15', fim: '2026-10-15' }),
@@ -190,6 +216,17 @@ function testPeriodoSalvoQuebradoNaoVale() {
   assert.equal(lerPeriodoSalvo({ modo: 'intervalo', inicio: '2026-02-30', fim: '2026-03-05' }), null);
 }
 
+function testSeletorOfereceSemanaEQuinzena() {
+  assert.deepEqual(MODOS_DO_PERIODO.map(modo => modo.rotulo), ['Semana', 'Quinzena', 'Mês', 'Trimestre', 'Personalizado']);
+  // Quinzena começa na segunda da semana da data, qualquer que seja o dia.
+  assert.deepEqual(quinzenaDe('2026-11-11'), { inicio: '2026-11-09', fim: '2026-11-22' });
+  assert.deepEqual(quinzenaDe('2026-11-15'), { inicio: '2026-11-09', fim: '2026-11-22' });
+  assert.deepEqual(quinzenaDe('2026-11-09'), { inicio: '2026-11-09', fim: '2026-11-22' });
+  assert.equal(new Date(`${quinzenaDe('2026-12-31').inicio}T12:00:00`).getDay(), 1);
+  assert.equal(new Date(`${semanaDe('2026-12-31').inicio}T12:00:00`).getDay(), 1);
+}
+
+testSeletorOfereceSemanaEQuinzena();
 testSemanaDeSegundaADomingo();
 testPeriodoSalvoVoltaComoFoiConfirmado();
 testPeriodoSalvoQuebradoNaoVale();

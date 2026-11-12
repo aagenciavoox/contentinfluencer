@@ -11,7 +11,8 @@ import {
   type JanelaApurada,
   type SerieDaApuracao,
 } from '../../editorial/lib/apuracaoSerie.ts';
-import { exclusaoDeMetaPropria } from '../../editorial/lib/metaPropria.ts';
+import { exclusaoDaFamilia, exclusaoDeMetaPropria } from '../../editorial/lib/metaPropria.ts';
+import { tipoNaArvore, unidadesDaRegraDeOuro } from '../../editorial/lib/regraDeOuro.ts';
 import { acompanhamentoGeral, acompanhaNoGeral, coberturaNoGeral, idsComAncestrais, serieAcompanhada } from '../../editorial/lib/acompanhamento.ts';
 import {
   diasSeguidosDosItens,
@@ -191,6 +192,8 @@ export type LinhaContinuidade<T> = {
   temporadaId?: string | null;
   nome: string;
   tipo: 'serie' | 'quadro' | 'temporada';
+  /** Linha de uma família com ritmo (soma os episódios únicos das séries dela). */
+  familia?: boolean;
   paiNome: string | null;
   frequencia: string;
   intervalos: IntervaloAvaliado[];
@@ -261,9 +264,9 @@ function avaliado(janela: JanelaApurada): IntervaloAvaliado {
 }
 
 /**
- * Continuidade: cada série (e quadro com meta própria) marcada, conferida janela a janela
- * pela apuração comum (`apurarSerie`). Episódio de quadro conta para a série acima, uma vez só;
- * quadro com meta própria e wave com ritmo próprio contam só na linha deles.
+ * Continuidade: cada série (e família com ritmo) marcada, conferida janela a janela
+ * pela apuração comum (`apurarSerie`). Quadro é sob demanda: não tem linha e não conta na série;
+ * wave com ritmo próprio conta só na linha dela. Regra de Ouro: até 1 episódio por semana por série.
  * Repost não é episódio novo. Post-it é reserva. Sobra não compensa falta.
  * `itens` pode ir além do período: os intervalos das pontas são avaliados inteiros.
  */
@@ -277,8 +280,11 @@ export type TemporadaDaSaude = {
   frequenciaVezes?: number | null;
   frequenciaUnidade?: string | null;
   frequenciaAPartirDe?: string | null;
-  /** Rascunho e arquivada não viram linha na Saúde. */
+  frequenciaAncora?: string | null;
+  /** Rascunho não vira linha. Arquivada só nos períodos antes do dia do arquivo. */
   status?: 'rascunho' | 'ativa' | 'arquivada';
+  /** Dia do arquivo: a linha da wave termina na véspera; sem data, arquivada não vira linha. */
+  arquivadaEm?: string | null;
   /** Janela e regras do acompanhamento da wave. */
   acompanhamentoInicio?: string | null;
   acompanhamentoTermino?: string | null;
@@ -286,6 +292,11 @@ export type TemporadaDaSaude = {
   evitarDiasSeguidos?: boolean;
 };
 
+
+function vesperaDoArquivo(arquivadaEm: string | null | undefined): string | null {
+  if (!arquivadaEm) return null;
+  return format(addDays(parseISO(arquivadaEm.slice(0, 10)), -1), 'yyyy-MM-dd');
+}
 
 export function continuidadeDasSeries<T extends ItemSaude>(input: {
   series: readonly SerieDaSaude[];
@@ -310,6 +321,8 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
   for (const serie of series) {
     // Rascunho organiza sem cobrar; arquivada já saiu.
     if (serie.ativa === false || serie.status === 'rascunho') continue;
+    // Quadro é sob demanda: sem meta, sem linha e sem pendência na Continuidade (o aviso é o de saturação).
+    if (tipoNaArvore(serie.id, series) === 'quadro') continue;
     // Só entra quem foi marcado para acompanhar; as outras nem aparecem como pendência.
     if (!acompanhaNoGeral(serie)) {
       // Acompanhada só por conta ou formato: conta como acompanhada; a linha vem da continuidade por escopo.
@@ -330,7 +343,8 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
       continue;
     }
     const tipoLinha = tipo === 'quadro' ? 'quadro' : 'serie';
-    const situacao = situacaoDaFrequencia(serie);
+    // Regra de Ouro: até 1 por semana por série; a família tem uma vaga por série ativa.
+    const situacao = situacaoDaFrequencia(serie, unidadesDaRegraDeOuro(serie.id, series));
     if (situacao.tipo === 'incompleta') {
       pendencias.push({ serieId: serie.id, nome, tipo: tipoLinha, motivo: 'incompleta', texto: 'Frequência incompleta: escolha a unidade' });
       continue;
@@ -355,7 +369,10 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
       series,
       itens,
       periodo,
-      excluir: exclusaoDeMetaPropria(serie, series, input.temporadas ?? []),
+      // Família soma os episódios únicos das séries dela; série e quadro tiram o que conta à parte.
+      excluir: tipo === 'familia'
+        ? exclusaoDaFamilia(input.temporadas ?? [], serie, series)
+        : exclusaoDeMetaPropria(serie, series, input.temporadas ?? []),
     });
     if (apuracao.inicioFuturo) {
       naoAvaliadas.push({
@@ -406,6 +423,7 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
       temporadaId: null,
       nome,
       tipo: tipoLinha,
+      ...(tipo === 'familia' ? { familia: true } : {}),
       paiNome: pai?.name?.trim() || null,
       frequencia: textoFrequencia(situacao.freq),
       intervalos,
@@ -427,7 +445,10 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
   // Cada temporada marcada é uma wave: só os episódios dela, com a meta dela.
   for (const temporada of input.temporadas ?? []) {
     if (temporada.acompanhar !== true) continue;
-    if (temporada.status === 'rascunho' || temporada.status === 'arquivada') continue;
+    if (temporada.status === 'rascunho') continue;
+    // Arquivada: só os períodos antes do arquivo mantêm a linha, que termina na véspera.
+    const fimDoArquivo = temporada.status === 'arquivada' ? vesperaDoArquivo(temporada.arquivadaEm) : null;
+    if (temporada.status === 'arquivada' && (!fimDoArquivo || fimDoArquivo < periodo.inicio)) continue;
     const dona = porId.get(temporada.serieId);
     if (!dona || dona.ativa === false || dona.status === 'rascunho') continue;
     const nome = temporada.nome.trim() || 'Temporada';
@@ -438,6 +459,8 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
       frequenciaVezes: temporada.frequenciaVezes ?? null,
       frequenciaUnidade: temporada.frequenciaUnidade ?? null,
       frequenciaAPartirDe: temporada.frequenciaAPartirDe ?? null,
+      // A âncora é da meta da wave, não da série dona.
+      frequenciaAncora: temporada.frequenciaAncora ?? null,
     };
     const situacao = situacaoDaFrequencia(sintetica);
     if (situacao.tipo === 'incompleta' || situacao.tipo === 'sem-frequencia' || situacao.tipo === 'sem-ancora') {
@@ -454,7 +477,10 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
       continue;
     }
     // Início e término do acompanhamento da wave, como no geral da série.
-    const janelaDaOnda = { inicio: temporada.acompanhamentoInicio ?? null, termino: temporada.acompanhamentoTermino ?? null };
+    const terminoDaOnda = fimDoArquivo && (!temporada.acompanhamentoTermino || fimDoArquivo < temporada.acompanhamentoTermino)
+      ? fimDoArquivo
+      : temporada.acompanhamentoTermino ?? null;
+    const janelaDaOnda = { inicio: temporada.acompanhamentoInicio ?? null, termino: terminoDaOnda };
     if (janelaDaOnda.inicio && janelaDaOnda.inicio > periodo.fim) {
       acompanhadas += 1;
       naoAvaliadas.push({ serieId: dona.id, nome, motivo: 'inicio-futuro', texto: `Acompanhamento começa em ${format(parseISO(janelaDaOnda.inicio), 'dd/MM/yyyy')}: ainda não avaliado` });

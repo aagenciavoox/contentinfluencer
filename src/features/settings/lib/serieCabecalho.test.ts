@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { faixaDaEtapa, metaDoCabecalho, totaisDoCabecalho } from './serieCabecalho.ts';
+import { faixaDaEtapa, metaDoCabecalho, textoDaCadencia, totaisDoCabecalho } from './serieCabecalho.ts';
 
 const series = [
   { id: 's', parentId: null },
@@ -49,20 +49,21 @@ const lista = [base, { ...base, id: 'q1', parentId: 's' }];
 
 assert.deepEqual(metaDoCabecalho({ serie: base, series: lista, itens, periodo: semana, hoje: '2026-11-02' }), { estado: 'sem-meta', texto: 'Sem meta definida' });
 
-// Mesma apuração do Editorial e da Saúde: o quadro soma na série, a semana é conferida inteira.
+// Mesma apuração do Editorial e da Saúde: o quadro (sob demanda) não soma na série, a semana é conferida inteira.
+// Regra de ouro: 3 por semana gravado vale 1 por semana.
 const comMeta = { ...base, frequenciaVezes: 3, frequenciaUnidade: 'semana' };
 const m = metaDoCabecalho({ serie: comMeta, series: [comMeta, lista[1]], itens, periodo: semana, hoje: '2026-11-02' });
 assert.equal(m.estado, 'ativa');
-assert.equal(m.texto, '2 episódios nesta semana · meta de 3 · 0 de 1 semana atendida');
+assert.equal(m.texto, '1 episódio nesta semana · meta de 1 · 1 de 1 semana atendida');
 if (m.estado === 'ativa') {
-  assert.equal(m.regra, 'Meta: 3 por semana');
-  assert.equal(m.barra, 0);
+  assert.equal(m.regra, 'Meta: 1 por semana');
+  assert.equal(m.barra, 100);
 }
 
 // Episódios bastam: semana atendida.
 const umaVez = { ...base, frequenciaVezes: 1, frequenciaUnidade: 'semana' };
 const acima = metaDoCabecalho({ serie: umaVez, series: [umaVez, lista[1]], itens, periodo: semana, hoje: '2026-11-02' });
-assert.equal(acima.texto, '2 episódios nesta semana · meta de 1 · 1 de 1 semana atendida');
+assert.equal(acima.texto, '1 episódio nesta semana · meta de 1 · 1 de 1 semana atendida');
 if (acima.estado === 'ativa') assert.equal(acima.barra, 100);
 
 // Frase antiga continua valendo.
@@ -73,7 +74,7 @@ assert.equal(metaDoCabecalho({ serie: legado, series: [legado], itens: [], perio
 const quinzenal = { ...base, frequenciaVezes: 1, frequenciaUnidade: 'quinzena' };
 assert.deepEqual(metaDoCabecalho({ serie: quinzenal, series: [quinzenal], itens: [], periodo: semana, hoje: '2026-11-02' }), { estado: 'sem-meta', texto: 'Defina o início dos ciclos de 14 dias' });
 
-// Quadro com meta própria sai da conta do pai, como na Saúde.
+// Quadro (mesmo com meta antiga gravada) sai da conta do pai, como na Saúde.
 const quadroProprio = {
   ...base,
   id: 'q1',
@@ -95,3 +96,16 @@ assert.equal(f.estado, 'futura');
 assert.equal(f.texto, 'Começa em 01/12/2026');
 
 console.log('serieCabecalho: ok');
+
+// Página do quadro: sob demanda, sem meta semanal (a meta antiga gravada é ignorada).
+{
+  const quadro = { ...base, id: 'q1', parentId: 's', tipoAgrupamento: 'quadro' as const, frequenciaVezes: 2, frequenciaUnidade: 'semana' };
+  const paiDoQuadro = { ...base, tipoAgrupamento: 'serie' as const };
+  assert.deepEqual(metaDoCabecalho({ serie: quadro, series: [paiDoQuadro, quadro], itens, periodo: semana, hoje: '2026-11-02' }),
+    { estado: 'sem-meta', texto: 'Sob demanda: sem meta semanal' });
+}
+
+assert.equal(textoDaCadencia(umaVez, 'serie'), 'Cadência: 1 episódio por semana');
+assert.equal(textoDaCadencia(comMeta, 'serie'), 'Cadência: 1 episódio por semana');
+assert.equal(textoDaCadencia(base, 'serie'), 'Cadência: sem compromisso definido');
+assert.equal(textoDaCadencia({ ...base, frequenciaVezes: 2, frequenciaUnidade: 'semana' }, 'quadro'), 'Cadência: sob demanda');

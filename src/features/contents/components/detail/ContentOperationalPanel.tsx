@@ -35,6 +35,7 @@ import {Surface} from '../../../../components/ui/Surface';
 import {Badge} from '../../../../components/ui/Badge';
 import {Text} from '../../../../components/ui/Text';
 import {PostingTimeSuggestions} from '../../../settings/components/PostingTimeSuggestions';
+import {mudarDataPrincipal} from '../../lib/dataPrincipal';
 import {getCrossedPostingTimesForPilar} from '../../../settings/lib/pilarPostingSchedule';
 import {
   getPostingWindowFromTime,
@@ -80,7 +81,7 @@ type OperationalDraft = Pick<
   | 'publishDate'
   | 'publishTime'
   | 'status'
-> & Partial<Pick<Content, 'postedAt' | 'energiaNecessaria' | 'origemConteudoId'>>;
+> & Partial<Pick<Content, 'postedAt' | 'energiaNecessaria' | 'origemConteudoId' | 'plataformas' | 'publishDateEnabled'>>;
 
 interface ContentOperationalPanelProps {
   draft: OperationalDraft;
@@ -95,6 +96,8 @@ interface ContentOperationalPanelProps {
   authorName?: string;
   /** Cards variant only: render every section expanded in a responsive grid. */
   sectionsOpen?: boolean;
+  /** Aba Publicação: data, hora e horários sugeridos já estão no bloco "Quando e onde". */
+  hidePublishSchedule?: boolean;
 }
 
 function AsideAccordion({
@@ -486,6 +489,7 @@ export function ContentOperationalPanel({
   showTitle = true,
   className,
   sectionsOpen = false,
+  hidePublishSchedule = false,
 }: ContentOperationalPanelProps) {
   const {state, ensureDataDomains} = useAppContext();
   const navigate = useNavigate();
@@ -493,6 +497,13 @@ export function ContentOperationalPanel({
     void ensureDataDomains(['library', 'production']);
   }, [ensureDataDomains]);
   const publishDateOnly = draft.publishDate ? draft.publishDate.slice(0, 10) : '';
+  // Mesma data principal da aba Publicação: as contas previstas acompanham, como no Calendário.
+  const mudarPublicacao = (date: string | null) => {
+    const mudanca = draft.plataformas
+      ? mudarDataPrincipal({...draft, plataformas: draft.plataformas}, date)
+      : null;
+    onChange(mudanca ?? {publishDate: toIsoDate(date)});
+  };
   const linkedSerie = draft.seriesId ? series.find(serie => serie.id === draft.seriesId) ?? null : null;
   // Mesma regra da Saúde e do calendário: gravado vale; vazio sem escolha herda quadro → série.
   const pilarEfetivoId = pilarDoConteudo(draft, series);
@@ -769,14 +780,16 @@ export function ContentOperationalPanel({
         />
       </PropertyRow>
 
-      <PropertyRow label="Publicação" icon={<CalendarClock />}>
-        <PropertyDatePicker
-          value={publishDateOnly || null}
-          onChange={date => onChange({publishDate: toIsoDate(date)})}
-        />
-      </PropertyRow>
+      {hidePublishSchedule ? null : (
+        <PropertyRow label="Publicação" icon={<CalendarClock />}>
+          <PropertyDatePicker
+            value={publishDateOnly || null}
+            onChange={mudarPublicacao}
+          />
+        </PropertyRow>
+      )}
 
-      {publishDateOnly ? (
+      {publishDateOnly && !hidePublishSchedule ? (
         <PropertyRow label="Hora" icon={<Clock />}>
           <PropertyInput
             type="time"
@@ -914,14 +927,16 @@ export function ContentOperationalPanel({
               onChange={date => onChange({recordingDate: toIsoDate(date)})}
             />
           </div>
-          <div className="flex flex-col gap-1">
-            <Text variant="label" as="span" className="text-[var(--text-secondary)]">Publicação</Text>
-            <PropertyDatePicker
-              variant="field"
-              value={publishDateOnly || null}
-              onChange={date => onChange({publishDate: toIsoDate(date)})}
-            />
-          </div>
+          {hidePublishSchedule ? null : (
+            <div className="flex flex-col gap-1">
+              <Text variant="label" as="span" className="text-[var(--text-secondary)]">Publicação</Text>
+              <PropertyDatePicker
+                variant="field"
+                value={publishDateOnly || null}
+                onChange={mudarPublicacao}
+              />
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col gap-1">
@@ -1072,16 +1087,18 @@ export function ContentOperationalPanel({
             />
           </RoteiroField>
 
-          <RoteiroField label="Publicação" icon={<CalendarClock className="h-3.5 w-3.5" />}>
-            <PropertyDatePicker
-              variant="field"
-              className="border-transparent bg-transparent hover:bg-[var(--bg-hover)] focus:border-[var(--border-color)]"
-              value={publishDateOnly || null}
-              onChange={date => onChange({publishDate: toIsoDate(date)})}
-            />
-          </RoteiroField>
+          {hidePublishSchedule ? null : (
+            <RoteiroField label="Publicação" icon={<CalendarClock className="h-3.5 w-3.5" />}>
+              <PropertyDatePicker
+                variant="field"
+                className="border-transparent bg-transparent hover:bg-[var(--bg-hover)] focus:border-[var(--border-color)]"
+                value={publishDateOnly || null}
+                onChange={mudarPublicacao}
+              />
+            </RoteiroField>
+          )}
 
-          {publishDateOnly ? (
+          {publishDateOnly && !hidePublishSchedule ? (
             <>
               <RoteiroField label="Hora" icon={<Clock className="h-3.5 w-3.5" />}>
                 <input
@@ -1134,7 +1151,7 @@ export function ContentOperationalPanel({
         {herancaSection}
         {scheduleSection}
 
-        {publishDateOnly ? (
+        {publishDateOnly && !hidePublishSchedule ? (
           <>
             <PostingTimeSuggestions
               date={publishDateOnly}

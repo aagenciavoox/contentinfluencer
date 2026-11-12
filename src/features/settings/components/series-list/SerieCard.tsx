@@ -14,8 +14,8 @@ import {
   TIPO_AGRUPAMENTO_LABEL,
   plural,
 } from '../../lib/serieAgrupamento';
-import { type ItemLista } from '../../lib/seriesListaView';
-import { podeSerRascunho, ROTULO_STATUS, statusDaSerie, type StatusSerie } from '../../lib/statusSerie';
+import { etiquetaDoCard, type ItemLista } from '../../lib/seriesListaView';
+import { podeSerRascunho, statusDaSerie, type StatusSerie } from '../../lib/statusSerie';
 
 export const ARRASTO_SERIE = 'application/x-criaki-serie';
 
@@ -106,7 +106,15 @@ export function SerieCard({
 }) {
   const { serie } = item;
   const nome = serie.name.trim() || 'Sem nome';
-  const tipoLabel = TIPO_AGRUPAMENTO_LABEL[item.tipo] || 'Série';
+  // "Série · Ativa", "Quadro · Sob demanda": o tipo e o status numa etiqueta só.
+  const etiqueta = etiquetaDoCard(item, TIPO_AGRUPAMENTO_LABEL);
+  // Quadro não tem meta semanal: aparece quando a série precisa dele.
+  const frequencia = item.tipo === 'quadro' ? 'Sob demanda' : serie.frequenciaRecomendada?.trim() || 'Sob demanda';
+  const pai = item.pai ? item.pai.name.trim() || 'Sem nome' : null;
+  const rotuloDoPai = item.tipo === 'quadro' ? 'Série' : 'Família';
+  const textoDoPai = item.tipo === 'familia'
+    ? 'É a própria família'
+    : pai ?? (item.tipo === 'quadro' ? 'Sem série' : 'Sem família (independente)');
 
   const [expandido, setExpandido] = useState(false);
   const [imgError, setImgError] = useState(false);
@@ -204,7 +212,7 @@ export function SerieCard({
         )}
 
         <div className="flex min-w-0 flex-1 flex-col gap-2.5 p-3.5 sm:p-4">
-          {/* Topo do card base: tipo e status ativo */}
+          {/* Topo do card base: tipo e status na mesma etiqueta */}
           <div className="flex items-center justify-between gap-2">
             <Badge
               variant="neutral"
@@ -214,20 +222,17 @@ export function SerieCard({
                 color: serie.cor || 'var(--text-primary)',
               }}
             >
-              {tipoLabel.toUpperCase()}
+              {etiqueta.toUpperCase()}
             </Badge>
 
             <span className="flex items-center gap-1 shrink-0">
-              <Text variant="meta" as="span" className="flex items-center gap-1.5">
-                <span
-                  className={cn(
-                    'h-2 w-2 rounded-full',
-                    serie.ativa ? 'bg-emerald-500' : statusDaSerie(serie) === 'rascunho' ? 'bg-amber-400' : 'bg-zinc-400',
-                  )}
-                  aria-hidden="true"
-                />
-                <span>{ROTULO_STATUS[statusDaSerie(serie)]}</span>
-              </Text>
+              <span
+                className={cn(
+                  'h-2 w-2 rounded-full',
+                  serie.ativa ? 'bg-emerald-500' : statusDaSerie(serie) === 'rascunho' ? 'bg-amber-400' : 'bg-zinc-400',
+                )}
+                aria-hidden="true"
+              />
               {onEdit && onToggleAtiva ? (
                 <span
                   className="relative z-10"
@@ -334,7 +339,7 @@ export function SerieCard({
                   color: serie.cor || 'var(--text-primary)',
                 }}
               >
-                {tipoLabel}
+                {etiqueta}
               </Badge>
             </div>
 
@@ -360,9 +365,9 @@ export function SerieCard({
                 <Text variant="meta" as="dt" className="text-[var(--text-tertiary)]">Frequência</Text>
                 <Text variant="label" as="dd"
                   className="text-[var(--text-primary)] truncate"
-                  title={serie.frequenciaRecomendada?.trim() || 'Sob demanda'}
+                  title={frequencia}
                 >
-                  {serie.frequenciaRecomendada?.trim() || 'Sob demanda'}
+                  {frequencia}
                 </Text>
               </div>
 
@@ -396,22 +401,12 @@ export function SerieCard({
               </div>
 
               <div className="col-span-2">
-                <Text variant="meta" as="dt" className="text-[var(--text-tertiary)]">Família</Text>
+                <Text variant="meta" as="dt" className="text-[var(--text-tertiary)]">{rotuloDoPai}</Text>
                 <Text variant="label" as="dd"
                   className="text-[var(--text-primary)] truncate"
-                  title={
-                    item.tipo === 'familia'
-                      ? 'É a própria família'
-                      : item.pai
-                        ? item.pai.name.trim() || 'Sem nome'
-                        : 'Sem família (independente)'
-                  }
+                  title={textoDoPai}
                 >
-                  {item.tipo === 'familia'
-                    ? 'É a própria família'
-                    : item.pai
-                      ? item.pai.name.trim() || 'Sem nome'
-                      : 'Sem família (independente)'}
+                  {textoDoPai}
                 </Text>
               </div>
 

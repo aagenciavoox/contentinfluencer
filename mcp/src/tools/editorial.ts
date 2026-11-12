@@ -288,7 +288,9 @@ const serieFields = {
     'Nome ou id do agrupamento pai: a série de um quadro, ou a família de uma série. null tira do pai (quadro não pode ficar sem série).',
   ),
   usa_temporadas: z.boolean().optional().describe('Só série. Os quadros dela usam as mesmas temporadas'),
-  frequencia_vezes: z.number().int().min(1).max(60).nullable().optional().describe('Meta de episódios por período. null tira a meta'),
+  frequencia_vezes: z.number().int().min(1).max(60).nullable().optional().describe(
+    'Meta de episódios por período. null tira a meta. Regra de Ouro: série no máximo 1 por semana (2 a cada 14 dias, 4 por mês, 8 por bimestre, 13 por trimestre, 26 por semestre). Quadro não tem meta (sob demanda)',
+  ),
   frequencia_unidade: z.enum(UNIDADES_FREQUENCIA).nullable().optional().describe(
     'semana, quinzena (a cada 14 dias, exige frequencia_a_partir_de), mes, bimestre, trimestre ou semestre (blocos fechados a partir de janeiro); sob-demanda (ou null) tira a meta. Sem unidade e com vezes, o app usa semana',
   ),

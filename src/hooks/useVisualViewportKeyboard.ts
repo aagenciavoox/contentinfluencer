@@ -10,21 +10,32 @@ export function useVisualViewportKeyboard() {
     const viewport = window.visualViewport;
     if (!viewport) return;
 
+    let frame = 0;
     const update = () => {
-      const nextInset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
-      setInset(nextInset);
-      setOpen(nextInset > KEYBOARD_OPEN_PX);
+      frame = 0;
+      // Inteiro e só atualiza se mudou: no iOS o visualViewport dispara
+      // resize/scroll o tempo todo ao digitar e re-renderizar o editor travava a tela.
+      const nextInset = Math.max(0, Math.round(window.innerHeight - viewport.height - viewport.offsetTop));
+      setInset(previous => (previous === nextInset ? previous : nextInset));
+      setOpen(previous => {
+        const nextOpen = nextInset > KEYBOARD_OPEN_PX;
+        return previous === nextOpen ? previous : nextOpen;
+      });
+    };
+    const schedule = () => {
+      if (!frame) frame = window.requestAnimationFrame(update);
     };
 
     update();
-    viewport.addEventListener('resize', update);
-    viewport.addEventListener('scroll', update);
-    window.addEventListener('orientationchange', update);
+    viewport.addEventListener('resize', schedule);
+    viewport.addEventListener('scroll', schedule);
+    window.addEventListener('orientationchange', schedule);
 
     return () => {
-      viewport.removeEventListener('resize', update);
-      viewport.removeEventListener('scroll', update);
-      window.removeEventListener('orientationchange', update);
+      if (frame) window.cancelAnimationFrame(frame);
+      viewport.removeEventListener('resize', schedule);
+      viewport.removeEventListener('scroll', schedule);
+      window.removeEventListener('orientationchange', schedule);
     };
   }, []);
 

@@ -15,8 +15,20 @@ import type { AjusteSemana, DecisaoPeriodo } from './editorialSettings.ts';
 
 const FORMATO = 'yyyy-MM-dd';
 
-/** `semana` só chega de períodos salvos antes do trimestre; o seletor oferece mês, trimestre e personalizado. */
-export type ModoPeriodo = 'semana' | 'mes' | 'trimestre' | 'intervalo';
+/**
+ * Recortes do seletor: semana e quinzena (de consulta, começando na segunda), mês, trimestre e personalizado.
+ * A quinzena é a semana da data e a seguinte: 14 dias a partir da segunda.
+ */
+export type ModoPeriodo = 'semana' | 'quinzena' | 'mes' | 'trimestre' | 'intervalo';
+
+/** Escolhas do seletor de período, na ordem da tela. Semana e quinzena são recortes de consulta. */
+export const MODOS_DO_PERIODO: ReadonlyArray<{ id: ModoPeriodo; rotulo: string }> = [
+  { id: 'semana', rotulo: 'Semana' },
+  { id: 'quinzena', rotulo: 'Quinzena' },
+  { id: 'mes', rotulo: 'Mês' },
+  { id: 'trimestre', rotulo: 'Trimestre' },
+  { id: 'intervalo', rotulo: 'Personalizado' },
+];
 
 export type PeriodoSelecionado = {
   modo: ModoPeriodo;
@@ -44,6 +56,12 @@ export function semanaDe(data: string): { inicio: string; fim: string } {
     inicio: format(startOfWeek(dia, SEMANA), FORMATO),
     fim: format(endOfWeek(dia, SEMANA), FORMATO),
   };
+}
+
+/** Quinzena de consulta: a segunda da semana da data e os 13 dias seguintes. */
+export function quinzenaDe(data: string): { inicio: string; fim: string } {
+  const inicio = semanaDe(data).inicio;
+  return { inicio, fim: format(addDays(parseISO(inicio), 13), FORMATO) };
 }
 
 /** Trimestre do calendário: jan–mar, abr–jun, jul–set, out–dez. */
@@ -154,10 +172,13 @@ export function decisaoDoPeriodo(
 
 /**
  * Lê a janela gravada em `editorial_visao`.
- * Semana volta a ser segunda–domingo, mês volta a ser o mês inteiro do início salvo
- * e trimestre volta a ser o trimestre inteiro.
- * O banco só aceita semana, mês e intervalo, então o trimestre é gravado como intervalo:
- * um intervalo que cobre exatamente um trimestre volta como trimestre.
+ * Mês volta a ser o mês inteiro do início salvo e trimestre volta a ser o trimestre inteiro.
+ * O banco só aceita semana, mês e intervalo, então trimestre e quinzena são gravados como intervalo:
+ * um intervalo que cobre exatamente um trimestre volta como trimestre, e 14 dias a partir de uma
+ * segunda voltam como quinzena.
+ * Semana salva só volta como semana quando as datas são de segunda a domingo. Semana antiga com
+ * outras datas (de antes da semana começar na segunda) abre como personalizado, com as datas salvas.
+ * A migração 20261111120000_editorial_bases passa as semanas antigas para intervalo.
  * Valor ausente ou quebrado devolve null: quem chama abre no mês de hoje.
  */
 export function lerPeriodoSalvo(value: unknown): PeriodoSelecionado | null {
@@ -167,7 +188,12 @@ export function lerPeriodoSalvo(value: unknown): PeriodoSelecionado | null {
   if (typeof inicio !== 'string' || typeof fim !== 'string') return null;
   if (!diaIso(inicio) || !diaIso(fim)) return null;
 
-  if (modo === 'semana') return { modo, ...semanaDe(inicio) };
+  if (modo === 'semana') {
+    const semana = semanaDe(inicio);
+    if (semana.inicio === inicio && semana.fim === fim) return { modo, inicio, fim };
+    return inicio <= fim ? { modo: 'intervalo', inicio, fim } : null;
+  }
+  if (modo === 'quinzena') return { modo, ...quinzenaDe(inicio) };
   if (modo === 'mes') {
     const dia = parseISO(inicio);
     return {
@@ -180,6 +206,8 @@ export function lerPeriodoSalvo(value: unknown): PeriodoSelecionado | null {
   if (modo === 'intervalo' && inicio <= fim) {
     const trimestre = trimestreDe(inicio);
     if (trimestre.inicio === inicio && trimestre.fim === fim) return { modo: 'trimestre', inicio, fim };
+    const quinzena = quinzenaDe(inicio);
+    if (quinzena.inicio === inicio && quinzena.fim === fim) return { modo: 'quinzena', inicio, fim };
     return { modo, inicio, fim };
   }
   return null;

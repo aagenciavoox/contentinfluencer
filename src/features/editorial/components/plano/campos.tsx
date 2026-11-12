@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { inteiroNaoNegativo } from '../../../../lib/inteiro';
 import { Minus, Plus } from 'lucide-react';
 import { SettingsSectionCard } from '../../../../components/settings/SettingsSectionCard';
+import { Ajuda } from '../../../../components/ui/Ajuda';
 import { Text } from '../../../../components/ui/Text';
 import { cn } from '../../../../lib/utils';
 
@@ -40,9 +41,13 @@ export function CampoNumero({
   erro?: string;
 }) {
   return (
-    <label className="flex flex-col gap-1" htmlFor={id}>
-      <Text variant="bodyStrong" as="span">{label}</Text>
-      {hint ? <Text variant="secondary">{hint}</Text> : null}
+    <div className="flex flex-col gap-1">
+      <span className="inline-flex items-center">
+        <label htmlFor={id}>
+          <Text variant="bodyStrong" as="span">{label}</Text>
+        </label>
+        {hint ? <Ajuda rotulo={`Sobre ${label}`} texto={hint} /> : null}
+      </span>
       <input
         id={id}
         type="text"
@@ -53,7 +58,7 @@ export function CampoNumero({
         className={NUMERO}
       />
       {erro ? <Text variant="meta" className="text-[var(--accent-red)]">{erro}</Text> : null}
-    </label>
+    </div>
   );
 }
 
@@ -139,6 +144,9 @@ export function CampoStepper({
   value,
   onChange,
   erro,
+  layout = 'stack',
+  rotuloVisivel = true,
+  zeroViraVazio = false,
 }: {
   id: string;
   label: string;
@@ -148,51 +156,88 @@ export function CampoStepper({
   value: string;
   onChange: (value: string) => void;
   erro?: string;
+  /** `row`: rótulo à esquerda e o passo à direita. */
+  layout?: 'stack' | 'row';
+  /** Esconde o rótulo visual. O campo continua com nome para leitor de tela. */
+  rotuloVisivel?: boolean;
+  /** No menos, 1 volta a vazio (o traço), em vez de zero. */
+  zeroViraVazio?: boolean;
 }) {
   const atual = inteiroOuNull(value);
-  const hintId = hint ? `${id}-hint` : undefined;
   const erroId = erro ? `${id}-erro` : undefined;
+  const diminuir = () => {
+    if (atual == null || atual <= 0) return;
+    if (zeroViraVazio && atual <= 1) onChange('');
+    else onChange(String(atual - 1));
+  };
+  const controle = (
+    <div className="inline-flex items-center overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)]">
+      <button
+        type="button"
+        className={PASSO}
+        disabled={atual == null || atual <= 0}
+        aria-label={`Diminuir ${label.toLowerCase()}`}
+        onClick={diminuir}
+      >
+        <Minus className="h-4 w-4" aria-hidden />
+      </button>
+      <input
+        id={id}
+        type="text"
+        inputMode="numeric"
+        autoComplete="off"
+        value={value}
+        placeholder="—"
+        aria-describedby={erroId}
+        onChange={event => onChange(digitos(event.target.value))}
+        className="!h-11 w-16 !rounded-none !border-0 !border-x !border-[var(--border-input)] !bg-transparent !px-2 text-center t-body tabular-nums text-[var(--text-primary)] !shadow-none outline-none placeholder:text-[var(--text-secondary)] focus-visible:shadow-[inset_0_0_0_2px_var(--focus-ring-color)]"
+      />
+      <button
+        type="button"
+        className={PASSO}
+        disabled={atual != null && atual >= 9999}
+        aria-label={`Aumentar ${label.toLowerCase()}`}
+        onClick={() => onChange(String((atual ?? 0) + 1))}
+      >
+        <Plus className="h-4 w-4" aria-hidden />
+      </button>
+    </div>
+  );
+  const rotulo = (
+    <span className="inline-flex items-center">
+      <label htmlFor={id} className={rotuloVisivel ? undefined : 'sr-only'}>
+        <Text variant={layout === 'row' ? 'body' : 'bodyStrong'} as="span">{label}</Text>
+      </label>
+      {hint && rotuloVisivel ? <Ajuda rotulo={`Sobre ${label}`} texto={hint} /> : null}
+    </span>
+  );
+  const notas = (
+    <>
+      {erro ? <Text variant="meta" as="p" className="text-[var(--accent-red)]"><span id={erroId}>{erro}</span></Text> : null}
+    </>
+  );
+  if (layout === 'row') {
+    return (
+      <div className="flex min-w-0 flex-col gap-2">
+        <div className="flex items-center justify-between gap-4">
+          {rotulo}
+          <span className="inline-flex shrink-0 items-center gap-3">
+            {controle}
+            {unidade ? <Text variant="body" as="span" className="text-[var(--text-secondary)]">{unidade}</Text> : null}
+          </span>
+        </div>
+        {notas}
+      </div>
+    );
+  }
   return (
     <div className="flex min-w-0 flex-col gap-2">
-      <label htmlFor={id}>
-        <Text variant="bodyStrong" as="span">{label}</Text>
-      </label>
+      {rotulo}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="inline-flex items-center overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)]">
-          <button
-            type="button"
-            className={PASSO}
-            disabled={atual == null || atual <= 0}
-            aria-label={`Diminuir ${label.toLowerCase()}`}
-            onClick={() => onChange(String(Math.max(0, (atual ?? 0) - 1)))}
-          >
-            <Minus className="h-4 w-4" aria-hidden />
-          </button>
-          <input
-            id={id}
-            type="text"
-            inputMode="numeric"
-            autoComplete="off"
-            value={value}
-            placeholder="—"
-            aria-describedby={[hintId, erroId].filter(Boolean).join(' ') || undefined}
-            onChange={event => onChange(digitos(event.target.value))}
-            className="!h-11 w-16 !rounded-none !border-0 !border-x !border-[var(--border-input)] !bg-transparent !px-2 text-center t-body tabular-nums text-[var(--text-primary)] !shadow-none outline-none placeholder:text-[var(--text-secondary)] focus-visible:shadow-[inset_0_0_0_2px_var(--focus-ring-color)]"
-          />
-          <button
-            type="button"
-            className={PASSO}
-            disabled={atual != null && atual >= 9999}
-            aria-label={`Aumentar ${label.toLowerCase()}`}
-            onClick={() => onChange(String((atual ?? 0) + 1))}
-          >
-            <Plus className="h-4 w-4" aria-hidden />
-          </button>
-        </div>
+        {controle}
         {unidade ? <Text variant="body" as="span" className="text-[var(--text-secondary)]">{unidade}</Text> : null}
       </div>
-      {hint ? <Text variant="secondary" as="p" className="text-[var(--text-secondary)]"><span id={hintId}>{hint}</span></Text> : null}
-      {erro ? <Text variant="meta" as="p" className="text-[var(--accent-red)]"><span id={erroId}>{erro}</span></Text> : null}
+      {notas}
     </div>
   );
 }
@@ -221,7 +266,7 @@ export function CardConfiguracao({
     <SettingsSectionCard
       title={titulo}
       icon={icone}
-      description={descricao}
+      badge={descricao ? <Ajuda rotulo={`Sobre ${titulo}`} texto={descricao} /> : undefined}
       actions={acao}
       className={className}
     >

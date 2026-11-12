@@ -35,6 +35,8 @@ export interface PlanejamentoReservaCardProps {
   selo?: string | null;
   /** Sem roteiro e com o dia já passado: alerta amarelo, e não conta mais como previsto. */
   pendente?: boolean;
+  /** O dia do card cai numa pausa desta série (ou da família dela). */
+  pausada?: boolean;
   className?: string;
 }
 
@@ -57,6 +59,7 @@ export function PlanejamentoReservaCard({
   onToggleSelect,
   selo = null,
   pendente = false,
+  pausada = false,
   className,
 }: PlanejamentoReservaCardProps) {
   // A cor do post-it é a do pilar. Sem pilar, o papel fica branco.
@@ -184,6 +187,9 @@ export function PlanejamentoReservaCard({
           <Badge variant="tag" className="mb-1 px-1.5 py-0">
             {selo}
           </Badge>
+        ) : null}
+        {pausada ? (
+          <Badge variant="neutral" className="mb-1 px-1.5 py-0">Pausa</Badge>
         ) : null}
         <Text variant="bodyStrong" as="p" className="planner-card-title line-clamp-2 pr-6 leading-snug text-[var(--text-primary)]">
           {titulo}

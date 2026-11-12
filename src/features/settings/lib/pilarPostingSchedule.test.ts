@@ -84,3 +84,13 @@ const entries: PostingTimeEntry[] = [
 }
 
 console.log('pilarPostingSchedule.test.ts passed');
+
+// --- Programação: horários do pilar naquela conta primeiro; sem eles, os horários gerais da conta.
+{
+  const { horariosDaProgramacao } = await import('./pilarPostingSchedule.ts');
+  const platforms = [{ id: 'platform-ig', nome: 'Instagram', ativo: true }] as unknown as Parameters<typeof horariosDaProgramacao>[0]['platforms'];
+  const pilar = { plataformas: [{ pilarId: 'p', platformId: 'platform-ig', hashtags: '', melhoresDias: [2 as const], janelaHorarioInicio: '09:00', janelaHorarioFim: '12:00' }] };
+  assert.deepEqual(horariosDaProgramacao({ pilar, postingTimeEntries: entries, platforms, platformId: 'platform-ig', weekday: 2 }), { horarios: ['09:00'], origem: 'pilar' });
+  assert.deepEqual(horariosDaProgramacao({ pilar, postingTimeEntries: entries, platforms, platformId: 'platform-ig', weekday: 4 }), { horarios: ['12:00'], origem: 'conta' }, 'dia fora do pilar usa o horário da conta');
+  assert.deepEqual(horariosDaProgramacao({ pilar: { plataformas: [] }, postingTimeEntries: entries, platforms, platformId: 'platform-ig', weekday: 2 }).horarios, ['09:00', '18:30']);
+}

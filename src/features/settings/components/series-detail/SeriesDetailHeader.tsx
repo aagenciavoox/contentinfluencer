@@ -1,34 +1,36 @@
-import { ArrowLeft, ChevronDown, Layers, Pencil, Plus, Target } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { ROTULO_STATUS, statusDaSerie } from '../../lib/statusSerie';
+import { ArrowLeft, Calendar, Plus } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { interceptBackLink } from '../../../../lib/navigation/goBack';
+import { statusDaSerie } from '../../lib/statusSerie';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { Badge } from '../../../../components/ui/Badge';
-import { MoreMenu } from '../../../../components/ui/MoreMenu';
-import { PlatformIcons } from '../../../../components/ui/PlatformIcons';
+import { MoreMenu, type MoreMenuItem } from '../../../../components/ui/MoreMenu';
 import { Text } from '../../../../components/ui/Text';
 import { cn } from '../../../../lib/utils';
 import type { Serie, SerieTipoAgrupamento, Temporada } from '../../../../lib/database';
-import { rotuloDoFoco } from '../../../editorial/lib/focoTemporada';
-import { FrequenciaChip } from '../../../editorial/components/FrequenciaChip';
-import { normalizarRedesPostIt } from '../../../planejamento/lib/redesPostIt';
 import { TIPO_AGRUPAMENTO_LABEL } from '../../lib/serieAgrupamento';
-import type { MetaDoCabecalho, TotaisDoCabecalho } from '../../lib/serieCabecalho';
+import { textoDaCadencia, type TotaisDoCabecalho } from '../../lib/serieCabecalho';
 
 function capaHttp(value: string | null | undefined) {
   const trimmed = value?.trim() ?? '';
   return /^https?:\/\//i.test(trimmed) ? trimmed : null;
 }
 
-const FAIXAS: Array<{ id: keyof TotaisDoCabecalho; rotulo: string }> = [
-  { id: 'total', rotulo: 'Episódios' },
-  { id: 'ideias', rotulo: 'Ideias' },
-  { id: 'roteiros', rotulo: 'Roteiros' },
-  { id: 'producao', rotulo: 'Produção' },
-  { id: 'postados', rotulo: 'Postados' },
-];
+/** Ativa no ar; arquivada aparece como pausa. Rascunho continua rascunho. */
+function seloDaSerie(serie: Serie): { rotulo: string; variant: 'success' | 'warning' | 'neutral' } {
+  const status = statusDaSerie(serie);
+  if (status === 'ativa') return { rotulo: 'Ativa', variant: 'success' };
+  if (status === 'rascunho') return { rotulo: 'Rascunho', variant: 'warning' };
+  return { rotulo: 'Pausada', variant: 'neutral' };
+}
+
+function contagem(n: number, um: string, varios: string): string {
+  return `${n} ${n === 1 ? um : varios}`;
+}
 
 /**
- * Cabeçalho da série: identidade compacta, ações, totais por etapa atual e a meta de planejamento.
+ * Topo da série: capa, título, descrição, cadência e o atalho de episódio.
+ * A contagem fica numa faixa abaixo, sem a conta de cotas do período.
  */
 export function SeriesDetailHeader({
   serie,
@@ -36,7 +38,6 @@ export function SeriesDetailHeader({
   ancestrais,
   temporada,
   totais,
-  meta,
   celular,
   onConfigure,
   onCreate,
@@ -49,154 +50,103 @@ export function SeriesDetailHeader({
   ancestrais: readonly Pick<Serie, 'id' | 'name'>[];
   temporada: Temporada | null;
   totais: TotaisDoCabecalho;
-  meta: MetaDoCabecalho;
   celular: boolean;
   onConfigure: () => void;
   onCreate: () => void;
   onBulk: () => void;
-  /** Na série e no quadro, um botão só abre temporada, quadro e episódio. */
+  /** Na série e no quadro, temporada e quadro entram no menu ao lado de Novo episódio. */
   adicionar?: { onEpisodio: () => void; onTemporada?: () => void; onQuadro?: () => void } | null;
 }) {
   const descricao = (temporada?.descricao?.trim() || serie.notes?.trim()) || '';
-  const foco = normalizarRedesPostIt(temporada?.focoRedes?.length ? temporada.focoRedes : serie.focoRedes ?? []);
+  const selo = seloDaSerie(serie);
   const pai = ancestrais.at(-1) ?? null;
   const nome = serie.name.trim() || 'Sem nome';
+  const titulo = temporada ? temporada.nome : nome;
   const capa = capaHttp(serie.capaUrl);
   const iniciais = nome.slice(0, 2).toUpperCase();
-  const cor = serie.cor || 'var(--brand-accent)';
+  const cadencia = textoDaCadencia(serie, tipo).replace(/^Cadência: /, '');
+  const navigate = useNavigate();
+  const volta = temporada ? `/series/${serie.id}` : pai ? `/series/${pai.id}` : '/series';
+  const depoisDaVolta = temporada ? nome : pai?.name?.trim() || '';
+  const menu: MoreMenuItem[] = [
+    { label: tipo === 'quadro' ? 'Editar quadro' : 'Editar série', onClick: onConfigure },
+    { label: 'Criar em massa', onClick: onBulk },
+    ...(adicionar?.onTemporada ? [{ label: 'Nova temporada', onClick: adicionar.onTemporada }] : []),
+    ...(adicionar?.onQuadro ? [{ label: 'Novo quadro', onClick: adicionar.onQuadro }] : []),
+  ];
 
   return (
-    <div className="w-full stack-sm">
+    <div className="w-full stack-lg">
       <nav className="flex flex-wrap items-center gap-1.5 text-[var(--text-secondary)]" aria-label="Caminho">
         <Link
-          to={pai ? `/series/${pai.id}` : '/series'}
+          to={volta}
+          onClick={event => interceptBackLink(event, navigate, volta)}
           className="flex items-center gap-1 text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] hover:underline"
         >
           <ArrowLeft className="h-4 w-4" />
-          <Text variant="secondary" as="span">{pai ? 'Voltar' : 'Séries'}</Text>
+          <Text variant="secondary" as="span">Voltar</Text>
         </Link>
-        {ancestrais.map(no => (
-          <span key={no.id} className="flex items-center gap-1.5">
-            <span className="text-[var(--text-tertiary)]">/</span>
-            <Link to={`/series/${no.id}`} className="hover:underline">
-              <Text variant="secondary" as="span">{no.name?.trim() || 'Sem nome'}</Text>
-            </Link>
-          </span>
-        ))}
-        {temporada ? (
-          <span className="flex items-center gap-1.5">
-            <span className="text-[var(--text-tertiary)]">/</span>
-            <Link to={`/series/${serie.id}`} className="hover:underline">
-              <Text variant="secondary" as="span">{nome}</Text>
-            </Link>
-          </span>
+        {depoisDaVolta ? (
+          <>
+            <span className="text-[var(--text-tertiary)]" aria-hidden>/</span>
+            <Text variant="secondary" as="span">{depoisDaVolta}</Text>
+          </>
         ) : null}
       </nav>
 
-      <div className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-3 sm:p-4" style={{ borderLeft: `4px solid ${cor}` }}>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex min-w-0 flex-1 items-start gap-3">
-            {capa ? (
-              <img src={capa} alt="" className="h-12 w-12 shrink-0 rounded-[var(--radius-input)] object-cover" />
-            ) : (
-              <div
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--radius-input)]"
-                style={{ backgroundColor: `${serie.cor || '#e11d48'}18`, color: serie.cor || '#e11d48' }}
-                aria-hidden="true"
-              >
-                <Text variant="bodyStrong" as="span">{iniciais}</Text>
-              </div>
-            )}
-            <div className="min-w-0 flex-1 stack-xs">
-              <div className="flex flex-wrap items-center gap-2">
-                <Text variant="pageTitle" as="h1" className="text-[var(--text-primary)]">
-                  {temporada ? temporada.nome : nome}
-                </Text>
-                <Badge variant="neutral">{TIPO_AGRUPAMENTO_LABEL[tipo] ?? 'Série'}</Badge>
-                <Badge variant={serie.ativa ? 'success' : statusDaSerie(serie) === 'rascunho' ? 'warning' : 'neutral'}>{ROTULO_STATUS[statusDaSerie(serie)]}</Badge>
-              </div>
-              {foco.length > 0 ? (
-                <span className="flex flex-wrap items-center gap-2">
-                  <PlatformIcons redes={foco} max={6} size="md" />
-                  <Text variant="meta" as="span">{rotuloDoFoco(foco)}</Text>
-                </span>
-              ) : null}
-              {descricao ? (
-                <Text variant="secondary" as="p" className="max-w-3xl line-clamp-2">{descricao}</Text>
-              ) : null}
+      <div className={cn('flex gap-4', celular ? 'flex-col' : 'items-center justify-between')}>
+        <div className="flex min-w-0 flex-1 items-start gap-4">
+          {capa ? (
+            <img src={capa} alt="" className="h-28 w-44 shrink-0 rounded-[var(--radius-card)] object-cover" />
+          ) : (
+            <div
+              className="flex h-28 w-44 shrink-0 items-center justify-center rounded-[var(--radius-card)]"
+              style={{ backgroundColor: `${serie.cor || '#e11d48'}18`, color: serie.cor || '#e11d48' }}
+              aria-hidden="true"
+            >
+              <Text variant="sectionTitle" as="span">{iniciais}</Text>
             </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <AppButton variant="ghost" size={celular ? 'sm' : undefined} onClick={onConfigure} leftIcon={<Pencil className="h-4 w-4" />}>
-              Editar série
-            </AppButton>
-            <AppButton variant="secondary" size={celular ? 'sm' : undefined} onClick={onBulk} leftIcon={<Layers className="h-4 w-4" />}>
-              Criar em massa
-            </AppButton>
-            {adicionar ? (
-              <MoreMenu
-                label="Adicionar"
-                align="right"
-                triggerClassName="!h-auto !w-auto border-0 bg-transparent p-0 hover:bg-transparent pointer-coarse:!h-auto pointer-coarse:!w-auto"
-                trigger={(
-                  <span className={cn(
-                    't-button inline-flex items-center gap-2 rounded-[var(--radius-input)] border border-[var(--brand-accent-strong)] bg-[var(--brand-accent-strong)] px-4 text-[var(--brand-on-accent)]',
-                    celular ? 'h-8' : 'h-[var(--control-height)]',
-                    'pointer-coarse:h-11',
-                  )}>
-                    <Plus className="h-4 w-4" />
-                    Adicionar
-                    <ChevronDown className="h-4 w-4" />
-                  </span>
-                )}
-                items={[
-                  ...(adicionar.onTemporada ? [{ label: 'Temporada', onClick: adicionar.onTemporada }] : []),
-                  ...(adicionar.onQuadro ? [{ label: 'Quadro', onClick: adicionar.onQuadro }] : []),
-                  { label: 'Episódio', onClick: adicionar.onEpisodio },
-                ]}
-              />
-            ) : (
-              <AppButton variant="primary" size={celular ? 'sm' : undefined} onClick={onCreate} leftIcon={<Plus className="h-4 w-4" />}>
-                Novo episódio
-              </AppButton>
-            )}
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-stretch gap-3">
-          <dl className="flex flex-wrap gap-x-5 gap-y-2" aria-label="Episódios por etapa atual">
-            {FAIXAS.map(faixa => (
-              <div key={faixa.id} className="flex flex-col">
-                <dt><Text variant="meta" as="span" className="text-[var(--text-tertiary)]">{faixa.rotulo}</Text></dt>
-                <dd><Text variant="bodyStrong" as="span" className="text-[var(--text-primary)]">{totais[faixa.id]}</Text></dd>
-              </div>
-            ))}
-          </dl>
-
-          <div className="ml-auto flex min-w-[220px] flex-col justify-center gap-1 rounded-[var(--radius-input)] bg-[var(--surface-subtle)] px-3 py-2">
-            <div className="flex items-center gap-1.5">
-              <Target className="h-3.5 w-3.5 text-[var(--text-tertiary)]" aria-hidden="true" />
-              <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">
-                {meta.estado === 'sem-meta' ? 'Meta de planejamento' : meta.regra}
-              </Text>
+          )}
+          <div className="min-w-0 flex-1 stack-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <Text variant="pageTitle" as="h1" className="text-[var(--text-primary)]">{titulo}</Text>
+              {tipo !== 'serie' ? <Badge variant="neutral">{TIPO_AGRUPAMENTO_LABEL[tipo]}</Badge> : null}
+              <Badge variant={selo.variant}>{selo.rotulo}</Badge>
             </div>
-            <Text variant="secondary" as="span" className="text-[var(--text-primary)]">{meta.texto}</Text>
-            {!temporada && tipo !== 'familia' ? <FrequenciaChip serieId={serie.id} className="w-fit" /> : null}
-            {meta.estado === 'ativa' && meta.esperado > 0 ? (
-              <div
-                className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--bg-elevated)]"
-                role="progressbar"
-                aria-label="Episódios previstos em relação à meta"
-                aria-valuemin={0}
-                aria-valuemax={meta.esperado}
-                aria-valuenow={meta.previstos}
-              >
-                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${meta.barra}%`, backgroundColor: cor }} />
-              </div>
+            {descricao ? (
+              <Text variant="secondary" as="p" className="max-w-3xl">{descricao}</Text>
             ) : null}
+            <span className="flex items-center gap-2 text-[var(--text-secondary)]">
+              <Calendar className="h-4 w-4 shrink-0" aria-hidden />
+              <Text variant="secondary" as="span">{cadencia}</Text>
+            </span>
           </div>
         </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          <AppButton
+            variant="primary"
+            onClick={adicionar ? adicionar.onEpisodio : onCreate}
+            leftIcon={<Plus className="h-4 w-4" />}
+          >
+            Novo episódio
+          </AppButton>
+          <MoreMenu items={menu} label={`Mais ações de ${titulo}`} />
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-baseline gap-3 border-t border-[var(--border-color)] pt-[var(--space-md)]">
+        <Text variant="sectionTitle" as="h2">Episódios</Text>
+        <Text variant="sectionTitle" as="span" className="tabular-nums">{totais.total}</Text>
+        <span className="hidden h-5 self-center border-l border-[var(--border-color)] sm:block" aria-hidden />
+        <Text variant="secondary" as="p">
+          {[
+            contagem(totais.ideias, 'ideia', 'ideias'),
+            contagem(totais.roteiros, 'roteiro', 'roteiros'),
+            contagem(totais.producao, 'em produção', 'em produção'),
+            contagem(totais.postados, 'postado', 'postados'),
+          ].join(' · ')}
+        </Text>
       </div>
     </div>
   );

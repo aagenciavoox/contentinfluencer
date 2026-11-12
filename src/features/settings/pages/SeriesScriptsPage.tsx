@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Layers } from 'lucide-react';
+import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { AppButton } from '../../../components/ui/AppButton';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { Text } from '../../../components/ui/Text';
@@ -14,15 +15,17 @@ import { useScrollMemory, useSessionState } from '../../../hooks/useSessionState
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import type { AppDataDomain, Content, RedeSocial, Temporada } from '../../../lib/database';
 import { withDetailBack } from '../../../lib/navigation/detailBack';
+import { returnTo } from '../../../lib/navigation/goBack';
 import { notifySaveFeedback } from '../../../lib/saveFeedback';
+import { CONFIRM } from '../../../lib/uiCopy';
 import { broadcastDataSync } from '../../../lib/syncBroadcast';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import { OpenInfoNotice } from '../../editorial/components/OpenInfoNotice';
 import { comModoDaEscolha } from '../../contents/lib/creationContent';
-import { FUNCAO_LABELS, isFuncaoEditorial } from '../../editorial/lib/funcoes';
+import { getCreationExportCopy } from '../../creation/lib/exportScriptsDocx';
 import { formatOpenItems, getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
 import { ancestraisDaSerie, filhosDaSerie } from '../../editorial/lib/serieArvore';
-import { focoEfetivo } from '../../editorial/lib/focoTemporada';
+import { destinosDoNovoEpisodio, focoEfetivo } from '../../editorial/lib/focoTemporada';
 import { escopoTemporadas, temporadasDoEscopo } from '../../editorial/lib/temporadas';
 import { SerieCreateModal, type SerieCreateModalTarget } from '../components/SerieCreateModal';
 import { NovoConteudoDialog, type PedidoNovoConteudo } from '../components/series-detail/NovoConteudoDialog';
@@ -32,9 +35,7 @@ import { SeriesGruposLista, type AcoesDosGrupos, type SelecaoDaLista } from '../
 import { BarraDeAcoes, CaixaMarcacao, DefinirQuadroSheet, DefinirTemporadaSheet } from '../components/series-detail/SeriesAcoesEmMassa';
 import { ExcluirEstruturaDialog, type AlvoExclusao } from '../components/series-detail/ExcluirEstruturaDialog';
 import { TemporadaDialogs, type EdicaoTemporada } from '../components/series-detail/TemporadaDialogs';
-import { metaDoCabecalho, totaisDoCabecalho } from '../lib/serieCabecalho';
-import { hojeIso, periodoInicial, useItensDaJanela } from '../../editorial/components/plano/PeriodoEditorialControl';
-import { lerPeriodoSalvo } from '../../editorial/lib/periodoEditorial';
+import { totaisDoCabecalho } from '../lib/serieCabecalho';
 import { verificarMoverEpisodios } from '../../../lib/database';
 import {
   alternarVarios,
@@ -75,8 +76,7 @@ import {
 import { gravarPreferenciaLista, lerPreferenciaLista, type PreferenciaLista } from '../lib/preferenciaLista';
 import { generateUUID } from '../../../utils/uuid';
 import {
-  pilarEfetivoDaSerie,
-  plural,
+  ehIdeia,
   tipoDaSerie,
   tiposDasSeries,
 } from '../lib/serieAgrupamento';
@@ -131,6 +131,18 @@ function agruparDoLink(aba: string | null): AgruparLista | null {
 type Selecao = { ativa: boolean; ids: ReadonlySet<string> };
 const SEM_SELECAO: Selecao = { ativa: false, ids: new Set() };
 
+function mensagemAoExcluir(contents: readonly Content[]): string {
+  if (contents.length !== 1) {
+    return CONFIRM.excluirCriacoes(contents.length, getCreationExportCopy(contents)).message;
+  }
+  const content = contents[0];
+  const ideia = ehIdeia(content);
+  const titulo = content.title?.trim() || (ideia ? 'Ideia sem título' : 'Roteiro sem título');
+  return ideia
+    ? `Mover esta ideia para a lixeira — ${titulo}? Você pode restaurá-la depois.`
+    : `Mover este roteiro para a lixeira — ${titulo}? Você pode restaurá-lo depois.`;
+}
+
 export function SeriesScriptsPage() {
   const { serieId = '', temporadaId = null } = useParams<{ serieId: string; temporadaId: string }>();
   const navigate = useNavigate();
@@ -144,6 +156,7 @@ export function SeriesScriptsPage() {
   const [novoEm, setNovoEm] = useState<{ serieId: string; temporadaId: string | null } | null>(null);
   const [edicaoTemporada, setEdicaoTemporada] = useState<EdicaoTemporada | null>(null);
   const [excluirAlvo, setExcluirAlvo] = useState<AlvoExclusao | null>(null);
+  const [lixeiraAlvo, setLixeiraAlvo] = useState<Content[] | null>(null);
   const [selecao, setSelecao] = useState<Selecao>(SEM_SELECAO);
   const [formulario, setFormulario] = useState<'quadro' | 'temporada' | null>(null);
   const [salvando, setSalvando] = useState(false);
@@ -265,25 +278,6 @@ export function SeriesScriptsPage() {
     () => totaisDoCabecalho({ serieId, series: state.series, contents: state.contents }),
     [serieId, state.contents, state.series],
   );
-  // Meta: o mesmo período salvo e a mesma conta do painel editorial (episódios previstos, não publicados).
-  const periodoDaMeta = useMemo(
-    () => (state.editorialVisao ? lerPeriodoSalvo(state.editorialVisao) : null) ?? periodoInicial(),
-    [state.editorialVisao],
-  );
-  // Janelas inteiras nas pontas, como no Editorial e na Saúde.
-  const itensDaJanela = useItensDaJanela(periodoDaMeta.inicio, periodoDaMeta.fim);
-  const meta = useMemo(() => {
-    if (!serie) return null;
-    return metaDoCabecalho({
-      serie,
-      series: state.series,
-      itens: itensDaJanela,
-      periodo: periodoDaMeta,
-      hoje: hojeIso(),
-      temporadas: state.temporadas,
-    });
-  }, [itensDaJanela, periodoDaMeta, serie, state.series, state.temporadas]);
-
   const escopoTemporada = useMemo(
     () => (serie ? escopoTemporadas(serie.id, state.series) : null),
     [serie, state.series],
@@ -358,6 +352,7 @@ export function SeriesScriptsPage() {
         () => notifySaveFeedback({ status: 'error', message: 'Não foi possível copiar o link.' }),
       );
     },
+    onExcluir: content => setLixeiraAlvo([content]),
     onNovo: (destinoId, temporadaDestino) => setNovoEm({ serieId: destinoId, temporadaId: temporadaDestino }),
     onBulk: abrirMassa,
     onConfigurar: id => navigate(`/series/${id}/editar`),
@@ -481,6 +476,25 @@ export function SeriesScriptsPage() {
     const plano = planoTemporada(destino);
     void enviar(plano.mudam, null, plano.jaNoDestino.length);
   };
+  const confirmarLixeira = async () => {
+    const alvos = lixeiraAlvo;
+    if (!alvos || alvos.length === 0) return;
+    setLixeiraAlvo(null);
+    const ids = new Set(alvos.map(item => item.id));
+    try {
+      if (alvos.length === 1) {
+        await dispatch({ type: 'DELETE_CONTENT', payload: alvos[0].id });
+      } else {
+        await dispatch({ type: 'DELETE_MULTIPLE_CONTENTS', payload: [...ids] });
+      }
+      setSelecao(atual => {
+        const proximos = new Set([...atual.ids].filter(id => !ids.has(id)));
+        return { ativa: celular ? atual.ativa : proximos.size > 0, ids: proximos };
+      });
+    } catch {
+      // O dispatch já avisa e devolve a lista se a gravação falhar.
+    }
+  };
   const exibidosIds = visiveis.map(content => content.id);
   const marcacaoGeral = estadoDaMarcacao(exibidosIds, selecao.ids);
 
@@ -501,7 +515,7 @@ export function SeriesScriptsPage() {
           emptyIcon={<Layers className="h-8 w-8" />}
           emptyTitle="Série não encontrada"
           emptyDescription="Ela pode ter sido excluída. As outras séries continuam na lista."
-          emptyAction={<AppButton variant="secondary" onClick={() => navigate('/series')}>Voltar para séries</AppButton>}
+          emptyAction={<AppButton variant="secondary" onClick={() => returnTo(navigate, '/series')}>Voltar para séries</AppButton>}
         >
           {null}
         </QueryViewState>
@@ -511,15 +525,6 @@ export function SeriesScriptsPage() {
 
   if (tipo === 'familia') return null;
 
-  const pilar = pilarEfetivoDaSerie(serie.id, state.series);
-  const pilarNome = pilar?.pilarId ? state.pilares.find(item => item.id === pilar.pilarId)?.nome ?? null : null;
-  const objetivo = isFuncaoEditorial(serie.funcaoPadrao) ? FUNCAO_LABELS[serie.funcaoPadrao] : null;
-  const resumo = [
-    filhos.length > 0 ? plural(filhos.length, 'quadro', 'quadros') : null,
-    !temporada && temporadasDaSerie.length > 0 ? plural(temporadasDaSerie.length, 'temporada', 'temporadas') : null,
-    pilarNome,
-    objetivo,
-  ].filter(Boolean).join(' · ');
   const abertos = getSerieOpenItems(serie, { series: state.series, contents: state.contents });
   const ondeVaiFicar = novoEm
     ? [
@@ -562,7 +567,6 @@ export function SeriesScriptsPage() {
       ancestrais={ancestrais}
       temporada={temporada}
       totais={totais}
-      meta={meta ?? { estado: 'sem-meta', texto: 'Sem meta definida' }}
       celular={noCelular}
       onConfigure={() => navigate(`/series/${serie.id}/editar`)}
       onCreate={() => setNovoEm({ serieId: serie.id, temporadaId: temporadaId ?? null })}
@@ -621,7 +625,7 @@ export function SeriesScriptsPage() {
               description="Crie um conteúdo ou prepare vários de uma vez."
               action={(
                 <AppButton variant="secondary" onClick={() => setNovoEm({ serieId: serie.id, temporadaId: temporadaId ?? null })}>
-                  Novo conteúdo
+                  Novo episódio
                 </AppButton>
               )}
             />
@@ -655,7 +659,6 @@ export function SeriesScriptsPage() {
               alternar={alternar}
               acoes={acoes}
               selecao={selecaoDaLista}
-              numerar={ordem === 'manual' && !filtrando}
             />
             </>
           )}
@@ -669,6 +672,7 @@ export function SeriesScriptsPage() {
             disponivel={rpcDisponivel === true}
             onDefinirQuadro={() => abrirFormulario('quadro')}
             onDefinirTemporada={() => abrirFormulario('temporada')}
+            onExcluir={() => setLixeiraAlvo(selecionados)}
             onLimpar={() => setSelecao(SEM_SELECAO)}
           />
         ) : null}
@@ -679,7 +683,10 @@ export function SeriesScriptsPage() {
         onClose={() => {
           // Volta para onde a pessoa abriu (a série ou uma temporada); acesso direto volta para a série.
           const voltarPara = (location.state as { voltarPara?: unknown } | null)?.voltarPara;
-          navigate(typeof voltarPara === 'string' && voltarPara.startsWith(`/series/${serie.id}`) ? voltarPara : `/series/${serie.id}`);
+          const destino = typeof voltarPara === 'string' && voltarPara.startsWith(`/series/${serie.id}`)
+            ? voltarPara
+            : `/series/${serie.id}`;
+          returnTo(navigate, destino);
         }}
         seriePaginaId={serie.id}
         serieNome={serie.name}
@@ -701,6 +708,14 @@ export function SeriesScriptsPage() {
           novoEm.temporadaId ? state.temporadas.find(item => item.id === novoEm.temporadaId)?.focoRedes : [],
           state.series.find(item => item.id === novoEm.serieId)?.focoRedes,
         ) : null}
+        destinosIniciais={novoEm ? destinosDoNovoEpisodio({
+          contentId: '',
+          temporada: novoEm.temporadaId ? state.temporadas.find(item => item.id === novoEm.temporadaId) ?? null : null,
+          serieId: novoEm.serieId,
+          series: state.series,
+          contas: state.platforms,
+          destinosPadrao: state.editorial.destinosPadrao,
+        }) : null}
         onClose={() => setNovoEm(null)}
         onCreate={criarUm}
       />
@@ -758,6 +773,16 @@ export function SeriesScriptsPage() {
 
       {/* Excluir temporada: episódios vão antes para outra temporada ou ficam sem; nenhum roteiro é apagado. */}
       <ExcluirEstruturaDialog alvo={excluirAlvo} onClose={() => setExcluirAlvo(null)} />
+
+      <ConfirmModal
+        open={lixeiraAlvo !== null}
+        message={lixeiraAlvo ? mensagemAoExcluir(lixeiraAlvo) : ''}
+        confirmLabel={lixeiraAlvo ? CONFIRM.excluirCriacoes(lixeiraAlvo.length, getCreationExportCopy(lixeiraAlvo)).confirmLabel : 'Mover para a lixeira'}
+        cancelLabel="Cancelar"
+        confirmDisabled={!lixeiraAlvo || lixeiraAlvo.length === 0}
+        onConfirm={() => { void confirmarLixeira(); }}
+        onCancel={() => setLixeiraAlvo(null)}
+      />
 
       <SerieCreateModal
         target={modalTarget}

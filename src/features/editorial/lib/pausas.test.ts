@@ -69,7 +69,7 @@ assert.deepEqual(
 // --- O que falta para gravar.
 assert.equal(
   problemaDaPausa({ inicio: '2026-12-26', fim: '2026-12-24', escopo: 'publicacao', platformId: null, serieId: null, nota: '' }),
-  'O fim vem depois do início.',
+  'O início precisa ser antes do fim.',
 );
 assert.equal(
   problemaDaPausa({ inicio: '2026-12-24', fim: '2026-12-26', escopo: 'conta', platformId: null, serieId: null, nota: '' }),

@@ -81,3 +81,40 @@ assert.equal(
 
 console.log('ok - foco temporada');
 
+
+// --- Destinos do episódio novo: temporada → quadro → série → padrão, sem data inventada.
+{
+  const { destinosDoNovoEpisodio } = await import('./focoTemporada.ts');
+  const contasD = [
+    { id: 'ig', nome: 'Instagram', rede: 'instagram' as const, ativo: true },
+    { id: 'tt', nome: 'TikTok', rede: 'tiktok' as const, ativo: true },
+    { id: 'yt', nome: 'YouTube', rede: 'youtube' as const, ativo: true },
+    { id: 'off', nome: 'Antiga', rede: 'instagram' as const, ativo: false },
+  ];
+  const series = [
+    { id: 'S', parentId: null, tipoAgrupamento: 'serie' as const, plataformas: [{ platformId: 'yt' }, { platformId: 'off' }] },
+    { id: 'Q', parentId: 'S', tipoAgrupamento: 'quadro' as const, plataformas: [{ platformId: 'tt', formato: 'carrossel' as const }] },
+    { id: 'Q2', parentId: 'S', tipoAgrupamento: 'quadro' as const, plataformas: [] },
+    { id: 'F', parentId: null, tipoAgrupamento: 'familia' as const, plataformas: [] },
+  ];
+  const base = { contentId: 'n1', series, contas: contasD, destinosPadrao: ['ig'] };
+
+  const daTemporada = destinosDoNovoEpisodio({ ...base, temporada: { focoRedes: ['instagram'] }, serieId: 'Q' });
+  assert.equal(daTemporada.origem, 'temporada');
+  assert.deepEqual(daTemporada.publicacoes.map(p => p.platformId), ['ig']);
+
+  const doQuadro = destinosDoNovoEpisodio({ ...base, temporada: { focoRedes: [] }, serieId: 'Q' });
+  assert.equal(doQuadro.origem, 'quadro');
+  assert.deepEqual(doQuadro.publicacoes.map(p => [p.platformId, p.formatoPublicacao]), [['tt', 'carrossel']]);
+
+  const daSerie = destinosDoNovoEpisodio({ ...base, temporada: null, serieId: 'Q2' });
+  assert.equal(daSerie.origem, 'serie', 'quadro sem destinos herda da série');
+  assert.deepEqual(daSerie.publicacoes.map(p => [p.platformId, p.formatoPublicacao]), [['yt', 'short']], 'conta inativa fica de fora; formato padrão da rede');
+
+  const padrao = destinosDoNovoEpisodio({ ...base, temporada: null, serieId: 'F' });
+  assert.equal(padrao.origem, 'padrao');
+
+  for (const r of [daTemporada, doQuadro, daSerie, padrao]) {
+    assert.ok(r.publicacoes.every(p => !p.publishDate), 'nenhuma data é inventada');
+  }
+}

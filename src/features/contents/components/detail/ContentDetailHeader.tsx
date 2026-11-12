@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode} from 'react';
-import {Link, useLocation} from 'react-router-dom';
+import {Link, useLocation, useNavigate} from 'react-router-dom';
 import {
   AlignLeft,
   ArrowRight,
@@ -23,6 +23,7 @@ import {ContentTemaChips} from '../ContentTemaChips';
 import {DesktopPageHeader} from '../../../../layouts/page/DesktopPageHeader';
 import {PAGE_SECTION} from '../../../../layouts/navigation/navConfig';
 import {labelForDetailBack, resolveContentDetailBack} from '../../../../lib/navigation/detailBack';
+import {interceptBackLink} from '../../../../lib/navigation/goBack';
 
 interface ContentDetailHeaderProps {
   content: Content;
@@ -134,6 +135,7 @@ export function ContentDetailHeader({
   writingModes,
 }: ContentDetailHeaderProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const displayTitle = title ?? content.title;
   const isIdea = contentKind === 'idea';
   const listLabel = isIdea ? 'Ideias' : breadcrumbMode === 'pipeline' ? 'Roteiros' : 'Criação';
@@ -414,6 +416,7 @@ export function ContentDetailHeader({
         <div className="flex min-w-0 items-center justify-between gap-3">
           <Link
             to={backTo}
+            onClick={event => interceptBackLink(event, navigate, backTo)}
             className="desktop-page-header-crumb desktop-page-header-back transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
           >
             {crumbLabel === 'Roteiros' ? 'Criação' : crumbLabel}

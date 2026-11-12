@@ -18,6 +18,11 @@ export type FrequenciaSerie = {
   vezes: number | null;
   unidade: UnidadeDaMeta | 'sob-demanda';
   aPartirDe: string | null;
+  /**
+   * Referência fixa dos ciclos de 14 dias quando não há data de início: a segunda-feira da semana
+   * em que a meta foi ativada pela primeira vez. Não corta o que vem antes, só ancora os ciclos.
+   */
+  ancora?: string | null;
 };
 
 /** Meses de cada bloco fechado do calendário, sempre alinhado a janeiro. */
@@ -79,6 +84,18 @@ export function lerFrequencia(input: {
   vezes?: number | null;
   unidade?: string | null;
   aPartirDe?: string | null;
+  ancora?: string | null;
+}): FrequenciaSerie {
+  const lida = lerFrequenciaSemAncora(input);
+  const ancora = diaIso(input.ancora);
+  return ancora ? { ...lida, ancora } : lida;
+}
+
+function lerFrequenciaSemAncora(input: {
+  frequenciaRecomendada?: string | null;
+  vezes?: number | null;
+  unidade?: string | null;
+  aPartirDe?: string | null;
 }): FrequenciaSerie {
   const aPartirDe = diaIso(input.aPartirDe);
   const unidade = unidadeDe(input.unidade);
@@ -118,11 +135,15 @@ function expectativaSemana(vezes: number, inicio: string, fim: string): number {
   return total;
 }
 
-/** Passos de 14 dias ancorados em aPartirDe. Conta o bloco inteiro dentro do recorte, sem eleger um dia. */
-function expectativaQuinzena(vezes: number, ancoraIso: string, inicio: string, fim: string): number {
+/**
+ * Passos de 14 dias ancorados em aPartirDe. Conta o bloco inteiro dentro do recorte, sem eleger um dia.
+ * Com `antesDaAncora`, a âncora só marca o passo (âncora da primeira ativação) e os ciclos anteriores também contam.
+ */
+function expectativaQuinzena(vezes: number, ancoraIso: string, inicio: string, fim: string, antesDaAncora = false): number {
   const ancora = parseISO(ancoraIso);
   const diasAteORecorte = differenceInCalendarDays(parseISO(inicio), ancora);
-  let indice = Math.max(0, Math.ceil(diasAteORecorte / DIAS_QUINZENA));
+  const passo = Math.ceil(diasAteORecorte / DIAS_QUINZENA);
+  let indice = antesDaAncora ? passo : Math.max(0, passo);
   let total = 0;
 
   while (indice < 10000) {
@@ -192,6 +213,8 @@ export function expectativaNoIntervalo(freq: FrequenciaSerie, inicio: string, fi
 
   if (freq.unidade === 'semana') return expectativaSemana(vezes, recorte, fimValido);
   if (freq.unidade === 'quinzena') {
+    const ancora = diaIso(freq.ancora);
+    if (!partida && ancora) return expectativaQuinzena(vezes, ancora, recorte, fimValido, true);
     return expectativaQuinzena(vezes, partida ?? inicioValido, recorte, fimValido);
   }
   const meses = mesesDoBloco(freq.unidade);

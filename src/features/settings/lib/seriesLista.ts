@@ -212,10 +212,11 @@ export function opcoesDeAgrupar({ temQuadros, temTemporadas }: OpcoesDeAgrupar):
   return ['nenhum', ...(temQuadros ? ['quadro' as const] : []), ...(temTemporadas ? ['temporada' as const] : [])];
 }
 
-/** Escolha salva, se ainda existir; senão quadro quando há quadros, senão lista contínua. */
+/** Escolha salva, se ainda existir; senão temporadas, senão quadros, senão lista contínua. */
 export function resolverAgrupar(salvo: unknown, opcoes: OpcoesDeAgrupar): AgruparLista {
   const validas = opcoesDeAgrupar(opcoes);
   if (typeof salvo === 'string' && (validas as string[]).includes(salvo)) return salvo as AgruparLista;
+  if (opcoes.temTemporadas) return 'temporada';
   return opcoes.temQuadros ? 'quadro' : 'nenhum';
 }
 

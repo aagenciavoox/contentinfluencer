@@ -14,3 +14,43 @@ assert.deepEqual([ativa, rascunho, arquivada, antiga].filter(s => passaSituacao(
 assert.equal([ativa, rascunho, arquivada, antiga].filter(s => passaSituacao(s, 'todas', false)).length, 4);
 
 console.log('seriesListaView.test.ts ok');
+
+// --- Vitrine: séries e quadros lado a lado, cards planos; família só no filtro dela; pilar filtra os dois.
+{
+  const { montarListaSeries, etiquetaDoCard, secoesDaVitrine, FILTROS_LISTA_PADRAO } = await import('./seriesListaView.ts');
+  const { TIPO_AGRUPAMENTO_LABEL } = await import('./serieAgrupamento.ts');
+  const no = (id: string, extra: Record<string, unknown> = {}) =>
+    ({ id, name: id, ativa: true, status: 'ativa', parentId: null, pilarIds: [], ...extra }) as unknown as Serie;
+  const series = [
+    no('Fam', { tipoAgrupamento: 'familia' }),
+    no('Ser', { tipoAgrupamento: 'serie', parentId: 'Fam', pilarIds: ['p1'] }),
+    no('Qua', { tipoAgrupamento: 'quadro', parentId: 'Ser' }),
+    no('Solo', { tipoAgrupamento: 'serie', pilarIds: ['p2'] }),
+  ];
+  const lista = (filtros: Partial<typeof FILTROS_LISTA_PADRAO>) => montarListaSeries({
+    series, contents: [], filtros: { ...FILTROS_LISTA_PADRAO, ...filtros }, emAberto: () => false,
+  });
+  const ids = (filtros: Partial<typeof FILTROS_LISTA_PADRAO>) => lista(filtros).visiveis.map(item => item.serie.id);
+  assert.deepEqual(ids({}), ['Ser', 'Qua', 'Solo'], 'Todos: séries e quadros, quadro logo depois da série dele');
+  assert.deepEqual(lista({}).elegiveis.map(item => item.serie.id), ['Fam', 'Ser', 'Qua', 'Solo'], 'elegíveis incluem a família para as seções');
+  assert.deepEqual(
+    secoesDaVitrine(lista({}).elegiveis).map(secao => [secao.tipo, secao.itens.map(item => item.serie.id)]),
+    [['serie', ['Ser', 'Solo']], ['quadro', ['Qua']], ['familia', ['Fam']]],
+    'seções na ordem Séries, Quadros, Famílias',
+  );
+  assert.equal('agrupada' in lista({}), false, 'sem pasta de família');
+  assert.deepEqual(ids({ tipo: 'serie' }), ['Ser', 'Solo']);
+  assert.deepEqual(ids({ tipo: 'quadro' }), ['Qua']);
+  assert.deepEqual(ids({ tipo: 'familia' }), ['Fam'], 'família continua alcançável');
+  // O quadro herda o pilar da série.
+  assert.deepEqual(ids({ pilar: 'p1' }), ['Ser', 'Qua']);
+  assert.deepEqual(ids({ pilar: 'p2' }), ['Solo']);
+
+  const itens = lista({}).itens;
+  assert.equal(etiquetaDoCard(itens.get('Ser')!, TIPO_AGRUPAMENTO_LABEL), 'Série · Ativa');
+  assert.equal(etiquetaDoCard(itens.get('Qua')!, TIPO_AGRUPAMENTO_LABEL), 'Quadro · Sob demanda');
+  assert.equal(etiquetaDoCard({ tipo: 'quadro', serie: no('x', { ativa: false, status: 'arquivada' }) }, TIPO_AGRUPAMENTO_LABEL), 'Quadro · Arquivado');
+  assert.equal(etiquetaDoCard({ tipo: 'quadro', serie: no('x', { ativa: false, status: 'rascunho' }) }, TIPO_AGRUPAMENTO_LABEL), 'Quadro · Rascunho');
+  assert.equal(etiquetaDoCard({ tipo: 'serie', serie: no('x', { ativa: false, status: 'arquivada' }) }, TIPO_AGRUPAMENTO_LABEL), 'Série · Arquivada');
+  console.log('seriesListaView.test.ts (vitrine) ok');
+}

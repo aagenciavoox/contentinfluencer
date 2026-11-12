@@ -93,6 +93,12 @@ function testLimitesEExcecaoDeObra() {
   // Exceção vencida (antes do período) não cala o aviso.
   const vencida = {...excecao, inicio: '2026-10-01', fim: '2026-10-31'};
   assert.ok(avisosDeOrientacao({...base, excecoesConcentracao: [vencida]}).some(aviso => aviso.tipo === 'obra-repetida'));
+  // Editorial › Avisos: tipo desligado some; os outros e o padrão (tudo ligado) continuam como antes.
+  assert.ok(avisosDeOrientacao({...base, avisosLigados: {}}).some(aviso => aviso.tipo === 'obra-repetida'));
+  assert.ok(avisosDeOrientacao({...base, avisosLigados: {'obra-repetida': true}}).some(aviso => aviso.tipo === 'obra-repetida'));
+  assert.equal(avisosDeOrientacao({...base, avisosLigados: {'obra-repetida': false}}).some(aviso => aviso.tipo === 'obra-repetida'), false);
+  const semTema = avisosDeOrientacao({...base, avisosLigados: {'tema-concentrado': false}});
+  assert.deepEqual(semTema.map(aviso => aviso.id), avisosDeOrientacao(base).filter(aviso => aviso.tipo !== 'tema-concentrado').map(aviso => aviso.id));
 }
 
 function testSequenciaIntencionalSuprimeObra() {
@@ -353,4 +359,67 @@ testPostItVinculadoNaoDuplicaObra();
   assert.equal(excecaoFoiDeProposito({...janela, tipo: 'serie-acima'}, 'e'), null);
   // Obras diferentes da mesma série continuam gerando janela de assunto.
   assert.ok(avisosDeOrientacao({...base, contents: [a, {...outra, id: 'b'}], sequenciaPorConteudo: {...mapa, b: mapa.outra}}).some(item => item.id.startsWith('tema-janela:')));
+}
+
+// --- Vídeos por dia de gravação: faixa opcional; mínimo e máximo avisam, entre eles é progresso.
+{
+  const {avisosDeVideosPorDia} = await import('./orientacaoEditorial.ts');
+  const gravacao = (id: string, dia: string, extra: Record<string, unknown> = {}) => ({id, recordingDate: dia, deletedAt: null, archivedAt: null, ...extra});
+  const contents = [
+    gravacao('g1', '2026-11-03'),
+    gravacao('g2', '2026-11-04'), gravacao('g3', '2026-11-04'), gravacao('g4', '2026-11-04'),
+    gravacao('g5', '2026-11-05'), gravacao('g6', '2026-11-05'), gravacao('g7', '2026-11-05'), gravacao('g8', '2026-11-05'), gravacao('g9', '2026-11-05'),
+    gravacao('g10', '2026-11-06', {recordingDateEnabled: false}),
+  ] as never;
+  const periodo = {inicio: '2026-11-02', fim: '2026-11-08'} as never;
+  assert.deepEqual(avisosDeVideosPorDia([], contents, periodo, null), [], 'sem faixa, sem aviso');
+  const avisos = avisosDeVideosPorDia([], contents, periodo, {videosPorDiaGravacao: {minimo: 2, meta: 3, maximo: 4}});
+  assert.deepEqual(avisos.map(a => [a.tipo, a.intervalo.inicio]), [['videos-dia-abaixo', '2026-11-03'], ['videos-dia-acima', '2026-11-05']]);
+  const soAbaixo = avisosDeVideosPorDia([], contents, periodo, {videosPorDiaGravacao: {minimo: 2, meta: 3, maximo: 4}}, [], {'videos-dia-acima': false} as never);
+  assert.deepEqual(soAbaixo.map(a => a.tipo), ['videos-dia-abaixo'], 'aviso desligado não aparece');
+}
+// --- Saturação de quadro: o mesmo quadro mais vezes que o limite na semana (seg–dom) avisa; repost não conta.
+{
+  const {avisosDeSaturacaoDeQuadro} = await import('./orientacaoEditorial.ts');
+  const series = [
+    {id: 'ser', name: 'Resenha', parentId: null, tipoAgrupamento: 'serie', ativa: true, status: 'ativa'},
+    {id: 'qua', name: 'Indicação', parentId: 'ser', tipoAgrupamento: 'quadro', ativa: true, status: 'ativa'},
+    {id: 'ras', name: 'Rascunho', parentId: 'ser', tipoAgrupamento: 'quadro', ativa: false, status: 'rascunho'},
+  ] as never;
+  const ep = (id: string, serieId: string, data: string, extra: Record<string, unknown> = {}) =>
+    ({id, contentId: id, serieId, data, tipo: 'original', postItId: null, etapa: 'roteiro', ...extra});
+  const itens = [
+    ep('a', 'qua', '2026-11-02'), ep('b', 'qua', '2026-11-04'), ep('c', 'qua', '2026-11-08'),
+    // O mesmo conteúdo em duas contas conta uma vez; repost não conta.
+    ep('c', 'qua', '2026-11-08'), ep('r', 'qua', '2026-11-05', {tipo: 'repost'}),
+    // Semana seguinte: só um.
+    ep('d', 'qua', '2026-11-09'),
+    // Série e quadro em rascunho não entram.
+    ep('s1', 'ser', '2026-11-03'), ep('s2', 'ser', '2026-11-04'), ep('s3', 'ser', '2026-11-05'),
+    ep('x1', 'ras', '2026-11-03'), ep('x2', 'ras', '2026-11-04'), ep('x3', 'ras', '2026-11-05'),
+  ] as never;
+  const periodo = {inicio: '2026-11-02', fim: '2026-11-15'} as never;
+  const comDois = avisosDeSaturacaoDeQuadro(itens, periodo, series, 2);
+  assert.deepEqual(comDois.map(a => [a.id, a.tipo, a.severidade, a.alvoId]), [['saturacao-quadro:qua:2026-11-02', 'saturacao-quadro', 'revisar', 'qua']]);
+  assert.equal(comDois[0].texto, 'Indicação aparece 3 vezes na semana de 02/11 a 08/11; o limite é 2 por semana.');
+  assert.deepEqual(comDois[0].contentIds, ['a', 'b', 'c']);
+  // Limite 1: a semana com dois já avisa; a com um, não.
+  const comUm = avisosDeSaturacaoDeQuadro([ep('a', 'qua', '2026-11-02'), ep('b', 'qua', '2026-11-03'), ep('d', 'qua', '2026-11-09')] as never, periodo, series, 1);
+  assert.deepEqual(comUm.map(a => a.intervalo?.inicio), ['2026-11-02']);
+  // Post-it (reserva) do quadro também ocupa a semana.
+  const comReserva = avisosDeSaturacaoDeQuadro([ep('a', 'qua', '2026-11-02'), ep('post-it:p', 'qua', '2026-11-03', {contentId: 'p', postItId: 'p', etapa: 'planejamento'})] as never, periodo, series, 1);
+  assert.deepEqual(comReserva.map(a => a.postItIds), [['p']]);
+}
+
+// --- Saturação de quadro no conjunto: ligada por padrão (limite 2); desligar tira o aviso; limite 1 vem dos avisos.
+{
+  const {avisoLigado, lerAvisosLigados, limiteSaturacaoQuadro, semAvisosDesligados, LIMITE_SATURACAO_PADRAO, CHAVE_LIMITE_SATURACAO} = await import('../../editorial/lib/avisosEditoriais.ts');
+  const padrao = lerAvisosLigados(undefined);
+  assert.equal(avisoLigado(padrao, 'saturacao-quadro'), true);
+  const desligado = lerAvisosLigados({'saturacao-quadro': false});
+  assert.deepEqual(semAvisosDesligados([{tipo: 'saturacao-quadro'}, {tipo: 'outro'}], desligado).map(a => a.tipo), ['outro']);
+  assert.equal(limiteSaturacaoQuadro(padrao), LIMITE_SATURACAO_PADRAO);
+  assert.equal(LIMITE_SATURACAO_PADRAO, 2);
+  assert.equal(limiteSaturacaoQuadro(lerAvisosLigados({[CHAVE_LIMITE_SATURACAO]: 1})), 1);
+  assert.equal(limiteSaturacaoQuadro(lerAvisosLigados({[CHAVE_LIMITE_SATURACAO]: 7})), 2, 'valor fora de 1 ou 2 volta ao padrão');
 }

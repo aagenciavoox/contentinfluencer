@@ -164,11 +164,11 @@ function FaixaPaginada({
 }
 
 const GRUPOS: {id: string; titulo: string; tipos: readonly TipoAvisoOrientacao[]}[] = [
-  {id: 'capacidade', titulo: 'Capacidade', tipos: ['capacidade-semana', 'gravacoes-no-dia']},
+  {id: 'capacidade', titulo: 'Capacidade', tipos: ['capacidade-semana', 'gravacoes-no-dia', 'videos-dia-abaixo', 'videos-dia-acima']},
   {id: 'frequencia', titulo: 'Frequência', tipos: ['serie-acima', 'serie-reservada']},
   {id: 'continuidade', titulo: 'Continuidade', tipos: ['ausencia-12-dias', 'ausencia-mes', 'vespera-sem-pronto']},
   {id: 'metas', titulo: 'Metas do período', tipos: ['serie-abaixo']},
-  {id: 'assuntos', titulo: 'Assuntos repetidos', tipos: ['obra-repetida', 'tema-concentrado']},
+  {id: 'assuntos', titulo: 'Assuntos repetidos', tipos: ['obra-repetida', 'tema-concentrado', 'saturacao-quadro']},
 ];
 
 function AjustesDoPlanejamento({

@@ -61,6 +61,7 @@ await import('./features/recording/lib/sugestaoDeGravacao.test.ts');
 await import('./features/planejamento/lib/publicacoesDoMes.test.ts');
 await import('./features/planejamento/lib/postItsNaData.test.ts');
 await import('./features/planejamento/lib/salvarNoCalendario.test.ts');
+await import('./features/contents/lib/dataPrincipal.test.ts');
 await import('./features/planejamento/lib/saudeEAvisos.test.ts');
 await import('./features/editorial/lib/vigencias.test.ts');
 await import('./features/creation/lib/legacyCreationRoute.test.ts');

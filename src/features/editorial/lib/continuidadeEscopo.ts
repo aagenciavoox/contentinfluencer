@@ -2,7 +2,7 @@ import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns';
 import {
   apurarSerie,
   ehReserva,
-  situacaoDaFrequencia,
+  situacaoNaArvore,
   type ItemDaApuracao,
   type JanelaApurada,
   type SerieDaApuracao,
@@ -12,6 +12,7 @@ import { idsComAncestrais } from './acompanhamento.ts';
 import { exclusaoDeMetaPropria, type OndaDaExclusao } from './metaPropria.ts';
 import { diasDePausa, type PausaEditorial } from './pausas.ts';
 import type { PublicacaoNaAgenda } from './publicacoes.ts';
+import { ehQuadroNaArvore } from './regraDeOuro.ts';
 import { idsDaSubarvore } from './serieArvore.ts';
 
 /**
@@ -54,6 +55,8 @@ export type MetaDaSerieNoEscopo = {
   vezes: number;
   unidade: 'semana' | 'quinzena' | 'mes' | 'bimestre' | 'trimestre' | 'semestre';
   aPartirDe: string | null;
+  /** Meta de 14 dias sem início: a segunda da semana da primeira ativação (serie_meta.ancora). */
+  ancora?: string | null;
 };
 
 /** Post-it com as contas onde vai sair (vazio = só a rede). */
@@ -82,6 +85,7 @@ export function serieComFrequenciaDoEscopo(
     frequenciaVezes: meta.vezes,
     frequenciaUnidade: meta.unidade,
     frequenciaAPartirDe: meta.aPartirDe,
+    frequenciaAncora: meta.ancora ?? null,
     frequenciaRecomendada: null,
   };
 }
@@ -301,8 +305,11 @@ export function continuidadeDoAcompanhamento(input: {
   const { acompanhamento, periodo } = input;
   const serie = input.series.find(item => item.id === acompanhamento.serieId);
   if (!serie) return null;
+  // Quadro é sob demanda: não tem meta nem continuidade, em nenhum escopo.
+  if (ehQuadroNaArvore(serie.id, input.series)) return null;
   const serieDoEscopo = serieComFrequenciaDoEscopo(serie, input.metas ?? [], acompanhamento);
-  const situacao = situacaoDaFrequencia(serieDoEscopo);
+  // Regra de Ouro também na meta da série numa conta ou num formato: até 1 por semana.
+  const situacao = situacaoNaArvore(serieDoEscopo, input.series);
 
   if (!acompanhamento.ativo) return vazio(acompanhamento, 'inativo', situacao);
   if (acompanhamento.inicio && acompanhamento.inicio > periodo.fim) return vazio(acompanhamento, 'nao-iniciado', situacao);
@@ -316,7 +323,7 @@ export function continuidadeDoAcompanhamento(input: {
     itensGrade: input.itensGrade,
     reservas: input.reservas,
   });
-  // Quadro com meta própria e wave com ritmo próprio contam só na linha deles, como na linha geral.
+  // Quadros (sob demanda) ficam fora; wave com ritmo próprio conta só na linha dela, como na linha geral.
   const excluir = exclusaoDeMetaPropria(serie, input.series, input.temporadas ?? []);
   const apuracao = apurarSerie({ serie: serieDoEscopo, series: input.series, itens, periodo, excluir });
   if (apuracao.inicioFuturo) return vazio(acompanhamento, 'nao-iniciado', situacao);

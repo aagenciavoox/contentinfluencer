@@ -146,3 +146,19 @@ assert.deepEqual(formatoNoYoutube({ formatoVisual: null }, { formatoPublicacao: 
 }
 
 console.log('publicacoes: ok');
+
+// --- Stories: formato do Instagram nos destinos, fora das metas (salvo marcado à mão).
+{
+  const { FORMATOS_DA_REDE, FORMATOS_DE_DESTINO, formatoContaNaMeta } = await import('./publicacoes.ts');
+  assert.ok(FORMATOS_DE_DESTINO.instagram?.includes('stories'));
+  assert.ok(!FORMATOS_DA_REDE.instagram?.includes('stories'), 'Stories não divide a meta da conta');
+  assert.equal(formatoContaNaMeta('stories', false), false);
+  assert.equal(formatoContaNaMeta('stories', true), true);
+  assert.equal(formatoContaNaMeta('reels', false), true);
+  const c = conteudo('st', { plataformas: [pub('s1', 'ig', { publishDate: '2026-11-10', formatoPublicacao: 'stories' }), pub('s2', 'tt', { publishDate: '2026-11-10' })] });
+  const agenda = publicacoesDaAgenda({ contents: [c], contas, agora: AGORA });
+  assert.equal(agenda.find(p => p.platformId === 'ig')!.contaNaMeta, false);
+  assert.equal(agenda.find(p => p.platformId === 'tt')!.contaNaMeta, true);
+  const manual = conteudo('st2', { contaNaGradeOrigem: 'manual', plataformas: [pub('s3', 'ig', { publishDate: '2026-11-10', formatoPublicacao: 'stories' })] });
+  assert.equal(publicacoesDaAgenda({ contents: [manual], contas, agora: AGORA })[0].contaNaMeta, true);
+}

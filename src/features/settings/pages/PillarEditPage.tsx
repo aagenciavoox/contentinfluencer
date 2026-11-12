@@ -9,6 +9,7 @@ import { Text } from '../../../components/ui/Text';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
+import { returnTo } from '../../../lib/navigation/goBack';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import type { Pilar } from '../../../lib/database';
 import { CONFIRM } from '../../../lib/uiCopy';
@@ -95,7 +96,9 @@ export function PillarEditPage() {
       .map(serie => serie.id);
   }, [editingPilar, isCreate, state.series]);
 
-  const backToList = () => navigate('/editorial');
+  const destinoLista = '/editorial?aba=direcao';
+  const backToList = () => returnTo(navigate, destinoLista);
+  const sairParaLista = () => navigate(destinoLista, { replace: true });
 
   const syncSeriesLinks = useCallback(
     (pilarIdToLink: string, linkedSerieIds: string[]) => {
@@ -131,13 +134,13 @@ export function PillarEditPage() {
     }
 
     syncSeriesLinks(payload.id, linkedSerieIds);
-    backToList();
+    sairParaLista();
   };
 
   const handleDelete = () => {
     if (!editingPilar) return;
     dispatch({type: 'DELETE_PILAR', payload: editingPilar.id});
-    backToList();
+    sairParaLista();
   };
 
   const lastEditLabel = editingPilar?.updatedAt
@@ -200,7 +203,7 @@ export function PillarEditPage() {
           <DesktopPageHeader
             section="Estratégia"
             backLabel="Pilares"
-            backTo="/editorial"
+            backTo="/editorial?aba=direcao"
             title={pageTitle}
             actions={headerActions}
           />

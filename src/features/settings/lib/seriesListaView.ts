@@ -9,7 +9,7 @@ import {
   type ContagemConteudos,
   type PilarDaSerieResolvido,
 } from './serieAgrupamento.ts';
-import { emRascunho } from './statusSerie.ts';
+import { emRascunho, ROTULO_STATUS, statusDaSerie } from './statusSerie.ts';
 
 export type FiltroTipoLista = 'todos' | SerieTipoAgrupamento;
 export type FiltroSituacao = 'ativas' | 'rascunho' | 'inativas' | 'todas' | 'abertas';
@@ -53,19 +53,32 @@ export type ItemLista = {
   profundidade: number;
 };
 
-export type GrupoFamilia = {
-  familia: ItemLista;
+export type ListaSeries = {
+  itens: Map<string, ItemLista>;
+  /** O que passa nos filtros, na ordem da árvore (série antes dos quadros dela). */
+  visiveis: ItemLista[];
+  /**
+   * Passa em busca, pilar e situação, sem o recorte de tipo.
+   * No computador, "Todos" monta as seções a partir daqui (incluindo famílias).
+   */
+  elegiveis: ItemLista[];
+  situacoes: Record<FiltroSituacao, number>;
+};
+
+/** Ordem das seções na vitrine do computador. */
+export const ORDEM_SECOES_VITRINE: readonly SerieTipoAgrupamento[] = ['serie', 'quadro', 'familia'];
+
+export type SecaoVitrine = {
+  tipo: SerieTipoAgrupamento;
   itens: ItemLista[];
 };
 
-export type ListaSeries = {
-  itens: Map<string, ItemLista>;
-  /** O que passa nos filtros, na ordem da árvore (pai antes dos filhos). */
-  visiveis: ItemLista[];
-  /** Cards por família, mais as séries sem família. Null quando a lista é plana. */
-  agrupada: { familias: GrupoFamilia[]; independentes: ItemLista[] } | null;
-  situacoes: Record<FiltroSituacao, number>;
-};
+/** Agrupa a página em Séries, Quadros e Famílias. Seção vazia sai. */
+export function secoesDaVitrine(itens: readonly ItemLista[]): SecaoVitrine[] {
+  return ORDEM_SECOES_VITRINE
+    .map(tipo => ({ tipo, itens: itens.filter(item => item.tipo === tipo) }))
+    .filter(secao => secao.itens.length > 0);
+}
 
 function semAcento(valor: string): string {
   return valor.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -81,10 +94,11 @@ export function passaSituacao(serie: Serie, situacao: FiltroSituacao, emAberto: 
 }
 
 /**
- * Lista de famílias e séries. Quadros ficam dentro da série, não nesta lista.
- * Sem busca nem filtro de tipo ou pilar, os cards ficam agrupados por família,
- * e as séries sem família vêm em "Séries independentes". Com filtro, a lista
- * fica plana e cada card diz o tipo e onde está.
+ * Vitrine (Inventário & Projetos): séries e quadros lado a lado, em cards planos.
+ * A família continua no banco (e com o ritmo dela), mas não é pasta obrigatória:
+ * em "Todos" a lista filtrada traz séries e quadros; famílias entram nas seções
+ * do computador (via `elegiveis`) e no filtro "Famílias".
+ * O pilar filtra séries e quadros (o do quadro é herdado da série quando não tem o dele).
  */
 export function montarListaSeries({
   series,
@@ -117,22 +131,30 @@ export function montarListaSeries({
   }
 
   const busca = semAcento(filtros.busca.trim());
-  const passa = (item: ItemLista) => {
-    if (item.tipo === 'quadro') return false;
+  const passaBase = (item: ItemLista) => {
     if (!passaSituacao(item.serie, filtros.situacao, emAberto(item.serie.id))) return false;
-    if (filtros.tipo !== 'todos' && item.tipo !== filtros.tipo) return false;
     if (filtros.pilar === 'sem' && item.pilar.pilarId) return false;
     if (filtros.pilar !== 'todos' && filtros.pilar !== 'sem' && item.pilar.pilarId !== filtros.pilar) return false;
     if (!busca) return true;
     const texto = [item.serie.name, item.serie.notes].filter(Boolean).join(' ');
     return semAcento(texto).includes(busca);
   };
+  const passaTipo = (item: ItemLista) =>
+    // "Todos" é a vitrine de trabalho: séries e quadros. Família só no filtro dela.
+    filtros.tipo === 'todos' ? item.tipo !== 'familia' : item.tipo === filtros.tipo;
 
-  const filtradas = series.filter(serie => passa(itens.get(serie.id)!));
-  const ordem = busca
-    ? [...filtradas].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
-    : exibirSeriesVisiveis(filtradas, 'agrupada').map(no => no.serie);
-  const visiveis = ordem.map(serie => itens.get(serie.id)!);
+  const ordenar = (filtradas: Serie[]) => {
+    const ordem = busca
+      ? [...filtradas].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+      : exibirSeriesVisiveis(filtradas, 'agrupada').map(no => no.serie);
+    return ordem.map(serie => itens.get(serie.id)!);
+  };
+
+  const elegiveis = ordenar(series.filter(serie => passaBase(itens.get(serie.id)!)));
+  const visiveis = ordenar(series.filter(serie => {
+    const item = itens.get(serie.id)!;
+    return passaBase(item) && passaTipo(item);
+  }));
 
   const situacoes: Record<FiltroSituacao, number> = { ativas: 0, rascunho: 0, inativas: 0, todas: series.length, abertas: 0 };
   for (const serie of series) {
@@ -142,31 +164,7 @@ export function montarListaSeries({
     if (emAberto(serie.id)) situacoes.abertas += 1;
   }
 
-  const agrupa = filtros.vista === 'cards'
-    && !busca
-    && filtros.tipo === 'todos'
-    && filtros.pilar === 'todos'
-    && (filtros.situacao === 'ativas' || filtros.situacao === 'todas');
-  if (!agrupa) return { itens, visiveis, agrupada: null, situacoes };
-
-  const visivel = new Set(visiveis.map(item => item.serie.id));
-  const familias: GrupoFamilia[] = [];
-  const independentes: ItemLista[] = [];
-  const raizes = [...series]
-    .filter(serie => !serie.parentId?.trim() || !porId.has(serie.parentId.trim()))
-    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
-  for (const raiz of raizes) {
-    const item = itens.get(raiz.id)!;
-    if (item.tipo === 'familia') {
-      const filhos = filhosDaSerie(raiz.id, series)
-        .filter(filho => visivel.has(filho.id))
-        .map(filho => itens.get(filho.id)!);
-      if (visivel.has(raiz.id) || filhos.length > 0) familias.push({ familia: item, itens: filhos });
-    } else if (visivel.has(raiz.id)) {
-      independentes.push(item);
-    }
-  }
-  return { itens, visiveis, agrupada: { familias, independentes }, situacoes };
+  return { itens, visiveis, elegiveis, situacoes };
 }
 
 /** "Quadro de Descomplicando Branbran", "Série", "Família". */
@@ -174,4 +172,17 @@ export function textoTipoEOnde(item: Pick<ItemLista, 'tipo' | 'pai'>, rotulos: R
   const tipo = rotulos[item.tipo];
   const pai = item.pai?.name?.trim();
   return pai ? `${tipo} de ${pai}` : tipo;
+}
+
+/**
+ * Etiqueta do card: tipo e status. Quadro ativo é "Sob demanda" (não tem meta);
+ * os status continuam os mesmos do banco (rascunho, ativa, arquivada).
+ */
+export function etiquetaDoCard(item: Pick<ItemLista, 'tipo' | 'serie'>, rotulos: Record<SerieTipoAgrupamento, string>): string {
+  const status = statusDaSerie(item.serie);
+  if (item.tipo === 'quadro') {
+    const situacao = status === 'ativa' ? 'Sob demanda' : status === 'arquivada' ? 'Arquivado' : ROTULO_STATUS[status];
+    return `${rotulos.quadro} · ${situacao}`;
+  }
+  return `${rotulos[item.tipo]} · ${ROTULO_STATUS[status]}`;
 }

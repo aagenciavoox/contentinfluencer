@@ -9,6 +9,7 @@ import { Text } from '../../../components/ui/Text';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
+import { returnTo } from '../../../lib/navigation/goBack';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import type { Serie, SerieTipoAgrupamento } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
@@ -40,46 +41,58 @@ const TITULO_EDITAR: Record<SerieTipoAgrupamento, string> = {
 import {ordenarContas} from '../../contas/lib/contas';
 import {roteirosQueSeguemASerie, type AlteracaoDeRoteiro} from '../../editorial/lib/legendaSerie';
 import {useStatusDaSerie} from '../hooks/useStatusDaSerie';
-import {statusDaSerie, type StatusSerie} from '../lib/statusSerie';
+import {podeSerRascunho, statusDaSerie, type StatusSerie} from '../lib/statusSerie';
 
 function SerieEditHeaderActions({
   isCreate,
   status,
   rotuloSalvar,
   onToggleAtiva,
+  onRascunho,
   onDelete,
   chrome,
+  apenasMenu = false,
 }: {
   isCreate: boolean;
   status?: StatusSerie;
   rotuloSalvar: string;
   onToggleAtiva?: () => void;
+  /** Ativa que pode voltar a rascunho (série ou quadro). */
+  onRascunho?: () => void;
   onDelete?: () => void;
   chrome: SerieEditChromeState | null;
+  /** Série usa Cancelar e Salvar no rodapé da ficha. O cabeçalho fica só com o menu. */
+  apenasMenu?: boolean;
 }) {
+  const menu = !isCreate && (onToggleAtiva || onDelete) ? (
+    <MoreMenu
+      items={[
+        ...(onToggleAtiva
+          ? [{
+            label: status === 'rascunho' ? 'Ativar' : status === 'arquivada' ? 'Reativar' : 'Arquivar',
+            onClick: onToggleAtiva,
+          }]
+          : []),
+        ...(onRascunho && status === 'ativa'
+          ? [{ label: 'Voltar para rascunho', onClick: onRascunho }]
+          : []),
+        ...(onDelete
+          ? [{
+            label: CONFIRM.excluirSerie.confirmLabel,
+            tone: 'danger' as const,
+            onClick: onDelete,
+          }]
+          : []),
+      ]}
+    />
+  ) : null;
+
+  if (apenasMenu) return menu;
   if (!chrome) return null;
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      {!isCreate && (onToggleAtiva || onDelete) ? (
-        <MoreMenu
-          items={[
-            ...(onToggleAtiva
-              ? [{
-                label: status === 'rascunho' ? 'Ativar' : status === 'arquivada' ? 'Reativar' : 'Arquivar',
-                onClick: onToggleAtiva,
-              }]
-              : []),
-            ...(onDelete
-              ? [{
-                label: CONFIRM.excluirSerie.confirmLabel,
-                tone: 'danger' as const,
-                onClick: onDelete,
-              }]
-              : []),
-          ]}
-        />
-      ) : null}
+      {menu}
       <AppButton variant="secondary" size="sm" onClick={chrome.handleCancel}>
         Cancelar
       </AppButton>
@@ -141,14 +154,13 @@ export function SeriesEditPage() {
   }, [editingSerie?.plataformas, state.platforms]);
 
   const editorialSettings = state.editorial;
-  const voltarLista = () => navigate('/series');
-  const voltarSerie = (id: string) => navigate(`/series/${id}`);
+  const voltarLista = () => returnTo(navigate, '/series');
   const destinoDeVolta = criandoQuadro && serieId
     ? `/series/${serieId}?aba=quadros`
     : familiaInicial || isCreate || !serieId
       ? '/series'
       : `/series/${serieId}`;
-  const voltar = () => navigate(destinoDeVolta);
+  const voltar = () => returnTo(navigate, destinoDeVolta);
 
   const alteracoesDeLegenda = (serie: Serie) => {
     const anterior = state.series.find(item => item.id === serie.id);
@@ -198,9 +210,10 @@ export function SeriesEditPage() {
     setPendingApply(null);
     setLegendaPendente(null);
     // Quadro novo volta para a série. Família volta para a lista: ela agrupa séries, não episódios.
-    if (!exists && tipo === 'quadro' && payload.parentId) navigate(`/series/${payload.parentId}?aba=quadros`);
-    else if (tipo === 'familia') voltarLista();
-    else voltarSerie(payload.id);
+    // Substitui o formulário: o voltar do mouse não reabre a tela que acabou de ser salva.
+    if (!exists && tipo === 'quadro' && payload.parentId) navigate(`/series/${payload.parentId}?aba=quadros`, { replace: true });
+    else if (tipo === 'familia') navigate('/series', { replace: true });
+    else navigate(`/series/${payload.id}`, { replace: true });
   };
 
   const seguirParaLegenda = (serie: Serie, aplicarFuncao: boolean) => {
@@ -237,14 +250,17 @@ export function SeriesEditPage() {
     } catch {
       return;
     }
-    voltarLista();
+    navigate('/series', { replace: true });
   };
 
-  const { alternarAtiva, modalAtivacao } = useStatusDaSerie();
+  const { alternarAtiva, mudarStatus, modalAtivacao } = useStatusDaSerie();
   const handleToggleAtiva = () => {
     if (!editingSerie) return;
     alternarAtiva(editingSerie.id);
   };
+  const handleRascunho = editingSerie && podeSerRascunho(editingSerie)
+    ? () => mudarStatus(editingSerie.id, 'rascunho')
+    : undefined;
 
   const lastEditLabel = editingSerie?.updatedAt
     ? `Última edição ${formatDistanceToNow(new Date(editingSerie.updatedAt), {addSuffix: true, locale: ptBR})} por você.`
@@ -314,18 +330,20 @@ export function SeriesEditPage() {
         header={
           <DesktopPageHeader
             section="Produção"
-            backLabel={rotuloVolta}
+            backLabel={tipo === 'serie' && !isCreate ? 'Série' : rotuloVolta}
             backTo={destinoDeVolta}
             title={pageTitle}
-            subtitle={isCreate ? pageMeta : undefined}
+            subtitle={tipo === 'serie' || isCreate ? pageMeta : undefined}
             actions={
               <SerieEditHeaderActions
                 isCreate={isCreate}
                 status={editingSerie ? statusDaSerie(editingSerie) : undefined}
                 rotuloSalvar={isCreate ? TITULO_CRIAR[tipo] : 'Salvar alterações'}
                 onToggleAtiva={handleToggleAtiva}
+                onRascunho={handleRascunho}
                 onDelete={() => setConfirmDelete(true)}
                 chrome={chrome}
+                apenasMenu={tipo === 'serie'}
               />
             }
           />
@@ -342,6 +360,7 @@ export function SeriesEditPage() {
               status={editingSerie ? statusDaSerie(editingSerie) : undefined}
               rotuloSalvar={isCreate ? 'Criar' : 'Salvar'}
               onToggleAtiva={handleToggleAtiva}
+              onRascunho={handleRascunho}
               onDelete={() => setConfirmDelete(true)}
               chrome={chrome}
             />

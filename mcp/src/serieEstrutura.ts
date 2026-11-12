@@ -29,6 +29,7 @@ import {
 } from '../../src/features/editorial/lib/temporadas.ts';
 import {normalizarRedesPostIt} from '../../src/features/planejamento/lib/redesPostIt.ts';
 import {fraseDaFrequencia} from '../../src/features/editorial/lib/metaDaOnda.ts';
+import {erroDaRegraDeOuro} from '../../src/features/editorial/lib/regraDeOuro.ts';
 
 type Row = Record<string, any>;
 
@@ -196,6 +197,8 @@ export type FrequenciaPedida = {
  * com meta, vezes (mínimo 1), unidade (padrão semana), data de início e a frase de
  * frequencia_recomendada; sem meta, tudo nulo e o quadro fica "Sob demanda".
  * unidade `sob-demanda` (ou null) tira a meta. Devolve null quando nenhum campo da frequência veio.
+ * Como no app: quadro é sob demanda (não grava meta) e a série segue a Regra de Ouro
+ * (no máximo 1 episódio por semana; janelas maiores, o equivalente: erroDaRegraDeOuro).
  */
 export function colunasDaFrequencia(
   pedido: FrequenciaPedida,
@@ -222,6 +225,13 @@ export function colunasDaFrequencia(
   // Como no formulário do app: ciclo de 14 dias só existe com a data em que o primeiro ciclo começa.
   if (unidade === 'quinzena' && !aPartirDe) {
     return {erro: 'Meta a cada 14 dias precisa de frequencia_a_partir_de: é a data em que o primeiro ciclo começa.'};
+  }
+  if (tipo === 'quadro') {
+    return {erro: 'Quadro é sob demanda e não tem meta. Use frequencia_unidade=sob-demanda (ou null) ou defina a meta na série.'};
+  }
+  if (tipo === 'serie') {
+    const regraDeOuro = erroDaRegraDeOuro(vezes, unidade);
+    if (regraDeOuro) return {erro: regraDeOuro};
   }
   return {colunas: {
     frequencia_vezes: vezes,
@@ -253,6 +263,7 @@ export function frequenciaDaLinha(row: Row) {
 export function avisoDaContinuidade(acompanhar: boolean, tipo: TipoAgrupamento, frequenciaDefinida: boolean): {erro?: string; aviso?: string} {
   if (!acompanhar) return {};
   if (tipo === 'familia') return {erro: 'Família não entra na Continuidade da Saúde; marque a série ou o quadro.'};
+  if (tipo === 'quadro') return {aviso: 'Quadro é sob demanda: não tem meta nem linha na Continuidade da Saúde; os episódios dele não contam no ritmo da série.'};
   if (!frequenciaDefinida) return {aviso: 'Sem frequência definida: na Saúde aparece como pendência até você definir vezes e unidade.'};
   return {};
 }

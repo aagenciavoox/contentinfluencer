@@ -99,11 +99,11 @@ export const ROTULO_DO_ESCOPO: Record<EscopoDaPausa, string> = {
 
 /** O que a pausa muda, dito na escolha do escopo. */
 export const EFEITO_DO_ESCOPO: Record<EscopoDaPausa, string> = {
-  publicacao: 'Nada sai nesses dias: eles saem da meta geral, das contas e das séries.',
-  gravacao: 'Sem gravar nesses dias. A publicação segue e a meta não muda.',
-  producao: 'Sem roteiro, gravação nem edição. A publicação segue e a meta não muda.',
-  conta: 'Só esta conta para: os dias saem da meta dela.',
-  serie: 'A série não cobra frequência nesses dias.',
+  publicacao: 'Esses dias ficam fora da meta da rotina, das contas e das séries.',
+  gravacao: 'Você pausa as gravações. As publicações seguem o calendário.',
+  producao: 'Você pausa roteiro, gravação e edição. As publicações seguem o calendário.',
+  conta: 'Esses dias ficam fora da meta da conta escolhida.',
+  serie: 'Esses dias ficam fora do acompanhamento de ritmo da série escolhida.',
 };
 
 const DATA_ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -140,7 +140,7 @@ export function pausaLimpa(pausa: PausaEditorial): PausaEditorial {
 /** O que falta para gravar a pausa; null quando está pronta. */
 export function problemaDaPausa(pausa: Omit<PausaEditorial, 'id'>): string | null {
   if (!DATA_ISO.test(pausa.inicio) || !DATA_ISO.test(pausa.fim)) return 'Escolha o início e o fim.';
-  if (pausa.inicio > pausa.fim) return 'O fim vem depois do início.';
+  if (pausa.inicio > pausa.fim) return 'O início precisa ser antes do fim.';
   if (pausa.escopo === 'conta' && !pausa.platformId) return 'Escolha a conta.';
   if (pausa.escopo === 'serie' && !pausa.serieId) return 'Escolha a série.';
   return null;

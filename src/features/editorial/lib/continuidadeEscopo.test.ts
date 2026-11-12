@@ -69,12 +69,18 @@ const series = [serie('s')];
 // --- Frequência no escopo: a meta da conta vale; sem ela, a meta geral da série.
 {
   const publicacoes = [pub('c1', 'ig', '2026-11-03'), pub('c2', 'ig', '2026-11-04')];
-  const metas = [{ serieId: 's', platformId: 'ig', formato: null, vezes: 2, unidade: 'semana' as const, aPartirDe: null }];
+  const metas = [{ serieId: 's', platformId: 'ig', formato: null, vezes: 2, unidade: 'mes' as const, aPartirDe: null }];
   const conta = continuidadeDoAcompanhamento({
     acompanhamento: acompanhamento({ escopo: 'conta', platformId: 'ig' }), series, metas, publicacoes, periodo: NOVEMBRO, hoje: HOJE,
   })!;
   assert.equal(conta.janelas[0].meta, 2);
   assert.equal(conta.janelas[0].estado, 'atendida');
+  // Regra de ouro também na meta da conta: 2 por semana de uma série vale 1 por semana.
+  const porSemana = [{ ...metas[0], unidade: 'semana' as const }];
+  const capada = continuidadeDoAcompanhamento({
+    acompanhamento: acompanhamento({ escopo: 'conta', platformId: 'ig' }), series, metas: porSemana, publicacoes, periodo: NOVEMBRO, hoje: HOJE,
+  })!;
+  assert.equal(capada.janelas[0].meta, 1);
   const semMetaDaConta = continuidadeDoAcompanhamento({
     acompanhamento: acompanhamento({ escopo: 'conta', platformId: 'tt' }), series, metas, publicacoes, periodo: NOVEMBRO, hoje: HOJE,
   })!;
@@ -115,16 +121,25 @@ const series = [serie('s')];
   assert.equal(resultado.faltas.length, 3);
 }
 
-// --- Pausa da série-mãe vale para o quadro acompanhado; pausa do quadro não pausa a mãe.
+// --- Quadro é sob demanda: mesmo acompanhado, não tem continuidade própria.
 {
   const comQuadro = [serie('s'), serie('q', { parentId: 's', tipoAgrupamento: 'quadro' } as Partial<SerieDaApuracao>)];
-  const pausas: PausaEditorial[] = [
-    { id: 'p', inicio: '2026-11-09', fim: '2026-11-15', escopo: 'serie', platformId: null, serieId: 's', nota: '' },
-    { id: 'r', inicio: '2026-11-16', fim: '2026-11-22', escopo: 'serie', platformId: null, serieId: 'q', nota: '' },
+  assert.equal(continuidadeDoAcompanhamento({ acompanhamento: acompanhamento({ serieId: 'q' }), series: comQuadro, publicacoes: [], periodo: NOVEMBRO, hoje: HOJE }), null);
+}
+
+// --- Pausa da família vale para a série acompanhada; pausa da série não pausa a família.
+{
+  const comFamilia = [
+    serie('f', { tipoAgrupamento: 'familia' } as Partial<SerieDaApuracao>),
+    serie('s', { parentId: 'f', tipoAgrupamento: 'serie' } as Partial<SerieDaApuracao>),
   ];
-  const doQuadro = continuidadeDoAcompanhamento({ acompanhamento: acompanhamento({ serieId: 'q' }), series: comQuadro, publicacoes: [], periodo: NOVEMBRO, pausas, hoje: HOJE })!;
-  assert.equal(doQuadro.janelas.find(janela => janela.inicio === '2026-11-09')!.cobertura, 'pausada', 'pausa da mãe');
-  assert.equal(doQuadro.janelas.find(janela => janela.inicio === '2026-11-16')!.cobertura, 'pausada', 'pausa do próprio quadro');
+  const pausas: PausaEditorial[] = [
+    { id: 'p', inicio: '2026-11-09', fim: '2026-11-15', escopo: 'serie', platformId: null, serieId: 'f', nota: '' },
+    { id: 'r', inicio: '2026-11-16', fim: '2026-11-22', escopo: 'serie', platformId: null, serieId: 's', nota: '' },
+  ];
+  const daSerie = continuidadeDoAcompanhamento({ acompanhamento: acompanhamento({ serieId: 's' }), series: comFamilia, publicacoes: [], periodo: NOVEMBRO, pausas, hoje: HOJE })!;
+  assert.equal(daSerie.janelas.find(janela => janela.inicio === '2026-11-09')!.cobertura, 'pausada', 'pausa da família');
+  assert.equal(daSerie.janelas.find(janela => janela.inicio === '2026-11-16')!.cobertura, 'pausada', 'pausa da própria série');
 }
 
 // --- Distância máxima: usa o episódio de antes do período, não passa do fim e pula a pausa.

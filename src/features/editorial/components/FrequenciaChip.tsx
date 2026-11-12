@@ -30,7 +30,7 @@ export function FrequenciaChip({
   /** `linha`: texto e lápis, debaixo do nome no Ritmo do Planejamento. */
   aparencia?: 'botao' | 'linha';
 }) {
-  const { serie, editavel, texto, salvar } = useFrequenciaDaSerie(serieId);
+  const { serie, editavel, quadro, texto, salvar } = useFrequenciaDaSerie(serieId);
   const [aberto, setAberto] = useState(false);
   const [rascunho, setRascunho] = useState<RascunhoDaFrequencia>(() => rascunhoDaFrequencia(serie ?? {}));
   const [erro, setErro] = useState<{ mensagem: string; campo: 'quantidade' | 'periodo' | 'inicio' } | null>(null);
@@ -63,7 +63,8 @@ export function FrequenciaChip({
   }, [aberto, gravando]);
 
   if (!serie || !editavel) {
-    if (aparencia === 'linha' && texto) {
+    // Quadro é sob demanda: mostra o rótulo, sem editar meta.
+    if ((aparencia === 'linha' || quadro) && texto) {
       return <span className={cn('t-meta truncate', className)}>{texto}</span>;
     }
     return null;
@@ -162,7 +163,7 @@ export function FrequenciaChip({
             erros={erro ? { [erro.campo]: erro.mensagem } : undefined}
           />
           <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-            Quantidade vazia tira a meta. Acompanhamento e regras ficam na Continuidade.
+            Quantidade vazia tira a meta. Acompanhamento e regras ficam na Continuidade, no Plano do período.
           </Text>
           <div className="flex justify-end gap-2">
             <AppButton type="button" variant="ghost" size="sm" onClick={() => setAberto(false)} disabled={gravando}>Cancelar</AppButton>

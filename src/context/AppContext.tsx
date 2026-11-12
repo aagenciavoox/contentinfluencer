@@ -38,6 +38,8 @@ import { broadcastDataSync, subscribeDataSync } from '../lib/syncBroadcast';
 import { getErrorDetail, notifySaveFeedback } from '../lib/saveFeedback';
 import { ERRORS, LOADING } from '../lib/uiCopy';
 import { generateUUID, isUUID } from '../utils/uuid';
+import { comAncoraNaSerie, comAncoraNaTemporada } from '../features/editorial/lib/ancoraQuinzena';
+import { comDataDoArquivo } from '../features/editorial/lib/arquivoTemporada';
 import { registrarVigencia } from '../features/editorial/lib/vigencias';
 import { buildDomainCacheKey, dataCache } from '../lib/dataCache';
 import {
@@ -144,8 +146,27 @@ function normalizeContentId(content: db.Content): db.Content {
   return { ...content, id: generateUUID() };
 }
 
-function normalizeAction(action: AppAction): AppAction {
+function hojeLocal(): string {
+  const agora = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${agora.getFullYear()}-${pad(agora.getMonth() + 1)}-${pad(agora.getDate())}`;
+}
+
+function normalizeAction(action: AppAction, state?: AppState): AppAction {
   switch (action.type) {
+    // Meta a cada 14 dias sem início: grava a segunda da semana da primeira ativação e mantém depois.
+    case 'ADD_SERIE':
+    case 'UPDATE_SERIE': {
+      const anterior = state?.series.find(serie => serie.id === action.payload.id);
+      return { ...action, payload: comAncoraNaSerie(action.payload, anterior, hojeLocal()) };
+    }
+    case 'ADD_TEMPORADA':
+    case 'UPDATE_TEMPORADA': {
+      const anterior = state?.temporadas.find(temporada => temporada.id === action.payload.id);
+      // Arquivar guarda o dia: a partir dele os episódios voltam para a série.
+      const comArquivo = comDataDoArquivo(action.payload, anterior, hojeLocal());
+      return { ...action, payload: comAncoraNaTemporada(comArquivo, anterior, hojeLocal()) };
+    }
     // Limite ou proporção mudou: guarda a partir desta semana, para não reescrever os períodos passados.
     case 'SET_EDITORIAL':
       return { ...action, payload: registrarVigencia(action.payload) };
@@ -831,7 +852,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [finishPersist, reporSeARecargaNaoConfirmou, runPersist, userId]);
 
   const enhancedDispatch = useCallback(async (action: AppAction, options?: PersistOptions) => {
-    const normalizedAction = normalizeAction(action);
+    const normalizedAction = normalizeAction(action, stateRef.current);
 
     if (normalizedAction.type === 'ADD_CONTENT') {
       await createContent(normalizedAction.payload, options);

@@ -18,8 +18,8 @@ import { generateUUID } from '../../../../utils/uuid';
 import { CONTENT_STATUS } from '../../../contents/lib/contentPipeline';
 import { comModoDaEscolha } from '../../../contents/lib/creationContent';
 import { DestinationChips } from '../../../editorial/components/DestinationChips';
-import { criarPublicacaoAgendada, destinosPadraoAtivos, publicacoesIniciais, type DestinoPlataforma } from '../../../editorial/lib/destinations';
-import { criarPublicacoesDasRedes, focoEfetivo } from '../../../editorial/lib/focoTemporada';
+import { criarPublicacaoAgendada, type DestinoPlataforma } from '../../../editorial/lib/destinations';
+import { destinosDoNovoEpisodio } from '../../../editorial/lib/focoTemporada';
 import { filhosDaSerie } from '../../../editorial/lib/serieArvore';
 import { plural } from '../../lib/serieAgrupamento';
 import {
@@ -176,16 +176,15 @@ export function SeriesBulkDrawer({
     if (!open) return;
     setRascunho(atual => {
       if (atual.comum?.publicacoes !== undefined) return atual;
-      const foco = focoEfetivo(
-        temporadas.find(item => item.id === (atual.comum?.temporadaId ?? null))?.focoRedes,
-        series.find(item => item.id === (atual.comum?.serieId ?? seriePaginaId))?.focoRedes,
-      );
-      const iniciais = foco.length > 0
-        ? criarPublicacoesDasRedes('', foco, plataformas)
-        : publicacoesIniciais({
-          destinos: destinosPadraoAtivos(destinosPadrao, catalogoDestinos(plataformas)),
-          contentId: '',
-        });
+      // Primeira configuração na ordem temporada → quadro → série; sem nenhuma, os destinos padrão.
+      const iniciais = destinosDoNovoEpisodio({
+        contentId: '',
+        temporada: temporadas.find(item => item.id === (atual.comum?.temporadaId ?? null)) ?? null,
+        serieId: atual.comum?.serieId ?? seriePaginaId,
+        series,
+        contas: plataformas,
+        destinosPadrao,
+      }).publicacoes;
       const next = {
         ...atual,
         comum: { ...comumPadrao(seriePaginaId, atual), publicacoes: escolhaDasPublicacoes(iniciais) },

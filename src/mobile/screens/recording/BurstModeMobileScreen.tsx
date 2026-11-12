@@ -169,13 +169,14 @@ function normalizeMobileBurstSettings(value: unknown): MobileBurstSettings {
   };
 }
 
-const THEME_CLASSNAMES: Record<BurstTheme, { shell: string; card: string; border: string; muted: string; text: string }> = {
+const THEME_CLASSNAMES: Record<BurstTheme, { shell: string; card: string; border: string; muted: string; text: string; fade: string }> = {
   paper: {
     shell: 'bg-[#f7f4ef]',
     card: 'bg-[#fcfaf7]',
     border: 'border-[#e5ddd2]',
     muted: 'text-[#736b5f]',
     text: 'text-[#312c27]',
+    fade: 'from-[#f7f4ef]',
   },
   night: {
     shell: 'bg-[#07111f]',
@@ -183,6 +184,7 @@ const THEME_CLASSNAMES: Record<BurstTheme, { shell: string; card: string; border
     border: 'border-[#1d314c]',
     muted: 'text-[#8ea3c1]',
     text: 'text-[#f4f7fb]',
+    fade: 'from-[#07111f]',
   },
   amber: {
     shell: 'bg-[#1a1207]',
@@ -190,6 +192,7 @@ const THEME_CLASSNAMES: Record<BurstTheme, { shell: string; card: string; border
     border: 'border-[#5f4524]',
     muted: 'text-[#d2b179]',
     text: 'text-[#fff4df]',
+    fade: 'from-[#1a1207]',
   },
 };
 
@@ -211,6 +214,62 @@ function formatSeconds(totalSeconds: number) {
 function getInitialIndex(entries: BurstModeMobileEntry[]) {
   const firstPendingIndex = entries.findIndex(entry => !entry.gravado);
   return firstPendingIndex >= 0 ? firstPendingIndex : 0;
+}
+
+function isHiddenPrompterItem(item: PrompterLineItem | undefined, showOnScreenNotes: boolean) {
+  return item?.kind === 'on-screen-note' && !showOnScreenNotes;
+}
+
+function isVisiblePrompterLine(
+  element: HTMLElement | null,
+  item: PrompterLineItem | undefined,
+  showOnScreenNotes: boolean,
+) {
+  if (!element || isHiddenPrompterItem(item, showOnScreenNotes)) return false;
+  return element.offsetParent !== null;
+}
+
+/** offsetTop de uma linha visivel; notas escondidas (display:none, offsetTop 0) sao ignoradas. */
+function offsetOfVisibleLine(
+  items: PrompterLineItem[],
+  lineRefs: Array<HTMLElement | null>,
+  index: number,
+  showOnScreenNotes: boolean,
+) {
+  const scan = (start: number, step: number) => {
+    for (let i = start; i >= 0 && i < items.length; i += step) {
+      const element = lineRefs[i];
+      if (isVisiblePrompterLine(element, items[i], showOnScreenNotes) && element) return element.offsetTop;
+    }
+    return null;
+  };
+  return scan(index, 1) ?? scan(index - 1, -1) ?? 0;
+}
+
+function desiredScrollTop(
+  container: HTMLDivElement,
+  items: PrompterLineItem[],
+  lineRefs: Array<HTMLElement | null>,
+  playhead: number,
+  showOnScreenNotes: boolean,
+) {
+  if (items.length === 0) return 0;
+  const max = Math.max(0, items.length - 1);
+  const currentIndex = Math.min(Math.max(0, Math.floor(playhead)), max);
+  const nextIndex = Math.min(currentIndex + 1, max);
+  const currentTop = offsetOfVisibleLine(items, lineRefs, currentIndex, showOnScreenNotes);
+  const nextTop = offsetOfVisibleLine(items, lineRefs, nextIndex, showOnScreenNotes);
+  const interpolatedTop = currentTop + (nextTop - currentTop) * (playhead - currentIndex);
+  return Math.max(0, interpolatedTop - container.clientHeight * READING_POSITION);
+}
+
+async function requestScreenWakeLock() {
+  try {
+    if (!("wakeLock" in navigator)) return null;
+    return await navigator.wakeLock.request("screen");
+  } catch {
+    return null;
+  }
 }
 
 export function BurstModeMobileScreen({
@@ -235,6 +294,8 @@ export function BurstModeMobileScreen({
   const [settings, setSettings] = useState<MobileBurstSettings>(persistedSettings);
   const [controlsVisible, setControlsVisible] = useState(true);
   const hideControlsTimerRef = useRef<number | null>(null);
+  const finishTimerRef = useRef<number | null>(null);
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const lineRefs = useRef<Array<HTMLElement | null>>([]);
   const [playhead, setPlayhead] = useState(0);
@@ -324,7 +385,7 @@ export function BurstModeMobileScreen({
   const sections = parsedScript.sections;
   const totalWords = parsedScript.totalWords;
   const totalEstimatedSeconds = parsedScript.totalEstimatedSeconds;
-  const currentLineIndex = clamp(Math.round(playhead), 0, Math.max(prompterItems.length - 1, 0));
+  const currentLineIndex = clamp(Math.floor(playhead), 0, Math.max(prompterItems.length - 1, 0));
   const elapsedRatio = prompterItems.length <= 1 ? 0 : clamp(playhead / Math.max(prompterItems.length - 1, 1), 0, 1);
   const elapsedSeconds = totalEstimatedSeconds * elapsedRatio;
   const recordedCount = liveEntries.filter(entry => entry.gravado).length;
@@ -386,8 +447,16 @@ export function BurstModeMobileScreen({
       previousTime = time;
 
       setPlayhead(previous => {
-        const next = Math.min(previous + delta * linesPerMs, prompterItems.length - 1);
-        if (next >= prompterItems.length - 1) {
+        const maxPlayhead = prompterItems.length - 1;
+        let next = Math.min(previous + delta * linesPerMs, maxPlayhead);
+        if (isHiddenPrompterItem(prompterItems[Math.floor(next)], settings.showOnScreenNotes)) {
+          let skipTo = Math.floor(next) + 1;
+          while (skipTo < prompterItems.length && isHiddenPrompterItem(prompterItems[skipTo], settings.showOnScreenNotes)) {
+            skipTo += 1;
+          }
+          next = Math.min(skipTo, maxPlayhead);
+        }
+        if (next >= maxPlayhead) {
           setIsPlaying(false);
         }
         if (
@@ -409,18 +478,32 @@ export function BurstModeMobileScreen({
 
     frameId = window.requestAnimationFrame(animate);
     return () => window.cancelAnimationFrame(frameId);
-  }, [isPlaying, prompterItems.length, settings.wpm, teleprompterEnabled, totalWords, activeSection, sections.length, settings.pauseAtSectionEnd]);
+  }, [isPlaying, prompterItems.length, settings.wpm, teleprompterEnabled, totalWords, activeSection, sections.length, settings.pauseAtSectionEnd, settings.showOnScreenNotes, prompterItems]);
+
+  const syncPrompterScroll = useCallback(() => {
+    const container = containerRef.current;
+    if (!teleprompterEnabled || !container || prompterItems.length === 0) return;
+    container.scrollTo({
+      top: desiredScrollTop(container, prompterItems, lineRefs.current, playhead, settings.showOnScreenNotes),
+      behavior: 'auto',
+    });
+  }, [playhead, prompterItems, settings.showOnScreenNotes, teleprompterEnabled]);
+  const syncPrompterScrollRef = useRef(syncPrompterScroll);
+  syncPrompterScrollRef.current = syncPrompterScroll;
 
   useEffect(() => {
-    if (!teleprompterEnabled || !containerRef.current || prompterItems.length === 0) return;
+    syncPrompterScroll();
+  }, [syncPrompterScroll, settings.fontSize, settings.lineHeight]);
 
-    const currentLine = lineRefs.current[Math.floor(playhead)];
-    if (!currentLine) return;
-
-    const container = containerRef.current;
-    const offset = currentLine.offsetTop - container.clientHeight * READING_POSITION;
-    container.scrollTo({ top: Math.max(0, offset), behavior: 'smooth' });
-  }, [playhead, prompterItems.length, teleprompterEnabled]);
+  useEffect(() => {
+    const recenter = () => syncPrompterScrollRef.current();
+    window.addEventListener('resize', recenter);
+    window.addEventListener('orientationchange', recenter);
+    return () => {
+      window.removeEventListener('resize', recenter);
+      window.removeEventListener('orientationchange', recenter);
+    };
+  }, []);
 
   const revealControls = useCallback(() => {
     setControlsVisible(true);
@@ -440,9 +523,46 @@ export function BurstModeMobileScreen({
   useEffect(
     () => () => {
       if (hideControlsTimerRef.current !== null) window.clearTimeout(hideControlsTimerRef.current);
+      if (finishTimerRef.current !== null) window.clearTimeout(finishTimerRef.current);
+      const wakeLock = wakeLockRef.current;
+      wakeLockRef.current = null;
+      if (wakeLock && !wakeLock.released) void wakeLock.release();
     },
     []
   );
+
+  const keepAwake = isPlaying || countdownRemaining !== null;
+  useEffect(() => {
+    if (!keepAwake) {
+      const current = wakeLockRef.current;
+      wakeLockRef.current = null;
+      if (current && !current.released) void current.release();
+      return;
+    }
+
+    let cancelled = false;
+    const acquire = async () => {
+      const next = await requestScreenWakeLock();
+      if (cancelled) {
+        if (next && !next.released) void next.release();
+        return;
+      }
+      wakeLockRef.current = next;
+    };
+    void acquire();
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void acquire();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVisibility);
+      const current = wakeLockRef.current;
+      wakeLockRef.current = null;
+      if (current && !current.released) void current.release();
+    };
+  }, [keepAwake]);
 
   /** Linha na altura de leitura, para retomar de onde a pessoa arrastou o texto parado. */
   const getLineAtReadingPosition = () => {
@@ -452,7 +572,7 @@ export function BurstModeMobileScreen({
     let index = 0;
     for (let lineIndex = 0; lineIndex < prompterItems.length; lineIndex++) {
       const element = lineRefs.current[lineIndex];
-      if (!element) continue;
+      if (!isVisiblePrompterLine(element, prompterItems[lineIndex], settings.showOnScreenNotes) || !element) continue;
       if (element.offsetTop > readingY) break;
       index = lineIndex;
     }
@@ -488,9 +608,15 @@ export function BurstModeMobileScreen({
       return;
     }
 
-    // Retoma de onde a pessoa arrastou o texto; no fim do roteiro, recomeça do início.
+    // Só retoma da linha sob a guia se a pessoa rolou o texto.
+    // No início o scroll fica em 0 e a guia cai numa linha de baixo — isso não é rolagem.
     const maxPlayhead = Math.max(0, prompterItems.length - 1);
-    const scrolledLine = getLineAtReadingPosition();
+    const container = containerRef.current;
+    const expectedTop = container
+      ? desiredScrollTop(container, prompterItems, lineRefs.current, playhead, settings.showOnScreenNotes)
+      : 0;
+    const userMoved = container !== null && Math.abs(container.scrollTop - expectedTop) > 40;
+    const scrolledLine = userMoved ? getLineAtReadingPosition() : null;
     const resumeFrom = scrolledLine !== null && Math.abs(scrolledLine - playhead) >= 1.5 ? scrolledLine : playhead;
     if (resumeFrom >= maxPlayhead) {
       setPlayhead(0);
@@ -510,8 +636,13 @@ export function BurstModeMobileScreen({
     if (!activeSection) return;
     setPausedAtSectionEnd(null);
     setPlayhead(activeSection.firstSpokenIndex);
-    setIsPlaying(false);
-    setCountdownRemaining(settings.countdown > 0 ? settings.countdown : 2);
+    if (settings.countdown > 0) {
+      setIsPlaying(false);
+      setCountdownRemaining(settings.countdown);
+    } else {
+      setCountdownRemaining(null);
+      setIsPlaying(true);
+    }
   };
 
   const handleMarkRecorded = () => {
@@ -524,9 +655,15 @@ export function BurstModeMobileScreen({
       return;
     }
 
-    window.setTimeout(() => {
+    if (finishTimerRef.current !== null) window.clearTimeout(finishTimerRef.current);
+    finishTimerRef.current = window.setTimeout(() => {
+      finishTimerRef.current = null;
       onFinish();
     }, 150);
+  };
+
+  const handlePrompterPointerDown = () => {
+    if (isPlaying) setIsPlaying(false);
   };
 
   const handleNext = () => {
@@ -576,7 +713,7 @@ export function BurstModeMobileScreen({
   const overlay = (
     <div
       data-burst-portal
-      className={cn('fixed inset-0 z-[200] flex min-h-[100dvh] flex-col overflow-hidden', theme.shell, theme.text)}
+      className={cn('fixed inset-0 z-[200] flex flex-col overflow-hidden', theme.shell, theme.text)}
       onClick={revealControls}
     >
       {teleprompterEnabled ? (
@@ -647,11 +784,18 @@ export function BurstModeMobileScreen({
             </button>
           </header>
 
-          <div className="flex-1 overflow-hidden px-2 pb-2">
+          <div
+            className="relative min-h-0 flex-1 overflow-hidden px-2"
+            style={{ paddingBottom: 'calc(max(env(safe-area-inset-bottom), 12px) + 6.5rem)' }}
+          >
             <div
               ref={containerRef}
-              className="h-full overflow-y-auto px-4 py-4"
+              className="relative h-full overflow-y-auto overscroll-contain px-4"
+              onPointerDown={handlePrompterPointerDown}
             >
+              {/* Espaço para a primeira fala sentar na guia. Sem isso o scroll 0
+                  deixa a guia numa linha de baixo e o Iniciar pula o começo. */}
+              <div aria-hidden="true" style={{ height: `${READING_POSITION * 100}%` }} />
               <div style={fullTextStyle}>
                 {prompterItems.map((item, index) => {
                   if (item.kind === 'section-divider') {
@@ -730,7 +874,13 @@ export function BurstModeMobileScreen({
                   );
                 })}
               </div>
+              <div aria-hidden="true" style={{ height: `${(1 - READING_POSITION) * 100}%` }} />
             </div>
+            <div
+              aria-hidden="true"
+              className={cn('pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-45% to-transparent', theme.fade)}
+              style={{ height: 'calc(max(env(safe-area-inset-bottom), 12px) + 7.5rem)' }}
+            />
           </div>
         </>
       ) : (
@@ -850,7 +1000,7 @@ export function BurstModeMobileScreen({
           <ActionIconButton
             textClassName={theme.text}
             icon={<CheckCircle2 className="h-5 w-5" />}
-            label={currentEntry.gravado ? 'Gravado' : sections.length > 1 ? 'Marcar' : 'Marcar como gravado'}
+            label={currentEntry.gravado ? 'Gravado' : 'Marcar'}
             onClick={handleMarkRecorded}
             disabled={currentEntry.gravado}
             active={currentEntry.gravado}

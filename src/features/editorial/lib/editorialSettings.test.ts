@@ -3,11 +3,16 @@ import {
   DEFAULT_EDITORIAL_SETTINGS,
   EDITORIAL_SETTINGS_PREFERENCE_KEY,
   EDITORIAL_SETTINGS_VERSION,
+  atualizarAviso,
+  atualizarPerfilEditorial,
   atualizarPreferencias,
   getEditorialSettings,
+  lerPerfilEditorial,
   lerMetodoCalculo,
   upsertDecisaoPeriodo,
 } from './editorialSettings.ts';
+import { avisoLigado, lerAvisosLigados, linhasSemRegrasDesligadas, semAvisosDesligados, TIPOS_AVISO_CONFIGURAVEIS } from './avisosEditoriais.ts';
+import { ABA_EDITORIAL_PADRAO, abaEditorialDaUrl, ancoraDaAbaAntiga, EDITORIAL_ABAS, ehAbaAntiga, paramsDaAba, ROTULO_DA_ABA } from './abasEditorial.ts';
 
 function testDefaults() {
   assert.deepEqual(getEditorialSettings({}), DEFAULT_EDITORIAL_SETTINGS);
@@ -277,4 +282,114 @@ testEstoqueDesejado();
   assert.equal(comAntigo.periodos.find(p => p.inicio === '2026-12-01')?.metodoCalculo, 'conteudos-v1');
 }
 
+// Perfil editorial: o texto antigo vira o Público; editar o Público também grava o campo antigo.
+{
+  assert.deepEqual(lerPerfilEditorial(null, 'Leitoras de fantasia, tom leve'), {
+    publico: 'Leitoras de fantasia, tom leve', motivacaoPublico: '', linguagens: '', assuntos: '',
+  });
+  assert.equal(lerPerfilEditorial({ publico: 'Novo', assuntos: 'Livros' }, 'antigo').publico, 'Novo');
+  const legado = atualizarPreferencias(DEFAULT_EDITORIAL_SETTINGS, { publicoLinguagem: 'Quem lê fantasia' });
+  assert.equal(legado.perfil?.publico, 'Quem lê fantasia');
+  const editado = atualizarPerfilEditorial(legado, { motivacaoPublico: 'Achar a próxima leitura' });
+  assert.equal(editado.perfil?.publico, 'Quem lê fantasia');
+  assert.equal(editado.perfil?.motivacaoPublico, 'Achar a próxima leitura');
+  const novoPublico = atualizarPerfilEditorial(editado, { publico: 'Jovens leitores' });
+  assert.equal(novoPublico.perfil?.publico, 'Jovens leitores');
+  assert.equal(novoPublico.preferencias.publicoLinguagem, 'Jovens leitores');
+  // Mudar outra preferência não apaga o perfil.
+  assert.equal(atualizarPreferencias(novoPublico, { hashtagsForaSeries: '#x' }).perfil?.motivacaoPublico, 'Achar a próxima leitura');
+}
+
+// Avisos: todos começam ligados; desligar um não mexe nos outros.
+{
+  assert.ok(TIPOS_AVISO_CONFIGURAVEIS.every(tipo => avisoLigado(DEFAULT_EDITORIAL_SETTINGS.avisos, tipo)));
+  assert.ok(TIPOS_AVISO_CONFIGURAVEIS.every(tipo => avisoLigado(atualizarPreferencias(DEFAULT_EDITORIAL_SETTINGS, {}).avisos, tipo)));
+  for (const tipo of ['obra-repetida', 'tema-concentrado', 'capacidade-semana', 'ausencia-12-dias', 'ausencia-mes', 'serie-acima',
+    'vespera-sem-pronto', 'gravacoes-no-dia', 'serie-abaixo', 'serie-reservada', 'distancia', 'dias-seguidos'] as const) {
+    assert.ok(TIPOS_AVISO_CONFIGURAVEIS.includes(tipo), tipo);
+  }
+  const semObra = atualizarAviso(DEFAULT_EDITORIAL_SETTINGS, 'obra-repetida', false);
+  assert.equal(avisoLigado(semObra.avisos, 'obra-repetida'), false);
+  assert.equal(avisoLigado(semObra.avisos, 'tema-concentrado'), true);
+  assert.equal(avisoLigado(atualizarAviso(semObra, 'obra-repetida', true).avisos, 'obra-repetida'), true);
+  // Desligado continua desligado depois de mudar outra preferência.
+  assert.equal(avisoLigado(atualizarPreferencias(semObra, { hashtagsForaSeries: '#y' }).avisos, 'obra-repetida'), false);
+  assert.deepEqual(lerAvisosLigados({ 'obra-repetida': false, inventado: false, 'serie-acima': 'nao' }), { 'obra-repetida': false });
+  const lista = [{ tipo: 'obra-repetida' }, { tipo: 'serie-abaixo' }];
+  assert.deepEqual(semAvisosDesligados(lista, { 'obra-repetida': false }), [{ tipo: 'serie-abaixo' }]);
+  assert.deepEqual(semAvisosDesligados(lista, {}), lista);
+  // Continuidade: dias sem episódio e dias seguidos somem da linha quando desligados.
+  const linha = { abaixo: [], reservadas: [], concentrada: false, precisaAtencao: true, distancias: [{ dias: 9 }], diasSeguidos: [{ dia: 'x' }] };
+  const [semDistancia] = linhasSemRegrasDesligadas([linha], { distancia: false });
+  assert.deepEqual([semDistancia.distancias.length, semDistancia.diasSeguidos.length, semDistancia.precisaAtencao], [0, 1, true]);
+  const [semNada] = linhasSemRegrasDesligadas([linha], { distancia: false, 'dias-seguidos': false });
+  assert.equal(semNada.precisaAtencao, false);
+  assert.deepEqual(linhasSemRegrasDesligadas([linha], {}), [linha]);
+}
+
+// Abas do Editorial: ordem nova, Plano do período como padrão e ids antigos redirecionados.
+{
+  assert.deepEqual(EDITORIAL_ABAS.map(aba => ROTULO_DA_ABA[aba]), [
+    'Plano do período', 'Direção editorial', 'Rotina de criação', 'Contas e formatos',
+  ]);
+  assert.equal(ABA_EDITORIAL_PADRAO, 'plano');
+  assert.equal(abaEditorialDaUrl(null), 'plano');
+  assert.equal(abaEditorialDaUrl('qualquer'), 'plano');
+  assert.equal(abaEditorialDaUrl('pilares'), 'direcao');
+  assert.equal(abaEditorialDaUrl('ajustes'), 'ajustes');
+  assert.equal(abaEditorialDaUrl('contas'), 'contas');
+  // Abas que viraram blocos: abrem a aba nova e levam ao bloco.
+  assert.equal(abaEditorialDaUrl('continuidade'), 'plano');
+  assert.equal(ancoraDaAbaAntiga('continuidade'), 'continuidade');
+  assert.equal(abaEditorialDaUrl('avisos'), 'ajustes');
+  assert.equal(ancoraDaAbaAntiga('avisos'), 'avisos');
+  assert.equal(abaEditorialDaUrl('operacional'), 'direcao');
+  assert.equal(ancoraDaAbaAntiga('operacional'), 'hashtags');
+  assert.equal(abaEditorialDaUrl('capacidade'), 'ajustes');
+  assert.equal(ancoraDaAbaAntiga('capacidade'), null);
+  assert.equal(ancoraDaAbaAntiga('ajustes'), null);
+  assert.equal(ehAbaAntiga('continuidade'), true);
+  assert.equal(ehAbaAntiga('pilares'), true);
+  assert.equal(ehAbaAntiga('ajustes'), false);
+  assert.equal(ehAbaAntiga(null), false);
+  assert.equal(ehAbaAntiga('qualquer'), false);
+  assert.equal(paramsDaAba(new URLSearchParams('aba=continuidade&editar=s%3A1'), abaEditorialDaUrl('continuidade')).toString(), 'editar=s%3A1');
+  assert.equal(paramsDaAba(new URLSearchParams('aba=avisos&x=1'), 'plano').toString(), 'x=1');
+  assert.equal(paramsDaAba(new URLSearchParams(''), 'ajustes').toString(), 'aba=ajustes');
+}
+
 console.log('editorialSettings tests passed');
+
+// --- Indicadores da rotina: só a meta é obrigatória; mínimo e máximo são referência de alerta.
+{
+  const ind = await import('./indicadoresProducao.ts');
+  const { atualizarIndicador } = await import('./editorialSettings.ts');
+  assert.deepEqual(ind.validarFaixa({ minimo: '', meta: '', maximo: '' }), { faixa: null, erros: [] }, 'tudo vazio = sem indicador');
+  assert.equal(ind.validarFaixa({ minimo: '2', meta: '', maximo: '' }).erros[0].campo, 'meta');
+  assert.deepEqual(ind.validarFaixa({ minimo: '', meta: '4', maximo: '' }).faixa, { minimo: null, meta: 4, maximo: null });
+  assert.equal(ind.validarFaixa({ minimo: '5', meta: '4', maximo: '' }).erros[0].campo, 'minimo');
+  assert.equal(ind.validarFaixa({ minimo: '', meta: '4', maximo: '3' }).erros[0].campo, 'maximo');
+  const faixa = { minimo: 3, meta: 4, maximo: 6 };
+  assert.equal(ind.avaliarFaixa(2, faixa).estado, 'abaixo');
+  assert.equal(ind.avaliarFaixa(3, faixa).estado, 'progresso', 'no mínimo não alerta');
+  assert.equal(ind.avaliarFaixa(4, faixa).estado, 'na-meta');
+  assert.equal(ind.avaliarFaixa(7, faixa).aviso, 'acima');
+  assert.equal(ind.avaliarFaixa(5, { minimo: null, meta: 4, maximo: null }).aviso, 'acima', 'lado vazio segue a meta');
+  assert.equal(ind.avaliarFaixa(5, { minimo: null, meta: 4, maximo: null }, { abaixo: true, acima: false }).aviso, null, 'aviso desligado não aparece');
+  const comFaixa = atualizarIndicador(DEFAULT_EDITORIAL_SETTINGS, 'videosPorDiaGravacao', faixa);
+  assert.deepEqual(comFaixa.indicadoresProducao?.videosPorDiaGravacao, faixa);
+  const semFaixa = atualizarIndicador(comFaixa, 'videosPorDiaGravacao', null);
+  assert.equal(semFaixa.indicadoresProducao?.videosPorDiaGravacao, undefined);
+}
+// --- Limite da saturação de quadro: grava 1 ou 2 dentro do jsonb de avisos, sem mexer nos outros avisos.
+{
+  const { atualizarLimiteSaturacao } = await import('./editorialSettings.ts');
+  const { limiteSaturacaoQuadro, CHAVE_LIMITE_SATURACAO } = await import('./avisosEditoriais.ts');
+  assert.equal(limiteSaturacaoQuadro(DEFAULT_EDITORIAL_SETTINGS.avisos), 2);
+  const comUm = atualizarLimiteSaturacao({ ...DEFAULT_EDITORIAL_SETTINGS, avisos: { distancia: false } }, 1);
+  assert.equal(limiteSaturacaoQuadro(comUm.avisos), 1);
+  assert.equal(comUm.avisos?.distancia, false, 'outro aviso desligado continua desligado');
+  assert.equal(comUm.avisos?.[CHAVE_LIMITE_SATURACAO], 1);
+  assert.equal(limiteSaturacaoQuadro(atualizarLimiteSaturacao(comUm, 2).avisos), 2);
+  console.log('editorialSettings (limite da saturação): ok');
+}

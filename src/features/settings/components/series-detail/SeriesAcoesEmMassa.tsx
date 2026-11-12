@@ -56,20 +56,22 @@ export function BarraDeAcoes({
   disponivel,
   onDefinirQuadro,
   onDefinirTemporada,
+  onExcluir,
   onLimpar,
 }: {
   quantidade: number;
   celular: boolean;
   temporadasHabilitadas: boolean;
-  /** Falso enquanto a operação do banco não existe: ações desabilitadas com aviso. */
+  /** Falso enquanto a operação do banco não existe: mover quadro e temporada fica desabilitado. */
   disponivel: boolean;
   onDefinirQuadro: () => void;
   onDefinirTemporada: () => void;
+  onExcluir: () => void;
   onLimpar: () => void;
 }) {
   const [menu, setMenu] = useState(false);
   const titulo = `${quantidade === 1 ? '1 episódio selecionado' : `${quantidade} episódios selecionados`}`;
-  const aviso = disponivel ? null : 'Ações em massa ficam disponíveis depois de atualizar o banco.';
+  const aviso = disponivel ? null : 'Definir quadro e temporada fica disponível depois de atualizar o banco.';
   const botoes = (bloco: boolean) => (
     <>
       <AppButton variant="primary" size="sm" className={cn(bloco && 'w-full')} disabled={!disponivel} onClick={() => { setMenu(false); onDefinirQuadro(); }}>
@@ -80,6 +82,15 @@ export function BarraDeAcoes({
           Definir temporada
         </AppButton>
       ) : null}
+      <AppButton
+        variant="ghost"
+        size="sm"
+        className={cn('text-[var(--danger)]', bloco && 'w-full')}
+        disabled={quantidade === 0}
+        onClick={() => { setMenu(false); onExcluir(); }}
+      >
+        Excluir
+      </AppButton>
     </>
   );
   return (

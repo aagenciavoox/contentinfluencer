@@ -113,6 +113,10 @@ interface PlatformCopyEditorProps {
   status?: string | null;
   formatoVisual?: string | null;
   writingMode?: Content['writingMode'] | null;
+  /** `contas`: só as contas (e o formato no YouTube); `legenda`: só a edição da legenda. */
+  secoes?: 'tudo' | 'contas' | 'legenda';
+  /** Aba aberta ao montar (ex.: a conta do botão Editar). */
+  abaInicialId?: string | null;
 }
 
 /**
@@ -135,6 +139,8 @@ export function PlatformCopyEditor({
   status = null,
   formatoVisual = null,
   writingMode = null,
+  secoes = 'tudo',
+  abaInicialId = null,
 }: PlatformCopyEditorProps) {
   const {state} = useAppContext();
   const editorial = state.editorial;
@@ -175,7 +181,7 @@ export function PlatformCopyEditor({
       .map(({item}) => item);
   }, [contasParaMarcar, plataformas]);
 
-  const [ativaId, setAtivaId] = useState<string | null>(null);
+  const [ativaId, setAtivaId] = useState<string | null>(abaInicialId);
   const ativa = abas.find(item => item.id === ativaId) ?? abas[0] ?? null;
   const [confirmarCopia, setConfirmarCopia] = useState(false);
   const [confirmarDesmarcar, setConfirmarDesmarcar] = useState<DestinoPlataforma | null>(null);
@@ -286,234 +292,234 @@ export function PlatformCopyEditor({
       ? 'As outras contas já foram publicadas.'
       : undefined;
 
-  return (
-    <Surface
-      as="section"
-      variant="outlined"
-      padding="lg"
-      className={cn('bg-[var(--bg-elevated)]', embedded && 'h-full')}
-    >
-      <Text variant="sectionTitle" as="h3">{embedded ? 'Legendas' : 'Preparar distribuição'}</Text>
-      <Text variant="secondary" className="mt-1">Cada conta tem sua própria legenda.</Text>
-
-      <div className="mt-4 stack-lg border-t border-[var(--border-color)] pt-4">
-        <div className="stack-sm">
-          <Text variant="bodyStrong" as="p">Contas para publicação</Text>
-          {contasParaMarcar.length === 0 ? (
-            <Text variant="secondary">Nenhuma conta ativa. Cadastre em Contas e horários.</Text>
-          ) : (
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Contas para publicação">
-              {contasParaMarcar.map(conta => {
-                const marcada = destinoMarcado(plataformas, conta);
-                const travada = marcada && contaJaPublicada(conta);
-                const complemento = complementoDoRotulo(conta);
-                const rede = redeDaConta(conta);
-                const pub = marcada ? plataformas.find(p => mesmoDestino(p.platformId, conta) && emDestino(p)) : null;
-                const noYt = rede === 'youtube' && pub
-                  ? formatoNoYoutube({ formatoVisual: conteudo?.formatoVisual ?? null, writingMode: conteudo?.writingMode }, pub)
-                  : null;
-                const icone = noYt && noYt.formato === 'short' ? 'youtube-shorts' : iconeDaConta(conta);
-                const rotuloFormato = noYt ? (noYt.formato === 'short' ? ' · Shorts' : ' · Vídeo longo') : '';
-
-                return (
-                  <button
-                    key={conta.id}
-                    type="button"
-                    role="checkbox"
-                    aria-checked={marcada}
-                    aria-disabled={travada || undefined}
-                    disabled={disabled}
-                    title={travada ? 'Já publicada nesta conta. Fica marcada.' : `${rotuloConta(conta)}${rotuloFormato}`}
-                    aria-label={`${rotuloConta(conta)}${complemento ? `, ${complemento}` : ''}${rotuloFormato}${travada ? ', já publicada' : ''}`}
-                    onClick={() => alternarConta(conta)}
-                    className={cn(
-                      contaButtonClass,
-                      marcada
-                        ? 'border-[var(--border-strong)] text-[var(--text-primary)]'
-                        : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]',
-                      travada && 'cursor-default',
-                    )}
-                  >
-                    <span
-                      aria-hidden
-                      className={cn(
-                        'flex h-4 w-4 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border',
-                        marcada
-                          ? 'border-[var(--brand-accent-strong)] bg-[var(--brand-accent-strong)] text-[var(--brand-on-accent)]'
-                          : 'border-[var(--border-input)]',
-                      )}
-                    >
-                      {marcada ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
-                    </span>
-                    <PlatformIcon platform={icone} className="h-4 w-4 shrink-0" />
-                    <span className="truncate">{rotuloCurtoConta(conta)}{rotuloFormato}</span>
-                    {travada ? <Lock className="h-3 w-3 shrink-0 text-[var(--text-tertiary)]" aria-hidden /> : null}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="stack-sm border-t border-[var(--border-color)] pt-4">
-          <Text variant="bodyStrong" as="p">Editar legenda</Text>
-
-          {ativa ? (
-            <>
-              <SegmentTabs
-                ariaLabel="Legenda em edição"
-                value={ativa.id}
-                onChange={setAtivaId}
-                options={abas.map(item => {
-                  const conta = contaDaRef(item.platformId, contas);
-                  const rede = redeDaRef(item.platformId, contas);
-                  const noYt = rede === 'youtube'
-                    ? formatoNoYoutube({ formatoVisual: conteudo?.formatoVisual ?? null, writingMode: conteudo?.writingMode }, item)
-                    : null;
-                  const icone = noYt && noYt.formato === 'short' ? 'youtube-shorts' : (conta ? iconeDaConta(conta) : item.platformId);
-                  return {
-                    id: item.id,
-                    label: rotuloDaAba(item),
-                    icon: (
-                      <PlatformIcon
-                        platform={icone}
-                        className="h-4 w-4 shrink-0"
-                      />
-                    ),
-                  };
-                })}
-              />
-
-              <div
-                role="tabpanel"
-                id={`legenda-painel-${contentId || 'novo'}`}
-                aria-label={`Legenda de ${rotuloAtiva}`}
-                className="stack-md pt-2"
-              >
-                {/* Formato no YouTube quando a conta em edição for do YouTube */}
-                {redeAtiva === 'youtube' && ativa ? (() => {
-                  const noYoutube = formatoNoYoutube(
-                    { formatoVisual: conteudo?.formatoVisual ?? null, writingMode: conteudo?.writingMode },
-                    ativa,
-                  );
-                  return (
-                    <div className="flex flex-wrap items-center gap-2.5 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--surface-subtle)] px-3 py-2">
-                      <Text variant="label" as="span" className="text-[var(--text-secondary)]">Formato no YouTube:</Text>
-                      <ChoiceChips<FormatoEscolhidoNaPublicacao>
-                        label="Formato no YouTube"
-                        value={noYoutube.formato}
-                        onChange={formato => {
-                          onChange(plataformas.map(p =>
-                            p.id === ativa.id
-                              ? { ...p, formatoPublicacao: noYoutube.origem === 'escolhido' ? formato : (formato ?? noYoutube.formato) }
-                              : p
-                          ));
-                        }}
-                        options={[
-                          { value: 'short', label: 'Shorts' },
-                          { value: 'video-longo', label: 'Vídeo longo' },
-                        ]}
-                      />
-                      <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">
-                        {noYoutube.origem === 'escolhido'
-                          ? 'Escolhido nesta publicação (toque de novo para voltar ao automático)'
-                          : (noYoutube.origem === 'conteudo'
-                            ? 'pelo formato do conteúdo'
-                            : 'deduzido: roteiro no modo YouTube é vídeo longo; o resto, Shorts')}
-                      </Text>
-                    </div>
-                  );
-                })() : null}
-                {mostraTitulo ? (
-                  <label className="block">
-                    <Text variant="secondary" as="span" className="mb-1.5 block text-[var(--text-secondary)]">
-                      {`Título no ${rotuloAtiva}`}
-                    </Text>
-                    <input
-                      value={titulo}
-                      disabled={disabled}
-                      onChange={event => onTituloChange?.(event.target.value)}
-                      className="h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 t-body text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60"
-                    />
-                  </label>
-                ) : null}
-
-                <div className="stack-xs">
-                  <textarea
-                    ref={textareaRef}
-                    value={texto}
-                    disabled={disabled}
-                    readOnly={publicada}
-                    rows={4}
-                    aria-label={`Legenda de ${rotuloAtiva}`}
-                    placeholder={`Legenda para ${rotuloAtiva}…`}
-                    onChange={event => onChange(editarLegendaDaConta(plataformas, ativa.id, event.target.value, conteudo))}
-                    className={cn(
-                      'block min-h-28 w-full resize-none overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-2.5 t-body leading-6 outline-none placeholder:text-[var(--text-tertiary)] focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60',
-                      publicada ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)]',
-                    )}
-                  />
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    {publicada ? (
-                      <Text variant="meta" className="inline-flex items-center gap-1.5">
-                        <Lock className="h-3 w-3" aria-hidden />
-                        {publicadaEm ? `Publicada em ${publicadaEm}. O texto fica preservado.` : 'Publicada. O texto fica preservado.'}
-                      </Text>
-                    ) : <span />}
-                    {publicada ? null : <TextCount value={texto} limit={limite} />}
-                  </div>
-                </div>
-
-                {mostraHashtags ? (
-                  <HashtagsField
-                    semLista
-                    rotulo={rotuloAtiva}
-                    hashtags={hashtagsNaLegenda(texto).join(' ')}
-                    sugestao={sugestao}
-                    limite={limiteHashtagsDaRede(editorial, ativa.platformId, chaveDaRede)}
-                    disabled={disabled || publicada}
-                    onChange={hashtags => onChange(editarLegendaDaConta(
-                      plataformas,
-                      ativa.id,
-                      adicionarHashtagsAoFim(texto, hashtags.split(/\s+/)),
-                      conteudo,
-                    ))}
-                  />
-                ) : null}
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <AppButton
-                    size="sm"
-                    variant="secondary"
-                    disabled={!texto.trim()}
-                    disabledReason="Escreva a legenda desta conta primeiro."
-                    aria-label={`Copiar legenda de ${rotuloAtiva}`}
-                    leftIcon={copiado ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                    onClick={() => void copiar()}
-                  >
-                    {copiado ? 'Legenda copiada' : 'Copiar legenda'}
-                  </AppButton>
-                  {abas.length > 1 ? (
-                    <AppButton
-                      size="sm"
-                      variant="secondary"
-                      disabled={disabled || Boolean(motivoSemCopia)}
-                      disabledReason={disabled ? undefined : motivoSemCopia}
-                      leftIcon={copiaFeita ? <Check className="h-4 w-4" /> : <CopyPlus className="h-4 w-4" />}
-                      onClick={() => (substituidas.length > 0 ? setConfirmarCopia(true) : usarEmTodas())}
-                    >
-                      {copiaFeita ? 'Legenda aplicada' : 'Usar esta legenda em todas'}
-                    </AppButton>
-                  ) : null}
-                </div>
-              </div>
-            </>
-          ) : contasParaMarcar.length > 0 ? (
-            <Text variant="secondary">Marque uma conta para escrever a legenda.</Text>
-          ) : null}
-        </div>
+  // Formato no YouTube: uma vez só, junto da conta, para cada publicação marcada no YouTube.
+  const formatosNoYoutube = abas.filter(item => redeDaRef(item.platformId, contas) === 'youtube');
+  const formatoBloco = formatosNoYoutube.map(item => {
+    const noYoutube = formatoNoYoutube(
+      { formatoVisual: conteudo?.formatoVisual ?? null, writingMode: conteudo?.writingMode },
+      item,
+    );
+    return (
+      <div key={item.id} className="flex flex-wrap items-center gap-2.5 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--surface-subtle)] px-3 py-2">
+        <Text variant="label" as="span" className="text-[var(--text-secondary)]">
+          {item.publicationKind === 'repost' ? 'Formato no YouTube (repost):' : 'Formato no YouTube:'}
+        </Text>
+        <ChoiceChips<FormatoEscolhidoNaPublicacao>
+          label="Formato no YouTube"
+          value={noYoutube.formato}
+          onChange={formato => {
+            if (disabled) return;
+            onChange(plataformas.map(p =>
+              p.id === item.id
+                ? { ...p, formatoPublicacao: noYoutube.origem === 'escolhido' ? formato : (formato ?? noYoutube.formato) }
+                : p
+            ));
+          }}
+          options={[
+            { value: 'short', label: 'Shorts' },
+            { value: 'video-longo', label: 'Vídeo longo' },
+          ]}
+        />
+        <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">
+          {noYoutube.origem === 'escolhido'
+            ? 'Escolhido nesta publicação (toque de novo para voltar ao automático)'
+            : (noYoutube.origem === 'conteudo'
+              ? 'pelo formato do conteúdo'
+              : 'deduzido: roteiro no modo YouTube é vídeo longo; o resto, Shorts')}
+        </Text>
       </div>
+    );
+  });
 
+  const contasBloco = (
+    <div className="stack-sm">
+      <Text variant="bodyStrong" as="p">Contas para publicação</Text>
+      {contasParaMarcar.length === 0 ? (
+        <Text variant="secondary">Nenhuma conta ativa. Cadastre em Contas e horários.</Text>
+      ) : (
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Contas para publicação">
+          {contasParaMarcar.map(conta => {
+            const marcada = destinoMarcado(plataformas, conta);
+            const travada = marcada && contaJaPublicada(conta);
+            const complemento = complementoDoRotulo(conta);
+            const rede = redeDaConta(conta);
+            const pub = marcada ? plataformas.find(p => mesmoDestino(p.platformId, conta) && emDestino(p)) : null;
+            const noYt = rede === 'youtube' && pub
+              ? formatoNoYoutube({ formatoVisual: conteudo?.formatoVisual ?? null, writingMode: conteudo?.writingMode }, pub)
+              : null;
+            const icone = noYt && noYt.formato === 'short' ? 'youtube-shorts' : iconeDaConta(conta);
+            const rotuloFormato = noYt ? (noYt.formato === 'short' ? ' · Shorts' : ' · Vídeo longo') : '';
+
+            return (
+              <button
+                key={conta.id}
+                type="button"
+                role="checkbox"
+                aria-checked={marcada}
+                aria-disabled={travada || undefined}
+                disabled={disabled}
+                title={travada ? 'Já publicada nesta conta. Fica marcada.' : `${rotuloConta(conta)}${rotuloFormato}`}
+                aria-label={`${rotuloConta(conta)}${complemento ? `, ${complemento}` : ''}${rotuloFormato}${travada ? ', já publicada' : ''}`}
+                onClick={() => alternarConta(conta)}
+                className={cn(
+                  contaButtonClass,
+                  marcada
+                    ? 'border-[var(--border-strong)] text-[var(--text-primary)]'
+                    : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]',
+                  travada && 'cursor-default',
+                )}
+              >
+                <span
+                  aria-hidden
+                  className={cn(
+                    'flex h-4 w-4 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border',
+                    marcada
+                      ? 'border-[var(--brand-accent-strong)] bg-[var(--brand-accent-strong)] text-[var(--brand-on-accent)]'
+                      : 'border-[var(--border-input)]',
+                  )}
+                >
+                  {marcada ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
+                </span>
+                <PlatformIcon platform={icone} className="h-4 w-4 shrink-0" />
+                <span className="truncate">{rotuloCurtoConta(conta)}{rotuloFormato}</span>
+                {travada ? <Lock className="h-3 w-3 shrink-0 text-[var(--text-tertiary)]" aria-hidden /> : null}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {formatoBloco}
+    </div>
+  );
+
+  const legendaBloco = (
+    <div className={cn('stack-sm', secoes === 'tudo' && 'border-t border-[var(--border-color)] pt-4')}>
+      {secoes === 'tudo' ? <Text variant="bodyStrong" as="p">Editar legenda</Text> : null}
+
+      {ativa ? (
+        <>
+          <SegmentTabs
+            ariaLabel="Legenda em edição"
+            value={ativa.id}
+            onChange={setAtivaId}
+            options={abas.map(item => {
+              const conta = contaDaRef(item.platformId, contas);
+              const rede = redeDaRef(item.platformId, contas);
+              const noYt = rede === 'youtube'
+                ? formatoNoYoutube({ formatoVisual: conteudo?.formatoVisual ?? null, writingMode: conteudo?.writingMode }, item)
+                : null;
+              const icone = noYt && noYt.formato === 'short' ? 'youtube-shorts' : (conta ? iconeDaConta(conta) : item.platformId);
+              return {
+                id: item.id,
+                label: rotuloDaAba(item),
+                icon: (
+                  <PlatformIcon
+                    platform={icone}
+                    className="h-4 w-4 shrink-0"
+                  />
+                ),
+              };
+            })}
+          />
+
+          <div
+            role="tabpanel"
+            id={`legenda-painel-${contentId || 'novo'}`}
+            aria-label={`Legenda de ${rotuloAtiva}`}
+            className="stack-md pt-2"
+          >
+            {mostraTitulo ? (
+              <label className="block">
+                <Text variant="secondary" as="span" className="mb-1.5 block text-[var(--text-secondary)]">
+                  {`Título no ${rotuloAtiva}`}
+                </Text>
+                <input
+                  value={titulo}
+                  disabled={disabled}
+                  onChange={event => onTituloChange?.(event.target.value)}
+                  className="h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 t-body text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60"
+                />
+              </label>
+            ) : null}
+
+            <div className="stack-xs">
+              <textarea
+                ref={textareaRef}
+                value={texto}
+                disabled={disabled}
+                readOnly={publicada}
+                rows={4}
+                aria-label={`Legenda de ${rotuloAtiva}`}
+                placeholder={`Legenda para ${rotuloAtiva}…`}
+                onChange={event => onChange(editarLegendaDaConta(plataformas, ativa.id, event.target.value, conteudo))}
+                className={cn(
+                  'block min-h-28 w-full resize-none overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-2.5 t-body leading-6 outline-none placeholder:text-[var(--text-tertiary)] focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60',
+                  publicada ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)]',
+                )}
+              />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                {publicada ? (
+                  <Text variant="meta" className="inline-flex items-center gap-1.5">
+                    <Lock className="h-3 w-3" aria-hidden />
+                    {publicadaEm ? `Publicada em ${publicadaEm}. O texto fica preservado.` : 'Publicada. O texto fica preservado.'}
+                  </Text>
+                ) : <span />}
+                {publicada ? null : <TextCount value={texto} limit={limite} />}
+              </div>
+            </div>
+
+            {mostraHashtags ? (
+              <HashtagsField
+                semLista
+                rotulo={rotuloAtiva}
+                hashtags={hashtagsNaLegenda(texto).join(' ')}
+                sugestao={sugestao}
+                limite={limiteHashtagsDaRede(editorial, ativa.platformId, chaveDaRede)}
+                disabled={disabled || publicada}
+                onChange={hashtags => onChange(editarLegendaDaConta(
+                  plataformas,
+                  ativa.id,
+                  adicionarHashtagsAoFim(texto, hashtags.split(/\s+/)),
+                  conteudo,
+                ))}
+              />
+            ) : null}
+
+            <div className="flex flex-wrap items-center gap-2">
+              <AppButton
+                size="sm"
+                variant="secondary"
+                disabled={!texto.trim()}
+                disabledReason="Escreva a legenda desta conta primeiro."
+                aria-label={`Copiar legenda de ${rotuloAtiva}`}
+                leftIcon={copiado ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                onClick={() => void copiar()}
+              >
+                {copiado ? 'Legenda copiada' : 'Copiar legenda'}
+              </AppButton>
+              {abas.length > 1 ? (
+                <AppButton
+                  size="sm"
+                  variant="secondary"
+                  disabled={disabled || Boolean(motivoSemCopia)}
+                  disabledReason={disabled ? undefined : motivoSemCopia}
+                  leftIcon={copiaFeita ? <Check className="h-4 w-4" /> : <CopyPlus className="h-4 w-4" />}
+                  onClick={() => (substituidas.length > 0 ? setConfirmarCopia(true) : usarEmTodas())}
+                >
+                  {copiaFeita ? 'Legenda aplicada' : 'Usar esta legenda em todas'}
+                </AppButton>
+              ) : null}
+            </div>
+          </div>
+        </>
+      ) : contasParaMarcar.length > 0 ? (
+        <Text variant="secondary">Marque uma conta para escrever a legenda.</Text>
+      ) : null}
+    </div>
+  );
+
+  const modais = (
+    <>
       <ConfirmModal
         open={confirmarCopia}
         message={`${juntarNomes(substituidas.map(item => {
@@ -543,6 +549,43 @@ export function PlatformCopyEditor({
         }}
         onCancel={() => setConfirmarDesmarcar(null)}
       />
+    </>
+  );
+
+  if (secoes === 'contas') {
+    return (
+      <>
+        {contasBloco}
+        {modais}
+      </>
+    );
+  }
+
+  if (secoes === 'legenda') {
+    return (
+      <>
+        {legendaBloco}
+        {modais}
+      </>
+    );
+  }
+
+  return (
+    <Surface
+      as="section"
+      variant="outlined"
+      padding="lg"
+      className={cn('bg-[var(--bg-elevated)]', embedded && 'h-full')}
+    >
+      <Text variant="sectionTitle" as="h3">{embedded ? 'Legendas' : 'Preparar distribuição'}</Text>
+      <Text variant="secondary" className="mt-1">Cada conta tem sua própria legenda.</Text>
+
+      <div className="mt-4 stack-lg border-t border-[var(--border-color)] pt-4">
+        {contasBloco}
+        {legendaBloco}
+      </div>
+
+      {modais}
     </Surface>
   );
 }

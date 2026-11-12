@@ -22,6 +22,7 @@ import {
   type FiltrosLista,
 } from './seriesLista.ts';
 import { moverEpisodio } from './ordemEpisodios.ts';
+import { seloDoFluxo, textoDoFormatoDoEpisodio } from './seriesSecoes.ts';
 
 const serie = (id: string, parentId: string | null, name = id) => ({ id, parentId, name } as unknown as Serie);
 const series = [serie('s', null, 'Série'), serie('q1', 's', 'Quadro 1'), serie('q2', 's', 'Quadro 2'), serie('outra', null)];
@@ -119,7 +120,8 @@ assert.equal(textoExibindo(3, 8), 'Exibindo 3 de 8 episódios');
 
 // Escolha lembrada e volta para uma válida.
 assert.equal(resolverAgrupar(undefined, { temQuadros: true, temTemporadas: false }), 'quadro');
-assert.equal(resolverAgrupar(undefined, { temQuadros: false, temTemporadas: true }), 'nenhum');
+assert.equal(resolverAgrupar(undefined, { temQuadros: false, temTemporadas: true }), 'temporada');
+assert.equal(resolverAgrupar(undefined, { temQuadros: true, temTemporadas: true }), 'temporada');
 assert.equal(resolverAgrupar('temporada', { temQuadros: true, temTemporadas: true }), 'temporada');
 assert.equal(resolverAgrupar('temporada', { temQuadros: true, temTemporadas: false }), 'quadro');
 assert.equal(resolverAgrupar('rede', { temQuadros: false, temTemporadas: false }), 'nenhum');
@@ -185,5 +187,19 @@ for (const [i, item] of depois.entries()) {
   assert.deepEqual(resto, original);
 }
 assert.equal(depois[1].updatedAt, '2026-02-01T00:00:00Z');
+
+assert.equal(seloDoFluxo('Ideia'), 'Em Ideia');
+assert.equal(seloDoFluxo('Roteiro'), 'Roteirizado');
+assert.equal(seloDoFluxo('Produção'), 'Gravado');
+assert.equal(seloDoFluxo('Edição'), 'Gravado');
+assert.equal(seloDoFluxo('Publicado'), 'Publicado');
+assert.equal(textoDoFormatoDoEpisodio(
+  { formatoVisual: 'Reels', plataformas: [{ platformId: 'tk', formatoPublicacao: 'reels', status: 'pendente' }] } as unknown as Pick<Content, 'formatoVisual' | 'plataformas'>,
+  [{ id: 'tk', nome: 'TikTok', rede: 'tiktok' }],
+), 'Reels · TikTok');
+assert.equal(textoDoFormatoDoEpisodio(
+  { formatoVisual: null, plataformas: [{ platformId: 'yt', formatoPublicacao: 'video-longo', status: 'pendente' }] } as unknown as Pick<Content, 'formatoVisual' | 'plataformas'>,
+  [{ id: 'yt', nome: 'YouTube', rede: 'youtube' }],
+), 'Vídeo longo · YouTube');
 
 console.log('seriesLista: ok');

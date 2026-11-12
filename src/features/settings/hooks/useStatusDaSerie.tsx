@@ -3,6 +3,7 @@ import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { useAppContext } from '../../../context/AppContext';
 import type { Serie } from '../../../lib/database';
 import { comStatus, statusDaSerie, textoDaAtivacao, type StatusSerie } from '../lib/statusSerie';
+import { ehQuadroNaArvore, unidadesDaRegraDeOuro } from '../../editorial/lib/regraDeOuro';
 
 /**
  * Troca o status da série (rascunho, ativa, arquivada) mantendo `ativa` coerente.
@@ -39,7 +40,12 @@ export function useStatusDaSerie() {
   const modalAtivacao = (
     <ConfirmModal
       open={Boolean(ativando)}
-      message={ativando ? textoDaAtivacao(ativando) : ''}
+      message={ativando
+        ? textoDaAtivacao(ativando, {
+          quadro: ehQuadroNaArvore(ativando.id, state.series),
+          unidades: unidadesDaRegraDeOuro(ativando.id, state.series),
+        })
+        : ''}
       confirmLabel="Ativar"
       cancelLabel="Agora não"
       onConfirm={() => {

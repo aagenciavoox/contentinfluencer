@@ -25,6 +25,7 @@ export type AlvoDaFrequencia = {
   frequenciaVezes?: number | null;
   frequenciaUnidade?: string | null;
   frequenciaAPartirDe?: string | null;
+  frequenciaAncora?: string | null;
 };
 
 /** O que o popover edita: quantidade como texto, período e início. */
@@ -34,14 +35,20 @@ export type RascunhoDaFrequencia = {
   aPartirDe: string;
 };
 
-/** Texto curto da meta, no chip e na Continuidade. */
-export function textoDoChip(alvo: AlvoDaFrequencia): string {
+/**
+ * Texto curto da meta, no chip e na Continuidade. Mostra a meta que conta no plano:
+ * quadro é sempre "Sob demanda"; série e wave, até 1 por semana (Regra de Ouro);
+ * família, uma por série ativa (`unidades`).
+ */
+export function textoDoChip(alvo: AlvoDaFrequencia, opcoes: { quadro?: boolean; unidades?: number } = {}): string {
+  if (opcoes.quadro) return 'Sob demanda';
   const situacao = situacaoDaFrequencia({
     frequenciaRecomendada: alvo.frequenciaRecomendada ?? null,
     frequenciaVezes: alvo.frequenciaVezes ?? null,
     frequenciaUnidade: alvo.frequenciaUnidade ?? null,
     frequenciaAPartirDe: alvo.frequenciaAPartirDe ?? null,
-  });
+    frequenciaAncora: alvo.frequenciaAncora ?? null,
+  }, opcoes.unidades ?? 1);
   if (situacao.tipo === 'definida') return textoFrequencia(situacao.freq);
   if (situacao.tipo === 'sem-ancora') return TEXTO_SEM_ANCORA;
   if (situacao.tipo === 'incompleta') return 'Frequência incompleta';
@@ -61,9 +68,10 @@ export function rascunhoDaFrequencia(alvo: AlvoDaFrequencia): RascunhoDaFrequenc
 export function frequenciaDoRascunho(
   rascunho: RascunhoDaFrequencia,
   tipo: 'serie' | 'quadro',
+  unidadesDaRegra = 1,
 ): ErroDeFrequencia | FrequenciaGravada {
   const vezes = rascunho.vezes.trim() ? Number.parseInt(rascunho.vezes, 10) : null;
-  return frequenciaParaGravar({ vezes, unidade: rascunho.unidade, aPartirDe: rascunho.aPartirDe, tipo });
+  return frequenciaParaGravar({ vezes, unidade: rascunho.unidade, aPartirDe: rascunho.aPartirDe, tipo, unidadesDaRegra });
 }
 
 /** Grava a frequência nos campos da série; o resto da série fica como está. */

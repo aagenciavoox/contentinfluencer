@@ -8,7 +8,7 @@ import {
   Weekday,
 } from '../lib/postingTimes';
 import type {Pilar, Platform, PostingTimeEntry} from '../../../lib/database';
-import {getCrossedPostingTimesForPilar} from '../lib/pilarPostingSchedule';
+import {horariosDaProgramacao} from '../lib/pilarPostingSchedule';
 
 interface PostingTimeSuggestionsProps {
   date: string;
@@ -45,12 +45,8 @@ export function PostingTimeSuggestions({
 
   let times: string[];
   if (postingTimeEntries && pilar) {
-    times = getCrossedPostingTimesForPilar(pilar, postingTimeEntries, platforms, weekday);
-    if (platformId) {
-      const platformTimes = getPostingTimesForPlatform(postingTimeEntries, platformId);
-      const allowed = new Set(getTimesForDay(platformTimes, weekday));
-      times = times.filter(time => allowed.has(time));
-    }
+    // Pilar naquela conta primeiro; sem horário do pilar ali, os horários gerais da conta.
+    times = horariosDaProgramacao({ pilar, postingTimeEntries, platforms, platformId, weekday }).horarios;
   } else if (postingTimeEntries) {
     const settings = getPostingTimesForPlatform(postingTimeEntries, platformId ?? null);
     times = getTimesForDay(settings, weekday);

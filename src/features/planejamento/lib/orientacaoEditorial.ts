@@ -19,7 +19,10 @@ import {contarSerieAgrupada} from '../../editorial/lib/frequenciaAgrupada.ts';
 import {idsDeObras} from './assuntosObras.ts';
 import {itensPendenciaDoDia} from './avisosPendencia.ts';
 import {semanaDe} from '../../editorial/lib/periodoEditorial.ts';
+import {avisoLigado, limiteSaturacaoQuadro, semAvisosDesligados, type AvisosLigados} from '../../editorial/lib/avisosEditoriais.ts';
+import {avaliarFaixa, type IndicadoresProducao} from '../../editorial/lib/indicadoresProducao.ts';
 import {lerFrequencia} from '../../editorial/lib/frequenciaSerie.ts';
+import {ehQuadroNaArvore, unidadesDaRegraDeOuro, vezesNaRegraDeOuro} from '../../editorial/lib/regraDeOuro.ts';
 import {roteirosPorSemana} from '../../settings/lib/statusSerie.ts';
 import type {Continuidade, LinhaContinuidade} from './saudeIndicadores.ts';
 import type {PlanejamentoPostIt} from './postIt.ts';
@@ -41,7 +44,10 @@ export type TipoAvisoOrientacao =
   | 'gravacoes-no-dia'
   | 'capacidade-semana'
   | 'ausencia-12-dias'
-  | 'ausencia-mes';
+  | 'ausencia-mes'
+  | 'videos-dia-abaixo'
+  | 'videos-dia-acima'
+  | 'saturacao-quadro';
 
 /** Avisos da semana corrente, dos próximos dias e do fim do mês: valem para todas as redes, não seguem o filtro. */
 export const TIPOS_AVISO_GLOBAIS: ReadonlySet<TipoAvisoOrientacao> = new Set([
@@ -49,6 +55,8 @@ export const TIPOS_AVISO_GLOBAIS: ReadonlySet<TipoAvisoOrientacao> = new Set([
   'capacidade-semana',
   'ausencia-12-dias',
   'ausencia-mes',
+  'videos-dia-abaixo',
+  'videos-dia-acima',
 ]);
 
 /** Janela fixa do aviso "não aparece nos próximos dias", contando hoje. */
@@ -327,7 +335,9 @@ function avisosDeFrequenciaSerie(
 
   for (const serie of series) {
     if (serie.ativa === false) continue;
-    const nome = serie.name.trim() || 'Quadro';
+    // Quadro é sob demanda: sem meta, não cobra frequência (o aviso dele é o de saturação).
+    if (ehQuadroNaArvore(serie.id, series)) continue;
+    const nome = serie.name.trim() || 'Série';
     // Metas dos quadros somando menos que a da série não é erro: o resto fica para os outros episódios.
     // É configuração, não cobrança, mas só aparece para série acompanhada (decisão da Anne).
     const agrupada = contarSerieAgrupada({serie, series, itens: [], inicio: periodo.inicio, fim: periodo.fim});
@@ -335,7 +345,7 @@ function avisosDeFrequenciaSerie(
       avisos.push({
         id: `serie-recorte:${serie.id}`,
         tipo: 'serie-acima',
-        texto: `${nome}: as metas dos quadros somam ${agrupada.somaRecortesFilhos} e passam da meta da série (${agrupada.expectativa}).`,
+        texto: `${nome}: as metas das séries somam ${agrupada.somaRecortesFilhos} e passam do ritmo da família (${agrupada.expectativa}).`,
         postItIds: [],
         contentIds: [],
         severidade: 'info',
@@ -398,6 +408,55 @@ function avisosDeFrequenciaSerie(
         contentIds: [],
         intervalo: alvos.intervalo,
         severidade: 'info',
+      });
+    }
+  }
+  return avisos;
+}
+
+/**
+ * Saturação de quadro: quadro é sob demanda, sem meta; só tem teto. O mesmo quadro mais vezes
+ * na semana (segunda a domingo) do que o limite (1 ou 2) vira aviso. Conta conteúdos e post-its
+ * do quadro, cada um uma vez; repost não conta. Semanas inteiras que tocam o período.
+ */
+export function avisosDeSaturacaoDeQuadro(
+  itens: readonly ItemDaApuracao[],
+  periodo: PeriodoGrade,
+  series: readonly Pick<Serie, 'id' | 'name' | 'parentId' | 'tipoAgrupamento' | 'ativa' | 'status'>[],
+  limite: number,
+): AvisoOrientacao[] {
+  if (!Number.isFinite(limite) || limite < 1) return [];
+  const quadros = series.filter(serie => serie.ativa !== false && serie.status !== 'rascunho' && ehQuadroNaArvore(serie.id, series));
+  if (quadros.length === 0) return [];
+  const semanas: PeriodoGrade[] = [];
+  let cursor = semanaDe(periodo.inicio);
+  while (cursor.inicio <= periodo.fim && semanas.length < 60) {
+    semanas.push({inicio: cursor.inicio, fim: cursor.fim});
+    cursor = semanaDe(format(addDays(parseISO(cursor.fim), 1), 'yyyy-MM-dd'));
+  }
+  const avisos: AvisoOrientacao[] = [];
+  for (const quadro of quadros) {
+    const nome = quadro.name.trim() || 'Quadro';
+    for (const semana of semanas) {
+      const vistos = new Set<string>();
+      const daSemana: ItemDaApuracao[] = [];
+      for (const item of itens) {
+        if (item.serieId !== quadro.id || item.tipo === 'repost' || !naJanela(item, semana)) continue;
+        const chave = ehReserva(item) ? `reserva:${item.id}` : `conteudo:${item.contentId}`;
+        if (vistos.has(chave)) continue;
+        vistos.add(chave);
+        daSemana.push(item);
+      }
+      if (daSemana.length <= limite) continue;
+      avisos.push({
+        id: `saturacao-quadro:${quadro.id}:${semana.inicio}`,
+        tipo: 'saturacao-quadro',
+        texto: `${nome} aparece ${daSemana.length} vezes na semana de ${format(parseISO(semana.inicio), 'dd/MM')} a ${format(parseISO(semana.fim), 'dd/MM')}; o limite é ${limite} por semana.`,
+        intervalo: semana,
+        alvoId: quadro.id,
+        postItIds: daSemana.flatMap(item => item.postItId ? [item.postItId] : []),
+        contentIds: daSemana.flatMap(item => ehReserva(item) ? [] : [item.contentId]),
+        severidade: 'revisar',
       });
     }
   }
@@ -511,6 +570,60 @@ function avisosDeGravacao(
   return avisos;
 }
 
+/**
+ * Vídeos por dia de gravação (indicador opcional da Rotina de criação), dia a dia.
+ * Só dias com gravação marcada entram; dia em pausa de gravação ou produção fica de fora
+ * (a pausa já tem o aviso dela). Mínimo e máximo avisam; entre eles é progresso.
+ * Lado sem número segue a meta, com o aviso daquele lado.
+ */
+export function avisosDeVideosPorDia(
+  postIts: readonly PlanejamentoPostIt[],
+  contents: readonly Content[],
+  periodo: PeriodoGrade,
+  indicadores: IndicadoresProducao | null | undefined,
+  pausas: readonly PausaEditorial[] = [],
+  avisosLigados: AvisosLigados | null = null,
+): AvisoOrientacao[] {
+  const faixa = indicadores?.videosPorDiaGravacao;
+  if (!faixa) return [];
+  const pausados = new Set(diasDePausa(pausas, {tipo: 'gravacao'}, periodo));
+  const porDia = new Map<string, Content[]>();
+  for (const content of contents) {
+    if (content.deletedAt || content.archivedAt) continue;
+    if (content.recordingDateEnabled === false) continue;
+    const dia = content.recordingDate?.slice(0, 10) ?? null;
+    if (!dia || !noPeriodo(dia, periodo) || pausados.has(dia)) continue;
+    const lista = porDia.get(dia) ?? [];
+    lista.push(content);
+    porDia.set(dia, lista);
+  }
+  const ligados = {
+    abaixo: avisoLigado(avisosLigados, 'videos-dia-abaixo'),
+    acima: avisoLigado(avisosLigados, 'videos-dia-acima'),
+  };
+  const avisos: AvisoOrientacao[] = [];
+  for (const [dia, lista] of [...porDia].sort(([a], [b]) => a.localeCompare(b))) {
+    const leitura = avaliarFaixa(lista.length, faixa, ligados);
+    if (!leitura.aviso) continue;
+    const ids = new Set(lista.map(content => content.id));
+    const quando = format(parseISO(dia), "d 'de' MMMM", {locale: ptBR});
+    const quantos = lista.length === 1 ? '1 vídeo' : `${lista.length} vídeos`;
+    const referencia = leitura.referencia === 'minimo' ? `o mínimo é ${faixa.minimo}`
+      : leitura.referencia === 'maximo' ? `o máximo é ${faixa.maximo}`
+        : `a meta é ${faixa.meta}`;
+    avisos.push({
+      id: `videos-dia:${leitura.aviso}:${dia}`,
+      tipo: leitura.aviso === 'abaixo' ? 'videos-dia-abaixo' : 'videos-dia-acima',
+      texto: `${quando}: ${quantos} na gravação; ${referencia} por dia de gravação.`,
+      intervalo: {inicio: dia, fim: dia},
+      postItIds: postIts.flatMap(postIt => postIt.contentId && ids.has(postIt.contentId) ? [postIt.id] : []),
+      contentIds: [...ids],
+      severidade: leitura.aviso === 'abaixo' ? 'info' : 'revisar',
+    });
+  }
+  return avisos;
+}
+
 type LinhaDaContinuidade = Pick<LinhaContinuidade<{data?: string | null}>, 'chave' | 'serieId' | 'temporadaId' | 'nome' | 'tipo' | 'intervalos' | 'itens' | 'semEpisodios'>;
 type ContinuidadeDosAvisos = Pick<Continuidade<{data?: string | null}>, 'linhas'> & {linhas: LinhaDaContinuidade[]};
 type MetaDaOnda = {id: string; frequenciaVezes?: number | null; frequenciaUnidade?: string | null};
@@ -534,7 +647,7 @@ function linhaAtivaNoTrecho(linha: LinhaDaContinuidade): boolean {
   return linha.intervalos.some(intervalo => !intervalo.pausada);
 }
 
-/** Ritmo por semana da linha, com a mesma conversão do Ajustes (quinzena ÷ 2, mês ÷ 30/7). */
+/** Ritmo por semana da linha, com a mesma conversão do Ajustes (quinzena ÷ 2, mês ÷ 30/7), até o teto da Regra de Ouro. */
 function roteirosDaLinhaPorSemana(
   linha: LinhaDaContinuidade,
   series: readonly Serie[],
@@ -550,7 +663,10 @@ function roteirosDaLinhaPorSemana(
     unidade: onda ? onda.frequenciaUnidade : serie?.frequenciaUnidade,
   });
   if (freq.unidade === 'sob-demanda') return null;
-  return roteirosPorSemana({frequenciaVezes: freq.vezes, frequenciaUnidade: freq.unidade});
+  // Regra de Ouro: série e wave pedem no máximo 1 por semana; família, uma por série ativa dela.
+  const unidades = onda ? 1 : unidadesDaRegraDeOuro(linha.serieId, series);
+  const vezes = vezesNaRegraDeOuro(freq.vezes, freq.unidade, unidades) ?? freq.vezes;
+  return roteirosPorSemana({frequenciaVezes: vezes, frequenciaUnidade: freq.unidade});
 }
 
 function numeroCurto(valor: number): string {
@@ -558,7 +674,7 @@ function numeroCurto(valor: number): string {
 }
 
 /**
- * Semana corrente: soma do ritmo das séries, quadros e waves acompanhados contra o que cabe gravar
+ * Semana corrente: soma do ritmo das séries e waves acompanhadas (quadro é sob demanda e não entra) contra o que cabe gravar
  * (dias de gravação × limite por dia). Sem dias ou sem limite, não há conta e não há aviso.
  */
 export function avisoDeCapacidadeDaSemana(input: {
@@ -667,6 +783,8 @@ export function avisosDeOrientacao({
   continuidadeProxima = null,
   continuidadeDoMes = null,
   mesDaVista = null,
+  avisosLigados = null,
+  indicadoresProducao = null,
 }: {
   postIts: readonly PlanejamentoPostIt[];
   contents: readonly Content[];
@@ -706,6 +824,10 @@ export function avisosDeOrientacao({
   /** Continuidade do mês da vista, para o aviso de fim de mês. */
   continuidadeDoMes?: ContinuidadeDosAvisos | null;
   mesDaVista?: PeriodoGrade | null;
+  /** Editorial › Avisos: tipos desligados não aparecem. Sem nada gravado, todos aparecem. */
+  avisosLigados?: AvisosLigados | null;
+  /** Indicadores opcionais da Rotina de criação. Sem faixa, nenhum aviso deles. */
+  indicadoresProducao?: IndicadoresProducao | null;
 }): AvisoOrientacao[] {
   // Período + 14 dias anteriores (obra em 7 dias) + margem à frente nas bordas.
   const margemInicio = format(addDays(parseISO(periodo.inicio), -14), 'yyyy-MM-dd');
@@ -718,8 +840,10 @@ export function avisosDeOrientacao({
     periodo: {inicio: margemInicio, fim: margemFim},
   });
 
+  const itensDasSeries = ligarPostIts(itensSerie ?? itensDasPautas(pautas), postIts);
+
   // "Quadro em dias seguidos" não avisa sozinho: vira regra opcional do acompanhamento, desligada por padrão.
-  return [
+  return semAvisosDesligados([
     ...avisosDeVespera({
       postIts,
       contents,
@@ -733,13 +857,15 @@ export function avisosDeOrientacao({
       hoje,
     }),
     ...avisosDeGravacao(postIts, contents, periodo, limiteGravacoesDia, pausas),
+    ...avisosDeVideosPorDia(postIts, contents, periodo, indicadoresProducao, pausas, avisosLigados),
     ...avisoDeCapacidadeDaSemana({continuidadeDaSemana, series, ondas: temporadas, diasGravacao, limiteGravacoesDia, hoje}),
     ...avisosDeAusenciaProxima({continuidadeProxima, hoje}),
     ...(mesDaVista ? avisosDeAusenciaNoMes({continuidadeDoMes, mes: mesDaVista, hoje}) : []),
     ...avisosDeObra(pautas, periodo, obras, concentracao, excecoesConcentracao),
     ...avisosDeTema(pautas, periodo, temas, concentracao, excecoesConcentracao),
-    ...avisosDeFrequenciaSerie(ligarPostIts(itensSerie ?? itensDasPautas(pautas), postIts), periodo, series, pausas, temporadas),
-  ];
+    ...avisosDeFrequenciaSerie(itensDasSeries, periodo, series, pausas, temporadas),
+    ...avisosDeSaturacaoDeQuadro(itensDasSeries, periodo, series, limiteSaturacaoQuadro(avisosLigados)),
+  ], avisosLigados);
 }
 
 export function pontosParaRevisar(avisos: readonly AvisoOrientacao[]): number {

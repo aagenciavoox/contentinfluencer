@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Activity, AtSign, Bell, Palette, Plus, SlidersHorizontal, Target, Wrench } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { AtSign, Compass, Palette, Plus, SlidersHorizontal, Target } from 'lucide-react';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { SettingsGridCard, SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/SettingsGridCard';
 import { AppButton } from '../../../components/ui/AppButton';
@@ -18,6 +18,19 @@ import { AvisosEditorialPanel } from './plano/AvisosEditorialPanel';
 import { MetodoCalculoCard } from './plano/MetodoCalculoCard';
 import { ContinuidadePanel } from './plano/ContinuidadePanel';
 import { PeriodoPanel } from './plano/PeriodoPanel';
+import { PerfilEditorialCard } from './plano/PerfilEditorialCard';
+import { IndicadoresDaRotinaCard } from './plano/IndicadoresDaRotinaCard';
+import { PilarEditDrawer } from './plano/PilarEditDrawer';
+import {
+  abaEditorialDaUrl,
+  ancoraDaAbaAntiga,
+  ANCORA_AVISOS,
+  ANCORA_CONTINUIDADE,
+  ANCORA_HASHTAGS,
+  paramsDaAba,
+  ROTULO_DA_ABA,
+  type EditorialAba,
+} from '../lib/abasEditorial';
 import { periodoInicial, type PeriodoSelecionado } from './plano/PeriodoEditorialControl';
 import { lerPeriodoSalvo } from '../lib/periodoEditorial';
 import { pilarHerdadoDaSerie } from '../lib/herancaSerie';
@@ -33,25 +46,15 @@ function nomeChave(nome: string): string {
   return nome.trim().toLocaleLowerCase('pt-BR');
 }
 
-export type EditorialAba = 'plano' | 'continuidade' | 'pilares' | 'ajustes' | 'contas' | 'avisos' | 'operacional';
+export { abaEditorialDaUrl, type EditorialAba };
 
-/** Ordem de configuração: capacidade → objetivos e pilares → contas → séries e waves → plano do período → avisos → operacional. */
-const EDITORIAL_ABAS: readonly EditorialAba[] = ['ajustes', 'pilares', 'contas', 'continuidade', 'plano', 'avisos', 'operacional'];
-
-/** Lê `?aba=` da URL; os ids antigos continuam valendo e qualquer valor desconhecido cai em Capacidade e regras. */
-export function abaEditorialDaUrl(valor: string | null): EditorialAba {
-  return (EDITORIAL_ABAS as readonly string[]).includes(valor ?? '') ? (valor as EditorialAba) : 'ajustes';
-}
-
+/** Ordem em `EDITORIAL_ABAS` (lib/abasEditorial). */
 export function opcoesAbasEditorial(): SegmentTabOption<EditorialAba>[] {
   return [
-    { id: 'ajustes', label: 'Capacidade e regras', icon: <SlidersHorizontal className="h-4 w-4" /> },
-    { id: 'pilares', label: 'Pilares', icon: <Palette className="h-4 w-4" /> },
-    { id: 'contas', label: 'Contas e formatos', icon: <AtSign className="h-4 w-4" /> },
-    { id: 'continuidade', label: 'Séries e waves', icon: <Activity className="h-4 w-4" /> },
-    { id: 'plano', label: 'Plano do período', icon: <Target className="h-4 w-4" /> },
-    { id: 'avisos', label: 'Avisos', icon: <Bell className="h-4 w-4" /> },
-    { id: 'operacional', label: 'Operacional', icon: <Wrench className="h-4 w-4" /> },
+    { id: 'plano', label: ROTULO_DA_ABA.plano, icon: <Target className="h-4 w-4" /> },
+    { id: 'direcao', label: ROTULO_DA_ABA.direcao, icon: <Compass className="h-4 w-4" /> },
+    { id: 'ajustes', label: ROTULO_DA_ABA.ajustes, icon: <SlidersHorizontal className="h-4 w-4" /> },
+    { id: 'contas', label: ROTULO_DA_ABA.contas, icon: <AtSign className="h-4 w-4" /> },
   ];
 }
 
@@ -59,15 +62,31 @@ interface DirecaoEditorialPanelProps {
   abaAtiva?: EditorialAba;
 }
 
-/** Direção editorial: pilares com séries ligadas e ritmo. */
+function rolarAte(id: string) {
+  window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+}
+
+/**
+ * Conteúdo das 4 abas do Editorial.
+ * Plano do período inclui a Continuidade; Direção editorial inclui as hashtags fora das séries;
+ * Rotina de criação inclui os Avisos.
+ */
 export function DirecaoEditorialPanel({ abaAtiva: abaAtivaProp }: DirecaoEditorialPanelProps = {}) {
   const { state, dispatch } = useAppContext();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const abaParam = searchParams.get('aba');
   const abaAtiva: EditorialAba = abaAtivaProp ?? abaEditorialDaUrl(abaParam);
+  const location = useLocation();
+  // Bloco que antes era aba própria (#continuidade, #avisos, #hashtags ou id antigo em ?aba=).
+  const ancora = location.hash.replace(/^#/, '') || ancoraDaAbaAntiga(abaParam);
+  useEffect(() => {
+    if (ancora) rolarAte(ancora);
+  }, [ancora, abaAtiva]);
 
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
+  // Pilar aberto na gaveta (id, 'nova' para criar, null fechado).
+  const [pilarAberto, setPilarAberto] = useState<string | null>(null);
   // O mesmo período salvo que o Planejamento usa: as metas ficam presas ao início e fim exatos.
   const periodo = useMemo(
     () => (state.editorialVisao ? lerPeriodoSalvo(state.editorialVisao) : null) ?? periodoInicial(),
@@ -82,12 +101,7 @@ export function DirecaoEditorialPanel({ abaAtiva: abaAtivaProp }: DirecaoEditori
   const abaOptions = opcoesAbasEditorial();
 
   const handleAbaChange = (novaAba: EditorialAba) => {
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      if (novaAba === 'ajustes') next.delete('aba');
-      else next.set('aba', novaAba);
-      return next;
-    });
+    setSearchParams(prev => paramsDaAba(prev, novaAba), { replace: true });
   };
 
   const nomesRepetidos = useMemo(() => {
@@ -138,29 +152,37 @@ export function DirecaoEditorialPanel({ abaAtiva: abaAtivaProp }: DirecaoEditori
       ) : null}
 
       {/* O mesmo painel do "Prioridade e metas" do Planejamento: mesmos campos, mesmo editor. */}
+      {/* Plano: respiro fixo de --space-2xl (32px no desktop) entre o bloco de cima e a Continuidade. */}
       {abaAtiva === 'plano' && (
-        <PeriodoPanel
-          periodo={periodo}
-          onPeriodoChange={salvarPeriodo}
-          onAbrirAjustes={() => handleAbaChange('ajustes')}
-          planoRecolhivel={false}
-        />
+        <div className="stack-2xl">
+          <PeriodoPanel
+            periodo={periodo}
+            onPeriodoChange={salvarPeriodo}
+            onAbrirAjustes={() => handleAbaChange('ajustes')}
+            planoRecolhivel={false}
+            semListasDoPeriodo
+          />
+          <div id={ANCORA_CONTINUIDADE} className="scroll-mt-24">
+            <ContinuidadePanel periodo={periodo} />
+          </div>
+        </div>
       )}
 
-      {abaAtiva === 'continuidade' && <ContinuidadePanel />}
+      {/* Direção editorial: perfil, distribuição por objetivo, pilares e hashtags fora das séries. */}
+      {abaAtiva === 'direcao' && <PerfilEditorialCard />}
 
-      {abaAtiva === 'pilares' && <AjustesEditorialPanel secao="proporcao" />}
+      {abaAtiva === 'direcao' && <AjustesEditorialPanel secao="proporcao" />}
 
-      {abaAtiva === 'pilares' && (
+      {abaAtiva === 'direcao' && (
         <Section title="Pilares">
           {pilares.length === 0 ? (
             <EmptyState
               icon={<Palette className="h-8 w-8" />}
-              title="Nenhum pilar cadastrado"
-              description="Adicione o primeiro pilar para organizar os temas editoriais."
+              title="Nenhum pilar ainda"
+              description="Um pilar junta as séries que falam do mesmo assunto."
               action={(
-                <AppButton variant="secondary" leftIcon={<Plus className="h-4 w-4" />} onClick={() => navigate('/editorial/pilares/nova')}>
-                  Novo pilar
+                <AppButton variant="secondary" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setPilarAberto('nova')}>
+                  Adicionar pilar
                 </AppButton>
               )}
             />
@@ -179,8 +201,8 @@ export function DirecaoEditorialPanel({ abaAtiva: abaAtivaProp }: DirecaoEditori
                     inactiveLabel="Inativo"
                     dimmed={!pilar.ativo}
                     onToggle={() => dispatch({ type: 'UPDATE_PILAR', payload: { ...pilar, ativo: !pilar.ativo } })}
-                    onOpen={() => navigate(`/editorial/pilares/${pilar.id}`)}
-                    onEdit={() => navigate(`/editorial/pilares/${pilar.id}`)}
+                    onOpen={() => setPilarAberto(pilar.id)}
+                    onEdit={() => setPilarAberto(pilar.id)}
                     editLabel="Editar definições"
                     onDelete={() => remove(pilar)}
                     meta={linhaDeSeries(ligadas)}
@@ -193,30 +215,30 @@ export function DirecaoEditorialPanel({ abaAtiva: abaAtivaProp }: DirecaoEditori
         </Section>
       )}
 
+      {abaAtiva === 'direcao' && (
+        <div id={ANCORA_HASHTAGS} className="scroll-mt-24">
+          <AjustesEditorialPanel secao="operacional" />
+        </div>
+      )}
+
+      {/* Rotina de criação: capacidade, método de cálculo e teto, e logo abaixo os avisos. */}
+      {/* Duas colunas: capacidade e indicadores à esquerda, avisos à direita (uma coluna no celular). */}
       {abaAtiva === 'ajustes' && (
-        <div id="ritmo-editorial" className="stack-lg">
-          <AjustesEditorialPanel />
-          <MetodoCalculoCard periodo={periodo} />
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
+          <div id="ritmo-editorial" className="min-w-0 stack-lg">
+            <AjustesEditorialPanel />
+            <MetodoCalculoCard periodo={periodo} />
+            <IndicadoresDaRotinaCard />
+          </div>
+          <div id={ANCORA_AVISOS} className="min-w-0 scroll-mt-24">
+            <AvisosEditorialPanel onAbrirCapacidade={() => rolarAte('dias-de-gravacao')} />
+          </div>
         </div>
       )}
 
-      {abaAtiva === 'contas' && (
-        <div className="stack-lg">
-          <AjustesEditorialPanel secao="contas" />
-          <ContasHorariosPanel />
-        </div>
-      )}
+      {abaAtiva === 'contas' && <ContasHorariosPanel />}
 
-      {abaAtiva === 'avisos' && (
-        <AvisosEditorialPanel
-          onAbrirCapacidade={() => {
-            handleAbaChange('ajustes');
-            window.setTimeout(() => document.getElementById('dias-de-gravacao')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
-          }}
-        />
-      )}
-
-      {abaAtiva === 'operacional' && <AjustesEditorialPanel secao="operacional" />}
+      <PilarEditDrawer pilarId={pilarAberto} onClose={() => setPilarAberto(null)} />
 
       <ConfirmModal
         open={Boolean(confirm)}

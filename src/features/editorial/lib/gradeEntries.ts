@@ -29,6 +29,22 @@ export type GradeEntry = {
   postItId?: string | null;
   /** Temporada do episódio, quando o conteúdo está numa wave. */
   temporadaId?: string | null;
+  /**
+   * Publicações deste ciclo, uma por conta, com a data de cada uma. Só a contagem "Por publicação"
+   * lê isto; vazio ou ausente, o ciclo vale 1.
+   */
+  publicacoes?: PublicacaoDaEntrada[];
+};
+
+/** Uma publicação do ciclo numa conta. Não publicada e removida ficam fora. */
+export type PublicacaoDaEntrada = {
+  platformId: string;
+  /** yyyy-MM-dd: o dia em que saiu, quando publicada; senão, o dia previsto. */
+  data: string | null;
+  realizada: boolean;
+  /** Desligada à mão na publicação: fica fora da meta. */
+  contaNaGrade: boolean;
+  etapa: Etapa;
 };
 
 /** A rede de referência vem das preferências. O espelho do topo continua valendo. */
@@ -72,6 +88,23 @@ function horaDe(value: string | null | undefined): string | null {
 }
 
 export type Quando = { date: string | null; time: string | null };
+
+/** Uma linha de content_plataformas vira publicação da entrada, com a data no fuso local. */
+function publicacaoDaEntrada(publicacao: ContentPlataforma, etapaDoConteudo: Etapa): PublicacaoDaEntrada {
+  const realizada = publicacao.status === 'publicada';
+  const real = realizada ? quandoLocal(dataRealizada(publicacao)) : null;
+  return {
+    platformId: publicacao.platformId,
+    data: real?.date ?? dia(publicacao.publishDate),
+    realizada,
+    contaNaGrade: publicacao.contaNaGrade !== false,
+    etapa: realizada ? 'postado' : etapaDoConteudo,
+  };
+}
+
+function publicacaoValida(publicacao: ContentPlataforma): boolean {
+  return publicacao.status !== 'nao_publicada' && publicacao.status !== 'removida';
+}
 
 function pad2(value: number): string {
   return String(value).padStart(2, '0');
@@ -181,6 +214,9 @@ export function buildGradeEntries({
       realizadaEm: realizadaEmOriginal,
       etapa,
       ...(content.temporadaId ? { temporadaId: content.temporadaId } : {}),
+      publicacoes: (content.plataformas ?? [])
+        .filter(publicacao => cicloDaPublicacao(publicacao) < 2 && publicacaoValida(publicacao))
+        .map(publicacao => publicacaoDaEntrada(publicacao, etapaDoStatus(content.status))),
     });
 
     const publicacoes = content.plataformas ?? [];
@@ -223,6 +259,7 @@ export function buildGradeEntries({
         realizada: publicada,
         realizadaEm: realizadaEmRepost,
         etapa: publicada ? 'postado' : etapa,
+        publicacoes: lista.map(publicacao => publicacaoDaEntrada(publicacao, etapaDoStatus(content.status))),
       });
     }
   }

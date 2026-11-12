@@ -1023,7 +1023,7 @@ export function SaudeEditorialPanel({
                     </Text>
                     <button
                       type="button"
-                      onClick={() => navigate('/editorial?aba=continuidade')}
+                      onClick={() => navigate('/editorial#continuidade')}
                       className="w-fit text-left text-[var(--brand-accent-text)] hover:underline focus-visible:outline-none"
                     >
                       <Text variant="meta" as="span" className="text-[var(--brand-accent-text)]">
@@ -1116,7 +1116,7 @@ export function SaudeEditorialPanel({
                               onClick={event => {
                                 event.stopPropagation();
                                 const alvo = linha.temporadaId ? `t:${linha.temporadaId}` : `s:${linha.serieId}`;
-                                navigate(`/editorial?aba=continuidade&editar=${encodeURIComponent(alvo)}`);
+                                navigate(`/editorial?editar=${encodeURIComponent(alvo)}`);
                               }}
                               className="text-[var(--brand-accent-text)] hover:underline inline-flex items-center gap-1 focus-visible:outline-none"
                             >
@@ -1284,7 +1284,7 @@ export function SaudeEditorialPanel({
                             <li key={linha.id}>
                               <button
                                 type="button"
-                                onClick={() => navigate(`/editorial?aba=continuidade&editar=${encodeURIComponent(`s:${linha.serieId}`)}`)}
+                                onClick={() => navigate(`/editorial?editar=${encodeURIComponent(`s:${linha.serieId}`)}`)}
                                 className="w-full text-left rounded-[var(--radius-sm)] hover:underline focus-visible:outline-none"
                               >
                                 <Text variant="body" as="span" className="block text-[var(--text-primary)]">
@@ -1317,7 +1317,7 @@ export function SaudeEditorialPanel({
                                 type="button"
                                 onClick={() => {
                                   const alvo = pendencia.temporadaId ? `t:${pendencia.temporadaId}` : `s:${pendencia.serieId}`;
-                                  navigate(`/editorial?aba=continuidade&editar=${encodeURIComponent(alvo)}`);
+                                  navigate(`/editorial?editar=${encodeURIComponent(alvo)}`);
                                 }}
                                 className="w-full text-left rounded-[var(--radius-sm)] hover:underline focus-visible:outline-none"
                               >
@@ -1417,11 +1417,11 @@ export function SaudeEditorialPanel({
                     {!objetivos.temProporcao ? (
                       <button
                         type="button"
-                        onClick={() => navigate('/editorial?aba=pilares')}
+                        onClick={() => navigate('/editorial?aba=direcao')}
                         className="w-fit text-left text-[var(--brand-accent-text)] hover:underline focus-visible:outline-none"
                       >
                         <Text variant="meta" as="span" className="text-[var(--brand-accent-text)]">
-                          Definir a proporção desejada no Editorial ›
+                          Definir a distribuição no Editorial ›
                         </Text>
                       </button>
                     ) : null}

@@ -42,11 +42,13 @@ export function avisosDeConcentracaoNoPlano(input: ContextoDaConcentracao & Plan
     sequenciaPorConteudo: input.settings.concentracao.contarSequencia ? mapaSequenciaPorConteudo(input.contents) : {},
     concentracao: input.settings.concentracao,
     excecoesConcentracao: input.settings.excecoesConcentracao,
+    avisosLigados: input.settings.avisos,
   }).filter(ehConcentracao);
 }
 
+/** Obra, assunto e saturação de quadro: o que avisa na hora de colocar uma pauta. */
 function ehConcentracao(aviso: AvisoOrientacao): boolean {
-  return aviso.tipo === 'obra-repetida' || aviso.tipo === 'tema-concentrado';
+  return aviso.tipo === 'obra-repetida' || aviso.tipo === 'tema-concentrado' || aviso.tipo === 'saturacao-quadro';
 }
 
 function chaveDoAviso(aviso: AvisoOrientacao): string {

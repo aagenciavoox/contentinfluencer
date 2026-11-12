@@ -1,6 +1,7 @@
 import { inteiroNaoNegativo } from '../../../lib/inteiro.ts';
 import { chaveDoEscopo } from './acompanhamento.ts';
 import { frequenciaParaGravar, MAX_VEZES_DA_META } from './metaDaOnda.ts';
+import { erroDaRegraDeOuro } from './regraDeOuro.ts';
 
 /** Um campo que impede salvar a meta da série ou da wave. `id` é o controle que recebe o foco. */
 export type ErroDaMeta = { id: string; mensagem: string };
@@ -38,13 +39,16 @@ function terminoAntes(janela: Janela): boolean {
 
 /**
  * Tudo o que falta para gravar a meta, de uma vez. A quantidade vazia não é erro:
- * ela tira a meta. A data de início só é obrigatória no ciclo de 14 dias.
+ * ela tira a meta. A data de início é opcional: sem ela, o ciclo de 14 dias começa na segunda
+ * da semana em que a meta foi ativada.
  */
 export function errosDaMeta(input: {
   vezes: string;
   unidade: string;
   inicio: string;
   tipo: 'serie' | 'quadro' | 'temporada';
+  /** Regra de Ouro: 1 na série e na wave; na família, uma vaga por série ativa. */
+  unidadesDaRegra?: number;
   janelaOnda?: Janela | null;
   janelaGeral?: Janela | null;
   linhas?: readonly LinhaValidada[];
@@ -60,6 +64,7 @@ export function errosDaMeta(input: {
     unidade: input.unidade,
     aPartirDe: input.inicio,
     tipo: input.tipo,
+    unidadesDaRegra: input.unidadesDaRegra,
   });
   if ('erro' in frequencia) {
     erros.push({
@@ -116,12 +121,10 @@ export function errosDaMeta(input: {
         id: idDoEscopo(linha.id, 'meta-vezes'),
         mensagem: `Em ${linha.rotulo}, a quantidade máxima da meta é ${MAX_VEZES_DA_META}.`,
       });
-    }
-    if (Number.isFinite(quantidade) && quantidade > 0 && quantidade <= MAX_VEZES_DA_META && linha.metaUnidade === 'quinzena' && !linha.metaAPartirDe) {
-      erros.push({
-        id: idDoEscopo(linha.id, 'meta-inicio'),
-        mensagem: `Em ${linha.rotulo}, a meta a cada 14 dias precisa da data de início dos ciclos.`,
-      });
+    } else {
+      // Regra de Ouro também na meta da série numa conta ou num formato.
+      const regraDeOuro = Number.isFinite(quantidade) ? erroDaRegraDeOuro(quantidade, linha.metaUnidade, input.unidadesDaRegra ?? 1) : null;
+      if (regraDeOuro) erros.push({ id: idDoEscopo(linha.id, 'meta-vezes'), mensagem: `Em ${linha.rotulo}: ${regraDeOuro}` });
     }
   }
   return erros;

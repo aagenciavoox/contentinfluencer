@@ -181,8 +181,12 @@ function continuidadeNo(trecho: {inicio: string; fim: string}, series: Serie[], 
 }
 
 function testCapacidadeDaSemana() {
-  const series = [serieAcompanhada('a', 'Descomplicando', 3), serieAcompanhada('b', 'Cosmere', 2)];
+  // Regra de ouro: cada série pede no máximo 1 por semana; 5 séries pedem 5.
+  const series = ['a', 'b', 'c', 'd', 'e'].map(id => serieAcompanhada(id, `Série ${id}`, 1));
   const semana = continuidadeNo(semanaCorrente(HOJE), series);
+  // Ritmo gravado acima de 1 por semana não aumenta o pedido da semana.
+  const acima = [serieAcompanhada('a', 'Descomplicando', 3), serieAcompanhada('b', 'Cosmere', 2)];
+  assert.equal(avisos({series: acima, continuidadeDaSemana: continuidadeNo(semanaCorrente(HOJE), acima), diasGravacao: [2], limiteGravacoesDia: 2}).some(item => item.tipo === 'capacidade-semana'), false);
   assert.deepEqual(semanaCorrente(HOJE), {inicio: '2026-10-26', fim: '2026-11-01'});
   const lista = avisos({series, continuidadeDaSemana: semana, diasGravacao: [2, 4], limiteGravacoesDia: 2});
   const aviso = lista.find(item => item.tipo === 'capacidade-semana');
@@ -200,8 +204,8 @@ function testCapacidadeDaSemana() {
 }
 
 function testCapacidadeConverteMetaMensal() {
-  // 8 por mês vira 8 ÷ (30/7) por semana, como no Ajustes; com 3 por semana passa de 4.
-  const series = [serieAcompanhada('a', 'Descomplicando', 3), serieAcompanhada('m', 'Mensal', 8, 'mes')];
+  // 4 por mês vira 4 ÷ (30/7) por semana, como no Ajustes; com 4 séries semanais passa de 4.
+  const series = [...['a', 'b', 'c', 'd'].map(id => serieAcompanhada(id, `Série ${id}`, 1)), serieAcompanhada('m', 'Mensal', 4, 'mes')];
   const semana = continuidadeNo(semanaCorrente(HOJE), series);
   const aviso = avisos({series, continuidadeDaSemana: semana, diasGravacao: [2, 4], limiteGravacoesDia: 2}).find(item => item.tipo === 'capacidade-semana');
   assert.ok(aviso);

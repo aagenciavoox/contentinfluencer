@@ -9,7 +9,7 @@ import type { AppDataDomain } from '../../../lib/database';
 import { atualizarPreferencias } from '../../editorial/lib/editorialSettings';
 import { getSerieOpenItems } from '../../editorial/lib/serieCompleteness';
 import type { SerieCreateModalTarget } from '../components/SerieCreateModal';
-import { TIPOS_AGRUPAMENTO, TIPO_AGRUPAMENTO_PLURAL, tipoDaSerie } from '../lib/serieAgrupamento';
+import { TIPO_AGRUPAMENTO_PLURAL, tipoDaSerie } from '../lib/serieAgrupamento';
 import { rotaParaCriarFilho } from '../lib/serieHierarquia';
 import { useStatusDaSerie } from './useStatusDaSerie';
 import {
@@ -28,7 +28,7 @@ function validarFiltros(valor: unknown): FiltrosLista | null {
   const bruto = valor as Partial<FiltrosLista>;
   return {
     busca: typeof bruto.busca === 'string' ? bruto.busca : '',
-    tipo: bruto.tipo === 'familia' || bruto.tipo === 'serie' ? bruto.tipo : 'todos',
+    tipo: bruto.tipo === 'familia' || bruto.tipo === 'serie' || bruto.tipo === 'quadro' ? bruto.tipo : 'todos',
     pilar: typeof bruto.pilar === 'string' && bruto.pilar ? bruto.pilar : 'todos',
     situacao: bruto.situacao === 'inativas' || bruto.situacao === 'rascunho' || bruto.situacao === 'todas' || bruto.situacao === 'abertas'
       ? bruto.situacao
@@ -37,16 +37,11 @@ function validarFiltros(valor: unknown): FiltrosLista | null {
   };
 }
 
-function validarLista(valor: unknown): string[] | null {
-  return Array.isArray(valor) ? valor.filter((item): item is string => typeof item === 'string') : null;
-}
-
 /** Regras da lista de séries, compartilhadas pela tela do computador e a do celular. */
 export function useSeriesLista(onAbrirModalCriacao?: (target: SerieCreateModalTarget) => void) {
   const { state, dispatch, domainStatus, ensureDataDomains } = useAppContext();
   const navigate = useNavigate();
   const [filtrosSalvos, setFiltros] = useSessionState<FiltrosLista>('criaki:series:lista', FILTROS_LISTA_PADRAO, validarFiltros);
-  const [familiasFechadas, setFamiliasFechadas] = useSessionState<string[]>('criaki:series:familias-fechadas', [], validarLista);
   const avisos = state.editorial.openInfoNotices;
 
   const filtros: FiltrosLista = !avisos && filtrosSalvos.situacao === 'abertas'
@@ -94,12 +89,6 @@ export function useSeriesLista(onAbrirModalCriacao?: (target: SerieCreateModalTa
     setFiltros(atual => ({ ...FILTROS_LISTA_PADRAO, vista: atual.vista }));
   }, [setFiltros]);
 
-  const alternarFamilia = useCallback((familiaId: string) => {
-    setFamiliasFechadas(atual => (atual.includes(familiaId)
-      ? atual.filter(id => id !== familiaId)
-      : [...atual, familiaId]));
-  }, [setFamiliasFechadas]);
-
   const { alternarAtiva, mudarStatus, modalAtivacao } = useStatusDaSerie();
 
   const acoes = useMemo(() => ({
@@ -127,10 +116,10 @@ export function useSeriesLista(onAbrirModalCriacao?: (target: SerieCreateModalTa
     },
   }), [alternarAtiva, mudarStatus, navigate, onAbrirModalCriacao, state.series]);
 
+  // Todos = séries e quadros. A família segue alcançável pelo filtro dela.
   const opcoesTipo = [
     { value: 'todos', label: 'Todos' },
-    ...TIPOS_AGRUPAMENTO
-      .filter(tipo => tipo !== 'quadro')
+    ...(['serie', 'quadro', 'familia'] as const)
       .map(tipo => ({ value: tipo, label: TIPO_AGRUPAMENTO_PLURAL[tipo] })),
   ];
   const pilaresUsados = new Set([...lista.itens.values()].map(item => item.pilar.pilarId).filter(Boolean));
@@ -180,8 +169,6 @@ export function useSeriesLista(onAbrirModalCriacao?: (target: SerieCreateModalTa
     filtrosAtivos: filtrosDaListaAtivos(filtros),
     atualizarFiltro,
     limparFiltros,
-    familiaAberta: (familiaId: string) => !familiasFechadas.includes(familiaId),
-    alternarFamilia,
     emAberto: (serieId: string) => avisos && (abertos.get(serieId)?.length ?? 0) > 0,
     pilarNome,
     acoes,

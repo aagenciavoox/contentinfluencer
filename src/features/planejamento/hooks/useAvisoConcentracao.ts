@@ -24,9 +24,11 @@ export function useAvisoConcentracao(periodo: {inicio: string; fim: string}, fil
     platforms: state.platforms, settings: state.editorial,
   }, commit, avisos => {
     // Um único toast para toda a seleção; permanece até dispensar, para dar tempo de ler.
+    // Saturação de quadro não tem exceção: sem obra ou assunto no aviso, não há "Foi de propósito".
+    const temExcecao = avisos.some(aviso => excecaoFoiDeProposito(aviso, 'teste') != null);
     notifySaveFeedback({status: 'info', message: 'Para lembrar', detail: avisos.map(aviso => aviso.texto).join(' '), persistent: true,
-      undoLabel: 'Foi de propósito',
-      onUndo: () => {
+      undoLabel: temExcecao ? 'Foi de propósito' : undefined,
+      onUndo: temExcecao ? () => {
         const novas = avisos.flatMap(aviso => {
           const excecao = excecaoFoiDeProposito(aviso, generateUUID());
           return excecao ? [excecao] : [];
@@ -36,7 +38,7 @@ export function useAvisoConcentracao(periodo: {inicio: string; fim: string}, fil
         const payload = {...editorial, excecoesConcentracao: [...(editorial.excecoesConcentracao ?? []), ...novas]};
         editorialAtual.current = payload;
         dispatch({type: 'SET_EDITORIAL', payload});
-      },
+      } : undefined,
     });
   });
 }

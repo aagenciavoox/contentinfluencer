@@ -82,7 +82,10 @@ type PilarFormState = Pick<
   | 'cor'
   | 'ativo'
   | 'plataformas'
->;
+> & {
+  /** Legenda-base do pilar: ponto de partida da legenda dos conteúdos dele. */
+  legendaBase: string;
+};
 
 function SeriePickerMenu({
   series,
@@ -121,7 +124,10 @@ export function PilarEditForm({
   onCancel,
   onChromeChange,
   lastEditLabel = null,
+  compacto = false,
 }: {
+  /** Gaveta estreita (~560px): uma coluna só. */
+  compacto?: boolean;
   initial: Partial<Pilar>;
   platformNames: string[];
   series: Serie[];
@@ -157,6 +163,7 @@ export function PilarEditForm({
       cor: initial.cor || PILAR_DEFAULT_COR,
       ativo: initial.ativo ?? true,
       plataformas: normalizePlataformas(initial.plataformas),
+      legendaBase: initial.legendaBase ?? '',
     },
     linkedSerieIds: [...initialLinkedSerieIds],
   });
@@ -229,6 +236,7 @@ export function PilarEditForm({
     if (form.nome !== snap.form.nome) return true;
     if (form.descricao !== snap.form.descricao) return true;
     if (form.cor !== snap.form.cor) return true;
+    if (form.legendaBase !== snap.form.legendaBase) return true;
     if (JSON.stringify(form.plataformas) !== JSON.stringify(snap.form.plataformas)) return true;
     if (linkedSerieIds.length !== snap.linkedSerieIds.length) return true;
     return linkedSerieIds.some((id, index) => id !== snap.linkedSerieIds[index]);
@@ -289,6 +297,7 @@ export function PilarEditForm({
         descricao: form.descricao.trim(),
         cor: form.cor,
         ativo: form.ativo,
+        legendaBase: form.legendaBase.trim() ? form.legendaBase : null,
         plataformas: [
           ...platformNames.map(platformId => form.plataformas.find(item => item.platformId === platformId)),
           // Contas inativas não aparecem nas abas, mas o que já estava guardado nelas fica.
@@ -350,7 +359,7 @@ export function PilarEditForm({
         />
       </Surface>
 
-      <div className="grid w-full grid-cols-1 items-start gap-3 lg:grid-cols-[minmax(0,1.7fr)_minmax(280px,0.95fr)]">
+      <div className={cn('grid w-full grid-cols-1 items-start gap-3', !compacto && 'lg:grid-cols-[minmax(0,1.7fr)_minmax(280px,0.95fr)]')}>
         <div className="flex min-w-0 flex-col gap-3">
           <SettingsSectionCard padding="md" 
               title="Identidade"
@@ -378,6 +387,20 @@ export function PilarEditForm({
                   className={cn(inputClass, 'min-h-[88px] resize-y leading-relaxed')}
                 />
                 <TextCount value={form.descricao} limit={PILAR_DESCRICAO_MAX} />
+              </div>
+              <div className="stack-sm">
+                <FieldLabel>Legenda-base</FieldLabel>
+                <textarea
+                  aria-label="Legenda-base do pilar"
+                  value={form.legendaBase}
+                  onChange={event => setForm(previous => ({...previous, legendaBase: event.target.value}))}
+                  rows={3}
+                  placeholder="Texto de partida para a legenda dos conteúdos deste pilar."
+                  className={cn(inputClass, 'min-h-[88px] resize-y leading-relaxed')}
+                />
+                <Text variant="meta" className="text-[var(--text-secondary)]">
+                  Opcional. Referência de legenda para os conteúdos deste pilar.
+                </Text>
               </div>
               <div className="stack-sm">
                 <FieldLabel>Cor do pilar</FieldLabel>
@@ -510,7 +533,7 @@ export function PilarEditForm({
           </SettingsSectionCard>
         </div>
 
-        <aside className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-24 lg:self-start">
+        <aside className={cn('flex min-w-0 flex-col gap-3', !compacto && 'lg:sticky lg:top-24 lg:self-start')}>
           <SettingsSectionCard padding="md" 
               title="Séries vinculadas"
               description="Vincular aqui muda o pilar principal da série."

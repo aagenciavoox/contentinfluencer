@@ -4,12 +4,13 @@ import { complementoDoPeriodo, type UnidadeDaMeta } from './metaDaOnda.ts';
 import { blocoQueContem, blocosNoIntervalo, lerFrequencia, mesesDoBloco, type FrequenciaSerie } from './frequenciaSerie.ts';
 import { semanaDe, semanasNoIntervalo } from './periodoEditorial.ts';
 import { idsDaSubarvore } from './serieArvore.ts';
+import { ehQuadroNaArvore, quadrosDaSubarvore, unidadesDaRegraDeOuro, vezesNaRegraDeOuro } from './regraDeOuro.ts';
 
 /**
  * Apuração de uma série (ou quadro) num período: a mesma conta para o Editorial,
  * o painel do Planejamento, os avisos e a Continuidade da Saúde.
  *
- * - Episódio é o conteúdo da série ou de um quadro dela, contado uma vez.
+ * - Episódio é o conteúdo da série, contado uma vez. Quadro é sob demanda: fica fora da meta.
  * - Repost não é episódio novo: fica fora desta apuração.
  * - Post-it sem conteúdo é reserva provisória, nunca episódio.
  * - A frequência é conferida janela a janela (semana, ciclo de 14 dias, mês e blocos
@@ -38,7 +39,7 @@ export type ItemDaApuracao = {
 export type SerieDaApuracao = Pick<
   Serie,
   'id' | 'name' | 'parentId' | 'frequenciaRecomendada' | 'frequenciaVezes' | 'frequenciaUnidade' | 'frequenciaAPartirDe'
-> & Partial<Pick<Serie, 'tipoAgrupamento' | 'ativa' | 'status' | 'acompanharContinuidade' | 'acompanhamentos'>>;
+> & Partial<Pick<Serie, 'tipoAgrupamento' | 'ativa' | 'status' | 'acompanharContinuidade' | 'acompanhamentos' | 'frequenciaAncora'>>;
 
 export type FrequenciaDefinida = FrequenciaSerie & { unidade: UnidadeDaMeta };
 
@@ -64,7 +65,11 @@ const UNIDADES = new Set([
  * número sem unidade é "incompleta"; nada cadastrado é "sem frequência";
  * ciclo de 14 dias sem data de início é "sem âncora" (não dá para saber onde cada ciclo começa).
  */
-export function situacaoDaFrequencia(serie: Pick<SerieDaApuracao, 'frequenciaRecomendada' | 'frequenciaVezes' | 'frequenciaUnidade' | 'frequenciaAPartirDe'>): SituacaoFrequencia {
+export function situacaoDaFrequencia(
+  serie: Pick<SerieDaApuracao, 'frequenciaRecomendada' | 'frequenciaVezes' | 'frequenciaUnidade' | 'frequenciaAPartirDe' | 'frequenciaAncora'>,
+  /** Séries que a meta cobre na Regra de Ouro (família: uma por série ativa). Null: sem teto. */
+  unidadesDaRegra: number | null = 1,
+): SituacaoFrequencia {
   const unidade = chave(serie.frequenciaUnidade);
   const vezes = serie.frequenciaVezes;
   const temVezes = typeof vezes === 'number' && Number.isFinite(vezes) && vezes > 0;
@@ -76,11 +81,25 @@ export function situacaoDaFrequencia(serie: Pick<SerieDaApuracao, 'frequenciaRec
     vezes: serie.frequenciaVezes,
     unidade: serie.frequenciaUnidade,
     aPartirDe: serie.frequenciaAPartirDe,
+    ancora: serie.frequenciaAncora,
   });
   if (freq.unidade === 'sob-demanda') return { tipo: 'sem-frequencia' };
-  const definida = freq as FrequenciaDefinida;
-  if (definida.unidade === 'quinzena' && !definida.aPartirDe) return { tipo: 'sem-ancora', freq: definida };
+  // Regra de Ouro: a quantidade gravada fica no banco; a conta usa no máximo 1 por semana por série.
+  const definida = (unidadesDaRegra == null
+    ? freq
+    : { ...freq, vezes: vezesNaRegraDeOuro(freq.vezes, freq.unidade, unidadesDaRegra) ?? freq.vezes }) as FrequenciaDefinida;
+  // Sem início, a âncora da primeira ativação marca os ciclos de 14 dias.
+  if (definida.unidade === 'quinzena' && !definida.aPartirDe && !definida.ancora) return { tipo: 'sem-ancora', freq: definida };
   return { tipo: 'definida', freq: definida };
+}
+
+/**
+ * Situação da meta com a árvore: quadro é sob demanda (sem meta, mesmo com número antigo gravado);
+ * série e wave valem até 1 por semana; família, uma vaga por série ativa dela.
+ */
+export function situacaoNaArvore(serie: SerieDaApuracao, series: readonly SerieDaApuracao[]): SituacaoFrequencia {
+  if (ehQuadroNaArvore(serie.id, series.some(item => item.id === serie.id) ? series : [...series, serie])) return { tipo: 'sob-demanda' };
+  return situacaoDaFrequencia(serie, unidadesDaRegraDeOuro(serie.id, series));
 }
 
 export const TEXTO_SEM_ANCORA = 'Defina o início dos ciclos de 14 dias';
@@ -110,8 +129,10 @@ export function intervalosDaFrequencia(freq: FrequenciaDefinida, periodo: Interv
     lista = blocosNoIntervalo(inicio, fim, meses);
   } else {
     // Sem âncora não há ciclo: quem chama trata como pendência antes de chegar aqui.
-    if (!aPartirDe) return [];
-    const ancora = parseISO(aPartirDe);
+    // Sem início, vale a âncora da primeira ativação: ela marca os ciclos e não corta os anteriores.
+    const referencia = aPartirDe ?? freq.ancora ?? null;
+    if (!referencia) return [];
+    const ancora = parseISO(referencia);
     const passos = Math.floor(differenceInCalendarDays(parseISO(inicio), ancora) / 14);
     let cursor = addDays(ancora, passos * 14);
     while (format(cursor, FORMATO) <= fim) {
@@ -208,12 +229,17 @@ export type ApuracaoDaSerie<T extends ItemDaApuracao = ItemDaApuracao> = {
 };
 
 /**
- * O que fica fora da conta da série: quadros com meta própria (e os filhos deles)
+ * O que fica fora da conta da série: quadros (sob demanda, com os filhos)
  * e waves com ritmo próprio. Ver exclusaoDeMetaPropria (metaPropria.ts).
  */
 export type ExclusaoDaApuracao = {
   serieIds?: ReadonlySet<string>;
   temporadaIds?: ReadonlySet<string>;
+  /**
+   * Temporada arquivada com data: a exclusão vale só antes do dia do arquivo.
+   * Do dia em diante, os episódios dela voltam para a conta da série.
+   */
+  temporadaAte?: ReadonlyMap<string, string>;
 };
 
 /** Post-it sem conteúdo ligado (ou cujo conteúdo sumiu): reserva provisória. */
@@ -245,6 +271,11 @@ export function apurarSerie<T extends ItemDaApuracao>(input: {
     for (const filho of idsDaSubarvore(id, series)) ids.delete(filho);
     ids.delete(id);
   }
+  // Quadro é sob demanda: os episódios dele não contam na meta da série nem da família.
+  for (const quadro of quadrosDaSubarvore(serie.id, series)) {
+    for (const filho of idsDaSubarvore(quadro, series)) ids.delete(filho);
+    ids.delete(quadro);
+  }
   // Rascunho abaixo da série (com os filhos) organiza sem cobrar: fica fora da conta.
   for (const outra of series) {
     if (outra.id === serie.id || outra.status !== 'rascunho' || !ids.has(outra.id)) continue;
@@ -259,7 +290,10 @@ export function apurarSerie<T extends ItemDaApuracao>(input: {
   for (const item of input.itens) {
     if (!item.serieId || !ids.has(item.serieId) || !item.data) continue;
     if (item.tipo === 'repost') continue;
-    if (item.temporadaId && ondasFora?.has(item.temporadaId)) continue;
+    if (item.temporadaId && ondasFora?.has(item.temporadaId)) {
+      const ate = input.excluir?.temporadaAte?.get(item.temporadaId);
+      if (!ate || item.data.slice(0, 10) < ate) continue;
+    }
     const chaveItem = ehReserva(item) ? `reserva:${item.id}` : `conteudo:${item.contentId}`;
     if (vistos.has(chaveItem)) continue;
     vistos.add(chaveItem);
@@ -276,7 +310,7 @@ export function apurarSerie<T extends ItemDaApuracao>(input: {
     }
   }
 
-  const situacao = situacaoDaFrequencia(serie);
+  const situacao = situacaoNaArvore(serie, series);
   const base = {
     serieId: serie.id,
     situacao,

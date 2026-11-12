@@ -10,6 +10,7 @@ import { MoreMenu } from '../../../components/ui/MoreMenu';
 import { FilterBar } from '../../../components/ui/FilterBar';
 import { PageToolbar } from '../../../components/ui/PageToolbar';
 import { QueryViewState } from '../../../components/ui/QueryViewState';
+import { SelectField } from '../../../components/ui/SelectField';
 import { Text } from '../../../components/ui/Text';
 import { ToolbarSearchInput } from '../../../components/ui/ToolbarSearchInput';
 import { ViewModeToggle } from '../../../components/ui/ViewModeToggle';
@@ -52,7 +53,8 @@ export function SeriesSettingsPage() {
       else if (item.tipo === 'familia') familia += 1;
     }
     return {
-      todos: serie + familia,
+      // "Todos" abre as seções na mesma página; a contagem cobre os três tipos.
+      todos: serie + quadro + familia,
       serie,
       quadro,
       familia,
@@ -145,8 +147,8 @@ export function SeriesSettingsPage() {
       header={
         <DesktopPageHeader
           section="Produção"
-          title="Séries & Agrupamentos"
-          subtitle="Séries periódicas, quadros recorrentes, temporadas e padrões de legendas editoriais."
+          title="Inventário & Projetos"
+          subtitle="Séries com ritmo, quadros sob demanda, temporadas e padrões de legendas editoriais."
           actions={[
             <AppButton key="novo" variant="primary" onClick={criarSerie} leftIcon={<Plus className="h-4 w-4" />}>
               Novo Agrupamento
@@ -163,10 +165,15 @@ export function SeriesSettingsPage() {
               placeholder="Buscar por nome, jargão ou descrição..."
               className="min-w-[280px] max-w-md flex-1"
             />
-            <div className="flex items-center gap-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-1">
+            <div
+              className="flex items-center gap-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-1"
+              role="group"
+              aria-label="Filtrar por tipo"
+            >
               {[
                 { id: 'todos', label: 'Todos', count: contagensPorTipo.todos },
                 { id: 'serie', label: 'Séries', count: contagensPorTipo.serie },
+                { id: 'quadro', label: 'Quadros', count: contagensPorTipo.quadro },
                 { id: 'familia', label: 'Famílias', count: contagensPorTipo.familia },
               ].map(tab => {
                 const ativo = modelo.filtros.tipo === tab.id;
@@ -174,6 +181,7 @@ export function SeriesSettingsPage() {
                   <button
                     key={tab.id}
                     type="button"
+                    aria-pressed={ativo}
                     onClick={() => modelo.atualizarFiltro('tipo', tab.id as FiltroTipoLista)}
                     className={cn(
                       'rounded-[var(--radius-sm)] px-3 py-1.5 transition-colors',
@@ -189,6 +197,14 @@ export function SeriesSettingsPage() {
                 );
               })}
             </div>
+            <SelectField
+              value={modelo.filtros.pilar}
+              onChange={valor => modelo.atualizarFiltro('pilar', valor)}
+              options={modelo.opcoesPilar}
+              prefix="Pilar:"
+              ariaLabel="Filtrar por pilar"
+              selected={modelo.filtros.pilar !== 'todos'}
+            />
           </div>
         ) : undefined
       }

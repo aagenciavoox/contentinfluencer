@@ -7,7 +7,7 @@ import { CAMPO } from './campos';
 export const UNIDADES = OPCOES_UNIDADE;
 
 function dicaDaUnidade(unidade: UnidadeDaMeta): string | null {
-  if (unidade === 'quinzena') return 'Ciclos de 14 dias a partir da data de início.';
+  if (unidade === 'quinzena') return 'Ciclos de 14 dias a partir da data de início. Sem data, começam na segunda da semana em que você ativa a meta.';
   if (unidade === 'bimestre') return 'Blocos fechados: jan–fev, mar–abr, mai–jun, jul–ago, set–out, nov–dez.';
   if (unidade === 'trimestre') return 'Blocos fechados: jan–mar, abr–jun, jul–set, out–dez.';
   if (unidade === 'semestre') return 'Blocos fechados: jan–jun e jul–dez.';
@@ -48,7 +48,6 @@ export function CamposDaMeta({
   const quantidadeId = `${base}-quantidade`;
   const periodoId = `${base}-periodo`;
   const inicioId = `${base}-inicio`;
-  const inicioObrigatorio = unidade === 'quinzena' && vezes.trim() !== '';
   const dica = dicaDaUnidade(unidade);
   return (
     <div className="stack-xs">
@@ -95,14 +94,12 @@ export function CamposDaMeta({
         <label className="flex flex-col gap-1" htmlFor={inicioId}>
           <Text variant="meta" as="span">
             Data de início
-            <Marca obrigatoria={inicioObrigatorio} />
-            {inicioObrigatorio ? null : <span className="font-normal text-[var(--text-tertiary)]"> (opcional)</span>}
+            <span className="font-normal text-[var(--text-tertiary)]"> (opcional)</span>
           </Text>
           <input
             id={inicioId}
             type="date"
             aria-label="Data de início"
-            aria-required={inicioObrigatorio || undefined}
             aria-invalid={erros?.inicio ? true : undefined}
             aria-describedby={erros?.inicio ? `${inicioId}-erro` : undefined}
             className={CAMPO}
@@ -113,7 +110,7 @@ export function CamposDaMeta({
           {erros?.inicio ? <Text id={`${inicioId}-erro`} variant="meta" as="span" className="texto-erro">{erros.inicio}</Text> : null}
         </label>
       </div>
-      {mostrarLegenda && inicioObrigatorio ? (
+      {mostrarLegenda && vezes.trim() !== '' ? (
         <Text variant="meta" as="p">
           <span className="text-[var(--brand-accent-text)]">*</span> Campo obrigatório
         </Text>

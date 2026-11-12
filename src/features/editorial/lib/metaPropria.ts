@@ -1,7 +1,6 @@
-import { acompanhaNoGeral } from './acompanhamento.ts';
-import { situacaoDaFrequencia, type ExclusaoDaApuracao, type SerieDaApuracao } from './apuracaoSerie.ts';
+import type { ExclusaoDaApuracao, SerieDaApuracao } from './apuracaoSerie.ts';
 import { ritmoProprioDaOnda } from './metaDaOnda.ts';
-import { idsDaSubarvore } from './serieArvore.ts';
+import { quadrosDaSubarvore } from './regraDeOuro.ts';
 
 /** Wave vista pela apuração: só o que decide se ela anda no próprio ritmo. */
 export type OndaDaExclusao = {
@@ -12,20 +11,9 @@ export type OndaDaExclusao = {
   frequenciaVezes?: number | null;
   /** Wave em rascunho não conta na série. */
   status?: 'rascunho' | 'ativa' | 'arquivada';
+  /** Dia do arquivo: do dia em diante, os episódios voltam para a série. */
+  arquivadaEm?: string | null;
 };
-
-function ehQuadro(serie: SerieDaApuracao): boolean {
-  if (serie.tipoAgrupamento) return serie.tipoAgrupamento === 'quadro';
-  return Boolean(serie.parentId);
-}
-
-/** Quadro acompanhado no geral com meta definida: conta só na linha dele. */
-export function quadroComMetaPropria(serie: SerieDaApuracao): boolean {
-  return serie.ativa !== false
-    && ehQuadro(serie)
-    && acompanhaNoGeral(serie)
-    && situacaoDaFrequencia(serie).tipo === 'definida';
-}
 
 /** Estado inicial da caixa "Ritmo próprio" no modal da wave: ligado, a não ser que tenha sido desmarcado. */
 export function ritmoProprioMarcado(onda: { ritmoProprio?: boolean | null }): boolean {
@@ -38,7 +26,7 @@ export function ondaComRitmoProprio(onda: OndaDaExclusao): boolean {
 }
 
 /**
- * O que sai da conta da série: quadros abaixo dela com meta própria (com os filhos),
+ * O que sai da conta da série: os quadros abaixo dela (sob demanda, com os filhos),
  * waves com ritmo próprio e waves em rascunho. Assim o mesmo episódio não é cobrado duas vezes.
  */
 export function exclusaoDeMetaPropria(
@@ -46,14 +34,29 @@ export function exclusaoDeMetaPropria(
   series: readonly SerieDaApuracao[],
   temporadas: readonly OndaDaExclusao[] = [],
 ): ExclusaoDaApuracao {
-  const serieIds = new Set<string>();
-  for (const id of idsDaSubarvore(serie.id, series)) {
-    if (id === serie.id) continue;
-    const quadro = series.find(item => item.id === id);
-    if (quadro && quadroComMetaPropria(quadro)) serieIds.add(id);
-  }
+  const serieIds = quadrosDaSubarvore(serie.id, series);
   const temporadaIds = new Set(temporadas
     .filter(onda => ondaComRitmoProprio(onda) || onda.status === 'rascunho')
     .map(onda => onda.id));
-  return { serieIds, temporadaIds };
+  // Arquivada com data: o ritmo próprio vale até a véspera do arquivo. Sem data (antiga), fica como era.
+  const temporadaAte = new Map<string, string>();
+  for (const onda of temporadas) {
+    if (onda.status === 'arquivada' && onda.arquivadaEm && temporadaIds.has(onda.id)) temporadaAte.set(onda.id, onda.arquivadaEm);
+  }
+  return { serieIds, temporadaIds, temporadaAte };
+}
+
+/**
+ * Família com ritmo: conta os episódios únicos das séries dela. Wave com ritmo próprio também
+ * conta aqui (a família é a soma); o rascunho fica fora, e os quadros (sob demanda) também.
+ */
+export function exclusaoDaFamilia(
+  temporadas: readonly OndaDaExclusao[] = [],
+  familia?: Pick<SerieDaApuracao, 'id'> | null,
+  series: readonly SerieDaApuracao[] = [],
+): ExclusaoDaApuracao {
+  return {
+    serieIds: familia ? quadrosDaSubarvore(familia.id, series) : new Set<string>(),
+    temporadaIds: new Set(temporadas.filter(onda => onda.status === 'rascunho').map(onda => onda.id)),
+  };
 }

@@ -1,17 +1,14 @@
-import { useId, type DragEvent, type ReactNode } from 'react';
-import { ChevronDown } from 'lucide-react';
 import { Badge } from '../../../../components/ui/Badge';
 import { MoreMenu } from '../../../../components/ui/MoreMenu';
 import { Text } from '../../../../components/ui/Text';
 import { cn } from '../../../../lib/utils';
 import {
   TIPO_AGRUPAMENTO_LABEL,
-  textoConteudos,
   textoRoteirosIdeias,
 } from '../../lib/serieAgrupamento';
 import { textoTipoEOnde, type ItemLista } from '../../lib/seriesListaView';
 import type { StatusSerie } from '../../lib/statusSerie';
-import { ARRASTO_SERIE, itensDoMenuDaSerie, rotuloDosFilhos } from './SerieCard';
+import { itensDoMenuDaSerie } from './SerieCard';
 
 type AcoesDaSerie = {
   onOpen: (serieId: string) => void;
@@ -21,119 +18,6 @@ type AcoesDaSerie = {
   onCriarFilho?: (item: Pick<ItemLista, 'serie' | 'tipo'>) => void;
   onMoverParaFamilia?: (serieId: string) => void;
 };
-
-function soltaSerie(
-  event: DragEvent,
-  onSoltar?: (serieId: string) => void,
-) {
-  if (!onSoltar || !event.dataTransfer.types.includes(ARRASTO_SERIE)) return;
-  event.preventDefault();
-  const id = event.dataTransfer.getData(ARRASTO_SERIE);
-  if (id) onSoltar(id);
-}
-
-/** Área que recebe uma série arrastada. Sem família, a série volta a ficar independente. */
-export function ZonaSoltar({
-  soltando = false,
-  onArrastarSobre,
-  onSoltarSerie,
-  className,
-  ariaLabel,
-  children,
-}: {
-  soltando?: boolean;
-  onArrastarSobre?: () => void;
-  onSoltarSerie?: (serieId: string) => void;
-  className?: string;
-  ariaLabel: string;
-  children: ReactNode;
-}) {
-  return (
-    <section
-      aria-label={ariaLabel}
-      className={cn(className, soltando && 'rounded-[var(--radius-card)] bg-[var(--bg-hover)]')}
-      onDragOver={event => {
-        if (!onSoltarSerie || !event.dataTransfer.types.includes(ARRASTO_SERIE)) return;
-        event.preventDefault();
-        onArrastarSobre?.();
-      }}
-      onDrop={event => soltaSerie(event, onSoltarSerie)}
-    >
-      {children}
-    </section>
-  );
-}
-
-/** Cabeçalho da família: abre e fecha as séries. Soltar um card move a série para cá. */
-export function FamiliaSecao({
-  item,
-  aberta,
-  onToggle,
-  acoes,
-  soltando = false,
-  onArrastarSobre,
-  onSoltarSerie,
-  children,
-}: {
-  item: ItemLista;
-  aberta: boolean;
-  onToggle: () => void;
-  acoes: AcoesDaSerie;
-  soltando?: boolean;
-  onArrastarSobre?: () => void;
-  onSoltarSerie?: (serieId: string) => void;
-  children: ReactNode;
-}) {
-  const corpoId = useId();
-  const nome = item.serie.name.trim() || 'Sem nome';
-  return (
-    <section
-      className={cn('stack-md rounded-[var(--radius-card)]', soltando && 'bg-[var(--bg-hover)]')}
-      aria-label={nome}
-      onDragOver={event => {
-        if (!onSoltarSerie || !event.dataTransfer.types.includes(ARRASTO_SERIE)) return;
-        event.preventDefault();
-        onArrastarSobre?.();
-      }}
-      onDrop={event => soltaSerie(event, onSoltarSerie)}
-    >
-      <div className="flex min-h-11 items-center gap-2 border-b border-[var(--border-color)] pb-2">
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-expanded={aberta}
-          aria-controls={corpoId}
-          aria-label={aberta ? `Recolher ${nome}` : `Mostrar ${nome}`}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:h-11 pointer-coarse:w-11"
-        >
-          <ChevronDown className={cn('h-4 w-4 transition-transform', !aberta && '-rotate-90')} aria-hidden />
-        </button>
-        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
-          <span
-            aria-hidden
-            className="entity-color-dot h-2.5 w-2.5 shrink-0 rounded-full"
-            style={{ backgroundColor: item.serie.cor || 'var(--text-tertiary)' }}
-          />
-          <Text variant="sectionTitle" as="span" className="min-w-0 break-words">{nome}</Text>
-          <Badge variant="neutral">{TIPO_AGRUPAMENTO_LABEL[item.tipo]}</Badge>
-          {!item.serie.ativa ? <Badge variant="neutral">Inativa</Badge> : null}
-        </span>
-        <Text variant="meta" as="span" className="hidden shrink-0 sm:inline">
-          {`${rotuloDosFilhos(item)} · ${textoConteudos(item.contagem.conteudos)}`}
-        </Text>
-        <MoreMenu
-          size="sm"
-          items={itensDoMenuDaSerie(item, acoes)}
-          label={`Mais opções de ${nome}`}
-        />
-      </div>
-      <Text variant="meta" as="p" className="-mt-2 sm:hidden">
-        {`${rotuloDosFilhos(item)} · ${textoConteudos(item.contagem.conteudos)}`}
-      </Text>
-      {aberta ? <div id={corpoId}>{children}</div> : null}
-    </section>
-  );
-}
 
 /** Linha da vista em lista: nome, tipo e onde está, números, pilar e menu. */
 export function SerieLinha({

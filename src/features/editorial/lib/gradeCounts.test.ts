@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import type { GradeEntry } from './gradeEntries.ts';
 import { buildGradeEntries, type GradeContent, type GradeSerie } from './gradeEntries.ts';
-import { countGrade, type PilarContagem, type PostItContagem } from './gradeCounts.ts';
+import { countGrade, metodoDoPeriodo, type PilarContagem, type PostItContagem } from './gradeCounts.ts';
 import { limiteDoIntervalo } from './periodoEditorial.ts';
 import { FUNCOES } from './funcoes.ts';
+import { apurarSerie } from './apuracaoSerie.ts';
 
 const PERCENTUAIS = {
   atrair: 35,
@@ -65,12 +66,16 @@ function testContaCicloDeRepostEIgnoraFora() {
   assert.equal(resultado.periodo.fim, '2026-05-02');
   assert.equal(resultado.limite, null);
   assert.equal(resultado.totalMeta, null);
-  assert.equal(resultado.previsto, 3);
-  assert.equal(resultado.publicado, 2);
-  assert.equal(resultado.comPauta, 2);
-  assert.equal(resultado.somaPlanejado, 3);
+  // Por roteiro (padrão): o repost de a1 no mesmo período fica na lista, mas o roteiro conta uma vez.
+  assert.equal(resultado.metodoCalculo, 'conteudos-v1');
+  assert.equal(resultado.unidade, 'roteiro');
+  assert.equal(resultado.itens.length, 3);
+  assert.equal(resultado.previsto, 2);
+  assert.equal(resultado.publicado, 1);
+  assert.equal(resultado.comPauta, 1);
+  assert.equal(resultado.somaPlanejado, 2);
   assert.equal(resultado.pilares.find(linha => linha.id === 'pilar-a')?.planejado, 2);
-  assert.equal(resultado.pilares.find(linha => linha.id === 'pilar-b')?.planejado, 1);
+  assert.equal(resultado.pilares.find(linha => linha.id === 'pilar-b')?.planejado, 0);
   assert.equal(resultado.notaSoma, null);
   assert.equal(resultado.objetivos.find(linha => linha.id === 'reter')?.meta, null);
 }
@@ -454,6 +459,97 @@ function testContaPorEtapa() {
   assert.equal(resultado.itens.find(item => item.contentId === 'sem-data')?.postItId, 'ligado');
 }
 
+const NOVEMBRO = { inicio: '2026-11-01', fim: '2026-11-30' };
+
+/** Um roteiro em duas contas, mais um repost: 1 por roteiro, 3 por publicação. */
+function entradasDeTresPublicacoes(): GradeEntry[] {
+  return [
+    entrada({
+      id: 'r1:original', contentId: 'r1', data: '2026-11-03',
+      publicacoes: [
+        { platformId: 'ig', data: '2026-11-03', realizada: true, contaNaGrade: true, etapa: 'postado' },
+        { platformId: 'tt', data: '2026-11-04', realizada: false, contaNaGrade: true, etapa: 'edicao' },
+      ],
+    }),
+    entrada({
+      id: 'r1:ciclo:2', contentId: 'r1', tipo: 'repost', data: '2026-11-20',
+      publicacoes: [{ platformId: 'ig', data: '2026-11-20', realizada: false, contaNaGrade: true, etapa: 'edicao' }],
+    }),
+    // Conta desligada à mão: fica fora da meta nos dois métodos.
+    entrada({
+      id: 'r2:original', contentId: 'r2', data: '2026-11-10',
+      publicacoes: [
+        { platformId: 'ig', data: '2026-11-10', realizada: false, contaNaGrade: true, etapa: 'roteiro' },
+        { platformId: 'tt', data: '2026-11-10', realizada: false, contaNaGrade: false, etapa: 'roteiro' },
+      ],
+    }),
+  ];
+}
+
+function settingsComMetodo(metodoCalculo: 'conteudos-v1' | 'publicacoes-v2') {
+  return {
+    preferencias: { limiteSemanal: 1, reservaForaSeriesSemanal: null, redeReferenciaId: null, reservaProntos: null },
+    periodos: [{ ...NOVEMBRO, prioridade: '', metas: {}, ajustesSemana: [], metasPublicacao: 3, metodoCalculo }],
+  };
+}
+
+function testMetodoMudaMetaGeralETeto() {
+  const porRoteiro = countGrade({
+    pilares: pilaresGrandes, settings: settingsComMetodo('conteudos-v1'), periodo: NOVEMBRO,
+    entries: entradasDeTresPublicacoes(), hoje: '2026-11-11',
+  });
+  const porPublicacao = countGrade({
+    pilares: pilaresGrandes, settings: settingsComMetodo('publicacoes-v2'), periodo: NOVEMBRO,
+    entries: entradasDeTresPublicacoes(), hoje: '2026-11-11',
+  });
+  // A meta (o número) não muda; muda o que se conta contra ela.
+  assert.equal(porRoteiro.limite, 3);
+  assert.equal(porPublicacao.limite, 3);
+  assert.equal(porRoteiro.unidade, 'roteiro');
+  assert.equal(porPublicacao.unidade, 'publicacao');
+  assert.equal(porRoteiro.previsto, 2, 'r1 e r2, uma vez cada');
+  assert.equal(porPublicacao.previsto, 4, 'r1 no Instagram e no TikTok, o repost e r2 no Instagram');
+  assert.equal(porRoteiro.excesso, 0);
+  assert.equal(porPublicacao.excesso, 1, 'o teto passa no método por publicação');
+  assert.equal(porPublicacao.publicado, 1);
+  assert.equal(porPublicacao.porEtapa.postado + porPublicacao.porEtapa.edicao + porPublicacao.porEtapa.roteiro, 4);
+  assert.equal(porPublicacao.objetivos.find(linha => linha.id === 'atrair')?.previsto, 4);
+  // A lista do período (base da Continuidade) é a mesma nos dois métodos: um item por ciclo, não por conta.
+  assert.deepEqual(porPublicacao.itens.map(item => item.id), porRoteiro.itens.map(item => item.id));
+  // Continuidade conta episódios: o método não muda a apuração da série.
+  const serie = { id: 'serie-1', name: 'Série', parentId: null, frequenciaRecomendada: null, frequenciaVezes: 1, frequenciaUnidade: 'semana', frequenciaAPartirDe: null };
+  const apurar = (itens: readonly GradeEntry[]) => apurarSerie({ serie, series: [serie], itens, periodo: NOVEMBRO });
+  assert.deepEqual(apurar(porPublicacao.itens).noPeriodo, apurar(porRoteiro.itens).noPeriodo);
+  assert.deepEqual(
+    apurar(porPublicacao.itens).janelas.map(janela => janela.episodios),
+    apurar(porRoteiro.itens).janelas.map(janela => janela.episodios),
+  );
+}
+
+function testMetodoDoPeriodoSegueODecidido() {
+  const periodos = [{ ...NOVEMBRO, prioridade: '', metas: {}, ajustesSemana: [], metodoCalculo: 'publicacoes-v2' as const }];
+  assert.equal(metodoDoPeriodo(periodos, NOVEMBRO.inicio, NOVEMBRO.fim), 'publicacoes-v2');
+  // Recorte de consulta dentro do mês segue o mês.
+  assert.equal(metodoDoPeriodo(periodos, '2026-11-09', '2026-11-15'), 'publicacoes-v2');
+  assert.equal(metodoDoPeriodo(periodos, '2026-10-26', '2026-11-01'), 'conteudos-v1', 'semana que sai do mês não herda');
+  assert.equal(metodoDoPeriodo([], NOVEMBRO.inicio, NOVEMBRO.fim), 'conteudos-v1', 'o padrão é por roteiro');
+}
+
+function testPorPublicacaoContaContaDeOutroDiaNoPeriodo() {
+  const entries = [entrada({
+    id: 'r3:original', contentId: 'r3', data: '2026-10-31',
+    publicacoes: [
+      { platformId: 'ig', data: '2026-10-31', realizada: false, contaNaGrade: true, etapa: 'edicao' },
+      { platformId: 'tt', data: '2026-11-01', realizada: false, contaNaGrade: true, etapa: 'edicao' },
+    ],
+  })];
+  const porPublicacao = countGrade({ pilares: pilaresGrandes, settings: settingsComMetodo('publicacoes-v2'), periodo: NOVEMBRO, entries, hoje: '2026-11-11' });
+  const porRoteiro = countGrade({ pilares: pilaresGrandes, settings: settingsComMetodo('conteudos-v1'), periodo: NOVEMBRO, entries, hoje: '2026-11-11' });
+  assert.equal(porPublicacao.previsto, 1, 'a publicação do TikTok em novembro conta em novembro');
+  assert.equal(porPublicacao.itens.length, 0, 'mas o roteiro de outubro não vira item de novembro');
+  assert.equal(porRoteiro.previsto, 0);
+}
+
 testContaCicloDeRepostEIgnoraFora();
 testPercentualAntigoNaoViraLimite();
 testSemanaParcialUsaLimiteDoIntervalo();
@@ -464,5 +560,8 @@ testPostItLigadoContaUmaVez();
 testOrigemEPautaNoFluxoDaGrade();
 testPublicadoSoEmOutrasRedesNaoConta();
 testContaPorEtapa();
+testMetodoMudaMetaGeralETeto();
+testMetodoDoPeriodoSegueODecidido();
+testPorPublicacaoContaContaDeOutroDiaNoPeriodo();
 
 console.log('gradeCounts tests passed');

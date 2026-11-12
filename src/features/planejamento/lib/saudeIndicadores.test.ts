@@ -183,7 +183,7 @@ assert.equal(situacaoDaFrequencia(serie({ id: 'x', frequenciaRecomendada: 'Sob d
   assert.match(cont.resumoPendencias ?? '', /^2 configurações em aberto/);
 }
 
-// --- Quadro com meta própria: linha própria, e os episódios dele saem da conta da série (sem cobrança dupla).
+// --- Quadro é sob demanda: sem linha própria (mesmo com meta antiga gravada), e os episódios dele saem da conta da série.
 {
   const pai = serie({ id: 'pai', name: 'Resenha', frequenciaVezes: 1, frequenciaUnidade: 'mes' });
   const quadro = serie({ id: 'quadro', name: 'Indicação', parentId: 'pai', tipoAgrupamento: 'quadro', frequenciaVezes: 2, frequenciaUnidade: 'mes' });
@@ -194,12 +194,10 @@ assert.equal(situacaoDaFrequencia(serie({ id: 'x', frequenciaRecomendada: 'Sob d
   ];
   const cont = continuidadeDasSeries({ series: [pai, quadro], itens, periodo: PERIODO });
   const linhaPai = cont.linhas.find(l => l.serieId === 'pai')!;
-  const linhaQuadro = cont.linhas.find(l => l.serieId === 'quadro')!;
+  assert.equal(cont.linhas.find(l => l.serieId === 'quadro'), undefined);
   assert.deepEqual(linhaPai.intervalos.map(i => i.quantidade), [0, 1, 0]);
-  assert.equal(linhaPai.itens.length, 1, 'episódios do quadro com meta própria contam só no quadro');
-  assert.deepEqual(linhaQuadro.intervalos.map(i => i.quantidade), [2, 0, 0]);
-  assert.equal(linhaQuadro.paiNome, 'Resenha');
-  assert.equal(cont.resumo, '1 série e 1 quadro com ritmo em aberto');
+  assert.equal(linhaPai.itens.length, 1, 'episódios do quadro não contam na série');
+  assert.equal(cont.resumo, '1 série com ritmo em aberto');
   assert.match(linhaPai.intervalos[0].nota ?? '', /mês 01\/10–31\/10 avaliado inteiro/);
 }
 
@@ -238,7 +236,7 @@ assert.deepEqual(janelaDaContinuidade(PERIODO), { inicio: '2026-07-01', fim: '20
   assert.equal(cont.nenhumaAcompanhada, true);
 }
 
-// --- Marcada e sem frequência (ou quadro marcado sem meta): pendência, não "abaixo".
+// --- Marcada e sem frequência: pendência, não "abaixo". Quadro marcado sem meta não pede nada (é sob demanda).
 {
   const cont = continuidadeDasSeries({
     series: [
@@ -251,7 +249,6 @@ assert.deepEqual(janelaDaContinuidade(PERIODO), { inicio: '2026-07-01', fim: '20
   });
   assert.deepEqual(cont.pendencias.map(p => [p.nome, p.tipo, p.texto]), [
     ['Perdeu a frequência', 'serie', 'Sem frequência definida'],
-    ['Quadro marcado', 'quadro', 'Sem frequência definida'],
   ]);
   assert.equal(cont.linhas.length, 0);
   assert.equal(cont.nenhumaAcompanhada, false);
@@ -432,9 +429,11 @@ console.log('saudeIndicadores (wave): ok');
   });
   assert.deepEqual(cont.linhas.map(linha => linha.serieId), ['s-com']);
   const semFrequencia = cont.pendencias.filter(pendencia => pendencia.motivo === 'sem-frequencia');
-  assert.deepEqual(semFrequencia.map(pendencia => [pendencia.serieId, pendencia.tipo]), [['q-sem', 'quadro'], ['s-sem', 'serie']]);
+  // Quadro é sob demanda: não vira pendência de frequência.
+  assert.deepEqual(semFrequencia.map(pendencia => [pendencia.serieId, pendencia.tipo]), [['s-sem', 'serie']]);
   // A mesma série vinda do geral e de um acompanhamento por conta conta uma vez só.
-  assert.deepEqual(resumoSemFrequencia([...semFrequencia, { serieId: 's-sem', tipo: 'serie' }]), { texto: '1 série e 1 quadro sem frequência definida', total: 2 });
+  assert.deepEqual(resumoSemFrequencia([...semFrequencia, { serieId: 's-sem', tipo: 'serie' }]), { texto: '1 série sem frequência definida', total: 1 });
+  assert.deepEqual(resumoSemFrequencia([{ serieId: 'a', tipo: 'serie' }, { serieId: 'b', tipo: 'quadro' }]), { texto: '1 série e 1 quadro sem frequência definida', total: 2 });
   assert.equal(resumoSemFrequencia([]), null);
   assert.equal(textoPorTipo([{ tipo: 'serie' }, { tipo: 'serie' }, { tipo: 'temporada' }]), '2 séries e 1 temporada');
 }

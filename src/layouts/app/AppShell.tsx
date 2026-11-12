@@ -14,6 +14,7 @@ import type { MobileChromeOutletContext } from '../../mobile/components/shell';
 import { MobileScrollLockProvider } from '../../context/MobileScrollLockContext';
 import { resolveMobileRouteMeta } from '../../mobile/config/mobileRouteMeta';
 import { resolveRouteBack } from '../../lib/navigation/detailBack';
+import { returnTo } from '../../lib/navigation/goBack';
 import { SaveFeedbackToast } from '../../components/ui/SaveFeedbackToast';
 import { AppUpdateToast } from '../../components/ui/AppUpdateToast';
 import { Text } from '../../components/ui/Text';
@@ -186,7 +187,7 @@ export function AppShell() {
                   location.state as { from?: string } | null,
                   routeMeta.backTo ?? '/criacao',
                 );
-                navigate(target);
+                returnTo(navigate, target);
               }}
               onRightAction={() => setIsCommandPaletteOpen(true)}
               rightActionIcon={<Search className="h-4 w-4" />}

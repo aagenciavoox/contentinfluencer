@@ -6,6 +6,7 @@ import {
   resolveRouteBack,
   withDetailBack,
 } from './detailBack.ts';
+import { backStep } from './goBack.ts';
 
 function backFor(fromPath: string) {
   return resolveContentDetailBack(withDetailBack(fromPath).state);
@@ -47,5 +48,13 @@ assert.equal(labelForDetailBack('/calendario', 'Roteiros'), 'Calendário');
 assert.equal(labelForDetailBack('/planejamento', 'Roteiros'), 'Planejamento');
 assert.equal(labelForDetailBack('/programacao', 'Roteiros'), 'Planejamento');
 assert.equal(labelForDetailBack('/editorial?aba=funil', 'Roteiros'), 'Editorial');
+
+assert.equal(backStep(undefined), 'fallback');
+assert.equal(backStep(null), 'fallback');
+assert.equal(backStep(0), 'fallback');
+assert.equal(backStep(-1), 'fallback');
+assert.equal(backStep('2'), 'fallback');
+assert.equal(backStep(1), 'history');
+assert.equal(backStep(3), 'history');
 
 console.log('detailBack.test.ts passed');

@@ -95,6 +95,105 @@ export function publicacoesDoEpisodioNaTemporada(input: {
   return publicacoesIniciais({ destinos, contentId: input.contentId });
 }
 
+/** De onde vieram os destinos do episódio novo. */
+export type OrigemDosDestinos = 'temporada' | 'quadro' | 'serie' | 'padrao';
+
+export const ROTULO_ORIGEM_DOS_DESTINOS: Record<OrigemDosDestinos, string> = {
+  temporada: 'Destinos da temporada',
+  quadro: 'Destinos do quadro',
+  serie: 'Destinos da série',
+  padrao: 'Destinos padrão do Editorial',
+};
+
+type DestinoDaSerie = { platformId: string; formato?: FormatoEscolhidoNaPublicacao | null };
+
+export type SerieDosDestinos = {
+  id: string;
+  parentId?: string | null;
+  tipoAgrupamento?: 'familia' | 'serie' | 'quadro' | null;
+  focoRedes?: readonly string[] | null;
+  plataformas?: readonly DestinoDaSerie[] | null;
+};
+
+function formatoPadraoDaRede(rede: ReturnType<typeof redeDaConta>): FormatoEscolhidoNaPublicacao | null {
+  if (rede === 'youtube') return 'short';
+  if (rede === 'instagram' || rede === 'tiktok') return 'reels';
+  return null;
+}
+
+/** Destinos gravados (conta + formato) viram publicações previstas, sem data. Conta inativa fica de fora. */
+export function publicacoesDosDestinosDaSerie(
+  contentId: string,
+  destinos: readonly DestinoDaSerie[],
+  contas: readonly ContaRef[],
+): ContentPlataforma[] {
+  const ativas = contasAtivas(contas);
+  const vistas = new Set<string>();
+  const lista: ContentPlataforma[] = [];
+  for (const destino of destinos) {
+    const conta = ativas.find(item => item.id === destino.platformId);
+    if (!conta || vistas.has(conta.id)) continue;
+    vistas.add(conta.id);
+    const pub = criarPublicacaoAgendada(contentId, conta.id);
+    const formato = destino.formato ?? formatoPadraoDaRede(redeDaConta(conta));
+    lista.push(formato ? { ...pub, formatoPublicacao: formato } : pub);
+  }
+  return lista;
+}
+
+function ehQuadro(serie: SerieDosDestinos): boolean {
+  if (serie.tipoAgrupamento) return serie.tipoAgrupamento === 'quadro';
+  return Boolean(serie.parentId);
+}
+
+/**
+ * Destinos do episódio novo: a primeira configuração na ordem temporada → quadro → série.
+ * Quadro usa o foco de redes; sem ele, as contas próprias. Série usa as contas de destino dela.
+ * Sem nada, os destinos padrão do Editorial. Nenhuma data é criada: só a seleção, que continua editável.
+ */
+export function destinosDoNovoEpisodio(input: {
+  contentId: string;
+  temporada?: { focoRedes?: readonly string[] | null } | null;
+  serieId: string | null | undefined;
+  series: readonly SerieDosDestinos[];
+  contas: readonly ContaRef[];
+  destinosPadrao: readonly string[];
+}): { publicacoes: ContentPlataforma[]; origem: OrigemDosDestinos } {
+  const daTemporada = normalizarRedesPostIt(input.temporada?.focoRedes ?? []);
+  if (daTemporada.length > 0) {
+    const publicacoes = criarPublicacoesDasRedes(input.contentId, daTemporada, input.contas);
+    if (publicacoes.length > 0) return { publicacoes, origem: 'temporada' };
+  }
+  const porId = new Map(input.series.map(serie => [serie.id, serie]));
+  const vistos = new Set<string>();
+  let atual = input.serieId ? porId.get(input.serieId) : undefined;
+  while (atual && !vistos.has(atual.id)) {
+    vistos.add(atual.id);
+    if (atual.tipoAgrupamento === 'familia') break;
+    if (ehQuadro(atual)) {
+      const foco = normalizarRedesPostIt(atual.focoRedes ?? []);
+      const publicacoes = foco.length > 0
+        ? criarPublicacoesDasRedes(input.contentId, foco, input.contas)
+        : publicacoesDosDestinosDaSerie(input.contentId, atual.plataformas ?? [], input.contas);
+      if (publicacoes.length > 0) return { publicacoes, origem: 'quadro' };
+    } else {
+      const publicacoes = publicacoesDosDestinosDaSerie(input.contentId, atual.plataformas ?? [], input.contas);
+      if (publicacoes.length > 0) return { publicacoes, origem: 'serie' };
+      break;
+    }
+    atual = atual.parentId ? porId.get(atual.parentId) : undefined;
+  }
+  return {
+    publicacoes: publicacoesDoEpisodioNaTemporada({
+      contentId: input.contentId,
+      focoRedes: [],
+      contas: input.contas,
+      destinosPadrao: input.destinosPadrao,
+    }),
+    origem: 'padrao',
+  };
+}
+
 export type SugestaoDoFoco = {
   writingMode: WritingMode;
   /** Rótulo curto do formato do episódio; null = não sugere (mantém o da série). */

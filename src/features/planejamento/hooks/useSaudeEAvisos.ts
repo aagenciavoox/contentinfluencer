@@ -12,6 +12,7 @@ import {avisoDoCalendario, rotuloDoPeriodo} from '../lib/periodoDaSaude';
 import {continuidadeDasSeries, distribuicaoPorObjetivo, janelaDaContinuidade, proporcaoDesejadaDoPeriodo} from '../lib/saudeIndicadores';
 import {linhasDaContinuidadePorEscopo} from '../lib/continuidadePorEscopoNaSaude';
 import {publicacoesNaSaude} from '../lib/publicacoesNaSaude';
+import {linhasSemRegrasDesligadas} from '../../editorial/lib/avisosEditoriais';
 import {contaNoFiltro, conteudoPassa, filtroAtivo, postItPassa, type FiltroCalendario} from '../lib/filtroCalendario';
 import {abreAnaliseAoLocalizar, diaDoAviso} from '../lib/detalheDoAviso';
 import {avisosDeOrientacao, excecaoFoiDeProposito, mapaSequenciaPorConteudo, janelaDosProximosDias, semanaCorrente, TIPOS_AVISO_GLOBAIS, type AvisoOrientacao} from '../lib/orientacaoEditorial';
@@ -129,7 +130,7 @@ export function useSaudeEAvisos(args: {
       periodo: janelaDaContinuidade(periodoDaSaude),
       platforms: state.platforms,
     });
-    const continuidade = continuidadeDasSeries({
+    const continuidadeCompleta = continuidadeDasSeries({
       series: state.series,
       itens: estendido.itens,
       periodo: periodoDaSaude,
@@ -138,6 +139,8 @@ export function useSaudeEAvisos(args: {
       // Andamento das waves sobre todos os episódios, não só os do período.
       progressoDasOndas: progressoDasOndas(state.contents, format(new Date(), 'yyyy-MM-dd')),
     });
+    // Editorial › Avisos: "dias sem episódio" e "dias seguidos" desligados saem da Continuidade.
+    const continuidade = {...continuidadeCompleta, linhas: linhasSemRegrasDesligadas(continuidadeCompleta.linhas, settings.avisos)};
     // Publicações por conta no trecho, com a meta de cada conta e a soma (incompleta quando falta meta).
     const publicacoes = publicacoesNaSaude({
       contents: contentsDoFiltro,
@@ -160,6 +163,7 @@ export function useSaudeEAvisos(args: {
       periodo: periodoDaSaude,
       pausas: settings.pausas ?? [],
       temporadas: state.temporadas,
+      avisosLigados: settings.avisos,
     }).filter(linha =>
       (filtro.redes.length === 0 || !linha.platformId || contaNoFiltro(redeDaRef(linha.platformId, state.platforms), filtro.redes))
       && (!filtro.formato || !linha.formato || linha.formato === filtro.formato));
@@ -240,6 +244,8 @@ export function useSaudeEAvisos(args: {
       diasGravacao: state.editorial.preferencias.diasGravacao,
       antecedenciaPostagemDias: state.editorial.preferencias.antecedenciaPostagemDias,
       temporadas: state.temporadas,
+      avisosLigados: state.editorial.avisos,
+      indicadoresProducao: state.editorial.indicadoresProducao,
     });
     const todos = avisosDo({postIts, contents: contentsNoQuadro}, globais);
     if (!filtroAtivo(filtro)) return todos;

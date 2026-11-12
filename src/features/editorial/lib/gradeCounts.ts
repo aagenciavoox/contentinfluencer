@@ -1,6 +1,6 @@
 import type { FuncaoEditorial } from '../../../lib/database.ts';
 import { differenceInCalendarDays, format, parseISO } from 'date-fns';
-import type { AjusteSemana, DecisaoPeriodo, PreferenciasGerais, VigenciaEditorial } from './editorialSettings.ts';
+import { lerMetodoCalculo, METODO_CALCULO_PADRAO, type AjusteSemana, type DecisaoPeriodo, type MetodoCalculo, type PreferenciasGerais, type VigenciaEditorial } from './editorialSettings.ts';
 import type { GradeEntry } from './gradeEntries.ts';
 import { percentuaisFechamEm100, percentuaisNaOrdem } from './distribuirEspacos.ts';
 import { contagemPorEtapaVazia, type ContagemPorEtapa, type Etapa } from './etapas.ts';
@@ -79,7 +79,30 @@ export type ContagemObjetivo = {
   porEtapa: ContagemPorEtapa;
 };
 
+/**
+ * Unidade da meta geral e do teto no período. Vem da decisão salva para o intervalo exato;
+ * sem ela, da menor decisão salva que contém o intervalo (uma semana dentro do mês segue o mês);
+ * sem nenhuma, Por roteiro.
+ */
+export function metodoDoPeriodo(
+  periodos: readonly DecisaoPeriodo[] | null | undefined,
+  inicio: string,
+  fim: string,
+): MetodoCalculo {
+  const lista = periodos ?? [];
+  const exata = decisaoDoPeriodo(lista, inicio, fim);
+  if (exata) return lerMetodoCalculo(exata.metodoCalculo);
+  const contem = lista
+    .filter(periodo => periodo.inicio <= inicio && periodo.fim >= fim)
+    .sort((a, b) => diasInclusivos(a) - diasInclusivos(b))[0];
+  return contem ? lerMetodoCalculo(contem.metodoCalculo) : METODO_CALCULO_PADRAO;
+}
+
 export type GradeCounts = {
+  /** Como a meta geral e o teto foram contados neste período. */
+  metodoCalculo: MetodoCalculo;
+  /** `roteiro`: cada roteiro uma vez; `publicacao`: cada publicação em cada conta, reposts inclusive. */
+  unidade: 'roteiro' | 'publicacao';
   semanas: number;
   /** Limite semanal declarado. Não é a meta do período. */
   espacosPorSemana: number;
@@ -179,10 +202,20 @@ function objetivoDoPostIt(postIt: PostItContagem, series: readonly SerieClassifi
   return objetivoDe(postIt.objetivo) ?? objetivoHerdadoDaSerie(postIt.serieId, series);
 }
 
+type UnidadeContada = {
+  publicado: boolean;
+  etapa: Etapa;
+};
+
 type ItemContado = {
   entry: GradeEntry;
   temPauta: boolean;
   publicado: boolean;
+  /**
+   * O que este item soma na meta geral e no teto. Por roteiro, 1. Por publicação, uma por conta
+   * com data no período (o ciclo sem conta nenhuma vale 1).
+   */
+  unidades?: UnidadeContada[];
 };
 
 function itemDeEntrada(entry: GradeEntry, temPauta: boolean): ItemContado {
@@ -313,22 +346,22 @@ function montarItens(
   return itens;
 }
 
+/** As unidades do item: por roteiro, ele mesmo; por publicação, as publicações calculadas. */
+function unidadesDe(item: ItemContado): UnidadeContada[] {
+  return item.unidades ?? [{ publicado: item.publicado, etapa: etapaDoItem(item.entry) }];
+}
+
 function linhaDe(id: string, rotulo: string, grupo: readonly ItemContado[], meta: number | null): LinhaContagem {
-  let comPauta = 0;
-  let publicado = 0;
-  for (const item of grupo) {
-    if (item.temPauta || item.publicado) comPauta += 1;
-    if (item.publicado) publicado += 1;
-  }
+  const contagem = contaGrupo(grupo);
   return {
     id,
     rotulo,
-    planejado: grupo.length,
-    realizado: publicado,
+    planejado: contagem.previsto,
+    realizado: contagem.publicado,
     meta,
-    previsto: grupo.length,
-    comPauta,
-    publicado,
+    previsto: contagem.previsto,
+    comPauta: contagem.comPauta,
+    publicado: contagem.publicado,
   };
 }
 
@@ -344,15 +377,83 @@ function contaGrupo(grupo: readonly ItemContado[]): {
   publicado: number;
   porEtapa: ContagemPorEtapa;
 } {
+  let previsto = 0;
   let comPauta = 0;
   let publicado = 0;
   const porEtapa = contagemPorEtapaVazia();
   for (const item of grupo) {
-    if (item.temPauta || item.publicado) comPauta += 1;
-    if (item.publicado) publicado += 1;
-    porEtapa[etapaDoItem(item.entry)] += 1;
+    for (const unidade of unidadesDe(item)) {
+      previsto += 1;
+      if (item.temPauta || unidade.publicado) comPauta += 1;
+      if (unidade.publicado) publicado += 1;
+      porEtapa[unidade.etapa] += 1;
+    }
   }
-  return { previsto: grupo.length, comPauta, publicado, porEtapa };
+  return { previsto, comPauta, publicado, porEtapa };
+}
+
+/**
+ * Por roteiro: cada roteiro conta uma vez no período. O repost do mesmo roteiro continua na lista,
+ * mas não soma de novo; o repost de um roteiro que saiu em outro período conta uma vez aqui.
+ */
+function aplicarPorRoteiro(itens: readonly ItemContado[]): ItemContado[] {
+  const ordenados = [...itens].sort((a, b) => {
+    if (a.entry.tipo !== b.entry.tipo) return a.entry.tipo === 'original' ? -1 : 1;
+    return (a.entry.data ?? '').localeCompare(b.entry.data ?? '');
+  });
+  const vistos = new Set<string>();
+  const repetidos = new Set<ItemContado>();
+  for (const item of ordenados) {
+    if (vistos.has(item.entry.contentId)) repetidos.add(item);
+    else vistos.add(item.entry.contentId);
+  }
+  return itens.map(item => (repetidos.has(item) ? { ...item, unidades: [] } : item));
+}
+
+/**
+ * Por publicação: cada publicação do ciclo numa conta, com data no período e contando na meta.
+ * O ciclo sem nenhuma conta (roteiro só com a data dele) vale 1, como planejamento.
+ */
+function unidadesPorPublicacao(entry: GradeEntry, periodo: PeriodoGrade): UnidadeContada[] {
+  const publicacoes = entry.publicacoes ?? [];
+  if (publicacoes.length === 0) {
+    return noPeriodo(entry.data, periodo) ? [{ publicado: entry.realizada, etapa: etapaDoItem(entry) }] : [];
+  }
+  return publicacoes
+    .filter(publicacao => publicacao.contaNaGrade && noPeriodo(publicacao.data, periodo))
+    .map(publicacao => ({ publicado: publicacao.realizada, etapa: publicacao.etapa }));
+}
+
+/**
+ * Por publicação, cada item do período passa a somar as publicações dele no período.
+ * O ciclo com a data de referência fora do período, mas com outra conta dentro, entra só na conta
+ * (não vira item da lista: a lista e a Continuidade continuam por roteiro e episódio).
+ */
+function aplicarPorPublicacao(
+  itens: readonly ItemContado[],
+  entries: readonly GradeEntry[],
+  periodo: PeriodoGrade,
+): ItemContado[] {
+  const pesados = itens.map(item => {
+    // Post-it sem conteúdo é uma vaga planejada: 1.
+    if (item.entry.postItId) return { ...item, unidades: [{ publicado: item.publicado, etapa: etapaDoItem(item.entry) }] };
+    return { ...item, unidades: unidadesPorPublicacao(item.entry, periodo) };
+  });
+  const presentes = new Set(itens.map(item => item.entry.id));
+  const originaisPresentes = new Set(itens.filter(item => item.entry.tipo === 'original').map(item => item.entry.contentId));
+  const vistos = new Set<string>();
+  const extras: ItemContado[] = [];
+  for (const entry of entries) {
+    if (!entry.contaNaGrade || presentes.has(entry.id) || noPeriodo(entry.data, periodo)) continue;
+    if (entry.tipo === 'original' && (originaisPresentes.has(entry.contentId) || vistos.has(entry.contentId))) continue;
+    if (entry.tipo === 'original') vistos.add(entry.contentId);
+    const unidades = (entry.publicacoes ?? [])
+      .filter(publicacao => publicacao.contaNaGrade && noPeriodo(publicacao.data, periodo))
+      .map(publicacao => ({ publicado: publicacao.realizada, etapa: publicacao.etapa }));
+    if (unidades.length === 0) continue;
+    extras.push({ entry, temPauta: entry.temPauta === true, publicado: entry.realizada, unidades });
+  }
+  return [...pesados, ...extras];
 }
 
 /**
@@ -402,7 +503,11 @@ export function contarPeriodo({
     hoje,
   });
   const itens = montarItens(entries, postIts, periodo, series, hoje ?? format(new Date(), 'yyyy-MM-dd'));
+  // A escolha do período vale para a meta geral e o teto. A lista de itens continua um por roteiro.
+  const metodoCalculo = metodoDoPeriodo(settings.periodos, periodo.inicio, periodo.fim);
+  const contados = metodoCalculo === 'publicacoes-v2' ? aplicarPorPublicacao(itens, entries, periodo) : aplicarPorRoteiro(itens);
 
+  let previsto = 0;
   let comPauta = 0;
   let publicado = 0;
   let espacosLivres = 0;
@@ -410,21 +515,22 @@ export function contarPeriodo({
   let semSerie = 0;
   const porEtapa = contagemPorEtapaVazia();
   const semObjetivoPorEtapa = contagemPorEtapaVazia();
-  for (const item of itens) {
-    const entraComPauta = item.temPauta || item.publicado;
-    const etapa = etapaDoItem(item.entry);
-    if (entraComPauta) comPauta += 1;
-    if (item.publicado) publicado += 1;
-    if (!item.temPauta && !item.publicado) espacosLivres += 1;
-    porEtapa[etapa] += 1;
-    if (!item.entry.funcao) {
-      semObjetivoPorEtapa[etapa] += 1;
-      if (etapa !== 'planejamento') semObjetivo += 1;
+  for (const item of contados) {
+    for (const unidade of unidadesDe(item)) {
+      previsto += 1;
+      const etapa = unidade.etapa;
+      if (item.temPauta || unidade.publicado) comPauta += 1;
+      if (unidade.publicado) publicado += 1;
+      if (!item.temPauta && !unidade.publicado) espacosLivres += 1;
+      porEtapa[etapa] += 1;
+      if (!item.entry.funcao) {
+        semObjetivoPorEtapa[etapa] += 1;
+        if (etapa !== 'planejamento') semObjetivo += 1;
+      }
+      if (!item.entry.serieId) semSerie += 1;
     }
-    if (!item.entry.serieId) semSerie += 1;
   }
 
-  const previsto = itens.length;
   const excesso = limite == null ? null : Math.max(0, previsto - limite);
 
   const metasDoIntervalo = metasDoPeriodo({
@@ -434,7 +540,7 @@ export function contarPeriodo({
   });
   const objetivos: ContagemObjetivo[] = FUNCOES.map(funcao => {
     const meta = metasDoIntervalo[funcao].meta;
-    const grupo = itens.filter(item => item.entry.funcao === funcao);
+    const grupo = contados.filter(item => item.entry.funcao === funcao);
     const contagem = contaGrupo(grupo);
     return {
       id: funcao,
@@ -445,7 +551,7 @@ export function contarPeriodo({
   });
 
   const porPilar = new Map<string, ItemContado[]>();
-  for (const item of itens) {
+  for (const item of contados) {
     if (!item.entry.pilarId) continue;
     const lista = porPilar.get(item.entry.pilarId) ?? [];
     lista.push(item);
@@ -464,6 +570,8 @@ export function contarPeriodo({
 
   const dias = diasInclusivos(periodo);
   return {
+    metodoCalculo,
+    unidade: metodoCalculo === 'publicacoes-v2' ? 'publicacao' : 'roteiro',
     semanas: Math.max(1, dias / 7),
     espacosPorSemana: limiteSemanal ?? 0,
     totalMeta: limite,

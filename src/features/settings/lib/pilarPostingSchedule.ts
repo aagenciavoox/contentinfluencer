@@ -1,5 +1,7 @@
 import type { Pilar, PilarPlataforma, Platform, PostingTimeEntry } from '../../../lib/database';
 import {
+  getPostingTimesForPlatform,
+  getTimesForDay,
   getTimesForDayFromEntries,
   WEEKDAY_SHORT,
   type Weekday,
@@ -103,6 +105,31 @@ export function getCrossedPostingTimesForPilar(
   }
 
   return getTimesForDayFromEntries(postingTimeEntries, null, weekday);
+}
+
+/**
+ * Horários da programação numa conta: primeiro os do pilar naquela conta (dias e janela do pilar
+ * cruzados com os horários da conta); sem nada do pilar ali, os horários gerais da conta.
+ * Sem conta escolhida, vale o cruzamento do pilar em todas as contas.
+ */
+export function horariosDaProgramacao(input: {
+  pilar: Pick<Pilar, 'plataformas'> | null;
+  postingTimeEntries: PostingTimeEntry[];
+  platforms: Platform[];
+  platformId: string | null;
+  weekday: Weekday;
+}): { horarios: string[]; origem: 'pilar' | 'conta' | 'geral' } {
+  const { pilar, postingTimeEntries, platforms, platformId, weekday } = input;
+  if (!platformId) {
+    if (pilar) return { horarios: getCrossedPostingTimesForPilar(pilar, postingTimeEntries, platforms, weekday), origem: 'pilar' };
+    return { horarios: getTimesForDayFromEntries(postingTimeEntries, null, weekday), origem: 'geral' };
+  }
+  const daConta = pilar?.plataformas.find(item => resolvePlatformUuid(platforms, item.platformId) === platformId);
+  if (daConta && hasPilarPlatformSchedule(daConta)) {
+    const cruzados = getCrossedPostingTimesForPilarPlatform(daConta, postingTimeEntries, platformId, weekday);
+    if (cruzados.length > 0) return { horarios: cruzados, origem: 'pilar' };
+  }
+  return { horarios: getTimesForDay(getPostingTimesForPlatform(postingTimeEntries, platformId), weekday), origem: 'conta' };
 }
 
 export function formatCrossedPostingPreview(

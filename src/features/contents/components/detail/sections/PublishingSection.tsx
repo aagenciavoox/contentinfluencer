@@ -1,35 +1,40 @@
-import {AlertTriangle, CalendarDays, Image, Send} from 'lucide-react';
+import {AlertTriangle, CalendarCheck, CalendarDays, Check, Copy, Pencil} from 'lucide-react';
 import type {Content, ContentPlataforma, Pilar, Serie} from '../../../../../lib/database';
 import {AppButton} from '../../../../../components/ui/AppButton';
-import {rotuloStatusPublicacao, setPublicacaoStatus} from '../../../../editorial/lib/markPublished';
-import {CONTENT_STATUS, getDisplayStatus, isReadyToPublish} from '../../../lib/contentPipeline';
+import {setPublicacaoStatus} from '../../../../editorial/lib/markPublished';
+import {CONTENT_STATUS, DISPLAY_STATUS} from '../../../lib/contentPipeline';
 import type {PostingAlert} from '../../../lib/contentPipeline';
-import {useRef, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {useAppContext} from '../../../../../context/AppContext';
 import {cicloDaPublicacao, criarCicloDeRepost} from '../../../../editorial/lib/cicloPublicacao';
 import {retirarPrevisao} from '../../../../editorial/lib/dataVencida';
-import {progressoPublicacao} from '../../../../editorial/lib/publicacaoSituacao';
 import {
-  salvarRoteiroNoCalendario,
-  tirarRoteiroDoCalendario,
-} from '../../../../planejamento/lib/salvarNoCalendario';
+  confirmarProgramado,
+  normalizePublicacaoStatus,
+  rotuloSituacaoPublicacao,
+  seloDaPublicacao,
+  type SeloDaPublicacao,
+} from '../../../../editorial/lib/publicacaoSituacao';
+import {mudarDataPrincipal, mudarHoraPrincipal} from '../../../lib/dataPrincipal';
 import {PlatformCopyEditor} from '../PlatformCopyEditor';
-import {redeDaRef, rotuloConta, rotuloDaRef} from '../../../../contas/lib/contas';
+import {contaDaRef, iconeDaConta, redeDaRef, rotuloConta, rotuloCurtoConta} from '../../../../contas/lib/contas';
 import {formatoNoYoutube} from '../../../../editorial/lib/publicacoes';
+import {legendaComHashtags} from '../../../../editorial/lib/captions';
+import {PostingTimeSuggestions} from '../../../../settings/components/PostingTimeSuggestions';
+import {ConfirmModal} from '../../../../../components/feedback/modals/ConfirmModal';
+import {Drawer} from '../../../../../components/overlays/Drawer';
+import {OverlayBody} from '../../../../../components/overlays/OverlayBody';
+import {OverlayHeader} from '../../../../../components/overlays/OverlayHeader';
 import {Badge} from '../../../../../components/ui/Badge';
-import {ChoiceChips} from '../../../../../components/ui/ChoiceChips';
+import {MoreMenu} from '../../../../../components/ui/MoreMenu';
+import {PlatformIcon} from '../../../../../components/ui/PlatformIcon';
+import {Surface} from '../../../../../components/ui/Surface';
 import {Text} from '../../../../../components/ui/Text';
-import type {FormatoEscolhidoNaPublicacao} from '../../../../../lib/database';
 
 type PublishingDraft = Pick<
   Content,
-  'status' | 'publishDate' | 'publishDateEnabled' | 'plataformas' | 'notes' | 'legendaBase' | 'title'
+  'status' | 'publishDate' | 'publishDateEnabled' | 'publishTime' | 'plataformas' | 'notes' | 'legendaBase' | 'title'
 > & Partial<Pick<Content, 'postedAt' | 'edicaoConcluidaEm' | 'formatoVisual' | 'writingMode'>>;
-
-const ORIGEM_DO_FORMATO = {
-  conteudo: 'pelo formato do conteúdo',
-  deduzido: 'deduzido: roteiro no modo YouTube é vídeo longo; o resto, Shorts',
-} as const;
 
 interface PublishingSectionProps {
   draft: PublishingDraft;
@@ -41,6 +46,14 @@ interface PublishingSectionProps {
   contentId?: string;
 }
 
+type SaidaDaConta = {id: string; status: 'nao_publicada' | 'removida'; rotulo: string};
+
+const campoClass =
+  'w-full rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 t-body-strong text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--text-primary)]/30 md:rounded-[var(--radius-card)]';
+
+const campoDiscretoClass =
+  'h-8 rounded-[var(--radius-input)] border border-transparent bg-transparent px-2 t-meta text-[var(--text-secondary)] outline-none transition-colors hover:bg-[var(--bg-hover)] focus:border-[var(--border-color)] focus:bg-[var(--bg-elevated)]';
+
 function updatePlatformDate(
   plataformas: ContentPlataforma[],
   publicationId: string,
@@ -50,17 +63,6 @@ function updatePlatformDate(
     plataforma.id === publicationId
       ? {...plataforma, publishDate, publishDateEnabled: Boolean(publishDate)}
       : plataforma
-  );
-}
-
-/** Escolha de Shorts ou vídeo longo só nesta publicação; null volta para o formato do conteúdo ou a dedução. */
-function updatePlatformFormato(
-  plataformas: ContentPlataforma[],
-  publicationId: string,
-  formatoPublicacao: FormatoEscolhidoNaPublicacao | null,
-) {
-  return plataformas.map(plataforma =>
-    plataforma.id === publicationId ? {...plataforma, formatoPublicacao} : plataforma
   );
 }
 
@@ -76,6 +78,37 @@ function updatePlatformLink(
   );
 }
 
+/** "Não vai ao ar" e "Removida" saem da lista: a conta fica desmarcada, como no editor. */
+function emDestino(publicacao: Pick<ContentPlataforma, 'status'>): boolean {
+  return publicacao.status !== 'nao_publicada' && publicacao.status !== 'removida';
+}
+
+function hojeLocal(): string {
+  const agora = new Date();
+  const mes = String(agora.getMonth() + 1).padStart(2, '0');
+  const dia = String(agora.getDate()).padStart(2, '0');
+  return `${agora.getFullYear()}-${mes}-${dia}`;
+}
+
+function SeloDoTopo({selo}: {selo: SeloDaPublicacao}) {
+  if (selo.tom === 'publicado') return <Badge variant="status" status={CONTENT_STATUS.POSTADO}>{selo.texto}</Badge>;
+  if (selo.tom === 'programado') return <Badge variant="status" status={DISPLAY_STATUS.PROGRAMADO}>{selo.texto}</Badge>;
+  if (selo.tom === 'parcial') return <Badge variant="status" status={CONTENT_STATUS.EDICAO}>{selo.texto}</Badge>;
+  return <Badge variant="neutral">{selo.texto}</Badge>;
+}
+
+function SeloDaConta({status}: {status: ContentPlataforma['status']}) {
+  const situacao = normalizePublicacaoStatus(status);
+  const texto = rotuloSituacaoPublicacao(situacao);
+  if (situacao === 'publicada') return <Badge variant="success">{texto}</Badge>;
+  if (situacao === 'programada') return <Badge variant="status" status={DISPLAY_STATUS.PROGRAMADO}>{texto}</Badge>;
+  return <Badge variant="neutral">{texto}</Badge>;
+}
+
+/**
+ * Aba Publicação como confirmação: quando e onde, a prévia de cada legenda e as duas saídas
+ * (Programar ou Marcar como já publicada). A edição da legenda abre numa gaveta.
+ */
 export function PublishingSection({
   draft,
   pilar,
@@ -89,96 +122,95 @@ export function PublishingSection({
   const editorial = state.editorial;
   const referencia = state.platforms.find(platform => platform.id === editorial.redeReferenciaId) ?? null;
   const [repostDate, setRepostDate] = useState('');
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [copiadoId, setCopiadoId] = useState<string | null>(null);
+  const [saida, setSaida] = useState<SaidaDaConta | null>(null);
   const dataPrincipalRef = useRef<HTMLInputElement>(null);
   const isPosted = draft.status === CONTENT_STATUS.POSTADO || Boolean(draft.postedAt);
-  const materialPronto = isReadyToPublish(draft);
-  const progresso = progressoPublicacao(draft.plataformas);
-  const activePlatformIds = draft.plataformas.length > 0 ? draft.plataformas.map(item => item.platformId) : [];
+  const selo = seloDaPublicacao(draft, draft.plataformas);
+  const confirmacao = confirmarProgramado(draft, draft.plataformas);
+  const jaProgramado = !confirmacao.pode && confirmacao.motivo === 'ja-programado';
+  const publishDateOnly = draft.publishDate ? draft.publishDate.slice(0, 10) : '';
+  // No dia ou depois dele, a saída mais provável é registrar o que já foi ao ar.
+  const publicadaPrimeiro = Boolean(publishDateOnly) && publishDateOnly <= hojeLocal();
+  const contasMarcadas = draft.plataformas.filter(emDestino);
+
+  useEffect(() => {
+    if (!copiadoId) return;
+    const timer = window.setTimeout(() => setCopiadoId(null), 1500);
+    return () => window.clearTimeout(timer);
+  }, [copiadoId]);
+
+  const nomeDaConta = (plataforma: ContentPlataforma) => {
+    const conta = contaDaRef(plataforma.platformId, state.platforms);
+    const rotulo = conta ? rotuloCurtoConta(conta) : plataforma.platformId;
+    const comRepost = plataforma.publicationKind === 'repost' ? `${rotulo} · repost` : rotulo;
+    if (redeDaRef(plataforma.platformId, state.platforms) !== 'youtube') return comRepost;
+    const noYoutube = formatoNoYoutube({formatoVisual: draft.formatoVisual ?? null, writingMode: draft.writingMode}, plataforma);
+    return `${comRepost} · ${noYoutube.formato === 'short' ? 'Shorts' : 'Vídeo longo'}`;
+  };
+
+  const iconeDaPublicacao = (plataforma: ContentPlataforma) => {
+    const conta = contaDaRef(plataforma.platformId, state.platforms);
+    if (redeDaRef(plataforma.platformId, state.platforms) === 'youtube') {
+      const noYoutube = formatoNoYoutube({formatoVisual: draft.formatoVisual ?? null, writingMode: draft.writingMode}, plataforma);
+      if (noYoutube.formato === 'short') return 'youtube-shorts';
+    }
+    return conta ? iconeDaConta(conta) : plataforma.platformId;
+  };
+
+  const copiar = async (plataforma: ContentPlataforma, texto: string) => {
+    if (!texto) return;
+    try {
+      await navigator.clipboard.writeText(texto);
+      setCopiadoId(plataforma.id);
+    } catch {
+      setCopiadoId(null);
+    }
+  };
+
+  const editorProps = {
+    plataformas: draft.plataformas,
+    pilar,
+    serie,
+    // Cada publicação protege o próprio texto depois de ir ao ar; as pendentes seguem editáveis.
+    status: draft.status,
+    formatoVisual: draft.formatoVisual,
+    writingMode: draft.writingMode,
+    contentId,
+    legendaBase: draft.legendaBase ?? null,
+    titulo: draft.title,
+    onTituloChange: (title: string) => onChange({title}),
+    onChange: (plataformas: ContentPlataforma[]) => onChange({plataformas}),
+  };
+
+  const botaoProgramar = (
+    <AppButton
+      key="programar"
+      variant={publicadaPrimeiro ? 'secondary' : 'primary'}
+      leftIcon={jaProgramado ? <Check className="h-4 w-4" /> : <CalendarCheck className="h-4 w-4" />}
+      disabled={!confirmacao.pode}
+      disabledReason={confirmacao.pode ? undefined : confirmacao.texto}
+      onClick={() => {
+        if (confirmacao.pode) onChange({plataformas: confirmacao.publicacoes});
+      }}
+    >
+      {jaProgramado ? 'Programado' : 'Programar'}
+    </AppButton>
+  );
+  const botaoPublicada = onMarkPosted ? (
+    <AppButton key="publicada" variant={publicadaPrimeiro ? 'primary' : 'secondary'} onClick={onMarkPosted}>
+      Marcar como já publicada
+    </AppButton>
+  ) : null;
 
   return (
     <div className="grid gap-6">
-      {progresso.previstas > 0 ? (
+      {selo ? (
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="status" status={progresso.completo ? CONTENT_STATUS.POSTADO : 'Edição'}>
-            {progresso.completo ? 'Publicado' : `Publicação parcial · ${progresso.rotulo}`}
-          </Badge>
-          {!progresso.completo && materialPronto ? (
-            <Text variant="meta" as="span" className="text-[var(--text-secondary)]">
-              O repost fecha quando todas as contas previstas forem publicadas.
-            </Text>
-          ) : null}
+          <SeloDoTopo selo={selo} />
         </div>
       ) : null}
-      {!materialPronto && !isPosted ? (
-        <Text variant="secondary">
-          Prepare legenda, capa, contas e datas desde já. Programado pede o material pronto na Edição; uma publicação que já saiu pode ser registrada a qualquer momento.
-        </Text>
-      ) : null}
-      <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:rounded-[var(--radius-card)] md:p-6">
-        <div className="flex items-center gap-2 t-label text-[var(--text-tertiary)]">
-          <CalendarDays className="h-4 w-4" />
-          Agendamento
-        </div>
-
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <label className="block">
-            <Text variant="label" as="span" className="mb-2 block text-[var(--text-tertiary)]">
-              Data principal
-            </Text>
-            <input
-              ref={dataPrincipalRef}
-              type="date"
-              value={draft.publishDate ? draft.publishDate.slice(0, 10) : ''}
-              onChange={event => {
-                const base = {
-                  ...draft,
-                  id: contentId || 'draft',
-                  deletedAt: null,
-                  archivedAt: null,
-                  postedAt: draft.postedAt ?? null,
-                  publishTime: null,
-                } as Content;
-                if (!event.target.value) {
-                  const tirado = tirarRoteiroDoCalendario(base) ?? retirarPrevisao(base);
-                  onChange({
-                    publishDate: tirado.publishDate,
-                    publishDateEnabled: tirado.publishDateEnabled,
-                    plataformas: tirado.plataformas,
-                  });
-                  return;
-                }
-                const movido = salvarRoteiroNoCalendario(base, {
-                  modo: 'mesmo',
-                  date: event.target.value,
-                });
-                if (!movido) return;
-                onChange({
-                  publishDate: movido.publishDate,
-                  publishDateEnabled: movido.publishDateEnabled,
-                  plataformas: movido.plataformas,
-                });
-              }}
-              className="w-full rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 t-body-strong text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--text-primary)]/30 md:rounded-[var(--radius-card)]"
-            />
-          </label>
-
-          <div className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-4">
-            <Text variant="label" as="p" className="text-[var(--text-tertiary)]">Status atual</Text>
-            <Text variant="sectionTitle" as="p" className="mt-3 text-[var(--text-primary)]">
-              {getDisplayStatus({
-                status: draft.status,
-                publishDate: draft.publishDate,
-                postedAt: draft.postedAt ?? null,
-                edicaoConcluidaEm: draft.edicaoConcluidaEm ?? null,
-                plataformas: draft.plataformas,
-              })}
-            </Text>
-            <Text variant="secondary" as="p" className="mt-2 text-[var(--text-secondary)]">
-              A data fica guardada até você registrar a publicação.
-            </Text>
-          </div>
-        </div>
-      </section>
 
       {alerts.length > 0 ? (
         <section className="grid gap-3">
@@ -223,41 +255,137 @@ export function PublishingSection({
         </section>
       ) : null}
 
-      <PlatformCopyEditor
-        plataformas={draft.plataformas}
-        pilar={pilar}
-        serie={serie}
-        // Cada publicação protege o próprio texto depois de ir ao ar; as pendentes seguem editáveis.
-        status={draft.status}
-        formatoVisual={draft.formatoVisual}
-        writingMode={draft.writingMode}
-        contentId={contentId}
-        legendaBase={draft.legendaBase ?? null}
-        titulo={draft.title}
-        onTituloChange={title => onChange({title})}
-        onChange={plataformas => onChange({plataformas})}
-      />
+      <Surface as="section" variant="outlined" padding="lg" className="stack-lg bg-[var(--bg-elevated)]">
+        <div className="flex items-center gap-2 t-label text-[var(--text-tertiary)]">
+          <CalendarDays className="h-4 w-4" />
+          Quando e onde
+        </div>
 
-      {activePlatformIds.length > 0 ? (
-        <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:rounded-[var(--radius-card)] md:p-6">
-          <div className="flex items-center gap-2 t-label text-[var(--text-tertiary)]">
-            <Send className="h-4 w-4" />
-            Datas por plataforma
+        <div className="stack-sm">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block">
+              <Text variant="label" as="span" className="mb-2 block text-[var(--text-tertiary)]">
+                Data principal
+              </Text>
+              <input
+                ref={dataPrincipalRef}
+                type="date"
+                value={publishDateOnly}
+                onChange={event => {
+                  const mudanca = mudarDataPrincipal(draft, event.target.value || null, contentId);
+                  if (mudanca) onChange(mudanca);
+                }}
+                className={campoClass}
+              />
+            </label>
+            <label className="block">
+              <Text variant="label" as="span" className="mb-2 block text-[var(--text-tertiary)]">
+                Hora
+              </Text>
+              <input
+                type="time"
+                value={draft.publishTime ?? ''}
+                onChange={event => onChange(mudarHoraPrincipal(draft, event.target.value || null, contentId))}
+                className={campoClass}
+              />
+            </label>
           </div>
-          <div className="mt-4 stack-lg">
-            {draft.plataformas.map(plataforma => (
-              <article
-                key={plataforma.id || plataforma.platformId}
-                className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] p-4"
-              >
-                <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                  <Text variant="itemTitle" as="p" className="text-[var(--text-primary)]">{rotuloDaRef(plataforma.platformId, state.platforms)}</Text>
-                  <div className="grid gap-3 sm:grid-cols-2 md:min-w-[28rem]">
-                    <label className="block">
-                      <Text variant="label" as="span" className="mb-2 block text-[var(--text-tertiary)]">Data</Text>
+          {publishDateOnly ? (
+            <PostingTimeSuggestions
+              date={publishDateOnly}
+              selectedTime={draft.publishTime ?? ''}
+              postingTimeEntries={state.postingTimeEntries}
+              platforms={state.platforms}
+              pilar={pilar}
+              onSelect={time => onChange(mudarHoraPrincipal(draft, time, contentId))}
+            />
+          ) : null}
+        </div>
+
+        <div className="border-t border-[var(--border-color)] pt-4">
+          <PlatformCopyEditor {...editorProps} secoes="contas" />
+        </div>
+      </Surface>
+
+      {contasMarcadas.length > 0 ? (
+        <Surface as="section" variant="outlined" padding="lg" className="bg-[var(--bg-elevated)]">
+          <Text variant="sectionTitle" as="h3">Legendas</Text>
+          <ul className="mt-2">
+            {contasMarcadas.map(plataforma => {
+              const nome = nomeDaConta(plataforma);
+              const texto = legendaComHashtags(draft.legendaBase ?? null, plataforma).trim();
+              const diaDaConta = plataforma.publishDate ? plataforma.publishDate.slice(0, 10) : '';
+              const outroDia = Boolean(diaDaConta) && diaDaConta !== publishDateOnly;
+              const conta = contaDaRef(plataforma.platformId, state.platforms);
+              const nomeCompleto = conta ? rotuloConta(conta) : plataforma.platformId;
+              const podeSair = !isPosted || plataforma.status !== 'publicada';
+              return (
+                <li
+                  key={plataforma.id || plataforma.platformId}
+                  className="stack-xs border-t border-[var(--border-color)] py-4 first:border-t-0"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <PlatformIcon platform={iconeDaPublicacao(plataforma)} className="h-4 w-4 shrink-0" />
+                    <Text variant="bodyStrong" as="span" className="min-w-0 truncate">{nome}</Text>
+                    <SeloDaConta status={plataforma.status} />
+                    <div className="ml-auto flex items-center gap-1">
+                      <AppButton
+                        size="xs"
+                        variant="ghost"
+                        disabled={!texto}
+                        disabledReason="Escreva a legenda desta conta primeiro."
+                        aria-label={`Copiar legenda de ${nomeCompleto}`}
+                        leftIcon={copiadoId === plataforma.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                        onClick={() => void copiar(plataforma, texto)}
+                      >
+                        {copiadoId === plataforma.id ? 'Copiada' : 'Copiar'}
+                      </AppButton>
+                      <AppButton
+                        size="xs"
+                        variant="ghost"
+                        aria-label={`Editar legenda de ${nomeCompleto}`}
+                        leftIcon={<Pencil className="h-3.5 w-3.5" />}
+                        onClick={() => setEditandoId(plataforma.id)}
+                      >
+                        Editar
+                      </AppButton>
+                      {podeSair ? (
+                        <MoreMenu
+                          size="sm"
+                          label={`Mais opções de ${nomeCompleto}`}
+                          items={[
+                            {
+                              id: 'nao-vai',
+                              label: 'Não vai ao ar nesta conta',
+                              onClick: () => setSaida({id: plataforma.id, status: 'nao_publicada', rotulo: nomeCompleto}),
+                            },
+                            {
+                              id: 'removida',
+                              label: 'Removida da rede',
+                              tone: 'danger',
+                              onClick: () => setSaida({id: plataforma.id, status: 'removida', rotulo: nomeCompleto}),
+                            },
+                          ]}
+                        />
+                      ) : null}
+                    </div>
+                  </div>
+                  <Text
+                    variant="secondary"
+                    as="p"
+                    className={texto ? 'line-clamp-3 whitespace-pre-line text-[var(--text-secondary)]' : 'text-[var(--text-tertiary)]'}
+                  >
+                    {texto || 'Sem legenda ainda.'}
+                  </Text>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <label className="inline-flex items-center gap-1">
+                      <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">
+                        {outroDia ? 'Data própria' : 'Data'}
+                      </Text>
                       <input
                         type="date"
-                        value={plataforma.publishDate ? plataforma.publishDate.slice(0, 10) : ''}
+                        aria-label={`Data em ${nomeCompleto}`}
+                        value={diaDaConta}
                         onChange={event =>
                           onChange({
                             plataformas: updatePlatformDate(
@@ -267,108 +395,34 @@ export function PublishingSection({
                             ),
                           })
                         }
-                        className="w-full rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 t-body-strong text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--text-primary)]/30 md:rounded-[var(--radius-card)]"
+                        className={campoDiscretoClass}
                       />
                     </label>
-                    <label className="block">
-                      <Text variant="label" as="span" className="mb-2 block text-[var(--text-tertiary)]">Link</Text>
+                    <label className="inline-flex min-w-[12rem] flex-1 items-center gap-1">
+                      <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">Link</Text>
                       <input
                         type="url"
+                        aria-label={`Link em ${nomeCompleto}`}
                         value={plataforma.postUrl ?? ''}
                         placeholder="https://"
                         onChange={event =>
                           onChange({
-                            plataformas: updatePlatformLink(
-                              draft.plataformas,
-                              plataforma.id,
-                              event.target.value,
-                            ),
+                            plataformas: updatePlatformLink(draft.plataformas, plataforma.id, event.target.value),
                           })
                         }
-                        className="w-full rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 t-body-strong text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--text-primary)]/30 md:rounded-[var(--radius-card)]"
+                        className={`${campoDiscretoClass} min-w-0 flex-1`}
                       />
                     </label>
+                    {plataforma.postCodigo ? (
+                      <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">Código {plataforma.postCodigo}</Text>
+                    ) : null}
                   </div>
-                </div>
-                {redeDaRef(plataforma.platformId, state.platforms) === 'youtube' ? (() => {
-                  const noYoutube = formatoNoYoutube({formatoVisual: draft.formatoVisual ?? null, writingMode: draft.writingMode}, plataforma);
-                  return (
-                    <div className="mt-3 stack-xs">
-                      <Text variant="label" as="span" className="text-[var(--text-tertiary)]">Formato no YouTube</Text>
-                      <ChoiceChips<FormatoEscolhidoNaPublicacao>
-                        label="Formato no YouTube"
-                        value={noYoutube.formato}
-                        onChange={formato => onChange({
-                          // Tocar de novo no escolhido desfaz a escolha: volta ao formato do conteúdo ou à dedução.
-                          plataformas: updatePlatformFormato(draft.plataformas, plataforma.id, noYoutube.origem === 'escolhido' ? formato : formato ?? noYoutube.formato),
-                        })}
-                        options={[
-                          {value: 'short', label: 'Shorts'},
-                          {value: 'video-longo', label: 'Vídeo longo'},
-                        ]}
-                      />
-                      <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
-                        {noYoutube.origem === 'escolhido'
-                          ? 'Escolhido nesta publicação. Toque de novo para voltar ao automático.'
-                          : ORIGEM_DO_FORMATO[noYoutube.origem]}
-                      </Text>
-                    </div>
-                  );
-                })() : null}
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <Text variant="label" as="p" className="text-[var(--text-tertiary)]">
-                    {rotuloStatusPublicacao(plataforma.status)}
-                  </Text>
-                  {plataforma.postCodigo ? (
-                    <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">Código {plataforma.postCodigo}</Text>
-                  ) : null}
-                  {!isPosted || plataforma.status !== 'publicada' ? (
-                    <>
-                      <AppButton
-                        variant="ghost"
-                        size="xs"
-                        onClick={() =>
-                          onChange({
-                            plataformas: setPublicacaoStatus(draft.plataformas, plataforma.id, 'nao_publicada'),
-                          })
-                        }
-                      >
-                        Não publicada
-                      </AppButton>
-                      <AppButton
-                        variant="ghost"
-                        size="xs"
-                        onClick={() =>
-                          onChange({
-                            plataformas: setPublicacaoStatus(draft.plataformas, plataforma.id, 'removida'),
-                          })
-                        }
-                      >
-                        Removida
-                      </AppButton>
-                    </>
-                  ) : null}
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
+                </li>
+              );
+            })}
+          </ul>
+        </Surface>
       ) : null}
-
-      <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:rounded-[var(--radius-card)] md:p-6">
-        <div className="flex items-center gap-2 t-label text-[var(--text-tertiary)]">
-          <Image className="h-4 w-4" />
-          Assets e observações
-        </div>
-        <textarea
-          value={draft.notes ?? ''}
-          disabled={isPosted}
-          onChange={event => onChange({notes: event.target.value})}
-          className="mt-4 min-h-[140px] w-full rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-6 py-4 t-body leading-7 text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--text-primary)]/30 disabled:opacity-60"
-          placeholder="Ex.: link dos arquivos, instruções de edição, capa, cortes"
-        />
-      </section>
-
 
       {isPosted ? (
         <section className="rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:rounded-[var(--radius-card)] md:p-6">
@@ -420,13 +474,42 @@ export function PublishingSection({
         </section>
       ) : null}
 
-      {!isPosted && onMarkPosted ? (
-        <div className="flex justify-end">
-          <AppButton variant="primary" onClick={onMarkPosted}>
-            Registrar publicação
-          </AppButton>
+      {!isPosted ? (
+        <div className="stack-xs border-t border-[var(--border-color)] bg-[var(--bg-primary)] py-4 md:sticky md:bottom-0 md:z-10">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {publicadaPrimeiro ? [botaoProgramar, botaoPublicada] : [botaoPublicada, botaoProgramar]}
+          </div>
+          {!confirmacao.pode ? (
+            <Text variant="meta" as="p" className="text-right text-[var(--text-tertiary)]">{confirmacao.texto}</Text>
+          ) : null}
         </div>
       ) : null}
+
+      <Drawer open={editandoId !== null} onClose={() => setEditandoId(null)} ariaLabel="Editar legenda" widthClassName="max-w-xl">
+        <OverlayHeader title="Editar legenda" onClose={() => setEditandoId(null)} />
+        <OverlayBody className="px-6 py-4">
+          {editandoId ? (
+            <PlatformCopyEditor key={editandoId} {...editorProps} embedded secoes="legenda" abaInicialId={editandoId} />
+          ) : null}
+        </OverlayBody>
+      </Drawer>
+
+      <ConfirmModal
+        open={saida !== null}
+        message={saida
+          ? saida.status === 'nao_publicada'
+            ? `${saida.rotulo} não vai ao ar neste roteiro? A conta sai das previstas e fica desmarcada.`
+            : `Marcar ${saida.rotulo} como removida da rede? A conta sai das previstas e fica desmarcada.`
+          : ''}
+        confirmLabel={saida?.status === 'removida' ? 'Marcar como removida' : 'Não vai ao ar'}
+        cancelLabel="Voltar"
+        onConfirm={() => {
+          const atual = saida;
+          setSaida(null);
+          if (atual) onChange({plataformas: setPublicacaoStatus(draft.plataformas, atual.id, atual.status)});
+        }}
+        onCancel={() => setSaida(null)}
+      />
     </div>
   );
 }

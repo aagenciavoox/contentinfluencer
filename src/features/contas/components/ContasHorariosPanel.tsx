@@ -1,6 +1,7 @@
 import {useMemo, useState} from 'react';
 import {Link} from 'react-router-dom';
-import {AlertCircle, ArrowUpRight, Plus} from 'lucide-react';
+import {format} from 'date-fns';
+import {AlertCircle, ArrowUpRight, Pencil, Plus, Undo2} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
 import {useAuth} from '../../../context/AuthContext';
 import type {Content, ContentPlataforma, Platform, RedeSocial} from '../../../lib/database';
@@ -17,7 +18,10 @@ import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
 import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
 import {PostingTimesOverview} from '../../settings/components/PostingTimesOverview';
-import {ToggleSwitch} from '../../../components/ui/ToggleSwitch';
+import {PainelMetaDaConta, textoPorFormato} from '../../editorial/components/plano/ContasEFormatosCard';
+import {useEditorialPlano} from '../../editorial/components/plano/useEditorialPlano';
+import {diaMes} from '../../editorial/components/plano/ValeAPartirDe';
+import {desfazerMudancaDaConta, metaDaContaHoje, proximaMudancaDaConta, type MetaDaContaVigencia} from '../../editorial/lib/metasPorConta';
 import {generateUUID} from '../../../utils/uuid';
 import {notifySaveFeedback} from '../../../lib/saveFeedback';
 import {CONFIRM, type ConfirmState} from '../../../lib/uiCopy';
@@ -51,11 +55,11 @@ type Rascunho = {
   handle: string;
 };
 
-/** Colunas da tabela de contas: conta, integração, na criação e o menu. No celular, uma coluna só. */
-const LINHA_CONTA =
-  'grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-4 md:grid-cols-[minmax(0,2.2fr)_minmax(0,1.2fr)_minmax(0,1fr)_2.5rem]';
-
 const RASCUNHO_NOVO: Rascunho = { id: null, rede: 'instagram', nome: '', handle: '' };
+
+function publicacoesPorSemana(total: number): string {
+  return total === 1 ? '1 publicação por semana' : `${total} publicações por semana`;
+}
 
 /**
  * Aba "Contas e formatos" do Editorial: contas de cada rede, pendências de links antigos
@@ -63,12 +67,25 @@ const RASCUNHO_NOVO: Rascunho = { id: null, rede: 'instagram', nome: '', handle:
  */
 export function ContasHorariosPanel() {
   const {state, dispatch} = useAppContext();
+  const {settings, gravar, salvarPreferencias} = useEditorialPlano();
   const {user} = useAuth();
   const [rascunho, setRascunho] = useState<Rascunho | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const [revisaoAberta, setRevisaoAberta] = useState(true);
+  const [metaAbertaId, setMetaAbertaId] = useState<string | null>(null);
+  const hoje = format(new Date(), 'yyyy-MM-dd');
+  const linhasMeta = settings.metasDasContas ?? [];
+  const referenciaId = settings.preferencias.redeReferenciaId;
 
   const contas = useMemo(() => ordenarContas(state.platforms), [state.platforms]);
+  const listaContas = [...contas.filter(conta => conta.ativo), ...contas.filter(conta => !conta.ativo)];
+  const metasAtivas = contasAtivas(contas).map(conta => metaDaContaHoje(linhasMeta, conta.id, hoje));
+  const somaMetas = metasAtivas.reduce((total, linha) => total + (linha?.limiteSemanal ?? 0), 0);
+  const contasSemMeta = metasAtivas.filter(linha => linha?.limiteSemanal == null).length;
+  const contaDaMeta = contas.find(conta => conta.id === metaAbertaId) ?? null;
+  const gravarMetas = (novas: MetaDaContaVigencia[]) => {
+    void gravar({ ...settings, metasDasContas: novas });
+  };
   const revisoes = useMemo(
     () => revisoesDeContas({
       contas: state.platforms,
@@ -359,114 +376,203 @@ export function ContasHorariosPanel() {
         ) : null}
 
         <section className="stack-sm" aria-labelledby="contas-titulo">
-          <div className="flex flex-wrap items-center gap-3">
-            <Text variant="sectionTitle" as="h2"><span id="contas-titulo">Contas</span></Text>
-            <Badge variant="neutral">
-              {contasAtivas(contas).length === 1 ? '1 ativa' : `${contasAtivas(contas).length} ativas`}
-            </Badge>
-            {/* A ação fica junto da lista que ela altera; o cabeçalho do Editorial não tem CTA nesta aba. */}
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 stack-xs">
+              <Text variant="sectionTitle" as="h2"><span id="contas-titulo">Contas e formatos</span></Text>
+              <div className="flex flex-wrap items-center gap-2">
+                <Text variant="secondary" as="span">
+                  {contasAtivas(contas).length === 0 || contasSemMeta === contasAtivas(contas).length
+                    ? 'Nenhuma meta definida'
+                    : publicacoesPorSemana(somaMetas)}
+                </Text>
+                {contasSemMeta > 0 && contasSemMeta < contasAtivas(contas).length ? (
+                  <Badge variant="warning">
+                    {contasSemMeta === 1 ? '1 conta sem meta' : `${contasSemMeta} contas sem meta`}
+                  </Badge>
+                ) : null}
+              </div>
+            </div>
             <AppButton
               onClick={() => setRascunho(RASCUNHO_NOVO)}
               variant="primary"
-              size="sm"
               leftIcon={<Plus className="h-4 w-4" />}
-              className="ml-auto"
             >
-              Nova conta
+              Adicionar conta
             </AppButton>
           </div>
           {contas.length === 0 ? (
             <Surface padding="sm">
-              <Text variant="secondary">Nenhuma conta ainda. Cadastre a primeira para escolher o destino dos roteiros.</Text>
+              <Text variant="secondary">Adicione uma conta para cadastrar horários e metas.</Text>
             </Surface>
           ) : (
-            <Surface padding="none" className="overflow-hidden">
-              <div className={`${LINHA_CONTA} hidden border-b border-[var(--border-color)] bg-[var(--surface-subtle)] py-2.5 md:grid`} aria-hidden>
-                <Text variant="label" as="span" className="text-[var(--text-secondary)]">Conta</Text>
-                <Text variant="label" as="span" className="text-[var(--text-secondary)]">Integração</Text>
-                <Text variant="label" as="span" className="text-[var(--text-secondary)]">Usar ao criar</Text>
-                <span />
-              </div>
-              <ul>
-                {contas.map(platform => {
-                  const compartilhada = platform.userId === null;
-                  const estado = estadoCadastro(platform);
-                  const handle = exibirHandle(platform.handle);
-                  const usada = emUso(platform.id);
-                  const rede = redeDaConta(platform);
-                  const rotulo = rotuloConta(platform);
-                  return (
-                    <li key={platform.id} className={`${LINHA_CONTA} border-b border-[var(--border-color)] py-3 last:border-b-0`}>
-                      <div className="flex min-w-0 items-center gap-3">
-                        <PlatformTile platform={iconeDaConta(platform)} />
-                        <div className="min-w-0">
-                          <Text variant="body" truncate>{rede && rede !== 'outra' ? REDE_ROTULO[rede] : platform.nome}</Text>
-                          {handle ? (
-                            <Text variant="secondary" truncate className="text-[var(--text-secondary)]">
-                              {handle}
-                              {platform.nome.trim() && platform.nome.trim() !== REDE_ROTULO[rede ?? 'outra'] ? ` · ${platform.nome.trim()}` : ''}
-                            </Text>
-                          ) : compartilhada ? (
-                            <Text variant="secondary" className="text-[var(--text-secondary)]">sem @</Text>
-                          ) : (
-                            <AppButton
-                              variant="secondary"
-                              size="xs"
-                              className="mt-1 h-7 px-2"
-                              aria-label={`Adicionar @ em ${rotulo}`}
-                              onClick={() => abrirEdicao(platform)}
-                            >
-                              Adicionar @
-                            </AppButton>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Badge variant="neutral">{rotuloConexao(platform)}</Badge>
-                        {estado === 'revisar' ? <Badge variant="neutral">{ESTADO_CADASTRO_ROTULO[estado]}</Badge> : null}
-                        {compartilhada ? <Badge variant="neutral">Cadastro compartilhado</Badge> : null}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <ToggleSwitch
-                          id={`conta-${platform.id}`}
-                          enabled={platform.ativo}
-                          onToggle={() => { void toggleAtivo(platform); }}
-                          label={`Usar ${rotulo} ao criar`}
-                          disabled={compartilhada}
-                        />
-                        <label htmlFor={`conta-${platform.id}`}>
-                          <Text variant="secondary" as="span" className="text-[var(--text-secondary)]">{platform.ativo ? 'Ativa' : 'Inativa'}</Text>
-                        </label>
-                      </div>
-                      <div className="flex justify-end">
-                        {compartilhada ? null : (
-                          <MoreMenu
-                            size="sm"
-                            label={`Mais opções de ${rotulo}`}
-                            items={[
-                              { label: 'Editar conta', onClick: () => abrirEdicao(platform) },
-                              ...(usada ? [] : [{
-                                label: CONFIRM.excluirPlataforma.confirmLabel,
-                                tone: 'danger' as const,
-                                onClick: () => pedirExclusao(platform),
-                              }]),
-                            ]}
-                          />
-                        )}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
+            <Surface padding="none" className="overflow-x-auto">
+              <table className="w-full table-fixed border-collapse text-left md:table-auto">
+                <thead className="bg-[var(--surface-subtle)]">
+                  <tr>
+                    <th scope="col" className="w-[62%] px-4 py-3 font-normal md:w-auto">
+                      <Text variant="label" as="span" className="text-[var(--text-secondary)]">Conta</Text>
+                    </th>
+                    <th scope="col" className="w-16 px-2 py-3 font-normal md:w-auto md:px-4">
+                      <Text variant="label" as="span" className="text-[var(--text-secondary)]">Meta semanal</Text>
+                    </th>
+                    <th scope="col" className="hidden px-4 py-3 font-normal md:table-cell">
+                      <Text variant="label" as="span" className="text-[var(--text-secondary)]">Por formato</Text>
+                    </th>
+                    <th scope="col" className="hidden px-4 py-3 font-normal lg:table-cell">
+                      <Text variant="label" as="span" className="text-[var(--text-secondary)]">Integração</Text>
+                    </th>
+                    <th scope="col" className="w-24 px-2 py-3 font-normal md:w-auto md:px-4">
+                      <span className="sr-only">Ações</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {listaContas.map(platform => {
+                    const compartilhada = platform.userId === null;
+                    const estado = estadoCadastro(platform);
+                    const handle = exibirHandle(platform.handle);
+                    const usada = emUso(platform.id);
+                    const rede = redeDaConta(platform);
+                    const rotulo = rotuloConta(platform);
+                    const nome = rede && rede !== 'outra' ? REDE_ROTULO[rede] : platform.nome;
+                    const nomeDaRede = REDE_ROTULO[rede ?? 'outra'];
+                    const nomeExtra = platform.nome.trim()
+                      && platform.nome.trim().toLocaleLowerCase('pt-BR') !== nomeDaRede.toLocaleLowerCase('pt-BR')
+                      ? platform.nome.trim()
+                      : '';
+                    const atual = metaDaContaHoje(linhasMeta, platform.id, hoje);
+                    const proxima = proximaMudancaDaConta(linhasMeta, platform.id, hoje);
+                    const formatos = textoPorFormato(atual, rede);
+                    const referencia = platform.id === referenciaId;
+                    const itensMenu = [
+                      ...(compartilhada ? [] : [{ label: 'Editar conta', onClick: () => abrirEdicao(platform) }]),
+                      {
+                        label: referencia ? 'Deixar de ser referência' : 'Definir como referência',
+                        onClick: () => salvarPreferencias({ redeReferenciaId: referencia ? null : platform.id }),
+                      },
+                      ...(compartilhada ? [] : [{
+                        label: platform.ativo ? 'Não usar ao criar' : 'Usar ao criar',
+                        onClick: () => { void toggleAtivo(platform); },
+                      }]),
+                      ...(compartilhada || usada ? [] : [{
+                        label: CONFIRM.excluirPlataforma.confirmLabel,
+                        tone: 'danger' as const,
+                        onClick: () => pedirExclusao(platform),
+                      }]),
+                    ];
+                    return (
+                      <tr key={platform.id} className="border-t border-[var(--border-color)]">
+                        <td className="px-4 py-3 align-middle">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <PlatformTile platform={iconeDaConta(platform)} />
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Text variant="body" as="span">{nome}</Text>
+                                {!platform.ativo ? <Badge variant="neutral">Inativa</Badge> : null}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Text variant="secondary" as="span" truncate className="text-[var(--text-secondary)]">
+                                  {handle ?? 'sem @'}
+                                  {nomeExtra ? ` · ${nomeExtra}` : ''}
+                                </Text>
+                                {referencia ? <Badge variant="neutral">Referência</Badge> : null}
+                              </div>
+                              <div className="mt-1 stack-xs md:hidden">
+                                <Text variant="meta" as="span" className="text-[var(--text-secondary)]">
+                                  {formatos || '—'} · {rotuloConexao(platform)}
+                                </Text>
+                                {proxima ? (
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <Text variant="meta" as="span">
+                                      A partir de seg., {diaMes(proxima.vigenteDesde)}: {proxima.limiteSemanal == null ? 'sem meta' : `${proxima.limiteSemanal} por semana`}
+                                    </Text>
+                                    <AppButton
+                                      variant="ghost"
+                                      size="sm"
+                                      leftIcon={<Undo2 className="h-4 w-4" />}
+                                      onClick={() => gravarMetas(desfazerMudancaDaConta(linhasMeta, platform.id, proxima.vigenteDesde, hoje))}
+                                    >
+                                      Desfazer
+                                    </AppButton>
+                                  </div>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-2 py-3 align-middle md:px-4">
+                          <Text variant="bodyStrong" as="span" className="tabular-nums">
+                            {atual?.limiteSemanal == null ? <span className="text-[var(--text-tertiary)]">—</span> : atual.limiteSemanal}
+                          </Text>
+                          {atual?.limiteSemanal == null ? <span className="sr-only">Sem meta</span> : null}
+                        </td>
+                        <td className="hidden px-4 py-3 align-middle md:table-cell">
+                          <Text variant="secondary" as="p" className="text-[var(--text-secondary)]">{formatos || '—'}</Text>
+                          {proxima ? (
+                            <div className="mt-1 flex flex-wrap items-center gap-2">
+                              <Text variant="meta" as="span">
+                                A partir de seg., {diaMes(proxima.vigenteDesde)}: {proxima.limiteSemanal == null ? 'sem meta' : `${proxima.limiteSemanal} por semana`}
+                              </Text>
+                              <AppButton
+                                variant="ghost"
+                                size="sm"
+                                leftIcon={<Undo2 className="h-4 w-4" />}
+                                onClick={() => gravarMetas(desfazerMudancaDaConta(linhasMeta, platform.id, proxima.vigenteDesde, hoje))}
+                              >
+                                Desfazer
+                              </AppButton>
+                            </div>
+                          ) : null}
+                        </td>
+                        <td className="hidden px-4 py-3 align-middle lg:table-cell">
+                          <div className="stack-xs">
+                            <Text variant="secondary" as="span" className="text-[var(--text-secondary)]">{rotuloConexao(platform)}</Text>
+                            {estado === 'revisar' ? <Badge variant="neutral">{ESTADO_CADASTRO_ROTULO[estado]}</Badge> : null}
+                            {compartilhada ? <Badge variant="neutral">Cadastro compartilhado</Badge> : null}
+                          </div>
+                        </td>
+                        <td className="px-2 py-3 align-middle md:px-4">
+                          <div className="flex items-center justify-end gap-1">
+                            <span className="md:hidden">
+                              <AppButton
+                                variant="secondary"
+                                size="sm"
+                                iconOnly
+                                aria-label={`Editar meta de ${rotulo}`}
+                                onClick={() => setMetaAbertaId(platform.id)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </AppButton>
+                            </span>
+                            <span className="hidden md:inline-flex">
+                              <AppButton
+                                variant="secondary"
+                                size="sm"
+                                leftIcon={<Pencil className="h-4 w-4" />}
+                                onClick={() => setMetaAbertaId(platform.id)}
+                              >
+                                Editar
+                              </AppButton>
+                            </span>
+                            <MoreMenu size="sm" label={`Mais opções de ${rotulo}`} items={itensMenu} />
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </Surface>
           )}
           <Text variant="secondary" className="text-[var(--text-secondary)]">
-            Conta em uso não pode ser excluída. Desative para tirar da criação sem perder o histórico.
+            Um roteiro em três contas conta como três publicações.
           </Text>
         </section>
 
         <PostingTimesOverview />
       </div>
+
+      <PainelMetaDaConta conta={contaDaMeta} onClose={() => setMetaAbertaId(null)} />
 
       <ConfirmModal
         open={!!confirm}

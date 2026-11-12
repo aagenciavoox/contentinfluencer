@@ -76,7 +76,7 @@ import {
   postItPassa,
   publicacoesDoCard,
 } from '../lib/filtroCalendario';
-import {textoSeloSoNoPlano} from '../lib/reguaFrequencia';
+import {seriePausadaNoDia, textoSeloSoNoPlano} from '../lib/reguaFrequencia';
 import {reservaPendente} from '../../editorial/lib/reservaPendente';
 import {publicacoesDaAgenda, rotuloDoFormato} from '../../editorial/lib/publicacoes';
 import {CreationRedeQuickFilter} from '../../creation/components/CreationRedeQuickFilter';
@@ -644,6 +644,7 @@ export function PlanejamentoPage() {
             : postIt.pilarId || pilarHerdadoDaSerie(postIt.serieId, state.series);
           // Sem pilar escolhido não há pilar: o cartão fica com a cor de post-it, não com o primeiro da lista.
           const pilar = pilarId ? state.pilares.find(p => p.id === pilarId) ?? null : null;
+          const pausada = seriePausadaNoDia(serieId, dateKey, state.editorial.pausas ?? [], state.series);
           const marcaAntes = Boolean(dateKey && encaixe?.id === postIt.id && encaixe.antes);
           const marcaDepois = Boolean(dateKey && encaixe?.id === postIt.id && !encaixe.antes);
           const aoArrastarSobre = (event: ReactDragEvent<HTMLDivElement>) => {
@@ -693,6 +694,7 @@ export function PlanejamentoPage() {
                 serie={serie}
                 pilar={pilar}
                 aviso={quando ? rotuloPublicadoEm(quando) : null}
+                pausada={pausada}
                 contas={contasDoCard(publicacoesDoCard(indiceAgenda, content.id, publicado ? null : postIt.date), state.platforms)}
                 draggable={!isMobile && !publicado}
                 onDragStart={event => {
@@ -770,6 +772,7 @@ export function PlanejamentoPage() {
               onToggleSelect={isMobile ? undefined : () => toggleSelected(postIt.id)}
               selo={textoSeloSoNoPlano({semRoteiro: !postIt.contentId, vistaTemRoteiro})}
               pendente={reservaPendente(postIt, format(new Date(), 'yyyy-MM-dd'))}
+              pausada={pausada}
             />
             {marcaDepois ? <div className="mt-1 h-1 rounded-full bg-[var(--brand-accent-strong)]" aria-hidden /> : null}
             </div>

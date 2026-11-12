@@ -73,3 +73,11 @@
 - App and MCP contain duplicated business rules. When changing a rule used by both, check the corresponding implementation in `mcp/src/`.
 - Run checks appropriate to the change. Report failures or checks that could not run.
 - Finish with a concise summary of changes, validation, and unresolved issues.
+
+## Economia de uso (regra da Anne)
+
+Estas regras valem para todo assistente e têm prioridade sobre a seção Graphify acima:
+
+- Não rode o `graphify` (nem `graphify update .`) e não regenere o `graphify-out/`, a menos que a Anne peça.
+- Não leia o repositório inteiro a cada tarefa. Leia só os arquivos da tarefa: localize com `git grep` e abra apenas os trechos relevantes. Aproveite o que já sabe do projeto.
+- Rode `npx tsc --noEmit`, `npm test` e `npm run build` uma vez, no fim de cada pacote de mudanças, e não a cada passo.

@@ -71,10 +71,12 @@ export function SeriesListaToolbar(props: Props) {
   const etapa = (
     <SelectField
       ariaLabel="Etapa"
-      prefix="Etapa:"
       value={filtros.etapa}
       onChange={valor => onFiltros({ etapa: valor as FiltrosLista['etapa'] })}
-      options={ETAPAS_DO_FILTRO.map(item => ({ value: item.value, label: item.label }))}
+      options={ETAPAS_DO_FILTRO.map(item => ({
+        value: item.value,
+        label: item.value === 'todas' ? 'Todas as etapas' : item.label,
+      }))}
       selected={filtros.etapa !== 'todas'}
       block={celular}
     />
@@ -115,7 +117,6 @@ export function SeriesListaToolbar(props: Props) {
   const agrupar = props.opcoesAgrupar.length > 1 ? (
     <SelectField
       ariaLabel="Agrupar por"
-      prefix="Agrupar por:"
       value={props.agrupar}
       onChange={valor => props.onAgrupar(valor as AgruparLista)}
       options={props.opcoesAgrupar.map(item => ({ value: item, label: ROTULO_AGRUPAR[item] }))}
@@ -125,7 +126,6 @@ export function SeriesListaToolbar(props: Props) {
   const ordenar = (
     <SelectField
       ariaLabel="Ordenar"
-      prefix="Ordenar:"
       value={props.ordem}
       onChange={valor => props.onOrdem(valor as OrdemLista)}
       options={props.opcoesOrdem.map(item => ({ value: item, label: ROTULO_ORDEM[item] }))}
@@ -202,7 +202,7 @@ export function SeriesListaToolbar(props: Props) {
         {etapa}
         {extras > 0 ? (
           <AppButton
-            variant={maisFiltros ? 'secondary' : 'ghost'}
+            variant="secondary"
             leftIcon={<SlidersHorizontal className="h-4 w-4" />}
             aria-expanded={maisFiltros}
             onClick={() => setMaisFiltros(aberto => !aberto)}
@@ -223,7 +223,7 @@ export function SeriesListaToolbar(props: Props) {
           {temporada}
         </div>
       ) : null}
-      {resumo}
+      {chips.length > 0 || props.avisoOrdem ? resumo : null}
     </div>
   );
 }

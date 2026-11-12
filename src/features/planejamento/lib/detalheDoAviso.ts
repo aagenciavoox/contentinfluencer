@@ -17,6 +17,9 @@ const BLOCO: Record<TipoAvisoOrientacao, BlocoDoAviso> = {
   'capacidade-semana': 'producao',
   'ausencia-12-dias': 'continuidade',
   'ausencia-mes': 'continuidade',
+  'videos-dia-abaixo': 'producao',
+  'videos-dia-acima': 'producao',
+  'saturacao-quadro': 'concentracao',
 };
 
 const REGRA: Record<TipoAvisoOrientacao, { regra: string; acao: string }> = {
@@ -30,6 +33,9 @@ const REGRA: Record<TipoAvisoOrientacao, { regra: string; acao: string }> = {
   'capacidade-semana': { regra: 'ritmo das séries e waves acompanhadas na semana × dias de gravação e limite por dia', acao: 'rever o ritmo no Editorial ou abrir mais um dia de gravação' },
   'ausencia-12-dias': { regra: 'série, quadro ou wave acompanhada sem episódio nem post-it nos próximos 12 dias', acao: 'planejar um episódio ou uma reserva na janela' },
   'ausencia-mes': { regra: 'série, quadro ou wave acompanhada sem episódio nem post-it no mês', acao: 'planejar um episódio ou uma reserva no mês, ou rever a frequência no Editorial' },
+  'videos-dia-abaixo': { regra: 'vídeos por dia de gravação abaixo do mínimo (ou da meta, sem mínimo) da Rotina de criação', acao: 'juntar gravações no mesmo dia ou rever a faixa no Editorial' },
+  'videos-dia-acima': { regra: 'vídeos por dia de gravação acima do máximo (ou da meta, sem máximo) da Rotina de criação', acao: 'mover gravações para outro dia ou rever a faixa no Editorial' },
+  'saturacao-quadro': { regra: 'mesmo quadro mais vezes na semana do que o limite de saturação (Rotina de criação › Avisos)', acao: 'trocar uma das pautas por outro quadro ou série, ou mover para outra semana' },
 };
 
 const ABRE_ANALISE: ReadonlySet<TipoAvisoOrientacao> = new Set(['capacidade-semana', 'ausencia-12-dias', 'ausencia-mes']);

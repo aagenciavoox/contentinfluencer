@@ -1,4 +1,5 @@
 import type { Serie, StatusSerie } from '../../../lib/database';
+import { vezesNaRegraDeOuro } from '../../editorial/lib/regraDeOuro.ts';
 
 export type { StatusSerie };
 
@@ -28,10 +29,12 @@ export function emRascunho(item: { status?: StatusSerie | null }): boolean {
   return item.status === 'rascunho';
 }
 
-/** Quadro não fica em rascunho: quem fica é a série de cima. */
+/**
+ * Série e quadro podem ficar em rascunho: cadastrados e editáveis, sugeridos em "Ver o que encaixa",
+ * mas sem cobrança de frequência até ficarem ativos. Família só agrupa.
+ */
 export function podeSerRascunho(serie: Pick<Serie, 'tipoAgrupamento' | 'parentId'>): boolean {
-  if (serie.tipoAgrupamento) return serie.tipoAgrupamento !== 'quadro';
-  return !serie.parentId;
+  return serie.tipoAgrupamento !== 'familia';
 }
 
 /** Troca o status e mantém `ativa` coerente (ativa = status 'ativa'). */
@@ -59,10 +62,20 @@ export function roteirosPorSemana(serie: Pick<Serie, 'frequenciaVezes' | 'freque
   return null;
 }
 
-/** Aviso ao ativar: quanto a série passa a pedir neste mês. */
-export function textoDaAtivacao(serie: Pick<Serie, 'name' | 'frequenciaVezes' | 'frequenciaUnidade'>): string {
-  const nome = serie.name.trim() || 'A série';
-  const porSemana = roteirosPorSemana(serie);
+/**
+ * Aviso ao ativar: quanto a série passa a pedir neste mês, já com a Regra de Ouro
+ * (até 1 por semana; família, uma por série ativa). Quadro é sob demanda e não pede nada.
+ */
+export function textoDaAtivacao(
+  serie: Pick<Serie, 'name' | 'frequenciaVezes' | 'frequenciaUnidade'>,
+  opcoes: { quadro?: boolean; unidades?: number } = {},
+): string {
+  const nome = serie.name.trim() || (opcoes.quadro ? 'O quadro' : 'A série');
+  if (opcoes.quadro) return `${nome} fica sob demanda: não tem meta semanal e não soma no limite da semana.`;
+  const porSemana = roteirosPorSemana({
+    frequenciaVezes: vezesNaRegraDeOuro(serie.frequenciaVezes, serie.frequenciaUnidade || 'semana', opcoes.unidades ?? 1) ?? null,
+    frequenciaUnidade: serie.frequenciaUnidade,
+  });
   if (porSemana == null) return `${nome} entra na Saúde, mas ainda sem ritmo: não vai pedir roteiros por semana.`;
   const numero = String(porSemana).replace('.', ',');
   return `${nome} vai pedir ${numero} ${porSemana === 1 ? 'roteiro' : 'roteiros'} por semana neste mês.`;

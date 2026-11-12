@@ -1,38 +1,17 @@
 import { ValorVazio } from '../../../../components/ui/ValorVazio';
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { CalendarDays, Clock, Hash, Pencil, Share2, Target, Undo2, UserRound } from 'lucide-react';
+import { CalendarDays, Clock, Hash, Pencil, Target, Undo2 } from 'lucide-react';
 import { AppButton } from '../../../../components/ui/AppButton';
-import { SidePanel } from '../../../../components/layout/SidePanel';
 import { Badge } from '../../../../components/ui/Badge';
-import { PlatformIcon } from '../../../../components/ui/PlatformIcon';
-import { SelectField } from '../../../../components/ui/SelectField';
 import { Text } from '../../../../components/ui/Text';
-import type { Platform, PostingTimeEntry } from '../../../../lib/database';
-import { iconeDaConta, rotuloConta } from '../../../contas/lib/contas';
-import { PostingTimesEditor } from '../../../settings/components/PostingTimesEditor';
 import { CampoStepper, CampoTexto, CardConfiguracao, inteiroOuNull } from './campos';
 import { atualizarPreferencias } from '../../lib/editorialSettings';
 import { agendarVigencia, desfazerMudanca, diretrizNoDomingo, domingosParaVigencia, mudancasAgendadas } from '../../lib/vigencias';
 import { ProporcaoObjetivosEditor, proporcaoEmTexto, ResumoDaProporcao } from './ProporcaoObjetivosEditor';
-import { ContasEFormatosCard } from './ContasEFormatosCard';
 import { VariedadeConcentracaoCard } from './VariedadeConcentracaoCard';
 import { useEditorialPlano } from './useEditorialPlano';
 import { diaMes, ValeAPartirDe } from './ValeAPartirDe';
-
-function resumoHorarios(entries: readonly PostingTimeEntry[], platforms: readonly Platform[]): string {
-  const ids = new Set(entries.flatMap(entry => (entry.platformId ? [entry.platformId] : [])));
-  const nomes = platforms.filter(platform => ids.has(platform.id)).map(platform => rotuloConta(platform));
-  const global = entries.some(entry => !entry.platformId);
-  if (nomes.length === 0 && !global) return '';
-  if (nomes.length === 0) return 'Todas as contas usam o padrão geral.';
-  const amostra = nomes.slice(0, 3).join(', ');
-  const resto = nomes.length > 3 ? ` e mais ${nomes.length - 3}` : '';
-  const frase = nomes.length === 1
-    ? `${amostra} tem horários próprios`
-    : `${amostra}${resto} têm horários próprios`;
-  return global ? `${frase}. As outras usam o padrão geral.` : `${frase}.`;
-}
 
 type RitmoDraft = {
   limite: string;
@@ -124,18 +103,17 @@ function MudancaAgendadaAviso({ texto, onDesfazer }: { texto: string; onDesfazer
 }
 
 /** Que parte dos ajustes cada aba do Editorial mostra. */
-export type SecaoAjustes = 'capacidade' | 'proporcao' | 'contas' | 'avisos' | 'operacional';
+export type SecaoAjustes = 'capacidade' | 'proporcao' | 'avisos' | 'operacional';
 
 /**
  * Aba Ajustes: o que vale para todos os períodos. Não tem seletor de período; o que muda
  * de um período para outro fica na aba Período.
  */
 export function AjustesEditorialPanel({ secao = 'capacidade' }: { secao?: SecaoAjustes } = {}) {
-  const { state, settings, gravar, salvarPreferencias } = useEditorialPlano();
+  const { settings, gravar, salvarPreferencias } = useEditorialPlano();
   const preferencias = settings.preferencias;
   const hoje = format(new Date(), 'yyyy-MM-dd');
   const { estaSemana } = domingosParaVigencia(hoje);
-  const [horariosAbertos, setHorariosAbertos] = useState(false);
   const [editandoRitmo, setEditandoRitmo] = useState(false);
   const [editandoProporcao, setEditandoProporcao] = useState(false);
   const [ritmo, setRitmo] = useState<RitmoDraft>(() => ritmoSalvo(preferencias));
@@ -190,23 +168,13 @@ export function AjustesEditorialPanel({ secao = 'capacidade' }: { secao?: SecaoA
     setEditandoProporcao(false);
   };
 
-  const ativas = state.platforms.filter(platform => platform.ativo);
-  const referenciaAtual = state.platforms.find(platform => platform.id === preferencias.redeReferenciaId);
-  const opcoesReferencia = referenciaAtual && !ativas.some(platform => platform.id === referenciaAtual.id)
-    ? [referenciaAtual, ...ativas]
-    : ativas;
-
-  const horarios = state.postingTimeEntries ?? [];
-
   return (
     <div className="stack-lg">
       {secao === 'capacidade' ? (<>
       <CardConfiguracao
         icone={<CalendarDays className="h-5 w-5" />}
-        titulo="Ritmo de criação"
-        descricao={editandoRitmo
-          ? 'Ajuste os números e salve. Nada é gravado a cada clique.'
-          : undefined}
+        titulo="Tetos"
+        descricao="O teto de publicação limita o plano. O teto de gravações corta o dia. Espaços fora das séries e roteiros de reserva continuam dentro da semana."
         acao={editandoRitmo ? (
           <div className="flex flex-wrap justify-end gap-2">
             <AppButton variant="secondary" size="sm" onClick={cancelarRitmo}>
@@ -219,7 +187,7 @@ export function AjustesEditorialPanel({ secao = 'capacidade' }: { secao?: SecaoA
               disabled={reservaInvalida}
               disabledReason={reservaInvalida ? 'A reserva cabe dentro do limite semanal.' : undefined}
             >
-              Salvar
+              Salvar rotina
             </AppButton>
           </div>
         ) : (
@@ -232,9 +200,9 @@ export function AjustesEditorialPanel({ secao = 'capacidade' }: { secao?: SecaoA
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
             <CampoStepper
               id="limite-semanal"
-              label="Roteiros por semana"
-              unidade="roteiros"
-              hint="Cada roteiro conta uma vez, na publicação original. Reposts e roteiros fora das metas não entram. Você escolhe a partir de quando vale."
+              label="Teto de publicação"
+              unidade="por semana"
+              hint="Se quiser um teto, até quantas publicações cabem no seu plano? A conta segue Por roteiro ou Por publicação."
               value={ritmo.limite}
               onChange={limite => setRitmo(atual => ({ ...atual, limite }))}
             />
@@ -243,7 +211,7 @@ export function AjustesEditorialPanel({ secao = 'capacidade' }: { secao?: SecaoA
                 id="reserva-fora-series"
                 label="Espaços fora das séries"
                 unidade="por semana"
-                hint="Para publicidades, ideias e oportunidades. Já incluídos no total semanal."
+                hint="Para publicidades, ideias e oportunidades. Já entram no teto da semana."
                 value={ritmo.reserva}
                 onChange={reserva => setRitmo(atual => ({ ...atual, reserva }))}
                 erro={reservaInvalida ? 'A reserva cabe dentro do limite semanal.' : undefined}
@@ -254,7 +222,7 @@ export function AjustesEditorialPanel({ secao = 'capacidade' }: { secao?: SecaoA
                 id="reserva-prontos"
                 label="Roteiros prontos de reserva"
                 unidade="roteiros"
-                hint="Finalizados e sem data de publicação. Exclui os que ainda precisam de edição e os já agendados."
+                hint="Finalizados e sem data de publicação."
                 value={ritmo.prontos}
                 onChange={prontos => setRitmo(atual => ({ ...atual, prontos }))}
               />
@@ -262,9 +230,9 @@ export function AjustesEditorialPanel({ secao = 'capacidade' }: { secao?: SecaoA
             <div>
               <CampoStepper
                 id="limite-gravacoes-dia"
-                label="Gravações por dia"
+                label="Teto de gravações por dia"
                 unidade="no máximo"
-                hint="O Planejamento avisa quando um dia passa disso. Vazio, não há aviso."
+                hint="Mais do que isso, o dia não comporta. Vazio, não há aviso."
                 value={ritmo.gravacoes}
                 onChange={gravacoes => setRitmo(atual => ({ ...atual, gravacoes }))}
               />
@@ -278,9 +246,9 @@ export function AjustesEditorialPanel({ secao = 'capacidade' }: { secao?: SecaoA
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
             <ValorDoRitmo
-              rotulo="Roteiros por semana"
+              rotulo="Teto de publicação"
               valor={preferencias.limiteSemanal}
-              unidade="roteiros"
+              unidade="por semana"
               dotColor="#10b981"
               helper="Total do ciclo semanal"
             />
@@ -299,7 +267,7 @@ export function AjustesEditorialPanel({ secao = 'capacidade' }: { secao?: SecaoA
               helper="Estoque sem data"
             />
             <ValorDoRitmo
-              rotulo="Gravações por dia"
+              rotulo="Teto de gravações por dia"
               valor={preferencias.limiteGravacoesDia}
               unidade="no máximo"
               dotColor="#ec4899"
@@ -310,7 +278,7 @@ export function AjustesEditorialPanel({ secao = 'capacidade' }: { secao?: SecaoA
         {!editandoRitmo ? mudancas.filter(mudanca => mudanca.limite).map(mudanca => (
           <MudancaAgendadaAviso
             key={mudanca.vigenteDesde}
-            texto={`A partir de dom, ${diaMes(mudanca.vigenteDesde)}: ${mudanca.limite!.para == null ? 'sem limite de publicações' : `${mudanca.limite!.para} roteiros por semana`}.`}
+            texto={`A partir de dom, ${diaMes(mudanca.vigenteDesde)}: ${mudanca.limite!.para == null ? 'sem limite de publicações' : `meta geral de ${mudanca.limite!.para} por semana`}.`}
             onDesfazer={() => gravar(desfazerMudanca(settings, mudanca.vigenteDesde, 'limite', hoje))}
           />
         )) : null}
@@ -319,12 +287,12 @@ export function AjustesEditorialPanel({ secao = 'capacidade' }: { secao?: SecaoA
       <div id="dias-de-gravacao">
       <CardConfiguracao
         icone={<Clock className="h-5 w-5" />}
-        titulo="Avisos do que falta para postar"
-        descricao="No dia em que você grava, ou alguns dias antes da postagem, o Calendário e o Hoje listam o que ainda falta no que já está no Calendário."
+        titulo="Gravação"
+        descricao="Em quais dias você costuma gravar? Sem dia marcado, o lembrete do dia de gravar fica desligado."
       >
         <div className="stack-md">
           <div className="stack-xs">
-            <Text variant="label" as="p">Dias em que grava</Text>
+            <Text variant="label" as="p">Dias de gravação</Text>
             <div className="flex flex-wrap gap-2">
               {([
                 [1, 'Seg'],
@@ -353,15 +321,12 @@ export function AjustesEditorialPanel({ secao = 'capacidade' }: { secao?: SecaoA
                 );
               })}
             </div>
-            <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-              Vazio desliga o lote do dia de gravar.
-            </Text>
           </div>
           <CampoStepper
             id="antecedencia-postagem"
-            label="Dias antes da postagem"
+            label="Dias de antecedência"
             unidade="dias"
-            hint="Avisa nesse prazo e no dia. Vazio desliga a antecedência."
+            hint="Me avise com estes dias de antecedência se um vídeo já tem data para sair e ainda falta gravar. Vazio desliga a antecedência."
             value={textoNumero(preferencias.antecedenciaPostagemDias)}
             onChange={valor => {
               gravar(atualizarPreferencias(settings, {
@@ -377,8 +342,8 @@ export function AjustesEditorialPanel({ secao = 'capacidade' }: { secao?: SecaoA
       {secao === 'proporcao' ? (
       <CardConfiguracao
         icone={<Target className="h-5 w-5" />}
-        titulo="Proporção por objetivo"
-        descricao="Quanto do limite vai para cada objetivo, em %. A meta de cada período sai daqui. Você escolhe a partir de quando vale; os períodos passados mantêm a proporção que tinham."
+        titulo="Distribuição por objetivo"
+        descricao="Quanto espaço você quer dar para cada objetivo no seu conteúdo? O total precisa somar 100%."
         acao={editandoProporcao ? undefined : (
           <AppButton
             variant="secondary"
@@ -389,7 +354,7 @@ export function AjustesEditorialPanel({ secao = 'capacidade' }: { secao?: SecaoA
               setEditandoProporcao(true);
             }}
           >
-            {settings.proporcaoFuncoes ? 'Editar proporção' : 'Definir proporção'}
+            {settings.proporcaoFuncoes ? 'Editar distribuição' : 'Definir distribuição'}
           </AppButton>
         )}
       >
@@ -417,114 +382,33 @@ export function AjustesEditorialPanel({ secao = 'capacidade' }: { secao?: SecaoA
 
       ) : null}
 
-      {secao === 'contas' ? (<>
-      <ContasEFormatosCard />
-
-      <CardConfiguracao icone={<Share2 className="h-5 w-5" />} titulo="Redes e horários">
-        <div className="grid-form">
-          <div className="stack-sm">
-            <label htmlFor="rede-referencia">
-              <Text variant="bodyStrong" as="span">Conta de referência</Text>
-            </label>
-            <SelectField
-              id="rede-referencia"
-              block
-              value={preferencias.redeReferenciaId ?? ''}
-              describedBy="rede-referencia-hint"
-              leadingIcon={referenciaAtual ? (
-                <PlatformIcon platform={iconeDaConta(referenciaAtual)} colored className="h-5 w-5" />
-              ) : undefined}
-              onChange={value => salvarPreferencias({ redeReferenciaId: value || null })}
-              options={[
-                { value: '', label: 'Nenhuma' },
-                ...opcoesReferencia.map(platform => ({ value: platform.id, label: rotuloConta(platform) })),
-              ]}
-            />
-            <Text variant="secondary">
-              <span id="rede-referencia-hint">Usada como base para o calendário.</span>
-            </Text>
-          </div>
-          <div className="stack-sm">
-            <div className="flex flex-wrap items-center gap-2">
-              <Text variant="bodyStrong" as="h3">Horários de postagem</Text>
-              <Badge variant="neutral">{horarios.length === 0 ? 'Não definidos' : 'Definidos'}</Badge>
-            </div>
-            {horarios.length > 0 ? (
-              <Text variant="secondary">
-                {resumoHorarios(horarios, state.platforms)}
-              </Text>
-            ) : null}
-            <AppButton
-              variant="secondary"
-              className="mt-1 self-start"
-              leftIcon={<Clock className="h-4 w-4" />}
-              onClick={() => setHorariosAbertos(true)}
-            >
-              Configurar horários
-            </AppButton>
-          </div>
-        </div>
-      </CardConfiguracao>
-      </>) : null}
-
       {secao === 'avisos' ? <VariedadeConcentracaoCard /> : null}
 
       {secao === 'operacional' ? (
       <div className="grid gap-4 lg:grid-cols-2">
-        <CardConfiguracao icone={<Hash className="h-5 w-5" />} titulo="Hashtags fora das séries">
+        {/* O perfil editorial foi para a aba Direção editorial (PerfilEditorialCard). */}
+        <CardConfiguracao
+          icone={<Hash className="h-5 w-5" />}
+          titulo="Hashtags gerais"
+          descricao="Hashtags que você usa em qualquer conteúdo, além das de cada pilar."
+        >
           <div className="stack-sm">
             <CampoTexto
               id="hashtags-fora-series"
-              label="Hashtags padrão"
+              label="Hashtags"
               rows={5}
-              placeholder="#hashtag1 #hashtag2"
+              placeholder="#livro #resenha"
               value={preferencias.hashtagsForaSeries}
               onSave={hashtagsForaSeries => {
                 if (hashtagsForaSeries === preferencias.hashtagsForaSeries) return;
                 salvarPreferencias({ hashtagsForaSeries });
               }}
             />
-            <Text variant="secondary">
-              Preenche hashtags vazias de roteiros sem série. Não sobrescreve o que já está escrito.
-            </Text>
           </div>
         </CardConfiguracao>
 
-        <CardConfiguracao icone={<UserRound className="h-5 w-5" />} titulo="Perfil editorial">
-          <div className="stack-lg">
-            <CampoTexto
-              id="publico-linguagem"
-              label="Público, linguagem e assuntos"
-              placeholder="Quem você quer alcançar, como se comunica e sobre o que fala…"
-              value={preferencias.publicoLinguagem}
-              onSave={publicoLinguagem => {
-                if (publicoLinguagem === preferencias.publicoLinguagem) return;
-                salvarPreferencias({ publicoLinguagem });
-              }}
-            />
-            <Text variant="secondary">
-              Referência ao escrever e no contexto do assistente. Não altera a grade sozinho.
-            </Text>
-          </div>
-        </CardConfiguracao>
       </div>
       ) : null}
-
-      <SidePanel
-        open={horariosAbertos}
-        onClose={() => setHorariosAbertos(false)}
-        title="Horários de postagem"
-        subtitle={referenciaAtual
-          ? `Preferências atuais de ${rotuloConta(referenciaAtual)}. Salvar atualiza este resumo e a tela Contas e horários.`
-          : 'Nenhuma conta está marcada como base. Escolha a conta nas abas antes de alterar o horário dela. Global vale nos dias sem horário próprio.'}
-        widthClassName="max-w-3xl"
-      >
-        <PostingTimesEditor
-          contaInicialId={preferencias.redeReferenciaId}
-          comecarEditando
-          aoSalvar={() => setHorariosAbertos(false)}
-        />
-      </SidePanel>
     </div>
   );
 }

@@ -367,10 +367,13 @@ export function PeriodoPanel({
   onPeriodoChange,
   onAbrirAjustes,
   planoRecolhivel = true,
+  semListasDoPeriodo = false,
 }: {
   periodo: PeriodoSelecionado;
   onPeriodoChange: (periodo: PeriodoSelecionado) => void;
   onAbrirAjustes: () => void;
+  /** No Editorial, contas e séries do período ficam na tabela do Plano (sem repetir as listas). */
+  semListasDoPeriodo?: boolean;
   /** No Planejamento as metas abrem fechadas; no Editorial ficam abertas. */
   planoRecolhivel?: boolean;
 }) {
@@ -466,6 +469,8 @@ export function PeriodoPanel({
     diasGravacao: settings.preferencias.diasGravacao,
     antecedenciaPostagemDias: settings.preferencias.antecedenciaPostagemDias,
     temporadas: state.temporadas,
+    avisosLigados: settings.avisos,
+    indicadoresProducao: settings.indicadoresProducao,
   })) {
     avisos.push({
       id: aviso.id,
@@ -588,6 +593,7 @@ export function PeriodoPanel({
         onAjustarAbertoChange={setAjustarAberto}
         onSalvarDecisao={patch => salvarDecisao(periodo, patch)}
         recolhivel={planoRecolhivel}
+        semListas={semListasDoPeriodo}
       />
 
       <div className="pt-2">
@@ -681,10 +687,10 @@ export function PeriodoPanel({
       <CardConfiguracao
         icone={<Target className="h-5 w-5" />}
         titulo="Distribuição por objetivo"
-        descricao="A meta de cada objetivo vem da proporção × meta do período. Um número só para este período fica em Ajustar metas."
+        descricao="Quanto espaço você quer dar para cada objetivo neste período?"
         acao={editandoProporcao ? undefined : (
           <AppButton variant="secondary" size="sm" onClick={() => setEditandoProporcao(true)}>
-            {proporcao ? 'Editar proporção' : 'Definir proporção'}
+            {proporcao ? 'Editar distribuição' : 'Definir distribuição'}
           </AppButton>
         )}
       >
@@ -701,15 +707,15 @@ export function PeriodoPanel({
         ) : null}
         {!editandoProporcao && proporcao && somaProporcao !== 100 ? (
           <InlineNotice
-            texto={`A proporção soma ${somaProporcao}%. As metas são repartidas sobre esse total; para ficar exato, ajuste para 100%.`}
-            acao={{ rotulo: 'Ajustar a proporção', onClick: () => setEditandoProporcao(true) }}
+            texto={`Total: ${somaProporcao}%. ${somaProporcao < 100 ? `Faltam ${100 - somaProporcao}% para fechar 100%.` : `Passou ${somaProporcao - 100}%. Ajuste os percentuais para somarem 100%.`}`}
+            acao={{ rotulo: 'Ajustar a distribuição', onClick: () => setEditandoProporcao(true) }}
           />
         ) : null}
         {!editandoProporcao && !proporcao ? (
-          <Text variant="secondary">Sem proporção definida, as metas ficam em branco. Você ainda pode digitar uma meta só para este período.</Text>
+          <Text variant="secondary">Sem distribuição definida, as metas ficam em branco. Você ainda pode digitar uma meta só para este período.</Text>
         ) : null}
         {proporcao && contagem.limite == null ? (
-          <Text variant="secondary" as="p">Sem limite no período, a proporção aparece só em %. Defina o limite para ver quantos roteiros cabem em cada objetivo.</Text>
+          <Text variant="secondary" as="p">Sem limite no período, a distribuição aparece só em %. Defina o limite para ver quantos roteiros cabem em cada objetivo.</Text>
         ) : null}
         {frasesDasMetas.length > 0 ? (
           <Surface variant="info" padding="sm">

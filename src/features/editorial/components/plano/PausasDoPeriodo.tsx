@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { differenceInCalendarDays, format, parseISO } from 'date-fns';
 import { AlertCircle, Pencil, Plus } from 'lucide-react';
 import { SidePanel } from '../../../../components/layout/SidePanel';
+import { Ajuda } from '../../../../components/ui/Ajuda';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { ChoiceChips } from '../../../../components/ui/ChoiceChips';
 import { SelectField } from '../../../../components/ui/SelectField';
@@ -153,7 +154,7 @@ function EditorDaPausa({
             disabledReason={problema ?? undefined}
             onClick={() => onSalvar(rascunho)}
           >
-            Salvar
+            Salvar pausa
           </AppButton>
         </div>
       </div>
@@ -200,10 +201,13 @@ export function PausasDoPeriodo({
     <section className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-4 stack-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
-          <Text variant="bodyStrong" as="h3">Pausas</Text>
-          <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
-            Pausa de publicação tira os dias da meta. Gravação e produção não mudam a meta.
-          </Text>
+          <div className="inline-flex items-center">
+            <Text variant="bodyStrong" as="h3">Pausas</Text>
+            <Ajuda
+              rotulo="Sobre pausas"
+              texto="Vai dar uma pausa? Escolha o que você quer pausar e por quanto tempo. Gravação e produção mantêm as publicações no calendário."
+            />
+          </div>
         </div>
         <AppButton variant="secondary" size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setEditando({ pausa: nova(), existente: false })}>
           Adicionar pausa

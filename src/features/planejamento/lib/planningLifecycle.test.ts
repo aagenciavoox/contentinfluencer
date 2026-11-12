@@ -6,6 +6,7 @@ import {DEFAULT_EDITORIAL_SETTINGS} from '../../editorial/lib/editorialSettings.
 import {createEmptyPostIt, movePostIt, pullExistingContent, transformPostIt} from './postIt.ts';
 import {ocupacaoDoMes, periodoDoMes, saudeDoMes} from './monthHealth.ts';
 import {publicacoesPorDia} from './publicacoesDoMes.ts';
+import {publicacoesNaSaude} from './publicacoesNaSaude.ts';
 
 const outubro = periodoDoMes(new Date(2026, 9, 31));
 const novembro = periodoDoMes(new Date(2026, 10, 1));
@@ -63,7 +64,21 @@ if (promoted.ok) {
 const platforms=[{id:'instagram',nome:'Instagram'},{id:'youtube',nome:'YouTube'}];
 existente.plataformas.push(publicacao('repost','instagram','2026-10-20',2));
 const cycles=saudeDoMes({postIts:[],contents:[existente],series:[],pilares:[],settings:{...settings,redeReferenciaId:'instagram',preferencias:{...settings.preferencias,redeReferenciaId:'instagram'}},periodo:outubro,platforms});
-assert.equal(cycles.previsto,2,'duas contas do original ocupam um espaço; o ciclo de repost ocupa outro');
+assert.equal(cycles.previsto,1,'por roteiro: duas contas do original e o repost no mesmo período contam o roteiro uma vez');
+assert.equal(cycles.itens.length,2,'o ciclo de repost continua na lista do período');
+const porPublicacao=saudeDoMes({postIts:[],contents:[existente],series:[],pilares:[],settings:{...settings,redeReferenciaId:'instagram',preferencias:{...settings.preferencias,redeReferenciaId:'instagram'},periodos:[{...outubro,prioridade:'',metas:{},ajustesSemana:[],metodoCalculo:'publicacoes-v2'}]},periodo:outubro,platforms});
+assert.equal(porPublicacao.previsto,3,'por publicação: Instagram e YouTube do original e o repost no Instagram');
+assert.equal(porPublicacao.unidade,'publicacao');
+{
+  // Metas de conta contam publicação nos dois métodos: o seletor não muda a conta de cada conta.
+  const contas=[{id:'instagram',nome:'Instagram',ativo:true},{id:'youtube',nome:'YouTube',ativo:true}] as unknown as Parameters<typeof publicacoesNaSaude>[0]['platforms'];
+  const porConta=(metodoCalculo:'conteudos-v1'|'publicacoes-v2')=>publicacoesNaSaude({
+    contents:[existente], platforms:contas, series:[], periodo:outubro, linhas:[], proporcaoGeral:null, pausas:[],
+    decisao:{...outubro,prioridade:'',metas:{},ajustesSemana:[],metodoCalculo},
+  });
+  assert.deepEqual(porConta('conteudos-v1').contas.map(conta=>conta.total),[2,1]);
+  assert.deepEqual(porConta('publicacoes-v2'),porConta('conteudos-v1'));
+}
 const cards=publicacoesPorDia({contents:[existente],platforms,series:[],redeReferenciaId:'instagram',postIts:[{...pulled.postIts[0],date:'2026-10-05'}]});
 assert.equal(cards.get('2026-10-05')?.length ?? 0,0,'o original vinculado não duplica o cartão');
 assert.equal(cards.get('2026-10-20')?.length,1,'o repost continua visível');

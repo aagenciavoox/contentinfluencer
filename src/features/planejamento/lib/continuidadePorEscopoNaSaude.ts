@@ -9,6 +9,7 @@ import type { OndaDaExclusao } from '../../editorial/lib/metaPropria.ts';
 import type { PausaEditorial } from '../../editorial/lib/pausas.ts';
 import { publicacoesDaAgenda, rotuloDoFormato } from '../../editorial/lib/publicacoes.ts';
 import { reservaPendente } from '../../editorial/lib/reservaPendente.ts';
+import { avisoLigado, type AvisosLigados } from '../../editorial/lib/avisosEditoriais.ts';
 import type { PlanejamentoPostIt } from './postIt.ts';
 
 /** Uma linha da Saúde para um acompanhamento por conta ou formato. */
@@ -87,6 +88,8 @@ export function linhasDaContinuidadePorEscopo(input: {
   pausas: readonly PausaEditorial[];
   temporadas?: readonly OndaDaExclusao[];
   hoje?: string;
+  /** Editorial › Avisos: "dias sem episódio" e "dias seguidos" desligados não entram no texto. */
+  avisosLigados?: AvisosLigados | null;
 }): LinhaDoEscopoNaSaude[] {
   const acompanhamentos = input.series
     .filter(serie => serie.ativa !== false)
@@ -112,7 +115,12 @@ export function linhasDaContinuidadePorEscopo(input: {
     hoje,
   });
   const nomes = new Map(input.series.map(serie => [serie.id, serie.name]));
-  return resultados.flatMap(resultado => {
+  const semDistancia = !avisoLigado(input.avisosLigados, 'distancia');
+  const semSeguidos = !avisoLigado(input.avisosLigados, 'dias-seguidos');
+  return resultados.flatMap(bruto => {
+    const resultado = semDistancia || semSeguidos
+      ? { ...bruto, distancias: semDistancia ? [] : bruto.distancias, diasSeguidos: semSeguidos ? [] : bruto.diasSeguidos }
+      : bruto;
     const leitura = textoDoEscopo(resultado, input.hoje ?? format(new Date(), 'yyyy-MM-dd'));
     if (!leitura) return [];
     return [{

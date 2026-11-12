@@ -45,6 +45,8 @@ export interface PlanejamentoContentCardProps {
   episodio?: string | null;
   /** Aviso de roteiro que já foi ao ar, por exemplo "Publicado em 06/11 18:30". */
   aviso?: string | null;
+  /** O dia do card cai numa pausa desta série (ou da família dela). */
+  pausada?: boolean;
   className?: string;
 }
 
@@ -101,6 +103,16 @@ function redeDoIcone(rede: string | null, formato: string): RedeDoFiltro | null 
   return redeDoFiltro(rede as RedeSocial, formato as FormatoPublicacao);
 }
 
+/** Publicado em TikTok, Instagram ou Shorts: o ícone já diz a rede. Nome e @ ficam na dica. */
+function soIconeECheck(rede: RedeDoFiltro | null): boolean {
+  return rede === 'tiktok'
+    || rede === 'tiktok-video'
+    || rede === 'instagram'
+    || rede === 'instagram-video'
+    || rede === 'instagram-carrossel'
+    || rede === 'youtube-shorts';
+}
+
 export function PlanejamentoContentCard({
   publicacao,
   content,
@@ -121,6 +133,7 @@ export function PlanejamentoContentCard({
   onToggleSelect,
   episodio = null,
   aviso = null,
+  pausada = false,
   className,
 }: PlanejamentoContentCardProps) {
   const posted = publicacao.estado === 'postado';
@@ -272,7 +285,7 @@ export function PlanejamentoContentCard({
         </Text>
       </div>
 
-      {nomeSerie || nomePilar || episodio ? (
+      {nomeSerie || nomePilar || episodio || pausada ? (
         <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1">
           {nomeSerie || nomePilar ? (
             <span
@@ -294,6 +307,9 @@ export function PlanejamentoContentCard({
               {nomePilar}
             </Text>
           ) : null}
+          {pausada ? (
+            <Badge variant="neutral" className="px-1.5 py-0">Pausa</Badge>
+          ) : null}
           {episodio ? (
             <>
               <Badge variant="tag" className="px-1.5 py-0">
@@ -312,13 +328,14 @@ export function PlanejamentoContentCard({
         <EtapaIcon etapa={etapa} cor={posted ? null : cor} />
         {contas && contas.length > 0 ? contas.map(conta => {
           const icone = redeDoIcone(conta.rede, conta.formato);
+          const comNome = posted && !soIconeECheck(icone);
           return (
           <span
             key={conta.platformId}
             title={`${conta.nome} · ${conta.rotuloFormato} · ${conta.rotuloSituacao}${conta.programado ? ' · programado' : ''}`}
             aria-label={`${conta.nome}: ${conta.rotuloFormato}, ${conta.rotuloSituacao}`}
             className={cn(
-              posted ? 'flex w-full min-w-0 items-center gap-1' : 'inline-flex items-center gap-0.5',
+              comNome ? 'flex w-full min-w-0 items-center gap-1' : 'inline-flex items-center gap-0.5',
               conta.situacao !== 'realizada' && 'opacity-70',
             )}
           >
@@ -327,7 +344,7 @@ export function PlanejamentoContentCard({
             ) : (
               <PlatformIcon platform={conta.nome} className="h-3.5 w-3.5 shrink-0" />
             )}
-            {posted ? (
+            {comNome ? (
               <Text variant="meta" as="span" className="min-w-0 flex-1 break-words">
                 {conta.nome}
               </Text>
@@ -337,16 +354,19 @@ export function PlanejamentoContentCard({
             {conta.situacao === 'vencida' ? <AlertCircle className="h-3 w-3 shrink-0 text-[var(--accent-orange)]" aria-hidden /> : null}
           </span>
           );
-        }) : publicacao.platformNames.map(nome => (
-          <span key={nome} title={nome} className={posted ? 'flex w-full min-w-0 items-center gap-1' : 'inline-flex items-center gap-0.5'}>
+        }) : publicacao.platformNames.map(nome => {
+          const comNome = posted && !soIconeECheck(nome as RedeDoFiltro);
+          return (
+          <span key={nome} title={nome} className={comNome ? 'flex w-full min-w-0 items-center gap-1' : 'inline-flex items-center gap-0.5'}>
             <PlatformIcon platform={nome} className="h-3.5 w-3.5 shrink-0" />
-            {posted ? (
+            {comNome ? (
               <Text variant="meta" as="span" className="min-w-0 flex-1 break-words">
                 {nome}
               </Text>
             ) : null}
           </span>
-        ))}
+          );
+        })}
         {(contas?.length || publicacao.platformNames.length > 0) && formatoEscrito ? (
           <span className="text-[var(--text-tertiary)]">·</span>
         ) : null}

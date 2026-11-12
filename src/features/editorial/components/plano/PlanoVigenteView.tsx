@@ -41,6 +41,8 @@ export interface PlanoVigenteViewProps {
   onSalvarDecisao: (patch: Partial<Omit<DecisaoPeriodo, 'inicio' | 'fim'>>) => void;
   /** No Planejamento o card abre fechado, com "Ver detalhes". No Editorial fica sempre aberto. */
   recolhivel?: boolean;
+  /** Esconde "Por conta" e "Séries no período": no Editorial elas viram a tabela do Plano. */
+  semListas?: boolean;
 }
 
 interface ContaMetaExibicao {
@@ -110,6 +112,7 @@ export function PlanoVigenteView({
   onAjustarAbertoChange,
   onSalvarDecisao,
   recolhivel = false,
+  semListas = false,
 }: PlanoVigenteViewProps) {
   const navigate = useNavigate();
   const { state } = useAppContext();
@@ -192,7 +195,10 @@ export function PlanoVigenteView({
   const pctPublicacao = percentual(previstosPublicacao, totalPublicacao);
 
   const resumoProducao = totalProducao == null ? 'roteiros sem meta' : `${plural(totalProducao, 'roteiro', 'roteiros')} com data`;
-  const resumoPublicacao = totalPublicacao == null ? 'Meta não definida' : `${plural(totalPublicacao, 'conteúdo', 'conteúdos')} para publicar`;
+  // A unidade da meta geral segue "Como as metas são contadas" do período.
+  const porPublicacao = contagem.unidade === 'publicacao';
+  const unidadeMeta = (n: number) => (porPublicacao ? plural(n, 'publicação', 'publicações') : plural(n, 'roteiro', 'roteiros'));
+  const resumoPublicacao = totalPublicacao == null ? 'Meta não definida' : `${unidadeMeta(totalPublicacao)} para publicar`;
   const resumo = totalProducao == null && totalPublicacao == null
     ? 'Meta não definida. Defina o ritmo semanal para calcular as metas.'
     : `${resumoPublicacao} · ${resumoProducao}`;
@@ -286,7 +292,7 @@ export function PlanoVigenteView({
                   ) : null}
                 </div>
                 <Text variant="sectionTitle" as="p" className="mt-1.5 tabular-nums">
-                  {totalPublicacao == null ? 'Meta não definida' : plural(totalPublicacao, 'conteúdo', 'conteúdos')}
+                  {totalPublicacao == null ? 'Meta não definida' : unidadeMeta(totalPublicacao)}
                 </Text>
                 <Text variant="meta" as="p" className="mt-0.5 text-[var(--text-secondary)] tabular-nums">
                   {totalPublicacao == null
@@ -348,6 +354,7 @@ export function PlanoVigenteView({
             </div>
           </div>
 
+          {!semListas ? (<>
           <section className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-4 stack-sm">
             <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
               <Text variant="bodyStrong" as="h3">Por conta</Text>
@@ -446,9 +453,10 @@ export function PlanoVigenteView({
               </ul>
             )}
           </section>
+          </>) : null}
 
           <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
-            Publicação é o ritmo semanal nos dias do período, sem as pausas com data, a mesma conta da Saúde. Mudar o ritmo ou o período ajusta o período vigente na hora; períodos encerrados ficam como eram.
+            Publicação é o ritmo semanal nos dias do período, sem as pausas com data, a mesma conta da Saúde. {porPublicacao ? 'Conta cada publicação em cada conta, reposts inclusive.' : 'Conta cada roteiro uma vez no período.'} Mudar o ritmo ou o período ajusta o período vigente na hora; períodos encerrados ficam como eram.
           </Text>
         </div>
       ) : null}
