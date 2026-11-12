@@ -10,6 +10,7 @@ import {
   updateContentFromLegacyIdea,
 } from '../features/contents/lib/creationContent.ts';
 import type * as db from '../lib/database.ts';
+import { exclusivaDoClube, moverConteudosDePasta, reordenarVinculos } from '../features/clubes/lib/clubeLista.ts';
 import type { AppAction } from './reducer';
 
 type DatabaseModule = typeof import('../lib/database.ts');
@@ -47,6 +48,15 @@ export type PersistenceApi = Pick<DatabaseModule,
   | 'saveTema'
   | 'saveTemporada'
   | 'deleteTemporada'
+  | 'saveClube'
+  | 'deleteClube'
+  | 'saveClubeConteudos'
+  | 'deleteClubeConteudo'
+  | 'deleteClubeConteudosDoConteudo'
+  | 'saveClubePasta'
+  | 'deleteClubePasta'
+  | 'saveClubeSeries'
+  | 'deleteClubeSerie'
   | 'saveContentTemas'
   | 'saveCenario'
   | 'deleteCenario'
@@ -206,6 +216,7 @@ export async function persistAction({ action, userId, state, api }: PersistActio
     }
 
     case 'DELETE_CONTENT':
+      await persistenceApi.deleteClubeConteudosDoConteudo(action.payload);
       await persistenceApi.deleteContent(action.payload);
       return;
 
@@ -360,6 +371,71 @@ export async function persistAction({ action, userId, state, api }: PersistActio
       await persistenceApi.deleteTemporada(action.payload);
       return;
 
+    case 'ADD_CLUBE':
+    case 'UPDATE_CLUBE':
+      await persistenceApi.saveClube({ ...action.payload, userId });
+      return;
+
+    case 'DELETE_CLUBE': {
+      const exclusivas = state.contents.filter(content => exclusivaDoClube(action.payload, content));
+      for (const content of exclusivas) {
+        await persistenceApi.deleteClubeConteudosDoConteudo(content.id);
+        await persistenceApi.deleteContent(content.id);
+      }
+      await persistenceApi.deleteClube(action.payload);
+      return;
+    }
+
+    case 'VINCULAR_CLUBE':
+      await persistenceApi.saveClubeConteudos([{ ...action.payload, userId }]);
+      return;
+
+    case 'DESVINCULAR_CLUBE':
+      await persistenceApi.deleteClubeConteudo(action.payload.clubeId, action.payload.contentId);
+      return;
+
+    case 'REORDENAR_CLUBE': {
+      const pastaId = action.payload.pastaId ?? null;
+      const ordenados = reordenarVinculos(state.clubeConteudos ?? [], action.payload.clubeId, action.payload.contentIds, pastaId)
+        .filter(vinculo => vinculo.clubeId === action.payload.clubeId && (vinculo.pastaId ?? null) === pastaId)
+        .map(vinculo => ({ ...vinculo, userId }));
+      await persistenceApi.saveClubeConteudos(ordenados);
+      return;
+    }
+
+    case 'MOVER_CONTEUDOS_CLUBE': {
+      const antes = new Map((state.clubeConteudos ?? []).map(vinculo => [vinculo.id, vinculo]));
+      const mudaram = moverConteudosDePasta(
+        state.clubeConteudos ?? [],
+        action.payload.clubeId,
+        action.payload.contentIds,
+        action.payload.pastaId,
+      ).filter(vinculo => {
+        const original = antes.get(vinculo.id);
+        return original && ((original.pastaId ?? null) !== (vinculo.pastaId ?? null) || original.ordem !== vinculo.ordem);
+      }).map(vinculo => ({ ...vinculo, userId }));
+      await persistenceApi.saveClubeConteudos(mudaram);
+      return;
+    }
+
+    case 'ADD_CLUBE_PASTA':
+    case 'UPDATE_CLUBE_PASTA':
+      await persistenceApi.saveClubePasta({ ...action.payload, userId });
+      return;
+
+    case 'DELETE_CLUBE_PASTA':
+      await persistenceApi.deleteClubePasta(action.payload);
+      return;
+
+    case 'VINCULAR_SERIE_CLUBE':
+    case 'ATUALIZAR_SERIE_CLUBE':
+      await persistenceApi.saveClubeSeries([{ ...action.payload, userId }]);
+      return;
+
+    case 'DESVINCULAR_SERIE_CLUBE':
+      await persistenceApi.deleteClubeSerie(action.payload.clubeId, action.payload.serieId);
+      return;
+
     case 'ADD_CENARIO':
     case 'UPDATE_CENARIO':
       await persistenceApi.saveCenario({ ...action.payload, userId });
@@ -503,7 +579,10 @@ export async function persistAction({ action, userId, state, api }: PersistActio
       return;
 
     case 'DELETE_MULTIPLE_CONTENTS':
-      await Promise.all(action.payload.map(id => persistenceApi.deleteContent(id)));
+      await Promise.all(action.payload.map(async id => {
+        await persistenceApi.deleteClubeConteudosDoConteudo(id);
+        await persistenceApi.deleteContent(id);
+      }));
       return;
 
     case 'SET_THEME':

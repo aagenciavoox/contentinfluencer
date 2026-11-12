@@ -1,6 +1,7 @@
 import { initialState, type AppState } from '../app/providers/appState';
 import { comCoresDaSerie, nextFreeSerieColor, serieColorKey } from '../features/settings/lib/serieColors';
 import { conteudoApagado, liberarConteudoApagado, liberarConteudosApagados, marcarConteudoApagado, marcarConteudosApagados } from '../lib/conteudosApagados.ts';
+import { exclusivaDoClube, moverConteudosDePasta, reordenarVinculos } from '../features/clubes/lib/clubeLista.ts';
 import { upsertContent } from '../features/contents/lib/contentBody';
 import { removerLivroId } from '../lib/livroIds.ts';
 import { isAppTheme, type AppTheme } from '../lib/themeStorage';
@@ -16,7 +17,7 @@ import {
 } from '../features/contents/lib/creationContent';
 import type {
   AppData,
-  Content, Idea, Pilar, Serie, Tema, Temporada, Cenario, Look,
+  Content, Idea, Pilar, Serie, Tema, Temporada, Clube, ClubeConteudo, ClubePasta, ClubeSerie, Cenario, Look,
   BibliotecaItem, Anotacao, Projeto, ProjetoEtapa, ProjetoLivro,
   RecordingBlock, RecordingBlockContent, Template,
   AgendaItem, GoldenRule, ContentMetric, Platform, DnaVoz, PlanejamentoPostIt,
@@ -75,6 +76,19 @@ export type AppAction =
   | { type: 'ADD_TEMPORADA';    payload: Temporada }
   | { type: 'UPDATE_TEMPORADA'; payload: Temporada }
   | { type: 'DELETE_TEMPORADA'; payload: string }
+  | { type: 'ADD_CLUBE'; payload: Clube }
+  | { type: 'UPDATE_CLUBE'; payload: Clube }
+  | { type: 'DELETE_CLUBE'; payload: string }
+  | { type: 'VINCULAR_CLUBE'; payload: ClubeConteudo }
+  | { type: 'DESVINCULAR_CLUBE'; payload: { clubeId: string; contentId: string } }
+  | { type: 'REORDENAR_CLUBE'; payload: { clubeId: string; contentIds: string[]; pastaId?: string | null } }
+  | { type: 'MOVER_CONTEUDOS_CLUBE'; payload: { clubeId: string; contentIds: string[]; pastaId: string | null } }
+  | { type: 'ADD_CLUBE_PASTA'; payload: ClubePasta }
+  | { type: 'UPDATE_CLUBE_PASTA'; payload: ClubePasta }
+  | { type: 'DELETE_CLUBE_PASTA'; payload: string }
+  | { type: 'VINCULAR_SERIE_CLUBE'; payload: ClubeSerie }
+  | { type: 'ATUALIZAR_SERIE_CLUBE'; payload: ClubeSerie }
+  | { type: 'DESVINCULAR_SERIE_CLUBE'; payload: { clubeId: string; serieId: string } }
 
   // ─── Cenários ───────────────────────────────────────────────────────────────
   | { type: 'ADD_CENARIO';    payload: Cenario }
@@ -220,6 +234,10 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         ...action.payload,
         ...(contents ? { contents } : {}),
         temporadas: action.payload.temporadas ?? state.temporadas ?? [],
+        clubes: action.payload.clubes ?? state.clubes ?? [],
+        clubeConteudos: action.payload.clubeConteudos ?? state.clubeConteudos ?? [],
+        clubePastas: action.payload.clubePastas ?? state.clubePastas ?? [],
+        clubeSeries: action.payload.clubeSeries ?? state.clubeSeries ?? [],
         theme: deriveTheme(prefs, state.theme),
       };
     }
@@ -280,13 +298,25 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     }
     case 'DELETE_CONTENT':
       marcarConteudoApagado(action.payload);
-      return { ...state, contents: state.contents.filter(c => c.id !== action.payload) };
+      return {
+        ...state,
+        contents: state.contents.filter(c => c.id !== action.payload),
+        clubeConteudos: (state.clubeConteudos ?? []).filter(vinculo => vinculo.contentId !== action.payload),
+      };
     case 'DELETE_MULTIPLE_CONTENTS':
       marcarConteudosApagados(action.payload);
-      return { ...state, contents: state.contents.filter(c => !action.payload.includes(c.id)) };
+      return {
+        ...state,
+        contents: state.contents.filter(c => !action.payload.includes(c.id)),
+        clubeConteudos: (state.clubeConteudos ?? []).filter(vinculo => !action.payload.includes(vinculo.contentId)),
+      };
     case 'FORGET_CONTENT':
       marcarConteudoApagado(action.payload);
-      return { ...state, contents: state.contents.filter(c => c.id !== action.payload) };
+      return {
+        ...state,
+        contents: state.contents.filter(c => c.id !== action.payload),
+        clubeConteudos: (state.clubeConteudos ?? []).filter(vinculo => vinculo.contentId !== action.payload),
+      };
     case 'SET_CONTENT_STATUS': {
       // Em lote, Publicado fica desativado: só o formulário registra publicação.
       const nextStatus = action.payload.status;
@@ -455,6 +485,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           .filter(s => s.id !== action.payload)
           .map(s => s.parentId === action.payload ? { ...s, parentId: null } : s),
         temporadas: state.temporadas.filter(t => t.serieId !== action.payload),
+        clubeSeries: (state.clubeSeries ?? []).filter(vinculo => vinculo.serieId !== action.payload),
         contents: state.contents.map(c =>
           c.seriesId === action.payload ? { ...c, seriesId: null } : c
         ),
@@ -485,6 +516,109 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         temporadas: state.temporadas.filter(item => item.id !== action.payload),
         contents: state.contents.map(c =>
           c.temporadaId === action.payload ? { ...c, temporadaId: null } : c
+        ),
+      };
+    case 'ADD_CLUBE':
+      if ((state.clubes ?? []).some(clube => clube.id === action.payload.id)) {
+        return {
+          ...state,
+          clubes: state.clubes.map(clube => clube.id === action.payload.id ? action.payload : clube),
+        };
+      }
+      return { ...state, clubes: [...(state.clubes ?? []), action.payload] };
+    case 'UPDATE_CLUBE':
+      return {
+        ...state,
+        clubes: (state.clubes ?? []).map(clube => clube.id === action.payload.id ? action.payload : clube),
+      };
+    case 'DELETE_CLUBE':
+      return {
+        ...state,
+        clubes: (state.clubes ?? []).filter(clube => clube.id !== action.payload),
+        clubePastas: (state.clubePastas ?? []).filter(pasta => pasta.clubeId !== action.payload),
+        clubeSeries: (state.clubeSeries ?? []).filter(vinculo => vinculo.clubeId !== action.payload),
+        clubeConteudos: (state.clubeConteudos ?? []).filter(vinculo => vinculo.clubeId !== action.payload),
+        contents: state.contents.filter(content => !exclusivaDoClube(action.payload, content)),
+      };
+    case 'VINCULAR_CLUBE': {
+      const atuais = state.clubeConteudos ?? [];
+      const ja = atuais.some(vinculo =>
+        vinculo.clubeId === action.payload.clubeId && vinculo.contentId === action.payload.contentId,
+      );
+      if (ja) return state;
+      return { ...state, clubeConteudos: [...atuais, action.payload] };
+    }
+    case 'DESVINCULAR_CLUBE':
+      return {
+        ...state,
+        clubeConteudos: (state.clubeConteudos ?? []).filter(vinculo =>
+          vinculo.clubeId !== action.payload.clubeId || vinculo.contentId !== action.payload.contentId,
+        ),
+      };
+    case 'REORDENAR_CLUBE':
+      return {
+        ...state,
+        clubeConteudos: reordenarVinculos(
+          state.clubeConteudos ?? [],
+          action.payload.clubeId,
+          action.payload.contentIds,
+          action.payload.pastaId ?? null,
+        ),
+      };
+    case 'MOVER_CONTEUDOS_CLUBE':
+      return {
+        ...state,
+        clubeConteudos: moverConteudosDePasta(
+          state.clubeConteudos ?? [],
+          action.payload.clubeId,
+          action.payload.contentIds,
+          action.payload.pastaId,
+        ),
+      };
+    case 'ADD_CLUBE_PASTA':
+      if ((state.clubePastas ?? []).some(pasta => pasta.id === action.payload.id)) {
+        return {
+          ...state,
+          clubePastas: (state.clubePastas ?? []).map(pasta => pasta.id === action.payload.id ? action.payload : pasta),
+        };
+      }
+      return { ...state, clubePastas: [...(state.clubePastas ?? []), action.payload] };
+    case 'UPDATE_CLUBE_PASTA':
+      return {
+        ...state,
+        clubePastas: (state.clubePastas ?? []).map(pasta => pasta.id === action.payload.id ? action.payload : pasta),
+      };
+    case 'DELETE_CLUBE_PASTA':
+      return {
+        ...state,
+        clubePastas: (state.clubePastas ?? []).filter(pasta => pasta.id !== action.payload),
+        clubeSeries: (state.clubeSeries ?? []).map(vinculo =>
+          vinculo.pastaId === action.payload ? { ...vinculo, pastaId: null } : vinculo,
+        ),
+        clubeConteudos: (state.clubeConteudos ?? []).map(vinculo =>
+          vinculo.pastaId === action.payload ? { ...vinculo, pastaId: null } : vinculo,
+        ),
+      };
+    case 'VINCULAR_SERIE_CLUBE': {
+      const atuais = state.clubeSeries ?? [];
+      const ja = atuais.some(vinculo =>
+        vinculo.clubeId === action.payload.clubeId && vinculo.serieId === action.payload.serieId,
+      );
+      if (ja) return state;
+      return { ...state, clubeSeries: [...atuais, action.payload] };
+    }
+    case 'ATUALIZAR_SERIE_CLUBE':
+      return {
+        ...state,
+        clubeSeries: (state.clubeSeries ?? []).map(vinculo =>
+          vinculo.id === action.payload.id ? action.payload : vinculo,
+        ),
+      };
+    case 'DESVINCULAR_SERIE_CLUBE':
+      return {
+        ...state,
+        clubeSeries: (state.clubeSeries ?? []).filter(vinculo =>
+          vinculo.clubeId !== action.payload.clubeId || vinculo.serieId !== action.payload.serieId,
         ),
       };
 

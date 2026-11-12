@@ -49,6 +49,7 @@ export function getRouteDataDomains(href: string): AppDataDomain[] {
   if (pathname.startsWith('/series/') || pathname.startsWith('/configuracoes/series/')) {
     return ['production', 'content', 'bootstrap', 'templates'];
   }
+  if (pathname.startsWith('/clubes/')) return ['production', 'content', 'bootstrap'];
   if (pathname === '/series') return ['production', 'content'];
   if (pathname === '/contas') {
     return ['bootstrap', 'schedule', 'content', 'production', 'analytics'];
@@ -62,7 +63,7 @@ export function getRouteDataDomains(href: string): AppDataDomain[] {
   return [];
 }
 
-const DETAIL_PATH = /^\/(?:conteudos|projetos|gravacao|series|configuracoes\/pilares|editorial\/pilares|editorial\/series)\/.+|^\/biblioteca\/(?!analise$|anotacoes$)[^/]+$/;
+const DETAIL_PATH = /^\/(?:conteudos|projetos|gravacao|series|clubes|configuracoes\/pilares|editorial\/pilares|editorial\/series)\/.+|^\/biblioteca\/(?!analise$|anotacoes$)[^/]+$/;
 
 /**
  * List screens share one outlet key so moving between them does not remount

@@ -127,7 +127,7 @@ export function isNavItemActive(to: string, pathname: string): boolean {
   }
 
   if (target === '/series') {
-    return pathMatches(pathname, '/series');
+    return pathMatches(pathname, '/series') || pathMatches(pathname, '/clubes');
   }
 
   if (target === '/analises') {

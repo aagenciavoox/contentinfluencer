@@ -206,6 +206,15 @@ export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMe
     };
   }
 
+  if (pathname.startsWith('/clubes/')) {
+    return {
+      title: 'Clube',
+      mode: 'back',
+      backTo: '/series',
+      titleVariant: 'compact-center',
+    };
+  }
+
   if (pathname.startsWith('/series/')) {
     return {
       title: 'Série',

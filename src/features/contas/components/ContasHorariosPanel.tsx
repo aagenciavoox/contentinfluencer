@@ -18,6 +18,7 @@ import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
 import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
 import {PostingTimesOverview} from '../../settings/components/PostingTimesOverview';
+import {ClubesSecao} from '../../clubes/components/ClubesSecao';
 import {PainelMetaDaConta, textoPorFormato} from '../../editorial/components/plano/ContasEFormatosCard';
 import {useEditorialPlano} from '../../editorial/components/plano/useEditorialPlano';
 import {diaMes} from '../../editorial/components/plano/ValeAPartirDe';
@@ -568,6 +569,11 @@ export function ContasHorariosPanel() {
             Um roteiro em três contas conta como três publicações.
           </Text>
         </section>
+
+        <ClubesSecao
+          titulo="Apoio e clubes"
+          descricao="Cadastre o clube no Catarse, no Apoia.se ou em outro lugar. O mesmo clube aparece nas séries."
+        />
 
         <PostingTimesOverview />
       </div>

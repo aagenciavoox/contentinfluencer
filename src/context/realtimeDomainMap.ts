@@ -26,6 +26,22 @@ const REALTIME_TABLE_MAP: Record<string, RealtimeTableMapping> = {
     domains: ['production', 'bootstrap'],
     namespaces: [],
   },
+  clubes: {
+    domains: ['production', 'bootstrap'],
+    namespaces: [],
+  },
+  clube_conteudos: {
+    domains: ['production', 'bootstrap'],
+    namespaces: [],
+  },
+  clube_pastas: {
+    domains: ['production', 'bootstrap'],
+    namespaces: [],
+  },
+  clube_series: {
+    domains: ['production', 'bootstrap'],
+    namespaces: [],
+  },
   ideas: {
     domains: ['ideas'],
     namespaces: [],

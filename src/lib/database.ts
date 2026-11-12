@@ -248,6 +248,58 @@ function readModoSequencia(value: unknown): ModoSequenciaSerie | null {
   return value === 'intercalar' || value === 'seguir_um' || value === 'ordem_temporada' ? value : null;
 }
 
+/** Onde o clube se apoia. Não é conta de publicação. */
+export type ClubeOrigem = 'catarse' | 'apoiase' | 'outro';
+
+export interface Clube {
+  id: string;
+  userId: string;
+  nome: string;
+  /** Apresentação do clube, no mesmo lugar da descrição da série. */
+  descricao: string;
+  cor: string | null;
+  /** Capa do clube, no mesmo lugar da capa da série. */
+  capaUrl: string | null;
+  origem: ClubeOrigem;
+  url: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Pasta dentro do clube. Agrupa séries vinculadas. Não entra na árvore de séries. */
+export interface ClubePasta {
+  id: string;
+  userId: string;
+  clubeId: string;
+  nome: string;
+  ordem: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Série que aparece no clube. O id da série não muda e ela continua na árvore. */
+export interface ClubeSerie {
+  id: string;
+  userId: string;
+  clubeId: string;
+  serieId: string;
+  pastaId: string | null;
+  ordem: number;
+  createdAt: string;
+}
+
+/** Aparição de um conteúdo dentro de um clube. O conteúdo continua com o mesmo id. */
+export interface ClubeConteudo {
+  id: string;
+  userId: string;
+  clubeId: string;
+  contentId: string;
+  /** Pasta do clube. Nulo = na raiz do clube. */
+  pastaId: string | null;
+  ordem: number;
+  createdAt: string;
+}
+
 export interface Temporada {
   id: string;
   userId: string;
@@ -587,6 +639,11 @@ export interface Content {
   origemConteudoId?: string | null;
   /** Temporada do escopo ativo. Ausente no banco antigo. */
   temporadaId?: string | null;
+  /**
+   * Casa da peça exclusiva de um clube. Nulo no episódio de série ou quadro.
+   * Ausente quando a coluna não veio na leitura: gravar não apaga o valor do servidor.
+   */
+  clubeId?: string | null;
   /** Posição do episódio na temporada ou na lista da série. Ausente sem a migração ou quando não foi carregado. */
   ordemEpisodio?: number | null;
   notes: string | null;
@@ -830,6 +887,10 @@ export interface AppData {
   series: Serie[];
   temas: Tema[];
   temporadas: Temporada[];
+  clubes: Clube[];
+  clubeConteudos: ClubeConteudo[];
+  clubePastas: ClubePasta[];
+  clubeSeries: ClubeSerie[];
   cenarios: Cenario[];
   looks: Look[];
   bibliotecaGeneros: BibliotecaGenero[];
@@ -898,6 +959,10 @@ function empty(): AppData {
   return {
     platforms: [], preferences: {}, dnaVoz: null, pilares: [], series: [], temas: [],
     temporadas: [],
+    clubes: [],
+    clubeConteudos: [],
+    clubePastas: [],
+    clubeSeries: [],
     cenarios: [], looks: [], bibliotecaGeneros: [], bibliotecaItems: [],
     contents: [], ideas: [], projetos: [], recordingBlocks: [], templates: [],
     agendaItems: [], postIts: [], goldenRules: [], contentMetrics: [], postingTimeEntries: [],
@@ -1053,6 +1118,9 @@ export const MIGRACAO_SERIE_META_PERIODOS = '20261106120000_serie_meta_periodos_
 export const MIGRACAO_SERIE_TIPO = '20261030120000_serie_tipo_agrupamento';
 
 const CONTENT_AGRUPAMENTO_COLUMNS = ['origem_conteudo_id', 'temporada_id'] as const;
+
+/** Migração 20261112130000_clubes. Sem ela, a peça exclusiva não tem casa gravada. */
+const CONTENT_CLUBE_COLUMN = 'clube_id';
 
 /** Migração 20261102210000_ordem_episodio. Sem ela, a lista segue a ordem de criação. */
 const CONTENT_ORDEM_EPISODIO_COLUMN = 'ordem_episodio';
@@ -1497,6 +1565,45 @@ const mp = {
     nome: typeof r.nome === 'string' ? r.nome : '',
     createdAt: r.created_at,
   }),
+  clube: (r: Row): Clube => ({
+    id: String(r.id),
+    userId: r.user_id,
+    nome: typeof r.nome === 'string' ? r.nome : '',
+    descricao: typeof r.descricao === 'string' ? r.descricao : '',
+    cor: typeof r.cor === 'string' && r.cor ? r.cor : null,
+    capaUrl: typeof r.capa_url === 'string' && r.capa_url.trim() ? r.capa_url.trim() : null,
+    origem: r.origem === 'catarse' || r.origem === 'apoiase' ? r.origem : 'outro',
+    url: typeof r.url === 'string' && r.url.trim() ? r.url.trim() : null,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  }),
+  clubeConteudo: (r: Row): ClubeConteudo => ({
+    id: String(r.id),
+    userId: r.user_id,
+    clubeId: String(r.clube_id),
+    contentId: String(r.content_id),
+    pastaId: typeof r.pasta_id === 'string' && r.pasta_id ? r.pasta_id : null,
+    ordem: typeof r.ordem === 'number' && r.ordem > 0 ? r.ordem : 1,
+    createdAt: r.created_at,
+  }),
+  clubePasta: (r: Row): ClubePasta => ({
+    id: String(r.id),
+    userId: r.user_id,
+    clubeId: String(r.clube_id),
+    nome: typeof r.nome === 'string' ? r.nome : '',
+    ordem: typeof r.ordem === 'number' && r.ordem > 0 ? r.ordem : 1,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  }),
+  clubeSerie: (r: Row): ClubeSerie => ({
+    id: String(r.id),
+    userId: r.user_id,
+    clubeId: String(r.clube_id),
+    serieId: String(r.serie_id),
+    pastaId: typeof r.pasta_id === 'string' && r.pasta_id ? r.pasta_id : null,
+    ordem: typeof r.ordem === 'number' && r.ordem > 0 ? r.ordem : 1,
+    createdAt: r.created_at,
+  }),
   cenario: (r: Row): Cenario => ({
     id: r.id, userId: r.user_id, nome: r.nome, descricao: r.descricao || '',
     tempoSetupMinutos: r.tempo_setup_minutos ?? 0, ativo: r.ativo, createdAt: r.created_at,
@@ -1566,6 +1673,9 @@ const mp = {
       ? r.origem_conteudo_id
       : null,
     temporadaId: typeof r.temporada_id === 'string' && r.temporada_id ? r.temporada_id : null,
+    ...('clube_id' in r
+      ? {clubeId: typeof r.clube_id === 'string' && r.clube_id ? r.clube_id : null}
+      : {}),
     // Sem a coluna na leitura fica undefined: gravar não apaga a ordem do servidor.
     ordemEpisodio: typeof r.ordem_episodio === 'number' ? r.ordem_episodio : r.ordem_episodio === null ? null : undefined,
     notes: r.notes, referencias: r.referencias,
@@ -1796,6 +1906,7 @@ function buildContentScheduleSelect(
   includeAgrupamento = true,
   includeOrdemEpisodio = true,
   includeFormatoPublicacao = true,
+  includeClube = true,
 ): string {
   let columns: readonly string[] = includeMilestones
     ? [
@@ -1837,6 +1948,10 @@ function buildContentScheduleSelect(
     const relation = columns[columns.length - 1];
     columns = [...columns.slice(0, -1), CONTENT_ORDEM_EPISODIO_COLUMN, relation];
   }
+  if (includeClube) {
+    const relation = columns[columns.length - 1];
+    columns = [...columns.slice(0, -1), CONTENT_CLUBE_COLUMN, relation];
+  }
   if (includeWritingMode) {
     // Leve: só o modo. As telas vêm com o corpo, como o roteiro.
     const relation = columns[columns.length - 1];
@@ -1875,8 +1990,9 @@ async function runContentScheduleSelect<T>(
   let includeAgrupamento = true;
   let includeOrdemEpisodio = true;
   let includeFormatoPublicacao = true;
+  let includeClube = true;
 
-  for (let attempt = 0; attempt < 16; attempt += 1) {
+  for (let attempt = 0; attempt < 18; attempt += 1) {
     const result = await run(
       buildContentScheduleSelect(
         includeMilestones,
@@ -1893,6 +2009,7 @@ async function runContentScheduleSelect<T>(
         includeAgrupamento,
         includeOrdemEpisodio,
         includeFormatoPublicacao,
+        includeClube,
       ),
     );
     if (!result.error) return result;
@@ -1903,6 +2020,10 @@ async function runContentScheduleSelect<T>(
     }
     if (includeOrdemEpisodio && isMissingNamedColumn(result.error?.message ?? '', CONTENT_ORDEM_EPISODIO_COLUMN)) {
       includeOrdemEpisodio = false;
+      continue;
+    }
+    if (includeClube && isMissingNamedColumn(result.error?.message ?? '', CONTENT_CLUBE_COLUMN)) {
+      includeClube = false;
       continue;
     }
     if (includeEdicao && isMissingEdicaoColumns(result.error)) {
@@ -2533,6 +2654,15 @@ export async function fetchDataDomains(
       } else {
         payload.temporadas = (assertQuerySuccess('temporadas fetch', temporadasResult) || []).map(mp.temporada);
       }
+
+      const clubesResult = await supabase.from('clubes').select('*').eq('user_id', uid).order('nome');
+      payload.clubes = linhasDeTabelaNova('clubes fetch', clubesResult).map(mp.clube);
+      const vinculosResult = await supabase.from('clube_conteudos').select('*').eq('user_id', uid).order('ordem');
+      payload.clubeConteudos = linhasDeTabelaNova('clube_conteudos fetch', vinculosResult).map(mp.clubeConteudo);
+      const pastasResult = await supabase.from('clube_pastas').select('*').eq('user_id', uid).order('ordem');
+      payload.clubePastas = linhasDeTabelaNova('clube_pastas fetch', pastasResult).map(mp.clubePasta);
+      const seriesDoClubeResult = await supabase.from('clube_series').select('*').eq('user_id', uid).order('ordem');
+      payload.clubeSeries = linhasDeTabelaNova('clube_series fetch', seriesDoClubeResult).map(mp.clubeSerie);
     })());
   }
 
@@ -3964,6 +4094,123 @@ export async function deleteTemporada(id: string): Promise<void> {
   if (error) throw new Error(`delete temporada: ${error.message}`);
 }
 
+const MIGRACAO_CLUBES = '20261112130000_clubes';
+
+function erroDeClubeAusente(error: { code?: string; message?: string }): Error | null {
+  if (!tabelaAusente(error)) return null;
+  return new Error(`Para guardar o clube, aplique a migração ${MIGRACAO_CLUBES}.`);
+}
+
+export async function saveClube(clube: Clube): Promise<void> {
+  if (!supabase) return;
+  const nome = clube.nome.trim();
+  if (!nome) throw new Error('clubes: nome vazio');
+  const origem = clube.origem === 'catarse' || clube.origem === 'apoiase' ? clube.origem : 'outro';
+  let row: Record<string, unknown> = {
+    id: clube.id,
+    user_id: clube.userId,
+    nome,
+    descricao: clube.descricao.trim() || null,
+    cor: clube.cor,
+    capa_url: clube.capaUrl?.trim() || null,
+    origem,
+    url: clube.url?.trim() || null,
+    updated_at: new Date().toISOString(),
+  };
+  for (let tentativa = 0; tentativa < 4; tentativa += 1) {
+    const { error } = await supabase.from('clubes').upsert(row);
+    if (!error) return;
+    const ausente = erroDeClubeAusente(error);
+    if (ausente) throw ausente;
+    const coluna = ['descricao', 'capa_url'].find(item => isMissingNamedColumn(error.message, item) && item in row);
+    if (!coluna) throw new Error(`clubes: ${error.message}`);
+    const { [coluna]: _omitida, ...resto } = row;
+    row = resto;
+  }
+  throw new Error('clubes: não foi possível salvar');
+}
+
+export async function deleteClube(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('clubes').delete().eq('id', id);
+  if (error) throw erroDeClubeAusente(error) ?? new Error(`delete clube: ${error.message}`);
+}
+
+export async function saveClubeConteudos(vinculos: readonly ClubeConteudo[]): Promise<void> {
+  if (!supabase || vinculos.length === 0) return;
+  let comPasta = true;
+  for (let tentativa = 0; tentativa < 2; tentativa += 1) {
+    const rows = vinculos.map(vinculo => ({
+      id: vinculo.id,
+      user_id: vinculo.userId,
+      clube_id: vinculo.clubeId,
+      content_id: vinculo.contentId,
+      ordem: vinculo.ordem,
+      ...(comPasta ? { pasta_id: vinculo.pastaId ?? null } : {}),
+    }));
+    const { error } = await supabase.from('clube_conteudos').upsert(rows);
+    if (!error) return;
+    if (comPasta && isMissingNamedColumn(error.message, 'pasta_id')) {
+      comPasta = false;
+      continue;
+    }
+    throw erroDeClubeAusente(error) ?? new Error(`clube_conteudos: ${error.message}`);
+  }
+}
+
+export async function deleteClubeConteudo(clubeId: string, contentId: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('clube_conteudos').delete().eq('clube_id', clubeId).eq('content_id', contentId);
+  if (error && !tabelaAusente(error)) throw new Error(`clube_conteudos: ${error.message}`);
+}
+
+export async function deleteClubeConteudosDoConteudo(contentId: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('clube_conteudos').delete().eq('content_id', contentId);
+  if (error && !tabelaAusente(error)) throw new Error(`clube_conteudos: ${error.message}`);
+}
+
+export async function saveClubePasta(pasta: ClubePasta): Promise<void> {
+  if (!supabase) return;
+  const nome = pasta.nome.trim();
+  if (!nome) throw new Error('clube_pastas: nome vazio');
+  const { error } = await supabase.from('clube_pastas').upsert({
+    id: pasta.id,
+    user_id: pasta.userId,
+    clube_id: pasta.clubeId,
+    nome,
+    ordem: pasta.ordem,
+    updated_at: new Date().toISOString(),
+  });
+  if (error) throw erroDeClubeAusente(error) ?? new Error(`clube_pastas: ${error.message}`);
+}
+
+export async function deleteClubePasta(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('clube_pastas').delete().eq('id', id);
+  if (error) throw erroDeClubeAusente(error) ?? new Error(`delete clube_pasta: ${error.message}`);
+}
+
+export async function saveClubeSeries(vinculos: readonly ClubeSerie[]): Promise<void> {
+  if (!supabase || vinculos.length === 0) return;
+  const rows = vinculos.map(vinculo => ({
+    id: vinculo.id,
+    user_id: vinculo.userId,
+    clube_id: vinculo.clubeId,
+    serie_id: vinculo.serieId,
+    pasta_id: vinculo.pastaId,
+    ordem: vinculo.ordem,
+  }));
+  const { error } = await supabase.from('clube_series').upsert(rows);
+  if (error) throw erroDeClubeAusente(error) ?? new Error(`clube_series: ${error.message}`);
+}
+
+export async function deleteClubeSerie(clubeId: string, serieId: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('clube_series').delete().eq('clube_id', clubeId).eq('serie_id', serieId);
+  if (error && !tabelaAusente(error)) throw new Error(`clube_series: ${error.message}`);
+}
+
 export async function saveTema(tema: Omit<Tema, 'createdAt'>): Promise<void> {
   if (!supabase) return;
   const nome = tema.nome.trim().replace(/\s+/g, ' ');
@@ -4304,6 +4551,7 @@ export async function saveContent(
     notes: content.notes, referencias: content.referencias,
     ...('origemConteudoId' in content ? {origem_conteudo_id: content.origemConteudoId ?? null} : {}),
     ...('temporadaId' in content ? {temporada_id: content.temporadaId ?? null} : {}),
+    ...('clubeId' in content ? {clube_id: content.seriesId ? null : (content.clubeId ?? null)} : {}),
     ...(content.ordemEpisodio !== undefined ? {ordem_episodio: content.ordemEpisodio} : {}),
     funcao: content.funcao ?? null,
     funcao_origem: content.funcaoOrigem ?? null,
@@ -4403,6 +4651,12 @@ export async function saveContent(
     if (CONTENT_ORDEM_EPISODIO_COLUMN in row && !!error.message && isMissingNamedColumn(error.message, CONTENT_ORDEM_EPISODIO_COLUMN)) {
       const {[CONTENT_ORDEM_EPISODIO_COLUMN]: _ordem, ...rowWithoutOrdem} = row;
       row = rowWithoutOrdem;
+      continue;
+    }
+
+    if (CONTENT_CLUBE_COLUMN in row && !!error.message && isMissingNamedColumn(error.message, CONTENT_CLUBE_COLUMN)) {
+      const {[CONTENT_CLUBE_COLUMN]: _clube, ...rowWithoutClube} = row;
+      row = rowWithoutClube;
       continue;
     }
 

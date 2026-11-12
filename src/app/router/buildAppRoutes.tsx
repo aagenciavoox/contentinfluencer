@@ -27,6 +27,7 @@ const PilarEditar = lazy(() => routeLoaders.pillarEdit().then(module => ({ defau
 const SeriesSettings = lazy(() => routeLoaders.series().then(module => ({ default: module.SeriesSettings })));
 const SeriesEditar = lazy(() => routeLoaders.seriesEdit().then(module => ({ default: module.SeriesEditar })));
 const SeriesRoteiros = lazy(() => routeLoaders.seriesScripts().then(module => ({ default: module.SeriesRoteiros })));
+const Clube = lazy(() => routeLoaders.clube().then(module => ({ default: module.Clube })));
 const Analises = lazy(() => routeLoaders.analises().then(module => ({ default: module.Analises })));
 const Projetos = lazy(() => routeLoaders.projects().then(module => ({ default: module.Projetos })));
 const ProjetoDetalhe = lazy(() => routeLoaders.projectDetail().then(module => ({ default: module.ProjetoDetalhe })));
@@ -200,6 +201,7 @@ export function buildAppRoutes(): RouteObject[] {
                 { path: '/configuracoes/looks', element: <Navigate to="/configuracoes" replace /> },
                 { path: '/configuracoes/regras', element: <Navigate to="/editorial?aba=ajustes" replace /> },
                 { path: '/series', element: <SeriesSettings /> },
+                { path: '/clubes/:clubeId', element: <Clube /> },
                 { path: '/series/novo', element: <SeriesEditar /> },
                 { path: '/series/nova', element: <LegacySeriesNewRedirect /> },
                 { path: '/series/:serieId/editar', element: <SeriesEditar /> },

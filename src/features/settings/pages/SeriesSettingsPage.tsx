@@ -23,6 +23,7 @@ import { PageLayout } from '../../../layouts/page/PageLayout';
 import type { Serie } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
 import { SeriesMobileScreen } from '../../../mobile/screens/settings/SeriesMobileScreen';
+import { ClubesSecao } from '../../clubes/components/ClubesSecao';
 import { generateUUID } from '../../../utils/uuid';
 import { PreferenciasSeries, ResultadoDaLista } from '../components/series-list/SeriesListResultado';
 import { SerieCreateModal, type SerieCreateModalTarget } from '../components/SerieCreateModal';
@@ -147,7 +148,7 @@ export function SeriesSettingsPage() {
         <DesktopPageHeader
           section="Produção"
           title="Inventário & Projetos"
-          subtitle="Séries com ritmo, quadros sob demanda e famílias só para organizar a vitrine."
+          subtitle="Séries com ritmo, quadros sob demanda, famílias para a vitrine e clubes para reunir roteiros."
           actions={[
             <AppButton key="novo" variant="primary" onClick={criarSerie} leftIcon={<Plus className="h-4 w-4" />}>
               Novo Agrupamento
@@ -260,6 +261,7 @@ function SeriesListaDesktop({ modelo, onCreate }: { modelo: SeriesListaModelo; o
       >
         <ResultadoDaLista modelo={modelo} />
       </QueryViewState>
+      <ClubesSecao />
     </div>
   );
 }

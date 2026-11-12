@@ -88,6 +88,7 @@ await import('./features/settings/lib/selecaoEpisodios.test.ts');
 await import('./features/settings/lib/estruturaSerie.test.ts');
 await import('./features/settings/lib/serieHierarquia.test.ts');
 await import('./features/settings/lib/seriesGrupos.test.ts');
+await import('./features/clubes/lib/clubeLista.test.ts');
 await import('./features/settings/lib/ordemEpisodios.test.ts');
 await import('./features/settings/lib/modoSequencia.test.ts');
 await import('./features/editorial/lib/editorialSettings.test.ts');

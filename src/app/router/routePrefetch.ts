@@ -20,6 +20,7 @@ const loadPillarEdit = () => importPage(() => import('../../pages/settings/Pilar
 const loadSeries = () => importPage(() => import('../../pages/settings/Series'));
 const loadSeriesEdit = () => importPage(() => import('../../pages/settings/SeriesEditar'));
 const loadSeriesScripts = () => importPage(() => import('../../pages/settings/SeriesRoteiros'));
+const loadClube = () => importPage(() => import('../../pages/Clube'));
 const loadAnalises = () => importPage(() => import('../../pages/Analises'));
 const loadProjects = () => importPage(() => import('../../pages/Projetos'));
 const loadProjectDetail = () => importPage(() => import('../../pages/ProjetoDetalhe'));
@@ -45,6 +46,7 @@ export const routeLoaders = {
   series: loadSeries,
   seriesEdit: loadSeriesEdit,
   seriesScripts: loadSeriesScripts,
+  clube: loadClube,
   analises: loadAnalises,
   projects: loadProjects,
   projectDetail: loadProjectDetail,

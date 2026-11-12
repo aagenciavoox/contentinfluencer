@@ -5,6 +5,7 @@ import { QueryViewState } from '../../../components/ui/QueryViewState';
 import { Text } from '../../../components/ui/Text';
 import { useScrollMemory } from '../../../hooks/useSessionState';
 import { PreferenciasSeries, ResultadoDaLista } from '../../../features/settings/components/series-list/SeriesListResultado';
+import { ClubesSecao } from '../../../features/clubes/components/ClubesSecao';
 import type { SeriesListaModelo } from '../../../features/settings/hooks/useSeriesLista';
 import type { FiltroSituacao, FiltroTipoLista } from '../../../features/settings/lib/seriesListaView';
 import { MobileFilterSelect, MobileFilterSheet } from '../../components/MobileFilterSheet';
@@ -107,6 +108,7 @@ export function SeriesMobileScreen({
       >
         <ResultadoDaLista modelo={modelo} celular />
       </QueryViewState>
+      <ClubesSecao celular />
 
       <MobileFilterSheet
         open={filtrosAbertos}

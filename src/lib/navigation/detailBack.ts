@@ -25,6 +25,7 @@ const ALLOWED_BACK_PREFIXES = [
   '/biblioteca/',
   '/projetos/',
   '/series/',
+  '/clubes/',
   '/editorial/',
   '/configuracoes/pilares/',
 ];
@@ -63,6 +64,7 @@ export function labelForDetailBack(path: string, fallback: string): string {
   if (pathname.startsWith('/gravacao')) return 'Gravação';
   if (pathname.startsWith('/projetos')) return 'Projetos';
   if (pathname.startsWith('/series')) return 'Séries';
+  if (pathname.startsWith('/clubes')) return 'Clube';
   if (pathname.startsWith('/editorial')) return 'Editorial';
   if (pathname.startsWith('/configuracoes/pilares')) return 'Pilares';
   return 'Voltar';

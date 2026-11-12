@@ -85,6 +85,7 @@ function testSidebarDetailRoutesHighlightParents() {
   assert.equal(isNavItemActive('/editorial', '/editorial/pilares'), true);
   assert.equal(isNavItemActive('/series', '/series'), true);
   assert.equal(isNavItemActive('/series', '/series/abc'), true);
+  assert.equal(isNavItemActive('/series', '/clubes/abc'), true);
 }
 
 function testSettingsExcludesEditorialAndSeries() {
