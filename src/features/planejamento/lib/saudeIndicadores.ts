@@ -267,7 +267,7 @@ function avaliado(janela: JanelaApurada): IntervaloAvaliado {
  * Continuidade: cada série marcada, conferida janela a janela
  * pela apuração comum (`apurarSerie`). Família é pasta visual: não tem linha nem meta.
  * Quadro é sob demanda: não tem linha e não conta na série;
- * wave com ritmo próprio conta só na linha dela. Regra de Ouro: até 1 episódio por semana por série.
+ * wave com ritmo próprio conta só na linha dela. Regra de Ouro: até o limite por série (episódios por semana).
  * Repost não é episódio novo. Post-it é reserva. Sobra não compensa falta.
  * `itens` pode ir além do período: os intervalos das pontas são avaliados inteiros.
  */
@@ -344,7 +344,7 @@ export function continuidadeDasSeries<T extends ItemSaude>(input: {
       continue;
     }
     const tipoLinha = tipo === 'quadro' ? 'quadro' : 'serie';
-    // Regra de Ouro: até 1 por semana por série.
+    // Regra de Ouro: até o limite por série (por semana).
     const situacao = situacaoDaFrequencia(serie, unidadesDaRegraDeOuro(serie.id, series));
     if (situacao.tipo === 'incompleta') {
       pendencias.push({ serieId: serie.id, nome, tipo: tipoLinha, motivo: 'incompleta', texto: 'Frequência incompleta: escolha a unidade' });

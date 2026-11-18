@@ -48,8 +48,19 @@ const lista = [
   ep('f', 'q-bru', {ordemEpisodio: null}),
 ];
 
-function testSemPreferenciaSalvaAgrupaPorQuadroEmOrdemManual() {
+function testSemPreferenciaSalvaSerieComTemporadasAgrupaPorTemporada() {
+  // Regra de resolverAgrupar (seriesLista.ts): sem escolha salva, temporadas vêm antes dos quadros.
   const secoes = secoesDaSerie(lista, ['s-res'], series, temporadas, comPreferencia());
+  assert.deepEqual(resumo(secoes), [
+    ['Temporada 1', ['a', 'b']],
+    ['Temporada 2', ['d']],
+    ['Sem temporada', ['c', 'e', 'f']],
+  ]);
+  assert.ok(secoes.every(secao => secao.numerar));
+}
+
+function testPreferenciaPorQuadroAgrupaPorQuadroEmOrdemManual() {
+  const secoes = secoesDaSerie(lista, ['s-res'], series, temporadas, comPreferencia({'s-res': {agrupar: 'quadro'}}));
   assert.deepEqual(resumo(secoes), [
     ['Sem quadro', ['a', 'b', 'd', 'e']],
     ['Brasileiros', ['f']],
@@ -113,7 +124,8 @@ function testForaDaEscolhaNaoSome() {
   assert.deepEqual(resumo(secoes), [[null, ['x']], ['Outros', ['z']]]);
 }
 
-testSemPreferenciaSalvaAgrupaPorQuadroEmOrdemManual();
+testSemPreferenciaSalvaSerieComTemporadasAgrupaPorTemporada();
+testPreferenciaPorQuadroAgrupaPorQuadroEmOrdemManual();
 testPreferenciaPorTemporadaPoeAsTemporadasPrimeiroESemTemporadaPorUltimo();
 testPreferenciaDeOrdemETituloNaoNumera();
 testSemColunaDeOrdemCaiNaPublicacao();

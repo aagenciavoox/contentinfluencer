@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { isAuthRetryableFetchError, Session, User } from '@supabase/supabase-js';
-import { notifySaveFeedback } from '../lib/saveFeedback';
+import { mensagemDeErro, notifySaveFeedback } from '../lib/saveFeedback';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 
 interface AuthContextType {
@@ -77,7 +77,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!supabase) {
       notifySaveFeedback({
         status: 'error',
-        message: 'Não foi possível sair. Verifique sua conexão e tente novamente.',
+        // Sem cliente do Supabase não há servidor configurado: não é a conexão da pessoa.
+        message: 'Não foi possível sair. O app está sem acesso ao servidor.',
       });
       throw new Error('Não foi possível sair.');
     }
@@ -87,7 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       notifySaveFeedback({
         status: 'error',
-        message: 'Não foi possível sair. Verifique sua conexão e tente novamente.',
+        message: mensagemDeErro('sair', error),
         detail: error instanceof Error ? error.message : undefined,
       });
       throw error;

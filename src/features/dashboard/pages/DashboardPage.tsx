@@ -235,7 +235,7 @@ export function DashboardPage() {
       pendingIdea.current = null;
       notifySaveFeedback({ status: 'success', message: 'Ideia salva' });
     } catch (error) {
-      notifySaveFeedback({ status: 'error', message: getErrorMessage(error) });
+      notifySaveFeedback({ status: 'error', message: getErrorMessage(error, 'salvar a ideia') });
     } finally {
       savingIdea.current = false;
       setIdeaSaving(false);
@@ -260,7 +260,7 @@ export function DashboardPage() {
       pendingSession.current = null;
       navigate('/gravacao/' + payload.block.id + '?burst=1');
     } catch (error) {
-      setErrorMessage(getErrorMessage(error));
+      setErrorMessage(getErrorMessage(error, 'começar a sessão de gravação'));
     } finally {
       savingSession.current = false;
       setSessionSaving(false);

@@ -30,15 +30,18 @@ assert.ok(!('erro' in frequenciaDoRascunho({ vezes: '1', unidade: 'quinzena', aP
 // Clique na lista do seletor de período (portal fora do painel) não fecha o popover.
 {
   const dentro = { closest: () => null };
-  const opcao = { closest: (s: string) => (s === '[role="listbox"]' ? { id: 'periodo-listbox' } : null) };
+  const opcao = { closest: (s: string) => (s.includes('[role="listbox"]') ? { id: 'periodo-listbox' } : null) };
+  // Painel do “?” ao lado do erro (também em portal): clicar no texto ou no link não fecha o popover.
+  const ajuda = { closest: (s: string) => (s.includes('[data-ajuda]') ? { id: ':r1:' } : null) };
   const outraLista = { closest: () => ({ id: 'outra-listbox' }) };
   const fora = { closest: () => null };
   const painel = {
     contains: (no: unknown) => no === dentro,
-    querySelector: (s: string) => (s === '[aria-controls="periodo-listbox"]' ? {} : null),
+    querySelector: (s: string) => (s === '[aria-controls="periodo-listbox"]' || s === '[aria-controls=":r1:"]' ? {} : null),
   };
   assert.equal(cliqueDentroDoPainel(dentro, painel), true);
   assert.equal(cliqueDentroDoPainel(opcao, painel), true);
+  assert.equal(cliqueDentroDoPainel(ajuda, painel), true);
   assert.equal(cliqueDentroDoPainel(outraLista, painel), false);
   assert.equal(cliqueDentroDoPainel(fora, painel), false);
   assert.equal(cliqueDentroDoPainel(opcao, null), false);

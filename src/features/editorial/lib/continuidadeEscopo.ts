@@ -308,7 +308,7 @@ export function continuidadeDoAcompanhamento(input: {
   // Quadro é sob demanda: não tem meta nem continuidade, em nenhum escopo.
   if (ehQuadroNaArvore(serie.id, input.series)) return null;
   const serieDoEscopo = serieComFrequenciaDoEscopo(serie, input.metas ?? [], acompanhamento);
-  // Regra de Ouro também na meta da série numa conta ou num formato: até 1 por semana.
+  // Regra de Ouro também na meta da série numa conta ou num formato: até o limite por série.
   const situacao = situacaoNaArvore(serieDoEscopo, input.series);
 
   if (!acompanhamento.ativo) return vazio(acompanhamento, 'inativo', situacao);

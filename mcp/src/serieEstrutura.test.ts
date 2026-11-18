@@ -35,6 +35,10 @@ const temporadas = [
 assert.equal(tipoDaSerie('q1', series), 'quadro');
 assert.equal(tipoDaSerie('s2', series), 'serie');
 assert.equal(tipoDaSerie('x', [serieDaLinha({id: 'r'}), serieDaLinha({id: 'f', parent_id: 'r'}), serieDaLinha({id: 'x', parent_id: 'f'})]), 'quadro');
+// Raiz sem tipo com neto só é família sem dúvida: com temporadas ou com filho gravado como quadro, é série.
+assert.equal(tipoDaSerie('r', [serieDaLinha({id: 'r', usa_temporadas: true}), serieDaLinha({id: 'f', parent_id: 'r'}), serieDaLinha({id: 'x', parent_id: 'f'})]), 'serie');
+assert.equal(tipoDaSerie('r', [serieDaLinha({id: 'r'}), serieDaLinha({id: 'f', parent_id: 'r', tipo_agrupamento: 'quadro'}), serieDaLinha({id: 'x', parent_id: 'f'})]), 'serie');
+assert.equal(tipoDaSerie('r', [serieDaLinha({id: 'r'}), serieDaLinha({id: 'f', parent_id: 'r'}), serieDaLinha({id: 'x', parent_id: 'f'})]), 'familia');
 assert.equal(tipoSugeridoParaFilho('s1', series), 'quadro');
 assert.equal(tipoSugeridoParaFilho('fam', series), 'serie');
 
@@ -132,6 +136,10 @@ assert.deepEqual([movida.pilarId, movida.pilarOrigem, movida.funcao, movida.func
 assert.match((colunasDaFrequencia({vezes: 2, unidade: 'semana'}, vazia, 'serie') as {erro: string}).erro, /Regra de Ouro/);
 assert.match((colunasDaFrequencia({vezes: 3}, {vezes: 1, unidade: 'quinzena', aPartirDe: '2026-01-01'}, 'serie') as {erro: string}).erro, /até 2 a cada 14 dias/);
 assert.ok('colunas' in (colunasDaFrequencia({vezes: 4, unidade: 'mes'}, vazia, 'serie') ?? {}));
+// Limite por série escolhido no app (editorial_conta.avisos): 2 por semana libera 2, barra 3.
+assert.ok('colunas' in (colunasDaFrequencia({vezes: 2, unidade: 'semana'}, vazia, 'serie', 2) ?? {}));
+assert.match((colunasDaFrequencia({vezes: 3, unidade: 'semana'}, vazia, 'serie', 2) as {erro: string}).erro, /no máximo 2 episódios por semana/);
+assert.match((colunasDaFrequencia({vezes: 9, unidade: 'mes'}, vazia, 'serie', 2) as {erro: string}).erro, /até 8 por mês/);
 assert.match((colunasDaFrequencia({vezes: 1, unidade: 'semana'}, vazia, 'quadro') as {erro: string}).erro, /sob demanda/);
 assert.match((colunasDaFrequencia({vezes: 1, unidade: 'semana'}, vazia, 'familia') as {erro: string}).erro, /agrupamento visual/);
 assert.match(avisoDaContinuidade(true, 'quadro', true).aviso ?? '', /sob demanda/);

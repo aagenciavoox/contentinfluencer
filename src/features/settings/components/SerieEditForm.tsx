@@ -58,6 +58,8 @@ import { getSerieOpenItems, type SerieOpenItemKey } from '../../editorial/lib/se
 import { pilarEfetivoDaSerie } from '../lib/serieAgrupamento';
 import { erroDoVinculo, opcoesDePai } from '../lib/serieHierarquia';
 import { erroDaRegraDeOuro, unidadesDaRegraDeOuro } from '../../editorial/lib/regraDeOuro';
+import { AjudaDaRegraDeOuro } from '../../editorial/components/AjudaDaRegraDeOuro';
+import { limiteRegraDeOuro } from '../../editorial/lib/avisosEditoriais';
 import { FUNCAO_DESCRICOES, FUNCAO_LABELS, FUNCOES, rotuloFuncaoPadrao } from '../../editorial/lib/funcoes';
 import { useAppContext } from '../../../context/AppContext';
 import { QuadrosETemporadasSection } from './series-detail/QuadrosETemporadasSection';
@@ -618,7 +620,7 @@ export function SerieEditForm({
   // Quadro é sob demanda: não tem meta.
   const metaNoFormulario = !(initial.id && state.series.some(item => item.id === initial.id));
   const erroRegraDeOuro = metaNoFormulario && form.temMeta && tipo !== 'quadro'
-    ? erroDaRegraDeOuro(form.frequenciaVezes, form.frequenciaUnidade || 'semana', unidadesDaRegraDeOuro(form.id, series))
+    ? erroDaRegraDeOuro(form.frequenciaVezes, form.frequenciaUnidade || 'semana', unidadesDaRegraDeOuro(form.id, series, limiteRegraDeOuro(state.editorial.avisos)))
     : null;
   const valido = Boolean(form.name.trim()) && !colorTaken && !erroVinculo && !erroRegraDeOuro;
   const erroNome = tentouSalvar && !form.name.trim() ? `Dê um nome para identificar ${NOME_DO_TIPO[tipo].artigo}.` : null;
@@ -1074,7 +1076,10 @@ export function SerieEditForm({
         <Text variant="body" as="span">Acompanhar continuidade na Saúde</Text>
       </label>
       {erroRegraDeOuro ? (
-        <p id="serie-meta-regra-de-ouro" className="t-meta" style={{ color: 'var(--danger)' }}>{erroRegraDeOuro}</p>
+        <div className="flex items-center gap-1">
+          <p id="serie-meta-regra-de-ouro" className="t-meta" style={{ color: 'var(--danger)' }}>{erroRegraDeOuro}</p>
+          <AjudaDaRegraDeOuro />
+        </div>
       ) : null}
       <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
         {formatarResumoMeta(form.frequenciaVezes, form.frequenciaUnidade || 'semana', form.frequenciaAPartirDe)}

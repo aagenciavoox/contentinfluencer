@@ -1,3 +1,5 @@
+import { mensagemDeErro } from '../../../lib/saveFeedback.ts';
+
 export function normalizeProfileAuthError(message: string) {
   const normalizedMessage = message.toLowerCase();
 
@@ -17,5 +19,5 @@ export function normalizeProfileAuthError(message: string) {
     return 'Sua sessão expirou. Entre novamente para continuar.';
   }
 
-  return 'Não foi possível salvar a alteração agora. Verifique sua conexão e tente novamente.';
+  return mensagemDeErro('salvar a alteração', message);
 }

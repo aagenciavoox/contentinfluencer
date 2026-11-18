@@ -45,6 +45,20 @@ import {
   type TipoAgrupamento,
 } from '../serieEstrutura.ts';
 import {normalizarRedesPostIt} from '../../../src/features/planejamento/lib/redesPostIt.ts';
+import {LIMITE_REGRA_DE_OURO_PADRAO, limiteDaRegraNosAvisos} from '../../../src/features/editorial/lib/regraDeOuro.ts';
+
+/**
+ * Limite por série da Regra de Ouro escolhido no app (Editorial › Rotina de criação),
+ * guardado em `editorial_conta.avisos`. Sem linha, sem coluna ou sem valor: 1 por semana.
+ */
+export async function limiteDaRegraDeOuroDoUsuario(session: Session): Promise<number> {
+  const {data, error} = await session.client.from('editorial_conta')
+    .select('avisos')
+    .eq('user_id', session.userId)
+    .maybeSingle();
+  if (error) return LIMITE_REGRA_DE_OURO_PADRAO;
+  return limiteDaRegraNosAvisos((data as Row | null)?.avisos);
+}
 
 const DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'] as const;
 const timeSchema = z.string().regex(/^\d{2}:\d{2}$/, 'Use HH:MM');
@@ -289,7 +303,7 @@ const serieFields = {
   ),
   usa_temporadas: z.boolean().optional().describe('Só série. Os quadros dela usam as mesmas temporadas'),
   frequencia_vezes: z.number().int().min(1).max(60).nullable().optional().describe(
-    'Meta de episódios por período. null tira a meta. Regra de Ouro: série no máximo 1 por semana (2 a cada 14 dias, 4 por mês, 8 por bimestre, 13 por trimestre, 26 por semestre). Quadro não tem meta (sob demanda)',
+    'Meta de episódios por período. null tira a meta. Regra de Ouro: série no máximo o "Limite por série" escolhido no app (Editorial › Rotina de criação; padrão 1 por semana). Janelas maiores na mesma proporção: com limite N, até 2N a cada 14 dias, 4N por mês, 8N por bimestre, 13N por trimestre, 26N por semestre. Quadro não tem meta (sob demanda)',
   ),
   frequencia_unidade: z.enum(UNIDADES_FREQUENCIA).nullable().optional().describe(
     'semana, quinzena (a cada 14 dias, exige frequencia_a_partir_de), mes, bimestre, trimestre ou semestre (blocos fechados a partir de janeiro); sob-demanda (ou null) tira a meta. Sem unidade e com vezes, o app usa semana',
@@ -347,6 +361,7 @@ function estruturaDaSerie(
   id: string,
   atual: Row | null,
   lookups: Lookups,
+  limiteDaRegra = LIMITE_REGRA_DE_OURO_PADRAO,
 ): {patch: Row; avisos: string[]} {
   const series: SerieNoMcp[] = lookups.series.map(serieDaLinha).filter(item => item.id !== id);
   const patch: Row = {};
@@ -366,8 +381,9 @@ function estruturaDaSerie(
   const erro = erroDoVinculo(tipo, parentId, id, comPropria);
   if (erro) throw new Error(erro);
   if (args.parent_id !== undefined) patch.parent_id = parentId;
-  // Só grava o tipo quando a estrutura muda: criar série solta continua funcionando sem a migração do tipo.
-  if (args.tipo_agrupamento !== undefined || args.parent_id !== undefined) patch.tipo_agrupamento = tipo;
+  // Grava o tipo ao criar (como o formulário do app) e quando a estrutura muda: sem tipo gravado,
+  // o app deduz pela árvore e uma série com sub-quadro poderia ser lida como família.
+  if (!atual || args.tipo_agrupamento !== undefined || args.parent_id !== undefined) patch.tipo_agrupamento = tipo;
 
   const nome = typeof args.nome === 'string' ? args.nome : atual?.name;
   if (tipo === 'quadro' && parentId && typeof nome === 'string' && nomeDeQuadroRepetido(nome, parentId, series, id)) {
@@ -394,7 +410,7 @@ function estruturaDaSerie(
     vezes: freqAtual.vezes,
     unidade: freqAtual.unidade,
     aPartirDe: freqAtual.a_partir_de,
-  }, tipo);
+  }, tipo, limiteDaRegra);
   if (freq && 'erro' in freq) throw new Error(freq.erro);
   if (freq) Object.assign(patch, freq.colunas);
   else if (!atual && tipo === 'quadro' && args.frequencia === undefined) patch.frequencia_recomendada = 'Sob demanda';
@@ -626,7 +642,7 @@ export function registerEditorial(server: McpServer) {
     tool(async (args, session) => {
       const lookups = await loadLookups(session);
       const id = newId();
-      const estrutura = estruturaDaSerie(args, id, null, lookups);
+      const estrutura = estruturaDaSerie(args, id, null, lookups, await limiteDaRegraDeOuroDoUsuario(session));
       // Quadro com o mesmo nome de outro agrupamento vale (o app só barra entre quadros da mesma série).
       if (estrutura.patch.tipo_agrupamento !== 'quadro'
         && lookups.series.some(s => s.name.trim().toLowerCase() === args.nome.trim().toLowerCase())) {
@@ -688,7 +704,7 @@ export function registerEditorial(server: McpServer) {
       const id = resolveSerie(lookups, args.serie);
       if (!id) throw new Error('Informe a série.');
       const atual = await fetchSerie(session, id);
-      const estrutura = estruturaDaSerie(args, id, atual, lookups);
+      const estrutura = estruturaDaSerie(args, id, atual, lookups, await limiteDaRegraDeOuroDoUsuario(session));
       const patch = {...serieColumns(args), ...estrutura.patch};
       if (args.pilar_principal !== undefined) patch.pilar_principal_id = idDoPilar(lookups, args.pilar_principal);
       else if (args.pilares !== undefined) patch.pilar_principal_id = idDoPilar(lookups, args.pilares[0]);

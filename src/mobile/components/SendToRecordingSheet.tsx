@@ -105,7 +105,7 @@ export function SendToRecordingSheet({
     } catch (error) {
       setAttachedBlockId(null);
       setAttachedBlockName('');
-      setErrorMessage(getErrorMessage(error));
+      setErrorMessage(getErrorMessage(error, 'enviar o roteiro para a gravação'));
     } finally {
       setIsBusy(false);
     }

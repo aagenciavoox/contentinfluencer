@@ -1,4 +1,4 @@
-import type { Serie, StatusSerie } from '../../../lib/database';
+import type { Serie, StatusSerie } from '../../../lib/database.ts';
 import { vezesNaRegraDeOuro } from '../../editorial/lib/regraDeOuro.ts';
 
 export type { StatusSerie };
@@ -64,7 +64,7 @@ export function roteirosPorSemana(serie: Pick<Serie, 'frequenciaVezes' | 'freque
 
 /**
  * Aviso ao ativar: quanto a série passa a pedir neste mês, já com a Regra de Ouro
- * (até 1 por semana; família, uma por série ativa). Quadro é sob demanda e não pede nada.
+ * (até o limite por série, por semana). Quadro é sob demanda e não pede nada.
  */
 export function textoDaAtivacao(
   serie: Pick<Serie, 'name' | 'frequenciaVezes' | 'frequenciaUnidade'>,
@@ -73,7 +73,7 @@ export function textoDaAtivacao(
   const nome = serie.name.trim() || (opcoes.quadro ? 'O quadro' : 'A série');
   if (opcoes.quadro) return `${nome} fica sob demanda: não tem meta semanal e não soma no limite da semana.`;
   const porSemana = roteirosPorSemana({
-    frequenciaVezes: vezesNaRegraDeOuro(serie.frequenciaVezes, serie.frequenciaUnidade || 'semana', opcoes.unidades ?? 1) ?? null,
+    frequenciaVezes: vezesNaRegraDeOuro(serie.frequenciaVezes, serie.frequenciaUnidade || 'semana', opcoes.unidades) ?? null,
     frequenciaUnidade: serie.frequenciaUnidade,
   });
   if (porSemana == null) return `${nome} entra na Saúde, mas ainda sem ritmo: não vai pedir roteiros por semana.`;

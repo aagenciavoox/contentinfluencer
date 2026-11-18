@@ -11,6 +11,8 @@ import { FilterChips } from '../../../../components/ui/FilterChips';
 import { Text } from '../../../../components/ui/Text';
 import type { BibliotecaItem } from '../../../../lib/database';
 import { cn } from '../../../../lib/utils';
+import { causaDoErro } from '../../../../lib/saveFeedback';
+import { ERRORS } from '../../../../lib/uiCopy';
 import { EDITING_LANG } from '../../../../lib/portugueseEditing';
 import { ANNOTATION_TYPES, createAnnotationDraft, persistAnnotationDraft, readAnnotationDraft, writeAnnotationDraft, type AnnotationDraft } from '../../lib/annotationDraft';
 import { ANNOTATION_MAX_LENGTH, ENTER_HINT } from '../BookAnnotationCard';
@@ -94,9 +96,9 @@ function AnnotationComposerForm({
       });
       setDraft({ ...createAnnotationDraft(), tipo: draft.tipo });
       setDraftStored(false);
-    } catch {
+    } catch (error) {
       setSaveError(userId
-        ? 'Não foi possível salvar. Seu texto foi mantido. Verifique a conexão e tente novamente.'
+        ? `Não foi possível salvar a anotação. Seu texto foi mantido. ${ERRORS.porCausa[causaDoErro(error)]}`
         : 'Entre novamente na sua conta para salvar. Seu texto foi mantido.');
       keepWriting();
       return;

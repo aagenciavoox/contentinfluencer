@@ -34,6 +34,10 @@ export const APOIO_DA_ABA: Record<EditorialAba, string> = {
 export const ANCORA_CONTINUIDADE = 'continuidade';
 export const ANCORA_AVISOS = 'avisos';
 export const ANCORA_HASHTAGS = 'hashtags';
+/** Card Regra de Ouro, na Rotina de criação. */
+export const ANCORA_REGRA_DE_OURO = 'regra-de-ouro';
+/** Link para o card Regra de Ouro (aba Rotina de criação, rolando até o card). */
+export const ROTA_DA_REGRA_DE_OURO = `/editorial?aba=ajustes#${ANCORA_REGRA_DE_OURO}`;
 
 /** Ids antigos de `?aba=` que continuam abrindo a aba certa (e o bloco, quando houver). */
 const ABAS_ANTIGAS: Record<string, { aba: EditorialAba; ancora?: string }> = {

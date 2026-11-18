@@ -1,4 +1,5 @@
 import type { TipoAvisoOrientacao } from '../../planejamento/lib/orientacaoEditorial.ts';
+import { CHAVE_LIMITE_REGRA_DE_OURO, LIMITE_REGRA_DE_OURO_PADRAO, normalizarLimiteDaRegraDeOuro } from './regraDeOuro.ts';
 
 /**
  * Avisos que a pessoa liga e desliga em Editorial › Avisos.
@@ -16,9 +17,13 @@ export type LimiteSaturacaoQuadro = 1 | 2;
 
 export const LIMITE_SATURACAO_PADRAO: LimiteSaturacaoQuadro = 2;
 
+/** Limite por série da Regra de Ouro: mesma chave do jsonb dos avisos (definida em regraDeOuro.ts). */
+export { CHAVE_LIMITE_REGRA_DE_OURO };
+
 /** Só guarda o que foi mudado. Chave ausente é aviso ligado; sem limite gravado, vale o padrão (2). */
 export type AvisosLigados = Partial<Record<TipoAvisoConfiguravel, boolean>> & {
   [CHAVE_LIMITE_SATURACAO]?: LimiteSaturacaoQuadro;
+  [CHAVE_LIMITE_REGRA_DE_OURO]?: number;
 };
 
 export type GrupoDeAvisos = {
@@ -78,6 +83,11 @@ export function lerAvisosLigados(value: unknown): AvisosLigados {
   for (const [chave, ligado] of Object.entries(value as Record<string, unknown>)) {
     if (TIPOS.has(chave) && typeof ligado === 'boolean') lidos[chave as TipoAvisoConfiguravel] = ligado;
     if (chave === CHAVE_LIMITE_SATURACAO && (ligado === 1 || ligado === 2)) lidos[CHAVE_LIMITE_SATURACAO] = ligado;
+    if (chave === CHAVE_LIMITE_REGRA_DE_OURO) {
+      const limite = normalizarLimiteDaRegraDeOuro(ligado);
+      // O padrão (1) não é gravado: chave ausente já vale 1.
+      if (limite != null && limite !== LIMITE_REGRA_DE_OURO_PADRAO) lidos[CHAVE_LIMITE_REGRA_DE_OURO] = limite;
+    }
   }
   return lidos;
 }
@@ -86,6 +96,11 @@ export function lerAvisosLigados(value: unknown): AvisosLigados {
 export function limiteSaturacaoQuadro(avisos: AvisosLigados | null | undefined): LimiteSaturacaoQuadro {
   const valor = avisos?.[CHAVE_LIMITE_SATURACAO];
   return valor === 1 || valor === 2 ? valor : LIMITE_SATURACAO_PADRAO;
+}
+
+/** Limite por série da Regra de Ouro: episódios por semana da mesma série. Sem nada gravado, 1. */
+export function limiteRegraDeOuro(avisos: AvisosLigados | null | undefined): number {
+  return normalizarLimiteDaRegraDeOuro(avisos?.[CHAVE_LIMITE_REGRA_DE_OURO]) ?? LIMITE_REGRA_DE_OURO_PADRAO;
 }
 
 /** Tira da lista os avisos desligados. */

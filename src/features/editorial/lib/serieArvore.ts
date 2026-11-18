@@ -6,6 +6,26 @@ export type SerieNo = {
   name?: string | null;
 };
 
+/** O que a dedução do tipo olha além da árvore. Tudo opcional: cada tela passa o que tem. */
+export type NoParaDeduzirTipo = SerieNo & {
+  tipoAgrupamento?: 'familia' | 'serie' | 'quadro' | null;
+  usaTemporadas?: boolean | null;
+};
+
+/**
+ * Raiz sem tipo gravado vira família só quando não há dúvida: tem netos, não usa temporadas
+ * (só série tem temporadas) e nenhum filho foi gravado como quadro (quadro fica dentro de série,
+ * nunca direto na família). Na dúvida fica série, para não perder pilar, objetivo e meta.
+ * Usada por tipoDaSerie (settings), tipoNaArvore (regra de ouro) e pelo espelho do MCP.
+ */
+export function raizSemTipoEhFamilia(serieId: string, series: readonly NoParaDeduzirTipo[]): boolean {
+  const raiz = series.find(serie => serie.id === serieId);
+  if (raiz?.usaTemporadas === true) return false;
+  const filhos = series.filter(serie => serie.parentId === serieId);
+  if (filhos.some(filho => filho.tipoAgrupamento === 'quadro')) return false;
+  return filhos.some(filho => series.some(neto => neto.parentId === filho.id));
+}
+
 /** Filhos diretos, estáveis por nome quando houver. */
 export function filhosDaSerie(
   serieId: string,

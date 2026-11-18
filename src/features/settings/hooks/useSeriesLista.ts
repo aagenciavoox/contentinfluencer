@@ -118,7 +118,7 @@ export function useSeriesLista(onAbrirModalCriacao?: (target: SerieCreateModalTa
     },
   }), [alternarAtiva, mudarStatus, navigate, onAbrirModalCriacao, state.series]);
 
-  // Todos = séries e quadros, agrupados por família na mesma página.
+  // Todos = só as séries, agrupadas por família; os quadros aparecem na visão Quadros.
   const opcoesTipo = [
     { value: 'todos', label: 'Todos' },
     ...(['serie', 'quadro'] as const)

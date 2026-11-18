@@ -45,18 +45,3 @@ export function exclusaoDeMetaPropria(
   }
   return { serieIds, temporadaIds, temporadaAte };
 }
-
-/**
- * Recorte dos episódios únicos das séries de uma família (quadros e rascunho ficam fora).
- * A família em si não tem mais meta: esta função só serve se alguém ainda pedir a soma visual.
- */
-export function exclusaoDaFamilia(
-  temporadas: readonly OndaDaExclusao[] = [],
-  familia?: Pick<SerieDaApuracao, 'id'> | null,
-  series: readonly SerieDaApuracao[] = [],
-): ExclusaoDaApuracao {
-  return {
-    serieIds: familia ? quadrosDaSubarvore(familia.id, series) : new Set<string>(),
-    temporadaIds: new Set(temporadas.filter(onda => onda.status === 'rascunho').map(onda => onda.id)),
-  };
-}

@@ -3,7 +3,7 @@ import { CONTENT_STATUS, normalizeContentStatus } from '../../contents/lib/conte
 import { isActiveCreation } from '../../contents/lib/contentWorkflow.ts';
 import { publicacaoPublicada } from '../../editorial/lib/publicacaoSituacao.ts';
 import { pilarPrincipalDaSerie } from '../../editorial/lib/pilarDaSerie.ts';
-import { filhosDaSerie, idsDaSubarvore } from '../../editorial/lib/serieArvore.ts';
+import { filhosDaSerie, idsDaSubarvore, raizSemTipoEhFamilia } from '../../editorial/lib/serieArvore.ts';
 
 export const TIPOS_AGRUPAMENTO: readonly SerieTipoAgrupamento[] = ['familia', 'serie', 'quadro'];
 
@@ -19,11 +19,11 @@ export const TIPO_AGRUPAMENTO_PLURAL: Record<SerieTipoAgrupamento, string> = {
   quadro: 'Quadros',
 };
 
-type SerieTipoNo = Pick<Serie, 'id' | 'parentId' | 'tipoAgrupamento'> & { name?: string | null };
+type SerieTipoNo = Pick<Serie, 'id' | 'parentId' | 'tipoAgrupamento'> & { name?: string | null; usaTemporadas?: boolean | null };
 
 /**
  * Tipo escolhido; sem escolha, deduzido pela árvore.
- * Raiz com netos é família; raiz sem netos é série.
+ * Raiz com netos é família só sem dúvida (raizSemTipoEhFamilia); senão, série.
  * Filho de família é série; filho de série ou quadro é quadro.
  */
 export function tipoDaSerie(serieId: string, series: readonly SerieTipoNo[]): SerieTipoAgrupamento {
@@ -36,10 +36,7 @@ export function tipoDaSerie(serieId: string, series: readonly SerieTipoNo[]): Se
     if (vistos.has(id)) return 'serie';
     vistos.add(id);
     const paiId = serie.parentId?.trim();
-    if (!paiId || !porId.has(paiId)) {
-      const temNeto = filhosDaSerie(id, series).some(filho => filhosDaSerie(filho.id, series).length > 0);
-      return temNeto ? 'familia' : 'serie';
-    }
+    if (!paiId || !porId.has(paiId)) return raizSemTipoEhFamilia(id, series) ? 'familia' : 'serie';
     return resolver(paiId) === 'familia' ? 'serie' : 'quadro';
   };
   return resolver(serieId);

@@ -4,7 +4,7 @@ import { complementoDoPeriodo, type UnidadeDaMeta } from './metaDaOnda.ts';
 import { blocoQueContem, blocosNoIntervalo, lerFrequencia, mesesDoBloco, type FrequenciaSerie } from './frequenciaSerie.ts';
 import { semanaDe, semanasNoIntervalo } from './periodoEditorial.ts';
 import { idsDaSubarvore } from './serieArvore.ts';
-import { ehFamiliaNaArvore, ehQuadroNaArvore, quadrosDaSubarvore, unidadesDaRegraDeOuro, vezesNaRegraDeOuro } from './regraDeOuro.ts';
+import { ehFamiliaNaArvore, ehQuadroNaArvore, limiteDaRegraDeOuro, quadrosDaSubarvore, unidadesDaRegraDeOuro, vezesNaRegraDeOuro } from './regraDeOuro.ts';
 
 /**
  * Apuração de uma série (ou quadro) num período: a mesma conta para o Editorial,
@@ -67,8 +67,8 @@ const UNIDADES = new Set([
  */
 export function situacaoDaFrequencia(
   serie: Pick<SerieDaApuracao, 'frequenciaRecomendada' | 'frequenciaVezes' | 'frequenciaUnidade' | 'frequenciaAPartirDe' | 'frequenciaAncora'>,
-  /** Séries que a meta cobre na Regra de Ouro (sempre 1 por série). Null: sem teto. */
-  unidadesDaRegra: number | null = 1,
+  /** Limite por série da Regra de Ouro (episódios por semana). Sem valor, o configurado. Null: sem teto. */
+  unidadesDaRegra: number | null = limiteDaRegraDeOuro(),
 ): SituacaoFrequencia {
   const unidade = chave(serie.frequenciaUnidade);
   const vezes = serie.frequenciaVezes;
@@ -84,7 +84,7 @@ export function situacaoDaFrequencia(
     ancora: serie.frequenciaAncora,
   });
   if (freq.unidade === 'sob-demanda') return { tipo: 'sem-frequencia' };
-  // Regra de Ouro: a quantidade gravada fica no banco; a conta usa no máximo 1 por semana por série.
+  // Regra de Ouro: a quantidade gravada fica no banco; a conta usa no máximo o limite por série (por semana).
   const definida = (unidadesDaRegra == null
     ? freq
     : { ...freq, vezes: vezesNaRegraDeOuro(freq.vezes, freq.unidade, unidadesDaRegra) ?? freq.vezes }) as FrequenciaDefinida;
@@ -95,7 +95,7 @@ export function situacaoDaFrequencia(
 
 /**
  * Situação da meta com a árvore: quadro é sob demanda (sem meta, mesmo com número antigo gravado);
- * série e wave valem até 1 por semana; família é pasta visual (ignora ritmo gravado).
+ * série e wave valem até o limite por série (por semana); família é pasta visual (ignora ritmo gravado).
  */
 export function situacaoNaArvore(serie: SerieDaApuracao, series: readonly SerieDaApuracao[]): SituacaoFrequencia {
   const arvore = series.some(item => item.id === serie.id) ? series : [...series, serie];

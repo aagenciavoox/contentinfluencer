@@ -54,7 +54,8 @@ export function SeriesSettingsPage() {
       else if (item.tipo === 'familia') familia += 1;
     }
     return {
-      todos: serie + quadro,
+      // Todos mostra só as séries: os quadros aparecem na visão Quadros.
+      todos: serie,
       serie,
       quadro,
       familia,

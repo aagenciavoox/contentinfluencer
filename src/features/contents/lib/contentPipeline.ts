@@ -1,5 +1,5 @@
 import {isAfter, isBefore, startOfDay} from 'date-fns';
-import type {Content, RecordingBlock} from '../../../lib/database';
+import type {Content, RecordingBlock} from '../../../lib/database.ts';
 import {contentReadableBody, isCarouselContent} from './carouselSlides.ts';
 
 export const CONTENT_STATUS = {

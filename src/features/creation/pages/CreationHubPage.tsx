@@ -43,8 +43,8 @@ import {
   type RedeSocial,
 } from '../../../lib/database';
 import { buildDetailBackState } from '../../../lib/navigation/detailBack';
-import { getErrorDetail, notifySaveFeedback, UserFacingError } from '../../../lib/saveFeedback';
-import { CONFIRM, ERRORS } from '../../../lib/uiCopy';
+import { getErrorDetail, mensagemDeErro, notifySaveFeedback, UserFacingError } from '../../../lib/saveFeedback';
+import { CONFIRM } from '../../../lib/uiCopy';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import { CONTENT_STATUS, normalizeContentStatus } from '../../contents/lib/contentPipeline';
 import { aplicarEscolhasDaSerie, marcarEscolhaManual } from '../../editorial/lib/escolhasSerie';
@@ -521,7 +521,7 @@ export function CreationHubPage() {
       } catch (error) {
         notifySaveFeedback({
           status: 'error',
-          message: ERRORS.aplicarAlteracoesMassa,
+          message: mensagemDeErro(field === 'seriesId' ? 'mudar a série da seleção' : 'mudar o pilar da seleção', error),
           detail: getErrorDetail(error),
         });
       }
@@ -581,7 +581,7 @@ export function CreationHubPage() {
       } catch (error) {
         notifySaveFeedback({
           status: 'error',
-          message: ERRORS.aplicarAlteracoesMassa,
+          message: mensagemDeErro('mudar a etapa da seleção', error),
           detail: getErrorDetail(error),
         });
       }
@@ -627,7 +627,7 @@ export function CreationHubPage() {
         ]);
         notifySaveFeedback({
           status: 'error',
-          message: ERRORS.salvarGenerico,
+          message: mensagemDeErro(`mover ${ids.length === 1 ? `${final} ${copy.singular}` : `${final}s ${copy.plural}`} para a lixeira`, error),
           detail: getErrorDetail(error),
         });
       });
@@ -778,7 +778,7 @@ export function CreationHubPage() {
     } catch (error) {
       notifySaveFeedback({
         status: 'error',
-        message: 'Não foi possível restaurar o roteiro. Tente novamente.',
+        message: mensagemDeErro('restaurar o roteiro', error),
         detail: getErrorDetail(error),
       });
     }
@@ -797,7 +797,7 @@ export function CreationHubPage() {
     } catch (error) {
       notifySaveFeedback({
         status: 'error',
-        message: 'Não foi possível excluir o roteiro. Tente novamente.',
+        message: mensagemDeErro('excluir o roteiro', error),
         detail: getErrorDetail(error),
       });
     } finally {
@@ -821,7 +821,7 @@ export function CreationHubPage() {
     } catch (error) {
       notifySaveFeedback({
         status: 'error',
-        message: 'Não foi possível limpar a lixeira. Tente novamente.',
+        message: mensagemDeErro('limpar a lixeira', error),
         detail: getErrorDetail(error),
       });
     } finally {
@@ -861,7 +861,7 @@ export function CreationHubPage() {
       }
       notifySaveFeedback({
         status: 'error',
-        message: 'Não foi possível mudar a etapa. Tente novamente.',
+        message: mensagemDeErro('mudar a etapa', error),
         detail: getErrorDetail(error),
       });
     } finally {

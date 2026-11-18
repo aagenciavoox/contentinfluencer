@@ -88,7 +88,7 @@ export function frequenciaParaGravar(input: {
   unidade: string | null | undefined;
   aPartirDe: string | null | undefined;
   tipo: 'serie' | 'quadro' | 'temporada';
-  /** Séries que a meta cobre na Regra de Ouro: 1 na série e na wave; na família, uma por série ativa. */
+  /** Regra de Ouro: limite por série (episódios por semana) na série e na wave. Sem valor, o limite configurado. */
   unidadesDaRegra?: number;
 }): ErroDeFrequencia | FrequenciaGravada {
   if (input.vezes != null && Number.isFinite(input.vezes)) {
@@ -120,7 +120,7 @@ export function frequenciaParaGravar(input: {
   }
   const unidade = ehUnidadeDaMeta(input.unidade) ? input.unidade : null;
   if (!unidade) return { erro: 'Escolha o período da meta.', campo: 'periodo' };
-  const regraDeOuro = erroDaRegraDeOuro(vezes, unidade, input.unidadesDaRegra ?? 1);
+  const regraDeOuro = erroDaRegraDeOuro(vezes, unidade, input.unidadesDaRegra);
   if (regraDeOuro) return { erro: regraDeOuro, campo: 'quantidade' };
   const aPartirDe = input.aPartirDe && /^\d{4}-\d{2}-\d{2}$/.test(input.aPartirDe) ? input.aPartirDe : null;
   return {

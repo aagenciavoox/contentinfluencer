@@ -4,6 +4,7 @@ import { useAppContext } from '../../../context/AppContext';
 import type { Serie } from '../../../lib/database';
 import { comStatus, statusDaSerie, textoDaAtivacao, type StatusSerie } from '../lib/statusSerie';
 import { ehQuadroNaArvore, unidadesDaRegraDeOuro } from '../../editorial/lib/regraDeOuro';
+import { limiteRegraDeOuro } from '../../editorial/lib/avisosEditoriais';
 
 /**
  * Troca o status da série (rascunho, ativa, arquivada) mantendo `ativa` coerente.
@@ -43,7 +44,7 @@ export function useStatusDaSerie() {
       message={ativando
         ? textoDaAtivacao(ativando, {
           quadro: ehQuadroNaArvore(ativando.id, state.series),
-          unidades: unidadesDaRegraDeOuro(ativando.id, state.series),
+          unidades: unidadesDaRegraDeOuro(ativando.id, state.series, limiteRegraDeOuro(state.editorial.avisos)),
         })
         : ''}
       confirmLabel="Ativar"

@@ -2,6 +2,7 @@ import { useAppContext } from '../../../context/AppContext';
 import type { Serie } from '../../../lib/database';
 import { tipoDaSerie } from '../../settings/lib/serieAgrupamento';
 import { unidadesDaRegraDeOuro } from '../lib/regraDeOuro';
+import { limiteRegraDeOuro } from '../lib/avisosEditoriais';
 import { comFrequencia, frequenciaDoRascunho, textoDoChip, type RascunhoDaFrequencia } from '../lib/frequenciaChip';
 import type { ErroDeFrequencia, FrequenciaGravada } from '../lib/metaDaOnda';
 
@@ -15,7 +16,8 @@ export function useFrequenciaDaSerie(serieId: string | null | undefined) {
   const tipo = serie ? tipoDaSerie(serie.id, state.series) : null;
   // Quadro é sob demanda: o chip só mostra "Sob demanda", sem editar meta.
   const editavel = Boolean(serie) && tipo === 'serie';
-  const unidades = serie ? unidadesDaRegraDeOuro(serie.id, state.series) : 1;
+  // Regra de Ouro: limite por série escolhido na Rotina de criação.
+  const unidades = unidadesDaRegraDeOuro(serie?.id ?? '', state.series, limiteRegraDeOuro(state.editorial.avisos));
 
   /** Devolve o erro de validação, ou a frequência gravada. Só devolve depois que a gravação confirma. */
   const salvar = async (rascunho: RascunhoDaFrequencia): Promise<ErroDeFrequencia | FrequenciaGravada> => {

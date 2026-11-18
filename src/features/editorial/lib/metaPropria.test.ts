@@ -108,8 +108,6 @@ console.log('metaPropria.test.ts ok');
   const temporadas = [{ id: 'T', serieId: 'S', acompanhar: true, ritmoProprio: true, frequenciaVezes: 1, frequenciaUnidade: 'semana', status: 'arquivada' as const, arquivadaEm: '2026-11-10' }];
   const ids = (lista: { contentId: string }[]) => lista.map(item => item.contentId).sort();
 
-  // Família: soma as séries dela, cada episódio uma vez; quadro (sob demanda) fica fora.
-  assert.deepEqual(ids(plano.episodiosDaLinha({ tipo: 'familia', id: 'F', episodios: eps, series, temporadas })), ['e1', 'e2', 'e3', 'e5', 'e6']);
   // Série: sem o quadro; episódio da temporada arquivada volta do dia do arquivo em diante.
   assert.deepEqual(ids(plano.episodiosDaLinha({ tipo: 'serie', id: 'S', episodios: eps, series, temporadas })), ['e1', 'e2', 'e3', 'e6']);
   // Temporada arquivada: só até a véspera do arquivo.

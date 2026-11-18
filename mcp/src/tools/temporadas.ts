@@ -40,11 +40,12 @@ import {idsDaSubarvore} from '../../../src/features/editorial/lib/serieArvore.ts
 import {frequenciaParaGravar, linhasDaOnda, ondaDasLinhas, ritmoProprioDaOnda, VALORES_UNIDADE, type UnidadeDaMeta} from '../../../src/features/editorial/lib/metaDaOnda.ts';
 import {normalizarRedesPostIt} from '../../../src/features/planejamento/lib/redesPostIt.ts';
 import type {Session} from '../supabase.ts';
+import {limiteDaRegraDeOuroDoUsuario} from './editorial.ts';
 
 const FOCO_REDES = 'instagram, instagram-video, instagram-carrossel, tiktok, tiktok-video, tiktok-carrossel, youtube (vídeo longo), youtube-shorts, blog, outra';
 
 /** null limpa. Valor desconhecido explica o que vale. */
-function lerFoco(value: readonly string[] | null): string[] {
+function lerFoco(value: readonly string[] | null): ReturnType<typeof normalizarRedesPostIt> {
   if (value === null) return [];
   const foco = normalizarRedesPostIt(value);
   const pedidos = [...new Set(value.map(item => item.trim().toLowerCase()).filter(Boolean))];
@@ -187,7 +188,9 @@ const MIGRACAO_ONDA = '20261104200000_temporada_acompanhamento';
 const camposDaOnda = {
   acompanhar: z.boolean().optional().describe('Liga o acompanhamento isolado desta temporada na Saúde.'),
   ritmo_proprio: z.boolean().optional().describe('Com meta, a wave anda no próprio ritmo e os episódios dela saem da conta da série (padrão: ligado). false mantém os episódios contando também na série.'),
-  frequencia_vezes: z.number().int().min(1).max(60).nullable().optional().describe('Quantidade da meta. null tira a meta'),
+  frequencia_vezes: z.number().int().min(1).max(60).nullable().optional().describe(
+    'Quantidade da meta. null tira a meta. Regra de Ouro: a wave segue o "Limite por série" escolhido no app (Editorial › Rotina de criação; padrão 1 por semana). Janelas maiores na mesma proporção: com limite N, até 2N a cada 14 dias, 4N por mês, 8N por bimestre, 13N por trimestre, 26N por semestre',
+  ),
   frequencia_unidade: z.enum(VALORES_UNIDADE).nullable().optional().describe('Período da meta. quinzena = ciclo de 14 dias e exige frequencia_a_partir_de. bimestre, trimestre e semestre são blocos fechados a partir de janeiro'),
   frequencia_a_partir_de: z.string().nullable().optional().describe('Data de início da meta, yyyy-MM-dd'),
 };
@@ -198,11 +201,12 @@ function metaDaOnda(args: {
   frequencia_vezes?: number | null;
   frequencia_unidade?: UnidadeDaMeta | null;
   frequencia_a_partir_de?: string | null;
-}, atual?: Temporada): {acompanhar: boolean; ritmo_proprio: boolean; frequencia_vezes: number | null; frequencia_unidade: string | null; frequencia_a_partir_de: string | null} {
+}, atual: Temporada | undefined, limiteDaRegra: number): {acompanhar: boolean; ritmo_proprio: boolean; frequencia_vezes: number | null; frequencia_unidade: string | null; frequencia_a_partir_de: string | null} {
   const vezes = args.frequencia_vezes === undefined ? atual?.frequenciaVezes ?? null : args.frequencia_vezes;
   const unidade = args.frequencia_unidade === undefined ? atual?.frequenciaUnidade ?? null : args.frequencia_unidade;
   const inicio = args.frequencia_a_partir_de === undefined ? atual?.frequenciaAPartirDe ?? null : args.frequencia_a_partir_de;
-  const gravada = frequenciaParaGravar({vezes, unidade, aPartirDe: inicio, tipo: 'temporada'});
+  // Regra de Ouro: o limite por série vem das configurações do app (editorial_conta.avisos).
+  const gravada = frequenciaParaGravar({vezes, unidade, aPartirDe: inicio, tipo: 'temporada', unidadesDaRegra: limiteDaRegra});
   if ('erro' in gravada) throw new Error(gravada.erro);
   return {
     acompanhar: args.acompanhar === undefined ? atual?.acompanhar === true : args.acompanhar,
@@ -305,7 +309,7 @@ export function registerTemporadas(server: McpServer) {
       const id = newId();
       const descricao = args.descricao?.trim() || null;
       const focoRedes = lerFoco(args.foco_redes ?? []);
-      const onda = metaDaOnda(args);
+      const onda = metaDaOnda(args, undefined, await limiteDaRegraDeOuroDoUsuario(session));
       const gravados = await writeCompat('criar temporada', {
         id, user_id: session.userId, serie_id: alvo.id, nome, descricao, foco_redes: focoRedes,
       }, row => session.client.from('temporadas').insert(row));
@@ -363,7 +367,7 @@ export function registerTemporadas(server: McpServer) {
       if (repetida && repetida.id !== atual.id) throw new Error(`Já existe a temporada "${nome}" nesta série.`);
       const descricao = args.descricao === undefined ? atual.descricao ?? null : args.descricao?.trim() || null;
       const focoRedes = args.foco_redes === undefined ? [...(atual.focoRedes ?? [])] : lerFoco(args.foco_redes);
-      const onda = mexeNaOnda ? metaDaOnda(args, atual) : null;
+      const onda = mexeNaOnda ? metaDaOnda(args, atual, await limiteDaRegraDeOuroDoUsuario(session)) : null;
       await writeCompat('atualizar temporada', {nome, descricao, foco_redes: focoRedes}, row =>
         session.client.from('temporadas').update(row).eq('id', atual.id).eq('user_id', session.userId));
       if (onda) await gravarOnda(session, atual.id, atual.serieId, onda);

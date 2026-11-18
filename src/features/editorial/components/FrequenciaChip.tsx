@@ -160,6 +160,7 @@ export function FrequenciaChip({
             onUnidade={unidade => setRascunho(atual => ({ ...atual, unidade }))}
             onInicio={aPartirDe => setRascunho(atual => ({ ...atual, aPartirDe }))}
             mostrarLegenda
+            linkDaRegraDeOuro
             erros={erro ? { [erro.campo]: erro.mensagem } : undefined}
           />
           <Text variant="meta" as="p" className="text-[var(--text-secondary)]">

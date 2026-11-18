@@ -4,6 +4,7 @@ import { AppButton } from '../../../components/ui/AppButton';
 import { Text } from '../../../components/ui/Text';
 import { useAuth } from '../../../context/AuthContext';
 import { cn } from '../../../lib/utils';
+import { causaDoErro, mensagemDeErro } from '../../../lib/saveFeedback';
 import { deleteLibraryCoverByUrl } from '../lib/libraryCoverStorage';
 import { LIBRARY_COVER_UPLOAD_ERROR, uploadLibraryCover, validateLibraryCoverFile } from '../lib/uploadLibraryCover';
 import { CoverFallback, coverInitial } from './CoverFallback';
@@ -89,8 +90,9 @@ export function CoverUploadField({
       onChange(publicUrl);
       setShowUrl(false);
       setBroken(false);
-    } catch {
-      setError(LIBRARY_COVER_UPLOAD_ERROR);
+    } catch (error) {
+      // Rede ou sessão têm frase própria; o resto pode ser o arquivo (formato, tamanho) ou o servidor.
+      setError(causaDoErro(error) === 'servidor' ? LIBRARY_COVER_UPLOAD_ERROR : mensagemDeErro('enviar a capa', error));
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

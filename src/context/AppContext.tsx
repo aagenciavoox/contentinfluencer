@@ -35,12 +35,14 @@ import {
 } from './realtimeDomainMap';
 import { useAuth } from './AuthContext';
 import { broadcastDataSync, subscribeDataSync } from '../lib/syncBroadcast';
-import { getErrorDetail, notifySaveFeedback } from '../lib/saveFeedback';
-import { ERRORS, LOADING } from '../lib/uiCopy';
+import { acaoDoTipo, getErrorDetail, mensagemDeErro, notifySaveFeedback } from '../lib/saveFeedback';
+import { LOADING } from '../lib/uiCopy';
 import { generateUUID, isUUID } from '../utils/uuid';
 import { comAncoraNaSerie, comAncoraNaTemporada } from '../features/editorial/lib/ancoraQuinzena';
 import { comDataDoArquivo } from '../features/editorial/lib/arquivoTemporada';
 import { registrarVigencia } from '../features/editorial/lib/vigencias';
+import { limiteRegraDeOuro } from '../features/editorial/lib/avisosEditoriais';
+import { definirLimiteDaRegraDeOuro } from '../features/editorial/lib/regraDeOuro';
 import { buildDomainCacheKey, dataCache } from '../lib/dataCache';
 import {
   canDomainPayloadSatisfyRequest,
@@ -525,7 +527,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (!options?.quiet) {
         notifySaveFeedback({
           status: 'error',
-          message: ERRORS.sincronizar,
+          message: mensagemDeErro('sincronizar', err),
           detail: getErrorDetail(err),
         });
       }
@@ -536,7 +538,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const reporSeARecargaNaoConfirmou = useCallback(async (snapshot: AppState | null) => {
     try {
       const resultado = await refreshFromServer({ silent: true, quiet: true, force: true });
-      // Outra gravação seguia em fila e a recarga nem saiu. O que falhou volta para a tela.
+      // Outra gravação seguia em fila e a recarga nem saiu. O que não foi salvo volta para a tela.
       if (resultado === 'wait' && snapshot) dispatch({ type: 'SET_DATA', payload: snapshot });
     } catch (refreshErr) {
       console.error('[Sync] Server refresh also failed, restoring from snapshot:', refreshErr);
@@ -806,7 +808,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       console.error('[AppContext] createContent failed:', err);
       notifySaveFeedback({
         status: 'error',
-        message: ERRORS.criarRoteiro,
+        message: mensagemDeErro('criar o roteiro', err),
         detail: getErrorDetail(err),
       });
       await reporSeARecargaNaoConfirmou(anterior);
@@ -843,7 +845,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       console.error('[AppContext] updateContent failed:', err);
       notifySaveFeedback({
         status: 'error',
-        message: ERRORS.salvarRoteiro,
+        message: mensagemDeErro('salvar o roteiro', err),
         detail: getErrorDetail(err),
       });
       await reporSeARecargaNaoConfirmou(anterior);
@@ -908,7 +910,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       console.error('[Sync] Error persisting action:', normalizedAction.type, err);
       notifySaveFeedback({
         status: 'error',
-        message: ERRORS.salvarGenerico,
+        // Nomeia a ação (criar, excluir, mover…) e só culpa a conexão quando é rede.
+        message: mensagemDeErro(acaoDoTipo(normalizedAction.type), err),
         detail: getErrorDetail(err),
       });
       await reporSeARecargaNaoConfirmou(snapshot);
@@ -957,6 +960,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     domainStatus,
     isDomainReady,
   }), [state, enhancedDispatch, createContent, updateContent, syncFromServer, loadDomains, invalidateListCaches, domainStatus, isDomainReady]);
+
+  // Regra de Ouro: o limite por série escolhido em Editorial › Rotina de criação vale nas contas
+  // (Saúde, Continuidade, chips) antes de os filhos renderizarem.
+  definirLimiteDaRegraDeOuro(limiteRegraDeOuro(state.editorial?.avisos));
 
   return (
     <AppContext.Provider value={contextValue}>

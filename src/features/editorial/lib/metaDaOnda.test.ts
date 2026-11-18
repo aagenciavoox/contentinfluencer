@@ -123,10 +123,13 @@ console.log('metaDaOnda: ok');
   assert.match('erro' in cincoNoMes ? cincoNoMes.erro : '', /até 4 por mês/);
   // Wave segue a mesma regra da série.
   assert.ok('erro' in frequenciaParaGravar({ vezes: 2, unidade: 'semana', aPartirDe: null, tipo: 'temporada' }));
-  // Família (gravada como série com as vagas das séries ativas): 1 vaga por série ativa.
+  // Limite por série escolhido na Rotina de criação (aqui 2 por semana): 2 cabe, 3 passa.
   assert.ok(!('erro' in frequenciaParaGravar({ vezes: 2, unidade: 'semana', aPartirDe: null, tipo: 'serie', unidadesDaRegra: 2 })));
-  const familiaAcima = frequenciaParaGravar({ vezes: 3, unidade: 'semana', aPartirDe: null, tipo: 'serie', unidadesDaRegra: 2 });
-  assert.match('erro' in familiaAcima ? familiaAcima.erro : '', /Com 2 séries ativas, o máximo é 2 por semana/);
+  const acimaDoLimite = frequenciaParaGravar({ vezes: 3, unidade: 'semana', aPartirDe: null, tipo: 'serie', unidadesDaRegra: 2 });
+  assert.match('erro' in acimaDoLimite ? acimaDoLimite.erro : '', /no máximo 2 episódios por semana da mesma série/);
+  // Wave (temporada) segue o mesmo limite por série: é o que o MCP passa em criar/atualizar_temporada.
+  assert.ok(!('erro' in frequenciaParaGravar({ vezes: 2, unidade: 'semana', aPartirDe: null, tipo: 'temporada', unidadesDaRegra: 2 })));
+  assert.ok('erro' in frequenciaParaGravar({ vezes: 3, unidade: 'semana', aPartirDe: null, tipo: 'temporada', unidadesDaRegra: 2 }));
   // Quadro é sob demanda: não grava quantidade.
   assert.ok('erro' in frequenciaParaGravar({ vezes: 1, unidade: 'semana', aPartirDe: null, tipo: 'quadro' }));
 }
@@ -145,5 +148,56 @@ console.log('metaDaOnda: ok');
   assert.equal(capada.tipo === 'definida' ? capada.freq.vezes : null, 1);
   const semRegra = situacaoDaFrequencia({ frequenciaRecomendada: null, frequenciaVezes: 4, frequenciaUnidade: 'semana', frequenciaAPartirDe: null }, null);
   assert.equal(semRegra.tipo === 'definida' ? semRegra.freq.vezes : null, 4);
+}
+
+// --- Regra de Ouro configurável: o limite por série vem da pessoa; janelas maiores na mesma proporção.
+{
+  const regra = await import('./regraDeOuro.ts');
+  assert.equal(regra.tetoDaRegraDeOuro('semana', 2), 2);
+  assert.equal(regra.tetoDaRegraDeOuro('quinzena', 2), 4);
+  assert.equal(regra.tetoDaRegraDeOuro('mes', 2), 8);
+  assert.equal(regra.tetoDaRegraDeOuro('trimestre', 3), 39);
+  assert.equal(regra.tetoDaRegraDeOuro('semestre', 2), 52);
+  assert.equal(regra.erroDaRegraDeOuro(2, 'semana', 2), null);
+  assert.match(regra.erroDaRegraDeOuro(3, 'semana', 2) ?? '', /no máximo 2 episódios por semana/);
+  assert.match(regra.erroDaRegraDeOuro(2, 'semana') ?? '', /no máximo 1 episódio por semana/);
+  assert.match(regra.erroDaRegraDeOuro(5, 'quinzena', 2) ?? '', /até 4 a cada 14 dias/);
+  assert.equal(regra.normalizarLimiteDaRegraDeOuro(0), null);
+  assert.equal(regra.normalizarLimiteDaRegraDeOuro(8), null);
+  assert.equal(regra.normalizarLimiteDaRegraDeOuro(1.5), null);
+  assert.equal(regra.normalizarLimiteDaRegraDeOuro(7), 7);
+  assert.equal(regra.limiteDaRegraNosAvisos(null), 1);
+  assert.equal(regra.limiteDaRegraNosAvisos({ [regra.CHAVE_LIMITE_REGRA_DE_OURO]: 3 }), 3);
+  assert.equal(regra.limiteDaRegraNosAvisos({ [regra.CHAVE_LIMITE_REGRA_DE_OURO]: 99 }), 1, 'fora da faixa volta ao padrão');
+  // O limite configurado no app vale como padrão das contas; sem nada, 1.
+  regra.definirLimiteDaRegraDeOuro(3);
+  try {
+    assert.equal(regra.tetoDaRegraDeOuro('semana'), 3);
+    assert.equal(regra.vezesNaRegraDeOuro(5, 'semana'), 3);
+    const capada3 = situacaoDaFrequencia({ frequenciaRecomendada: null, frequenciaVezes: 5, frequenciaUnidade: 'semana', frequenciaAPartirDe: null });
+    assert.equal(capada3.tipo === 'definida' ? capada3.freq.vezes : null, 3);
+    assert.ok(!('erro' in frequenciaParaGravar({ vezes: 3, unidade: 'semana', aPartirDe: null, tipo: 'serie' })));
+  } finally {
+    regra.definirLimiteDaRegraDeOuro(undefined);
+  }
+  assert.equal(regra.limiteDaRegraDeOuro(), 1);
+}
+// “?” ao lado do erro: reconhece a mensagem em todo formulário e explica de onde vem o limite.
+{
+  const regra = await import('./regraDeOuro.ts');
+  const abas = await import('./abasEditorial.ts');
+  const erro = frequenciaParaGravar({ vezes: 3, unidade: 'semana', aPartirDe: null, tipo: 'serie', unidadesDaRegra: 1 });
+  assert.ok('erro' in erro && regra.ehErroDaRegraDeOuro(erro.erro));
+  assert.ok(regra.ehErroDaRegraDeOuro(`Em Instagram: ${regra.erroDaRegraDeOuro(9, 'mes', 2)}`), 'linha da conta');
+  assert.equal(regra.ehErroDaRegraDeOuro('A quantidade precisa ser pelo menos 1.'), false);
+  assert.equal(regra.ehErroDaRegraDeOuro(undefined), false);
+  assert.equal(
+    regra.explicacaoDoLimiteDaRegraDeOuro(1),
+    'Esse limite vem de “Limite por série”, em Editorial › Rotina de criação › Regra de Ouro. Hoje: 1 episódio por semana da mesma série. Janelas maiores seguem a mesma proporção: até 2 a cada 14 dias, 4 por mês, 8 por bimestre, 13 por trimestre e 26 por semestre.',
+  );
+  assert.match(regra.explicacaoDoLimiteDaRegraDeOuro(3), /Hoje: 3 episódios por semana.*até 6 a cada 14 dias, 12 por mês, 24 por bimestre, 39 por trimestre e 78 por semestre\./);
+  // O link abre a Rotina de criação e rola até o card.
+  assert.equal(abas.ROTA_DA_REGRA_DE_OURO, '/editorial?aba=ajustes#regra-de-ouro');
+  assert.equal(abas.abaEditorialDaUrl('ajustes'), 'ajustes');
 }
 console.log('metaDaOnda (regra de ouro): ok');

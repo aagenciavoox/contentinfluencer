@@ -11,7 +11,7 @@ import { MoreMenu } from '../../../../components/ui/MoreMenu';
 import { SelectField } from '../../../../components/ui/SelectField';
 import { Text } from '../../../../components/ui/Text';
 import type { Content, Platform, Serie, Temporada } from '../../../../lib/database';
-import { notifySaveFeedback } from '../../../../lib/saveFeedback';
+import { getErrorMessage, notifySaveFeedback } from '../../../../lib/saveFeedback';
 import { getStatusColorVar } from '../../../../lib/statusClasses';
 import { cn } from '../../../../lib/utils';
 import { generateUUID } from '../../../../utils/uuid';
@@ -278,7 +278,7 @@ export function SeriesBulkDrawer({
       if (feitos.size > 0) {
         setParcial(`${plural(feitos.size, 'conteúdo criado', 'conteúdos criados')}. ${plural(faltam, 'ficou de fora', 'ficaram de fora')}. Tentar de novo cria só ${faltam === 1 ? 'o que falta' : 'os que faltam'}, sem duplicar.`);
       }
-      setErro('Não foi possível criar os conteúdos. Verifique a conexão e tente novamente.');
+      setErro(getErrorMessage(err, 'criar os conteúdos'));
     } finally {
       enviando.current = false;
       setBusy(false);

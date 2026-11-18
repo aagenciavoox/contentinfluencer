@@ -1,4 +1,4 @@
-import type {Serie} from '../../../lib/database';
+import type {Serie} from '../../../lib/database.ts';
 import {PILAR_PRESET_CORES, normalizeEntityColor} from './pilarConstants.ts';
 
 type SerieColorSource = Pick<Serie, 'id' | 'cor' | 'createdAt'> & Partial<Pick<Serie, 'usaCorDaSerie'>>;

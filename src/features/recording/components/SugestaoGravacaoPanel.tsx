@@ -144,7 +144,7 @@ export function SugestaoGravacaoPanel({onClose, onCriado}: {onClose: () => void;
       onCriado();
       onClose();
     } catch (error) {
-      setErro(getErrorMessage(error));
+      setErro(getErrorMessage(error, 'montar o bloco de gravação'));
     } finally {
       salvando.current = false;
       setOcupado(false);

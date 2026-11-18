@@ -10,7 +10,7 @@ import { normalizeWritingMode, readCarouselSlides, slidesHaveContent } from '../
 import { nomeIndicaBlog, type RedeDoFiltro } from '../features/contas/lib/contas.ts';
 import { readAvisoDias } from '../features/projects/lib/evento.ts';
 import { DEFAULT_EDITORIAL_SETTINGS, lerMetodoCalculo, lerPerfilEditorial, METODO_CALCULO_PADRAO, type EditorialSettings } from '../features/editorial/lib/editorialSettings.ts';
-import { lerAvisosLigados } from '../features/editorial/lib/avisosEditoriais.ts';
+import { CHAVE_LIMITE_REGRA_DE_OURO, lerAvisosLigados } from '../features/editorial/lib/avisosEditoriais.ts';
 import { indicadoresVazios, lerIndicadoresProducao } from '../features/editorial/lib/indicadoresProducao.ts';
 import { LIMITES_CONCENTRACAO_PADRAO, lerLimitesConcentracao, type ExcecaoConcentracao, type LimitesConcentracao } from '../features/editorial/lib/concentracao.ts';
 import type { AcompanhamentoSerie, MetaDaSerieNoEscopo } from '../features/editorial/lib/continuidadeEscopo.ts';
@@ -3231,7 +3231,10 @@ export async function saveEditorial(settings: EditorialSettings): Promise<void> 
   const perfilPerdido = semMigracao.includes('perfil_editorial') && Boolean(
     settings.perfil && (settings.perfil.motivacaoPublico || settings.perfil.linguagens || settings.perfil.assuntos),
   );
-  const avisosPerdidos = semMigracao.includes('avisos') && Object.values(settings.avisos ?? {}).some(valor => valor === false || valor === 1);
+  const avisosPerdidos = semMigracao.includes('avisos') && (
+    Object.values(settings.avisos ?? {}).some(valor => valor === false || valor === 1)
+    || CHAVE_LIMITE_REGRA_DE_OURO in (settings.avisos ?? {})
+  );
   // O aviso sai no fim, depois de gravar o resto (vigências, destinos, decisões).
   const faltaMigracaoDasBases = perfilPerdido || avisosPerdidos;
   const indicadoresPerdidos = semMigracao.includes('indicadores_producao') && !indicadoresVazios(settings.indicadoresProducao);

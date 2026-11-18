@@ -13,7 +13,8 @@ export function cliqueDentroDoPainel(
   if (!alvo || !painel) return false;
   if (painel.contains(alvo as never)) return true;
   const closest = (alvo as { closest?: (seletor: string) => { id?: string } | null }).closest;
-  const lista = typeof closest === 'function' ? closest.call(alvo, '[role="listbox"]') : null;
+  // Lista de opções e painel do “?” (Ajuda) vão num portal; contam como dentro quando o controle está no painel.
+  const lista = typeof closest === 'function' ? closest.call(alvo, '[role="listbox"], [data-ajuda]') : null;
   if (!lista?.id) return false;
   const id = lista.id.replace(/["\\]/g, '\\$&');
   return painel.querySelector(`[aria-controls="${id}"]`) != null;
@@ -37,8 +38,8 @@ export type RascunhoDaFrequencia = {
 
 /**
  * Texto curto da meta, no chip e na Continuidade. Mostra a meta que conta no plano:
- * quadro é sempre "Sob demanda"; série e wave, até 1 por semana (Regra de Ouro);
- * família, uma por série ativa (`unidades`).
+ * quadro é sempre "Sob demanda"; série e wave, até o limite por série da Regra de Ouro
+ * (`unidades`; sem valor, o limite configurado).
  */
 export function textoDoChip(alvo: AlvoDaFrequencia, opcoes: { quadro?: boolean; unidades?: number } = {}): string {
   if (opcoes.quadro) return 'Sob demanda';
@@ -48,7 +49,7 @@ export function textoDoChip(alvo: AlvoDaFrequencia, opcoes: { quadro?: boolean; 
     frequenciaUnidade: alvo.frequenciaUnidade ?? null,
     frequenciaAPartirDe: alvo.frequenciaAPartirDe ?? null,
     frequenciaAncora: alvo.frequenciaAncora ?? null,
-  }, opcoes.unidades ?? 1);
+  }, opcoes.unidades);
   if (situacao.tipo === 'definida') return textoFrequencia(situacao.freq);
   if (situacao.tipo === 'sem-ancora') return TEXTO_SEM_ANCORA;
   if (situacao.tipo === 'incompleta') return 'Frequência incompleta';
@@ -68,7 +69,7 @@ export function rascunhoDaFrequencia(alvo: AlvoDaFrequencia): RascunhoDaFrequenc
 export function frequenciaDoRascunho(
   rascunho: RascunhoDaFrequencia,
   tipo: 'serie' | 'quadro',
-  unidadesDaRegra = 1,
+  unidadesDaRegra?: number,
 ): ErroDeFrequencia | FrequenciaGravada {
   const vezes = rascunho.vezes.trim() ? Number.parseInt(rascunho.vezes, 10) : null;
   return frequenciaParaGravar({ vezes, unidade: rascunho.unidade, aPartirDe: rascunho.aPartirDe, tipo, unidadesDaRegra });

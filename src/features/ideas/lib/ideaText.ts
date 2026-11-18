@@ -1,4 +1,4 @@
-import type {Idea} from '../../../lib/database';
+import type {Idea} from '../../../lib/database.ts';
 
 export function composeIdeaText(title: string, notes: string): string {
   const normalizedTitle = title.trim();

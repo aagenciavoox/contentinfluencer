@@ -17,7 +17,8 @@ import { FILTROS_LISTA_PADRAO, montarLista, type ContextoLista } from './seriesL
 const serie = (id: string, parentId: string | null, extra: Partial<Serie> = {}) =>
   ({ id, parentId, name: id.toUpperCase(), ativa: true, pilarIds: [], ...extra } as unknown as Serie);
 const series = [
-  serie('s', null, { usaTemporadas: true, pilarPrincipalId: 'p-s', funcaoPadrao: 'atrair' } as Partial<Serie>),
+  // Tipo gravado: com o sub-quadro abaixo de q2, a série não pode ser lida como família.
+  serie('s', null, { tipoAgrupamento: 'serie', usaTemporadas: true, pilarPrincipalId: 'p-s', funcaoPadrao: 'atrair' } as Partial<Serie>),
   serie('q1', 's', { pilarPrincipalId: 'p-q1', funcaoPadrao: 'converter' } as Partial<Serie>),
   serie('q2', 's'),
   serie('q3', 's', { ativa: false }),
@@ -42,6 +43,25 @@ const contents = [
   ep('c', 's', { temporadaId: 't1', ordemEpisodio: 3 } as Partial<Content>),
   ep('lixo', 'q1', { deletedAt: '2026-02-02', temporadaId: 't1' } as Partial<Content>),
 ];
+
+// Raiz sem tipo gravado com neto: só é família sem dúvida. Com temporadas ou filho gravado como quadro, é série
+// (e passa pilar adiante). Mesma regra em tipoDaSerie (telas) e tipoNaArvore (Regra de Ouro).
+{
+  const { tipoDaSerie } = await import('./serieAgrupamento.ts');
+  const { tipoNaArvore } = await import('../../editorial/lib/regraDeOuro.ts');
+  const { pilarHerdadoDaSerie } = await import('../../editorial/lib/herancaSerie.ts');
+  const raiz = (extra: Partial<Serie> = {}) => serie('r', null, { pilarPrincipalId: 'p-r', ...extra } as Partial<Serie>);
+  const comTemporadas = [raiz({ usaTemporadas: true } as Partial<Serie>), serie('f', 'r'), serie('n', 'f')];
+  const comQuadro = [raiz(), serie('f', 'r', { tipoAgrupamento: 'quadro' } as Partial<Serie>), serie('n', 'f')];
+  const ambigua = [raiz(), serie('f', 'r'), serie('n', 'f')];
+  for (const arvore of [comTemporadas, comQuadro]) {
+    assert.equal(tipoDaSerie('r', arvore), 'serie');
+    assert.equal(tipoNaArvore('r', arvore), 'serie');
+    assert.equal(pilarHerdadoDaSerie('r', arvore), 'p-r');
+  }
+  assert.equal(tipoDaSerie('r', ambigua), 'familia', 'sem nenhum sinal de série, raiz com netos continua família');
+  assert.equal(tipoNaArvore('r', ambigua), 'familia');
+}
 
 // Contagem ignora a lixeira.
 assert.deepEqual(episodiosDoQuadro('q1', contents).map(c => c.id), ['a', 'b']);

@@ -108,28 +108,20 @@ export const CONFIRM = {
 // ─── Errors ───────────────────────────────────────────────────────────────────
 
 export const ERRORS = {
-  salvar:
-    'Não foi possível salvar agora. Verifique sua conexão e tente de novo.',
-  criarRoteiro:
-    'Não foi possível criar o roteiro. Tente de novo em alguns segundos.',
-  salvarRoteiro:
-    'Não foi possível salvar o roteiro. Verifique sua conexão e tente de novo.',
-  salvarGenerico:
-    'Não foi possível salvar agora. Verifique sua conexão e tente de novo.',
-  sincronizar:
-    'Não foi possível sincronizar agora. Verifique sua conexão e tente de novo.',
+  /**
+   * Segunda frase de "Não foi possível <ação>." conforme a causa (ver mensagemDeErro em saveFeedback).
+   * Rede: o pedido não chegou. Sessão: precisa entrar de novo. Servidor: respondeu e não aceitou.
+   */
+  porCausa: {
+    rede: 'Verifique sua conexão e tente de novo.',
+    sessao: 'Sua sessão terminou. Entre de novo para continuar.',
+    servidor: 'O servidor não aceitou o pedido.',
+  },
   carregarDados: 'Não foi possível carregar os dados. Tente de novo.',
-  atualizarStatusMassa:
-    'Não foi possível atualizar o status em massa. Tente de novo.',
-  aplicarAlteracoesMassa:
-    'Não foi possível aplicar as alterações em massa. Tente de novo.',
-  moverParaIdeiasMassa:
-    'Não foi possível mover os roteiros para Ideias. Tente de novo.',
-  importarRoteiros:
-    'Não foi possível importar todos os roteiros. Tente de novo.',
   autenticacao:
     'Não foi possível entrar. Confira e-mail e senha ou tente de novo.',
-  supabaseDesconectado: 'Sem conexão',
+  /** Sem Supabase configurado (variáveis do app): não é a internet da pessoa. */
+  supabaseDesconectado: 'O app está sem acesso ao servidor.',
 } as const;
 
 // ─── Loading / saving ─────────────────────────────────────────────────────────

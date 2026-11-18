@@ -5,8 +5,8 @@ import { Text } from '../../../../components/ui/Text';
 import { Content } from '../../../../lib/database';
 import { useAppContext } from '../../../../context/AppContext';
 import { broadcastDataSync } from '../../../../lib/syncBroadcast';
-import { notifySaveFeedback } from '../../../../lib/saveFeedback';
-import { ERRORS, LOADING } from '../../../../lib/uiCopy';
+import { mensagemDeErro, notifySaveFeedback } from '../../../../lib/saveFeedback';
+import { LOADING } from '../../../../lib/uiCopy';
 import { cn } from '../../../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -108,12 +108,14 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
       message: LOADING.importandoRoteiros(preview.length),
     });
 
+    let importados = 0;
     try {
       for (const content of preview) {
         await dispatch(
           { type: 'ADD_CONTENT', payload: content as Content },
           { silent: true, skipBroadcast: true }
         );
+        importados += 1;
       }
 
       broadcastDataSync();
@@ -127,7 +129,13 @@ export function CSVUploadModal({ onClose }: CSVUploadModalProps) {
       }, 2000);
     } catch (err) {
       console.error('[CSVUploadModal] import failed:', err);
-      setError(ERRORS.importarRoteiros);
+      // Diz quantos já entraram: a importação para no primeiro que o servidor não grava.
+      const jaEntraram = importados === 0
+        ? ''
+        : importados === 1
+          ? ' 1 roteiro já entrou; os outros ficaram de fora.'
+          : ` ${importados} roteiros já entraram; os outros ficaram de fora.`;
+      setError(`${mensagemDeErro('importar todos os roteiros', err)}${jaEntraram}`);
     }
   };
 

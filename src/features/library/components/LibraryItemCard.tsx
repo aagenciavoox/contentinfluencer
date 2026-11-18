@@ -8,7 +8,7 @@ import { Text } from '../../../components/ui/Text';
 import { ValorVazio } from '../../../components/ui/ValorVazio';
 import { useAuth } from '../../../context/AuthContext';
 import { BibliotecaItem, BibliotecaItemMeta } from '../../../lib/database';
-import { notifySaveFeedback } from '../../../lib/saveFeedback';
+import { causaDoErro, mensagemDeErro, notifySaveFeedback } from '../../../lib/saveFeedback';
 import { isCompletedStatus, statusDotColor } from '../lib/libraryStatus';
 import { LIBRARY_COVER_UPLOAD_ERROR, uploadLibraryCover, validateLibraryCoverFile } from '../lib/uploadLibraryCover';
 
@@ -81,8 +81,9 @@ export function LibraryItemCard({
       });
       onCoverChange(publicUrl);
       notifySaveFeedback({ status: 'success', message: 'Capa atualizada' });
-    } catch {
-      notifySaveFeedback({ status: 'error', message: LIBRARY_COVER_UPLOAD_ERROR });
+    } catch (error) {
+      // Rede ou sessão têm frase própria; o resto pode ser o arquivo (formato, tamanho) ou o servidor.
+      notifySaveFeedback({ status: 'error', message: causaDoErro(error) === 'servidor' ? LIBRARY_COVER_UPLOAD_ERROR : mensagemDeErro('enviar a capa', error) });
     } finally {
       setUploadingCover(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

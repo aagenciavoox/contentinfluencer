@@ -158,7 +158,7 @@ export function CriarBlocoDialog({
       setResultado({blockId: block.id, nome: block.name, entraram: entram.length, ficaramSemTexto});
       onCriado?.();
     } catch (error) {
-      setErro(getErrorMessage(error));
+      setErro(getErrorMessage(error, 'criar o bloco'));
     } finally {
       setOcupado(false);
     }

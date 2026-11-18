@@ -19,6 +19,7 @@ import { MetodoCalculoCard } from './plano/MetodoCalculoCard';
 import { ContinuidadePanel } from './plano/ContinuidadePanel';
 import { PeriodoPanel } from './plano/PeriodoPanel';
 import { PerfilEditorialCard } from './plano/PerfilEditorialCard';
+import { RegraDeOuroCard } from './plano/RegraDeOuroCard';
 import { IndicadoresDaRotinaCard } from './plano/IndicadoresDaRotinaCard';
 import { PilarEditDrawer } from './plano/PilarEditDrawer';
 import {
@@ -27,6 +28,7 @@ import {
   ANCORA_AVISOS,
   ANCORA_CONTINUIDADE,
   ANCORA_HASHTAGS,
+  ANCORA_REGRA_DE_OURO,
   paramsDaAba,
   ROTULO_DA_ABA,
   type EditorialAba,
@@ -227,6 +229,9 @@ export function DirecaoEditorialPanel({ abaAtiva: abaAtivaProp }: DirecaoEditori
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
           <div id="ritmo-editorial" className="min-w-0 stack-lg">
             <AjustesEditorialPanel />
+            <div id={ANCORA_REGRA_DE_OURO} className="scroll-mt-24">
+              <RegraDeOuroCard />
+            </div>
             <MetodoCalculoCard periodo={periodo} />
             <IndicadoresDaRotinaCard />
           </div>

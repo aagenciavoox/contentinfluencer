@@ -663,8 +663,8 @@ function roteirosDaLinhaPorSemana(
     unidade: onda ? onda.frequenciaUnidade : serie?.frequenciaUnidade,
   });
   if (freq.unidade === 'sob-demanda') return null;
-  // Regra de Ouro: série e wave pedem no máximo 1 por semana.
-  const unidades = onda ? 1 : unidadesDaRegraDeOuro(linha.serieId, series);
+  // Regra de Ouro: série e wave pedem no máximo o limite por série (por semana).
+  const unidades = unidadesDaRegraDeOuro(linha.serieId, series);
   const vezes = vezesNaRegraDeOuro(freq.vezes, freq.unidade, unidades) ?? freq.vezes;
   return roteirosPorSemana({frequenciaVezes: vezes, frequenciaUnidade: freq.unidade});
 }

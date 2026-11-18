@@ -47,7 +47,7 @@ export function errosDaMeta(input: {
   unidade: string;
   inicio: string;
   tipo: 'serie' | 'quadro' | 'temporada';
-  /** Regra de Ouro: 1 na série e na wave; na família, uma vaga por série ativa. */
+  /** Regra de Ouro: limite por série (episódios por semana) na série e na wave. Sem valor, o limite configurado. */
   unidadesDaRegra?: number;
   janelaOnda?: Janela | null;
   janelaGeral?: Janela | null;
@@ -123,7 +123,7 @@ export function errosDaMeta(input: {
       });
     } else {
       // Regra de Ouro também na meta da série numa conta ou num formato.
-      const regraDeOuro = Number.isFinite(quantidade) ? erroDaRegraDeOuro(quantidade, linha.metaUnidade, input.unidadesDaRegra ?? 1) : null;
+      const regraDeOuro = Number.isFinite(quantidade) ? erroDaRegraDeOuro(quantidade, linha.metaUnidade, input.unidadesDaRegra) : null;
       if (regraDeOuro) erros.push({ id: idDoEscopo(linha.id, 'meta-vezes'), mensagem: `Em ${linha.rotulo}: ${regraDeOuro}` });
     }
   }

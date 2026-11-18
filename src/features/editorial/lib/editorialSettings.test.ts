@@ -393,3 +393,19 @@ console.log('editorialSettings tests passed');
   assert.equal(limiteSaturacaoQuadro(atualizarLimiteSaturacao(comUm, 2).avisos), 2);
   console.log('editorialSettings (limite da saturação): ok');
 }
+// --- Limite por série da Regra de Ouro: grava de 1 a 7 no jsonb de avisos; 1 (padrão) não fica gravado.
+{
+  const { atualizarLimiteRegraDeOuro, atualizarLimiteSaturacao } = await import('./editorialSettings.ts');
+  const { limiteRegraDeOuro, limiteSaturacaoQuadro, lerAvisosLigados, CHAVE_LIMITE_REGRA_DE_OURO } = await import('./avisosEditoriais.ts');
+  assert.equal(limiteRegraDeOuro(DEFAULT_EDITORIAL_SETTINGS.avisos), 1);
+  const comTres = atualizarLimiteRegraDeOuro(atualizarLimiteSaturacao({ ...DEFAULT_EDITORIAL_SETTINGS, avisos: { distancia: false } }, 1), 3);
+  assert.equal(limiteRegraDeOuro(comTres.avisos), 3);
+  assert.equal(comTres.avisos?.[CHAVE_LIMITE_REGRA_DE_OURO], 3);
+  assert.equal(comTres.avisos?.distancia, false, 'outro aviso continua como estava');
+  assert.equal(limiteSaturacaoQuadro(comTres.avisos), 1, 'limite do quadro continua como estava');
+  const deVolta = atualizarLimiteRegraDeOuro(comTres, 1);
+  assert.equal(limiteRegraDeOuro(deVolta.avisos), 1);
+  assert.equal(CHAVE_LIMITE_REGRA_DE_OURO in (deVolta.avisos ?? {}), false, 'o padrão não fica gravado');
+  assert.equal(limiteRegraDeOuro(lerAvisosLigados({ [CHAVE_LIMITE_REGRA_DE_OURO]: 12 })), 1, 'fora de 1 a 7 volta ao padrão');
+  console.log('editorialSettings (limite da Regra de Ouro): ok');
+}

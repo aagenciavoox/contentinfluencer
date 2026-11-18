@@ -17,7 +17,7 @@ import { ValorVazio } from '../../../components/ui/ValorVazio';
 import { CoverFallback } from '../../../features/library/components/CoverFallback';
 import type { BibliotecaCapaFilter } from '../../../features/library/components/LibraryToolbar';
 import { useAuth } from '../../../context/AuthContext';
-import { notifySaveFeedback } from '../../../lib/saveFeedback';
+import { causaDoErro, mensagemDeErro, notifySaveFeedback } from '../../../lib/saveFeedback';
 import {
   LIBRARY_COVER_UPLOAD_ERROR,
   uploadLibraryCover,
@@ -106,8 +106,9 @@ function MobileCoverThumb({
       onCoverChange(publicUrl);
       setBroken(false);
       notifySaveFeedback({ status: 'success', message: 'Capa atualizada' });
-    } catch {
-      notifySaveFeedback({ status: 'error', message: LIBRARY_COVER_UPLOAD_ERROR });
+    } catch (error) {
+      // Rede ou sessão têm frase própria; o resto pode ser o arquivo (formato, tamanho) ou o servidor.
+      notifySaveFeedback({ status: 'error', message: causaDoErro(error) === 'servidor' ? LIBRARY_COVER_UPLOAD_ERROR : mensagemDeErro('enviar a capa', error) });
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

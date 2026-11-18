@@ -2,6 +2,8 @@ import { useId } from 'react';
 import { SelectField } from '../../../../components/ui/SelectField';
 import { Text } from '../../../../components/ui/Text';
 import { OPCOES_UNIDADE, unidadeDaMeta, type UnidadeDaMeta } from '../../lib/metaDaOnda';
+import { ehErroDaRegraDeOuro } from '../../lib/regraDeOuro';
+import { AjudaDaRegraDeOuro } from '../AjudaDaRegraDeOuro';
 import { CAMPO } from './campos';
 
 export const UNIDADES = OPCOES_UNIDADE;
@@ -30,6 +32,7 @@ export function CamposDaMeta({
   idPrefix,
   erros,
   mostrarLegenda = false,
+  linkDaRegraDeOuro = false,
 }: {
   vezes: string;
   unidade: UnidadeDaMeta;
@@ -42,6 +45,8 @@ export function CamposDaMeta({
   erros?: { quantidade?: string; periodo?: string; inicio?: string };
   /** Mostra "* Campo obrigatório" quando a data de início é exigida. */
   mostrarLegenda?: boolean;
+  /** No “?” do erro da Regra de Ouro, mostra o link para a Rotina de criação. */
+  linkDaRegraDeOuro?: boolean;
 }) {
   const gerado = useId();
   const base = idPrefix ?? gerado;
@@ -52,6 +57,7 @@ export function CamposDaMeta({
   return (
     <div className="stack-xs">
       <div className="grid-form">
+        <div className="flex flex-col gap-1">
         <label className="flex flex-col gap-1" htmlFor={quantidadeId}>
           <Text variant="meta" as="span">
             Quantidade
@@ -69,8 +75,14 @@ export function CamposDaMeta({
             value={vezes}
             onChange={event => onVezes(event.target.value.slice(0, 4))}
           />
-          {erros?.quantidade ? <Text id={`${quantidadeId}-erro`} variant="meta" as="span" className="texto-erro">{erros.quantidade}</Text> : null}
         </label>
+          {erros?.quantidade ? (
+            <span className="flex items-center gap-1">
+              <Text id={`${quantidadeId}-erro`} variant="meta" as="span" className="texto-erro">{erros.quantidade}</Text>
+              {ehErroDaRegraDeOuro(erros.quantidade) ? <AjudaDaRegraDeOuro comLink={linkDaRegraDeOuro} /> : null}
+            </span>
+          ) : null}
+        </div>
         <div className="flex flex-col gap-1">
           <label htmlFor={periodoId}>
             <Text variant="meta" as="span">

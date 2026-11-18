@@ -1,4 +1,4 @@
-import type {Content, Idea} from '../../../lib/database';
+import type {Content, Idea} from '../../../lib/database.ts';
 import {buildIdeaFromContent} from '../../contents/lib/demoteContentToIdea.ts';
 import {getIdeaNotes, normalizeIdea} from './ideaText.ts';
 

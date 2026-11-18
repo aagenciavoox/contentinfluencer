@@ -62,7 +62,7 @@ function frequenciaDe(serie: SerieFrequencia): FrequenciaSerie {
   });
 }
 
-/** Quadro e família não têm meta; série até 1 por semana. */
+/** Quadro e família não têm meta; série até o limite por série da Regra de Ouro. */
 function expectativaDe(
   serie: SerieFrequencia,
   series: readonly SerieFrequencia[],

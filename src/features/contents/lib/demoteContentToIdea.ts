@@ -1,4 +1,4 @@
-import type {Content, Idea} from '../../../lib/database';
+import type {Content, Idea} from '../../../lib/database.ts';
 import {htmlToReadableText} from '../../../lib/utils.ts';
 import {generateUUID} from '../../../utils/uuid.ts';
 import {buildIdeaFields, composeIdeaText} from '../../ideas/lib/ideaText.ts';

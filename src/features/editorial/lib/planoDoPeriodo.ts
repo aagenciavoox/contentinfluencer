@@ -1,5 +1,5 @@
 import { intervalosDaFrequencia, situacaoDaFrequencia, type ExclusaoDaApuracao, type SerieDaApuracao } from './apuracaoSerie.ts';
-import { exclusaoDaFamilia, exclusaoDeMetaPropria, type OndaDaExclusao } from './metaPropria.ts';
+import { exclusaoDeMetaPropria, type OndaDaExclusao } from './metaPropria.ts';
 import type { SituacaoNaAgenda } from './publicacoes.ts';
 import { quadrosDaSubarvore } from './regraDeOuro.ts';
 import { idsDaSubarvore } from './serieArvore.ts';
@@ -136,11 +136,11 @@ function filtrarPorExclusao(
 
 /**
  * Episódios que a linha conta, com as mesmas regras da Continuidade:
- * série sem os quadros (sob demanda) e sem as waves com ritmo próprio; família com as séries dela
- * (sem rascunho nem quadros); temporada só os dela, sem quadros, até a véspera do arquivo.
+ * série sem os quadros (sob demanda) e sem as waves com ritmo próprio; temporada só os dela,
+ * sem quadros, até a véspera do arquivo. Família é pasta visual: não tem linha no plano.
  */
 export function episodiosDaLinha(input: {
-  tipo: Exclude<TipoDaLinha, 'conta'>;
+  tipo: Exclude<TipoDaLinha, 'conta' | 'familia'>;
   id: string;
   episodios: readonly EpisodioDoPlano[];
   series: readonly SerieDaApuracao[];
@@ -164,13 +164,6 @@ export function episodiosDaLinha(input: {
   if (!serie) return [];
   const ids = semRascunhos(idsDaSubarvore(serie.id, input.series), serie.id, input.series);
   const daArvore = input.temporadas.filter(onda => ids.has(onda.serieId));
-  if (input.tipo === 'familia') {
-    const daFamilia = exclusaoDaFamilia(daArvore, serie, input.series);
-    for (const id of daFamilia.serieIds ?? []) {
-      for (const filho of idsDaSubarvore(id, input.series)) ids.delete(filho);
-    }
-    return filtrarPorExclusao(input.episodios, ids, daFamilia);
-  }
   const exclusao = exclusaoDeMetaPropria(serie, input.series, daArvore);
   for (const id of exclusao.serieIds ?? []) {
     for (const filho of idsDaSubarvore(id, input.series)) ids.delete(filho);
@@ -181,12 +174,12 @@ export function episodiosDaLinha(input: {
 /**
  * Meta do ritmo no intervalo: quantidade × janelas inteiras que tocam o intervalo.
  * Sem ritmo definido, null (a tabela mostra "Sem ritmo", nunca zero).
- * Regra de Ouro: a quantidade vale até 1 por semana por série.
+ * Regra de Ouro: a quantidade vale até o limite por série (por semana; sem `unidades`, o configurado).
  */
 export function metaDoRitmo(
   alvo: Pick<SerieDaApuracao, 'frequenciaRecomendada' | 'frequenciaVezes' | 'frequenciaUnidade' | 'frequenciaAPartirDe' | 'frequenciaAncora'>,
   intervalo: Intervalo,
-  unidades = 1,
+  unidades?: number,
 ): { valor: number; janelas: number } | null {
   const situacao = situacaoDaFrequencia(alvo, unidades);
   if (situacao.tipo !== 'definida') return null;

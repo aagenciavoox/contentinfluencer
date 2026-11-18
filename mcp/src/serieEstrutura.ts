@@ -19,6 +19,7 @@ import {
   formariaCicloParent,
   filhosDaSerie,
   idsDaSubarvore,
+  raizSemTipoEhFamilia,
 } from '../../src/features/editorial/lib/serieArvore.ts';
 import {
   acharTemporadaPorNome,
@@ -119,7 +120,8 @@ export function temporadaDaLinha(row: Row): Temporada {
 
 /**
  * Espelho de tipoDaSerie (src/features/settings/lib/serieAgrupamento.ts).
- * Tipo escolhido; sem escolha, deduzido pela árvore: raiz com netos é família, raiz sem netos é série,
+ * Tipo escolhido; sem escolha, deduzido pela árvore: raiz com netos é família só sem dúvida
+ * (raizSemTipoEhFamilia: sem temporadas e sem filho gravado como quadro), senão série,
  * filho de família é série, filho de série ou quadro é quadro.
  */
 export function tipoDaSerie(serieId: string, series: readonly SerieNoMcp[]): TipoAgrupamento {
@@ -132,10 +134,7 @@ export function tipoDaSerie(serieId: string, series: readonly SerieNoMcp[]): Tip
     if (vistos.has(id)) return 'serie';
     vistos.add(id);
     const paiId = serie.parentId?.trim();
-    if (!paiId || !porId.has(paiId)) {
-      const temNeto = filhosDaSerie(id, series).some(filho => filhosDaSerie(filho.id, series).length > 0);
-      return temNeto ? 'familia' : 'serie';
-    }
+    if (!paiId || !porId.has(paiId)) return raizSemTipoEhFamilia(id, series) ? 'familia' : 'serie';
     return resolver(paiId) === 'familia' ? 'serie' : 'quadro';
   };
   return resolver(serieId);
@@ -198,12 +197,15 @@ export type FrequenciaPedida = {
  * frequencia_recomendada; sem meta, tudo nulo e o quadro fica "Sob demanda".
  * unidade `sob-demanda` (ou null) tira a meta. Devolve null quando nenhum campo da frequência veio.
  * Como no app: quadro é sob demanda (não grava meta) e a série segue a Regra de Ouro
- * (no máximo 1 episódio por semana; janelas maiores, o equivalente: erroDaRegraDeOuro).
+ * (no máximo o "Limite por série" da Rotina de criação por semana, padrão 1; janelas maiores na mesma proporção:
+ * erroDaRegraDeOuro com `limitePorSemana`).
  */
 export function colunasDaFrequencia(
   pedido: FrequenciaPedida,
   atual: {vezes: number | null; unidade: string | null; aPartirDe: string | null},
   tipo: TipoAgrupamento,
+  /** Limite por série da Regra de Ouro (episódios por semana), lido de editorial_conta.avisos. Padrão 1. */
+  limitePorSemana = 1,
 ): {colunas: Row} | {erro: string} | null {
   if (pedido.vezes === undefined && pedido.unidade === undefined && pedido.a_partir_de === undefined) return null;
   const tiraMeta = pedido.unidade === null || pedido.unidade === 'sob-demanda'
@@ -233,7 +235,7 @@ export function colunasDaFrequencia(
     return {erro: 'Família é só um agrupamento visual e não tem meta. Defina a meta na série.'};
   }
   if (tipo === 'serie') {
-    const regraDeOuro = erroDaRegraDeOuro(vezes, unidade);
+    const regraDeOuro = erroDaRegraDeOuro(vezes, unidade, limitePorSemana);
     if (regraDeOuro) return {erro: regraDeOuro};
   }
   return {colunas: {

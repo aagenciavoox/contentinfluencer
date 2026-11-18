@@ -147,7 +147,7 @@ export function passaSituacao(serie: Serie, situacao: FiltroSituacao, emAberto: 
 }
 
 /**
- * Vitrine (Inventário & Projetos): séries e quadros agrupados por família (pasta visual).
+ * Vitrine (Inventário & Projetos): séries (em Todos e Séries) ou quadros (em Quadros), agrupados por família (pasta visual).
  * Família é opcional: quem não tem vai para "Outros / Avulsos".
  * O pilar filtra séries e quadros (o do quadro é herdado da série quando não tem o dele).
  */
@@ -197,8 +197,9 @@ export function montarListaSeries({
     return familiaId === filtros.familia;
   };
   const passaTipo = (item: ItemLista) => {
-    // "Todos" e o antigo filtro "Famílias": a vitrine mostra séries e quadros nas gavetas.
-    if (filtros.tipo === 'todos' || filtros.tipo === 'familia') return item.tipo !== 'familia';
+    // "Todos" e o antigo filtro "Famílias": só as séries nas gavetas. Quadro fica dentro da série
+    // e só aparece como card na visão Quadros (em Todos repetia a série ao lado dos quadros).
+    if (filtros.tipo === 'todos' || filtros.tipo === 'familia') return item.tipo !== 'familia' && item.tipo !== 'quadro';
     return item.tipo === filtros.tipo;
   };
 

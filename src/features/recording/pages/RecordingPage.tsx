@@ -14,6 +14,7 @@ import {buildDetailBackState} from '../../../lib/navigation/detailBack';
 import {isContentBodyLoaded, upsertContent} from '../../contents/lib/contentBody';
 import {getRecordingQueueContents} from '../../contents/lib/contentWorkflow';
 import {cn} from '../../../lib/utils';
+import {getErrorMessage} from '../../../lib/saveFeedback';
 import {SkeletonList} from '../../../components/ui/Skeleton';
 import {useHydrateContentBodies} from '../../../hooks/useHydrateContentBodies';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
@@ -129,9 +130,9 @@ export function RecordingPage() {
           payload: {contents: upsertContent(contentsRef.current, item)},
         });
       })
-      .catch(() => {
+      .catch(error => {
         if (!cancelled) {
-          setReaderLoadError('Verifique sua conexão e tente abrir o roteiro novamente.');
+          setReaderLoadError(getErrorMessage(error, 'abrir o roteiro'));
         }
       })
       .finally(() => {

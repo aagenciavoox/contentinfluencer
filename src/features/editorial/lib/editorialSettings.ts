@@ -2,7 +2,7 @@ import { platformKey } from '../../../components/ui/platformName.ts';
 import type { FuncaoEditorial } from '../../../lib/database.ts';
 import { FUNCOES } from './funcoes.ts';
 import { readProporcao, type ProporcaoFuncoes } from './proporcaoObjetivos.ts';
-import { CHAVE_LIMITE_SATURACAO, lerAvisosLigados, type AvisosLigados, type LimiteSaturacaoQuadro, type TipoAvisoConfiguravel } from './avisosEditoriais.ts';
+import { CHAVE_LIMITE_REGRA_DE_OURO, CHAVE_LIMITE_SATURACAO, lerAvisosLigados, type AvisosLigados, type LimiteSaturacaoQuadro, type TipoAvisoConfiguravel } from './avisosEditoriais.ts';
 import { lerIndicadoresProducao, type FaixaDoIndicador, type IndicadorDeProducao, type IndicadoresProducao } from './indicadoresProducao.ts';
 import { LIMITES_CONCENTRACAO_PADRAO, type ExcecaoConcentracao, type LimitesConcentracao } from './concentracao.ts';
 import type { MetaDaContaVigencia } from './metasPorConta.ts';
@@ -427,6 +427,11 @@ export function atualizarAviso(settings: EditorialSettings, tipo: TipoAvisoConfi
 /** Limite da saturação de quadro (1 ou 2 por semana), no mesmo jsonb dos avisos. */
 export function atualizarLimiteSaturacao(settings: EditorialSettings, limite: LimiteSaturacaoQuadro): EditorialSettings {
   return montar({ ...settings, avisos: lerAvisosLigados({ ...(settings.avisos ?? {}), [CHAVE_LIMITE_SATURACAO]: limite }) }, settings.preferencias, settings.periodos);
+}
+
+/** Limite por série da Regra de Ouro (episódios por semana da mesma série), no mesmo jsonb dos avisos. */
+export function atualizarLimiteRegraDeOuro(settings: EditorialSettings, limite: number): EditorialSettings {
+  return montar({ ...settings, avisos: lerAvisosLigados({ ...(settings.avisos ?? {}), [CHAVE_LIMITE_REGRA_DE_OURO]: limite }) }, settings.preferencias, settings.periodos);
 }
 
 export const LIMITE_HASHTAGS_PADRAO = 10;

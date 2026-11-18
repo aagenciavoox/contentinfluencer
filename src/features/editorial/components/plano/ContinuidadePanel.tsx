@@ -5,6 +5,7 @@ import { Dialog } from '../../../../components/overlays/Dialog';
 import { OverlayFooter } from '../../../../components/overlays/OverlayFooter';
 import { OverlayHeader } from '../../../../components/overlays/OverlayHeader';
 import { Ajuda } from '../../../../components/ui/Ajuda';
+import { AjudaDaRegraDeOuro } from '../AjudaDaRegraDeOuro';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { EmptyState } from '../../../../components/ui/EmptyState';
 import { Section } from '../../../../components/ui/Section';
@@ -56,7 +57,8 @@ import { FORMATOS_DA_REDE, publicacoesDaAgenda, rotuloDoFormato } from '../../li
 import { CAMPO } from './campos';
 import { CamposDaMeta, UNIDADES } from './CamposDaMeta';
 import { textoDoChip } from '../../lib/frequenciaChip';
-import { unidadesDaRegraDeOuro } from '../../lib/regraDeOuro';
+import { ehErroDaRegraDeOuro, unidadesDaRegraDeOuro } from '../../lib/regraDeOuro';
+import { limiteRegraDeOuro } from '../../lib/avisosEditoriais';
 
 const FORMATOS = [...new Set(Object.values(FORMATOS_DA_REDE).flatMap(lista => [...(lista ?? [])]))];
 
@@ -155,14 +157,14 @@ function RegrasDoAcompanhamento({
 
 
 /** Quadro é sob demanda: não tem meta, então não abre este modal. */
-type AlvoSerie = { tipo: 'serie'; serie: Serie; familia?: boolean };
+type AlvoSerie = { tipo: 'serie'; serie: Serie };
 type AlvoTemporada = { tipo: 'temporada'; temporada: Temporada; serie: Serie };
 type Alvo = AlvoSerie | AlvoTemporada;
 
 function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly Platform[]; onClose: () => void }) {
   const { state, dispatch } = useAppContext();
-  // Regra de Ouro: série e wave, até 1 por semana.
-  const unidadesDaRegra = alvo.tipo === 'temporada' ? 1 : unidadesDaRegraDeOuro(alvo.serie.id, state.series);
+  // Regra de Ouro: série e wave, até o limite por série escolhido na Rotina de criação.
+  const unidadesDaRegra = unidadesDaRegraDeOuro(alvo.serie.id, state.series, limiteRegraDeOuro(state.editorial.avisos));
   const base = alvo.tipo === 'temporada' ? alvo.temporada : alvo.serie;
   const [acompanhar, setAcompanhar] = useState(alvo.tipo === 'temporada' ? alvo.temporada.acompanhar === true : acompanhaNoGeral(alvo.serie));
   const [vezes, setVezes] = useState(base.frequenciaVezes ? String(base.frequenciaVezes) : '');
@@ -314,9 +316,7 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
   const titulo = alvo.tipo === 'temporada' ? alvo.temporada.nome : alvo.serie.name;
   const subtitulo = alvo.tipo === 'temporada'
     ? `Temporada de ${alvo.serie.name}. A Saúde conta só os episódios desta wave.`
-    : alvo.familia
-      ? `Família: conta os episódios únicos das séries dela (quadros ficam fora). Regra de Ouro: até ${unidadesDaRegra} por semana, um por série ativa.`
-      : 'Série inteira, sem os quadros (sob demanda). Regra de Ouro: no máximo 1 episódio por semana. Temporadas com ritmo próprio contam à parte.';
+    : `Série inteira, sem os quadros (sob demanda). Regra de Ouro: no máximo ${unidadesDaRegra} ${unidadesDaRegra === 1 ? 'episódio' : 'episódios'} por semana. Temporadas com ritmo próprio contam à parte.`;
 
   return (
     <Dialog open onClose={gravando ? () => undefined : onClose} desktopMaxW="md:max-w-[640px]" ariaLabel={`Meta de ${titulo}`}>
@@ -330,7 +330,10 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
             </p>
             <div className="stack-xs">
               {erros.map((item, index) => (
-                <Text key={`${item.id}-${index}`} variant="meta" as="p" className="texto-erro">{item.mensagem}</Text>
+                <div key={`${item.id}-${index}`} className="flex items-center gap-1">
+                  <Text variant="meta" as="p" className="texto-erro">{item.mensagem}</Text>
+                  {ehErroDaRegraDeOuro(item.mensagem) ? <AjudaDaRegraDeOuro /> : null}
+                </div>
               ))}
             </div>
           </div>
@@ -652,8 +655,8 @@ export function ContinuidadePanel({ periodo }: { periodo: Intervalo }) {
     const ativas = state.series.filter(serie => serie.ativa !== false);
     const linhaDaSerie = (serie: Serie, tipo: 'serie', nivel: 0 | 1, detalhe: string | null): LinhaDoPlano => {
       const rascunho = serie.status === 'rascunho';
-      // Regra de Ouro: até 1 por semana por série.
-      const meta = rascunho ? null : metaDoRitmo(serie, intervalo, unidadesDaRegraDeOuro(serie.id, state.series));
+      // Regra de Ouro: até o limite por série (por semana).
+      const meta = rascunho ? null : metaDoRitmo(serie, intervalo, unidadesDaRegraDeOuro(serie.id, state.series, limiteRegraDeOuro(state.editorial.avisos)));
       return {
         chave: `s:${serie.id}`,
         tipo,
