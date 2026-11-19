@@ -14,8 +14,8 @@ import { Plugin, PluginKey, type EditorState } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { DOMParser as ProseMirrorDOMParser, type Node as ProseMirrorNode } from '@tiptap/pm/model';
 import {
-  Bold, Italic, Underline as UnderlineIcon, Undo, Redo, MessageSquarePlus,
-  MessageSquare, Maximize2, Minimize2, X, Link as LinkIcon, Search,
+  Bold, Italic, Underline as UnderlineIcon, Undo, MessageSquarePlus,
+  MessageSquare, Maximize2, Minimize2, X, Link as LinkIcon,
 } from 'lucide-react';
 import {
   useState, useCallback, useEffect, useId, useMemo, useRef,
@@ -519,39 +519,44 @@ function FormattingBubble({ editor, blocked, onComment, onLink }: {
   );
 }
 
-function MobileQuickToolbar({ editor, toolbarStart, onComment, onComments, onLink, onFind, onExpand, count }: {
-  editor: Editor; toolbarStart?: ReactNode; onComment?: () => void; onComments?: () => void;
-  onLink: () => void; onFind: () => void; onExpand: () => void; count: number;
+function MobileQuickToolbar({ editor, toolbarStart }: {
+  editor: Editor; toolbarStart?: ReactNode;
 }) {
   const keyboard = useVisualViewportKeyboard();
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    const dom = editor.view.dom;
+    const show = () => setFocused(true);
+    const hide = () => setFocused(false);
+    dom.addEventListener('focus', show);
+    dom.addEventListener('blur', hide);
+    setFocused(dom === document.activeElement || dom.contains(document.activeElement));
+    return () => {
+      dom.removeEventListener('focus', show);
+      dom.removeEventListener('blur', hide);
+    };
+  }, [editor]);
   const state = useEditorState({ editor, selector: ({ editor: current }) => ({
-    bold: current.isActive('bold'), italic: current.isActive('italic'),
-    selection: !current.state.selection.empty, undo: current.can().undo(), redo: current.can().redo(),
+    bold: current.isActive('bold'), italic: current.isActive('italic'), undo: current.can().undo(),
   }) });
-  if (typeof document === 'undefined') return null;
+  // No celular o teclado encolhe a tela. Num navegador estreito não há teclado:
+  // o foco no texto é o que indica que a pessoa está escrevendo.
+  const writing = keyboard.open || focused;
+  if (typeof document === 'undefined' || !writing) return null;
   return createPortal(
     <div className="pointer-events-none fixed inset-x-0 z-[160] px-3"
       style={{ bottom: keyboard.open ? keyboard.inset : 'max(0.75rem, env(safe-area-inset-bottom))' }}>
-      <div role="toolbar" aria-label="Formatação rápida" className="pointer-events-auto mx-auto flex max-w-lg items-center gap-0.5 overflow-x-auto rounded-[var(--radius-pill)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-1 shadow-[var(--shadow-dropdown)]">
+      <div role="toolbar" aria-label="Formatação rápida" className="pointer-events-auto mx-auto flex max-w-lg items-center gap-0.5 overflow-x-auto scrollbar-none rounded-[var(--radius-pill)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-1 shadow-[var(--shadow-dropdown)]">
         {toolbarStart}
-        <button type="button" onMouseDown={event => event.preventDefault()} onClick={() => editor.chain().focus().undo().run()}
-          disabled={!state.undo} aria-label="Desfazer" className={controlClass(false)}><Undo className="h-4 w-4" /></button>
-        <button type="button" onMouseDown={event => event.preventDefault()} onClick={() => editor.chain().focus().redo().run()}
-          disabled={!state.redo} aria-label="Refazer" className={controlClass(false)}><Redo className="h-4 w-4" /></button>
         <button type="button" onMouseDown={event => event.preventDefault()} onClick={() => editor.chain().focus().toggleBold().run()}
           aria-label="Negrito" aria-pressed={state.bold} className={controlClass(state.bold)}><Bold className="h-4 w-4" /></button>
         <button type="button" onMouseDown={event => event.preventDefault()} onClick={() => editor.chain().focus().toggleItalic().run()}
           aria-label="Itálico" aria-pressed={state.italic} className={controlClass(state.italic)}><Italic className="h-4 w-4" /></button>
-        <EditorColorMenu editor={editor} kind="highlight" presentation="sheet" />
-        <button type="button" onMouseDown={event => event.preventDefault()} onClick={onLink} aria-label="Inserir link" className={controlClass(false)}><LinkIcon className="h-4 w-4" /></button>
-        {onComment ? <button type="button" onMouseDown={event => event.preventDefault()} onClick={onComment}
-          disabled={!state.selection} aria-label="Comentar trecho selecionado" className={controlClass(false)}><MessageSquarePlus className="h-4 w-4" /></button> : null}
-        {onComments ? <button type="button" onClick={onComments} aria-label={`Ver todos os comentários (${count})`}
-          className="flex h-10 shrink-0 items-center gap-1 rounded-full px-2 t-body"><MessageSquare className="h-4 w-4" />{count}</button> : null}
-        <button type="button" onClick={onFind} aria-label="Buscar no texto" className={controlClass(false)}><Search className="h-4 w-4" /></button>
-        <button type="button" onClick={onExpand} aria-label="Expandir editor" className={controlClass(false)}><Maximize2 className="h-4 w-4" /></button>
+        <button type="button" onMouseDown={event => event.preventDefault()} onClick={() => editor.chain().focus().undo().run()}
+          disabled={!state.undo} aria-label="Desfazer" className={controlClass(false)}><Undo className="h-4 w-4" /></button>
       </div>
-    </div>, document.body,
+    </div>,
+    document.body,
   );
 }
 
@@ -1382,10 +1387,9 @@ function RichTextEditorInstance({
   return <>
     {shell}
 
-    {compactMobileComposer && isMobile && !isFullscreen && !modalOpen && !commentsPanelOpen ? <MobileQuickToolbar editor={editor}
-      toolbarStart={toolbarStart} onComment={onAddAnnotation ? startCommenting : undefined}
-      onComments={commentsEnabled ? () => setCommentsPanelOpen(true) : undefined} count={openCount}
-      onLink={requestLink} onFind={() => openFind('find')} onExpand={() => setFullscreen(true)} /> : null}
+    {compactMobileComposer && isMobile && !isFullscreen && !modalOpen && !commentsPanelOpen ? (
+      <MobileQuickToolbar editor={editor} toolbarStart={toolbarStart} />
+    ) : null}
 
     <CommentsPanel open={commentsEnabled && commentsPanelOpen} onClose={() => setCommentsPanelOpen(false)}
       presentation={isMobile ? 'sheet' : 'drawer'} items={sortedAnnotations} total={openCount}

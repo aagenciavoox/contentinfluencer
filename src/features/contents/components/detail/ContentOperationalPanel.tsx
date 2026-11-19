@@ -98,6 +98,11 @@ interface ContentOperationalPanelProps {
   sectionsOpen?: boolean;
   /** Aba Publicação: data, hora e horários sugeridos já estão no bloco "Quando e onde". */
   hidePublishSchedule?: boolean;
+  /**
+   * Sheet do celular: etapa, série e data ficam à vista.
+   * O restante entra recolhido em "Organização".
+   */
+  mobileSummary?: boolean;
 }
 
 function AsideAccordion({
@@ -490,6 +495,7 @@ export function ContentOperationalPanel({
   className,
   sectionsOpen = false,
   hidePublishSchedule = false,
+  mobileSummary = false,
 }: ContentOperationalPanelProps) {
   const {state, ensureDataDomains} = useAppContext();
   const navigate = useNavigate();
@@ -632,6 +638,7 @@ export function ContentOperationalPanel({
 
   const propertiesSection = (
     <PropertySection label="Propriedades">
+      {mobileSummary ? null : (
       <PropertyRow label="Série" icon={<Layers />}>
         <PropertySelect
           value={seriePrincipal?.id ?? ''}
@@ -646,6 +653,7 @@ export function ContentOperationalPanel({
           ))}
         </PropertySelect>
       </PropertyRow>
+      )}
 
       {seriePrincipal && quadrosDaSerie.length > 0 ? (
         <PropertyRow label="Quadro" icon={<Layers />}>
@@ -761,6 +769,7 @@ export function ContentOperationalPanel({
         </ColoredSelect>
       </PropertyRow>
 
+      {mobileSummary ? null : (
       <StatusPropertyRow
         status={draft.status}
         publishDate={draft.publishDate}
@@ -768,6 +777,7 @@ export function ContentOperationalPanel({
         allowedStatuses={allowedStatuses}
         onStatusChange={status => onChange({status})}
       />
+      )}
     </PropertySection>
   );
 
@@ -780,7 +790,7 @@ export function ContentOperationalPanel({
         />
       </PropertyRow>
 
-      {hidePublishSchedule ? null : (
+      {hidePublishSchedule || mobileSummary ? null : (
         <PropertyRow label="Publicação" icon={<CalendarClock />}>
           <PropertyDatePicker
             value={publishDateOnly || null}
@@ -1134,6 +1144,99 @@ export function ContentOperationalPanel({
     );
   }
 
+  const fichaRestante = (
+    <>
+      {propertiesSection}
+      {herancaSection}
+      {scheduleSection}
+
+      {publishDateOnly && !hidePublishSchedule ? (
+        <>
+          <PostingTimeSuggestions
+            date={publishDateOnly}
+            selectedTime={draft.publishTime ?? ''}
+            postingTimeEntries={state.postingTimeEntries}
+            platforms={state.platforms}
+            pilar={linkedPilar}
+            onSelect={time => onChange({publishTime: time})}
+          />
+          {linkedPilar && pilarPostingPreview.length === 0 ? (
+            <Text variant="meta" className="text-[var(--text-tertiary)]">
+              Nenhum horário do pilar cruza com os horários configurados neste dia.
+            </Text>
+          ) : null}
+        </>
+      ) : null}
+
+      {notesSection}
+
+      {linkedSerie ? (
+        <PropertySection label="Vínculos">
+          <PropertyRow
+            label="Central da série"
+            icon={<ExternalLink />}
+            onClick={() => navigate('/series/' + linkedSerie.id)}
+          >
+            <span className="min-w-0 truncate">{linkedSerie.name}</span>
+          </PropertyRow>
+        </PropertySection>
+      ) : null}
+    </>
+  );
+
+  if (mobileSummary) {
+    return (
+      <>
+        {avisoTrocaSerie}
+        <div className="stack-md">
+          <div className="stack-xs">
+            <Text variant="label" as="span">Etapa</Text>
+            <ContentStatusField
+              boxed
+              status={draft.status}
+              publishDate={draft.publishDate}
+              postedAt={draft.postedAt ?? null}
+              allowedStatuses={allowedStatuses}
+              onStatusChange={status => onChange({status})}
+            />
+          </div>
+          <TagSelect
+            label="Série"
+            id="mobile-ficha-serie"
+            maxSelections={1}
+            placeholder="Selecionar série…"
+            values={seriePrincipal ? [seriePrincipal.id] : []}
+            onChange={values => pedirTrocaSerie(values[0] ?? null)}
+            options={seriesPrincipais.map(serie => ({value: serie.id, label: serie.name}))}
+            controlClassName="min-h-11"
+          />
+          {hidePublishSchedule ? null : (
+            <div className="stack-xs">
+              <Text variant="label" as="span">Data de publicação</Text>
+              <PropertyDatePicker
+                variant="field"
+                ariaLabel="Data de publicação"
+                placeholder="Selecionar data"
+                className="h-11 bg-[var(--bg-primary)] py-0"
+                value={publishDateOnly || null}
+                onChange={mudarPublicacao}
+              />
+            </div>
+          )}
+          <details className="group overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)]">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-3 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]">
+              <Text variant="bodyStrong" as="span">Organização</Text>
+              <ChevronDown className="h-4 w-4 shrink-0 text-[var(--text-tertiary)] transition-transform group-open:rotate-180" aria-hidden />
+            </summary>
+            <div className="stack-md border-t border-[var(--border-color)] p-3">
+              {fichaRestante}
+            </div>
+          </details>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       {avisoTrocaSerie}
@@ -1147,41 +1250,7 @@ export function ContentOperationalPanel({
           />
         ) : null}
 
-        {propertiesSection}
-        {herancaSection}
-        {scheduleSection}
-
-        {publishDateOnly && !hidePublishSchedule ? (
-          <>
-            <PostingTimeSuggestions
-              date={publishDateOnly}
-              selectedTime={draft.publishTime ?? ''}
-              postingTimeEntries={state.postingTimeEntries}
-              platforms={state.platforms}
-              pilar={linkedPilar}
-              onSelect={time => onChange({publishTime: time})}
-            />
-            {linkedPilar && pilarPostingPreview.length === 0 ? (
-              <Text variant="meta" className="text-[var(--text-tertiary)]">
-                Nenhum horário do pilar cruza com os horários configurados neste dia.
-              </Text>
-            ) : null}
-          </>
-        ) : null}
-
-        {notesSection}
-
-        {linkedSerie ? (
-          <PropertySection label="Vínculos">
-            <PropertyRow
-              label="Central da série"
-              icon={<ExternalLink />}
-              onClick={() => navigate('/series/' + linkedSerie.id)}
-            >
-              <span className="min-w-0 truncate">{linkedSerie.name}</span>
-            </PropertyRow>
-          </PropertySection>
-        ) : null}
+        {fichaRestante}
       </aside>
     </>
   );

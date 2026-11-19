@@ -81,10 +81,13 @@ export function RoteiroTypographyControls({
   typography,
   onChange,
   variant = 'field',
+  layout = 'inline',
 }: {
   typography: RoteiroTypography;
   onChange: (updates: Partial<RoteiroTypography>) => void;
   variant?: 'field' | 'toolbar' | 'panel';
+  /** `stack` empilha fonte e tamanho, para o menu do celular. */
+  layout?: 'inline' | 'stack';
 }) {
   useEffect(() => {
     if (variant === 'panel') preloadRoteiroFonts();
@@ -203,9 +206,11 @@ export function RoteiroTypographyControls({
     );
   }
 
+  const stacked = layout === 'stack';
   return (
-    <div className="flex shrink-0 items-center gap-1" title={TITLE}>
+    <div className={cn('flex shrink-0 gap-2', stacked ? 'flex-col items-stretch' : 'items-center gap-1')} title={TITLE}>
       <SelectField
+        block={stacked}
         ariaLabel="Fonte do roteiro"
         leadingIcon={<Type className="h-3.5 w-3.5 text-[var(--text-secondary)]" />}
         value={typography.font}
@@ -213,6 +218,7 @@ export function RoteiroTypographyControls({
         options={FONT_OPTIONS}
       />
       <SelectField
+        block={stacked}
         ariaLabel="Tamanho da fonte do roteiro"
         value={String(typography.size)}
         onChange={size => onChange({size: Number(size)})}

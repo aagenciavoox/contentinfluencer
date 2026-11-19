@@ -42,7 +42,10 @@ import {ContentOperationalPanel} from './ContentOperationalPanel';
 import {DerivarConteudoDialog} from './DerivarConteudoDialog';
 import {isContentBodyLoaded} from '../../lib/contentBody';
 import {draftDiffers, draftFieldChanged, immediateSaveUpdates} from '../../lib/draftChanges';
-import {RoteiroSection, type ScriptDraft} from './sections/RoteiroSection';
+import {RoteiroSection, WritingModeSelect, type ScriptDraft} from './sections/RoteiroSection';
+import {WritingNotesPane} from './WritingNotesPane';
+import {RoteiroTypographyControls} from './RoteiroTypographyControls';
+import {useRoteiroTypography} from '../../lib/useRoteiroTypography';
 import {isWritingWorkspaceEnabled} from '../../../settings/lib/writingWorkspace';
 import {IdeaDetailSection, IdeaOrganizationPanel} from './sections/IdeaDetailSection';
 import {applyStatusChange, promoteContentToScript} from '../../lib/creationContent';
@@ -143,6 +146,7 @@ export function ContentDetailShell({
 }: ContentDetailShellProps) {
   const {state, dispatch, updateContent, ensureDataDomains} = useAppContext();
   const {user} = useAuth();
+  const {typography, setTypography} = useRoteiroTypography(user?.id);
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -155,6 +159,7 @@ export function ContentDetailShell({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [derivarOpen, setDerivarOpen] = useState(false);
   const [markPostedOpen, setMarkPostedOpen] = useState(false);
+  const [mobileDraftOpen, setMobileDraftOpen] = useState(false);
   const [unpublishConfirm, setUnpublishConfirm] = useState<{
     status: string;
     effects: string[];
@@ -187,6 +192,10 @@ export function ContentDetailShell({
     options?: PersistDraftOptions
   ) => Promise<boolean>>(async () => false);
   const activeTab = getInitialTabForContext(searchParams.get('tab'));
+
+  useEffect(() => {
+    if (activeTab !== 'roteiro') setMobileDraftOpen(false);
+  }, [activeTab]);
 
   // Read the ref so clearing dirty before navigate is honored immediately
   // (state updates would still look dirty for one render and cancel leave).
@@ -854,6 +863,7 @@ export function ContentDetailShell({
           contentId={mergedContent.id}
           carouselAvailable={carouselAvailable}
           youtubeAvailable={youtubeAvailable}
+          onOpenDraft={mode === 'mobile' ? () => setMobileDraftOpen(true) : undefined}
           title={draft.title}
           onTitleChange={value => handleDraftChange({title: value})}
           saveState={editorSaveState}
@@ -962,6 +972,42 @@ export function ContentDetailShell({
     />
   );
 
+  const mobileScriptMenu = !isIdea ? (
+    <div className="stack-md">
+      <WritingModeSelect
+        value={writingMode}
+        disabled={bodyLoading || Boolean(bodyError)}
+        carouselAvailable={carouselAvailable}
+        youtubeAvailable={youtubeAvailable}
+        onChange={setWritingMode}
+      />
+      <RoteiroTypographyControls
+        layout="stack"
+        typography={typography}
+        onChange={setTypography}
+      />
+    </div>
+  ) : undefined;
+
+  const mobileDraftPane = !isIdea ? (
+    <WritingNotesPane
+      value={draft.writingNotes ?? ''}
+      onChange={text => handleDraftChange({writingNotes: text})}
+      onClose={() => setMobileDraftOpen(false)}
+      onInsertIntoScript={text => {
+        const current = draft.script?.trim() ? draft.script : '';
+        const block = text
+          .split(/\n{2,}/)
+          .map(part => `<p>${part.replace(/\n/g, '<br>')}</p>`)
+          .join('');
+        handleDraftChange({script: current ? `${current}${block}` : block});
+        setMobileDraftOpen(false);
+      }}
+      documentId={mergedContent.id}
+      className="h-[min(70dvh,32rem)] max-h-[70dvh] min-h-0"
+    />
+  ) : undefined;
+
   if (mode === 'mobile') {
     return (
       <>
@@ -994,6 +1040,7 @@ export function ContentDetailShell({
                 density="compact"
                 showTitle={false}
                 hidePublishSchedule={activeTab === 'publicacao'}
+                mobileSummary
               />
             )
           }
@@ -1007,6 +1054,10 @@ export function ContentDetailShell({
           onBack={() => handleMobileBack()}
           onDelete={() => setDeleteConfirmOpen(true)}
           contentKind={isIdea ? 'idea' : 'script'}
+          scriptMenu={mobileScriptMenu}
+          draftPane={mobileDraftPane}
+          draftOpen={mobileDraftOpen}
+          onDraftOpenChange={setMobileDraftOpen}
         />
         {recordingSheet}
         {leaveConfirmModal}

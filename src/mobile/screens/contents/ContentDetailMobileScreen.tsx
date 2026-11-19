@@ -34,6 +34,12 @@ interface ContentDetailMobileScreenProps {
   blockOrder?: number | null;
   section: ReactNode;
   operationalPanel: ReactNode;
+  /** Modo de escrita e tipografia, no menu do cabeçalho. */
+  scriptMenu?: ReactNode;
+  /** Rascunho de apoio, aberto a partir desse menu. */
+  draftPane?: ReactNode;
+  draftOpen?: boolean;
+  onDraftOpenChange?: (open: boolean) => void;
   onRetrySave: () => void;
   onDelete: () => void;
   saveHint?: string;
@@ -56,6 +62,10 @@ export function ContentDetailMobileScreen({
   blockOrder,
   section,
   operationalPanel,
+  scriptMenu,
+  draftPane,
+  draftOpen = false,
+  onDraftOpenChange,
   onRetrySave,
   onDelete,
   saveHint,
@@ -82,8 +92,9 @@ export function ContentDetailMobileScreen({
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
-    if (detailsSheetOpen) {
+    if (detailsSheetOpen || draftOpen) {
       setDetailsSheetOpen(false);
+      onDraftOpenChange?.(false);
       return;
     }
     if (onBack) {
@@ -125,6 +136,19 @@ export function ContentDetailMobileScreen({
           description={isIdea ? 'Organize sem precisar planejar a produção agora.' : `${stageLabel} · ${blockLabel}`}
           className="mb-0"
         />
+        {scriptMenu}
+        {draftPane ? (
+          <AppButton
+            variant="secondary"
+            onClick={() => {
+              setDetailsSheetOpen(false);
+              onDraftOpenChange?.(true);
+            }}
+            className="min-h-11 w-full justify-center"
+          >
+            Rascunho
+          </AppButton>
+        ) : null}
         {postingAlerts.length > 0 ? (
           <div className="stack-sm">
             {postingAlerts.map(alert => (
@@ -186,6 +210,19 @@ export function ContentDetailMobileScreen({
       </OverlayBody>
     </BottomSheetModal>
   );
+
+  const draftSheet = draftPane ? (
+    <BottomSheetModal
+      open={draftOpen}
+      onClose={() => onDraftOpenChange?.(false)}
+      desktopMaxW="max-w-md"
+      zIndex="z-[130]"
+    >
+      <OverlayBody className="pb-safe">
+        {draftPane}
+      </OverlayBody>
+    </BottomSheetModal>
+  ) : null;
 
   if (isScriptTab) {
     return (
@@ -266,17 +303,17 @@ export function ContentDetailMobileScreen({
           className="flex-1 px-4"
           style={{
             paddingTop: 'calc(env(safe-area-inset-top, 0px) + 3.5rem + 0.75rem)',
-            // Folga para a barra flutuante do editor (+Bloco, Padrão, tamanho): ~50px de barra
-            // + respiro. Antes sobravam poucos px e a barra cobria a última linha do texto.
+            // A pílula só fica na tela enquanto o texto está em foco (ou o teclado aberto).
             paddingBottom: keyboard.open
-              ? keyboard.inset + 96
-              : 'calc(max(0.75rem, env(safe-area-inset-bottom, 0px)) + 6rem)',
+              ? keyboard.inset + 72
+              : 'calc(max(0.75rem, env(safe-area-inset-bottom, 0px)) + 4.5rem)',
           }}
         >
           {section}
         </div>
 
         {detailsSheet}
+        {draftSheet}
       </div>
     );
   }
@@ -352,6 +389,7 @@ export function ContentDetailMobileScreen({
       ) : null}
 
       {detailsSheet}
+      {draftSheet}
     </div>
   );
 }

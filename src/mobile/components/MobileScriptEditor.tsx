@@ -4,7 +4,6 @@ import type { CommentPatch, ScriptComment } from '../../components/editors/comme
 import { DraftSaveBar } from '../../features/contents/components/detail/DraftSaveBar';
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../context/AuthContext';
-import { RoteiroTypographyControls } from '../../features/contents/components/detail/RoteiroTypographyControls';
 import { roteiroTypographyStyle } from '../../features/contents/lib/roteiroTypography';
 import { useRoteiroTypography } from '../../features/contents/lib/useRoteiroTypography';
 
@@ -46,7 +45,7 @@ export function MobileScriptEditor({
   onPatchAnnotation,
 }: MobileScriptEditorProps) {
   const { user } = useAuth();
-  const { typography, setTypography } = useRoteiroTypography(user?.id);
+  const { typography } = useRoteiroTypography(user?.id);
   return (
     <div className="roteiro-typography contents" style={roteiroTypographyStyle(typography)}>
     <RichTextEditor
@@ -64,12 +63,7 @@ export function MobileScriptEditor({
       onRemoveAnnotation={onRemoveAnnotation}
       onUpdateAnnotation={onUpdateAnnotation}
       onPatchAnnotation={onPatchAnnotation}
-      toolbarStart={
-        <>
-          {toolbarStart}
-          <RoteiroTypographyControls typography={typography} onChange={setTypography} />
-        </>
-      }
+      toolbarStart={toolbarStart}
       saveAction={
         onSave ? (
           <DraftSaveBar

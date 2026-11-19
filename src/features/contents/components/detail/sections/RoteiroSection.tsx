@@ -3,7 +3,6 @@ import type {Editor} from '@tiptap/react';
 import {PenLine, Pencil, SlidersHorizontal} from 'lucide-react';
 import {MobileScriptEditor} from '../../../../../mobile/components/MobileScriptEditor';
 import type {CommentPatch} from '../../../../../components/editors/commentModel';
-import {MobileSegmentTabs} from '../../../../../mobile/components/MobileSegmentTabs';
 import {AppButton} from '../../../../../components/ui/AppButton';
 import {Skeleton} from '../../../../../components/ui/Skeleton';
 import {Text} from '../../../../../components/ui/Text';
@@ -76,8 +75,6 @@ export type ScriptDraft = {
   origemConteudoId?: string | null;
 };
 
-type MobilePane = 'script' | 'notes' | 'captions';
-
 interface RoteiroSectionProps {
   draft: ScriptDraft;
   series: Serie[];
@@ -108,6 +105,8 @@ interface RoteiroSectionProps {
   primaryAction?: ContentPrimaryAction;
   onPrimaryAction?: (actionId?: ContentPrimaryActionId) => void;
   primaryBusy?: boolean;
+  /** Abre o rascunho de apoio no sheet do cabeçalho (celular). */
+  onOpenDraft?: () => void;
 }
 
 export function RoteiroSection({
@@ -137,6 +136,7 @@ export function RoteiroSection({
   primaryAction,
   onPrimaryAction,
   primaryBusy = false,
+  onOpenDraft,
 }: RoteiroSectionProps) {
   const writingAreaRef = useRef<HTMLDivElement>(null);
   const insertIntoScriptRef = useRef<((text: string) => void) | null>(null);
@@ -147,10 +147,6 @@ export function RoteiroSection({
   const writingMode = normalizeWritingMode(draft.writingMode);
   const isCarousel = writingMode === 'carrossel';
   const isYoutube = writingMode === 'youtube';
-  const [mobilePaneChoice, setMobilePaneChoice] = useState<{
-    contentId: string;
-    pane: MobilePane;
-  } | null>(null);
   const [workspacePaneChoice, setWorkspacePaneChoice] = useState<{
     contentId: string;
     pane: 'write' | 'manage';
@@ -195,17 +191,6 @@ export function RoteiroSection({
     if (notesUserOverrideRef.current) return;
     setNotesChoice({contentId, open: openDraftByDefault});
   }, [contentId, writingWorkspace, openDraftByDefault]);
-  // Until a tab is picked, open on "Notas" when the text lives only in the notes pane.
-  const mobilePane: MobilePane = mobilePaneChoice?.contentId === contentId
-    ? mobilePaneChoice.pane
-    : mobileComposer && hasWritingNotesText(draft.writingNotes) && !htmlToReadableText(draft.script)
-      ? 'notes'
-      : 'script';
-  const selectMobilePane = (pane: MobilePane) => setMobilePaneChoice({contentId, pane});
-  // Pin the current tab on the first edit so emptying a field does not switch tabs while typing.
-  const keepMobilePane = () => {
-    if (mobilePaneChoice?.contentId !== contentId) selectMobilePane(mobilePane);
-  };
 
   const annotationHandlers = {
     onAddAnnotation: (text: string, selection: {from: number; to: number}, comment: string, id?: string) =>
@@ -347,7 +332,6 @@ export function RoteiroSection({
     <CarouselSlidesEditor
       slides={draft.carouselSlides ?? []}
       onChange={carouselSlides => {
-        if (mobileComposer) keepMobilePane();
         onChange({carouselSlides});
       }}
       documentTitle={draft.title?.trim() || 'Novo roteiro'}
@@ -574,50 +558,19 @@ export function RoteiroSection({
           placeholder="Título"
           aria-label="Título do roteiro"
         />
-        <MobileSegmentTabs<MobilePane>
-          rounded="tight"
-          activateOnPointerDown
-          tabs={[
-            {value: 'script', label: 'Roteiro'},
-            {value: 'notes', label: 'Rascunho'},
-            {value: 'captions', label: 'Legendas'},
-          ]}
-          value={mobilePane}
-          onChange={selectMobilePane}
-        />
-        {mobilePane === 'script' ? <div>{writingModeSelect}</div> : null}
-        {mobilePane === 'captions' ? (
-          captionEditor
-        ) : mobilePane === 'script' && isCarousel ? (
-          carouselEditor
-        ) : mobilePane === 'notes' ? (
-          <WritingNotesPane
-            value={draft.writingNotes ?? ''}
-            onChange={text => {
-              keepMobilePane();
-              onChange({writingNotes: text});
-            }}
-            onClose={() => selectMobilePane('script')}
-            onInsertIntoScript={text => {
-              keepMobilePane();
-              const current = draft.script?.trim() ? draft.script : '';
-              const block = text
-                .split(/\n{2,}/)
-                .map(part => `<p>${part.replace(/\n/g, '<br>')}</p>`)
-                .join('');
-              onChange({script: current ? `${current}${block}` : block});
-              selectMobilePane('script');
-            }}
-            documentId={contentId}
-            className="h-[calc(100dvh-19rem)] min-h-[18rem]"
-          />
-        ) : (
+        {onOpenDraft && hasWritingNotesText(draft.writingNotes) && !htmlToReadableText(draft.script) ? (
+          <button
+            type="button"
+            onClick={onOpenDraft}
+            className="self-start text-[var(--text-secondary)] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+          >
+            <Text variant="meta" as="span">O texto está no rascunho</Text>
+          </button>
+        ) : null}
+        {isCarousel ? carouselEditor : (
           <MobileScriptEditor
             content={draft.script || ''}
-            onChange={html => {
-              keepMobilePane();
-              onChange({script: html});
-            }}
+            onChange={html => onChange({script: html})}
             placeholder="Escreva o roteiro…"
             documentTitle={draft.title?.trim() || 'Novo roteiro'}
             autoFocus={autoFocusScript}
@@ -665,7 +618,7 @@ function hasWritingNotesText(value: string | null | undefined) {
 }
 
 /** "Modo: Texto | YouTube | Carrossel". Antes da migração, o modo aparece indisponível. */
-function WritingModeSelect({
+export function WritingModeSelect({
   value,
   disabled,
   carouselAvailable,
