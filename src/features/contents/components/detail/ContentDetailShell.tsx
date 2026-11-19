@@ -864,6 +864,7 @@ export function ContentDetailShell({
           carouselAvailable={carouselAvailable}
           youtubeAvailable={youtubeAvailable}
           onOpenDraft={mode === 'mobile' ? () => setMobileDraftOpen(true) : undefined}
+          onAddToBlock={() => setIsRecordingSheetOpen(true)}
           title={draft.title}
           onTitleChange={value => handleDraftChange({title: value})}
           saveState={editorSaveState}

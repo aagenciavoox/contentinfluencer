@@ -630,7 +630,19 @@ export function registerConteudos(server: McpServer) {
           patch.classificacao_congelada_em = now;
         }
         if (args.status !== 'Publicado' && row.posted_at) patch.posted_at = null;
+        // Voltar para Produção, Roteiro ou Ideia desfaz a gravação, como no app.
+        if (statusRank(args.status) < statusRank('Edição') && row.recorded_at) patch.recorded_at = null;
         await updateContent(session, row.id, patch);
+        if (statusRank(args.status) < statusRank('Edição')) {
+          const desmarcado = await session.client
+            .from('recording_block_contents')
+            .update({gravado: false})
+            .eq('content_id', row.id);
+          const message = desmarcado.error?.message ?? '';
+          if (desmarcado.error && !/recording_block_contents|schema cache|does not exist/i.test(message)) {
+            throw new Error(`desmarcar gravação: ${message}`);
+          }
+        }
         changed.push({id: row.id, titulo: row.title, de: from, para: args.status});
       }
       return json({alterados: changed});

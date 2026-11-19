@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import type {Content, ContentPlataforma} from '../../../lib/database.ts';
 import {
   applyStatusMilestones,
+  contaComoGravado,
   CONTENT_STATUS,
   DISPLAY_STATUS,
   edicaoPatch,
@@ -180,6 +181,21 @@ function testRecordingActionExplainsMissingRequirements() {
   assert.equal(action.reason, 'Adicione um título e escreva o roteiro para continuar.');
 }
 
+function testReturningToProductionClearsRecording() {
+  const recorded = {
+    status: CONTENT_STATUS.EDICAO,
+    postedAt: null,
+    recordedAt: '2026-10-01T12:00:00.000Z',
+  };
+  assert.deepEqual(applyStatusMilestones(recorded, CONTENT_STATUS.PRODUCAO), {recordedAt: null});
+  assert.deepEqual(applyStatusMilestones(recorded, CONTENT_STATUS.ROTEIRO), {recordedAt: null});
+  // Edição e Publicado mantêm a data de gravação.
+  assert.deepEqual(applyStatusMilestones(recorded, CONTENT_STATUS.EDICAO), {});
+  assert.deepEqual(applyStatusMilestones(recorded, CONTENT_STATUS.POSTADO), {});
+  assert.equal(contaComoGravado({recordedAt: null}, false), false);
+  assert.equal(contaComoGravado({recordedAt: recorded.recordedAt}, false), true);
+}
+
 function testLeavingPostadoClearsPostedAt() {
   const posted = {status: CONTENT_STATUS.POSTADO, postedAt: '2026-07-20T12:00:00.000Z', recordedAt: null};
   assert.deepEqual(applyStatusMilestones(posted, CONTENT_STATUS.PRODUCAO), {postedAt: null});
@@ -261,6 +277,7 @@ const tests: Array<[string, () => void]> = [
   ['recorded video goes to Edição', testRecordedVideoGoesToEditing],
   ['editing actions follow the stage', testEditingActionsFollowTheStage],
   ['leaving Postado clears postedAt', testLeavingPostadoClearsPostedAt],
+  ['returning to Produção clears the recording mark', testReturningToProductionClearsRecording],
   ['planStatusChange gates publish and unpublish', testPlanStatusChangeGatesPublishAndUnpublish],
   ['block is badge not stage', testBlockIsBadgeNotStage],
   ['publication tab opens from Roteiro', testPublicationTabOpensFromRoteiro],

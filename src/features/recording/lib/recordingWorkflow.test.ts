@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
-import type {Content} from '../../../lib/database.ts';
+import type {Content, RecordingBlock} from '../../../lib/database.ts';
 import {CONTENT_STATUS} from '../../contents/lib/contentPipeline.ts';
-import {addBlockContent, buildMarkStandaloneContentRecordedTransition} from './recordingWorkflow.ts';
+import {
+  addBlockContent,
+  blocosAoVoltarDaGravacao,
+  buildMarkStandaloneContentRecordedTransition,
+  isBlockContentComplete,
+} from './recordingWorkflow.ts';
 
 function createContent(overrides: Partial<Content> = {}): Content {
   return {
@@ -75,6 +80,28 @@ function testAddsScriptToExistingBlock() {
   assert.equal(next[1]?.ordem, 1);
 }
 
+function testBackToProductionClearsBlockMark() {
+  const block: RecordingBlock = {
+    id: 'block-1',
+    userId: 'user-1',
+    name: 'Terça',
+    createdAt: '2026-07-27T10:00:00.000Z',
+    contents: [
+      {blockId: 'block-1', contentId: 'content-1', ordem: 0, gravado: true},
+      {blockId: 'block-1', contentId: 'content-2', ordem: 1, gravado: true},
+    ],
+  };
+  const back = createContent({id: 'content-1', status: CONTENT_STATUS.PRODUCAO, recordedAt: null});
+  const staying = createContent({id: 'content-2', status: CONTENT_STATUS.EDICAO, recordedAt: '2026-07-27T12:00:00.000Z'});
+
+  const {alterados} = blocosAoVoltarDaGravacao([block], [back, staying]);
+  assert.equal(alterados.length, 1);
+  assert.equal(alterados[0]?.contents[0]?.gravado, false);
+  assert.equal(alterados[0]?.contents[1]?.gravado, true);
+  assert.equal(isBlockContentComplete(alterados[0].contents[0], back), false);
+  assert.equal(isBlockContentComplete(alterados[0].contents[1], staying), true);
+}
+
 function testDoesNotDuplicateScriptInBlock() {
   const contents = [
     {
@@ -95,6 +122,7 @@ const tests: Array<[string, () => void]> = [
   ['standalone recording preserves an existing milestone', testPreservesExistingRecordingMilestone],
   ['adds a script to an existing recording block', testAddsScriptToExistingBlock],
   ['does not duplicate a script already in the block', testDoesNotDuplicateScriptInBlock],
+  ['going back to Produção clears the block recording mark', testBackToProductionClearsBlockMark],
 ];
 
 for (const [name, fn] of tests) {

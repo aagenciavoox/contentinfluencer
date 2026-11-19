@@ -198,6 +198,7 @@ export function ideaNotesFromScript(
  * Ao sair de Ideia, o texto da ideia vira o roteiro (se ele ainda estiver vazio).
  * Ao voltar para Ideia, o roteiro e o rascunho entram no texto da ideia.
  * Vídeo que chega a Produção vindo da escrita fica marcado para gravar.
+ * Voltar para Produção, Roteiro ou Ideia tira a data de gravação.
  */
 export function applyStatusChange(
   content: Content,

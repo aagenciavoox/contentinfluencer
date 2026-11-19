@@ -107,6 +107,8 @@ interface RoteiroSectionProps {
   primaryBusy?: boolean;
   /** Abre o rascunho de apoio no sheet do cabeçalho (celular). */
   onOpenDraft?: () => void;
+  /** Na Gestão, ao ir para Produção, oferece um bloco de gravação. */
+  onAddToBlock?: () => void;
 }
 
 export function RoteiroSection({
@@ -137,6 +139,7 @@ export function RoteiroSection({
   onPrimaryAction,
   primaryBusy = false,
   onOpenDraft,
+  onAddToBlock,
 }: RoteiroSectionProps) {
   const writingAreaRef = useRef<HTMLDivElement>(null);
   const insertIntoScriptRef = useRef<((text: string) => void) | null>(null);
@@ -146,6 +149,9 @@ export function RoteiroSection({
   const isPosted = draft.status === CONTENT_STATUS.POSTADO;
   const writingMode = normalizeWritingMode(draft.writingMode);
   const isCarousel = writingMode === 'carrossel';
+  const roteiroNoBloco = Boolean(
+    contentId && state.recordingBlocks.some(block => block.contents.some(item => item.contentId === contentId)),
+  );
   const isYoutube = writingMode === 'youtube';
   const [workspacePaneChoice, setWorkspacePaneChoice] = useState<{
     contentId: string;
@@ -161,6 +167,13 @@ export function RoteiroSection({
   const workspacePane = workspacePaneChoice?.contentId === contentId
     ? workspacePaneChoice.pane
     : 'write';
+  const handleWorkspacePrimary = (actionId?: ContentPrimaryActionId) => {
+    const id = actionId ?? primaryAction?.id;
+    onPrimaryAction?.(actionId);
+    if (workspacePane === 'manage' && id === 'advance_to_recording' && !isCarousel && !roteiroNoBloco) {
+      onAddToBlock?.();
+    }
+  };
   const notesOpen = notesChoice?.contentId === contentId
     ? notesChoice.open
     : false;
@@ -399,7 +412,7 @@ export function RoteiroSection({
               {primaryAction && onPrimaryAction ? (
                 <ContentPrimaryActionButton
                   primaryAction={primaryAction}
-                  onPrimaryAction={onPrimaryAction}
+                  onPrimaryAction={handleWorkspacePrimary}
                   busy={primaryBusy}
                 />
               ) : null}
@@ -461,6 +474,7 @@ export function RoteiroSection({
               series={series}
               pilares={pilares}
               onChange={onChange}
+              onAddToBlock={onAddToBlock}
             />
           ) : (
             <div ref={writingAreaRef} className="min-h-0 min-w-0 stack-sm">

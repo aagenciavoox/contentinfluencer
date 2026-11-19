@@ -76,7 +76,7 @@ export function RecordingBlockPage() {
           const content = state.contents.find(item => item.id === blockContent.contentId);
           // Carrossel não vai para o teleprompter.
           if (!content || isCarouselContent(content)) return null;
-          return {content, gravado: blockContent.gravado};
+          return {content, gravado: isBlockContentComplete(blockContent, content)};
         })
         .filter((entry): entry is {content: Content; gravado: boolean} => entry !== null),
     [blockContents, state.contents]

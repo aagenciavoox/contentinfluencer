@@ -1,7 +1,10 @@
+import {CreationRedeQuickFilter} from '../../creation/components/CreationRedeQuickFilter';
+import {passaNoFiltroRede, redesDoFiltroRapido, redesDoItemDeCriacao, type RedeDoFiltro} from '../../creation/lib/creationRedeFilter';
+import {ROTULO_REDE_DO_FILTRO} from '../../contas/lib/contas';
 import {SugestaoGravacaoPanel} from '../components/SugestaoGravacaoPanel';
 import {energiaDaSerie} from '../../editorial/lib/herancaSerie';
 import {seriesParaFiltro} from '../../settings/lib/serieAgrupamento';
-import {useEffect, useMemo, useRef, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {useLocation, useNavigate, useSearchParams} from 'react-router-dom';
 import {Plus} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
@@ -26,6 +29,7 @@ import {RecordingSelectionBar} from '../components/desktop/RecordingSelectionBar
 import {RecordingScriptReader} from '../components/RecordingScriptReader';
 import {FilterBar} from '../../../components/ui/FilterBar';
 import {PageToolbar} from '../../../components/ui/PageToolbar';
+import {PaginationBar} from '../../../components/ui/PaginationBar';
 import {SegmentTabs} from '../../../components/ui/SegmentTabs';
 import {AppButton} from '../../../components/ui/AppButton';
 import {Text} from '../../../components/ui/Text';
@@ -38,6 +42,8 @@ import {contentPassaFiltroSerie} from '../../editorial/lib/filtroSubarvore';
 import {generateUUID} from '../../../utils/uuid';
 
 type RecordingPageTab = 'queue' | 'blocks';
+
+const ROTEIROS_POR_PAGINA = 12;
 
 function resolveRecordingTab(tab: string | null): RecordingPageTab {
   return tab === 'blocks' ? 'blocks' : 'queue';
@@ -69,8 +75,10 @@ export function RecordingPage() {
   const [filterSerie, setFilterSerie] = useState('');
   const [filterTag, setFilterTag] = useState('');
   const [filterEnergia, setFilterEnergia] = useState('');
+  const [filterRedes, setFilterRedes] = useState<RedeDoFiltro[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortValue, setSortValue] = useState('recentes');
+  const [queuePage, setQueuePage] = useState(1);
   const [blockTags, setBlockTags] = useState<string[]>([]);
   const [readerContentId, setReaderContentId] = useState<string | null>(null);
   const [readerLoading, setReaderLoading] = useState(false);
@@ -174,6 +182,10 @@ export function RecordingPage() {
     }, {replace: true});
   };
 
+  useEffect(() => {
+    setQueuePage(1);
+  }, [filterPilar, filterSerie, filterTag, filterEnergia, filterRedes, searchTerm, sortValue]);
+
   const queueContents = getRecordingQueueContents(state.contents, state.recordingBlocks);
   const idsPedido = searchParams.get('ids');
   const pedidoAplicado = useRef<string | null | undefined>(undefined);
@@ -191,8 +203,6 @@ export function RecordingPage() {
       });
     }
   }, [idsPedido, filaKey, recordingReady]);
-  const queueIds = useMemo(() => queueContents.map(content => content.id), [queueContents]);
-  const {isHydrating, hasHydrationError, retryHydration} = useHydrateContentBodies(queueIds);
 
   const availableRecordingTags = Array.from(
     new Set(
@@ -206,6 +216,7 @@ export function RecordingPage() {
       if (filterSerie && !contentPassaFiltroSerie(content.seriesId, filterSerie, state.series)) return false;
       if (filterTag && !normalizeRecordingTags(content.tags || []).includes(filterTag)) return false;
       if (filterEnergia && energiaDaSerie(content, state.series) !== filterEnergia) return false;
+      if (!passaNoFiltroRede(redesDoItemDeCriacao(content, state.platforms), filterRedes)) return false;
       if (searchTerm.trim()) {
         const term = searchTerm.toLowerCase();
         const haystacks = [
@@ -237,6 +248,13 @@ export function RecordingPage() {
       }
     });
 
+  const totalPages = Math.max(1, Math.ceil(prontos.length / ROTEIROS_POR_PAGINA));
+  const page = Math.min(queuePage, totalPages);
+  const pageContents = prontos.slice((page - 1) * ROTEIROS_POR_PAGINA, page * ROTEIROS_POR_PAGINA);
+  const {isHydrating, hasHydrationError, retryHydration} = useHydrateContentBodies(
+    isMobile ? queueContents.map(content => content.id) : pageContents.map(content => content.id),
+  );
+
   const toggleSelect = (id: string) => {
     setSelectedIds(previous => {
       const next = new Set(previous);
@@ -246,13 +264,15 @@ export function RecordingPage() {
     });
   };
 
-  const handleSelectAll = () => {
-    const allSelected = prontos.length > 0 && prontos.every(content => selectedIds.has(content.id));
-    if (allSelected) {
-      setSelectedIds(new Set());
-      return;
-    }
-    setSelectedIds(new Set(prontos.map(content => content.id)));
+  const handleSelectPage = () => {
+    const pageIds = pageContents.map(content => content.id);
+    const allOnPage = pageIds.length > 0 && pageIds.every(id => selectedIds.has(id));
+    setSelectedIds(previous => {
+      const next = new Set(previous);
+      if (allOnPage) pageIds.forEach(id => next.delete(id));
+      else pageIds.forEach(id => next.add(id));
+      return next;
+    });
   };
 
   const handleClearSelection = () => {
@@ -348,6 +368,15 @@ export function RecordingPage() {
     onCriado={() => {handleClearSelection(); handleTabChange('blocks');}}
   /> : null;
 
+  const redesRapidas = redesDoFiltroRapido(state.platforms, filterRedes);
+  const redeQuickFilter = redesRapidas.length > 1 ? (
+    <CreationRedeQuickFilter
+      redes={redesRapidas}
+      value={filterRedes}
+      onChange={setFilterRedes}
+    />
+  ) : null;
+
   if (isMobile) {
     return (
       <>
@@ -363,6 +392,7 @@ export function RecordingPage() {
           allContents={state.contents}
           pilares={state.pilares}
           series={state.series}
+          platforms={state.platforms}
           availableTags={availableRecordingTags}
           activeTab={activeTab}
           onTabChange={handleTabChange}
@@ -453,9 +483,18 @@ export function RecordingPage() {
             filters={
               <FilterBar
                 className="min-w-0 flex-1"
+                panelMode="dropdown"
+                fluidSearch
+                leading={redeQuickFilter}
                 searchValue={searchTerm}
                 onSearchChange={setSearchTerm}
                 searchPlaceholder="Buscar por roteiro, pilar, série ou marcador"
+                extraActiveChips={filterRedes.map(rede => ({
+                  id: `rede-${rede}`,
+                  label: ROTULO_REDE_DO_FILTRO[rede],
+                  onRemove: () => setFilterRedes(atual => atual.filter(item => item !== rede)),
+                }))}
+                onClearExtra={() => setFilterRedes([])}
                 filters={[
                   {
                     id: 'pilar',
@@ -520,18 +559,28 @@ export function RecordingPage() {
             {/* A fila exclui o que já está em bloco; antes dos blocos chegarem, tudo pareceria "sem bloco"
                 e daria para pôr o mesmo roteiro em dois blocos. */}
             {recordingReady ? (
-              <RecordingQueueGrid
-                contents={prontos}
-                selectedIds={selectedIds}
-                onToggleSelect={toggleSelect}
-                onSelectAll={handleSelectAll}
-                onClearSelection={handleClearSelection}
-                onOpen={openContentDetail}
-                onRead={openScriptReader}
-                isHydrating={isHydrating}
-                hasHydrationError={hasHydrationError}
-                onRetryHydration={retryHydration}
-              />
+              <>
+                <RecordingQueueGrid
+                  contents={pageContents}
+                  selectedIds={selectedIds}
+                  onToggleSelect={toggleSelect}
+                  onSelectAll={handleSelectPage}
+                  onClearSelection={handleClearSelection}
+                  onOpen={openContentDetail}
+                  onRead={openScriptReader}
+                  isHydrating={isHydrating}
+                  hasHydrationError={hasHydrationError}
+                  onRetryHydration={retryHydration}
+                />
+                <PaginationBar
+                  currentPage={page}
+                  totalPages={totalPages}
+                  totalItems={prontos.length}
+                  pageSize={ROTEIROS_POR_PAGINA}
+                  onPageChange={setQueuePage}
+                  itemLabel="roteiros"
+                />
+              </>
             ) : (
               <SkeletonList count={3} variant="content" />
             )}

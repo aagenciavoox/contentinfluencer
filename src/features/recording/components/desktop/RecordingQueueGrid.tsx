@@ -1,19 +1,18 @@
 import {energiaDaSerie} from '../../../editorial/lib/herancaSerie';
+import {redesDoItemDeCriacao} from '../../../creation/lib/creationRedeFilter';
 import {BookOpenText, Check, Clapperboard, ExternalLink, Zap} from 'lucide-react';
 import { CountBadge } from '../../../../components/ui/CountBadge';
 import {Text} from '../../../../components/ui/Text';
 import {AppButton} from '../../../../components/ui/AppButton';
+import {PlatformIcons} from '../../../../components/ui/PlatformIcons';
 import type {Content} from '../../../../lib/database';
 import {useAppContext} from '../../../../context/AppContext';
 import {EMPTY} from '../../../../lib/uiCopy';
-import {TextCount} from '../../../../components/ui/TextCount';
-import {cn, htmlToReadableText} from '../../../../lib/utils';
-import {contentReadableBody} from '../../../contents/lib/carouselSlides';
+import {cn} from '../../../../lib/utils';
 import {ContentEntityTags} from '../../../contents/components/ContentEntityTags';
 import {
   getDisplayTitle,
   getScriptWordCount,
-  getUsefulExcerpt,
   resolveContentEntities,
 } from '../../../contents/lib/contentCardMeta';
 import {normalizeRecordingTags, recordingTagChipStyle} from '../../lib/recordingWorkflow';
@@ -89,7 +88,7 @@ export function RecordingQueueGrid({
           {allSelected ? 'Desmarcar página' : 'Selecionar página'}
         </button>
 
-        {someSelected ? (
+        {selectedIds.size > 0 ? (
           <button
             type="button"
             onClick={onClearSelection}
@@ -102,13 +101,12 @@ export function RecordingQueueGrid({
         )}
       </div>
 
-      <div className="grid-content">
+      <div className="grid-content recording-queue-grid">
         {contents.map(content => {
           const isSelected = selectedIds.has(content.id);
           const {pillar, series} = resolveContentEntities(content, state.pilares, state.series);
           // Sem energia no conteúdo, vale a da série (ou da série acima).
           const energia = energiaDaSerie(content, state.series);
-          const excerpt = getUsefulExcerpt(content);
           const wordCount = getScriptWordCount(content);
           const bodyStatus = resolveScriptBodyStatus(content, {
             hydrating: isHydrating(content.id),
@@ -116,44 +114,55 @@ export function RecordingQueueGrid({
           });
           const statusLabel = scriptBodyStatusLabel(bodyStatus, wordCount);
           const recordingTags = normalizeRecordingTags(content.tags || []);
+          const redes = redesDoItemDeCriacao(content, state.platforms);
 
           return (
             <article
               key={content.id}
               className={cn(
-                'ds-card ds-card-interactive group relative flex min-h-[11.5rem] flex-col p-4 text-left',
+                'ds-card ds-card-interactive group relative flex flex-col gap-2 p-3 text-left',
                 isSelected && 'border-[var(--text-primary)] bg-[var(--bg-hover)]'
               )}
             >
-              <div className="mb-3 flex items-start justify-between gap-2">
+              <div className="flex items-start gap-2">
                 <button
                   type="button"
                   onClick={() => onToggleSelect(content.id)}
                   className={cn(
-                    'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-input)] border transition-colors',
+                    'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-[var(--radius-input)] border transition-colors',
                     isSelected
                       ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]'
                       : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-hover)]'
                   )}
                   aria-label={isSelected ? 'Remover da seleção' : 'Selecionar para bloco'}
                 >
-                  {isSelected ? <Check className="h-3.5 w-3.5 stroke-[3px]" /> : null}
+                  {isSelected ? <Check className="h-3 w-3 stroke-[3px]" /> : null}
                 </button>
 
-                <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => onToggleSelect(content.id)}
+                  className="min-w-0 flex-1 text-left"
+                >
+                  <Text variant="itemTitle" className="line-clamp-2 leading-snug">
+                    {getDisplayTitle(content.title)}
+                  </Text>
+                </button>
+
+                <div className="flex shrink-0 items-center gap-1">
                   <AppButton
                     variant="ghost"
                     size="xs"
                     iconOnly
                     leftIcon={<BookOpenText className="h-3.5 w-3.5" />}
                     onClick={() => onRead(content.id)}
-                    className="border-[var(--border-color)] opacity-70 group-hover:opacity-100"
+                    className="h-6 w-6 min-h-0 min-w-0 border-[var(--border-color)] p-0 opacity-70 group-hover:opacity-100"
                     aria-label="Abrir modo leitura"
                   />
                   <button
                     type="button"
                     onClick={() => onOpen(content.id)}
-                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] text-[var(--text-tertiary)] transition-all hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] group-hover:opacity-100"
+                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] text-[var(--text-tertiary)] transition-all hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
                     aria-label="Abrir detalhes do roteiro"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
@@ -164,40 +173,32 @@ export function RecordingQueueGrid({
               <button
                 type="button"
                 onClick={() => onToggleSelect(content.id)}
-                className="flex min-h-0 flex-1 flex-col text-left"
+                className="flex min-w-0 flex-col gap-2 text-left"
               >
-                <Text variant="itemTitle" className="line-clamp-2 leading-snug">
-                  {getDisplayTitle(content.title)}
-                </Text>
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <PlatformIcons redes={redes} max={4} />
+                  <ContentEntityTags
+                    pillar={pillar}
+                    series={series}
+                    pillarId={content.pilarId}
+                    seriesId={content.seriesId}
+                    size="sm"
+                  />
+                </div>
 
-                <ContentEntityTags
-                  pillar={pillar}
-                  series={series}
-                  pillarId={content.pilarId}
-                  seriesId={content.seriesId}
-                  className="mt-2"
-                  size="sm"
-                />
-
-                {excerpt ? (
-                  <Text variant="meta" as="p" className="mt-2 line-clamp-3 leading-relaxed text-[var(--text-secondary)]">{excerpt}</Text>
-                ) : bodyStatus === 'ready' && wordCount > 0 ? (
-                  <div className="mt-2">
-                    <TextCount
-                      value={contentReadableBody(content) || htmlToReadableText(content.notes || '')}
-                      mode="words"
-                    />
-                  </div>
-                ) : (
-                  <Text variant="meta" as="p" className="mt-2 text-[var(--text-tertiary)]">{statusLabel}</Text>
-                )}
-
-                <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">
+                <div className="flex flex-wrap items-center gap-1.5">
                   {energia ? (
                     <Text variant="label" as="span" className="inline-flex items-center gap-1 rounded-full bg-[var(--bg-hover)] px-2 py-0.5 capitalize text-[var(--text-secondary)]">
                       <Zap className="h-3 w-3" />
                       {energia}
                     </Text>
+                  ) : null}
+                  {bodyStatus === 'ready' && wordCount > 0 ? (
+                    <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">
+                      {wordCount === 1 ? '1 palavra' : `${wordCount} palavras`}
+                    </Text>
+                  ) : bodyStatus !== 'ready' ? (
+                    <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">{statusLabel}</Text>
                   ) : null}
                   {recordingTags.slice(0, 2).map(tag => (
                     <Text variant="label" as="span"
@@ -213,7 +214,7 @@ export function RecordingQueueGrid({
               {bodyStatus === 'error' && onRetryHydration ? (
                 <button
                   type="button"
-                  className="mt-2 self-start rounded-[var(--radius-sm)] t-label text-[var(--text-secondary)] underline underline-offset-2 hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                  className="self-start rounded-[var(--radius-sm)] t-label text-[var(--text-secondary)] underline underline-offset-2 hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                   onClick={() => onRetryHydration(content.id)}
                 >
                   Tentar novamente

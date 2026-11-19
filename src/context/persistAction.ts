@@ -9,6 +9,7 @@ import {
   transitionCreationStatus,
   updateContentFromLegacyIdea,
 } from '../features/contents/lib/creationContent.ts';
+import {blocosAoVoltarDaGravacao} from '../features/recording/lib/recordingWorkflow.ts';
 import type * as db from '../lib/database.ts';
 import { exclusivaDoClube, moverConteudosDePasta, reordenarVinculos } from '../features/clubes/lib/clubeLista.ts';
 import type { AppAction } from './reducer';
@@ -191,11 +192,10 @@ export async function persistAction({ action, userId, state, api }: PersistActio
       }
       const contentIds = new Set(action.payload.contentIds);
       const contents = state.contents.filter(content => contentIds.has(content.id));
-      await Promise.all(contents.map(content => persistContentRecord(
-        transitionCreationStatus(content, action.payload.status),
-        userId,
-        persistenceApi,
-      )));
+      const nextContents = contents.map(content => transitionCreationStatus(content, action.payload.status));
+      await Promise.all(nextContents.map(content => persistContentRecord(content, userId, persistenceApi)));
+      const {alterados} = blocosAoVoltarDaGravacao(state.recordingBlocks, nextContents);
+      await Promise.all(alterados.map(block => persistenceApi.saveRecordingBlockContents(block.id, block.contents)));
       return;
     }
 

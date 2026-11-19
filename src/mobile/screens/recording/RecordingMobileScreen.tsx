@@ -1,9 +1,12 @@
+import {CreationRedeQuickFilter} from '../../../features/creation/components/CreationRedeQuickFilter';
+import {passaNoFiltroRede, redesDoFiltroRapido, redesDoItemDeCriacao, type RedeDoFiltro} from '../../../features/creation/lib/creationRedeFilter';
 import {energiaDaSerie} from '../../../features/editorial/lib/herancaSerie';
 import {contentPassaFiltroSerie} from '../../../features/editorial/lib/filtroSubarvore';
 import {seriesParaFiltro} from '../../../features/settings/lib/serieAgrupamento';
-import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { BookOpenText, Check, Clapperboard, ExternalLink, Layers3, Plus, SearchCheck, Tags, Video } from 'lucide-react';
-import type { Content, Pilar, RecordingBlock, Serie } from '../../../lib/database';
+import type { Content, Pilar, Platform, RecordingBlock, Serie } from '../../../lib/database';
+import { PlatformIcons } from '../../../components/ui/PlatformIcons';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { SkeletonList } from '../../../components/ui/Skeleton';
 import { EMPTY } from '../../../lib/uiCopy';
@@ -34,6 +37,7 @@ interface RecordingMobileScreenProps {
   allContents: Content[];
   pilares: Pilar[];
   series: Serie[];
+  platforms?: Platform[];
   availableTags: string[];
   activeTab: RecordingMobileTab;
   onTabChange: (tab: RecordingMobileTab) => void;
@@ -50,6 +54,8 @@ interface RecordingMobileScreenProps {
   countsReady?: boolean;
 }
 
+const ROTEIROS_POR_PAGINA = 12;
+
 type RecordingMobileTab = 'queue' | 'blocks';
 
 export function RecordingMobileScreen({
@@ -60,6 +66,7 @@ export function RecordingMobileScreen({
   allContents,
   pilares,
   series,
+  platforms = [],
   availableTags,
   activeTab,
   onTabChange,
@@ -79,6 +86,7 @@ export function RecordingMobileScreen({
   const [seriesFilter, setSeriesFilter] = useState('all');
   const [tagFilter, setTagFilter] = useState('all');
   const [energiaFilter, setEnergiaFilter] = useState('all');
+  const [redesFilter, setRedesFilter] = useState<RedeDoFiltro[]>([]);
   const [sortValue, setSortValue] = useState('recentes');
   const [blockName, setBlockName] = useState('');
   const [blockTags, setBlockTags] = useState<string[]>([]);
@@ -120,6 +128,7 @@ export function RecordingMobileScreen({
       .filter((content) =>
         energiaFilter === 'all' ? true : energiaDaSerie(content, series) === energiaFilter
       )
+      .filter((content) => passaNoFiltroRede(redesDoItemDeCriacao(content, platforms), redesFilter))
       .filter((content) => {
         if (!normalizedSearch) return true;
         const pilarName = pilares.find((item) => item.id === content.pilarId)?.nome || '';
@@ -127,7 +136,14 @@ export function RecordingMobileScreen({
         const recordingTags = normalizeRecordingTags(content.tags || []).join(' ');
         return [content.title, pilarName, seriesName, recordingTags].join(' ').toLowerCase().includes(normalizedSearch);
       });
-  }, [energiaFilter, orderedQueueContents, pilares, pilarFilter, search, series, seriesFilter, tagFilter]);
+  }, [energiaFilter, orderedQueueContents, pilares, pilarFilter, platforms, redesFilter, search, series, seriesFilter, tagFilter]);
+
+  const [visibleCount, setVisibleCount] = useState(ROTEIROS_POR_PAGINA);
+  useEffect(() => {
+    setVisibleCount(ROTEIROS_POR_PAGINA);
+  }, [search, pilarFilter, seriesFilter, tagFilter, energiaFilter, redesFilter, sortValue]);
+  const visibleQueue = filteredQueue.slice(0, visibleCount);
+  const restantes = filteredQueue.length - visibleQueue.length;
 
   const blockSummaries = useMemo(
     () =>
@@ -178,13 +194,16 @@ export function RecordingMobileScreen({
     || pilarFilter !== 'all'
     || seriesFilter !== 'all'
     || tagFilter !== 'all'
-    || energiaFilter !== 'all';
+    || energiaFilter !== 'all'
+    || redesFilter.length > 0;
   const clearFilters = () => {
     setPilarFilter('all');
     setSeriesFilter('all');
     setTagFilter('all');
     setEnergiaFilter('all');
+    setRedesFilter([]);
   };
+  const redesRapidas = redesDoFiltroRapido(platforms, redesFilter);
   const cancelBlockForm = () => {
     setShowCreateForm(false);
     setBlockTags([]);
@@ -236,6 +255,13 @@ export function RecordingMobileScreen({
               onFilterClick={() => setIsFilterSheetOpen(true)}
               filterLabel="Abrir filtros da gravação"
             />
+            {redesRapidas.length > 1 ? (
+              <CreationRedeQuickFilter
+                redes={redesRapidas}
+                value={redesFilter}
+                onChange={setRedesFilter}
+              />
+            ) : null}
 
             {!countsReady ? (
               // Sem os blocos, roteiros que já estão num bloco apareceriam aqui como "sem bloco".
@@ -267,7 +293,7 @@ export function RecordingMobileScreen({
               )
             ) : (
               <div className="stack-sm">
-                {filteredQueue.map((content) => {
+                {visibleQueue.map((content) => {
                   const pilar = pilares.find((item) => item.id === content.pilarId) || null;
                   const serie = series.find((item) => item.id === content.seriesId) || null;
                   const pilarName = pilar?.nome;
@@ -322,6 +348,7 @@ export function RecordingMobileScreen({
                       }
                       meta={
                         <>
+                          <PlatformIcons redes={redesDoItemDeCriacao(content, platforms)} max={4} />
                           {showWordCount ? (
                             <div className="basis-full">
                               <TextCount
@@ -363,7 +390,7 @@ export function RecordingMobileScreen({
                       <AppButton
                         variant="ghost"
                         size="xs"
-                        onClick={() => onRetryHydration(content.id)}
+                        onClick={() => onRetryHydration?.(content.id)}
                         className="self-start border-[var(--border-color)]"
                       >
                         Tentar novamente
@@ -372,6 +399,15 @@ export function RecordingMobileScreen({
                     </div>
                   );
                 })}
+                {restantes > 0 ? (
+                  <AppButton
+                    variant="secondary"
+                    fullWidth
+                    onClick={() => setVisibleCount(count => count + ROTEIROS_POR_PAGINA)}
+                  >
+                    Carregar mais ({restantes})
+                  </AppButton>
+                ) : null}
               </div>
             )}
 

@@ -15,6 +15,7 @@ import {
   transitionCreationStatus,
   updateContentFromLegacyIdea,
 } from '../features/contents/lib/creationContent';
+import {blocosAoVoltarDaGravacao} from '../features/recording/lib/recordingWorkflow';
 import type {
   AppData,
   Content, Idea, Pilar, Serie, Tema, Temporada, Clube, ClubeConteudo, ClubePasta, ClubeSerie, Cenario, Look,
@@ -271,8 +272,10 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case 'UPDATE_CONTENT': {
       liberarConteudoApagado(action.payload.id);
       const exists = state.contents.some(content => content.id === action.payload.id);
+      const {blocks} = blocosAoVoltarDaGravacao(state.recordingBlocks, [action.payload]);
       return {
         ...state,
+        recordingBlocks: blocks,
         contents: exists
           ? state.contents.map(content =>
               content.id === action.payload.id ? action.payload : content
@@ -324,14 +327,16 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         return state;
       }
       const contentIds = new Set(action.payload.contentIds);
-      return {
-        ...state,
-        contents: state.contents.map(content =>
-          contentIds.has(content.id)
-            ? transitionCreationStatus(content, nextStatus)
-            : content
-        ),
-      };
+      const contents = state.contents.map(content =>
+        contentIds.has(content.id)
+          ? transitionCreationStatus(content, nextStatus)
+          : content
+      );
+      const {blocks} = blocosAoVoltarDaGravacao(
+        state.recordingBlocks,
+        contents.filter(content => contentIds.has(content.id)),
+      );
+      return {...state, contents, recordingBlocks: blocks};
     }
     case 'ARCHIVE_CONTENTS': {
       const contentIds = new Set(action.payload);

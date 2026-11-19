@@ -266,9 +266,8 @@ export function getContentBlockSummary(
   const orderedContents = [...block.contents].sort((left, right) => left.ordem - right.ordem);
   const index = orderedContents.findIndex(item => item.contentId === contentId);
   const completedCount = orderedContents.filter(item => {
-    if (item.gravado) return true;
     const content = contents.find(candidate => candidate.id === item.contentId);
-    return Boolean(content?.recordedAt);
+    return contaComoGravado(content, item.gravado);
   }).length;
 
   return {
@@ -426,6 +425,15 @@ export function planStatusChange(
   return { type: 'apply', status: to };
 }
 
+/** Linha do bloco concluída: a marcação do bloco ou a data de gravação do roteiro. */
+export function contaComoGravado(
+  content: Pick<Content, 'recordedAt'> | null | undefined,
+  gravadoNoBloco = false,
+): boolean {
+  if (gravadoNoBloco) return true;
+  return Boolean(content?.recordedAt);
+}
+
 export function applyStatusMilestones(
   content: Pick<Content, 'recordedAt' | 'postedAt' | 'status'>,
   nextStatus: string,
@@ -438,6 +446,10 @@ export function applyStatusMilestones(
   // Só "Marcar como gravado/produzido" registra gravação — pular para Edição não inventa.
   if (options?.markRecorded && !content.recordedAt) {
     milestones.recordedAt = now;
+  }
+  // Voltar para Produção, Roteiro ou Ideia desfaz a gravação. Edição e Publicado mantêm a data.
+  if (statusRank(canonical) < statusRank(CONTENT_STATUS.EDICAO) && content.recordedAt) {
+    milestones.recordedAt = null;
   }
   // Publicado só grava postedAt pelo formulário (confirmPublish) ou markPublished.
   if (canonical === CONTENT_STATUS.POSTADO && !content.postedAt && options?.confirmPublish) {

@@ -381,6 +381,15 @@ function testStatusChangeIsTheSameRuleEverywhere() {
   assert.equal(toEdit.status, 'Edição');
   assert.equal(toEdit.recordedAt ?? null, null);
 
+  // Voltar de gravado para Produção tira a data de gravação.
+  const backToProduction = applyStatusChange(
+    createContent({status: 'Edição', recordedAt: now}),
+    'Produção',
+    now,
+  );
+  assert.equal(backToProduction.status, 'Produção');
+  assert.equal(backToProduction.recordedAt, null);
+
   // Sair de Publicado (já com data) limpa postedAt e a marca de cada conta.
   const posted = createContent({
     status: 'Publicado',

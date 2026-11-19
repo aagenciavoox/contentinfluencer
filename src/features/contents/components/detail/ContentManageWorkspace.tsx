@@ -1,7 +1,7 @@
 import { TextCount } from '../../../../components/ui/TextCount';
 import {useEffect, useState, type ReactNode} from 'react';
 import {useNavigate} from 'react-router-dom';
-import {Calendar, ChevronDown, Clock, FileText, Flag, Layers, Library, Search, Tag, Target} from 'lucide-react';
+import {Calendar, ChevronDown, Clapperboard, Clock, FileText, Flag, Layers, Library, Search, Tag, Target} from 'lucide-react';
 import {PropertyDatePicker} from '../../../../components/ui/PropertyDatePicker';
 import {AppButton} from '../../../../components/ui/AppButton';
 import {SelectField} from '../../../../components/ui/SelectField';
@@ -12,7 +12,7 @@ import {Text} from '../../../../components/ui/Text';
 import {useAppContext} from '../../../../context/AppContext';
 import type {Pilar, Serie} from '../../../../lib/database';
 import {cn} from '../../../../lib/utils';
-import {CONTENT_STATUS, getStatusOptions, normalizeContentStatus} from '../../lib/contentPipeline';
+import {CONTENT_STATUS, getContentBlockSummary, getStatusOptions, normalizeContentStatus} from '../../lib/contentPipeline';
 import {aplicarEscolhasDaSerie, marcarEscolhaManual} from '../../../editorial/lib/escolhasSerie';
 import {pilarDoConteudo} from '../../../editorial/lib/herancaSerie';
 import {caminhoDaSerie, filhosDaSerie} from '../../../editorial/lib/serieArvore';
@@ -40,6 +40,8 @@ interface ContentManageWorkspaceProps {
   series: Serie[];
   pilares: Pilar[];
   onChange: (updates: Partial<ScriptDraft>) => void;
+  /** Abre a escolha de bloco. Usado ao entrar em Produção. */
+  onAddToBlock?: () => void;
 }
 
 function toIsoDate(dateOnly: string | null) {
@@ -141,6 +143,7 @@ export function ContentManageWorkspace({
   series,
   pilares,
   onChange,
+  onAddToBlock,
 }: ContentManageWorkspaceProps) {
   const {state, ensureDataDomains} = useAppContext();
   const navigate = useNavigate();
@@ -199,8 +202,24 @@ export function ContentManageWorkspace({
   };
 
   useEffect(() => {
-    void ensureDataDomains(['library', 'production']);
+    void ensureDataDomains(['library', 'production', 'recording']);
   }, [ensureDataDomains]);
+
+  const bloco = contentId ? getContentBlockSummary(contentId, state.recordingBlocks) : null;
+  const carrossel = draft.writingMode === 'carrossel';
+  const emProducao = currentStatus === CONTENT_STATUS.PRODUCAO;
+
+  const mudarEtapa = (status: string) => {
+    onChange({status});
+    if (
+      status === CONTENT_STATUS.PRODUCAO
+      && currentStatus !== CONTENT_STATUS.PRODUCAO
+      && !carrossel
+      && !bloco
+    ) {
+      onAddToBlock?.();
+    }
+  };
 
   return (
     <div className="stack-lg">
@@ -241,7 +260,7 @@ export function ContentManageWorkspace({
                   ariaLabel="Etapa"
                   disabled={disabled}
                   value={currentStatus}
-                  onChange={status => onChange({status})}
+                  onChange={mudarEtapa}
                 >
                   {/* Todas as etapas, na ordem. Dá para pular ou voltar. */}
                   {etapas.map(etapa => (
@@ -423,6 +442,29 @@ export function ContentManageWorkspace({
 
       <Surface variant="outlined" padding="lg" className="bg-[var(--bg-elevated)]">
         <Text variant="sectionTitle" as="h3">Gravação e publicação</Text>
+        {emProducao && !carrossel ? (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-color)] pb-4">
+            <div className="min-w-0">
+              <Text variant="bodyStrong" as="p">Bloco de gravação</Text>
+              <Text variant="meta" as="p" className="mt-1 text-[var(--text-secondary)]">
+                {bloco
+                  ? `No bloco ${bloco.block.name}`
+                  : 'Este roteiro ainda não está em um bloco.'}
+              </Text>
+            </div>
+            {!bloco && onAddToBlock ? (
+              <AppButton
+                type="button"
+                variant="secondary"
+                disabled={disabled}
+                leftIcon={<Clapperboard className="h-4 w-4" />}
+                onClick={onAddToBlock}
+              >
+                Adicionar a um bloco
+              </AppButton>
+            ) : null}
+          </div>
+        ) : null}
         <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-6">
           <ScheduleMoment
             label="Gravação"

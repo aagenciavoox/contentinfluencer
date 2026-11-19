@@ -7,6 +7,7 @@ import { readStoredTheme, resolveAppTheme, systemThemeQuery, writeStoredTheme } 
 import type * as db from '../lib/database';
 import { appReducer, AppAction } from './reducer';
 import { persistAction, persistContentRecord } from './persistAction';
+import { blocosAoVoltarDaGravacao } from '../features/recording/lib/recordingWorkflow';
 import {
   anotarConteudosRemovidos,
   changedTablesFromPayload,
@@ -838,7 +839,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         : stateRef.current.contents.find(item => item.id === normalizedContent.id);
       dispatch({ type: 'UPDATE_CONTENT', payload: normalizedContent });
       failedContentSaves.current.add(normalizedContent.id);
-      await runPersist(() => persistContentRecord(normalizedContent, userId, undefined, previousContent));
+      const blocosAlterados = blocosAoVoltarDaGravacao(anterior.recordingBlocks, [normalizedContent]).alterados;
+      await runPersist(async () => {
+        await persistContentRecord(normalizedContent, userId, undefined, previousContent);
+        if (blocosAlterados.length === 0) return;
+        const {saveRecordingBlockContents} = await import('../lib/database');
+        await Promise.all(blocosAlterados.map(block => saveRecordingBlockContents(block.id, block.contents)));
+      });
       failedContentSaves.current.delete(normalizedContent.id);
       finishPersist('UPDATE_CONTENT', options);
     } catch (err) {

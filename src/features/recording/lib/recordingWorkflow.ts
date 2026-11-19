@@ -1,7 +1,7 @@
 import type {CSSProperties} from 'react';
 import type {Content, RecordingBlock, RecordingBlockContent} from '../../../lib/database.ts';
 import {tintedTextColor} from '../../../lib/utils.ts';
-import {recordedPatch} from '../../contents/lib/contentPipeline.ts';
+import {CONTENT_STATUS, contaComoGravado, recordedPatch, statusRank} from '../../contents/lib/contentPipeline.ts';
 
 /** Marcador da fila (ex.: "gravar"). O laranja puro sobre o fundo de 10% ficava em 2,70:1. */
 export const recordingTagChipStyle: CSSProperties = {
@@ -46,8 +46,38 @@ export function isBlockContentComplete(
   blockContent: RecordingBlockContent,
   content: Content | null | undefined
 ) {
-  if (blockContent.gravado) return true;
-  return Boolean(content?.recordedAt);
+  return contaComoGravado(content, blockContent.gravado);
+}
+
+/**
+ * Voltar para antes da Edição tira a marcação de gravado nas linhas do bloco.
+ * Quem continua em Edição ou Publicado fica como está.
+ */
+export function blocosAoVoltarDaGravacao(
+  blocks: RecordingBlock[],
+  contents: readonly Pick<Content, 'id' | 'status'>[],
+): {blocks: RecordingBlock[]; alterados: RecordingBlock[]} {
+  const ids = new Set(
+    contents
+      .filter(content => statusRank(content.status) < statusRank(CONTENT_STATUS.EDICAO))
+      .map(content => content.id),
+  );
+  if (ids.size === 0) return {blocks, alterados: []};
+
+  const alterados: RecordingBlock[] = [];
+  const next = blocks.map(block => {
+    if (!block.contents.some(item => ids.has(item.contentId) && item.gravado)) return block;
+    const atualizado: RecordingBlock = {
+      ...block,
+      contents: block.contents.map(item =>
+        ids.has(item.contentId) && item.gravado ? {...item, gravado: false} : item,
+      ),
+    };
+    alterados.push(atualizado);
+    return atualizado;
+  });
+
+  return {blocks: alterados.length > 0 ? next : blocks, alterados};
 }
 
 export function getRecordingBlockProgress(

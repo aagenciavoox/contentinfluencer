@@ -975,6 +975,12 @@ input.caption-locked:focus {
   gap: var(--space-md);
 }
 
+/* Fila de gravação: cards menores, mais colunas na mesma largura. */
+.recording-queue-grid.grid-content {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+  gap: var(--space-sm);
+}
+
 .creation-hub-grid .creation-hub-card {
   height: 100%;
 }
