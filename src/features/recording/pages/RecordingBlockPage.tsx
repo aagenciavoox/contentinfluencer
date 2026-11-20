@@ -1,12 +1,10 @@
 import {useEffect, useMemo, useState} from 'react';
 import {useNavigate, useParams, useSearchParams} from 'react-router-dom';
-import {CheckCircle2, Video} from 'lucide-react';
+import {Video} from 'lucide-react';
 import {useAppContext} from '../../../context/AppContext';
 import {useHydrateContentBodies} from '../../../hooks/useHydrateContentBodies';
 import {useIsMobile} from '../../../hooks/useIsMobile';
-import {cn, htmlToReadableText} from '../../../lib/utils';
 import {BurstModeExperience} from '../../contents/components/burst-mode/BurstModeExperience';
-import {isContentBodyLoaded} from '../../contents/lib/contentBody';
 import {getRecordingQueueContents} from '../../contents/lib/contentWorkflow';
 import {isCarouselContent} from '../../contents/lib/carouselSlides';
 import {RecordingBlockEditor} from '../components/RecordingBlockEditor';
@@ -15,7 +13,6 @@ import {
   getRecordingBlockProgress,
   isBlockContentComplete,
   normalizeRecordingTags,
-  resolveRecordingContextSummary,
 } from '../lib/recordingWorkflow';
 import {AppButton} from '../../../components/ui/AppButton';
 import {Surface} from '../../../components/ui/Surface';
@@ -59,7 +56,7 @@ export function RecordingBlockPage() {
     () => blockContents.map(item => item.contentId),
     [blockContents]
   );
-  const {hasHydrationError} = useHydrateContentBodies(blockContentIds);
+  useHydrateContentBodies(blockContentIds);
 
   const resolvedContents = useMemo(
     () =>
@@ -149,6 +146,17 @@ export function RecordingBlockPage() {
   };
 
   if (!block) {
+    if (isMobile) {
+      return (
+        <MobileBlockStatus
+          title="Bloco não encontrado"
+          message="Este bloco de gravação não existe mais."
+          secondaryLabel="Voltar à Gravação"
+          onSecondary={() => navigate('/gravacao?tab=blocks')}
+        />
+      );
+    }
+
     return (
       <PageLayout
         header={(
@@ -156,7 +164,7 @@ export function RecordingBlockPage() {
             section={PAGE_SECTION.producao}
             title="Bloco não encontrado"
             backLabel="Gravação"
-            backTo="/gravacao"
+            backTo="/gravacao?tab=blocks"
           />
         )}
       >
@@ -166,6 +174,20 @@ export function RecordingBlockPage() {
   }
 
   if (progress?.isCompleted) {
+    const completedMessage = `${block.name} · ${progress.totalCount} ${progress.totalCount === 1 ? 'roteiro gravado' : 'roteiros gravados'}`;
+    if (isMobile) {
+      return (
+        <MobileBlockStatus
+          title="Bloco concluído"
+          message={completedMessage}
+          primaryLabel="Ir para Edição"
+          onPrimary={() => navigate('/criacao?tab=edicao')}
+          secondaryLabel="Voltar à Gravação"
+          onSecondary={() => navigate('/gravacao?tab=blocks')}
+        />
+      );
+    }
+
     return (
       <PageLayout
         header={(
@@ -175,16 +197,14 @@ export function RecordingBlockPage() {
             backLabel="Gravação"
             backTo="/gravacao?tab=blocks"
             actions={(
-              <AppButton variant="primary" onClick={() => navigate('/criacao?tab=producao')}>
-                Ir para Produção
+              <AppButton variant="primary" onClick={() => navigate('/criacao?tab=edicao')}>
+                Ir para Edição
               </AppButton>
             )}
           />
         )}
       >
-        <Text variant="secondary">
-          {block.name} · {progress.totalCount} {progress.totalCount === 1 ? 'roteiro gravado' : 'roteiros gravados'}
-        </Text>
+        <Text variant="secondary">{completedMessage}</Text>
       </PageLayout>
     );
   }
@@ -198,7 +218,7 @@ export function RecordingBlockPage() {
         onExit={() => {
           setIsBurstOpen(false);
           if (getRecordingBlockProgress(block, resolvedContents).isCompleted) {
-            navigate('/criacao?tab=producao');
+            navigate('/criacao?tab=edicao');
           }
         }}
       />
@@ -210,7 +230,7 @@ export function RecordingBlockPage() {
 
     return (
       <>
-        <div className="stack-lg">
+        <div className="stack-lg pb-[max(1.5rem,env(safe-area-inset-bottom))]">
           <Surface variant="outlined" padding="md">
             <Text variant="label" as="p" className="text-[var(--text-tertiary)]">Bloco de gravação</Text>
             <Text variant="secondary" as="p" className="mt-1 text-[var(--text-secondary)]">
@@ -233,55 +253,6 @@ export function RecordingBlockPage() {
             onUpdateContents={handleUpdateContents}
           />
 
-          <Surface variant="outlined" padding="md">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <Text variant="sectionTitle">Ordem de execução</Text>
-              <Text variant="label" as="span" className="rounded-full bg-[var(--bg-hover)] px-3 py-1 text-[var(--text-secondary)]">
-                {resolveRecordingContextSummary({block, content: mobileEntries[0]?.content ?? null})}
-              </Text>
-            </div>
-
-            <div className="stack-md">
-              {mobileEntries.map((entry, index) => (
-                <div
-                  key={entry.content.id}
-                  className={cn(
-                    'rounded-[var(--radius-card)] border px-4 py-4',
-                    entry.gravado || recordedIds.has(entry.content.id)
-                      ? 'border-[color-mix(in_srgb,var(--success)_20%,transparent)] bg-[color-mix(in_srgb,var(--success)_8%,transparent)]'
-                      : 'border-[var(--border-color)] bg-[var(--bg-primary)]'
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-hover)] t-label text-[var(--text-primary)]">
-                      {index + 1}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <Text variant="itemTitle" as="p" className="text-[var(--text-primary)]">
-                        {entry.content.title || 'Roteiro sem título'}
-                      </Text>
-                      <Text variant="secondary" as="p" className="mt-1 text-[var(--text-secondary)]">
-                        {!isContentBodyLoaded(entry.content)
-                          ? hasHydrationError(entry.content.id)
-                            ? 'Não foi possível carregar o roteiro.'
-                            : 'Carregando roteiro…'
-                          : htmlToReadableText(entry.content.script)
-                            ? 'Roteiro pronto para leitura.'
-                            : 'Sem texto ainda.'}
-                      </Text>
-                    </div>
-                    {entry.gravado || recordedIds.has(entry.content.id) ? (
-                      <Text variant="label" as="span" className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--success)_10%,transparent)] px-3 py-1 text-[var(--success)]">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Gravado
-                      </Text>
-                    ) : null}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Surface>
-
           <AppButton
             variant="primary"
             fullWidth
@@ -301,7 +272,7 @@ export function RecordingBlockPage() {
             onMarkRecorded={handleMarkRecorded}
             onFinish={() => {
               setIsMobileBurstOpen(false);
-              navigate('/criacao');
+              navigate('/criacao?tab=edicao');
             }}
           />
         ) : null}
@@ -365,6 +336,39 @@ export function RecordingBlockPage() {
         onUpdateContents={handleUpdateContents}
       />
     </PageLayout>
+  );
+}
+
+function MobileBlockStatus({
+  title,
+  message,
+  primaryLabel,
+  onPrimary,
+  secondaryLabel,
+  onSecondary,
+}: {
+  title: string;
+  message: string;
+  primaryLabel?: string;
+  onPrimary?: () => void;
+  secondaryLabel: string;
+  onSecondary: () => void;
+}) {
+  return (
+    <div className="stack-lg pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <Surface variant="outlined" padding="md">
+        <Text variant="sectionTitle">{title}</Text>
+        <Text variant="secondary" as="p" className="mt-2">{message}</Text>
+      </Surface>
+      {primaryLabel && onPrimary ? (
+        <AppButton variant="primary" fullWidth onClick={onPrimary}>
+          {primaryLabel}
+        </AppButton>
+      ) : null}
+      <AppButton variant="secondary" fullWidth onClick={onSecondary}>
+        {secondaryLabel}
+      </AppButton>
+    </div>
   );
 }
 

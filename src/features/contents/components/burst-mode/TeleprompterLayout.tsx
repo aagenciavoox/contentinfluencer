@@ -107,7 +107,7 @@ export function getSpeedStep(speedSensitivity: number) {
 }
 
 /** Mesma largura no texto rolando e na marca de leitura, para a marca ficar colada à coluna. */
-export const TELEPROMPTER_COLUMN_CLASS = 'mx-auto w-full max-w-6xl px-6 md:px-16';
+export const TELEPROMPTER_COLUMN_CLASS = 'mx-auto w-full min-w-0 max-w-6xl px-6 md:px-16';
 
 const FOCUS_RING = 'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 

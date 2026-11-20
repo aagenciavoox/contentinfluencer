@@ -1,6 +1,6 @@
 import React, {useMemo, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
-import {Layers, Pencil, Play, Tags, Trash2, Video} from 'lucide-react';
+import {Layers, Play, Tags, Trash2, Video} from 'lucide-react';
 import {dia} from '../../../../lib/dates';
 import {AppButton} from '../../../../components/ui/AppButton';
 import {ConfirmModal} from '../../../../components/feedback/modals/ConfirmModal';
@@ -191,15 +191,9 @@ function RecordingBlockCard({block, contents, onOpen, onRecord, onDelete}: Recor
           </button>
         </div>
 
-        <div className="mb-2 flex items-start justify-between gap-2">
-          <Text variant="itemTitle" className="line-clamp-2 leading-snug">
-            {block.name}
-          </Text>
-          <Text variant="label" as="span" className="card-actions inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--border-color)] bg-[var(--bg-hover)] px-2 py-1 text-[var(--text-tertiary)]">
-            <Pencil className="h-3 w-3" />
-            Editar
-          </Text>
-        </div>
+        <Text variant="itemTitle" className="mb-2 line-clamp-2 leading-snug">
+          {block.name}
+        </Text>
 
         {createdLabel ? (
           <Text variant="meta" as="p" className="mb-2">Criado em {createdLabel}</Text>

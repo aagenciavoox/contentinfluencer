@@ -72,6 +72,11 @@ assert.equal(getMobileRouteMeta('/menu').mode, undefined);
 assert.equal(getMobileRouteMeta('/criacao').mode, undefined);
 assert.equal(getMobileRouteMeta('/biblioteca').mode, undefined);
 assert.equal(getMobileRouteMeta('/gravacao').mode, undefined);
+
+const recordingBlock = getMobileRouteMeta('/gravacao/bloco-123');
+assert.equal(recordingBlock.mode, 'back');
+assert.equal(recordingBlock.backTo, '/gravacao?tab=blocks');
+assert.equal(recordingBlock.hideBottomNav, true);
 for (const pathname of ['/calendario', '/planejamento', '/series', '/editorial', '/analises', '/contas', '/projetos', '/configuracoes']) {
   const meta = getMobileRouteMeta(pathname);
   assert.equal(meta.mode, 'back', `${pathname} should have Voltar`);

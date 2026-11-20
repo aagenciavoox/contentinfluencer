@@ -1,4 +1,4 @@
-import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   CheckCircle2,
@@ -32,6 +32,7 @@ import {
 
 const BURST_SETTINGS_PREFERENCE_KEY = 'burstModeSettings'; // Shared with BurstModeMobileScreen via app preferences.
 const PROMPTER_LINE_MAX_WORDS = 11;
+const SETTINGS_PERSIST_MS = 600;
 
 export type BurstTheme = 'light' | 'dark' | 'amber';
 export type BurstTextColor = 'theme' | 'ink' | 'paper' | 'amber';
@@ -185,6 +186,21 @@ function getChosenTextColor(theme: BurstTheme, textColor: BurstTextColor) {
   return '#141824';
 }
 
+
+function withPreservedMobileFontSize(
+  settings: BurstModeSettings,
+  existingPreference: unknown,
+): BurstModeSettings & {mobileFontSize?: number} {
+  const existing =
+    existingPreference && typeof existingPreference === 'object'
+      ? (existingPreference as Record<string, unknown>)
+      : {};
+  if (typeof existing.mobileFontSize === 'number') {
+    return {...settings, mobileFontSize: existing.mobileFontSize};
+  }
+  return settings;
+}
+
 export function BurstModeExperience({
   block,
   recordedIds,
@@ -288,9 +304,64 @@ export function BurstModeExperience({
   const readingLineRef = useRef(0);
   const lastScrolledPlayheadRef = useRef<number | null>(null);
   const lastPersistedSettings = useRef(JSON.stringify(persistedSettings));
+  const persistTimerRef = useRef<number | null>(null);
+  const settingsRef = useRef(settings);
+  const preferencesRef = useRef(state.preferences);
+  settingsRef.current = settings;
+  preferencesRef.current = state.preferences;
+  const activeSectionRef = useRef(activeSection);
+  activeSectionRef.current = activeSection;
+  const pauseAtSectionEndEnabledRef = useRef(settings.pauseAtSectionEnd);
+  pauseAtSectionEndEnabledRef.current = settings.pauseAtSectionEnd;
+  const sectionsLengthRef = useRef(sections.length);
+  sectionsLengthRef.current = sections.length;
+
+  const flushSettingsPreference = useCallback((nextSettings: BurstModeSettings = settingsRef.current) => {
+    const serialized = JSON.stringify(nextSettings);
+    if (serialized === lastPersistedSettings.current) return;
+    lastPersistedSettings.current = serialized;
+    void dispatch({
+      type: 'UPDATE_PREFERENCE',
+      payload: {
+        key: BURST_SETTINGS_PREFERENCE_KEY,
+        value: withPreservedMobileFontSize(
+          nextSettings,
+          preferencesRef.current[BURST_SETTINGS_PREFERENCE_KEY],
+        ),
+      },
+    }, {silent: true});
+  }, [dispatch]);
+
+  const closeSettings = useCallback(() => {
+    setIsSettingsOpen(false);
+    if (persistTimerRef.current !== null) {
+      window.clearTimeout(persistTimerRef.current);
+      persistTimerRef.current = null;
+    }
+    flushSettingsPreference();
+  }, [flushSettingsPreference]);
+
+  const toggleSettings = useCallback(() => {
+    setIsSettingsOpen(previous => {
+      if (previous) {
+        if (persistTimerRef.current !== null) {
+          window.clearTimeout(persistTimerRef.current);
+          persistTimerRef.current = null;
+        }
+        flushSettingsPreference();
+        return false;
+      }
+      setIsPlaying(false);
+      setCountdownRemaining(null);
+      return true;
+    });
+  }, [flushSettingsPreference]);
 
   useEffect(() => {
     const serialized = JSON.stringify(persistedSettings);
+    const localSerialized = JSON.stringify(settingsRef.current);
+    const isDirty = localSerialized !== lastPersistedSettings.current;
+    if (isDirty && serialized !== localSerialized) return;
     lastPersistedSettings.current = serialized;
     setSettings(current => (JSON.stringify(current) === serialized ? current : persistedSettings));
   }, [persistedSettings]);
@@ -299,15 +370,34 @@ export function BurstModeExperience({
     const serialized = JSON.stringify(settings);
     if (serialized === lastPersistedSettings.current) return;
 
-    lastPersistedSettings.current = serialized;
-    void dispatch({
-      type: 'UPDATE_PREFERENCE',
-      payload: {
-        key: BURST_SETTINGS_PREFERENCE_KEY,
-        value: settings,
-      },
-    });
-  }, [dispatch, settings]);
+    if (persistTimerRef.current !== null) window.clearTimeout(persistTimerRef.current);
+    persistTimerRef.current = window.setTimeout(() => {
+      persistTimerRef.current = null;
+      flushSettingsPreference(settings);
+    }, SETTINGS_PERSIST_MS);
+
+    return () => {
+      if (persistTimerRef.current !== null) {
+        window.clearTimeout(persistTimerRef.current);
+        persistTimerRef.current = null;
+      }
+    };
+  }, [flushSettingsPreference, settings]);
+
+  useEffect(() => {
+    return () => flushSettingsPreference();
+  }, [flushSettingsPreference]);
+
+  useEffect(() => {
+    if (!isSettingsOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      closeSettings();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [closeSettings, isSettingsOpen]);
 
   useEffect(() => {
     setPlayhead(0);
@@ -350,35 +440,62 @@ export function BurstModeExperience({
   }, [countdownRemaining, teleprompterEnabled]);
 
   useEffect(() => {
-    if (!teleprompterEnabled || !isPlaying || !settings.autoScroll || prompterItems.length <= 1) return;
+    if (
+      !teleprompterEnabled ||
+      !isPlaying ||
+      isSettingsOpen ||
+      !settings.autoScroll ||
+      settings.advanceType !== 'line' ||
+      prompterItems.length <= 1
+    ) return;
 
-    if (settings.advanceType === 'line') {
-      const currentWords = lineWordCounts[playheadLine] ?? 8;
-      const lineDuration = clamp((currentWords / effectiveWpm) * 60000, 700, 5000);
+    const currentWords = lineWordCounts[playheadLine] ?? 8;
+    const lineDuration = clamp((currentWords / effectiveWpm) * 60000, 700, 5000);
 
-      const timer = window.setTimeout(() => {
-        setPlayhead(previous => {
-          const next = Math.min(previous + 1, prompterItems.length - 1);
-          if (next >= prompterItems.length - 1) {
-            setIsPlaying(false);
-          }
-          if (
-            settings.pauseAtSectionEnd &&
-            activeSection &&
-            activeSection.index < sections.length - 1 &&
-            previous < activeSection.lastSpokenIndex &&
-            next >= activeSection.lastSpokenIndex
-          ) {
-            setIsPlaying(false);
-            setPausedAtSectionEnd(activeSection.index);
-            return activeSection.lastSpokenIndex;
-          }
-          return next;
-        });
-      }, lineDuration);
+    const timer = window.setTimeout(() => {
+      setPlayhead(previous => {
+        const next = Math.min(previous + 1, prompterItems.length - 1);
+        if (next >= prompterItems.length - 1) {
+          setIsPlaying(false);
+        }
+        const section = activeSectionRef.current;
+        if (
+          pauseAtSectionEndEnabledRef.current &&
+          section &&
+          section.index < sectionsLengthRef.current - 1 &&
+          previous < section.lastSpokenIndex &&
+          next >= section.lastSpokenIndex
+        ) {
+          setIsPlaying(false);
+          setPausedAtSectionEnd(section.index);
+          return section.lastSpokenIndex;
+        }
+        return next;
+      });
+    }, lineDuration);
 
-      return () => window.clearTimeout(timer);
-    }
+    return () => window.clearTimeout(timer);
+  }, [
+    playheadLine,
+    effectiveWpm,
+    isPlaying,
+    isSettingsOpen,
+    lineWordCounts,
+    prompterItems.length,
+    settings.advanceType,
+    settings.autoScroll,
+    teleprompterEnabled,
+  ]);
+
+  useEffect(() => {
+    if (
+      !teleprompterEnabled ||
+      !isPlaying ||
+      isSettingsOpen ||
+      !settings.autoScroll ||
+      settings.advanceType !== 'continuous' ||
+      prompterItems.length <= 1
+    ) return;
 
     let frameId = 0;
     let previousTime = performance.now();
@@ -394,16 +511,17 @@ export function BurstModeExperience({
         if (next >= prompterItems.length - 1) {
           setIsPlaying(false);
         }
+        const section = activeSectionRef.current;
         if (
-          settings.pauseAtSectionEnd &&
-          activeSection &&
-          activeSection.index < sections.length - 1 &&
-          previous < activeSection.lastSpokenIndex &&
-          next >= activeSection.lastSpokenIndex
+          pauseAtSectionEndEnabledRef.current &&
+          section &&
+          section.index < sectionsLengthRef.current - 1 &&
+          previous < section.lastSpokenIndex &&
+          next >= section.lastSpokenIndex
         ) {
           setIsPlaying(false);
-          setPausedAtSectionEnd(activeSection.index);
-          return activeSection.lastSpokenIndex;
+          setPausedAtSectionEnd(section.index);
+          return section.lastSpokenIndex;
         }
         return next;
       });
@@ -414,16 +532,12 @@ export function BurstModeExperience({
     frameId = window.requestAnimationFrame(animate);
     return () => window.cancelAnimationFrame(frameId);
   }, [
-    playheadLine,
     effectiveWpm,
     isPlaying,
-    lineWordCounts,
+    isSettingsOpen,
     prompterItems.length,
-    activeSection,
-    sections.length,
     settings.advanceType,
     settings.autoScroll,
-    settings.pauseAtSectionEnd,
     teleprompterEnabled,
     totalWords,
   ]);
@@ -451,15 +565,21 @@ export function BurstModeExperience({
     setReadingLineIndex(index);
   }, [prompterItems, settings.fontSize, settings.lineHeight, settings.verticalMargin]);
 
-  useEffect(() => {
+  const isManualScrollRef = useRef(isManualScroll);
+  isManualScrollRef.current = isManualScroll;
+  const playheadRef = useRef(playhead);
+  playheadRef.current = playhead;
+
+  const getAnchorTarget = useCallback(() => {
+    // Na rolagem manual, a linha sob a guia permanece a âncora; senão, o playhead.
+    return isManualScrollRef.current ? readingLineRef.current : playheadRef.current;
+  }, []);
+
+  const anchorReadingLine = useCallback((behavior: ScrollBehavior = 'auto') => {
     const container = teleprompterViewportRef.current;
     if (!teleprompterEnabled || !container || prompterItems.length === 0) return;
 
-    // Na rolagem manual, mudar fonte/largura mantém a linha sob a guia em vez de voltar ao playhead.
-    const playheadChanged = lastScrolledPlayheadRef.current !== playhead;
-    lastScrolledPlayheadRef.current = playhead;
-    const target = isManualScroll && !playheadChanged ? readingLineRef.current : playhead;
-
+    const target = getAnchorTarget();
     const currentEl = lineRefs.current[Math.floor(target)];
     if (!currentEl) return;
 
@@ -473,10 +593,46 @@ export function BurstModeExperience({
 
     container.scrollTo({
       top: Math.max(0, desiredTop),
-      behavior: settings.advanceType === 'line' ? 'smooth' : 'auto',
+      behavior,
     });
     syncReadingLine();
-  }, [isManualScroll, playhead, prompterItems.length, settings.advanceType, settings.verticalMargin, settings.fontSize, settings.lineHeight, settings.textWidth, syncReadingLine, teleprompterEnabled]);
+  }, [getAnchorTarget, prompterItems.length, settings.verticalMargin, syncReadingLine, teleprompterEnabled]);
+
+  // Acompanha o playhead durante a leitura. Com o painel aberto a rolagem fica pausada.
+  useEffect(() => {
+    if (!teleprompterEnabled || isSettingsOpen) return;
+    const playheadChanged = lastScrolledPlayheadRef.current !== playhead;
+    if (!playheadChanged) return;
+    lastScrolledPlayheadRef.current = playhead;
+    anchorReadingLine(settings.advanceType === 'line' ? 'smooth' : 'auto');
+  }, [anchorReadingLine, isSettingsOpen, playhead, settings.advanceType, teleprompterEnabled]);
+
+  // Fonte, espaçamento, largura, margem ou área visível (painel): reancora na hora, sem animação.
+  useLayoutEffect(() => {
+    if (!teleprompterEnabled) return;
+    anchorReadingLine('auto');
+  }, [
+    anchorReadingLine,
+    isSettingsOpen,
+    settings.fontSize,
+    settings.fontWeight,
+    settings.lineHeight,
+    settings.showOnScreenNotes,
+    settings.textWidth,
+    settings.verticalMargin,
+    settings.wrapText,
+    teleprompterEnabled,
+  ]);
+
+  useEffect(() => {
+    const container = teleprompterViewportRef.current;
+    if (!container || !teleprompterEnabled) return;
+    const observer = new ResizeObserver(() => {
+      anchorReadingLine('auto');
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [anchorReadingLine, currentContent?.id, teleprompterEnabled]);
 
   const speedStep = getSpeedStep(settings.speedSensitivity);
 
@@ -718,7 +874,10 @@ export function BurstModeExperience({
     fontWeight: settings.fontWeight,
     color: getResolvedTextColor(settings.theme, settings.textColor),
     textAlign: settings.textAlign,
-    whiteSpace: settings.wrapText ? 'normal' : 'pre',
+    whiteSpace: 'pre-wrap',
+    overflowWrap: 'anywhere',
+    wordBreak: 'break-word',
+    maxWidth: '100%',
   };
 
   return createPortal(
@@ -729,14 +888,15 @@ export function BurstModeExperience({
       className="fixed inset-0 z-[120] overflow-hidden bg-[var(--tp-bg)] text-[var(--tp-text)]"
       style={getTeleprompterThemeVars(settings.theme)}
     >
-      <div className="relative flex h-full flex-col">
+      <div className="relative flex h-full min-h-0">
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <TeleprompterHeader
           title={currentContent.title}
           position={blockPosition}
           total={blockContents.length}
           estimatedLabel={formatSeconds(totalEstimatedSeconds)}
           totalWords={totalWords}
-          onOpenSettings={() => setIsSettingsOpen(previous => !previous)}
+          onOpenSettings={toggleSettings}
           onExit={handleFinishBlock}
           activeSection={
             activeSection
@@ -762,7 +922,7 @@ export function BurstModeExperience({
               >
                 <div aria-hidden="true" style={{ height: `${settings.verticalMargin}%` }} />
                 <div className={TELEPROMPTER_COLUMN_CLASS}>
-                  <div className="mx-auto" style={{ maxWidth: `${settings.textWidth}%` }}>
+                  <div className="mx-auto w-full min-w-0" style={{ maxWidth: `${settings.textWidth}%` }}>
                     {prompterItems.map((item, index) => {
                       if (item.kind === 'section-divider') {
                         return (
@@ -931,9 +1091,11 @@ export function BurstModeExperience({
           pausedAtSectionEnd={pausedAtSectionEnd}
         />
 
+        </div>
+
         <TeleprompterSettingsDialog
           open={isSettingsOpen}
-          onClose={() => setIsSettingsOpen(false)}
+          onClose={closeSettings}
           settings={settings}
           onChange={updateSetting}
           onReset={resetSettings}

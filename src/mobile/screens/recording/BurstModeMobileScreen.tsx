@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   CheckCircle2,
@@ -19,7 +19,6 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-import { Dialog } from '../../../components/overlays/Dialog';
 import { Text } from '../../../components/ui/Text';
 import { useAppContext } from '../../../context/AppContext';
 import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock';
@@ -81,6 +80,7 @@ interface BurstModeMobileScreenProps {
 
 // Shared with BurstModeExperience via app preferences key `burstModeSettings` (not a separate localStorage key).
 // O tamanho da fonte do celular fica em `mobileFontSize`; `fontSize` é o do desktop.
+const SETTINGS_PERSIST_MS = 600;
 const BURST_SETTINGS_PREFERENCE_KEY = 'burstModeSettings';
 const PROMPTER_LINE_MAX_WORDS = 10;
 /** Altura da linha de leitura, em fração da área do texto. */
@@ -294,12 +294,17 @@ export function BurstModeMobileScreen({
   const [settings, setSettings] = useState<MobileBurstSettings>(persistedSettings);
   const [controlsVisible, setControlsVisible] = useState(true);
   const hideControlsTimerRef = useRef<number | null>(null);
-  const finishTimerRef = useRef<number | null>(null);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const lineRefs = useRef<Array<HTMLElement | null>>([]);
   const [playhead, setPlayhead] = useState(0);
   const lastPersistedSettings = useRef(JSON.stringify(persistedSettings));
+  const persistTimerRef = useRef<number | null>(null);
+  const settingsRef = useRef(settings);
+  const preferencesRef = useRef(state.preferences);
+  const [sessionEnd, setSessionEnd] = useState<'paused' | 'recorded' | null>(null);
+  settingsRef.current = settings;
+  preferencesRef.current = state.preferences;
 
   const entryContentIds = useMemo(() => entries.map(entry => entry.content.id), [entries]);
   const {hasHydrationError} = useHydrateContentBodies(entryContentIds);
@@ -314,18 +319,11 @@ export function BurstModeMobileScreen({
     [entries, state.contents]
   );
 
-  useEffect(() => {
-    const serialized = JSON.stringify(persistedSettings);
-    lastPersistedSettings.current = serialized;
-    setSettings((current) => (JSON.stringify(current) === serialized ? current : persistedSettings));
-  }, [persistedSettings]);
-
-  useEffect(() => {
-    const serialized = JSON.stringify(settings);
+  const flushSettingsPreference = useCallback((nextSettings: MobileBurstSettings = settingsRef.current) => {
+    const serialized = JSON.stringify(nextSettings);
     if (serialized === lastPersistedSettings.current) return;
-
     lastPersistedSettings.current = serialized;
-    const existingPreference = state.preferences[BURST_SETTINGS_PREFERENCE_KEY];
+    const existingPreference = preferencesRef.current[BURST_SETTINGS_PREFERENCE_KEY];
     const existing =
       existingPreference && typeof existingPreference === 'object'
         ? (existingPreference as Record<string, unknown>)
@@ -337,21 +335,65 @@ export function BurstModeMobileScreen({
         key: BURST_SETTINGS_PREFERENCE_KEY,
         value: {
           ...existing,
-          mobileFontSize: settings.fontSize,
-          lineHeight: settings.lineHeight,
-          textAlign: settings.textAlign,
-          theme: toDesktopTheme(settings.theme),
-          wpm: settings.wpm,
-          countdown: settings.countdown,
-          highlightCurrentLine: settings.highlightCurrentLine,
-          showOnScreenNotes: settings.showOnScreenNotes,
-          pauseAtSectionEnd: settings.pauseAtSectionEnd,
+          mobileFontSize: nextSettings.fontSize,
+          lineHeight: nextSettings.lineHeight,
+          textAlign: nextSettings.textAlign,
+          theme: toDesktopTheme(nextSettings.theme),
+          wpm: nextSettings.wpm,
+          countdown: nextSettings.countdown,
+          highlightCurrentLine: nextSettings.highlightCurrentLine,
+          showOnScreenNotes: nextSettings.showOnScreenNotes,
+          pauseAtSectionEnd: nextSettings.pauseAtSectionEnd,
         },
       },
-    });
-    // Intentionally omit state.preferences: merge uses latest at write time; sync effect handles inbound changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- match BurstModeExperience persistence pattern
-  }, [dispatch, settings]);
+    }, {silent: true});
+  }, [dispatch]);
+
+  const closeSettings = useCallback(() => {
+    setIsSettingsOpen(false);
+    if (persistTimerRef.current !== null) {
+      window.clearTimeout(persistTimerRef.current);
+      persistTimerRef.current = null;
+    }
+    flushSettingsPreference();
+  }, [flushSettingsPreference]);
+
+  const openSettings = useCallback(() => {
+    setIsPlaying(false);
+    setCountdownRemaining(null);
+    setIsSettingsOpen(true);
+  }, []);
+
+  useEffect(() => {
+    const serialized = JSON.stringify(persistedSettings);
+    const localSerialized = JSON.stringify(settingsRef.current);
+    const isDirty = localSerialized !== lastPersistedSettings.current;
+    if (isDirty && serialized !== localSerialized) return;
+    lastPersistedSettings.current = serialized;
+    setSettings((current) => (JSON.stringify(current) === serialized ? current : persistedSettings));
+  }, [persistedSettings]);
+
+  useEffect(() => {
+    const serialized = JSON.stringify(settings);
+    if (serialized === lastPersistedSettings.current) return;
+
+    if (persistTimerRef.current !== null) window.clearTimeout(persistTimerRef.current);
+    persistTimerRef.current = window.setTimeout(() => {
+      persistTimerRef.current = null;
+      flushSettingsPreference(settings);
+    }, SETTINGS_PERSIST_MS);
+
+    return () => {
+      if (persistTimerRef.current !== null) {
+        window.clearTimeout(persistTimerRef.current);
+        persistTimerRef.current = null;
+      }
+    };
+  }, [flushSettingsPreference, settings]);
+
+  useEffect(() => {
+    return () => flushSettingsPreference();
+  }, [flushSettingsPreference]);
 
   useEffect(() => {
     setCurrentIndex(previous => clamp(previous, 0, Math.max(liveEntries.length - 1, 0)));
@@ -434,8 +476,23 @@ export function BurstModeMobileScreen({
     return () => window.clearTimeout(timer);
   }, [countdownRemaining, teleprompterEnabled]);
 
+  const playbackContextRef = useRef({
+    prompterItems,
+    activeSection,
+    sectionsLength: sections.length,
+    pauseAtSectionEnd: settings.pauseAtSectionEnd,
+    showOnScreenNotes: settings.showOnScreenNotes,
+  });
+  playbackContextRef.current = {
+    prompterItems,
+    activeSection,
+    sectionsLength: sections.length,
+    pauseAtSectionEnd: settings.pauseAtSectionEnd,
+    showOnScreenNotes: settings.showOnScreenNotes,
+  };
+
   useEffect(() => {
-    if (!teleprompterEnabled || !isPlaying || prompterItems.length <= 1) return;
+    if (!teleprompterEnabled || !isPlaying || isSettingsOpen || prompterItems.length <= 1) return;
 
     let frameId = 0;
     let previousTime = performance.now();
@@ -445,13 +502,14 @@ export function BurstModeMobileScreen({
     const animate = (time: number) => {
       const delta = time - previousTime;
       previousTime = time;
+      const ctx = playbackContextRef.current;
 
       setPlayhead(previous => {
-        const maxPlayhead = prompterItems.length - 1;
+        const maxPlayhead = ctx.prompterItems.length - 1;
         let next = Math.min(previous + delta * linesPerMs, maxPlayhead);
-        if (isHiddenPrompterItem(prompterItems[Math.floor(next)], settings.showOnScreenNotes)) {
+        if (isHiddenPrompterItem(ctx.prompterItems[Math.floor(next)], ctx.showOnScreenNotes)) {
           let skipTo = Math.floor(next) + 1;
-          while (skipTo < prompterItems.length && isHiddenPrompterItem(prompterItems[skipTo], settings.showOnScreenNotes)) {
+          while (skipTo < ctx.prompterItems.length && isHiddenPrompterItem(ctx.prompterItems[skipTo], ctx.showOnScreenNotes)) {
             skipTo += 1;
           }
           next = Math.min(skipTo, maxPlayhead);
@@ -459,16 +517,17 @@ export function BurstModeMobileScreen({
         if (next >= maxPlayhead) {
           setIsPlaying(false);
         }
+        const section = ctx.activeSection;
         if (
-          settings.pauseAtSectionEnd &&
-          activeSection &&
-          activeSection.index < sections.length - 1 &&
-          previous < activeSection.lastSpokenIndex &&
-          next >= activeSection.lastSpokenIndex
+          ctx.pauseAtSectionEnd &&
+          section &&
+          section.index < ctx.sectionsLength - 1 &&
+          previous < section.lastSpokenIndex &&
+          next >= section.lastSpokenIndex
         ) {
           setIsPlaying(false);
-          setPausedAtSectionEnd(activeSection.index);
-          return activeSection.lastSpokenIndex;
+          setPausedAtSectionEnd(section.index);
+          return section.lastSpokenIndex;
         }
         return next;
       });
@@ -478,7 +537,15 @@ export function BurstModeMobileScreen({
 
     frameId = window.requestAnimationFrame(animate);
     return () => window.cancelAnimationFrame(frameId);
-  }, [isPlaying, prompterItems.length, settings.wpm, teleprompterEnabled, totalWords, activeSection, sections.length, settings.pauseAtSectionEnd, settings.showOnScreenNotes, prompterItems]);
+  }, [isPlaying, isSettingsOpen, prompterItems.length, settings.wpm, teleprompterEnabled, totalWords]);
+
+  const playheadRef = useRef(playhead);
+  playheadRef.current = playhead;
+  const layoutAnchorRef = useRef(playhead);
+
+  useEffect(() => {
+    layoutAnchorRef.current = playhead;
+  }, [playhead]);
 
   const syncPrompterScroll = useCallback(() => {
     const container = containerRef.current;
@@ -491,19 +558,57 @@ export function BurstModeMobileScreen({
   const syncPrompterScrollRef = useRef(syncPrompterScroll);
   syncPrompterScrollRef.current = syncPrompterScroll;
 
+  const anchorReadingLine = useCallback((behavior: ScrollBehavior = 'auto') => {
+    const container = containerRef.current;
+    if (!teleprompterEnabled || !container || prompterItems.length === 0) return;
+    container.scrollTo({
+      top: desiredScrollTop(
+        container,
+        prompterItems,
+        lineRefs.current,
+        layoutAnchorRef.current,
+        settings.showOnScreenNotes,
+      ),
+      behavior,
+    });
+  }, [prompterItems, settings.showOnScreenNotes, teleprompterEnabled]);
+
+  // Acompanha o playhead durante a leitura. Com o painel aberto a rolagem fica pausada.
   useEffect(() => {
+    if (isSettingsOpen) return;
     syncPrompterScroll();
-  }, [syncPrompterScroll, settings.fontSize, settings.lineHeight]);
+  }, [isSettingsOpen, syncPrompterScroll]);
+
+  // Fonte, espaçamento ou área visível (gaveta): reancora na hora, sem animação.
+  useLayoutEffect(() => {
+    if (!teleprompterEnabled) return;
+    anchorReadingLine('auto');
+  }, [
+    anchorReadingLine,
+    isSettingsOpen,
+    settings.fontSize,
+    settings.lineHeight,
+    settings.textAlign,
+    settings.showOnScreenNotes,
+    teleprompterEnabled,
+  ]);
 
   useEffect(() => {
-    const recenter = () => syncPrompterScrollRef.current();
+    const container = containerRef.current;
+    if (!container || !teleprompterEnabled) return;
+    const observer = new ResizeObserver(() => {
+      anchorReadingLine('auto');
+    });
+    observer.observe(container);
+    const recenter = () => anchorReadingLine('auto');
     window.addEventListener('resize', recenter);
     window.addEventListener('orientationchange', recenter);
     return () => {
+      observer.disconnect();
       window.removeEventListener('resize', recenter);
       window.removeEventListener('orientationchange', recenter);
     };
-  }, []);
+  }, [anchorReadingLine, currentContent?.id, teleprompterEnabled]);
 
   const revealControls = useCallback(() => {
     setControlsVisible(true);
@@ -523,7 +628,6 @@ export function BurstModeMobileScreen({
   useEffect(
     () => () => {
       if (hideControlsTimerRef.current !== null) window.clearTimeout(hideControlsTimerRef.current);
-      if (finishTimerRef.current !== null) window.clearTimeout(finishTimerRef.current);
       const wakeLock = wakeLockRef.current;
       wakeLockRef.current = null;
       if (wakeLock && !wakeLock.released) void wakeLock.release();
@@ -655,11 +759,9 @@ export function BurstModeMobileScreen({
       return;
     }
 
-    if (finishTimerRef.current !== null) window.clearTimeout(finishTimerRef.current);
-    finishTimerRef.current = window.setTimeout(() => {
-      finishTimerRef.current = null;
-      onFinish();
-    }, 150);
+    setIsPlaying(false);
+    setCountdownRemaining(null);
+    setSessionEnd('recorded');
   };
 
   const handlePrompterPointerDown = () => {
@@ -668,11 +770,22 @@ export function BurstModeMobileScreen({
 
   const handleNext = () => {
     if (currentIndex >= liveEntries.length - 1) {
-      onFinish();
+      setIsPlaying(false);
+      setCountdownRemaining(null);
+      setSessionEnd('paused');
       return;
     }
 
     setCurrentIndex(previous => previous + 1);
+  };
+
+  const handleCloseSessionEnd = () => {
+    if (sessionEnd === 'paused') {
+      setSessionEnd(null);
+      onClose();
+      return;
+    }
+    onFinish();
   };
 
   const handlePrevious = () => {
@@ -700,6 +813,49 @@ export function BurstModeMobileScreen({
   const isPreparing = countdownRemaining !== null;
   const playbackState = isPreparing ? 'preparing' : isPlaying ? 'reading' : 'paused';
 
+  if (sessionEnd) {
+    const allRecorded = liveEntries.length > 0 && liveEntries.every(entry => entry.gravado);
+    const endTitle =
+      sessionEnd === 'recorded' && allRecorded
+        ? 'Bloco gravado'
+        : sessionEnd === 'paused'
+          ? 'Sessão pausada'
+          : 'Sessão encerrada';
+    const endMessage =
+      sessionEnd === 'recorded' && allRecorded
+        ? 'Todos os roteiros foram marcados como gravados.'
+        : sessionEnd === 'paused'
+          ? 'O bloco continua de onde você parou. Marque como gravado quando terminar a leitura.'
+          : 'Os roteiros marcados como gravados ficam salvos.';
+
+    return createPortal(
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Sessão de gravação do bloco ${block.name}`}
+        className="fixed inset-0 z-[200] flex min-h-dvh flex-col items-center justify-center bg-[var(--bg-primary)] px-6 text-center"
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 24px)' }}
+      >
+        <CheckCircle2 className="mx-auto mb-8 h-20 w-20 text-[var(--accent-green)]" />
+        <Text variant="display" className="mb-4 uppercase tracking-tight text-[var(--text-primary)]">
+          {endTitle}
+        </Text>
+        <Text variant="sectionTitle" as="p" className="mb-10 max-w-xl text-[var(--text-tertiary)]">
+          {endMessage}
+        </Text>
+        <button
+          type="button"
+          aria-label="Fechar modo gravação"
+          onClick={handleCloseSessionEnd}
+          className="min-h-12 rounded-[var(--radius-card-mobile)] bg-[var(--text-primary)] px-10 py-4 t-body-strong text-[var(--bg-primary)]"
+        >
+          Fechar modo gravação
+        </button>
+      </div>,
+      document.body
+    );
+  }
+
   if (!currentContent) {
     return null;
   }
@@ -708,7 +864,17 @@ export function BurstModeMobileScreen({
     fontSize: `${settings.fontSize}px`,
     lineHeight: settings.lineHeight,
     textAlign: settings.textAlign,
+    whiteSpace: 'pre-wrap',
+    overflowWrap: 'anywhere',
+    wordBreak: 'break-word',
+    maxWidth: '100%',
   } as const;
+
+  const handlePrompterScroll = () => {
+    if (isPlaying) return;
+    const line = getLineAtReadingPosition();
+    if (line !== null) layoutAnchorRef.current = line;
+  };
 
   const overlay = (
     <div
@@ -772,7 +938,7 @@ export function BurstModeMobileScreen({
 
             <button
               type="button"
-              onClick={() => setIsSettingsOpen(true)}
+              onClick={openSettings}
               disabled={isPreparing}
               className={cn(
                 'flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border disabled:opacity-40',
@@ -785,18 +951,23 @@ export function BurstModeMobileScreen({
           </header>
 
           <div
-            className="relative min-h-0 flex-1 overflow-hidden px-2"
-            style={{ paddingBottom: 'calc(max(env(safe-area-inset-bottom), 12px) + 6.5rem)' }}
+            className="relative min-h-0 min-w-0 flex-1 overflow-hidden px-2"
+            style={
+              isSettingsOpen
+                ? undefined
+                : { paddingBottom: 'calc(max(env(safe-area-inset-bottom), 12px) + 6.5rem)' }
+            }
           >
             <div
               ref={containerRef}
-              className="relative h-full overflow-y-auto overscroll-contain px-4"
+              className="relative h-full min-w-0 overflow-y-auto overscroll-contain px-4"
               onPointerDown={handlePrompterPointerDown}
+              onScroll={handlePrompterScroll}
             >
               {/* Espaço para a primeira fala sentar na guia. Sem isso o scroll 0
                   deixa a guia numa linha de baixo e o Iniciar pula o começo. */}
               <div aria-hidden="true" style={{ height: `${READING_POSITION * 100}%` }} />
-              <div style={fullTextStyle}>
+              <div className="w-full min-w-0 max-w-full" style={fullTextStyle}>
                 {prompterItems.map((item, index) => {
                   if (item.kind === 'section-divider') {
                     return (
@@ -861,7 +1032,7 @@ export function BurstModeMobileScreen({
                       ref={element => {
                         lineRefs.current[index] = element;
                       }}
-                      className="transition-all duration-200"
+                      className="break-words transition-opacity duration-200"
                       style={{
                         opacity,
                         transform: isActive ? 'scale(1.01)' : 'scale(1)',
@@ -904,7 +1075,7 @@ export function BurstModeMobileScreen({
           </div>
 
           <div className="flex-1 overflow-y-auto px-6 pb-[calc(env(safe-area-inset-bottom)+6.5rem)]">
-            <article className="mx-auto max-w-3xl whitespace-pre-wrap" style={fullTextStyle}>
+            <article className="mx-auto max-w-3xl min-w-0 break-words whitespace-pre-wrap" style={fullTextStyle}>
               {currentScript}
             </article>
           </div>
@@ -933,7 +1104,7 @@ export function BurstModeMobileScreen({
       <div
         className={cn(
           'absolute inset-x-0 bottom-0 z-10 px-3 transition-opacity duration-300',
-          controlsVisible || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          isSettingsOpen ? 'pointer-events-none opacity-0' : controlsVisible || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'
         )}
         style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 12px)' }}
       >
@@ -964,8 +1135,7 @@ export function BurstModeMobileScreen({
 
         <div
           className={cn(
-            'pointer-events-auto mx-auto grid gap-2 rounded-[var(--radius-overlay)] border p-2 shadow-[var(--shadow-dropdown)]',
-            sections.length > 1 ? 'grid-cols-5' : 'grid-cols-4',
+            'pointer-events-auto mx-auto flex items-center gap-2 rounded-[var(--radius-overlay)] border p-2 shadow-[var(--shadow-dropdown)]',
             theme.card,
             theme.border
           )}
@@ -997,14 +1167,20 @@ export function BurstModeMobileScreen({
               disabled={!teleprompterEnabled}
             />
           )}
-          <ActionIconButton
-            textClassName={theme.text}
-            icon={<CheckCircle2 className="h-5 w-5" />}
-            label={currentEntry.gravado ? 'Gravado' : 'Marcar'}
+          <button
+            type="button"
             onClick={handleMarkRecorded}
             disabled={currentEntry.gravado}
-            active={currentEntry.gravado}
-          />
+            className={cn(
+              'inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full px-3 t-label t-label-uppercase transition-colors',
+              currentEntry.gravado
+                ? 'cursor-default bg-[color-mix(in_srgb,var(--success)_16%,transparent)] text-[var(--success)]'
+                : 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
+            )}
+          >
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            <span className="truncate">{currentEntry.gravado ? 'Gravado' : 'Marcar como gravado'}</span>
+          </button>
           <ActionIconButton
             textClassName={theme.text}
             icon={currentIndex > 0 ? <ChevronRight className="h-5 w-5" /> : <SkipForward className="h-5 w-5" />}
@@ -1014,16 +1190,15 @@ export function BurstModeMobileScreen({
         </div>
       </div>
 
-      {/* Mesmo visual do TeleprompterSettingsDialog do desktop, sem o card de atalhos de teclado.
-          Espaçamento, velocidade e contagem usam as faixas do desktop porque o valor é compartilhado. */}
-      <Dialog
-        open={isSettingsOpen && !isPreparing}
-        onClose={() => setIsSettingsOpen(false)}
-        ariaLabel="Configurações do Modo gravação"
-        zIndex="z-[220]"
-      >
-        <section className="flex min-h-0 flex-1 flex-col bg-[var(--bg-elevated)] text-[var(--text-primary)]">
-          <SettingsHeader onReset={resetSettings} onClose={() => setIsSettingsOpen(false)} />
+      {/* Gaveta baixa: o texto do teleprompter permanece visível acima e atualiza ao vivo. */}
+      {isSettingsOpen && !isPreparing ? (
+        <div
+          role="dialog"
+          aria-label="Configurações do Modo gravação"
+          className="relative z-40 flex max-h-[48dvh] shrink-0 flex-col rounded-t-[var(--radius-card-mobile)] border-t border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-[var(--shadow-dropdown)]"
+        >
+        <section className="flex min-h-0 flex-1 flex-col">
+          <SettingsHeader onReset={resetSettings} onClose={closeSettings} />
 
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-[max(env(safe-area-inset-bottom),16px)] pt-4">
             <SettingsCard icon={Zap} title="Ajustes rápidos">
@@ -1126,7 +1301,8 @@ export function BurstModeMobileScreen({
             </SettingsCard>
           </div>
         </section>
-      </Dialog>
+        </div>
+      ) : null}
 
       <TeleprompterSectionsDialog
         open={isSectionsOpen && !isPreparing}

@@ -1,6 +1,5 @@
 import { CSSProperties, ReactNode, useId } from 'react';
 import { FileText, Gauge, Keyboard, type LucideIcon, Minus, Palette, Plus, Settings, X } from 'lucide-react';
-import { Dialog } from '../../../../components/overlays/Dialog';
 import { Text } from '../../../../components/ui/Text';
 import { ToggleRow } from '../../../../components/ui/ToggleSwitch';
 import { cn } from '../../../../lib/utils';
@@ -75,7 +74,7 @@ type TeleprompterSettingsDialogProps = {
   teleprompterEnabled: boolean;
 };
 
-/** Configurações do modo gravação no desktop. No celular quem abre é a folha do BurstModeMobileScreen. */
+/** Painel lateral do modo gravação no desktop. O texto permanece visível e atualiza ao vivo. */
 export function TeleprompterSettingsDialog({
   open,
   onClose,
@@ -84,17 +83,16 @@ export function TeleprompterSettingsDialog({
   onReset,
   teleprompterEnabled,
 }: TeleprompterSettingsDialogProps) {
+  if (!open) return null;
+
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      ariaLabel="Configurações do modo gravação"
-      desktopMaxW="md:max-w-[1220px]"
-      desktopPanelClassName="md:max-h-[94dvh]"
-      zIndex="z-[140]"
+    <aside
+      role="dialog"
+      aria-label="Configurações do modo gravação"
+      className="flex h-full w-[min(100%,22.5rem)] shrink-0 flex-col border-l border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-[var(--shadow-dropdown)]"
     >
       <section className="flex min-h-0 flex-1 flex-col bg-[var(--bg-elevated)] text-[var(--text-primary)]">
-        <header className="flex items-start justify-between gap-4 border-b border-[var(--border-color)] px-6 pb-4 pt-1 md:px-8 md:py-6">
+        <header className="flex items-start justify-between gap-4 border-b border-[var(--border-color)] px-4 py-4 md:px-6">
           <div className="min-w-0">
             <Text variant="secondary" as="p" className="text-[var(--text-tertiary)]">Modo gravação</Text>
             <Text variant="sectionTitle" as="h2" className="mt-1">Configurações</Text>
@@ -132,7 +130,7 @@ export function TeleprompterSettingsDialog({
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-4 md:gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4">
             <SettingsCard icon={Palette} title="Aparência">
               <SettingRow label="Tamanho da fonte">
                 <FontSizeStepper
@@ -286,7 +284,6 @@ export function TeleprompterSettingsDialog({
               title="Atalhos de teclado"
               badge={settings.shortcutsEnabled ? undefined : 'Desligados'}
               subtle
-              className="lg:col-span-2"
             >
               <ul
                 className={cn(
@@ -308,7 +305,7 @@ export function TeleprompterSettingsDialog({
           </div>
         </div>
       </section>
-    </Dialog>
+    </aside>
   );
 }
 

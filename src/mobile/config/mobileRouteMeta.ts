@@ -97,8 +97,9 @@ export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMe
     return {
       title: GLOSSARY.modoGravacao,
       mode: 'back',
-      backTo: '/gravacao?tab=queue',
+      backTo: '/gravacao?tab=blocks',
       titleVariant: 'compact-center',
+      hideBottomNav: true,
     };
   }
 
