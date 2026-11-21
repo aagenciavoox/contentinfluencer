@@ -94,6 +94,31 @@ export function adicionarHashtagsAoFim(texto: string, tags: readonly string[]): 
 }
 
 /**
+ * Remove uma hashtag do texto da legenda (sem diferenciar maiúsculas), limpando
+ * espaços extras e linhas vazias que sobrarem no fim.
+ */
+export function removerHashtagDaLegenda(texto: string, tag: string): string {
+  const alvo = comCerquilha(tag.trim());
+  if (alvo.length <= 1) return texto;
+  const escapada = alvo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const padrao = new RegExp(`(^|[^\\p{L}\\p{N}_])${escapada}(?![\\p{L}\\p{N}_])`, 'giu');
+  const semTag = texto
+    .split('\n')
+    .map(linha => {
+      if (!padrao.test(linha)) return linha;
+      padrao.lastIndex = 0;
+      return linha
+        .replace(padrao, '$1')
+        .replace(/[ \t]{2,}/g, ' ')
+        .replace(/^[ \t]+|[ \t]+$/g, '');
+    })
+    .join('\n');
+  return semTag
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/^\n+|\s+$/g, '');
+}
+
+/**
  * Legenda de uma conta com as hashtags dentro do texto. Hashtags guardadas à
  * parte, de telas antigas, entram no fim sem repetir as que já estão escritas.
  */
@@ -278,6 +303,38 @@ export function legendasQueSeriamSubstituidas<T extends PublicacaoComStatus & Pi
     const atual = legendaComHashtags(legendaBase, item);
     return atual.trim().length > 0 && atual !== texto;
   });
+}
+
+/** Destinos que ainda estão sem legenda (recebem a cópia sem sobrescrever nada). */
+export function destinosVaziosDaCopia<T extends PublicacaoComStatus & Pick<ContentPlataforma, 'id'> & HashtagsAParte>(
+  legendaBase: string | null | undefined,
+  publicacoes: readonly T[],
+  origemId: string,
+  conteudo?: ConteudoDaLegenda | null,
+): T[] {
+  return destinosDaCopia(publicacoes, origemId, conteudo).filter(
+    item => legendaComHashtags(legendaBase, item).trim().length === 0,
+  );
+}
+
+/**
+ * Copia o texto da publicação aberta apenas para as outras contas ainda vazias
+ * e não realizadas. Contas que já têm texto permanecem intactas.
+ */
+export function copiarLegendaParaVazias<T extends PublicacaoComStatus & Pick<ContentPlataforma, 'id'> & HashtagsAParte>(
+  legendaBase: string | null | undefined,
+  publicacoes: readonly T[],
+  origemId: string,
+  conteudo?: ConteudoDaLegenda | null,
+): T[] {
+  const origem = publicacoes.find(item => item.id === origemId);
+  if (!origem) return [...publicacoes];
+  const texto = legendaComHashtags(legendaBase, origem);
+  const destinos = new Set(destinosVaziosDaCopia(legendaBase, publicacoes, origemId, conteudo).map(item => item.id));
+  if (destinos.size === 0) return [...publicacoes];
+  return publicacoes.map(item => (
+    destinos.has(item.id) ? { ...item, legendaPropria: true, legenda: texto, hashtags: '' } : item
+  ));
 }
 
 /**

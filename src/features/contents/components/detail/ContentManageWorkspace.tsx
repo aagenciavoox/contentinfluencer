@@ -1,12 +1,10 @@
-import { TextCount } from '../../../../components/ui/TextCount';
 import {useEffect, useState, type ReactNode} from 'react';
 import {useNavigate} from 'react-router-dom';
-import {Calendar, ChevronDown, Clapperboard, Clock, FileText, Flag, Layers, Library, Search, Tag, Target} from 'lucide-react';
+import {Clapperboard, Search} from 'lucide-react';
 import {PropertyDatePicker} from '../../../../components/ui/PropertyDatePicker';
 import {AppButton} from '../../../../components/ui/AppButton';
 import {SelectField} from '../../../../components/ui/SelectField';
 import {selectOptionsFromChildren} from '../../../../components/ui/SelectMenu';
-import {TagSelect} from '../../../../components/ui/TagSelect';
 import {Surface} from '../../../../components/ui/Surface';
 import {Text} from '../../../../components/ui/Text';
 import {useAppContext} from '../../../../context/AppContext';
@@ -24,14 +22,6 @@ import {LivroMultiSelect} from './LivroMultiSelect';
 import {PlatformCopyEditor} from './PlatformCopyEditor';
 import {TemaField} from './TemaField';
 import type {ScriptDraft} from './sections/RoteiroSection';
-
-const NOTES_MAX = 500;
-
-const fieldClass =
-  'h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 t-body text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60';
-
-const selectClass =
-  'h-11 w-full appearance-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 pr-9 t-body text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60';
 
 interface ContentManageWorkspaceProps {
   contentId: string;
@@ -90,6 +80,7 @@ function ManageSelect({
 }
 
 function ScheduleMoment({
+  idPrefix,
   label,
   date,
   time,
@@ -97,6 +88,7 @@ function ScheduleMoment({
   onDate,
   onTime,
 }: {
+  idPrefix: string;
   label: string;
   date: string | null;
   time: string | null | undefined;
@@ -104,33 +96,37 @@ function ScheduleMoment({
   onDate: (date: string | null) => void;
   onTime: (time: string | null) => void;
 }) {
+  const timeId = `${idPrefix}-time`;
   return (
     <div className="min-w-0">
-      <Text variant="bodyStrong" as="p">{label}</Text>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <label className="block min-w-0">
-          <FieldLabel icon={<Calendar className="h-4 w-4" />}>Data</FieldLabel>
-          <PropertyDatePicker
-            variant="field"
-            placeholder="Selecionar data"
-            disabled={disabled}
-            className="h-11 bg-[var(--bg-primary)] py-0"
-            value={date}
-            onChange={onDate}
-          />
-        </label>
-        <label className="block min-w-0">
-          <FieldLabel icon={<Clock className="h-4 w-4" />}>Horário</FieldLabel>
+      <FieldLabel>{label}</FieldLabel>
+      <div className="grid grid-cols-[minmax(0,1fr)_8rem] gap-2">
+        <PropertyDatePicker
+          variant="field"
+          ariaLabel={`Data de ${label.toLowerCase()}`}
+          placeholder="Selecionar data"
+          disabled={disabled}
+          className={cn(
+            'input flex h-11 items-center py-0',
+            !date && 'text-[var(--text-tertiary)]',
+          )}
+          value={date}
+          onChange={onDate}
+        />
+        <div className="min-w-0">
+          <label htmlFor={timeId} className="sr-only">
+            {`Horário de ${label.toLowerCase()}`}
+          </label>
           <input
+            id={timeId}
             type="time"
-            aria-label={`Horário de ${label.toLowerCase()}`}
             disabled={disabled}
             step={60}
             value={clockInputValue(time)}
             onChange={event => onTime(event.target.value || null)}
-            className={fieldClass}
+            className="input h-11 w-full disabled:opacity-60"
           />
-        </label>
+        </div>
       </div>
     </div>
   );
@@ -169,15 +165,11 @@ export function ContentManageWorkspace({
   const temporadaFora = Boolean(draft.temporadaId && (
     !draft.seriesId || !temporadaNoEscopo(draft.temporadaId, draft.seriesId, series, temporadas)
   ));
-  const caminhoSerie = draft.seriesId
-    ? caminhoDaSerie(draft.seriesId, series).map(item => item.name).join(' · ')
-    : '';
+  const temQuadros = Boolean(seriePrincipal && quadrosDaSerie.length > 0);
   const publishDateOnly = draft.publishDate ? draft.publishDate.slice(0, 10) : '';
   const currentStatus = normalizeContentStatus(draft.status);
   const pilarExibidoId = pilarDoConteudo(draft, series);
   const etapas = getStatusOptions(draft.status);
-  // Observações começam recolhidas; abertas quando já há texto.
-  const [notesOpen, setNotesOpen] = useState(() => Boolean(draft.notes?.trim()));
   const [seriePendenteId, setSeriePendenteId] = useState<string | null | undefined>(undefined);
 
   const aplicarSerie = (serieId: string | null) => {
@@ -250,59 +242,48 @@ export function ContentManageWorkspace({
           onChange={plataformas => onChange({plataformas})}
         />
 
-        <div className="flex min-w-0 flex-col gap-4">
-          <Surface variant="outlined" padding="lg" className="bg-[var(--bg-elevated)]">
-            <Text variant="sectionTitle" as="h3">Organização</Text>
-            <div className="mt-4 stack-md">
-              <label className="block">
-                <FieldLabel>Etapa</FieldLabel>
-                <ManageSelect
-                  ariaLabel="Etapa"
-                  disabled={disabled}
-                  value={currentStatus}
-                  onChange={mudarEtapa}
-                >
-                  {/* Todas as etapas, na ordem. Dá para pular ou voltar. */}
-                  {etapas.map(etapa => (
-                    <option key={etapa.status} value={etapa.status} disabled={!etapa.disponivel}>
-                      {etapa.atual ? `${etapa.status} (atual)` : etapa.status}
-                    </option>
-                  ))}
-                </ManageSelect>
-                <Text variant="meta" as="p" className="mt-1.5 text-[var(--text-secondary)]">
-                  Dá para pular ou voltar etapas.
-                  {currentStatus !== CONTENT_STATUS.POSTADO ? ' Publicado pede a data e o link de cada conta.' : ''}
-                </Text>
-              </label>
+        <Surface variant="outlined" padding="lg" className="bg-[var(--bg-elevated)]">
+          <Text variant="sectionTitle" as="h3">Organização</Text>
+          <div className="mt-4 stack-md">
+            <label className="block">
+              <FieldLabel>Etapa</FieldLabel>
+              <ManageSelect
+                ariaLabel="Etapa"
+                disabled={disabled}
+                value={currentStatus}
+                onChange={mudarEtapa}
+              >
+                {/* Todas as etapas, na ordem. Dá para pular ou voltar. */}
+                {etapas.map(etapa => (
+                  <option key={etapa.status} value={etapa.status} disabled={!etapa.disponivel}>
+                    {etapa.atual ? `${etapa.status} (atual)` : etapa.status}
+                  </option>
+                ))}
+              </ManageSelect>
+            </label>
 
-              <div className="border-t border-[var(--border-color)]" aria-hidden />
+            <div className="border-t border-[var(--border-color)]" aria-hidden />
 
-              <div className="block">
-                <FieldLabel icon={<Layers className="h-4 w-4" />}>Série</FieldLabel>
-                <TagSelect
-                  label="Série"
-                  hideLabel
-                  id="content-manage-serie"
-                  maxSelections={1}
-                  placeholder="Selecionar série…"
-                  values={seriePrincipal ? [seriePrincipal.id] : []}
-                  onChange={values => pedirTrocaSerie(values[0] ?? null)}
-                  options={seriesPrincipais.map(item => ({
-                    value: item.id,
-                    label: caminhoDaSerie(item.id, series).map(node => node.name).join(' · '),
-                  }))}
-                  controlClassName="min-h-11"
-                />
-                {linkedSerie?.parentId ? (
-                  <Text variant="meta" as="p" className="mt-1.5 text-[var(--text-secondary)]">
-                    {caminhoSerie}
-                  </Text>
-                ) : null}
-              </div>
+            <label className="block">
+              <FieldLabel>Série</FieldLabel>
+              <ManageSelect
+                ariaLabel="Série"
+                value={seriePrincipal?.id ?? ''}
+                onChange={value => pedirTrocaSerie(value || null)}
+              >
+                <option value="">Sem série</option>
+                {seriesPrincipais.map(item => (
+                  <option key={item.id} value={item.id}>
+                    {caminhoDaSerie(item.id, series).map(node => node.name).join(' · ')}
+                  </option>
+                ))}
+              </ManageSelect>
+            </label>
 
-              {seriePrincipal && quadrosDaSerie.length > 0 ? (
-                <div className="block">
-                  <FieldLabel icon={<Layers className="h-4 w-4" />}>Quadro</FieldLabel>
+            <div className={cn(temQuadros ? 'grid gap-3 sm:grid-cols-2' : 'block')}>
+              {temQuadros && seriePrincipal ? (
+                <label className="block min-w-0">
+                  <FieldLabel>Quadro</FieldLabel>
                   <ManageSelect
                     ariaLabel="Quadro"
                     value={tipoLinked === 'quadro' && linkedSerie ? linkedSerie.id : ''}
@@ -313,11 +294,12 @@ export function ContentManageWorkspace({
                       <option key={quadro.id} value={quadro.id}>{quadro.name}</option>
                     ))}
                   </ManageSelect>
-                </div>
+                </label>
               ) : null}
 
-              <div className="block">
-                  <FieldLabel icon={<Layers className="h-4 w-4" />}>Temporada</FieldLabel>
+              <div className="block min-w-0">
+                <label className="block">
+                  <FieldLabel>Temporada</FieldLabel>
                   <ManageSelect
                     ariaLabel="Temporada"
                     disabled={disabled || (!escopo && !draft.temporadaId)}
@@ -334,192 +316,140 @@ export function ContentManageWorkspace({
                       </option>
                     ) : null}
                   </ManageSelect>
-                  {!draft.seriesId || !escopo || temporadasDisponiveis.length === 0 ? (
-                    <Text variant="meta" as="p" className="mt-1.5 text-[var(--text-secondary)]">
-                      {!draft.seriesId
-                        ? 'Selecione uma série para escolher a temporada.'
-                        : !escopo
-                          ? 'Esta série ainda não usa temporadas.'
-                          : 'Esta série ainda não tem temporadas cadastradas.'}
-                    </Text>
-                  ) : null}
-                  {linkedSerie && (!escopo || temporadasDisponiveis.length === 0) && !disabled ? (
-                    <AppButton
-                      variant="ghost"
-                      size="sm"
-                      className="mt-1"
-                      onClick={() => navigate(`/series/${escopo?.id ?? linkedSerie.id}?nova=temporada`)}
-                    >
-                      Criar temporada
-                    </AppButton>
-                  ) : null}
+                </label>
+                {linkedSerie && (!escopo || temporadasDisponiveis.length === 0) && !disabled ? (
+                  <AppButton
+                    variant="ghost"
+                    size="xs"
+                    className="mt-1"
+                    onClick={() => navigate(`/series/${escopo?.id ?? linkedSerie.id}?nova=temporada`)}
+                  >
+                    Criar temporada
+                  </AppButton>
+                ) : null}
               </div>
+            </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="block min-w-0">
-                  <FieldLabel icon={<Target className="h-4 w-4" />}>Pilar</FieldLabel>
-                  <TagSelect
-                    label="Pilar"
-                    hideLabel
-                    id="content-manage-pilar"
-                    maxSelections={1}
-                    placeholder="Selecionar pilar…"
-                    values={pilarExibidoId ? [pilarExibidoId] : []}
-                    onChange={values => onChange(marcarEscolhaManual(draft, 'pilar', values[0] ?? null))}
-                    options={pilares
-                      .filter(item => item.ativo || item.id === pilarExibidoId)
-                      .map(item => ({value: item.id, label: item.nome}))}
-                    controlClassName="min-h-11"
-                  />
-                </div>
-                <div className="min-w-0">
-                  <FuncaoEditorialFields
-                    draft={draft}
-                    serie={linkedSerie}
-                    onChange={onChange}
-                    variant="form"
-                    formPart="funcao"
-                    formLabel={<FieldLabel icon={<Flag className="h-4 w-4" />}>Objetivo</FieldLabel>}
-                    formInputClass={selectClass}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <FieldLabel icon={<Tag className="h-4 w-4" />}>Temas</FieldLabel>
-                <TemaField
-                  temaIds={draft.temaIds}
-                  onChange={temaIds => onChange({temaIds})}
-                  selectProps={{
-                    hideLabel: true,
-                    placeholder: 'Adicionar tema, ex.: Halloween',
-                    controlClassName: 'min-h-11',
-                  }}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block min-w-0">
+                <FieldLabel>Pilar</FieldLabel>
+                <ManageSelect
+                  ariaLabel="Pilar"
+                  value={pilarExibidoId ?? ''}
+                  onChange={value => onChange(marcarEscolhaManual(draft, 'pilar', value || null))}
+                >
+                  <option value="">Sem pilar</option>
+                  {pilares
+                    .filter(item => item.ativo || item.id === pilarExibidoId)
+                    .map(item => (
+                      <option key={item.id} value={item.id}>{item.nome}</option>
+                    ))}
+                </ManageSelect>
+              </label>
+              <div className="min-w-0">
+                <FuncaoEditorialFields
+                  draft={draft}
+                  serie={linkedSerie}
+                  onChange={onChange}
+                  variant="form"
+                  formPart="funcao"
+                  formLabel={<FieldLabel>Objetivo</FieldLabel>}
                 />
               </div>
-
-
-              <div className="border-t border-[var(--border-color)]" aria-hidden />
-
-              <FuncaoEditorialFields
-                draft={draft}
-                serie={linkedSerie}
-                onChange={onChange}
-                variant="form"
-                formPart="grade"
-              />
             </div>
-          </Surface>
 
-          <Surface variant="outlined" padding="lg" className="bg-[var(--bg-elevated)]">
-            <div className="flex items-start gap-3">
-              <Library className="mt-0.5 h-5 w-5 shrink-0 text-[var(--text-primary)]" aria-hidden />
-              <div className="min-w-0">
-                <Text variant="sectionTitle" as="h3">Mídias citadas</Text>
-                <Text variant="meta" className="mt-0.5 block text-[var(--text-secondary)]">
-                  Vincule um ou mais itens da biblioteca.
-                </Text>
-              </div>
-            </div>
-            <div className="mt-4">
-              <LivroMultiSelect
-                livroIds={draft.livroIds}
-                bibliotecaItemId={draft.bibliotecaItemId}
-                bibliotecaItems={state.bibliotecaItems}
-                onChange={onChange}
+            <div>
+              <FieldLabel>Temas</FieldLabel>
+              <TemaField
+                temaIds={draft.temaIds}
+                onChange={temaIds => onChange({temaIds})}
                 selectProps={{
                   hideLabel: true,
-                  searchable: true,
-                  placeholder: 'Buscar na biblioteca...',
-                  leadingIcon: <Search className="h-4 w-4" />,
+                  placeholder: 'Adicionar tema, ex.: Halloween',
                   controlClassName: 'min-h-11',
                 }}
               />
             </div>
-          </Surface>
-        </div>
-      </div>
 
-      <Surface variant="outlined" padding="lg" className="bg-[var(--bg-elevated)]">
-        <Text variant="sectionTitle" as="h3">Gravação e publicação</Text>
-        {emProducao && !carrossel ? (
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-color)] pb-4">
-            <div className="min-w-0">
-              <Text variant="bodyStrong" as="p">Bloco de gravação</Text>
-              <Text variant="meta" as="p" className="mt-1 text-[var(--text-secondary)]">
-                {bloco
-                  ? `No bloco ${bloco.block.name}`
-                  : 'Este roteiro ainda não está em um bloco.'}
-              </Text>
-            </div>
-            {!bloco && onAddToBlock ? (
-              <AppButton
-                type="button"
-                variant="secondary"
-                disabled={disabled}
-                leftIcon={<Clapperboard className="h-4 w-4" />}
-                onClick={onAddToBlock}
-              >
-                Adicionar a um bloco
-              </AppButton>
-            ) : null}
-          </div>
-        ) : null}
-        <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-6">
-          <ScheduleMoment
-            label="Gravação"
-            date={draft.recordingDate ? draft.recordingDate.slice(0, 10) : null}
-            time={draft.recordingTime}
-            disabled={disabled}
-            onDate={date => onChange({recordingDate: toIsoDate(date)})}
-            onTime={recordingTime => onChange({recordingTime})}
-          />
-          <span className="hidden w-px bg-[var(--border-color)] lg:block" aria-hidden />
-          <ScheduleMoment
-            label="Publicação"
-            date={publishDateOnly || null}
-            time={draft.publishTime}
-            disabled={disabled}
-            onDate={date => onChange({publishDate: toIsoDate(date)})}
-            onTime={publishTime => onChange({publishTime})}
-          />
-        </div>
-      </Surface>
+            <div className="border-t border-[var(--border-color)]" aria-hidden />
 
-      <Surface variant="outlined" padding="none" className="bg-[var(--bg-elevated)]">
-        <button
-          type="button"
-          aria-expanded={notesOpen}
-          aria-controls={`observacoes-${contentId || 'novo'}`}
-          onClick={() => setNotesOpen(open => !open)}
-          className="flex min-h-14 w-full items-center gap-3 rounded-[var(--radius-card)] px-6 py-3 text-left focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-        >
-          <FileText className="h-5 w-5 shrink-0 text-[var(--text-primary)]" aria-hidden />
-          <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3 gap-y-0.5">
-            <Text variant="sectionTitle" as="span">Observações</Text>
-            <Text variant="meta" className="text-[var(--text-secondary)]">
-              {!(draft.notes ?? '').trim() ? 'Adicione observações, referências e links.' : null}
-            </Text>
-          </span>
-          <ChevronDown
-            className={cn('h-5 w-5 shrink-0 text-[var(--text-secondary)] transition-transform', notesOpen && 'rotate-180')}
-            aria-hidden
-          />
-        </button>
-        {notesOpen ? (
-          <div id={`observacoes-${contentId || 'novo'}`} className="relative px-6 pb-6">
-            <textarea
-              value={draft.notes ?? ''}
-              disabled={disabled}
-              aria-label="Observações"
-              onChange={event => onChange({notes: event.target.value.slice(0, NOTES_MAX)})}
-              placeholder="Ex.: link dos arquivos, instruções de edição, capa, cortes"
-              className="block min-h-36 w-full resize-none rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-3 t-body leading-6 text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60"
+            <FuncaoEditorialFields
+              draft={draft}
+              serie={linkedSerie}
+              onChange={onChange}
+              variant="form"
+              formPart="grade"
             />
-            <TextCount value={draft.notes ?? ''} limit={NOTES_MAX} />
           </div>
-        ) : null}
-      </Surface>
+        </Surface>
+
+        <Surface variant="outlined" padding="lg" className="bg-[var(--bg-elevated)]">
+          <Text variant="sectionTitle" as="h3">Datas</Text>
+          {emProducao && !carrossel ? (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-color)] pb-4">
+              <div className="min-w-0">
+                <Text variant="bodyStrong" as="p">Bloco de gravação</Text>
+                <Text variant="meta" as="p" className="mt-1 text-[var(--text-secondary)]">
+                  {bloco
+                    ? `No bloco ${bloco.block.name}`
+                    : 'Este roteiro ainda não está em um bloco.'}
+                </Text>
+              </div>
+              {!bloco && onAddToBlock ? (
+                <AppButton
+                  type="button"
+                  variant="secondary"
+                  disabled={disabled}
+                  leftIcon={<Clapperboard className="h-4 w-4" />}
+                  onClick={onAddToBlock}
+                >
+                  Adicionar a um bloco
+                </AppButton>
+              ) : null}
+            </div>
+          ) : null}
+          <div className="mt-3 grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] xl:gap-6">
+            <ScheduleMoment
+              idPrefix={`gravacao-${contentId || 'novo'}`}
+              label="Gravação"
+              date={draft.recordingDate ? draft.recordingDate.slice(0, 10) : null}
+              time={draft.recordingTime}
+              disabled={disabled}
+              onDate={date => onChange({recordingDate: toIsoDate(date)})}
+              onTime={recordingTime => onChange({recordingTime})}
+            />
+            <span className="hidden w-px bg-[var(--border-color)] xl:block" aria-hidden />
+            <ScheduleMoment
+              idPrefix={`publicacao-${contentId || 'novo'}`}
+              label="Publicação"
+              date={publishDateOnly || null}
+              time={draft.publishTime}
+              disabled={disabled}
+              onDate={date => onChange({publishDate: toIsoDate(date)})}
+              onTime={publishTime => onChange({publishTime})}
+            />
+          </div>
+        </Surface>
+
+        <Surface variant="outlined" padding="lg" className="bg-[var(--bg-elevated)]">
+          <Text variant="sectionTitle" as="h3">Mídias citadas</Text>
+          <div className="mt-3">
+            <LivroMultiSelect
+              livroIds={draft.livroIds}
+              bibliotecaItemId={draft.bibliotecaItemId}
+              bibliotecaItems={state.bibliotecaItems}
+              onChange={onChange}
+              selectProps={{
+                hideLabel: true,
+                searchable: true,
+                placeholder: 'Buscar na biblioteca…',
+                leadingIcon: <Search className="h-4 w-4" />,
+                controlClassName: 'min-h-11',
+              }}
+            />
+          </div>
+        </Surface>
+      </div>
     </div>
   );
 }

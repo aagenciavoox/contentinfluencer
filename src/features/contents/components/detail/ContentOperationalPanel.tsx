@@ -430,7 +430,7 @@ export function FuncaoEditorialFields({
   if (variant === 'form') {
     if (formPart === 'grade') return grade;
     const funcaoField = (
-      <label className="flex flex-col gap-1">
+      <label className={formLabel ? 'block' : 'flex flex-col gap-1'}>
         {formLabel ?? <Text variant="label" as="span" className="text-[var(--text-secondary)]">Objetivo</Text>}
         <SelectField
           block
@@ -438,6 +438,7 @@ export function FuncaoEditorialFields({
           value={value}
           onChange={handleFuncao}
           options={selectOptionsFromChildren(options)}
+          className={formLabel ? 'min-h-11 md:min-h-11' : undefined}
         />
       </label>
     );

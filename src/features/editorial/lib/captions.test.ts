@@ -5,8 +5,10 @@ import {
   adicionarHashtagsAoFim,
   atualizarLegendaBase,
   copiarLegendaParaTodas,
+  copiarLegendaParaVazias,
   criarVersaoPropria,
   definirLegendaCompartilhada,
+  destinosVaziosDaCopia,
   editarLegendaDaConta,
   editarVersaoPropria,
   estadoLegenda,
@@ -18,6 +20,7 @@ import {
   legendasQueSeriamSubstituidas,
   migrarLegendas,
   publicacaoJaPostada,
+  removerHashtagDaLegenda,
   temLegenda,
   voltarParaBase,
 } from './captions.ts';
@@ -281,6 +284,40 @@ function testDesmarcarContaComLegendaPedeConfirmacao() {
   ], instagram).map(item => item.id), ['ig']);
 }
 
+function testRemoverHashtagDaLegenda() {
+  // Remove sem afetar hashtag com o mesmo prefixo nem deixar espaços sobrando.
+  assert.equal(
+    removerHashtagDaLegenda('Texto legal.\n\n#Cosmere #CosmereBrasil #BookTok', '#cosmere'),
+    'Texto legal.\n\n#CosmereBrasil #BookTok',
+  );
+  // Quando a última linha só tinha aquela hashtag, limpa a linha vazia do fim.
+  assert.equal(
+    removerHashtagDaLegenda('Texto legal.\n\n#BookTok', 'BookTok'),
+    'Texto legal.',
+  );
+  // Funciona também no meio do parágrafo.
+  assert.equal(
+    removerHashtagDaLegenda('Hoje falo de #Cosmere por aqui.', '#Cosmere'),
+    'Hoje falo de por aqui.',
+  );
+}
+
+function testCopiarLegendaParaVazias() {
+  const publicacoes = [
+    publicacao({ id: 'ig', platformId: 'ig', legenda: 'Legenda nova #livros', legendaPropria: true }),
+    publicacao({ id: 'tt', platformId: 'tt', legenda: 'Já adaptada', legendaPropria: true }),
+    publicacao({ id: 'yt', platformId: 'yt', legenda: '', legendaPropria: true }),
+    publicacao({ id: 'pub', platformId: 'pub', legenda: '', legendaPropria: true, status: 'publicada' }),
+  ];
+
+  assert.deepEqual(destinosVaziosDaCopia('', publicacoes, 'ig').map(item => item.id), ['yt']);
+
+  const copiadas = copiarLegendaParaVazias('', publicacoes, 'ig');
+  assert.equal(copiadas.find(item => item.id === 'tt')?.legenda, 'Já adaptada');
+  assert.equal(copiadas.find(item => item.id === 'yt')?.legenda, 'Legenda nova #livros');
+  assert.equal(copiadas.find(item => item.id === 'pub')?.legenda, '');
+}
+
 testBaseAteAdaptar();
 testPrimeiraEdicaoPreservaTextoDiferente();
 testEditarBaseNaoMexeNaPropria();
@@ -295,4 +332,6 @@ testSerieOrientaRoteiroNovo();
 testUsarEstaLegendaEmTodas();
 testDesmarcarContaComLegendaPedeConfirmacao();
 testHashtagsDentroDaLegenda();
+testRemoverHashtagDaLegenda();
+testCopiarLegendaParaVazias();
 console.log('captions tests passed');

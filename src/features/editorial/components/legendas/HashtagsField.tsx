@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Check, Plus } from 'lucide-react';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { TagPill } from '../../../../components/ui/TagSelect';
 import { Text } from '../../../../components/ui/Text';
@@ -18,7 +19,7 @@ function NovaHashtag({ disabled, rotulo, onAdd }: { disabled: boolean; rotulo: s
       type="text"
       value={value}
       disabled={disabled}
-      placeholder="Nova hashtag"
+      placeholder="+ Nova hashtag"
       aria-label={`Nova hashtag para ${rotulo}`}
       className="h-8 min-w-[8.5rem] max-w-[12rem] rounded-[var(--radius-pill)] border border-dashed border-[var(--border-input)] bg-transparent px-2.5 t-label text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50 pointer-coarse:h-11"
       onChange={event => setValue(event.target.value)}
@@ -38,8 +39,8 @@ function NovaHashtag({ disabled, rotulo, onAdd }: { disabled: boolean; rotulo: s
 }
 
 /**
- * Hashtags de uma publicação. Sugestão da série e do pilar para aquela conta,
- * contador e aviso do limite da rede. Nada é cortado automaticamente.
+ * Hashtags de uma publicação. Permite remover com um clique, adicionar novas
+ * e ativar/desativar sugestões individuais da série e do pilar.
  */
 export function HashtagsField({
   rotulo,
@@ -50,7 +51,10 @@ export function HashtagsField({
   semSugestao = null,
   boxed = false,
   semLista = false,
+  ocultarContagem = false,
   onChange,
+  onAddTags,
+  onRemoveTag,
 }: {
   /** Plataforma e @ da conta, para os nomes acessíveis. */
   rotulo: string;
@@ -62,19 +66,44 @@ export function HashtagsField({
   semSugestao?: string | null;
   /** Em caixa própria, com a contagem na linha das hashtags. */
   boxed?: boolean;
-  /** As hashtags já aparecem no texto da legenda: o campo só adiciona, sem as pílulas. */
+  /** Oculta as pílulas atuais quando o chamador não quiser listá-las. */
   semLista?: boolean;
-  onChange: (hashtags: string) => void;
+  /** Quando a contagem já aparece na barra do editor logo acima. */
+  ocultarContagem?: boolean;
+  onChange?: (hashtags: string) => void;
+  /** Opcional: adiciona novas tags preservando a posição no texto da legenda. */
+  onAddTags?: (tags: string[]) => void;
+  /** Opcional: remove uma tag específica direto do texto da legenda. */
+  onRemoveTag?: (tag: string) => void;
 }) {
   const tags = parseHashtags(hashtags);
   const acima = tags.length > limite;
-  const jaIncluidas = sugestao.length > 0
-    && sugestao.every(tag => tags.some(existing => existing.toLowerCase() === tag.toLowerCase()));
+  const temTag = (alvo: string) => tags.some(existing => existing.toLowerCase() === alvo.toLowerCase());
+  const restantes = sugestao.filter(tag => !temTag(tag));
+  const jaIncluidas = sugestao.length > 0 && restantes.length === 0;
 
   const adicionar = (raw: string) => {
     const novas = parseHashtags(raw);
     if (novas.length === 0) return;
-    onChange(joinHashtags(mergeHashtags(tags, novas)));
+    if (onAddTags) {
+      onAddTags(novas);
+      return;
+    }
+    onChange?.(joinHashtags(mergeHashtags(tags, novas)));
+  };
+
+  const remover = (alvo: string) => {
+    if (onRemoveTag) {
+      onRemoveTag(alvo);
+      return;
+    }
+    onChange?.(joinHashtags(tags.filter(item => item.toLowerCase() !== alvo.toLowerCase())));
+  };
+
+  const alternarSugestao = (tag: string) => {
+    if (disabled) return;
+    if (temTag(tag)) remover(tag);
+    else adicionar(tag);
   };
 
   const contagem = (
@@ -85,45 +114,79 @@ export function HashtagsField({
 
   return (
     <div className={cn('stack-sm', boxed && 'stack-md rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-4')}>
-      <Text variant="bodyStrong" as="p">Hashtags</Text>
-      {sugestao.length > 0 ? (
-        <div className="flex flex-col gap-2 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <Text variant="label" className="text-[var(--text-primary)]">Sugestão</Text>
-            <Text variant="secondary" className="mt-0.5 break-words">{sugestao.join(' ')}</Text>
-          </div>
-          <AppButton
-            size="xs"
-            variant="secondary"
-            disabled={disabled || jaIncluidas}
-            aria-label={`Usar sugestão em ${rotulo}: ${sugestao.join(' ')}`}
-            onClick={() => adicionar(sugestao.join(' '))}
-          >
-            {jaIncluidas ? 'Já incluídas' : 'Usar sugestão'}
-          </AppButton>
-        </div>
-      ) : semSugestao ? (
-        <Text variant="meta">{semSugestao}</Text>
-      ) : null}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Text variant="bodyStrong" as="p">Hashtags</Text>
+        {!ocultarContagem && (boxed || semLista) ? contagem : null}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1.5">
         {semLista ? null : tags.map(tag => (
           <TagPill
             key={tag}
             label={tag}
             disabled={disabled}
-            onRemove={() => onChange(joinHashtags(tags.filter(item => item !== tag)))}
+            onRemove={() => remover(tag)}
           />
         ))}
         <NovaHashtag disabled={disabled} rotulo={rotulo} onAdd={adicionar} />
-        {boxed || semLista ? contagem : null}
       </div>
-      {acima || !(boxed || semLista) ? (
+
+      {!ocultarContagem && (acima || !(boxed || semLista)) ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           {acima ? (
             <Text variant="meta" className="text-[var(--danger)]">{`Mais de ${limite} hashtags.`}</Text>
           ) : null}
           {boxed || semLista ? null : contagem}
         </div>
+      ) : null}
+
+      {sugestao.length > 0 ? (
+        <div className="stack-xs rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--surface-subtle)] px-3 py-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Text variant="label" className="text-[var(--text-secondary)]">Sugestões</Text>
+            {jaIncluidas ? (
+              <Text variant="meta" className="text-[var(--text-tertiary)]">Todas incluídas</Text>
+            ) : (
+              <AppButton
+                size="xs"
+                variant="ghost"
+                disabled={disabled}
+                aria-label={`Adicionar sugestões restantes em ${rotulo}: ${restantes.join(' ')}`}
+                onClick={() => adicionar(restantes.join(' '))}
+              >
+                {restantes.length === sugestao.length ? 'Usar todas' : `Adicionar restantes (${restantes.length})`}
+              </AppButton>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {sugestao.map(tag => {
+              const incluida = temTag(tag);
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  disabled={disabled}
+                  aria-pressed={incluida}
+                  aria-label={incluida ? `Remover ${tag} de ${rotulo}` : `Adicionar ${tag} em ${rotulo}`}
+                  onClick={() => alternarSugestao(tag)}
+                  className={cn(
+                    'inline-flex h-7 items-center gap-1 rounded-[var(--radius-pill)] border px-2.5 t-meta transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50 pointer-coarse:min-h-9',
+                    incluida
+                      ? 'border-[var(--border-strong)] bg-[var(--bg-primary)] text-[var(--text-primary)]'
+                      : 'border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]',
+                  )}
+                >
+                  {incluida
+                    ? <Check className="h-3 w-3 shrink-0 text-[var(--accent-green)]" aria-hidden />
+                    : <Plus className="h-3 w-3 shrink-0 text-[var(--text-tertiary)]" aria-hidden />}
+                  <span>{tag}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : semSugestao ? (
+        <Text variant="meta">{semSugestao}</Text>
       ) : null}
     </div>
   );

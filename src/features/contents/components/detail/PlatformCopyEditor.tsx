@@ -1,6 +1,6 @@
 import {useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
 import { dia as diaVisivel } from '../../../../lib/dates';
-import {Check, Copy, CopyPlus, Lock} from 'lucide-react';
+import {Check, ChevronDown, Copy, CopyPlus, Lock, Plus} from 'lucide-react';
 import {DEFAULT_PLATFORMS} from '../../../../constants';
 import {useAppContext} from '../../../../context/AppContext';
 import type {Content, ContentPlataforma, FormatoEscolhidoNaPublicacao, Pilar, Serie} from '../../../../lib/database';
@@ -25,7 +25,6 @@ import {
   rotuloCurtoConta,
 } from '../../../contas/lib/contas';
 import {formatoNoYoutube} from '../../../editorial/lib/publicacoes';
-import {HashtagsField} from '../../../editorial/components/legendas/HashtagsField';
 import {
   adicionarHashtagsAoFim,
   copiarLegendaParaTodas,
@@ -77,7 +76,7 @@ export function ensurePlatformRecord(
 }
 
 const contaButtonClass =
-  'inline-flex h-10 max-w-full items-center gap-2 rounded-[var(--radius-input)] border bg-[var(--bg-primary)] px-3 t-body transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50 pointer-coarse:h-11';
+  'inline-flex h-9 max-w-full items-center gap-1.5 rounded-[var(--radius-input)] border bg-[var(--bg-primary)] px-2.5 t-label transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50 pointer-coarse:h-11';
 
 /** "Não foi ao ar" e "Removida" deixam de ser destino: a conta aparece desmarcada e sem aba. */
 function emDestino(publicacao: Pick<ContentPlataforma, 'status'>): boolean {
@@ -120,10 +119,8 @@ interface PlatformCopyEditorProps {
 }
 
 /**
- * Legendas do conteúdo. Cada conta marcada é uma publicação com legenda própria:
- * as caixas escolhem as contas, as abas escolhem qual legenda está em edição.
- * "Usar esta legenda em todas" copia o texto aberto para as outras contas; depois
- * da cópia, cada legenda segue independente.
+ * Legendas do conteúdo. Uma aba por conta marcada; o seletor de contas fica recolhido
+ * no cabeçalho quando já há contas escolhidas, e o formato do YouTube só aparece na aba dele.
  */
 export function PlatformCopyEditor({
   plataformas,
@@ -182,6 +179,7 @@ export function PlatformCopyEditor({
   }, [contasParaMarcar, plataformas]);
 
   const [ativaId, setAtivaId] = useState<string | null>(abaInicialId);
+  const [contasAbertas, setContasAbertas] = useState(false);
   const ativa = abas.find(item => item.id === ativaId) ?? abas[0] ?? null;
   const [confirmarCopia, setConfirmarCopia] = useState(false);
   const [confirmarDesmarcar, setConfirmarDesmarcar] = useState<DestinoPlataforma | null>(null);
@@ -193,15 +191,22 @@ export function PlatformCopyEditor({
   const redeAtiva = ativa ? redeDaRef(ativa.platformId, contas) : null;
   const chaveDaRede = redeAtiva && redeAtiva !== 'outra' ? redeAtiva : contaAtiva?.nome ?? ativa?.platformId ?? '';
   const rotuloAtiva = contaAtiva ? rotuloConta(contaAtiva) : ativa?.platformId ?? '';
-  // As hashtags ficam dentro do texto; as guardadas à parte entram no fim.
   const texto = ativa ? legendaComHashtags(legendaBase, ativa) : '';
   const publicada = ativa ? publicacaoJaPostada(ativa, conteudo) : false;
   const limite = limiteDeCaracteres(chaveDaRede);
   const mostraTitulo = Boolean(ativa) && platformShowsField(redeAtiva ?? '', 'titulo');
   const mostraHashtags = Boolean(ativa) && platformShowsField(chaveDaRede, 'hashtags');
+  const tagsAtuais = mostraHashtags ? hashtagsNaLegenda(texto) : [];
+  const limiteHashtags = ativa && mostraHashtags ? limiteHashtagsDaRede(editorial, ativa.platformId, chaveDaRede) : 0;
+  const excessoHashtags = mostraHashtags && !publicada && tagsAtuais.length > limiteHashtags;
   const destinosDaLegenda = ativa ? destinosDaCopia(abas, ativa.id, conteudo) : [];
   const substituidas = ativa ? legendasQueSeriamSubstituidas(legendaBase, abas, ativa.id, conteudo) : [];
-  const sugestao = ativa ? suggestHashtags({platformId: ativa.platformId, serie, pilar, contas}) : [];
+  const sugestoesRestantes = useMemo(() => {
+    if (!ativa || !mostraHashtags || publicada) return [];
+    const todas = suggestHashtags({platformId: ativa.platformId, serie, pilar, contas});
+    const presentes = new Set(tagsAtuais.map(tag => tag.toLowerCase()));
+    return todas.filter(tag => !presentes.has(tag.toLowerCase()));
+  }, [ativa, contas, mostraHashtags, pilar, publicada, serie, tagsAtuais]);
   const publicadaEm = dataCurta(ativa?.realizadaApiEm ?? ativa?.realizadaManualEm ?? null);
 
   // O campo cresce com o texto; trocar de aba recalcula a altura.
@@ -232,7 +237,6 @@ export function PlatformCopyEditor({
     if (disabled) return;
     const marcada = destinoMarcado(plataformas, conta);
     if (marcada && contaJaPublicada(conta)) return;
-    // Desmarcar apaga a legenda escrita para a conta: pergunta antes.
     if (marcada && legendasQueSeriamApagadas(legendaBase, plataformas, conta).length > 0) {
       setConfirmarDesmarcar(conta);
       return;
@@ -247,8 +251,6 @@ export function PlatformCopyEditor({
       hashtagsAtuais: '',
       hashtagsForaSeries: editorial.preferencias.hashtagsForaSeries,
     });
-    // Conta marcada aqui começa com legenda própria e vazia, sem herdar a legenda-base escondida.
-    // Sem série: hashtags padrão dos Ajustes só se o campo ainda estiver vazio.
     onChange(proximas.map(item => (
       plataformas.some(atual => atual.id === item.id)
         ? item
@@ -292,17 +294,15 @@ export function PlatformCopyEditor({
       ? 'As outras contas já foram publicadas.'
       : undefined;
 
-  // Formato no YouTube: uma vez só, junto da conta, para cada publicação marcada no YouTube.
-  const formatosNoYoutube = abas.filter(item => redeDaRef(item.platformId, contas) === 'youtube');
-  const formatoBloco = formatosNoYoutube.map(item => {
+  const renderFormatoYoutube = (item: ContentPlataforma) => {
     const noYoutube = formatoNoYoutube(
       { formatoVisual: conteudo?.formatoVisual ?? null, writingMode: conteudo?.writingMode },
       item,
     );
     return (
-      <div key={item.id} className="flex flex-wrap items-center gap-2.5 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--surface-subtle)] px-3 py-2">
-        <Text variant="label" as="span" className="text-[var(--text-secondary)]">
-          {item.publicationKind === 'repost' ? 'Formato no YouTube (repost):' : 'Formato no YouTube:'}
+      <div key={item.id} className="flex flex-wrap items-center gap-2">
+        <Text variant="meta" as="span" className="text-[var(--text-secondary)]">
+          {item.publicationKind === 'repost' ? 'Formato (repost):' : 'Formato:'}
         </Text>
         <ChoiceChips<FormatoEscolhidoNaPublicacao>
           label="Formato no YouTube"
@@ -320,82 +320,80 @@ export function PlatformCopyEditor({
             { value: 'video-longo', label: 'Vídeo longo' },
           ]}
         />
-        <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">
-          {noYoutube.origem === 'escolhido'
-            ? 'Escolhido nesta publicação (toque de novo para voltar ao automático)'
-            : (noYoutube.origem === 'conteudo'
-              ? 'pelo formato do conteúdo'
-              : 'deduzido: roteiro no modo YouTube é vídeo longo; o resto, Shorts')}
-        </Text>
       </div>
     );
-  });
+  };
 
-  const contasBloco = (
-    <div className="stack-sm">
-      <Text variant="bodyStrong" as="p">Contas para publicação</Text>
-      {contasParaMarcar.length === 0 ? (
-        <Text variant="secondary">Nenhuma conta ativa. Cadastre em Contas e horários.</Text>
-      ) : (
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Contas para publicação">
-          {contasParaMarcar.map(conta => {
-            const marcada = destinoMarcado(plataformas, conta);
-            const travada = marcada && contaJaPublicada(conta);
-            const complemento = complementoDoRotulo(conta);
-            const rede = redeDaConta(conta);
-            const pub = marcada ? plataformas.find(p => mesmoDestino(p.platformId, conta) && emDestino(p)) : null;
-            const noYt = rede === 'youtube' && pub
-              ? formatoNoYoutube({ formatoVisual: conteudo?.formatoVisual ?? null, writingMode: conteudo?.writingMode }, pub)
-              : null;
-            const icone = noYt && noYt.formato === 'short' ? 'youtube-shorts' : iconeDaConta(conta);
-            const rotuloFormato = noYt ? (noYt.formato === 'short' ? ' · Shorts' : ' · Vídeo longo') : '';
+  const contasLista = contasParaMarcar.length === 0 ? (
+    <Text variant="secondary">Nenhuma conta ativa. Cadastre em Contas e horários.</Text>
+  ) : (
+    <div className="flex flex-wrap gap-2" role="group" aria-label="Contas para publicação">
+      {contasParaMarcar.map(conta => {
+        const marcada = destinoMarcado(plataformas, conta);
+        const travada = marcada && contaJaPublicada(conta);
+        const complemento = complementoDoRotulo(conta);
+        const rede = redeDaConta(conta);
+        const pub = marcada ? plataformas.find(p => mesmoDestino(p.platformId, conta) && emDestino(p)) : null;
+        const noYt = rede === 'youtube' && pub
+          ? formatoNoYoutube({ formatoVisual: conteudo?.formatoVisual ?? null, writingMode: conteudo?.writingMode }, pub)
+          : null;
+        const icone = noYt && noYt.formato === 'short' ? 'youtube-shorts' : iconeDaConta(conta);
+        const rotuloFormato = noYt ? (noYt.formato === 'short' ? ' · Shorts' : ' · Vídeo longo') : '';
 
-            return (
-              <button
-                key={conta.id}
-                type="button"
-                role="checkbox"
-                aria-checked={marcada}
-                aria-disabled={travada || undefined}
-                disabled={disabled}
-                title={travada ? 'Já publicada nesta conta. Fica marcada.' : `${rotuloConta(conta)}${rotuloFormato}`}
-                aria-label={`${rotuloConta(conta)}${complemento ? `, ${complemento}` : ''}${rotuloFormato}${travada ? ', já publicada' : ''}`}
-                onClick={() => alternarConta(conta)}
-                className={cn(
-                  contaButtonClass,
-                  marcada
-                    ? 'border-[var(--border-strong)] text-[var(--text-primary)]'
-                    : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]',
-                  travada && 'cursor-default',
-                )}
-              >
-                <span
-                  aria-hidden
-                  className={cn(
-                    'flex h-4 w-4 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border',
-                    marcada
-                      ? 'border-[var(--brand-accent-strong)] bg-[var(--brand-accent-strong)] text-[var(--brand-on-accent)]'
-                      : 'border-[var(--border-input)]',
-                  )}
-                >
-                  {marcada ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
-                </span>
-                <PlatformIcon platform={icone} className="h-4 w-4 shrink-0" />
-                <span className="truncate">{rotuloCurtoConta(conta)}{rotuloFormato}</span>
-                {travada ? <Lock className="h-3 w-3 shrink-0 text-[var(--text-tertiary)]" aria-hidden /> : null}
-              </button>
-            );
-          })}
-        </div>
-      )}
-      {formatoBloco}
+        return (
+          <button
+            key={conta.id}
+            type="button"
+            role="checkbox"
+            aria-checked={marcada}
+            aria-disabled={travada || undefined}
+            disabled={disabled}
+            title={travada ? 'Já publicada nesta conta. Fica marcada.' : `${rotuloConta(conta)}${rotuloFormato}`}
+            aria-label={`${rotuloConta(conta)}${complemento ? `, ${complemento}` : ''}${rotuloFormato}${travada ? ', já publicada' : ''}`}
+            onClick={() => alternarConta(conta)}
+            className={cn(
+              contaButtonClass,
+              marcada
+                ? 'border-[var(--border-strong)] text-[var(--text-primary)]'
+                : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]',
+              travada && 'cursor-default',
+            )}
+          >
+            <span
+              aria-hidden
+              className={cn(
+                'flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border',
+                marcada
+                  ? 'border-[var(--brand-accent-strong)] bg-[var(--brand-accent-strong)] text-[var(--brand-on-accent)]'
+                  : 'border-[var(--border-input)]',
+              )}
+            >
+              {marcada ? <Check className="h-2.5 w-2.5" strokeWidth={3} /> : null}
+            </span>
+            <PlatformIcon platform={icone} className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{rotuloCurtoConta(conta)}{rotuloFormato}</span>
+            {travada ? <Lock className="h-3 w-3 shrink-0 text-[var(--text-tertiary)]" aria-hidden /> : null}
+          </button>
+        );
+      })}
     </div>
   );
 
-  const legendaBloco = (
-    <div className={cn('stack-sm', secoes === 'tudo' && 'border-t border-[var(--border-color)] pt-4')}>
-      {secoes === 'tudo' ? <Text variant="bodyStrong" as="p">Editar legenda</Text> : null}
+  // Bloco isolado usado em `secoes="contas"` (PublishingSection).
+  const formatosNoYoutube = abas.filter(item => redeDaRef(item.platformId, contas) === 'youtube');
+  const contasBloco = (
+    <div className="stack-sm">
+      <Text variant="bodyStrong" as="p">Contas para publicação</Text>
+      {contasLista}
+      {formatosNoYoutube.map(renderFormatoYoutube)}
+    </div>
+  );
 
+  const tituloInputId = `legenda-titulo-${contentId || 'novo'}-${ativa?.id ?? 'conta'}`;
+  const esticarCard = embedded && secoes === 'tudo';
+
+  const legendaBloco = (
+    <div className={cn('stack-md', esticarCard && 'flex flex-1 flex-col')}>
       {ativa ? (
         <>
           <SegmentTabs
@@ -405,19 +403,31 @@ export function PlatformCopyEditor({
             options={abas.map(item => {
               const conta = contaDaRef(item.platformId, contas);
               const rede = redeDaRef(item.platformId, contas);
+              const chave = rede && rede !== 'outra' ? rede : conta?.nome ?? item.platformId;
               const noYt = rede === 'youtube'
                 ? formatoNoYoutube({ formatoVisual: conteudo?.formatoVisual ?? null, writingMode: conteudo?.writingMode }, item)
                 : null;
               const icone = noYt && noYt.formato === 'short' ? 'youtube-shorts' : (conta ? iconeDaConta(conta) : item.platformId);
+              const textoItem = legendaComHashtags(legendaBase, item);
+              const pubItem = publicacaoJaPostada(item, conteudo);
+              const vaziaItem = !textoItem.trim();
+              const limChars = limiteDeCaracteres(chave);
+              const usaTags = platformShowsField(chave, 'hashtags');
+              const alertaItem = !pubItem && (
+                (limChars != null && textoItem.length > limChars)
+                || (usaTags && hashtagsNaLegenda(textoItem).length > limiteHashtagsDaRede(editorial, item.platformId, chave))
+              );
+
               return {
                 id: item.id,
                 label: rotuloDaAba(item),
-                icon: (
-                  <PlatformIcon
-                    platform={icone}
-                    className="h-4 w-4 shrink-0"
-                  />
-                ),
+                muted: vaziaItem && !pubItem,
+                icon: <PlatformIcon platform={icone} className="h-4 w-4 shrink-0" />,
+                indicator: pubItem ? (
+                  <Lock className="h-3 w-3 opacity-75" />
+                ) : alertaItem ? (
+                  <span className="h-1.5 w-1.5 rounded-full bg-[var(--danger)]" />
+                ) : undefined,
               };
             })}
           />
@@ -426,20 +436,25 @@ export function PlatformCopyEditor({
             role="tabpanel"
             id={`legenda-painel-${contentId || 'novo'}`}
             aria-label={`Legenda de ${rotuloAtiva}`}
-            className="stack-md pt-2"
+            className={cn('stack-sm', esticarCard && 'flex flex-1 flex-col')}
           >
+            {redeAtiva === 'youtube' ? renderFormatoYoutube(ativa) : null}
+
             {mostraTitulo ? (
-              <label className="block">
-                <Text variant="secondary" as="span" className="mb-1.5 block text-[var(--text-secondary)]">
-                  {`Título no ${rotuloAtiva}`}
-                </Text>
+              <div className="block">
+                <label htmlFor={tituloInputId} className="mb-1.5 block">
+                  <Text variant="secondary" as="span" className="text-[var(--text-secondary)]">
+                    {`Título no ${rotuloAtiva}`}
+                  </Text>
+                </label>
                 <input
+                  id={tituloInputId}
                   value={titulo}
                   disabled={disabled}
                   onChange={event => onTituloChange?.(event.target.value)}
-                  className="h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 t-body text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60"
+                  className="input h-11 w-full bg-[var(--bg-primary)] px-3 t-body text-[var(--text-primary)] disabled:opacity-60"
                 />
-              </label>
+              </div>
             ) : null}
 
             <div className="stack-xs">
@@ -450,10 +465,10 @@ export function PlatformCopyEditor({
                 readOnly={publicada}
                 rows={4}
                 aria-label={`Legenda de ${rotuloAtiva}`}
-                placeholder={`Legenda para ${rotuloAtiva}…`}
+                placeholder={`Escreva a legenda para ${rotuloAtiva}…`}
                 onChange={event => onChange(editarLegendaDaConta(plataformas, ativa.id, event.target.value, conteudo))}
                 className={cn(
-                  'block min-h-28 w-full resize-none overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-2.5 t-body leading-6 outline-none placeholder:text-[var(--text-tertiary)] focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60',
+                  'block min-h-40 w-full resize-none overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-primary)] px-3 py-2.5 t-body leading-6 outline-none placeholder:text-[var(--text-tertiary)] focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60',
                   publicada ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)]',
                 )}
               />
@@ -463,29 +478,46 @@ export function PlatformCopyEditor({
                     <Lock className="h-3 w-3" aria-hidden />
                     {publicadaEm ? `Publicada em ${publicadaEm}. O texto fica preservado.` : 'Publicada. O texto fica preservado.'}
                   </Text>
+                ) : mostraHashtags ? (
+                  <Text
+                    variant="meta"
+                    as="span"
+                    className={cn('tabular-nums', excessoHashtags ? 'text-[var(--danger)]' : 'text-[var(--text-tertiary)]')}
+                  >
+                    {excessoHashtags
+                      ? `${tagsAtuais.length} de ${limiteHashtags} hashtags (limite excedido)`
+                      : `${tagsAtuais.length} de ${limiteHashtags} hashtags`}
+                  </Text>
                 ) : <span />}
-                {publicada ? null : <TextCount value={texto} limit={limite} />}
+                {publicada ? null : <TextCount as="span" value={texto} limit={limite} />}
               </div>
             </div>
 
-            {mostraHashtags ? (
-              <HashtagsField
-                semLista
-                rotulo={rotuloAtiva}
-                hashtags={hashtagsNaLegenda(texto).join(' ')}
-                sugestao={sugestao}
-                limite={limiteHashtagsDaRede(editorial, ativa.platformId, chaveDaRede)}
-                disabled={disabled || publicada}
-                onChange={hashtags => onChange(editarLegendaDaConta(
-                  plataformas,
-                  ativa.id,
-                  adicionarHashtagsAoFim(texto, hashtags.split(/\s+/)),
-                  conteudo,
+            {sugestoesRestantes.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">Sugestões:</Text>
+                {sugestoesRestantes.map(tag => (
+                  <button
+                    key={tag}
+                    type="button"
+                    disabled={disabled}
+                    aria-label={`Adicionar ${tag} em ${rotuloAtiva}`}
+                    onClick={() => onChange(editarLegendaDaConta(
+                      plataformas,
+                      ativa.id,
+                      adicionarHashtagsAoFim(texto, [tag]),
+                      conteudo,
+                    ))}
+                    className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-pill)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-2.5 t-meta text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50 pointer-coarse:min-h-9"
+                  >
+                    <Plus className="h-3 w-3 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
+                    <span>{tag}</span>
+                  </button>
                 ))}
-              />
+              </div>
             ) : null}
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className={cn('flex flex-wrap items-center gap-2 pt-1', esticarCard && 'mt-auto pt-3')}>
               <AppButton
                 size="sm"
                 variant="secondary"
@@ -495,7 +527,7 @@ export function PlatformCopyEditor({
                 leftIcon={copiado ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                 onClick={() => void copiar()}
               >
-                {copiado ? 'Legenda copiada' : 'Copiar legenda'}
+                {copiado ? 'Copiada' : 'Copiar legenda'}
               </AppButton>
               {abas.length > 1 ? (
                 <AppButton
@@ -506,7 +538,7 @@ export function PlatformCopyEditor({
                   leftIcon={copiaFeita ? <Check className="h-4 w-4" /> : <CopyPlus className="h-4 w-4" />}
                   onClick={() => (substituidas.length > 0 ? setConfirmarCopia(true) : usarEmTodas())}
                 >
-                  {copiaFeita ? 'Legenda aplicada' : 'Usar esta legenda em todas'}
+                  {copiaFeita ? 'Aplicada em todas' : 'Usar em todas'}
                 </AppButton>
               ) : null}
             </div>
@@ -570,18 +602,37 @@ export function PlatformCopyEditor({
     );
   }
 
+  const mostrarSeletorContas = contasAbertas || abas.length === 0;
+
   return (
     <Surface
       as="section"
       variant="outlined"
       padding="lg"
-      className={cn('bg-[var(--bg-elevated)]', embedded && 'h-full')}
+      className={cn('bg-[var(--bg-elevated)]', esticarCard && 'flex h-full flex-col')}
     >
-      <Text variant="sectionTitle" as="h3">{embedded ? 'Legendas' : 'Preparar distribuição'}</Text>
-      <Text variant="secondary" className="mt-1">Cada conta tem sua própria legenda.</Text>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Text variant="sectionTitle" as="h3">{embedded ? 'Legendas' : 'Preparar distribuição'}</Text>
+        {abas.length > 0 ? (
+          <AppButton
+            size="xs"
+            variant="ghost"
+            aria-expanded={contasAbertas}
+            rightIcon={<ChevronDown className={cn('h-3.5 w-3.5 transition-transform', contasAbertas && 'rotate-180')} />}
+            onClick={() => setContasAbertas(aberta => !aberta)}
+          >
+            {`Contas (${abas.length})`}
+          </AppButton>
+        ) : null}
+      </div>
 
-      <div className="mt-4 stack-lg border-t border-[var(--border-color)] pt-4">
-        {contasBloco}
+      {mostrarSeletorContas ? (
+        <div className="mt-3 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--surface-subtle)] p-3">
+          {contasLista}
+        </div>
+      ) : null}
+
+      <div className={cn('mt-4', esticarCard && 'flex flex-1 flex-col')}>
         {legendaBloco}
       </div>
 

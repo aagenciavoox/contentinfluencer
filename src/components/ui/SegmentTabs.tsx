@@ -9,8 +9,12 @@ export interface SegmentTabOption<T extends string = string> {
   count?: number;
   /** Ícone à esquerda do rótulo (ex.: Grade, Lista, Kanban). */
   icon?: ReactNode;
+  /** Indicador discreto à direita do rótulo (ex.: estado da conta ou alerta). */
+  indicator?: ReactNode;
   /** Rótulo em tom apagado quando inativa (ex.: etapa sem nenhum item). */
   muted?: boolean;
+  /** Texto auxiliar exibido ao passar o mouse. */
+  title?: string;
 }
 
 interface SegmentTabsProps<T extends string = string> {
@@ -107,7 +111,7 @@ export function SegmentTabs<T extends string = string>({
                   }
                 : undefined
             }
-            title={iconOnlyOnMobile ? option.label : undefined}
+            title={option.title ?? (iconOnlyOnMobile ? option.label : undefined)}
             className={cn(
               'segment-tabs-item inline-flex items-center gap-1.5',
               active && 'segment-tabs-item-active',
@@ -131,6 +135,11 @@ export function SegmentTabs<T extends string = string>({
             >
               {option.label}
             </Text>
+            {option.indicator ? (
+              <span className="flex shrink-0 items-center" aria-hidden>
+                {option.indicator}
+              </span>
+            ) : null}
             {typeof option.count === 'number' ? (
               // `leading-none` mantém a aba com contador na mesma altura das outras.
               <Text variant="meta" as="span"
