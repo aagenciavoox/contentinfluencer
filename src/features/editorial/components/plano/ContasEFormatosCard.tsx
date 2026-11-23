@@ -7,14 +7,19 @@ import { OverlayHeader } from '../../../../components/overlays/OverlayHeader';
 import { Ajuda } from '../../../../components/ui/Ajuda';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { PlatformIcon } from '../../../../components/ui/PlatformIcon';
+import { Surface } from '../../../../components/ui/Surface';
 import { Text } from '../../../../components/ui/Text';
 import { cn } from '../../../../lib/utils';
 import type { Platform, RedeSocial } from '../../../../lib/database';
 import { REDE_ROTULO, exibirHandle, iconeDaConta, redeDaConta } from '../../../contas/lib/contas';
-import { agendarMetaDaConta, metaDaContaHoje, type MetaDaContaVigencia } from '../../lib/metasPorConta';
+import { agendarMetaDaConta, avisoDaSomaDeFormatos, metaDaContaHoje, type MetaDaContaVigencia } from '../../lib/metasPorConta';
+import { faixaDeGravacao } from '../../lib/faixasEditoriais';
 import type { ProporcaoFuncoes } from '../../lib/proporcaoObjetivos';
 import { somaDaProporcao } from '../../lib/proporcaoObjetivos';
-import { FORMATOS_DA_REDE, rotuloDoFormato } from '../../lib/publicacoes';
+import { FORMATOS_DA_REDE, grupoDoFormato, type FormatoPublicacao, rotuloDoFormato } from '../../lib/publicacoes';
+
+const FORMATOS_DE_GRAVACAO = new Set<FormatoPublicacao>(['reels', 'short', 'video-longo']);
+const FORMATOS_DE_PRODUCAO = new Set<FormatoPublicacao>(['carrossel', 'post-estatico']);
 import { domingosParaVigencia } from '../../lib/vigencias';
 import { CampoStepper, inteiroOuNull } from './campos';
 import { ProporcaoObjetivosEditor, proporcaoEmTexto } from './ProporcaoObjetivosEditor';
@@ -35,9 +40,9 @@ function nomeNoResumo(formato: string, rede: RedeSocial | null, quantidade: numb
   return rotuloDoFormato(formato, rede);
 }
 
-/** "10 Reels · 1 carrossel · 3 sem formato". Vazio quando a conta não tem meta. */
+/** "10 Reels · 1 carrossel · 3 sem formato". Sem total, mostra só os formatos. */
 export function textoPorFormato(linha: MetaDaContaVigencia | null, rede: RedeSocial | null): string {
-  if (linha?.limiteSemanal == null) return '';
+  if (!linha) return '';
   const ordem = (rede ? FORMATOS_DA_REDE[rede] : undefined) ?? [];
   const indice = (formato: string) => {
     const posicao = ordem.findIndex(item => item === formato);
@@ -48,8 +53,9 @@ export function textoPorFormato(linha: MetaDaContaVigencia | null, rede: RedeSoc
     .sort(([esquerda], [direita]) => indice(esquerda) - indice(direita));
   const partes = parcelas.map(([formato, valor]) => `${valor} ${nomeNoResumo(formato, rede, valor)}`);
   const soma = parcelas.reduce((total, [, valor]) => total + valor, 0);
-  const sobra = linha.limiteSemanal - soma;
+  const sobra = linha.limiteSemanal != null && soma <= linha.limiteSemanal ? linha.limiteSemanal - soma : 0;
   if (sobra > 0) partes.push(`${sobra} sem formato`);
+  if (partes.length === 0 && linha.limiteSemanal == null) return '';
   return partes.join(' · ');
 }
 
@@ -97,6 +103,7 @@ function EditorDaConta({
   hoje,
   onSalvar,
   onCancelar,
+  embutido = false,
 }: {
   conta: Platform;
   linhas: readonly MetaDaContaVigencia[];
@@ -104,13 +111,34 @@ function EditorDaConta({
   hoje: string;
   onSalvar: (linhas: MetaDaContaVigencia[]) => void;
   onCancelar: () => void;
+  /** Na aba da conta o editor fica na página. Na gaveta, ocupa o painel. */
+  embutido?: boolean;
 }) {
+  const { settings } = useEditorialPlano();
   const rede = redeDaConta(conta);
   const atual = metaDaContaHoje(linhas, conta.id, hoje);
-  const formatos = [...new Set([...(rede ? FORMATOS_DA_REDE[rede] ?? [] : []), ...Object.keys(atual?.parcelasFormato ?? {})])];
+  const formatos = [...new Set([...(rede ? FORMATOS_DA_REDE[rede] ?? [] : []), ...Object.keys(atual?.parcelasFormato ?? {})])]
+    .filter(formato => formato !== 'stories');
+  const gruposDeFormato = [
+    { id: 'gravacao', titulo: 'Gravação', itens: formatos.filter(formato => FORMATOS_DE_GRAVACAO.has(formato as FormatoPublicacao)) },
+    { id: 'producao', titulo: 'Produção', itens: formatos.filter(formato => FORMATOS_DE_PRODUCAO.has(formato as FormatoPublicacao)) },
+    {
+      id: 'outros',
+      titulo: 'Outros formatos',
+      itens: formatos.filter(formato => !FORMATOS_DE_GRAVACAO.has(formato as FormatoPublicacao) && !FORMATOS_DE_PRODUCAO.has(formato as FormatoPublicacao)),
+    },
+  ].filter(grupo => grupo.itens.length > 0);
   const [limite, setLimite] = useState(textoNumero(atual?.limiteSemanal));
+  const [minimo, setMinimo] = useState(textoNumero(atual?.minimoSemanal));
+  const [maximo, setMaximo] = useState(textoNumero(atual?.maximoSemanal));
   const [parcelas, setParcelas] = useState<Record<string, string>>(() => (
     Object.fromEntries(formatos.map(formato => [formato, textoNumero(atual?.parcelasFormato?.[formato])]))
+  ));
+  const [faixas, setFaixas] = useState<Record<string, { minimo: string; maximo: string }>>(() => (
+    Object.fromEntries(formatos.map(formato => [formato, {
+      minimo: textoNumero(atual?.faixasFormato?.[formato]?.minimo),
+      maximo: textoNumero(atual?.faixasFormato?.[formato]?.maximo),
+    }]))
   ));
   const [modo, setModo] = useState<ModoProporcao>(atual?.proporcaoFuncoes ? 'propria' : 'geral');
   const [proporcao, setProporcao] = useState<ProporcaoFuncoes | null>(atual?.proporcaoFuncoes ?? null);
@@ -125,27 +153,63 @@ function EditorDaConta({
     }),
   ) as Record<string, number>;
   const somaParcelas = Object.values(parcelasNumero).reduce((soma, valor) => soma + valor, 0);
-  const erroParcelas = somaParcelas > 0 && total == null
-    ? 'Defina o total da conta antes de dividir por formato.'
-    : total != null && somaParcelas > total
-      ? `Os formatos somam ${somaParcelas} e passam do total da conta (${total}).`
-      : undefined;
-  const faltaProporcao = modo === 'propria' && total != null && !proporcao;
+  const minimoNumero = inteiroOuNull(minimo);
+  const maximoNumero = inteiroOuNull(maximo);
+  const faixasNumero = Object.fromEntries(
+    Object.entries(faixas).flatMap(([formato, faixa]) => {
+      const minimoFormato = inteiroOuNull(faixa.minimo);
+      const maximoFormato = inteiroOuNull(faixa.maximo);
+      if (minimoFormato == null && maximoFormato == null) return [];
+      return [[formato, { minimo: minimoFormato, maximo: maximoFormato }]];
+    }),
+  );
+  const avisoSoma = avisoDaSomaDeFormatos({
+    limiteSemanal: total,
+    maximoSemanal: maximoNumero,
+    parcelasFormato: somaParcelas > 0 ? parcelasNumero : null,
+  });
+  const gravacaoGeral = faixaDeGravacao(settings.preferencias);
+  const tetoGravacao = gravacaoGeral ? (gravacaoGeral.maximo ?? gravacaoGeral.meta) : null;
+  const formatoAcimaDaGravacao = tetoGravacao == null ? null : formatos.find(formato => (
+    grupoDoFormato(formato) === 'gravacao' && (parcelasNumero[formato] ?? 0) > tetoGravacao
+  ));
+  const avisoGravacao = formatoAcimaDaGravacao
+    ? `${rotuloDoFormato(formatoAcimaDaGravacao, rede)} pede ${parcelasNumero[formatoAcimaDaGravacao]} por semana e a gravação geral cabe em ${tetoGravacao}.`
+    : null;
+  const ordemInvalida = (() => {
+    if (total != null && minimoNumero != null && minimoNumero > total) return 'O mínimo precisa ser menor ou igual à meta.';
+    if (total != null && maximoNumero != null && maximoNumero < total) return 'O máximo precisa ser maior ou igual à meta.';
+    for (const formato of formatos) {
+      const meta = parcelasNumero[formato];
+      const faixa = faixasNumero[formato];
+      if (!faixa || meta == null) continue;
+      if (faixa.minimo != null && faixa.minimo > meta) return `O mínimo de ${rotuloDoFormato(formato, rede)} precisa ser menor ou igual à meta.`;
+      if (faixa.maximo != null && faixa.maximo < meta) return `O máximo de ${rotuloDoFormato(formato, rede)} precisa ser maior ou igual à meta.`;
+    }
+    return undefined;
+  })();
+  const faltaProporcao = modo === 'propria' && (total != null || somaParcelas > 0) && !proporcao;
   const proporcaoNaoFecha = modo === 'propria' && proporcao != null && somaDaProporcao(proporcao) !== 100;
-  const bloqueio = erroParcelas
+  const bloqueio = ordemInvalida
     ?? (faltaProporcao ? 'Defina a distribuição da conta ou use a geral.' : undefined)
     ?? (proporcaoNaoFecha ? 'A distribuição da conta precisa fechar em 100%.' : undefined);
 
   const valores = {
     limiteSemanal: total,
-    proporcaoFuncoes: modo === 'propria' && total != null ? proporcao : null,
-    parcelasFormato: total != null && somaParcelas > 0 ? parcelasNumero : null,
+    minimoSemanal: minimoNumero,
+    maximoSemanal: maximoNumero,
+    proporcaoFuncoes: modo === 'propria' && (total != null || somaParcelas > 0) ? proporcao : null,
+    parcelasFormato: somaParcelas > 0 ? parcelasNumero : null,
+    faixasFormato: Object.keys(faixasNumero).length > 0 ? faixasNumero : null,
   };
   const igualHoje = atual
     ? atual.limiteSemanal === valores.limiteSemanal
+      && (atual.minimoSemanal ?? null) === valores.minimoSemanal
+      && (atual.maximoSemanal ?? null) === valores.maximoSemanal
       && JSON.stringify(atual.proporcaoFuncoes) === JSON.stringify(valores.proporcaoFuncoes)
       && JSON.stringify(atual.parcelasFormato) === JSON.stringify(valores.parcelasFormato)
-    : valores.limiteSemanal == null;
+      && JSON.stringify(atual.faixasFormato ?? null) === JSON.stringify(valores.faixasFormato)
+    : valores.limiteSemanal == null && valores.parcelasFormato == null && valores.minimoSemanal == null && valores.maximoSemanal == null;
 
   const salvar = () => {
     if (bloqueio) return;
@@ -158,9 +222,10 @@ function EditorDaConta({
 
   const sobra = total != null && somaParcelas <= total ? total - somaParcelas : 0;
   const notas = [
-    !erroParcelas && sobra > 0
+    sobra > 0
       ? (sobra === 1 ? '1 publicação sem formato definido.' : `${sobra} publicações sem formato definido.`)
       : '',
+    total == null && somaParcelas > 0 ? 'Sem total, a meta da conta é a soma dos formatos.' : '',
     rede === 'instagram' ? 'Stories ficam fora da meta semanal.' : '',
   ].filter(Boolean).join(' ');
   const textoProporcao = modo === 'propria'
@@ -168,8 +233,8 @@ function EditorDaConta({
     : (proporcaoGeral ? proporcaoEmTexto(proporcaoGeral) : 'Ainda não definida.');
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="overlay-body min-h-0 flex-1 overflow-y-auto">
+    <div className={embutido ? 'stack-lg' : 'flex min-h-0 flex-1 flex-col'}>
+      <div className={embutido ? 'stack-lg' : 'overlay-body min-h-0 flex-1 overflow-y-auto'}>
         <div className="stack-lg">
           <div className="flex items-start justify-between gap-4">
             <div className="stack-xs">
@@ -179,13 +244,11 @@ function EditorDaConta({
                 <Text variant="meta" as="p" className="text-[var(--text-secondary)]">Sem meta para este período.</Text>
               ) : null}
             </div>
-            <CampoStepper
-              id={`conta-${conta.id}-limite`}
-              label="Publicações por semana"
-              rotuloVisivel={false}
-              value={limite}
-              onChange={setLimite}
-            />
+            <div className="grid gap-2 sm:grid-cols-3">
+              <CampoStepper id={`conta-${conta.id}-minimo`} label="Mínimo" value={minimo} onChange={setMinimo} />
+              <CampoStepper id={`conta-${conta.id}-limite`} label="Meta" hint="Vazio, o total da conta é a soma dos formatos." value={limite} onChange={setLimite} />
+              <CampoStepper id={`conta-${conta.id}-maximo`} label="Máximo" hint="Vazio, avisa acima da meta." value={maximo} onChange={setMaximo} />
+            </div>
           </div>
 
           {formatos.length > 0 ? (
@@ -194,18 +257,42 @@ function EditorDaConta({
                 <Text variant="bodyStrong" as="span">Metas por formato</Text>
                 <Ajuda rotulo="Sobre metas por formato" texto="Quer acompanhar Reels, Shorts ou outro formato de perto? Escolha o formato e defina a quantidade." />
               </div>
-              {formatos.map(formato => (
-                <CampoStepper
-                  key={formato}
-                  id={`conta-${conta.id}-formato-${formato}`}
-                  label={rotuloDoFormato(formato, rede)}
-                  layout="row"
-                  zeroViraVazio
-                  value={parcelas[formato] ?? ''}
-                  onChange={valor => setParcelas(atuais => ({ ...atuais, [formato]: valor }))}
-                />
+              {gruposDeFormato.map(grupo => (
+                <div key={grupo.id} className="stack-sm">
+                  <Text variant="label" as="p">{grupo.titulo}</Text>
+                  {grupo.itens.map(formato => (
+                    <div key={formato} className="stack-xs">
+                      <Text variant="bodyStrong" as="span">{rotuloDoFormato(formato, rede)}</Text>
+                      <div className="grid gap-2 sm:grid-cols-3">
+                        <CampoStepper
+                          id={`conta-${conta.id}-formato-${formato}-min`}
+                          label="Mínimo"
+                          zeroViraVazio
+                          value={faixas[formato]?.minimo ?? ''}
+                          onChange={valor => setFaixas(atuais => ({ ...atuais, [formato]: { minimo: valor, maximo: atuais[formato]?.maximo ?? '' } }))}
+                        />
+                        <CampoStepper
+                          id={`conta-${conta.id}-formato-${formato}`}
+                          label="Meta"
+                          zeroViraVazio
+                          value={parcelas[formato] ?? ''}
+                          onChange={valor => setParcelas(atuais => ({ ...atuais, [formato]: valor }))}
+                        />
+                        <CampoStepper
+                          id={`conta-${conta.id}-formato-${formato}-max`}
+                          label="Máximo"
+                          zeroViraVazio
+                          value={faixas[formato]?.maximo ?? ''}
+                          onChange={valor => setFaixas(atuais => ({ ...atuais, [formato]: { minimo: atuais[formato]?.minimo ?? '', maximo: valor } }))}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ))}
-              {erroParcelas ? <Text variant="meta" className="text-[var(--accent-red)]">{erroParcelas}</Text> : null}
+              {avisoSoma ? <Text variant="meta" className="text-[var(--accent-orange)]">{avisoSoma} Dá para salvar assim.</Text> : null}
+              {avisoGravacao ? <Text variant="meta" className="text-[var(--accent-orange)]">{avisoGravacao} Dá para salvar assim.</Text> : null}
+              {ordemInvalida ? <Text variant="meta" className="text-[var(--accent-red)]">{ordemInvalida}</Text> : null}
               {notas ? <Text variant="secondary" as="p">{notas}</Text> : null}
             </div>
           ) : rede === 'instagram' ? (
@@ -241,7 +328,8 @@ function EditorDaConta({
               <ProporcaoObjetivosEditor
                 idBase={`conta-${conta.id}-proporcao`}
                 valor={proporcao ?? proporcaoGeral}
-                rotuloSalvar="Salvar distribuição"
+                rotuloSalvar="Aplicar distribuição"
+                varianteSalvar="secondary"
                 onCancelar={() => {
                   setEditandoProporcao(false);
                   if (!proporcao) setModo('geral');
@@ -268,7 +356,10 @@ function EditorDaConta({
         </div>
       </div>
 
-      <div className="flex shrink-0 justify-end gap-2 border-t border-[var(--border-color)] px-6 py-4">
+      <div className={embutido
+        ? 'flex flex-wrap justify-end gap-2'
+        : 'flex shrink-0 justify-end gap-2 border-t border-[var(--border-color)] px-6 py-4'}
+      >
         <AppButton variant="secondary" onClick={onCancelar}>Cancelar</AppButton>
         <AppButton
           variant="primary"
@@ -333,5 +424,31 @@ export function PainelMetaDaConta({
         </>
       ) : null}
     </Drawer>
+  );
+}
+
+/** A mesma meta da gaveta, na aba da conta: total, formatos e proporção própria ou herdada. */
+export function MetaDaContaEmbutida({ conta }: { conta: Platform }) {
+  const { settings, gravar } = useEditorialPlano();
+  const [versao, setVersao] = useState(0);
+  const hoje = format(new Date(), 'yyyy-MM-dd');
+  const linhas = settings.metasDasContas ?? [];
+
+  return (
+    <Surface padding="md" className="stack-md">
+      <Text variant="sectionTitle" as="h2">Meta da conta</Text>
+      <EditorDaConta
+        key={`${conta.id}-${versao}`}
+        embutido
+        conta={conta}
+        linhas={linhas}
+        proporcaoGeral={settings.proporcaoFuncoes}
+        hoje={hoje}
+        onCancelar={() => setVersao(atual => atual + 1)}
+        onSalvar={novas => {
+          void gravar({ ...settings, metasDasContas: novas });
+        }}
+      />
+    </Surface>
   );
 }

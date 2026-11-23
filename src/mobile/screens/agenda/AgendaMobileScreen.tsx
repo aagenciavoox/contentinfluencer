@@ -51,9 +51,10 @@ import {
   matchesContentFilters,
   platformFilterOptions,
 } from '../../../features/editorial-calendar/lib/calendarContentFilters';
-import {buildPublishCalendarItems, isScheduledItem, publishItemStatus, todayKey} from '../../../features/editorial-calendar/lib/publishCalendarItems';
+import {buildPublishCalendarItems, isScheduledItem, publishItemStatus, todayKey, type PublishCalendarConta} from '../../../features/editorial-calendar/lib/publishCalendarItems';
+import {PublishCalendarCard} from '../../../features/editorial-calendar/components/PublishCalendarCard';
+import {calendarEntryPillStyle} from '../../../components/calendar/calendarPillStyles';
 import {UNDATED_PILE_STORAGE_KEY} from '../../../features/editorial-calendar/components/UndatedRoteiroPile';
-import {PlatformIcon} from '../../../components/ui/PlatformIcon';
 import {AgendaTipoIcon} from '../../../features/projects/components/AgendaTipoIcon';
 import {diasCobertos} from '../../../features/projects/lib/agendaEventos';
 import {rotuloDaRef} from '../../../features/contas/lib/contas';
@@ -93,6 +94,7 @@ interface AgendaTimelineEntry {
   agendaTipo?: string;
   projetoId?: string;
   platformNames?: string[];
+  contas?: PublishCalendarConta[];
   contentStatus?: string;
   posted?: boolean;
   scheduled?: boolean;
@@ -225,6 +227,7 @@ function buildTimelineEntries(contents: Content[], platforms: Platform[], agenda
           ? item.platformNames.join(' · ')
           : (publishStatus || 'Publicação'),
         platformNames: item.platformNames,
+        contas: item.contas,
         contentStatus: publishStatus,
         posted: item.posted,
         scheduled: isScheduledItem(item, content),
@@ -638,6 +641,36 @@ export function AgendaMobileScreen({
                           : entry.kind === 'agenda'
                             ? 'agenda'
                             : 'project';
+                    if (entry.kind === 'publish') {
+                      return (
+                        <PublishCalendarCard
+                          key={entry.id}
+                          variant="expanded"
+                          label={entry.title}
+                          time={entry.time}
+                          secondary={format(parseISO(entry.date), "d 'de' MMMM", {locale: ptBR})}
+                          contas={entry.contas}
+                          style={calendarEntryPillStyle({type: 'publish', posted: entry.posted})}
+                          onOpen={() =>
+                            onSelectEntry?.({
+                              id: entry.id,
+                              type: 'publish',
+                              label: entry.title,
+                              date: entry.date,
+                              time: entry.time,
+                              secondary: entry.secondary || undefined,
+                              color: entry.color,
+                              contentId: entry.contentId,
+                              plataformaId: entry.plataformaId,
+                              platformNames: entry.platformNames,
+                              contas: entry.contas,
+                              posted: entry.posted,
+                              scheduled: entry.scheduled,
+                            })
+                          }
+                        />
+                      );
+                    }
                     return (
                       <MobileListCard
                         key={entry.id}
@@ -678,16 +711,8 @@ export function AgendaMobileScreen({
                           </Text>
                         }
                         trailing={
-                          entry.kind === 'publish' && entry.platformNames && entry.platformNames.length > 0 ? (
-                            <span className="inline-flex items-center gap-1">
-                              {entry.platformNames.map(name => (
-                                <PlatformIcon key={name} platform={name} className="h-4 w-4 text-[var(--text-secondary)]" />
-                              ))}
-                            </span>
-                          ) : entry.kind === 'recording' ? (
+                          entry.kind === 'recording' ? (
                             <Mic2 className="h-4 w-4 text-[var(--accent-orange)]" />
-                          ) : entry.kind === 'publish' ? (
-                            <Radio className="h-4 w-4 text-[var(--text-secondary)]" aria-hidden />
                           ) : entry.kind === 'project' ? (
                             <BriefcaseBusiness className="h-4 w-4" style={{ color: tintedTextColor(entry.color || 'var(--accent-purple)') }} />
                           ) : (

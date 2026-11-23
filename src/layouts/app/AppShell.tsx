@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Search } from 'lucide-react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Sidebar } from '../navigation/Sidebar';
@@ -42,6 +42,7 @@ export function AppShell() {
   const isMobile = useIsMobile();
   const location = useLocation();
   const navigate = useNavigate();
+  const mainRef = useRef<HTMLElement>(null);
   const { state, syncFromServer, dispatch, ensureDataDomains } = useAppContext();
   const { isHidden, handleScroll } = useHideOnScroll(isMobile);
   const moduleFlags = getModuleFlags(state.preferences);
@@ -131,6 +132,14 @@ export function AppShell() {
       if (timer !== undefined) window.clearTimeout(timer);
     };
   }, [ensureDataDomains, state.isLoaded]);
+
+  // A coluna que rola é o shell, não a janela. Sem isto a próxima página abre
+  // no ponto em que a anterior parou. Séries devolve a própria posição depois.
+  useLayoutEffect(() => {
+    if (isMobile) return;
+    const scroller = mainRef.current;
+    if (scroller) scroller.scrollTop = 0;
+  }, [isMobile, location.pathname]);
 
   useEffect(() => {
     if (!isMobile) return;
@@ -223,6 +232,7 @@ export function AppShell() {
       />
       <Sidebar />
       <main
+        ref={mainRef}
         onScroll={handleScroll}
         className="relative flex-1 overflow-y-auto bg-transparent pb-24 transition-transform duration-300 ease-in-out md:pb-0 md:pt-0 [scrollbar-gutter:stable]"
       >

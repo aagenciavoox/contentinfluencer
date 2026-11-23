@@ -15,8 +15,18 @@ export const EDITORIAL_SETTINGS_VERSION = 2;
 
 /** Intenções gerais. Não descrevem um mês nem uma semana solta. */
 export interface PreferenciasGerais {
-  /** Teto de publicações na semana. Null é "ainda não definiu" — não é zero. */
+  /** Meta de postagens na semana, por roteiro. Null é "ainda não definiu" — não é zero. */
   limiteSemanal: number | null;
+  /** Mínimo opcional de postagens. Abaixo dele, a Saúde avisa esforço. */
+  minimoSemanal: number | null;
+  /** Máximo opcional de postagens. Vazio avisa acima da meta. */
+  maximoSemanal: number | null;
+  /** Mínimo opcional de gravações, por roteiro de câmera. */
+  gravacaoMinimoSemanal: number | null;
+  /** Meta de gravações. Vazio esconde a faixa. */
+  gravacaoMetaSemanal: number | null;
+  /** Máximo opcional de gravações. Vazio avisa acima da meta. */
+  gravacaoMaximoSemanal: number | null;
   /**
    * Intenção semanal fora de série, já inclusa no limite quando os dois existem.
    * Não passa de `limiteSemanal`.
@@ -99,11 +109,38 @@ export interface VigenciaEditorial {
   vigenteDesde: string;
   limiteSemanal: number | null;
   proporcaoFuncoes: ProporcaoFuncoes | null;
+  minimoSemanal?: number | null;
+  maximoSemanal?: number | null;
+  gravacaoMinimoSemanal?: number | null;
+  gravacaoMetaSemanal?: number | null;
+  gravacaoMaximoSemanal?: number | null;
 }
 
+/** Ciência de um aviso de faixa. `semanaInicio` é a segunda da semana em que ele apareceu. */
+export type TipoDeAvisoCiente =
+  | 'gravacao-acima'
+  | 'gravacao-abaixo'
+  | 'precisa-gravar'
+  | 'postagem-acima'
+  | 'postagem-abaixo'
+  | 'conta-acima'
+  | 'conta-abaixo'
+  | 'formato-acima'
+  | 'formato-abaixo'
+  | 'producao-acima'
+  | 'producao-abaixo';
+
+export type AvisoCiente = {
+  semanaInicio: string;
+  tipo: TipoDeAvisoCiente;
+  platformId: string | null;
+  formato: string | null;
+  nota: string;
+};
+
 /**
- * Como as metas de um período são contadas. `conteudos-v1`: cada roteiro uma vez (tudo até a contagem
- * por conta). `publicacoes-v2`: por publicação em cada conta. Período antigo não é recalculado no método novo.
+ * Valor gravado na decisão do período. A meta geral e o teto são sempre por roteiro
+ * (`conteudos-v1`); `publicacoes-v2` não muda mais essa conta. Metas de conta seguem por publicação.
  */
 export type MetodoCalculo = 'conteudos-v1' | 'publicacoes-v2';
 
@@ -171,6 +208,8 @@ export interface EditorialSettings {
   avisos?: AvisosLigados;
   /** Indicadores opcionais da Rotina de criação (faixa mínimo/meta/máximo). */
   indicadoresProducao?: IndicadoresProducao;
+  /** Avisos de faixa que a pessoa confirmou ("quero fazer a mais") naquela semana. */
+  avisosCientes?: AvisoCiente[];
 }
 
 function readDiasGravacao(value: unknown): number[] {
@@ -182,6 +221,11 @@ function readDiasGravacao(value: unknown): number[] {
 
 const PREFERENCIAS_PADRAO: PreferenciasGerais = {
   limiteSemanal: null,
+  minimoSemanal: null,
+  maximoSemanal: null,
+  gravacaoMinimoSemanal: null,
+  gravacaoMetaSemanal: null,
+  gravacaoMaximoSemanal: null,
   reservaForaSeriesSemanal: null,
   redeReferenciaId: null,
   reservaProntos: null,
@@ -239,6 +283,12 @@ function readInteiroNaoNegativo(value: unknown): number | null {
   return value;
 }
 
+/** Meta de gravação: vazio ou zero esconde a faixa. */
+function readInteiroPositivo(value: unknown): number | null {
+  const numero = readInteiroNaoNegativo(value);
+  return numero != null && numero > 0 ? numero : null;
+}
+
 function objeto(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   return value as Record<string, unknown>;
@@ -280,6 +330,11 @@ function preferenciasVersao2(saved: Record<string, unknown>): PreferenciasGerais
   const fonte = objeto(saved.preferencias) ?? {};
   return caberNoLimite({
     limiteSemanal: readInteiroNaoNegativo(fonte.limiteSemanal),
+    minimoSemanal: readInteiroNaoNegativo(fonte.minimoSemanal),
+    maximoSemanal: readInteiroNaoNegativo(fonte.maximoSemanal),
+    gravacaoMinimoSemanal: readInteiroNaoNegativo(fonte.gravacaoMinimoSemanal),
+    gravacaoMetaSemanal: readInteiroPositivo(fonte.gravacaoMetaSemanal),
+    gravacaoMaximoSemanal: readInteiroNaoNegativo(fonte.gravacaoMaximoSemanal),
     reservaForaSeriesSemanal: readInteiroNaoNegativo(fonte.reservaForaSeriesSemanal),
     redeReferenciaId: 'redeReferenciaId' in fonte
       ? readId(fonte.redeReferenciaId)
@@ -369,7 +424,7 @@ function versaoNova(value: unknown): boolean {
 
 function montar(
   base: Pick<EditorialSettings, 'quickSeriesCreate' | 'openInfoNotices' | 'destinosPadrao' | 'limitesHashtags'>
-    & Partial<Pick<EditorialSettings, 'proporcaoFuncoes' | 'vigencias' | 'metasDasContas' | 'pausas' | 'concentracao' | 'excecoesConcentracao' | 'perfil' | 'avisos' | 'indicadoresProducao'>>,
+    & Partial<Pick<EditorialSettings, 'proporcaoFuncoes' | 'vigencias' | 'metasDasContas' | 'pausas' | 'concentracao' | 'excecoesConcentracao' | 'perfil' | 'avisos' | 'indicadoresProducao' | 'avisosCientes'>>,
   preferencias: PreferenciasGerais,
   periodos: DecisaoPeriodo[],
 ): EditorialSettings {
@@ -394,6 +449,7 @@ function montar(
     perfil: base.perfil ?? lerPerfilEditorial(null, preferencias.publicoLinguagem),
     avisos: base.avisos ?? {},
     indicadoresProducao: base.indicadoresProducao ?? {},
+    ...(base.avisosCientes ? { avisosCientes: base.avisosCientes } : {}),
   };
 }
 

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { agendarMetaDaConta, consolidarMetas, desfazerMudancaDaConta, linhaDaContaEm, metaDaConta, metaDaContaHoje, metasDasContas, proximaMudancaDaConta, type MetaDaContaVigencia } from './metasPorConta.ts';
+import { agendarMetaDaConta, avisoDaSomaDeFormatos, consolidarMetas, desfazerMudancaDaConta, linhaDaContaEm, metaDaConta, metaDaContaHoje, metasDasContas, proximaMudancaDaConta, type MetaDaContaVigencia } from './metasPorConta.ts';
 
 const DEZEMBRO = { inicio: '2026-12-01', fim: '2026-12-31' };
 const HOJE = '2026-11-03';
@@ -102,6 +102,32 @@ function linha(platformId: string, vigenteDesde: string, limiteSemanal: number |
     periodo: DEZEMBRO, proporcaoGeral: null, hoje: HOJE,
   });
   assert.equal(demais.conflitoDeFormato, true);
+}
+
+// --- Total vazio: a meta da conta é a soma dos formatos. 4 por semana em dezembro vira 18.
+{
+  const linhas = [linha('ig', '2026-11-01', null, { parcelasFormato: { reels: 3, carrossel: 1 } })];
+  const meta = metaDaConta({ platformId: 'ig', linhas, periodo: DEZEMBRO, proporcaoGeral: null, hoje: HOJE });
+  assert.equal(meta.valor, 18);
+  assert.equal(meta.conflitoDeFormato, false);
+}
+
+// --- Soma acima do máximo avisa e a meta ainda grava.
+{
+  const aviso = avisoDaSomaDeFormatos({
+    limiteSemanal: 4,
+    maximoSemanal: 5,
+    parcelasFormato: { reels: 4, carrossel: 3 },
+  });
+  assert.match(aviso ?? '', /passam do máximo/);
+  const salvas = agendarMetaDaConta([], 'ig', HOJE, {
+    limiteSemanal: 4,
+    maximoSemanal: 5,
+    proporcaoFuncoes: null,
+    parcelasFormato: { reels: 4, carrossel: 3 },
+  }, HOJE);
+  assert.deepEqual(salvas[0]?.parcelasFormato, { reels: 4, carrossel: 3 });
+  assert.equal(salvas[0]?.maximoSemanal, 5);
 }
 
 // --- Nenhuma conta com meta: total nulo, não zero.

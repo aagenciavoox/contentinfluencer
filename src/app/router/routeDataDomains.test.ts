@@ -1,15 +1,5 @@
 import assert from 'node:assert/strict';
-import {
-  getRouteDataDomains,
-  getRouteOutletKey,
-  isPathnameTransitionPending,
-  NAVIGATION_SEQUENCE_PATHS,
-} from './routeDataDomains.ts';
-
-function testNavigationSequenceSharesSectionOutletKey() {
-  const keys = NAVIGATION_SEQUENCE_PATHS.map(getRouteOutletKey);
-  assert.deepEqual(keys, ['section', 'section', 'section', 'section']);
-}
+import { getRouteDataDomains } from './routeDataDomains.ts';
 
 function testQueryAndHashDoNotChangeDomains() {
   assert.deepEqual(getRouteDataDomains('/gravacao?tab=queue'), getRouteDataDomains('/gravacao'));
@@ -36,13 +26,6 @@ function testNavigationSequencePrefetchDomains() {
   ]);
 }
 
-function testQueryOnlyNavigationKeepsOutletKey() {
-  assert.equal(getRouteOutletKey('/calendario'), 'section');
-  assert.equal(getRouteOutletKey('/conteudos/abc'), '/conteudos/abc');
-  assert.equal(getRouteOutletKey('/biblioteca/analise'), 'section');
-  assert.equal(getRouteOutletKey('/biblioteca/livro-1'), '/biblioteca/livro-1');
-}
-
 function testContentDetailLoadsLibraryAndScriptTemplates() {
   assert.deepEqual(getRouteDataDomains('/conteudos/abc'), [
     'production',
@@ -50,14 +33,6 @@ function testContentDetailLoadsLibraryAndScriptTemplates() {
     'library',
     'templates',
   ]);
-}
-
-function testPendingPathnameTransition() {
-  assert.equal(isPathnameTransitionPending('/criacao', '/biblioteca'), true);
-  assert.equal(isPathnameTransitionPending('/criacao', '/criacao'), false);
-  assert.equal(isPathnameTransitionPending('/criacao', undefined), false);
-  // Query-only pending location should not blank the screen.
-  assert.equal(isPathnameTransitionPending('/calendario', '/calendario'), false);
 }
 
 function testNestedSettingsDomains() {
@@ -95,12 +70,9 @@ function testNestedSettingsDomains() {
   ]);
 }
 
-testNavigationSequenceSharesSectionOutletKey();
 testQueryAndHashDoNotChangeDomains();
 testNavigationSequencePrefetchDomains();
-testQueryOnlyNavigationKeepsOutletKey();
 testContentDetailLoadsLibraryAndScriptTemplates();
-testPendingPathnameTransition();
 testNestedSettingsDomains();
 
 console.log('routeDataDomains.test.ts: ok');

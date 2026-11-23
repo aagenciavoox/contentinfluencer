@@ -162,7 +162,7 @@ export function recordedPatch(
   const advances = statusRank(content.status) < statusRank(CONTENT_STATUS.EDICAO);
   return {
     recordedAt: content.recordedAt ?? now,
-    ...(advances ? edicaoPatch('enviar', now) : {}),
+    ...(advances ? {...edicaoPatch('enviar', now), statusEnteredAt: now} : {}),
   };
 }
 
@@ -230,7 +230,13 @@ export function isTabLocked(_tab: ContentDetailTab, _content: Content, _options:
   return false;
 }
 
+/** Peça que nasce no clube: texto, sem série. A Gestão é o fluxo de editar vídeo. */
+export function ehPecaDeTexto(content: Pick<Content, 'clubeId' | 'seriesId'>): boolean {
+  return Boolean(content.clubeId) && !content.seriesId;
+}
+
 export function getVisibleTabsForContent(content: Content, options: StageOptions = {}): ContentDetailTab[] {
+  if (ehPecaDeTexto(content)) return ['roteiro'];
   const stage = getContentStage(content, options);
   // Carrossel não passa pela gravação: da escrita vai direto para a publicação.
   if (isCarouselContent(content)) {
@@ -471,6 +477,9 @@ export function withProductionTag(tags: string[], tag: string): string[] {
 }
 
 export function getPrimaryAction(content: Content, options: StageOptions = {}): ContentPrimaryAction {
+  if (ehPecaDeTexto(content)) {
+    return {id: 'none', label: 'Texto', targetTab: 'roteiro'};
+  }
   const stage = getContentStage(content, options);
   const scheduled = isScheduledForDisplay(content);
   const inBlock = isContentInBlock(content.id, options.block);

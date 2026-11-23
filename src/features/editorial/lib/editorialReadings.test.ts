@@ -194,6 +194,11 @@ function testCotaDeFuncaoEstoqueEEvento() {
     estoqueDesejado: null,
     preferencias: {
       limiteSemanal: 1,
+      minimoSemanal: null,
+      maximoSemanal: null,
+      gravacaoMinimoSemanal: null,
+      gravacaoMetaSemanal: null,
+      gravacaoMaximoSemanal: null,
       reservaForaSeriesSemanal: null,
       redeReferenciaId: 'ig',
       reservaProntos: null,

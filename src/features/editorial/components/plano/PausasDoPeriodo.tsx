@@ -56,6 +56,8 @@ function EditorDaPausa({
   existente,
   platforms,
   series,
+  escopos = ESCOPOS_DA_PAUSA,
+  platformFixo = null,
   onSalvar,
   onRemover,
   onCancelar,
@@ -64,6 +66,8 @@ function EditorDaPausa({
   existente: boolean;
   platforms: readonly Platform[];
   series: readonly Serie[];
+  escopos?: readonly EscopoDaPausa[];
+  platformFixo?: string | null;
   onSalvar: (pausa: PausaEditorial) => void;
   onRemover: () => void;
   onCancelar: () => void;
@@ -91,16 +95,20 @@ function EditorDaPausa({
 
       <div className="stack-sm">
         <Text variant="bodyStrong" as="span">O que pausa</Text>
-        <ChoiceChips<EscopoDaPausa>
-          label="O que pausa"
-          layout="stacked"
-          value={rascunho.escopo}
-          onChange={escopo => { if (escopo) mudar({ escopo }); }}
-          options={ESCOPOS_DA_PAUSA.map(escopo => ({ value: escopo, label: ROTULO_DO_ESCOPO[escopo], description: EFEITO_DO_ESCOPO[escopo] }))}
-        />
+        {escopos.length > 1 ? (
+          <ChoiceChips<EscopoDaPausa>
+            label="O que pausa"
+            layout="stacked"
+            value={rascunho.escopo}
+            onChange={escopo => { if (escopo) mudar({ escopo }); }}
+            options={escopos.map(escopo => ({ value: escopo, label: ROTULO_DO_ESCOPO[escopo], description: EFEITO_DO_ESCOPO[escopo] }))}
+          />
+        ) : (
+          <Text variant="body" as="p">{EFEITO_DO_ESCOPO[rascunho.escopo]}</Text>
+        )}
       </div>
 
-      {rascunho.escopo === 'conta' ? (
+      {rascunho.escopo === 'conta' && !platformFixo ? (
         <div className="stack-xs">
           <Text variant="bodyStrong" as="span">
             Conta
@@ -167,27 +175,47 @@ function EditorDaPausa({
  * Pausa de publicação tira os dias da meta; gravação e produção não mexem nela.
  */
 export function PausasDoPeriodo({
-  periodo,
-  decisao,
-  pendencia,
+  periodo = null,
+  decisao = null,
+  pendencia = null,
+  escopos = ESCOPOS_DA_PAUSA,
+  armazenadas = false,
+  platformId = null,
 }: {
-  periodo: Intervalo;
-  decisao: DecisaoPeriodo | null;
+  periodo?: Intervalo | null;
+  decisao?: DecisaoPeriodo | null;
   /** O que a leitura da pausa escrita não conseguiu descontar. */
-  pendencia: string | null;
+  pendencia?: string | null;
+  /** Quais escopos esta lista mostra e deixa criar. */
+  escopos?: readonly EscopoDaPausa[];
+  /** Lista o que está gravado, sem cortar pelo período nem pela pausa escrita. */
+  armazenadas?: boolean;
+  /** Na aba da conta, a pausa já nasce nessa plataforma. */
+  platformId?: string | null;
 }) {
   const { state, settings, gravar } = useEditorialPlano();
   // daEscrita: aberta a partir da pausa escrita, que sai do campo quando a pausa com data é salva.
   const [editando, setEditando] = useState<{ pausa: PausaEditorial; existente: boolean; daEscrita?: boolean } | null>(null);
   const pausas = settings.pausas ?? [];
-  const doPeriodo = pausasNoIntervalo(pausas, periodo);
-  const texto = decisao?.pausaEditorial?.trim() ?? '';
+  const doPeriodo = (armazenadas || !periodo ? pausas : pausasNoIntervalo(pausas, periodo))
+    .filter(pausa => escopos.includes(pausa.escopo))
+    .filter(pausa => pausa.escopo !== 'conta' || !platformId || pausa.platformId === platformId);
+  const texto = armazenadas ? '' : (decisao?.pausaEditorial?.trim() ?? '');
   const convertidas = texto ? pausasDoTexto(texto, periodo, generateUUID) : null;
   const hoje = format(new Date(), 'yyyy-MM-dd');
 
   const nova = (nota = ''): PausaEditorial => {
-    const inicio = hoje >= periodo.inicio && hoje <= periodo.fim ? hoje : periodo.inicio;
-    return { id: generateUUID(), inicio, fim: inicio, escopo: 'publicacao', platformId: null, serieId: null, nota };
+    const inicio = periodo && hoje >= periodo.inicio && hoje <= periodo.fim ? hoje : (periodo?.inicio ?? hoje);
+    const escopo = escopos[0] ?? 'publicacao';
+    return {
+      id: generateUUID(),
+      inicio,
+      fim: inicio,
+      escopo,
+      platformId: escopo === 'conta' ? platformId : null,
+      serieId: null,
+      nota,
+    };
   };
 
   // A pausa escrita sai do campo no mesmo passo em que as datas entram: o dia não é descontado duas vezes nem some.
@@ -197,77 +225,108 @@ export function PausasDoPeriodo({
     gravar(upsertDecisaoPeriodo(comPausas, { ...decisao, pausaEditorial: '' }));
   };
 
+  const semPausas = doPeriodo.length === 0 && !texto;
+
   return (
-    <section className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-4 stack-sm">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="min-w-0">
-          <div className="inline-flex items-center">
-            <Text variant="bodyStrong" as="h3">Pausas</Text>
-            <Ajuda
-              rotulo="Sobre pausas"
-              texto="Vai dar uma pausa? Escolha o que você quer pausar e por quanto tempo. Gravação e produção mantêm as publicações no calendário."
-            />
-          </div>
-        </div>
-        <AppButton variant="secondary" size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setEditando({ pausa: nova(), existente: false })}>
-          Adicionar pausa
-        </AppButton>
-      </div>
-
-      {doPeriodo.length > 0 ? (
-        <ul className="divide-y divide-[var(--border-subtle)]">
-          {doPeriodo.map(pausa => {
-            const dias = diasNoPeriodo(pausa, periodo);
-            return (
-              <li key={pausa.id} className="flex items-start justify-between gap-3 py-2">
-                <div className="min-w-0">
-                  <Text variant="body" as="p" className="tabular-nums">
-                    {textoDoTrecho(pausa)} · {alvoDaPausa(pausa, state.platforms, state.series)}
-                  </Text>
-                  <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-                    {dias === 1 ? '1 dia no período' : `${dias} dias no período`}
-                    {pausa.nota ? ` · ${pausa.nota}` : ''}
-                  </Text>
-                </div>
-                <AppButton variant="ghost" size="sm" leftIcon={<Pencil className="h-4 w-4" />} onClick={() => setEditando({ pausa, existente: true })}>
-                  Editar
-                </AppButton>
-              </li>
-            );
-          })}
-        </ul>
-      ) : !texto ? (
-        <Text variant="secondary" as="p">Nenhuma pausa no período.</Text>
-      ) : null}
-
-      {texto ? (
-        <div className="flex items-start gap-2 rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-subtle)] p-2.5">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent-orange)]" aria-hidden />
-          <div className="min-w-0 flex-1 stack-xs">
-            <Text variant="body" as="p">
-              <strong>Pausa escrita:</strong> {texto}
-            </Text>
-            {convertidas ? (
-              <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-                Lida como {convertidas.map(textoDoTrecho).join(', ')}, já descontada da meta. Converter guarda as datas e tira o texto do campo; a meta não muda.
-              </Text>
-            ) : pendencia ? (
-              <Text variant="meta" as="p" className="text-[#92400e] dark:text-[#fde68a]">{pendencia}</Text>
-            ) : (
-              <Text variant="meta" as="p" className="text-[var(--text-secondary)]">Nenhum dia dela cai neste período.</Text>
-            )}
-            <div className="flex flex-wrap gap-2 pt-1">
-              {convertidas ? (
-                <AppButton variant="secondary" size="sm" onClick={converter}>Converter em pausa com data</AppButton>
-              ) : (
-                <AppButton variant="secondary" size="sm" onClick={() => setEditando({ pausa: nova(texto), existente: false, daEscrita: true })}>
-                  Criar pausa com data
-                </AppButton>
-              )}
+    <>
+      {semPausas ? (
+        <section className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-subtle)] pt-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+            <div className="inline-flex items-center">
+              <Text variant="label" as="span" className="text-[var(--text-secondary)]">Pausas</Text>
+              <Ajuda
+                rotulo="Sobre pausas"
+                texto="Vai dar uma pausa? Escolha o que você quer pausar e por quanto tempo. Gravação e produção mantêm as publicações no calendário."
+              />
             </div>
+            <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">
+              {armazenadas ? 'Nenhuma pausa' : 'Nenhuma pausa no período'}
+            </Text>
           </div>
-        </div>
-      ) : null}
+          <button
+            type="button"
+            onClick={() => setEditando({ pausa: nova(), existente: false })}
+            className="inline-flex min-h-8 items-center gap-1.5 rounded-[var(--radius-input)] px-2 py-1 t-button text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-11"
+          >
+            <Plus className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            Adicionar pausa
+          </button>
+        </section>
+      ) : (
+        <section className="border-t border-[var(--border-subtle)] pt-3 stack-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="inline-flex items-center">
+              <Text variant="label" as="h3" className="text-[var(--text-secondary)]">Pausas</Text>
+              <Ajuda
+                rotulo="Sobre pausas"
+                texto="Vai dar uma pausa? Escolha o que você quer pausar e por quanto tempo. Gravação e produção mantêm as publicações no calendário."
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setEditando({ pausa: nova(), existente: false })}
+              className="inline-flex min-h-8 items-center gap-1.5 rounded-[var(--radius-input)] px-2 py-1 t-button text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-11"
+            >
+              <Plus className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              Adicionar pausa
+            </button>
+          </div>
+
+          {doPeriodo.length > 0 ? (
+            <ul className="flex flex-wrap gap-2">
+              {doPeriodo.map(pausa => {
+                const dias = periodo ? diasNoPeriodo(pausa, periodo) : differenceInCalendarDays(parseISO(pausa.fim), parseISO(pausa.inicio)) + 1;
+                return (
+                  <li key={pausa.id}>
+                    <button
+                      type="button"
+                      onClick={() => setEditando({ pausa, existente: true })}
+                      className="inline-flex max-w-full items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] px-3 py-1.5 text-left transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                    >
+                      <span className="min-w-0 truncate t-meta tabular-nums text-[var(--text-primary)]">
+                        {textoDoTrecho(pausa)} · {alvoDaPausa(pausa, state.platforms, state.series)}
+                        <span className="text-[var(--text-tertiary)]">
+                          {' '}({dias === 1 ? '1 dia' : `${dias} dias`}{pausa.nota ? ` · ${pausa.nota}` : ''})
+                        </span>
+                      </span>
+                      <Pencil className="h-3 w-3 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
+
+          {texto ? (
+            <div className="flex items-start gap-2 rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-subtle)] p-2.5">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent-orange)]" aria-hidden />
+              <div className="min-w-0 flex-1 stack-xs">
+                <Text variant="body" as="p">
+                  <strong>Pausa escrita:</strong> {texto}
+                </Text>
+                {convertidas ? (
+                  <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+                    Lida como {convertidas.map(textoDoTrecho).join(', ')}, já descontada da meta. Converter guarda as datas e tira o texto do campo; a meta não muda.
+                  </Text>
+                ) : pendencia ? (
+                  <Text variant="meta" as="p" className="text-[color-mix(in_srgb,var(--warning)_60%,var(--text-primary))]">{pendencia}</Text>
+                ) : (
+                  <Text variant="meta" as="p" className="text-[var(--text-secondary)]">Nenhum dia dela cai neste período.</Text>
+                )}
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {convertidas ? (
+                    <AppButton variant="secondary" size="sm" onClick={converter}>Converter em pausa com data</AppButton>
+                  ) : (
+                    <AppButton variant="secondary" size="sm" onClick={() => setEditando({ pausa: nova(texto), existente: false, daEscrita: true })}>
+                      Criar pausa com data
+                    </AppButton>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </section>
+      )}
 
       <SidePanel
         open={editando != null}
@@ -285,6 +344,8 @@ export function PausasDoPeriodo({
             existente={editando.existente}
             platforms={state.platforms}
             series={state.series}
+            escopos={escopos}
+            platformFixo={platformId}
             onCancelar={() => setEditando(null)}
             onRemover={() => {
               gravar({ ...settings, pausas: removerPausa(pausas, editando.pausa.id) });
@@ -298,6 +359,6 @@ export function PausasDoPeriodo({
           />
         ) : null}
       </SidePanel>
-    </section>
+    </>
   );
 }

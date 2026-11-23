@@ -22,6 +22,8 @@ export type SerieHeranca = Pick<
   | 'pilarPrincipalId'
   | 'pilarIds'
   | 'legendaBase'
+  | 'youtubeTituloBase'
+  | 'youtubeDescricaoBase'
   | 'plataformas'
   | 'formatoVisualPadrao'
   | 'energiaPadrao'
@@ -41,6 +43,8 @@ export type ConteudoHeranca = {
   script?: string | null;
   scriptOrigem?: string | null;
   legendaBase?: string | null;
+  youtubeTitulo?: string | null;
+  youtubeDescricao?: string | null;
   formatoVisual?: string | null;
   energiaNecessaria?: EnergiaNivel | null;
   seriesId?: string | null;
@@ -290,6 +294,52 @@ export function resolverLegendaBase(
   return { legendaBase: null, origemSerieId: null, preservarPropria: false };
 }
 
+export type YoutubeModeloResolvido = {
+  titulo: string | null;
+  descricao: string | null;
+  /** Série de onde veio o primeiro texto ainda vazio no episódio. */
+  origemSerieId: string | null;
+};
+
+function textoHerdado(value: string | null | undefined): string | null {
+  const texto = value?.trim() ?? '';
+  return texto || null;
+}
+
+/**
+ * YouTube longo: título e descrição sobem na cadeia, cada um por si.
+ * Texto já gravado no episódio permanece. Shorts não usam este modelo.
+ */
+export function resolverYoutubeModelo(
+  content: ConteudoHeranca,
+  series: readonly SerieHeranca[],
+): YoutubeModeloResolvido {
+  let titulo = textoHerdado(content.youtubeTitulo);
+  let descricao = textoHerdado(content.youtubeDescricao);
+  let origemSerieId: string | null = null;
+  const serieId = content.seriesId?.trim();
+  if (serieId && (!titulo || !descricao)) {
+    for (const serie of propriaEAncestrais(serieId, series)) {
+      if (!titulo) {
+        const base = textoHerdado(serie.youtubeTituloBase);
+        if (base) {
+          titulo = base;
+          origemSerieId = origemSerieId ?? serie.id;
+        }
+      }
+      if (!descricao) {
+        const base = textoHerdado(serie.youtubeDescricaoBase);
+        if (base) {
+          descricao = base;
+          origemSerieId = origemSerieId ?? serie.id;
+        }
+      }
+      if (titulo && descricao) break;
+    }
+  }
+  return { titulo, descricao, origemSerieId };
+}
+
 export type HashtagsResolvidas = {
   hashtags: string | null;
   origem: 'serie' | 'ancestral' | 'pilar' | 'ajustes' | null;
@@ -372,6 +422,7 @@ export function resolverHerancaSerie(
     funcao: resolverFuncaoHerdada(content, series),
     modelo: resolverModelo(content, series),
     legendaBase: resolverLegendaBase(content, series),
+    youtube: resolverYoutubeModelo(content, series),
     formato: formatoDaSerie(content, series),
     energia: energiaDaSerie(content, series),
     caminho: content.seriesId

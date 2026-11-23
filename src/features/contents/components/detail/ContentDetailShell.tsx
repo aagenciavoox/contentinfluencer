@@ -18,6 +18,7 @@ import {
   getContentBlockSummary,
   ContentStage,
   getContentStage,
+  ehPecaDeTexto,
   getInitialTabForContext,
   getPostingAlerts,
   getPrimaryAction,
@@ -58,6 +59,7 @@ import {buildContentDetailRoute} from '../../lib/contentDetailRoute';
 import {
   isCarouselContent,
   normalizeWritingMode,
+  podeTrocarModoDeEscrita,
   writingModeChange,
 } from '../../lib/carouselSlides';
 
@@ -98,6 +100,9 @@ function draftFromContent(content: Content): ContentDraft {
     writingMode: content.writingMode,
     carouselSlides: content.carouselSlides,
     proposta: content.proposta,
+    youtubeTitulo: content.youtubeTitulo,
+    youtubeDescricao: content.youtubeDescricao,
+    youtubeBlocos: content.youtubeBlocos,
     status: content.status,
     publishDate: content.publishDate,
     publishTime: content.publishTime,
@@ -115,7 +120,7 @@ function draftFromContent(content: Content): ContentDraft {
 
 function mergeLoadedBody(draft: ContentDraft, live: Content): ContentDraft {
   let next = draft;
-  const assignIfMissing = <K extends 'script' | 'notes' | 'referencias' | 'writingNotes' | 'writingMode' | 'carouselSlides' | 'proposta'>(key: K, value: ContentDraft[K]) => {
+  const assignIfMissing = <K extends 'script' | 'notes' | 'referencias' | 'writingNotes' | 'writingMode' | 'carouselSlides' | 'proposta' | 'youtubeTitulo' | 'youtubeDescricao' | 'youtubeBlocos'>(key: K, value: ContentDraft[K]) => {
     if (draft[key] !== undefined || value === undefined) return;
     if (next === draft) next = {...draft};
     next[key] = value;
@@ -127,6 +132,9 @@ function mergeLoadedBody(draft: ContentDraft, live: Content): ContentDraft {
   assignIfMissing('writingMode', live.writingMode);
   assignIfMissing('carouselSlides', live.carouselSlides);
   assignIfMissing('proposta', live.proposta);
+  assignIfMissing('youtubeTitulo', live.youtubeTitulo);
+  assignIfMissing('youtubeDescricao', live.youtubeDescricao);
+  assignIfMissing('youtubeBlocos', live.youtubeBlocos);
   return next;
 }
 
@@ -582,7 +590,7 @@ export function ContentDetailShell({
   draftRef.current = draft;
   liveContentRef.current = liveContent;
 
-  const textKey = JSON.stringify([draft.title, draft.script, draft.notes, draft.writingNotes, draft.referencias, draft.carouselSlides, draft.proposta]);
+  const textKey = JSON.stringify([draft.title, draft.script, draft.notes, draft.writingNotes, draft.referencias, draft.carouselSlides, draft.proposta, draft.youtubeTitulo, draft.youtubeDescricao, draft.youtubeBlocos]);
   const lastTextKeyRef = useRef(textKey);
 
   useEffect(() => {
@@ -805,6 +813,7 @@ export function ContentDetailShell({
   // Roteiro no computador com Escrita/Gestão: título e "Avançar" descem para a área de escrita;
   // o cabeçalho fica só com "‹ Criação", "Salvo" e "⋯". Ideia, Gravação e Publicação não mudam.
   const documentHeader = activeTab === 'roteiro' && !isIdea && writingWorkspace;
+  const pecaDeTexto = ehPecaDeTexto(mergedContent);
   const writingMode = normalizeWritingMode(draft.writingMode);
   const carouselAvailable = isCarouselStorageAvailable();
   const youtubeAvailable = isYoutubeStorageAvailable();
@@ -812,7 +821,7 @@ export function ContentDetailShell({
     if (modeNext === writingMode) return;
     handleDraftChange(writingModeChange(modeNext, draft));
   };
-  const writingModesMenu = documentHeader ? {
+  const writingModesMenu = documentHeader && !pecaDeTexto && podeTrocarModoDeEscrita(writingMode) ? {
     value: writingMode,
     onChange: setWritingMode,
     unavailable: {
@@ -822,7 +831,9 @@ export function ContentDetailShell({
   } : undefined;
   const trashConfirmMessage = isIdea
     ? `Mover esta ideia para a lixeira — ${draft.title || 'Ideia sem título'}? Você pode restaurá-la depois.`
-    : `Mover este roteiro para a lixeira — ${draft.title || 'Roteiro sem título'}? Você pode restaurá-lo depois.`;
+    : pecaDeTexto
+      ? `Mover este texto para a lixeira — ${draft.title || 'Texto sem título'}? Você pode restaurá-lo depois.`
+      : `Mover este roteiro para a lixeira — ${draft.title || 'Roteiro sem título'}? Você pode restaurá-lo depois.`;
 
   const detailSection =
     activeTab === 'roteiro' ? (
@@ -865,6 +876,7 @@ export function ContentDetailShell({
           youtubeAvailable={youtubeAvailable}
           onOpenDraft={mode === 'mobile' ? () => setMobileDraftOpen(true) : undefined}
           onAddToBlock={() => setIsRecordingSheetOpen(true)}
+          pecaDeTexto={pecaDeTexto}
           title={draft.title}
           onTitleChange={value => handleDraftChange({title: value})}
           saveState={editorSaveState}
@@ -975,13 +987,15 @@ export function ContentDetailShell({
 
   const mobileScriptMenu = !isIdea ? (
     <div className="stack-md">
-      <WritingModeSelect
-        value={writingMode}
-        disabled={bodyLoading || Boolean(bodyError)}
-        carouselAvailable={carouselAvailable}
-        youtubeAvailable={youtubeAvailable}
-        onChange={setWritingMode}
-      />
+      {pecaDeTexto || !podeTrocarModoDeEscrita(writingMode) ? null : (
+        <WritingModeSelect
+          value={writingMode}
+          disabled={bodyLoading || Boolean(bodyError)}
+          carouselAvailable={carouselAvailable}
+          youtubeAvailable={youtubeAvailable}
+          onChange={setWritingMode}
+        />
+      )}
       <RoteiroTypographyControls
         layout="stack"
         typography={typography}

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ArrowRight, ListChecks } from 'lucide-react';
@@ -82,6 +82,7 @@ export function ItensDoPeriodoDialog({
   periodo: { inicio: string; fim: string };
   onClose: () => void;
 }) {
+  const location = useLocation();
   const navigate = useNavigate();
   const { state } = useAppContext();
   const [encaixe, setEncaixe] = useState<PlanejamentoPostIt | null>(null);
@@ -122,7 +123,7 @@ export function ItensDoPeriodoDialog({
 
   const abrirConteudo = (contentId: string) => {
     onClose();
-    navigate(buildContentDetailRoute(contentId, 'roteiro'), buildDetailBackState('/planejamento?direcao=1'));
+    navigate(buildContentDetailRoute(contentId, 'roteiro'), buildDetailBackState(`${location.pathname}${location.search}`));
   };
 
   const renderItem = (item: GradeEntry) => {

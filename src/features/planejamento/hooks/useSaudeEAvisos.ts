@@ -1,10 +1,12 @@
 import {generateUUID} from '../../../utils/uuid';
+import {saveAvisoCiente} from '../../../lib/database';
+import {cienteDaSemana, faixasNoPeriodo, mesmoCiente} from '../../editorial/lib/faixasEditoriais';
+import {semanaDe} from '../../editorial/lib/periodoEditorial';
 import {useEffect, useMemo, useState} from 'react';
 import {endOfMonth, format, startOfMonth} from 'date-fns';
 import {useNavigate} from 'react-router-dom';
 import {useAppContext} from '../../../context/AppContext';
 import {metasDoPeriodo, readProporcao} from '../../editorial/lib/proporcaoObjetivos';
-import {decisaoDoPeriodo} from '../../editorial/lib/periodoEditorial';
 import {redeDaRef} from '../../contas/lib/contas';
 import {entriesDaConcentracao} from '../lib/concentracaoAoColocar';
 import {saudeDoMes} from '../lib/monthHealth';
@@ -112,12 +114,12 @@ export function useSaudeEAvisos(args: {
       proporcaoFuncoes: readProporcao(settings.proporcaoFuncoes),
       vigencias: settings.vigencias,
     });
-    // As mesmas metas em número do editor do Editorial: o ajuste do período, senão proporção × meta.
-    // Com filtro não há meta de conteúdos daquela rede: os objetivos ficam em percentual contra a proporção.
+    // Meta do trecho: proporção × limite do ritmo vigente (vigência e pausas já estão em counts.limite).
+    // A decisão do período não entra. Com filtro não há meta daquela rede: os objetivos ficam em percentual.
     const metasObjetivo = metasDoPeriodo({
       limite: filtroAtivo(filtro) ? null : counts.limite,
       proporcao,
-      ajustes: decisaoDoPeriodo(settings.periodos ?? [], periodoDaSaude.inicio, periodoDaSaude.fim)?.metas,
+      ajustes: {},
     });
     const objetivos = distribuicaoPorObjetivo({itens: counts.itens, contents: contentsDoFiltro, series: state.series, proporcao, metas: metasObjetivo});
     // Semanas e meses das pontas são avaliados inteiros: busca os itens além do período.
@@ -148,7 +150,6 @@ export function useSaudeEAvisos(args: {
       series: state.series,
       periodo: periodoDaSaude,
       linhas: settings.metasDasContas ?? [],
-      decisao: decisaoDoPeriodo(settings.periodos ?? [], periodoDaSaude.inicio, periodoDaSaude.fim),
       proporcaoGeral: readProporcao(settings.proporcaoFuncoes),
       pausas: settings.pausas ?? [],
       filtro,
@@ -168,7 +169,7 @@ export function useSaudeEAvisos(args: {
       (filtro.redes.length === 0 || !linha.platformId || contaNoFiltro(redeDaRef(linha.platformId, state.platforms), filtro.redes))
       && (!filtro.formato || !linha.formato || linha.formato === filtro.formato));
     return {
-      // A meta absoluta do período já vem na contagem (`metaDoPeriodo`).
+      // Limite do trecho: ritmo vigente, vigência e pausas. A decisão do período não entra.
       counts,
       temDistribuicao: readProporcao(settings.proporcaoFuncoes) != null,
       objetivos,
@@ -243,6 +244,12 @@ export function useSaudeEAvisos(args: {
       redeReferenciaId: state.editorial.preferencias.redeReferenciaId,
       diasGravacao: state.editorial.preferencias.diasGravacao,
       antecedenciaPostagemDias: state.editorial.preferencias.antecedenciaPostagemDias,
+      limiteSemanal: state.editorial.preferencias.limiteSemanal,
+      gravacaoMetaSemanal: metaDeGravacaoDaSemana(state.editorial, new Date()),
+      preferencias: state.editorial.preferencias,
+      vigencias: state.editorial.vigencias,
+      metasDasContas: state.editorial.metasDasContas,
+      avisosCientes: state.editorial.avisosCientes,
       temporadas: state.temporadas,
       avisosLigados: state.editorial.avisos,
       indicadoresProducao: state.editorial.indicadoresProducao,
@@ -256,12 +263,35 @@ export function useSaudeEAvisos(args: {
     ];
   }, [postIts, contentsNoQuadro, postItsDoFiltro, contentsDoFiltro, filtro, state.series, state.pilares, state.platforms, state.editorial, state.temas, state.bibliotecaItems, state.temporadas, periodoDaSaude, month]);
 
+  const faixasDaSaude = useMemo(() => faixasNoPeriodo({
+    contents: contentsDoFiltro,
+    platforms: state.platforms,
+    preferencias: state.editorial.preferencias,
+    vigencias: state.editorial.vigencias,
+    metasDasContas: state.editorial.metasDasContas,
+    pausas: state.editorial.pausas,
+    periodo: periodoDaSaude,
+    hoje: format(new Date(), 'yyyy-MM-dd'),
+  }), [contentsDoFiltro, state.platforms, state.editorial, periodoDaSaude]);
+
   const marcarFoiDeProposito = (aviso: AvisoOrientacao) => {
     const excecao = excecaoFoiDeProposito(aviso, generateUUID());
     if (!excecao) return;
     dispatch({type: 'SET_EDITORIAL', payload: {
       ...state.editorial,
       excecoesConcentracao: [...(state.editorial.excecoesConcentracao ?? []), excecao],
+    }});
+  };
+
+  const queroFazerAMais = (aviso: AvisoOrientacao) => {
+    if (!aviso.ciente || aviso.reconhecido) return;
+    const entrada = cienteDaSemana(format(new Date(), 'yyyy-MM-dd'), aviso.ciente.tipo, aviso.ciente.platformId, aviso.ciente.formato);
+    void saveAvisoCiente(entrada).catch(() => undefined);
+    const atuais = state.editorial.avisosCientes ?? [];
+    if (atuais.some(item => mesmoCiente(item, entrada))) return;
+    dispatch({type: 'SET_EDITORIAL', payload: {
+      ...state.editorial,
+      avisosCientes: [...atuais, entrada],
     }});
   };
 
@@ -360,6 +390,8 @@ export function useSaudeEAvisos(args: {
     verPautasDoAviso,
     localizarAviso,
     marcarFoiDeProposito,
+    queroFazerAMais,
+    faixasDaSaude,
     focarIntervalo,
     handlePlanejarIntervalo,
     handleReorganizarEpisodios,
@@ -370,4 +402,21 @@ export function useSaudeEAvisos(args: {
     setAvisoAtivoId,
     limparDestaque,
   };
+}
+
+/** Meta de gravação da semana de hoje. Linha antiga sem a chave herda a preferência de agora. */
+function metaDeGravacaoDaSemana(
+  editorial: {
+    preferencias: { gravacaoMetaSemanal: number | null };
+    vigencias?: readonly { vigenteDesde: string; gravacaoMetaSemanal?: number | null }[];
+  },
+  hoje: Date,
+): number | null {
+  const inicio = semanaDe(format(hoje, 'yyyy-MM-dd')).inicio;
+  const linha = [...(editorial.vigencias ?? [])]
+    .filter(vigencia => vigencia.vigenteDesde <= inicio)
+    .sort((a, b) => a.vigenteDesde.localeCompare(b.vigenteDesde))
+    .at(-1);
+  if (linha && linha.gravacaoMetaSemanal !== undefined) return linha.gravacaoMetaSemanal ?? null;
+  return editorial.preferencias.gravacaoMetaSemanal;
 }

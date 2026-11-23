@@ -23,6 +23,7 @@ export const FORMULA_ENGAJAMENTO =
 export type LinhaAnalise = {
   publicacaoId: string;
   contentId: string;
+  platformId: string;
   titulo: string;
   contaRotulo: string;
   rede: string | null;
@@ -91,6 +92,16 @@ export function textoDeMetrica(valor: number | null): string {
   return valor == null ? '—' : String(valor);
 }
 
+const MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+/** "2026-10-28" → "28 out"; o ano só aparece quando não é o atual. */
+export function dataCurta(iso: string, hoje = new Date()): string {
+  const [ano, mes, dia] = iso.slice(0, 10).split('-').map(Number);
+  if (!ano || !mes || !dia) return iso;
+  const sufixo = ano === hoje.getFullYear() ? '' : ` ${ano}`;
+  return `${dia} ${MESES_CURTOS[mes - 1]}${sufixo}`;
+}
+
 function noIntervalo(data: string | null, inicio: string | null, fim: string | null): boolean {
   if (!inicio || !fim) return true;
   if (!data) return false;
@@ -138,6 +149,7 @@ export function filtrarPublicacoes({
       linhas.push({
         publicacaoId: publicacao.id,
         contentId: content.id,
+        platformId: publicacao.platformId,
         titulo: content.title.trim() || 'Sem título',
         contaRotulo: conta ? rotuloConta(conta) : publicacao.platformId,
         rede,

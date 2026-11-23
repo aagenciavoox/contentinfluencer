@@ -49,6 +49,9 @@ export function canDomainPayloadSatisfyRequest(
   domains: readonly AppDataDomain[],
   payload: Partial<AppData>,
 ) {
+  if (domains.includes('analytics')) {
+    if (!Array.isArray(payload.contasMetricas) || !Array.isArray(payload.periodosAnalise)) return false;
+  }
   const needsContents =
     domains.includes('content')
     || domains.includes('content-schedule')

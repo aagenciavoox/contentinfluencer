@@ -23,6 +23,7 @@ import { Text } from '../../../components/ui/Text';
 import { TextCount } from '../../../components/ui/TextCount';
 import { cn, getEntityTagStyle, htmlToReadableText } from '../../../lib/utils';
 import { contentReadableBody } from '../../../features/contents/lib/carouselSlides';
+import { dataDeEntradaNaEtapa } from '../../../features/contents/lib/creationContent';
 import { getScriptWordCount } from '../../../features/contents/lib/contentCardMeta';
 import {
   resolveScriptBodyStatus,
@@ -111,7 +112,7 @@ export function RecordingMobileScreen({
           return (energyRank[energiaDaSerie(right, series) ?? ''] ?? 0) - (energyRank[energiaDaSerie(left, series) ?? ''] ?? 0);
         case 'recentes':
         default:
-          return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+          return dataDeEntradaNaEtapa(right) - dataDeEntradaNaEtapa(left);
       }
     });
   }, [pilares, readyContents, series, sortValue]);

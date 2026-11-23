@@ -1,5 +1,4 @@
-import type { ClubeConteudo, ClubeOrigem, ClubePasta, ClubeSerie, Content, Serie, TemplateBloco } from '../../../lib/database.ts';
-import { templateToHtml } from '../../contents/lib/seriesScriptTemplate.ts';
+import type { ClubeConteudo, ClubeOrigem, ClubePasta, ClubeSerie, Content, Serie } from '../../../lib/database.ts';
 import { isActiveCreation } from '../../contents/lib/contentWorkflow.ts';
 import { tipoDaSerie } from '../../settings/lib/serieAgrupamento.ts';
 
@@ -9,17 +8,9 @@ export const ORIGEM_DO_CLUBE: Record<ClubeOrigem, string> = {
   outro: 'Outro',
 };
 
-const BLOCOS_DO_CLUBE: TemplateBloco[] = [
-  { id: 'leitura', tipo: 'variavel', label: 'Leitura do mês', conteudo: '', placeholder: '' },
-  { id: 'pauta', tipo: 'variavel', label: 'Pauta do encontro', conteudo: '', placeholder: '' },
-  { id: 'materiais', tipo: 'variavel', label: 'Materiais de apoio', conteudo: '', placeholder: '' },
-  { id: 'recados', tipo: 'variavel', label: 'Recados do apoio', conteudo: '', placeholder: '' },
-  { id: 'falta', tipo: 'variavel', label: 'O que falta fazer', conteudo: '', placeholder: '' },
-];
-
-/** Texto inicial da peça que nasce no clube, no mesmo formato dos blocos do roteiro. */
+/** A peça que nasce no clube começa vazia. */
 export function htmlInicialDoClube(): string {
-  return templateToHtml({ estrutura: BLOCOS_DO_CLUBE });
+  return '';
 }
 
 type ConteudoDoClube = Pick<Content, 'id' | 'seriesId' | 'title' | 'ordemEpisodio' | 'deletedAt' | 'archivedAt'> & {

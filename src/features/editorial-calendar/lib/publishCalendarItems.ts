@@ -3,11 +3,25 @@ import type { Content, ContentPlataforma } from '../../../lib/database.ts';
 import { platformKey } from '../../../components/ui/platformName.ts';
 import { contaDaRef, rotuloDaRef, type ContaRef } from '../../contas/lib/contas.ts';
 import { CONTENT_STATUS, DISPLAY_STATUS, getDisplayStatus, isReadyToPublish, normalizeContentStatus } from '../../contents/lib/contentPipeline.ts';
+import { legendaEfetiva } from '../../editorial/lib/captions.ts';
 import { cicloDaPublicacao } from '../../editorial/lib/cicloPublicacao.ts';
 import { buildGradeEntries, quandoDoItem, type GradeSerie, type Quando } from '../../editorial/lib/gradeEntries.ts';
-import { dataRealizada, earliestRealizadaEm, rotuloStatusPublicacao } from '../../editorial/lib/markPublished.ts';
+import { dataRealizada, rotuloStatusPublicacao } from '../../editorial/lib/markPublished.ts';
 import { normalizePublicacaoStatus } from '../../editorial/lib/publicacaoSituacao.ts';
 const TODAS_AS_REDES = 'todas';
+
+/** Uma conta dentro do card: horário, legenda e o status daquela publicação. */
+export type PublishCalendarConta = {
+  plataformaId: string;
+  platformName: string;
+  time: string | null;
+  legenda: string;
+  /** Rótulo do selo desta publicação. */
+  status: string;
+  posted: boolean;
+  cancelled: boolean;
+  programada: boolean;
+};
 
 export type PublishCalendarItem = {
   id: string;
@@ -23,6 +37,8 @@ export type PublishCalendarItem = {
   cancelled: boolean;
   /** Conta marcada como programada (não basta data futura). */
   programada?: boolean;
+  /** Contas deste card, na ordem das publicações. O drawer lê horário e legenda daqui. */
+  contas: PublishCalendarConta[];
 };
 
 type PlatformRef = ContaRef;
@@ -81,108 +97,171 @@ function planejado(date: string | null | undefined, time: string | null | undefi
   return { date: date || null, time: date ? hora(time) : null };
 }
 
-function realizadaEm(publicacoes: ReadonlyArray<ContentPlataforma | undefined>): string | null {
-  return earliestRealizadaEm(
-    publicacoes
-      .filter((publicacao): publicacao is ContentPlataforma => publicacao?.status === 'publicada')
-      .map(publicacao => dataRealizada(publicacao)),
-  );
+/** Sem data na publicação, o dia do roteiro ainda reúne as contas que não escolheram o próprio dia. */
+function planoDaPublicacao(content: Content, publicacao: ContentPlataforma): Quando {
+  if (publicacao.publishDate) return planejado(publicacao.publishDate, publicacao.publishTime);
+  return planejado(content.publishDate, publicacao.publishTime || content.publishTime);
 }
 
-/**
- * Roteiro que já foi ao ar: uma entrada por conta, no dia e na hora em que essa conta publicou.
- * Vale também quando nenhuma conta é a rede de referência. A grade da Saúde não usa isto.
- */
-function itensPorContaPublicada(content: Content, platforms: readonly PlatformRef[]): PublishCalendarItem[] {
-  const contas = (content.plataformas ?? []).filter(publicacao =>
-    cicloDaPublicacao(publicacao) === 1 && publicacaoPostada(content, publicacao),
+function statusDaConta(
+  content: Content,
+  publicacao: ContentPlataforma,
+  posted: boolean,
+  programada: boolean,
+): string {
+  if (posted) return CONTENT_STATUS.POSTADO;
+  if (programada && isReadyToPublish(content)) return DISPLAY_STATUS.PROGRAMADO;
+  return rotuloStatusPublicacao(publicacao.status);
+}
+
+type ContaMontada = {
+  ciclo: number;
+  date: string | null;
+  time: string | null;
+  view: PublishCalendarConta;
+};
+
+function montarConta(
+  content: Content,
+  publicacao: ContentPlataforma,
+  platforms: readonly PlatformRef[],
+): ContaMontada {
+  const posted = publicacaoPostada(content, publicacao);
+  const programada = normalizePublicacaoStatus(publicacao.status) === 'programada';
+  const quando = quandoDoItem(
+    content,
+    planoDaPublicacao(content, publicacao),
+    posted,
+    dataRealizada(publicacao),
   );
-  return contas.map(publicacao => {
-    const quando = quandoDoItem(
-      content,
-      planejado(publicacao.publishDate, publicacao.publishTime),
-      true,
-      dataRealizada(publicacao),
-    );
-    return {
-      id: `${content.id}:pub:${publicacao.id}`,
-      contentId: content.id,
-      date: quando.date,
-      time: quando.time,
+  return {
+    ciclo: cicloDaPublicacao(publicacao),
+    date: quando.date ? quando.date.slice(0, 10) : null,
+    time: quando.time,
+    view: {
       plataformaId: publicacao.id,
-      platformNames: [platformName(publicacao.platformId, platforms)],
-      posted: true,
-      cancelled: false,
-      programada: false,
-    };
-  });
+      platformName: platformName(publicacao.platformId, platforms),
+      time: hora(publicacao.publishTime) ?? quando.time,
+      legenda: legendaEfetiva(content.legendaBase, publicacao),
+      status: statusDaConta(content, publicacao, posted, programada),
+      posted,
+      cancelled: cancelada(publicacao),
+      programada,
+    },
+  };
 }
 
-/**
- * Sem rede de referência, cada roteiro entra uma vez, com todas as suas redes,
- * e cada repost entra na data dele.
- */
-function itensSemReferencia(content: Content, platforms: readonly PlatformRef[]): PublishCalendarItem[] {
-  if (content.deletedAt || content.archivedAt) return [];
-  const publicacoes = content.plataformas ?? [];
-  const originais = publicacoes.filter(publicacao => publicacao.publicationKind !== 'repost');
-  const primeiraComData = originais
-    .filter(publicacao => publicacao.publishDate)
-    .sort((left, right) => (left.publishDate ?? '').localeCompare(right.publishDate ?? ''))[0];
-  const plano = content.publishDate
-    ? planejado(content.publishDate, content.publishTime)
-    : planejado(primeiraComData?.publishDate, primeiraComData?.publishTime);
-  const posted = getDisplayStatus(content) === CONTENT_STATUS.POSTADO
-    || originais.some(publicacao => publicacao.status === 'publicada');
-  const quando = quandoDoItem(content, plano, posted, realizadaEm(originais));
+function primeiraHora(contas: readonly PublishCalendarConta[]): string | null {
+  const horas = contas.map(conta => conta.time).filter((valor): valor is string => Boolean(valor));
+  horas.sort();
+  return horas[0] ?? null;
+}
 
-  const itens: PublishCalendarItem[] = [{
+type Grupo = {
+  ciclo: number;
+  date: string | null;
+  contas: PublishCalendarConta[];
+  time: string | null;
+};
+
+function itemDoGrupo(contentId: string, grupo: Grupo, gruposNoCiclo: number): PublishCalendarItem {
+  const posted = grupo.contas.some(conta => conta.posted);
+  const date = grupo.date ?? 'sem-data';
+  const unicaPostada = grupo.contas.length === 1 && grupo.contas[0]?.posted;
+  let id: string;
+  if (grupo.ciclo >= 2) {
+    id = gruposNoCiclo === 1
+      ? `${contentId}:ciclo:${grupo.ciclo}`
+      : `${contentId}:ciclo:${grupo.ciclo}:${date}`;
+  } else if (unicaPostada) {
+    id = `${contentId}:pub:${grupo.contas[0]?.plataformaId}`;
+  } else if (gruposNoCiclo === 1) {
+    id = `${contentId}:original`;
+  } else {
+    id = `${contentId}:${date}:original`;
+  }
+  return {
+    id,
+    contentId,
+    date: grupo.date,
+    time: grupo.time ?? primeiraHora(grupo.contas),
+    plataformaId: grupo.contas[0]?.plataformaId,
+    platformNames: uniqueNames(grupo.contas.map(conta => conta.platformName)),
+    posted,
+    cancelled: !posted && grupo.contas.length > 0 && grupo.contas.every(conta => conta.cancelled),
+    programada: grupo.contas.some(conta => conta.programada),
+    contas: grupo.contas,
+  };
+}
+
+function itemDoRoteiro(content: Content): PublishCalendarItem {
+  const posted = getDisplayStatus(content) === CONTENT_STATUS.POSTADO;
+  const quando = quandoDoItem(content, planejado(content.publishDate, content.publishTime), posted, null);
+  return {
     id: `${content.id}:original`,
     contentId: content.id,
-    date: quando.date,
+    date: quando.date ? quando.date.slice(0, 10) : null,
     time: quando.time,
-    plataformaId: originais[0]?.id,
-    platformNames: uniqueNames(originais.map(publicacao => platformName(publicacao.platformId, platforms))),
+    platformNames: [],
     posted,
-    cancelled: !posted && originais.length > 0 && originais.every(cancelada),
-    programada: originais.some(item => normalizePublicacaoStatus(item.status) === 'programada'),
-  }];
+    cancelled: false,
+    programada: false,
+    contas: [],
+  };
+}
 
-  const porCiclo = new Map();
+/**
+ * Mesmo roteiro e mesmo dia: um card. Dia diferente: outro card, só com as contas daquele dia.
+ * Repost (ciclo 2+) não entra no card do original. Repost cancelado não aparece.
+ */
+function agruparPublicacoes(
+  content: Content,
+  publicacoes: readonly ContentPlataforma[],
+  platforms: readonly PlatformRef[],
+  semPublicacaoViraRoteiro = false,
+): PublishCalendarItem[] {
+  if (publicacoes.length === 0) {
+    return semPublicacaoViraRoteiro ? [itemDoRoteiro(content)] : [];
+  }
+  const grupos: Grupo[] = [];
+  const indice = new Map<string, Grupo>();
   for (const publicacao of publicacoes) {
     const ciclo = cicloDaPublicacao(publicacao);
-    if (ciclo < 2) continue;
-    if (cancelada(publicacao)) continue;
-    const lista = porCiclo.get(ciclo) ?? [];
-    lista.push(publicacao);
-    porCiclo.set(ciclo, lista);
+    if (ciclo >= 2 && cancelada(publicacao)) continue;
+    const montada = montarConta(content, publicacao, platforms);
+    const chave = `${montada.ciclo}:${montada.date ?? ''}`;
+    let grupo = indice.get(chave);
+    if (!grupo) {
+      grupo = { ciclo: montada.ciclo, date: montada.date, contas: [], time: montada.time };
+      indice.set(chave, grupo);
+      grupos.push(grupo);
+    } else if (!grupo.time && montada.time) {
+      grupo.time = montada.time;
+    } else if (grupo.time && montada.time && montada.time < grupo.time) {
+      grupo.time = montada.time;
+    }
+    grupo.contas.push(montada.view);
   }
-  for (const [ciclo, lista] of [...porCiclo.entries()].sort((a, b) => a[0] - b[0])) {
-    const representante = [...lista].sort((a, b) =>
-      (a.publishDate ?? '').localeCompare(b.publishDate ?? ''),
-    )[0] ?? lista[0];
-    if (!representante) continue;
-    const repostPosted = lista.some(item => publicacaoPostada(content, item));
-    const quandoRepost = quandoDoItem(
-      content,
-      planejado(representante.publishDate, representante.publishTime),
-      repostPosted,
-      realizadaEm(lista),
-    );
-    itens.push({
-      id: `${content.id}:ciclo:${ciclo}`,
-      contentId: content.id,
-      date: quandoRepost.date,
-      time: quandoRepost.time,
-      plataformaId: representante.id,
-      platformNames: uniqueNames(lista.map(item => platformName(item.platformId, platforms))),
-      posted: repostPosted,
-      cancelled: false,
-      programada: lista.some(item => normalizePublicacaoStatus(item.status) === 'programada'),
-    });
+  if (grupos.length === 0) {
+    return semPublicacaoViraRoteiro ? [itemDoRoteiro(content)] : [];
   }
+  const porCiclo = new Map<number, number>();
+  for (const grupo of grupos) porCiclo.set(grupo.ciclo, (porCiclo.get(grupo.ciclo) ?? 0) + 1);
+  return grupos.map(grupo => itemDoGrupo(content.id, grupo, porCiclo.get(grupo.ciclo) ?? 1));
+}
 
-  return itens;
+function itensDoConteudo(content: Content, platforms: readonly PlatformRef[]): PublishCalendarItem[] {
+  if (content.deletedAt || content.archivedAt) return [];
+  return agruparPublicacoes(content, content.plataformas ?? [], platforms, true);
+}
+
+/** Fora da rede de referência, só o que já foi ao ar no ciclo original — agora agrupado por dia. */
+function itensPublicadosForaDaGrade(content: Content, platforms: readonly PlatformRef[]): PublishCalendarItem[] {
+  if (content.deletedAt || content.archivedAt) return [];
+  const postadas = (content.plataformas ?? []).filter(publicacao =>
+    cicloDaPublicacao(publicacao) === 1 && publicacaoPostada(content, publicacao),
+  );
+  return agruparPublicacoes(content, postadas, platforms);
 }
 
 export function todayKey(now = new Date()): string {
@@ -216,11 +295,41 @@ export function publishItemStatus(content: Content, item: PublishCalendarItem, _
   return rotuloStatusPublicacao(null);
 }
 
+function itensDeUmaRede(
+  contents: readonly Content[],
+  platforms: readonly PlatformRef[],
+  platformFilter: string,
+): PublishCalendarItem[] {
+  const itens: PublishCalendarItem[] = [];
+  for (const content of contents) {
+    if (content.deletedAt || content.archivedAt) continue;
+    for (const publicacao of content.plataformas ?? []) {
+      const nome = platformName(publicacao.platformId, platforms);
+      if (!passaNoFiltro(publicacao.platformId, platformFilter, platforms)) continue;
+      const montada = montarConta(content, publicacao, platforms);
+      itens.push({
+        id: `${content.id}:pub:${publicacao.id}`,
+        contentId: content.id,
+        date: montada.date,
+        time: montada.time,
+        plataformaId: publicacao.id,
+        platformNames: [nome],
+        posted: montada.view.posted,
+        cancelled: montada.view.cancelled,
+        programada: montada.view.programada,
+        contas: [montada.view],
+      });
+    }
+  }
+  return itens;
+}
+
 /**
- * "Todas" mostra um item por entrada da grade, com as redes daquele roteiro.
- * Sem rede de referência, um item por roteiro — salvo o que já foi ao ar, que vira um item por conta.
- * Uma rede mostra um item por publicação dela, na data dessa publicação.
- * O que já foi ao ar fica no dia e na hora em que cada conta publicou, mesmo fora da rede de referência.
+ * "Todas" agrupa por roteiro, ciclo e dia. A rede de referência não escolhe o dia:
+ * contas do mesmo roteiro no mesmo dia ficam num card; outro dia vira outro card.
+ * Ela só continua decidindo se um roteiro que só existe em outras redes entra nesta vista.
+ * O que já foi ao ar fora dela continua no calendário, também agrupado por dia.
+ * Uma rede mostra um card por publicação dela.
  */
 export function buildPublishCalendarItems(input: {
   contents: readonly Content[];
@@ -230,119 +339,27 @@ export function buildPublishCalendarItems(input: {
   platformFilter?: string;
 }): PublishCalendarItem[] {
   const platformFilter = input.platformFilter || TODAS_AS_REDES;
+  if (platformFilter !== TODAS_AS_REDES) {
+    return itensDeUmaRede(input.contents, input.platforms, platformFilter);
+  }
+
   const referenciaId = input.redeReferenciaId
     ? canonicalPlatformId(input.redeReferenciaId, input.platforms)
     : null;
-
-  if (platformFilter !== TODAS_AS_REDES) {
-    const itens: PublishCalendarItem[] = [];
-    for (const content of input.contents) {
-      if (content.deletedAt || content.archivedAt) continue;
-      for (const publicacao of content.plataformas ?? []) {
-        const nome = platformName(publicacao.platformId, input.platforms);
-        if (!passaNoFiltro(publicacao.platformId, platformFilter, input.platforms)) continue;
-        const posted = publicacaoPostada(content, publicacao);
-        const quando = quandoDoItem(
-          content,
-          planejado(publicacao.publishDate, publicacao.publishTime),
-          posted,
-          realizadaEm([publicacao]),
-        );
-        itens.push({
-          id: `${content.id}:pub:${publicacao.id}`,
-          contentId: content.id,
-          date: quando.date,
-          time: quando.time,
-          plataformaId: publicacao.id,
-          platformNames: [nome],
-          posted,
-          cancelled: cancelada(publicacao),
-          programada: normalizePublicacaoStatus(publicacao.status) === 'programada',
-        });
-      }
-    }
-    return itens;
-  }
-
   if (!referenciaId) {
-    return input.contents.flatMap(content => {
-      const porConta = itensPorContaPublicada(content, input.platforms);
-      if (porConta.length === 0) return itensSemReferencia(content, input.platforms);
-      const reposts = itensSemReferencia(content, input.platforms)
-        .filter(item => item.id.includes(':ciclo:'));
-      return [...porConta, ...reposts];
-    });
+    return input.contents.flatMap(content => itensDoConteudo(content, input.platforms));
   }
 
-  const series: GradeSerie[] = input.series.map(serie => ({
-    id: serie.id,
-    funcaoPadrao: serie.funcaoPadrao,
-  }));
-  const entries = buildGradeEntries({
+  const naGrade = new Set(buildGradeEntries({
     contents: input.contents,
-    series,
+    series: input.series,
     settings: { redeReferenciaId: referenciaId },
     platforms: input.platforms,
+  }).map(entry => entry.contentId));
+
+  return input.contents.flatMap(content => {
+    if (content.deletedAt || content.archivedAt) return [];
+    if (naGrade.has(content.id)) return itensDoConteudo(content, input.platforms);
+    return itensPublicadosForaDaGrade(content, input.platforms);
   });
-
-  const daGrade = entries.flatMap(entry => {
-    const content = input.contents.find(item => item.id === entry.contentId);
-    if (!content) return [];
-    if (entry.tipo === 'original') {
-      const porConta = itensPorContaPublicada(content, input.platforms);
-      if (porConta.length > 0) return porConta;
-    }
-    const publicacoes = (content.plataformas ?? []).map(publicacao => ({
-      ...publicacao,
-      platformId: canonicalPlatformId(publicacao.platformId, input.platforms),
-    }));
-    const cicloMatch = entry.tipo === 'repost'
-      ? /:ciclo:(\d+)$/.exec(entry.id)
-      : null;
-    const ciclo = cicloMatch ? Number(cicloMatch[1]) : null;
-    const doCiclo = ciclo != null
-      ? publicacoes.filter(publicacao => cicloDaPublicacao(publicacao) === ciclo)
-      : [];
-    const nomes = entry.tipo === 'repost'
-      ? [platformName(referenciaId || '', input.platforms)].filter(nome => nome && nome !== (referenciaId || ''))
-      : uniqueNames(
-        publicacoes
-          .filter(publicacao => cicloDaPublicacao(publicacao) === 1)
-          .map(publicacao => platformName(publicacao.platformId, input.platforms)),
-      );
-    const original = publicacoes.find(publicacao =>
-      cicloDaPublicacao(publicacao) === 1 && publicacao.platformId === referenciaId,
-    );
-    const repost = doCiclo.find(publicacao => publicacao.platformId === referenciaId)
-      ?? doCiclo[0];
-    const publicacao = entry.tipo === 'repost' ? repost : original;
-    const posted = entry.tipo === 'repost'
-      ? doCiclo.some(item => publicacaoPostada(content, item))
-      : publicacaoPostada(content, publicacao);
-
-    return [{
-      id: entry.id,
-      contentId: entry.contentId,
-      date: entry.data,
-      time: entry.hora,
-      plataformaId: publicacao?.id ?? original?.id,
-      platformNames: entry.tipo === 'repost' && referenciaId
-        ? [platformName(referenciaId, input.platforms)]
-        : nomes,
-      posted,
-      cancelled: cancelada(publicacao),
-      programada: entry.tipo === 'repost'
-        ? doCiclo.some(item => normalizePublicacaoStatus(item.status) === 'programada')
-        : normalizePublicacaoStatus(publicacao?.status) === 'programada',
-    }];
-  });
-
-  const naGrade = new Set(entries.map(entry => entry.contentId));
-  const foraDaGrade = input.contents.flatMap(content => {
-    if (content.deletedAt || content.archivedAt || naGrade.has(content.id)) return [];
-    return itensPorContaPublicada(content, input.platforms);
-  });
-
-  return [...daGrade, ...foraDaGrade];
 }
-

@@ -5,9 +5,11 @@ import { buildGradeEntries } from '../../editorial/lib/gradeEntries.ts';
 
 const INSTAGRAM = 'plat-instagram';
 const TIKTOK = 'plat-tiktok';
+const YOUTUBE = 'plat-youtube';
 const platforms = [
   { id: INSTAGRAM, nome: 'Instagram' },
   { id: TIKTOK, nome: 'TikTok' },
+  { id: YOUTUBE, nome: 'YouTube' },
 ];
 const series = [{ id: 'serie-1', funcaoPadrao: 'converter' as const }];
 
@@ -59,7 +61,7 @@ function conteudo(partial: Partial<Content> & Pick<Content, 'id'>): Content {
   };
 }
 
-function testSemanaMostraInstagramNaGradeETikTokComoExtra() {
+function testSemanaSeparaOsDiasEmVezDeColapsarNaRedeDeReferencia() {
   const contents = [
     conteudo({
       id: 'semana',
@@ -100,13 +102,17 @@ function testSemanaMostraInstagramNaGradeETikTokComoExtra() {
     redeReferenciaId: INSTAGRAM,
     platformFilter: 'todas',
   });
-  // Só TikTok fica fora da grade com Instagram como rede de base.
+  // Cada dia do roteiro vira um card, só com as contas daquele dia.
+  // Roteiro que só existe fora da rede de referência continua de fora, se ainda não foi ao ar.
   assert.deepEqual(
-    todas.map(item => ({ id: item.contentId, date: item.date?.slice(0, 10) })),
-    [{ id: 'semana', date: '2026-10-06' }],
+    todas.map(item => ({ id: item.contentId, date: item.date?.slice(0, 10), redes: item.platformNames })),
+    [
+      { id: 'semana', date: '2026-10-06', redes: ['Instagram'] },
+      { id: 'semana', date: '2026-10-08', redes: ['TikTok'] },
+    ],
   );
-  assert.equal(todas[0]?.date, '2026-10-06');
-  assert.deepEqual(todas[0]?.platformNames, ['Instagram', 'TikTok']);
+  assert.equal(todas[0]?.time, '18:00');
+  assert.equal(todas[1]?.time, '19:00');
 
   const soTikTok = buildPublishCalendarItems({
     contents,
@@ -501,7 +507,184 @@ function testVariasContasPostadasMostramHorariosDiferentes() {
   );
 }
 
-testSemanaMostraInstagramNaGradeETikTokComoExtra();
+function testMesmoDiaAgrupaAsContasAindaAgendadas() {
+  const itens = buildPublishCalendarItems({
+    contents: [
+      conteudo({
+        id: 'junto',
+        plataformas: [
+          publicacao({ id: 'ig', contentId: 'junto', platformId: INSTAGRAM, publishDate: '2026-10-06', publishTime: '18:00' }),
+          publicacao({ id: 'tt', contentId: 'junto', platformId: TIKTOK, publishDate: '2026-10-06', publishTime: '19:00' }),
+          publicacao({ id: 'yt', contentId: 'junto', platformId: YOUTUBE, publishDate: '2026-10-06', publishTime: '20:00' }),
+        ],
+      }),
+    ],
+    platforms,
+    series,
+    redeReferenciaId: INSTAGRAM,
+    platformFilter: 'todas',
+  });
+  assert.equal(itens.length, 1);
+  assert.equal(itens[0]?.date, '2026-10-06');
+  assert.equal(itens[0]?.posted, false);
+  assert.deepEqual(itens[0]?.platformNames, ['Instagram', 'TikTok', 'YouTube']);
+  assert.deepEqual(itens[0]?.contas.map(conta => conta.plataformaId), ['ig', 'tt', 'yt']);
+}
+
+function testDiasDiferentesNaoUsamARedeDeReferencia() {
+  const itens = buildPublishCalendarItems({
+    contents: [
+      conteudo({
+        id: 'separado',
+        plataformas: [
+          publicacao({ id: 'ig', contentId: 'separado', platformId: INSTAGRAM, publishDate: '2026-10-06', publishTime: '18:00' }),
+          publicacao({ id: 'yt', contentId: 'separado', platformId: YOUTUBE, publishDate: '2026-10-06', publishTime: '12:00' }),
+          publicacao({ id: 'tt', contentId: 'separado', platformId: TIKTOK, publishDate: '2026-10-09', publishTime: '21:00' }),
+        ],
+      }),
+    ],
+    platforms,
+    series,
+    redeReferenciaId: INSTAGRAM,
+    platformFilter: 'todas',
+  });
+  assert.deepEqual(
+    itens.map(item => ({ date: item.date, redes: item.platformNames, contas: item.contas.map(conta => conta.plataformaId) })),
+    [
+      { date: '2026-10-06', redes: ['Instagram', 'YouTube'], contas: ['ig', 'yt'] },
+      { date: '2026-10-09', redes: ['TikTok'], contas: ['tt'] },
+    ],
+  );
+}
+
+function testPublicadoNoMesmoDiaViraUmCardComStatusDeCadaConta() {
+  const content = conteudo({
+    id: 'publicado',
+    status: 'Produção',
+    legendaBase: 'texto da base',
+    plataformas: [
+      publicacao({
+        id: 'ig',
+        contentId: 'publicado',
+        platformId: INSTAGRAM,
+        publishDate: '2026-10-06',
+        publishTime: '18:00',
+        status: 'publicada',
+        legenda: 'só no insta',
+        legendaPropria: true,
+      }),
+      publicacao({
+        id: 'tt',
+        contentId: 'publicado',
+        platformId: TIKTOK,
+        publishDate: '2026-10-06',
+        publishTime: '19:30',
+        status: 'programada',
+        legenda: 'não usa',
+        legendaPropria: false,
+      }),
+      publicacao({
+        id: 'yt',
+        contentId: 'publicado',
+        platformId: YOUTUBE,
+        publishDate: '2026-10-06',
+        publishTime: '20:00',
+        status: 'publicada',
+        legenda: 'só no youtube',
+        legendaPropria: true,
+      }),
+    ],
+  });
+  const itens = buildPublishCalendarItems({
+    contents: [content],
+    platforms,
+    series,
+    redeReferenciaId: INSTAGRAM,
+    platformFilter: 'todas',
+  });
+  assert.equal(itens.length, 1);
+  assert.equal(itens[0]?.posted, true);
+  assert.deepEqual(itens[0]?.platformNames, ['Instagram', 'TikTok', 'YouTube']);
+  assert.deepEqual(
+    itens[0]?.contas.map(conta => ({
+      id: conta.plataformaId,
+      status: conta.status,
+      time: conta.time,
+      legenda: conta.legenda,
+    })),
+    [
+      { id: 'ig', status: 'Publicado', time: '18:00', legenda: 'só no insta' },
+      { id: 'tt', status: 'Programada', time: '19:30', legenda: 'texto da base' },
+      { id: 'yt', status: 'Publicado', time: '20:00', legenda: 'só no youtube' },
+    ],
+  );
+}
+
+function testFiltroDeUmaRedeMantemUmCardPorPublicacao() {
+  const duasContas = [
+    { id: 'ig-a', nome: 'Instagram' },
+    { id: 'ig-b', nome: 'Instagram' },
+    { id: TIKTOK, nome: 'TikTok' },
+  ];
+  const content = conteudo({
+    id: 'filtro',
+    plataformas: [
+      publicacao({ id: 'a', contentId: 'filtro', platformId: 'ig-a', publishDate: '2026-10-06', publishTime: '18:00' }),
+      publicacao({ id: 'b', contentId: 'filtro', platformId: 'ig-b', publishDate: '2026-10-06', publishTime: '19:00' }),
+      publicacao({ id: 'tt', contentId: 'filtro', platformId: TIKTOK, publishDate: '2026-10-06', publishTime: '20:00' }),
+    ],
+  });
+  const base = { contents: [content], platforms: duasContas, series, redeReferenciaId: 'ig-a' };
+  const todas = buildPublishCalendarItems({ ...base, platformFilter: 'todas' });
+  assert.equal(todas.length, 1);
+  assert.deepEqual(todas[0]?.contas.map(conta => conta.plataformaId), ['a', 'b', 'tt']);
+
+  const soInstagram = buildPublishCalendarItems({ ...base, platformFilter: 'Instagram' });
+  assert.equal(soInstagram.length, 2);
+  assert.deepEqual(soInstagram.map(item => item.plataformaId), ['a', 'b']);
+  assert.deepEqual(soInstagram.map(item => item.platformNames), [['Instagram'], ['Instagram']]);
+  assert.ok(soInstagram.every(item => item.contas.length === 1));
+}
+
+function testRepostNoMesmoDiaNaoEntraNoCardOriginal() {
+  const itens = buildPublishCalendarItems({
+    contents: [
+      conteudo({
+        id: 'ciclo',
+        plataformas: [
+          publicacao({ id: 'ig', contentId: 'ciclo', platformId: INSTAGRAM, publishDate: '2026-10-06', publishTime: '18:00' }),
+          publicacao({
+            id: 'repost-1',
+            contentId: 'ciclo',
+            platformId: INSTAGRAM,
+            publicationKind: 'repost',
+            publishDate: '2026-10-06',
+            publishTime: '21:00',
+            legenda: 'texto do repost',
+            legendaPropria: true,
+          }),
+        ],
+      }),
+    ],
+    platforms,
+    series,
+    redeReferenciaId: INSTAGRAM,
+    platformFilter: 'todas',
+  });
+  assert.deepEqual(itens.map(item => item.date), ['2026-10-06', '2026-10-06']);
+  assert.equal(itens[0]?.id, 'ciclo:original');
+  assert.deepEqual(itens[0]?.contas.map(conta => conta.plataformaId), ['ig']);
+  assert.equal(itens[1]?.id, 'ciclo:ciclo:2');
+  assert.equal(itens[1]?.plataformaId, 'repost-1');
+  assert.deepEqual(itens[1]?.contas.map(conta => conta.legenda), ['texto do repost']);
+}
+
+testSemanaSeparaOsDiasEmVezDeColapsarNaRedeDeReferencia();
+testMesmoDiaAgrupaAsContasAindaAgendadas();
+testDiasDiferentesNaoUsamARedeDeReferencia();
+testPublicadoNoMesmoDiaViraUmCardComStatusDeCadaConta();
+testFiltroDeUmaRedeMantemUmCardPorPublicacao();
+testRepostNoMesmoDiaNaoEntraNoCardOriginal();
 testRepostEntraNaGradeComDataPropria();
 testPublicacaoMarcadaComoPostadaApareceComoPostado();
 testRoteiroPostadoSemMarcaNaRedeApareceComoPostado();

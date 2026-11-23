@@ -1,4 +1,4 @@
-import {useMemo, useState} from 'react';
+import {useEffect, useMemo, useState} from 'react';
 import {Link} from 'react-router-dom';
 import {format} from 'date-fns';
 import {AlertCircle, ArrowUpRight, Pencil, Plus, Undo2} from 'lucide-react';
@@ -16,9 +16,8 @@ import {Text} from '../../../components/ui/Text';
 import {Dialog} from '../../../components/overlays/Dialog';
 import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
+import {OverlayFooter} from '../../../components/overlays/OverlayFooter';
 import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
-import {PostingTimesOverview} from '../../settings/components/PostingTimesOverview';
-import {ClubesSecao} from '../../clubes/components/ClubesSecao';
 import {PainelMetaDaConta, textoPorFormato} from '../../editorial/components/plano/ContasEFormatosCard';
 import {useEditorialPlano} from '../../editorial/components/plano/useEditorialPlano';
 import {diaMes} from '../../editorial/components/plano/ValeAPartirDe';
@@ -46,17 +45,15 @@ import {
 import {anexarPublicacaoComLink, contasParaLinkAntigo, moverLinkParaPublicacao, revisoesDeContas} from '../lib/revisaoContas';
 import {parsePostCode} from '../../editorial/lib/postCode';
 
-const CAMPO =
-  'min-h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 text-sm text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
-
 type Rascunho = {
   id: string | null;
   rede: RedeSocial;
   nome: string;
   handle: string;
+  ativo: boolean;
 };
 
-const RASCUNHO_NOVO: Rascunho = { id: null, rede: 'instagram', nome: '', handle: '' };
+const RASCUNHO_NOVO: Rascunho = { id: null, rede: 'instagram', nome: '', handle: '', ativo: true };
 
 function publicacoesPorSemana(total: number): string {
   return total === 1 ? '1 publicação por semana' : `${total} publicações por semana`;
@@ -66,11 +63,40 @@ function publicacoesPorSemana(total: number): string {
  * Aba "Contas e formatos" do Editorial: contas de cada rede, pendências de links antigos
  * e os horários de postagem. Antes era a página /contas.
  */
-export function ContasHorariosPanel() {
+export function ContasHorariosPanel({
+  aberto = false,
+  contaInicial = null,
+  onFechar,
+  contaId = null,
+}: {
+  aberto?: boolean;
+  contaInicial?: Platform | null;
+  onFechar?: () => void;
+  contaId?: string | null;
+} = {}) {
   const {state, dispatch} = useAppContext();
-  const {settings, gravar, salvarPreferencias} = useEditorialPlano();
+  const {settings, gravar} = useEditorialPlano();
   const {user} = useAuth();
   const [rascunho, setRascunho] = useState<Rascunho | null>(null);
+  const formularioControlado = onFechar != null;
+  useEffect(() => {
+    if (!formularioControlado) return;
+    if (!aberto) {
+      setRascunho(null);
+      return;
+    }
+    if (contaInicial) {
+      setRascunho({
+        id: contaInicial.id,
+        rede: redeDaConta(contaInicial) ?? 'instagram',
+        nome: contaInicial.nome,
+        handle: contaInicial.handle ?? '',
+        ativo: contaInicial.ativo,
+      });
+      return;
+    }
+    setRascunho({ ...RASCUNHO_NOVO });
+  }, [aberto, contaInicial, formularioControlado]);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const [revisaoAberta, setRevisaoAberta] = useState(true);
   const [metaAbertaId, setMetaAbertaId] = useState<string | null>(null);
@@ -95,6 +121,9 @@ export function ContasHorariosPanel() {
     }),
     [state.contentMetrics, state.contents, state.platforms],
   );
+  const revisoesVisiveis = contaId
+    ? revisoes.filter(item => item.contaId === contaId)
+    : (onFechar ? [] : revisoes);
 
   const emUso = (platformId: string) => (
     state.contents.some(content => content.plataformas.some(item => item.platformId === platformId))
@@ -103,7 +132,10 @@ export function ContasHorariosPanel() {
     || (state.postingTimeEntries ?? []).some(entry => entry.platformId === platformId)
   );
 
-  const fechar = () => setRascunho(null);
+  const fechar = () => {
+    setRascunho(null);
+    onFechar?.();
+  };
 
   const colocarLink = async (contentId: string, publicacaoId: string) => {
     const content = state.contents.find(item => item.id === contentId);
@@ -159,6 +191,7 @@ export function ContasHorariosPanel() {
       rede: redeDaConta(platform) ?? 'instagram',
       nome: platform.nome,
       handle: platform.handle ?? '',
+      ativo: platform.ativo,
     });
   };
 
@@ -178,7 +211,7 @@ export function ContasHorariosPanel() {
       id: atual?.id ?? generateUUID(),
       userId: atual?.userId ?? user.id,
       nome,
-      ativo: atual?.ativo ?? true,
+      ativo: rascunho.ativo,
       createdAt: atual?.createdAt ?? new Date().toISOString(),
       rede: rascunho.rede,
       handle,
@@ -241,7 +274,7 @@ export function ContasHorariosPanel() {
                   value={rascunho.nome}
                   onChange={event => setRascunho({ ...rascunho, nome: event.target.value })}
                   placeholder="Ex.: Diza principal"
-                  className={CAMPO}
+                  className="input w-full"
                 />
               </label>
               <label className="flex flex-col gap-1" htmlFor="conta-handle">
@@ -251,23 +284,49 @@ export function ContasHorariosPanel() {
                   value={rascunho.handle}
                   onChange={event => setRascunho({ ...rascunho, handle: event.target.value })}
                   placeholder="@dizaianne"
-                  className={CAMPO}
+                  className="input w-full"
                 />
                 <Text variant="meta">O @ identifica a conta na tela e pode mudar. Os vínculos usam o identificador interno. Informar o @ não conecta a conta.</Text>
               </label>
-              <div className="flex justify-end gap-2 pt-2">
-                <AppButton type="button" onClick={fechar} variant="secondary">Cancelar</AppButton>
-                <AppButton onClick={salvar} disabled={!rascunho.nome.trim() || !user?.id} variant="primary">
-                  Salvar conta
-                </AppButton>
-              </div>
+              <label className="inline-flex min-h-11 items-center gap-2" htmlFor="conta-ativa">
+                <input
+                  id="conta-ativa"
+                  type="checkbox"
+                  checked={rascunho.ativo}
+                  onChange={event => setRascunho({ ...rascunho, ativo: event.target.checked })}
+                />
+                <Text variant="body" as="span">Ativa</Text>
+              </label>
+              {state.platforms.some(conta => !conta.ativo) ? (
+                <div className="stack-xs border-t border-[var(--border-subtle)] pt-3">
+                  <Text variant="label" as="p">Contas inativas</Text>
+                  <ul className="stack-xs">
+                    {state.platforms.filter(conta => !conta.ativo).map(conta => (
+                      <li key={conta.id} className="flex flex-wrap items-center justify-between gap-2">
+                        <Text variant="body" as="span">{rotuloConta(conta)}</Text>
+                        <AppButton variant="secondary" size="sm" onClick={() => { void toggleAtivo(conta); }}>
+                          Reativar
+                        </AppButton>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </OverlayBody>
+        {rascunho ? (
+          <OverlayFooter className="justify-end">
+            <AppButton type="button" onClick={fechar} variant="secondary">Cancelar</AppButton>
+            <AppButton onClick={salvar} disabled={!rascunho.nome.trim() || !user?.id} variant="primary">
+              Salvar conta
+            </AppButton>
+          </OverlayFooter>
+        ) : null}
       </Dialog>
 
       <div className="stack-xl">
-        {revisoes.length > 0 ? (
+        {revisoesVisiveis.length > 0 ? (
           <section
             className="rounded-[var(--radius-card)] border border-[color-mix(in_srgb,var(--warning)_40%,var(--border-color))] bg-[color-mix(in_srgb,var(--warning)_10%,var(--bg-elevated))] p-2"
             aria-label="Pendências para revisar"
@@ -282,7 +341,7 @@ export function ContasHorariosPanel() {
                 <AlertCircle className="mt-0.5 h-6 w-6 shrink-0 text-[var(--warning)]" aria-hidden />
                 <span className="min-w-0">
                   <Text variant="bodyStrong" as="span" className="block">
-                    {revisoes.length === 1 ? '1 pendência para revisar' : `${revisoes.length} pendências para revisar`}
+                    {revisoesVisiveis.length === 1 ? '1 pendência para revisar' : `${revisoesVisiveis.length} pendências para revisar`}
                   </Text>
                   <Text variant="secondary" as="span" className="block text-[var(--text-secondary)]">
                     Escolha a publicação correta para os links antigos.
@@ -292,7 +351,7 @@ export function ContasHorariosPanel() {
             </DisclosureButton>
             {revisaoAberta ? (
               <ul id="contas-revisao" className="mt-2 stack-xs px-1 pb-1">
-                {revisoes.map(item => {
+                {revisoesVisiveis.map(item => {
                   const conteudo = item.caso === 'link_sem_publicacao' && item.contentId
                     ? state.contents.find(content => content.id === item.contentId)
                     : null;
@@ -376,7 +435,7 @@ export function ContasHorariosPanel() {
           </section>
         ) : null}
 
-        <section className="stack-sm" aria-labelledby="contas-titulo">
+        {onFechar ? null : <section className="stack-sm" aria-labelledby="contas-titulo">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 stack-xs">
               <Text variant="sectionTitle" as="h2"><span id="contas-titulo">Contas e formatos</span></Text>
@@ -447,10 +506,6 @@ export function ContasHorariosPanel() {
                     const referencia = platform.id === referenciaId;
                     const itensMenu = [
                       ...(compartilhada ? [] : [{ label: 'Editar conta', onClick: () => abrirEdicao(platform) }]),
-                      {
-                        label: referencia ? 'Deixar de ser referência' : 'Definir como referência',
-                        onClick: () => salvarPreferencias({ redeReferenciaId: referencia ? null : platform.id }),
-                      },
                       ...(compartilhada ? [] : [{
                         label: platform.ativo ? 'Não usar ao criar' : 'Usar ao criar',
                         onClick: () => { void toggleAtivo(platform); },
@@ -552,7 +607,7 @@ export function ContasHorariosPanel() {
                                 leftIcon={<Pencil className="h-4 w-4" />}
                                 onClick={() => setMetaAbertaId(platform.id)}
                               >
-                                Editar
+                                Editar meta
                               </AppButton>
                             </span>
                             <MoreMenu size="sm" label={`Mais opções de ${rotulo}`} items={itensMenu} />
@@ -568,14 +623,7 @@ export function ContasHorariosPanel() {
           <Text variant="secondary" className="text-[var(--text-secondary)]">
             Um roteiro em três contas conta como três publicações.
           </Text>
-        </section>
-
-        <ClubesSecao
-          titulo="Apoio e clubes"
-          descricao="Cadastre o clube no Catarse, no Apoia.se ou em outro lugar. O mesmo clube aparece nas séries."
-        />
-
-        <PostingTimesOverview />
+        </section>}
       </div>
 
       <PainelMetaDaConta conta={contaDaMeta} onClose={() => setMetaAbertaId(null)} />

@@ -32,6 +32,8 @@ export const initialState: AppState = {
   postIts: [],
   goldenRules: [],
   contentMetrics: [],
+  contasMetricas: [],
+  periodosAnalise: [],
   postingTimeEntries: [],
   editorial: DEFAULT_EDITORIAL_SETTINGS,
   editorialVisao: null,

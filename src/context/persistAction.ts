@@ -65,6 +65,8 @@ export type PersistenceApi = Pick<DatabaseModule,
   | 'deleteLook'
   | 'saveContentMetric'
   | 'deleteContentMetric'
+  | 'saveContaMetrica'
+  | 'savePeriodoAnalise'
   | 'saveAgendaItem'
   | 'deleteAgendaItem'
   | 'savePlanejamentoPostIt'
@@ -464,6 +466,16 @@ export async function persistAction({ action, userId, state, api }: PersistActio
     case 'DELETE_RESULT':
     case 'DELETE_CONTENT_METRIC':
       await persistenceApi.deleteContentMetric(action.payload);
+      return;
+
+    case 'ADD_CONTA_METRICA':
+    case 'UPDATE_CONTA_METRICA':
+      await persistenceApi.saveContaMetrica({ ...action.payload, userId });
+      return;
+
+    case 'ADD_PERIODO_ANALISE':
+    case 'UPDATE_PERIODO_ANALISE':
+      await persistenceApi.savePeriodoAnalise({ ...action.payload, userId });
       return;
 
     case 'ADD_AGENDA':

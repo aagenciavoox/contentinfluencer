@@ -1,5 +1,6 @@
 import type { ReactNode, UIEvent } from 'react';
-import { useCallback } from 'react';
+import { useCallback, useLayoutEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { usePullToRefresh } from '../../hooks/usePullToRefresh';
@@ -31,6 +32,7 @@ export function MobileAppShell({
   onPullRefresh,
 }: MobileAppShellProps) {
   const { registerMainElement } = useMobileScrollLock() ?? {};
+  const { pathname } = useLocation();
   const { containerRef, pullDistance, isRefreshing, progress, isActive } = usePullToRefresh(
     hideBottomNav ? undefined : onPullRefresh,
   );
@@ -42,6 +44,11 @@ export function MobileAppShell({
     },
     [containerRef, registerMainElement],
   );
+
+  useLayoutEffect(() => {
+    const scroller = containerRef.current;
+    if (scroller) scroller.scrollTop = 0;
+  }, [containerRef, pathname]);
 
   return (
     <div className={cn('relative flex h-dvh flex-col overflow-hidden bg-[var(--bg-primary)]', className)}>

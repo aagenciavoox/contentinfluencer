@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { addDays, addMonths, differenceInCalendarDays, endOfMonth, format, parseISO, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
+import { CalendarRange, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Ajuda } from '../../../../components/ui/Ajuda';
 import { AppButton } from '../../../../components/ui/AppButton';
+import { Badge } from '../../../../components/ui/Badge';
 import { Surface } from '../../../../components/ui/Surface';
 import { ChoiceChips } from '../../../../components/ui/ChoiceChips';
 import { Text } from '../../../../components/ui/Text';
@@ -185,15 +187,25 @@ function periodosIguais(a: PeriodoSelecionado, b: PeriodoSelecionado): boolean {
 export function PeriodoEditorialControl({
   periodo,
   onChange,
+  embutido = false,
+  acoesExtras,
+  ajudaTexto,
 }: {
   periodo: PeriodoSelecionado;
   onChange: (periodo: PeriodoSelecionado) => void;
+  /** Quando embutido no topo do card do Plano, dispensa a moldura externa dupla. */
+  embutido?: boolean;
+  /** Ações adicionais exibidas à direita (ex.: "Ajustar metas"). */
+  acoesExtras?: ReactNode;
+  /** Texto do "?" no cabeçalho; sem valor, usa a explicação padrão do período. */
+  ajudaTexto?: string;
 }) {
   const [editando, setEditando] = useState(false);
   const [rascunho, setRascunho] = useState(periodo);
   const intervaloInvalido = rascunho.modo === 'intervalo' && rascunho.inicio > rascunho.fim;
   const hoje = hojeIso();
   const contemHoje = rascunho.inicio <= hoje && hoje <= rascunho.fim;
+  const periodoContemHoje = periodo.inicio <= hoje && hoje <= periodo.fim;
 
   useEffect(() => {
     if (!editando) setRascunho(periodo);
@@ -230,100 +242,143 @@ export function PeriodoEditorialControl({
   };
 
   const navClass =
-    'flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:h-11 pointer-coarse:w-11';
+    'flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:h-11 pointer-coarse:w-11';
+
+  const conteudo = editando ? (
+    <div className="stack-sm">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <ChoiceChips<ModoPeriodo>
+          label="Período"
+          value={rascunho.modo}
+          onChange={modo => { if (modo) escolherModo(modo); }}
+          options={MODOS.map(modo => ({ value: modo.id, label: modo.rotulo }))}
+        />
+
+        <div className="flex min-w-0 items-center gap-2">
+          <button type="button" className={navClass} aria-label="Período anterior" onClick={() => setRascunho(periodoVizinho(rascunho, -1))}>
+            <ChevronLeft className="h-4 w-4" aria-hidden />
+          </button>
+          <Text variant="sectionTitle" as="h2" className="min-w-0 tabular-nums">{rotuloDoPeriodo(rascunho)}</Text>
+          <button type="button" className={navClass} aria-label="Próximo período" onClick={() => setRascunho(periodoVizinho(rascunho, 1))}>
+            <ChevronRight className="h-4 w-4" aria-hidden />
+          </button>
+          {!contemHoje && rascunho.modo !== 'intervalo' ? (
+            <AppButton variant="secondary" size="xs" onClick={() => escolherModo(rascunho.modo)}>
+              Hoje
+            </AppButton>
+          ) : null}
+        </div>
+
+        <div className="flex flex-wrap items-end gap-3 lg:ml-auto">
+          <label className="flex flex-col gap-1" htmlFor="periodo-inicio">
+            <Text variant="meta" as="span" className="text-[var(--text-secondary)]">De</Text>
+            <input
+              id="periodo-inicio"
+              type="date"
+              value={rascunho.inicio}
+              onChange={event => mudarData('inicio', event.target.value)}
+              className={CAMPO_DATA}
+            />
+          </label>
+          <label className="flex flex-col gap-1" htmlFor="periodo-fim">
+            <Text variant="meta" as="span" className="text-[var(--text-secondary)]">Até</Text>
+            <input
+              id="periodo-fim"
+              type="date"
+              value={rascunho.fim}
+              onChange={event => mudarData('fim', event.target.value)}
+              className={CAMPO_DATA}
+            />
+          </label>
+        </div>
+      </div>
+      {intervaloInvalido ? (
+        <Text variant="meta" className="text-[var(--accent-red)]">
+          A data inicial precisa vir antes da final.
+        </Text>
+      ) : null}
+      <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+        <Text variant="secondary" as="p" className="mr-auto max-w-xl">
+          Escolha semana, quinzena, mês, trimestre ou datas personalizadas e salve. Semana e quinzena começam na segunda. Os dados e a análise são calculados a partir deste intervalo.
+        </Text>
+        <AppButton variant="secondary" size="sm" onClick={cancelar}>
+          Cancelar
+        </AppButton>
+        <AppButton
+          variant="primary"
+          size="sm"
+          onClick={salvar}
+          disabled={intervaloInvalido}
+          disabledReason={intervaloInvalido ? 'A data inicial precisa vir antes da final.' : undefined}
+        >
+          Salvar
+        </AppButton>
+      </div>
+    </div>
+  ) : (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <button
+          type="button"
+          className={navClass}
+          aria-label="Período anterior"
+          onClick={() => onChange(periodoVizinho(periodo, -1))}
+        >
+          <ChevronLeft className="h-4 w-4" aria-hidden />
+        </button>
+        <Text variant="sectionTitle" as="h2" className="min-w-0 tabular-nums">{rotuloDoPeriodo(periodo)}</Text>
+        <button
+          type="button"
+          className={navClass}
+          aria-label="Próximo período"
+          onClick={() => onChange(periodoVizinho(periodo, 1))}
+        >
+          <ChevronRight className="h-4 w-4" aria-hidden />
+        </button>
+        <Badge variant="neutral">{ROTULO_DO_MODO[periodo.modo]}</Badge>
+        {!periodoContemHoje && periodo.modo !== 'intervalo' ? (
+          <button
+            type="button"
+            onClick={() => {
+              if (periodo.modo !== 'intervalo') {
+                onChange({ modo: periodo.modo, ...intervaloDoModo(periodo.modo) });
+              }
+            }}
+            className="inline-flex min-h-8 items-center rounded-[var(--radius-input)] px-2.5 py-1 t-button text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-11"
+          >
+            Hoje
+          </button>
+        ) : null}
+        <Ajuda
+          rotulo="Sobre o período e as metas"
+          texto={ajudaTexto ?? 'Os dados e a análise são calculados a partir deste intervalo.'}
+        />
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={comecarEdicao}
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-[var(--radius-input)] px-2.5 py-1.5 t-button text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-11"
+        >
+          <CalendarRange className="h-4 w-4 shrink-0" aria-hidden />
+          Editar período
+        </button>
+        {acoesExtras}
+      </div>
+    </div>
+  );
+
+  if (embutido) {
+    return (
+      <div className="border-b border-[var(--border-subtle)] pb-4">
+        {conteudo}
+      </div>
+    );
+  }
 
   return (
-    <Surface padding="none" className="stack-sm px-4 py-3">
-      {editando ? (
-        <>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-            <ChoiceChips<ModoPeriodo>
-              label="Período"
-              value={rascunho.modo}
-              onChange={modo => { if (modo) escolherModo(modo); }}
-              options={MODOS.map(modo => ({ value: modo.id, label: modo.rotulo }))}
-            />
-
-            <div className="flex min-w-0 items-center gap-3">
-              <button type="button" className={navClass} aria-label="Período anterior" onClick={() => setRascunho(periodoVizinho(rascunho, -1))}>
-                <ChevronLeft className="h-4 w-4" aria-hidden />
-              </button>
-              <Text variant="sectionTitle" as="h2" className="min-w-0 tabular-nums">{rotuloDoPeriodo(rascunho)}</Text>
-              <button type="button" className={navClass} aria-label="Próximo período" onClick={() => setRascunho(periodoVizinho(rascunho, 1))}>
-                <ChevronRight className="h-4 w-4" aria-hidden />
-              </button>
-              {!contemHoje && rascunho.modo !== 'intervalo' ? (
-                <AppButton variant="secondary" size="sm" onClick={() => escolherModo(rascunho.modo)}>
-                  Hoje
-                </AppButton>
-              ) : null}
-            </div>
-
-            <div className="flex flex-wrap items-end gap-3 lg:ml-auto">
-              <label className="flex flex-col gap-1" htmlFor="periodo-inicio">
-                <Text variant="meta" as="span" className="text-[var(--text-secondary)]">De</Text>
-                <input
-                  id="periodo-inicio"
-                  type="date"
-                  value={rascunho.inicio}
-                  onChange={event => mudarData('inicio', event.target.value)}
-                  className={CAMPO_DATA}
-                />
-              </label>
-              <label className="flex flex-col gap-1" htmlFor="periodo-fim">
-                <Text variant="meta" as="span" className="text-[var(--text-secondary)]">Até</Text>
-                <input
-                  id="periodo-fim"
-                  type="date"
-                  value={rascunho.fim}
-                  onChange={event => mudarData('fim', event.target.value)}
-                  className={CAMPO_DATA}
-                />
-              </label>
-            </div>
-          </div>
-          {intervaloInvalido ? (
-            <Text variant="meta" className="text-[var(--accent-red)]">
-              A data inicial precisa vir antes da final.
-            </Text>
-          ) : null}
-          <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
-            <Text variant="secondary" as="p" className="mr-auto max-w-xl">
-              Escolha semana, quinzena, mês, trimestre ou datas personalizadas e salve. Semana e quinzena começam na segunda. Os dados e a análise são calculados a partir deste intervalo.
-            </Text>
-            <AppButton variant="secondary" size="sm" onClick={cancelar}>
-              Cancelar
-            </AppButton>
-            <AppButton
-              variant="primary"
-              size="sm"
-              onClick={salvar}
-              disabled={intervaloInvalido}
-              disabledReason={intervaloInvalido ? 'A data inicial precisa vir antes da final.' : undefined}
-            >
-              Salvar
-            </AppButton>
-          </div>
-        </>
-      ) : (
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0 stack-xs">
-            <Text variant="label" as="p">{ROTULO_DO_MODO[periodo.modo]}</Text>
-            <Text variant="sectionTitle" as="h2" className="tabular-nums">{rotuloDoPeriodo(periodo)}</Text>
-            <Text variant="secondary">
-              Os dados e a análise são calculados a partir deste intervalo.
-            </Text>
-          </div>
-          <AppButton
-            variant="secondary"
-            size="sm"
-            leftIcon={<Pencil className="h-4 w-4" />}
-            onClick={comecarEdicao}
-          >
-            Editar período
-          </AppButton>
-        </div>
-      )}
+    <Surface padding="none" className="px-4 py-3">
+      {conteudo}
     </Surface>
   );
 }

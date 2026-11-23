@@ -12,7 +12,7 @@ import {
   upsertDecisaoPeriodo,
 } from './editorialSettings.ts';
 import { avisoLigado, lerAvisosLigados, linhasSemRegrasDesligadas, semAvisosDesligados, TIPOS_AVISO_CONFIGURAVEIS } from './avisosEditoriais.ts';
-import { ABA_EDITORIAL_PADRAO, abaEditorialDaUrl, ancoraDaAbaAntiga, EDITORIAL_ABAS, ehAbaAntiga, paramsDaAba, ROTULO_DA_ABA } from './abasEditorial.ts';
+import { ABA_EDITORIAL_PADRAO, abaEditorialDaUrl, ancoraDaAbaAntiga, EDITORIAL_ABAS, ehAbaAntiga, paramsDaAba, resolverAbaEditorial, ROTULO_DA_ABA, urlDaAbaAntiga } from './abasEditorial.ts';
 
 function testDefaults() {
   assert.deepEqual(getEditorialSettings({}), DEFAULT_EDITORIAL_SETTINGS);
@@ -327,35 +327,46 @@ testEstoqueDesejado();
   assert.deepEqual(linhasSemRegrasDesligadas([linha], {}), [linha]);
 }
 
-// Abas do Editorial: ordem nova, Plano do período como padrão e ids antigos redirecionados.
+// Abas do Editorial: Geral é o padrão. Ids antigos abrem o bloco, a conta ou a conferência.
 {
-  assert.deepEqual(EDITORIAL_ABAS.map(aba => ROTULO_DA_ABA[aba]), [
-    'Plano do período', 'Direção editorial', 'Rotina de criação', 'Contas e formatos',
-  ]);
-  assert.equal(ABA_EDITORIAL_PADRAO, 'plano');
-  assert.equal(abaEditorialDaUrl(null), 'plano');
-  assert.equal(abaEditorialDaUrl('qualquer'), 'plano');
-  assert.equal(abaEditorialDaUrl('pilares'), 'direcao');
-  assert.equal(abaEditorialDaUrl('ajustes'), 'ajustes');
-  assert.equal(abaEditorialDaUrl('contas'), 'contas');
-  // Abas que viraram blocos: abrem a aba nova e levam ao bloco.
-  assert.equal(abaEditorialDaUrl('continuidade'), 'plano');
-  assert.equal(ancoraDaAbaAntiga('continuidade'), 'continuidade');
-  assert.equal(abaEditorialDaUrl('avisos'), 'ajustes');
+  assert.deepEqual(EDITORIAL_ABAS.map(aba => ROTULO_DA_ABA[aba]), ['Geral']);
+  assert.equal(ABA_EDITORIAL_PADRAO, 'geral');
+  assert.equal(abaEditorialDaUrl(null), 'geral');
+  assert.equal(abaEditorialDaUrl('qualquer'), 'geral');
+  assert.equal(abaEditorialDaUrl('plano'), 'geral');
+  assert.equal(abaEditorialDaUrl('direcao'), 'geral');
+  assert.equal(abaEditorialDaUrl('ajustes'), 'geral');
+  assert.equal(ancoraDaAbaAntiga('direcao'), 'pilares');
+  assert.equal(ancoraDaAbaAntiga('pilares'), 'pilares');
+  assert.equal(ancoraDaAbaAntiga('ajustes'), 'faixas');
+  assert.equal(ancoraDaAbaAntiga('capacidade'), 'faixas');
   assert.equal(ancoraDaAbaAntiga('avisos'), 'avisos');
-  assert.equal(abaEditorialDaUrl('operacional'), 'direcao');
   assert.equal(ancoraDaAbaAntiga('operacional'), 'hashtags');
-  assert.equal(abaEditorialDaUrl('capacidade'), 'ajustes');
-  assert.equal(ancoraDaAbaAntiga('capacidade'), null);
-  assert.equal(ancoraDaAbaAntiga('ajustes'), null);
+  assert.equal(ancoraDaAbaAntiga('perfil'), 'dna-da-voz');
+  assert.equal(ancoraDaAbaAntiga('proporcao'), 'proporcao');
+  assert.equal(ancoraDaAbaAntiga('continuidade'), null);
+  assert.equal(ancoraDaAbaAntiga('plano'), null);
+  assert.equal(resolverAbaEditorial('contas').tipo, 'conta');
+  assert.equal(resolverAbaEditorial('continuidade').tipo, 'planejamento');
+  assert.equal(resolverAbaEditorial('waves').tipo, 'planejamento');
+  assert.equal(resolverAbaEditorial('series-e-waves').tipo, 'planejamento');
   assert.equal(ehAbaAntiga('continuidade'), true);
   assert.equal(ehAbaAntiga('pilares'), true);
-  assert.equal(ehAbaAntiga('ajustes'), false);
+  assert.equal(ehAbaAntiga('ajustes'), true);
+  assert.equal(ehAbaAntiga('direcao'), true);
   assert.equal(ehAbaAntiga(null), false);
   assert.equal(ehAbaAntiga('qualquer'), false);
   assert.equal(paramsDaAba(new URLSearchParams('aba=continuidade&editar=s%3A1'), abaEditorialDaUrl('continuidade')).toString(), 'editar=s%3A1');
-  assert.equal(paramsDaAba(new URLSearchParams('aba=avisos&x=1'), 'plano').toString(), 'x=1');
-  assert.equal(paramsDaAba(new URLSearchParams(''), 'ajustes').toString(), 'aba=ajustes');
+  assert.equal(paramsDaAba(new URLSearchParams('aba=avisos&conta=abc&x=1'), 'geral').toString(), 'x=1');
+  assert.equal(paramsDaAba(new URLSearchParams(''), 'geral').toString(), '');
+  assert.equal(urlDaAbaAntiga(new URLSearchParams('aba=direcao'), '', null), '/editorial#pilares');
+  assert.equal(urlDaAbaAntiga(new URLSearchParams('aba=ajustes'), '#regra-de-ouro', null), '/editorial#regra-de-ouro');
+  assert.equal(urlDaAbaAntiga(new URLSearchParams('aba=contas'), '', 'plat-1'), '/editorial?conta=plat-1');
+  assert.equal(urlDaAbaAntiga(new URLSearchParams('aba=contas'), '', null), '/editorial?novaConta=1');
+  assert.equal(urlDaAbaAntiga(new URLSearchParams('aba=continuidade'), '', null), '/planejamento?saude=1#conferencia-series');
+  assert.equal(urlDaAbaAntiga(new URLSearchParams('aba=waves'), '', null), '/planejamento?saude=1#conferencia-series');
+  assert.equal(urlDaAbaAntiga(new URLSearchParams('aba=series-e-waves'), '', null), '/planejamento?saude=1#conferencia-series');
+  assert.equal(urlDaAbaAntiga(new URLSearchParams(''), '', null), null);
 }
 
 console.log('editorialSettings tests passed');
@@ -375,6 +386,11 @@ console.log('editorialSettings tests passed');
   assert.equal(ind.avaliarFaixa(4, faixa).estado, 'na-meta');
   assert.equal(ind.avaliarFaixa(7, faixa).aviso, 'acima');
   assert.equal(ind.avaliarFaixa(5, { minimo: null, meta: 4, maximo: null }).aviso, 'acima', 'lado vazio segue a meta');
+  const faixas = await import('./faixasEditoriais.ts');
+  assert.equal(faixas.faixaDeGravacao({ gravacaoMetaSemanal: null, gravacaoMaximoSemanal: 8 }), null, 'meta de gravação vazia esconde a faixa');
+  const gravacao = faixas.faixaDeGravacao({ gravacaoMetaSemanal: 4, gravacaoMaximoSemanal: null });
+  assert.ok(gravacao);
+  assert.equal(ind.avaliarFaixa(5, gravacao).aviso, 'acima', 'máximo vazio avisa acima da meta');
   assert.equal(ind.avaliarFaixa(5, { minimo: null, meta: 4, maximo: null }, { abaixo: true, acima: false }).aviso, null, 'aviso desligado não aparece');
   const comFaixa = atualizarIndicador(DEFAULT_EDITORIAL_SETTINGS, 'videosPorDiaGravacao', faixa);
   assert.deepEqual(comFaixa.indicadoresProducao?.videosPorDiaGravacao, faixa);

@@ -1,81 +1,152 @@
 /**
- * Abas do Editorial, na ordem da tela:
- * Plano do período → Direção editorial → Rotina de criação → Contas e formatos.
- * Sem `?aba=`, abre no Plano do período.
+ * O Editorial abre em Geral. Cada conta ativa é uma aba própria, em `?conta=`,
+ * para o id da plataforma não colidir com os ids antigos de `?aba=`.
  *
- * A Continuidade fica dentro do Plano do período, os Avisos dentro da Rotina de criação
- * e as hashtags fora das séries dentro da Direção editorial.
+ * `?aba=` antigo continua abrindo o bloco certo: a direção rola até os pilares,
+ * os ajustes até as faixas, as contas até a primeira conta ativa e a continuidade
+ * até a conferência de séries na Saúde do Planejamento.
  */
-export type EditorialAba = 'plano' | 'direcao' | 'ajustes' | 'contas';
+export type EditorialAba = 'geral';
 
-export const EDITORIAL_ABAS: readonly EditorialAba[] = ['plano', 'direcao', 'ajustes', 'contas'];
+export const EDITORIAL_ABAS: readonly EditorialAba[] = ['geral'];
 
-export const ABA_EDITORIAL_PADRAO: EditorialAba = 'plano';
+export const ABA_EDITORIAL_PADRAO: EditorialAba = 'geral';
 
 export const ROTULO_DA_ABA: Record<EditorialAba, string> = {
-  plano: 'Plano do período',
-  direcao: 'Direção editorial',
-  ajustes: 'Rotina de criação',
-  contas: 'Contas e formatos',
+  geral: 'Geral',
 };
 
 /** Frase da página, no “?” ao lado do título. */
-export const APOIO_DA_PAGINA = 'O plano, o público e o ritmo da sua criação.';
+export const APOIO_DA_PAGINA = 'A voz, o público e o ritmo da sua criação.';
 
-/** Frase da aba aberta, no “?” ao lado da navegação. */
+/** Frase da aba Geral, no “?” ao lado da navegação. */
 export const APOIO_DA_ABA: Record<EditorialAba, string> = {
-  plano: 'Veja o que já saiu, o que tem data e como está o plano neste período.',
-  direcao: 'Público, assuntos, pilares e o que você quer repetir nas legendas.',
-  ajustes: 'Escolha um ritmo de revisão, gravação e publicação que caiba na sua semana.',
-  contas: 'Cada conta pode ter os próprios horários, formatos e metas.',
+  geral: 'Voz, pilares, ritmo e os limites que valem para todas as contas.',
 };
 
-/** Âncoras dos blocos que antes eram abas próprias. */
-export const ANCORA_CONTINUIDADE = 'continuidade';
-export const ANCORA_AVISOS = 'avisos';
+/** Frase da aba de uma conta. */
+export const APOIO_DA_CONTA = 'Formatos, horários e a pausa desta conta.';
+
+/** Âncoras dos blocos que antes eram abas. */
+export const ANCORA_DNA = 'dna-da-voz';
+export const ANCORA_PILARES = 'pilares';
 export const ANCORA_HASHTAGS = 'hashtags';
-/** Card Regra de Ouro, na Rotina de criação. */
+export const ANCORA_PROPORCAO = 'proporcao';
+export const ANCORA_FAIXAS = 'faixas';
+export const ANCORA_AVISOS = 'avisos';
+/** Card Regra de Ouro, no Geral. */
 export const ANCORA_REGRA_DE_OURO = 'regra-de-ouro';
-/** Link para o card Regra de Ouro (aba Rotina de criação, rolando até o card). */
-export const ROTA_DA_REGRA_DE_OURO = `/editorial?aba=ajustes#${ANCORA_REGRA_DE_OURO}`;
+/** Tabela de conferência das séries, na Saúde do Planejamento. */
+export const ANCORA_CONFERENCIA = 'conferencia-series';
 
-/** Ids antigos de `?aba=` que continuam abrindo a aba certa (e o bloco, quando houver). */
-const ABAS_ANTIGAS: Record<string, { aba: EditorialAba; ancora?: string }> = {
-  pilares: { aba: 'direcao' },
-  proporcao: { aba: 'direcao' },
-  perfil: { aba: 'direcao' },
-  operacional: { aba: 'direcao', ancora: ANCORA_HASHTAGS },
-  continuidade: { aba: 'plano', ancora: ANCORA_CONTINUIDADE },
-  waves: { aba: 'plano', ancora: ANCORA_CONTINUIDADE },
-  'series-e-waves': { aba: 'plano', ancora: ANCORA_CONTINUIDADE },
-  avisos: { aba: 'ajustes', ancora: ANCORA_AVISOS },
-  capacidade: { aba: 'ajustes' },
-  regras: { aba: 'ajustes' },
-  rotina: { aba: 'ajustes' },
+/** Link para o card Regra de Ouro (Geral, rolando até o card). */
+export const ROTA_DA_REGRA_DE_OURO = `/editorial#${ANCORA_REGRA_DE_OURO}`;
+
+/** Continuidade, waves e séries abrem a Saúde já na tabela de conferência. */
+export const ROTA_DA_CONFERENCIA = `/planejamento?saude=1#${ANCORA_CONFERENCIA}`;
+
+export type DestinoDeAba =
+  | { tipo: 'geral'; ancora: string | null }
+  | { tipo: 'conta' }
+  | { tipo: 'planejamento' };
+
+/**
+ * Ids de `?aba=` que deixaram de ser abas. O valor desconhecido não entra:
+ * a página continua no Geral sem reescrever a URL.
+ */
+const ABAS_ANTIGAS: Record<string, DestinoDeAba> = {
+  geral: { tipo: 'geral', ancora: null },
+  plano: { tipo: 'geral', ancora: null },
+  direcao: { tipo: 'geral', ancora: ANCORA_PILARES },
+  ajustes: { tipo: 'geral', ancora: ANCORA_FAIXAS },
+  contas: { tipo: 'conta' },
+  pilares: { tipo: 'geral', ancora: ANCORA_PILARES },
+  proporcao: { tipo: 'geral', ancora: ANCORA_PROPORCAO },
+  perfil: { tipo: 'geral', ancora: ANCORA_DNA },
+  operacional: { tipo: 'geral', ancora: ANCORA_HASHTAGS },
+  continuidade: { tipo: 'planejamento' },
+  waves: { tipo: 'planejamento' },
+  'series-e-waves': { tipo: 'planejamento' },
+  avisos: { tipo: 'geral', ancora: ANCORA_AVISOS },
+  capacidade: { tipo: 'geral', ancora: ANCORA_FAIXAS },
+  regras: { tipo: 'geral', ancora: ANCORA_FAIXAS },
+  rotina: { tipo: 'geral', ancora: ANCORA_FAIXAS },
 };
 
-/** Lê `?aba=`; ids antigos viram a aba nova e qualquer valor desconhecido cai no Plano do período. */
-export function abaEditorialDaUrl(valor: string | null): EditorialAba {
-  if (valor && (EDITORIAL_ABAS as readonly string[]).includes(valor)) return valor as EditorialAba;
-  if (valor && ABAS_ANTIGAS[valor]) return ABAS_ANTIGAS[valor].aba;
+/** Lê `?aba=`. Qualquer id conhecido ou desconhecido abre o Geral; a conta viva em `?conta=`. */
+export function abaEditorialDaUrl(_valor: string | null): EditorialAba {
   return ABA_EDITORIAL_PADRAO;
 }
 
-/** Bloco para onde rolar quando a URL usa um id antigo de aba (ex.: `continuidade`). */
+/** Para onde um id antigo de `?aba=` leva. Desconhecido cai no Geral, sem âncora. */
+export function resolverAbaEditorial(valor: string | null): DestinoDeAba {
+  if (valor && ABAS_ANTIGAS[valor]) return ABAS_ANTIGAS[valor];
+  return { tipo: 'geral', ancora: null };
+}
+
+/** Bloco do Geral para onde rolar. Conta e Planejamento não têm âncora aqui. */
 export function ancoraDaAbaAntiga(valor: string | null): string | null {
-  if (!valor || (EDITORIAL_ABAS as readonly string[]).includes(valor)) return null;
-  return ABAS_ANTIGAS[valor]?.ancora ?? null;
+  const destino = valor ? ABAS_ANTIGAS[valor] : undefined;
+  return destino?.tipo === 'geral' ? destino.ancora : null;
 }
 
-/** Id antigo de aba que precisa ser trocado na URL pelo id atual. */
+/** Id antigo de aba que a página troca pela URL atual. */
 export function ehAbaAntiga(valor: string | null): boolean {
-  return Boolean(valor && !(EDITORIAL_ABAS as readonly string[]).includes(valor) && ABAS_ANTIGAS[valor]);
+  return Boolean(valor && ABAS_ANTIGAS[valor]);
 }
 
-/** Parâmetros da URL ao trocar de aba: a aba padrão não leva `?aba=`. */
+/** Parâmetros ao voltar para o Geral: some `?aba=`, `?conta=` e o formulário de conta nova. */
 export function paramsDaAba(atuais: URLSearchParams, aba: EditorialAba): URLSearchParams {
   const next = new URLSearchParams(atuais);
-  if (aba === ABA_EDITORIAL_PADRAO) next.delete('aba');
-  else next.set('aba', aba);
+  next.delete('aba');
+  next.delete('conta');
+  next.delete('novaConta');
+  if (aba !== ABA_EDITORIAL_PADRAO) next.set('aba', aba);
   return next;
+}
+
+/** Parâmetros ao abrir a aba de uma conta. O id fica em `?conta=`, nunca em `?aba=`. */
+export function paramsDaConta(atuais: URLSearchParams, platformId: string): URLSearchParams {
+  const next = new URLSearchParams(atuais);
+  next.delete('aba');
+  next.delete('novaConta');
+  next.set('conta', platformId);
+  return next;
+}
+
+/**
+ * URL que substitui um `?aba=` antigo. Null quando a query já é a atual.
+ * A âncora explícita (ex.: `#regra-de-ouro`) ganha da âncora da aba.
+ * Sem conta ativa, `?aba=contas` abre o formulário de conta nova.
+ */
+export function urlDaAbaAntiga(
+  params: URLSearchParams,
+  hash: string,
+  primeiraContaId: string | null,
+): string | null {
+  const valor = params.get('aba');
+  if (!ehAbaAntiga(valor)) return null;
+  const destino = ABAS_ANTIGAS[valor!]!;
+  if (destino.tipo === 'planejamento') return ROTA_DA_CONFERENCIA;
+
+  const next = new URLSearchParams(params);
+  next.delete('aba');
+  if (destino.tipo === 'conta') {
+    next.delete('novaConta');
+    if (primeiraContaId) {
+      next.delete('conta');
+      next.set('conta', primeiraContaId);
+    } else {
+      next.delete('conta');
+      next.set('novaConta', '1');
+    }
+    const query = next.toString();
+    return `/editorial${query ? `?${query}` : ''}`;
+  }
+
+  next.delete('conta');
+  next.delete('novaConta');
+  const query = next.toString();
+  const ancora = hash.replace(/^#/, '') || destino.ancora;
+  return `/editorial${query ? `?${query}` : ''}${ancora ? `#${ancora}` : ''}`;
 }

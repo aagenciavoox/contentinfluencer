@@ -1,10 +1,12 @@
+import { format } from 'date-fns';
 import type { IntervaloAvaliado, LinhaContinuidade, Continuidade } from './saudeIndicadores.ts';
 import { idsComAncestrais } from '../../editorial/lib/acompanhamento.ts';
+import { situacaoDaJanela, type SituacaoNoRecorte } from '../../editorial/lib/apuracaoSerie.ts';
 import { diasDePausa, type PausaEditorial } from '../../editorial/lib/pausas.ts';
 import { semanasNoIntervalo } from '../../editorial/lib/periodoEditorial.ts';
 
 /** Estado visual de uma janela na régua (mesma regra da Saúde). */
-export type MarcaDaJanela = 'atendida' | 'reservada' | 'buraco' | 'pausada';
+export type MarcaDaJanela = 'atendida' | 'reservada' | 'no-prazo' | 'abaixo' | 'pausada';
 
 export type MarcaRegua = {
   inicio: string;
@@ -35,23 +37,42 @@ export type LinhaDaRegua = {
 /** Classe CSS aplicada no dia com pausa de publicação. */
 export const CLASSE_DIA_PAUSA_PUBLICACAO = 'planejamento-dia-pausado';
 
+const MARCA_DA_SITUACAO: Record<SituacaoNoRecorte, MarcaDaJanela> = {
+  'no-ritmo': 'atendida',
+  'so-com-post-it': 'reservada',
+  'no-prazo': 'no-prazo',
+  abaixo: 'abaixo',
+  pausada: 'pausada',
+};
+
 /**
- * Marca de uma janela: pausada > atendida > reservada > buraco.
- * Espelha IntervaloAvaliado / EstadoDaJanela da apuração.
+ * Marca de uma janela pela situação da Saúde.
+ * Semana ainda aberta e curta fica "no prazo". "Abaixo" só quando a janela já fechou.
+ * Janela parcial não vira falta.
  */
-export function marcaDaJanela(intervalo: Pick<IntervaloAvaliado, 'estado' | 'pausada'>): MarcaDaJanela {
-  if (intervalo.pausada) return 'pausada';
-  if (intervalo.estado === 'atendida') return 'atendida';
-  if (intervalo.estado === 'reservada') return 'reservada';
-  return 'buraco';
+export function marcaDaJanela(
+  intervalo: Pick<IntervaloAvaliado, 'estado'> & Partial<Pick<IntervaloAvaliado, 'inicio' | 'fim' | 'meta' | 'pausada' | 'parcial'>>,
+  hoje = format(new Date(), 'yyyy-MM-dd'),
+): MarcaDaJanela {
+  return MARCA_DA_SITUACAO[situacaoDaJanela({
+    inicio: intervalo.inicio ?? '',
+    fim: intervalo.fim ?? '',
+    meta: intervalo.meta ?? 0,
+    estado: intervalo.estado,
+    pausada: intervalo.pausada,
+    parcial: intervalo.parcial,
+  }, hoje)];
 }
 
 /** Uma marca por janela do período visível. */
-export function marcasDaLinha(linha: Pick<LinhaContinuidade<unknown>, 'intervalos'>): MarcaRegua[] {
+export function marcasDaLinha(
+  linha: Pick<LinhaContinuidade<unknown>, 'intervalos'>,
+  hoje = format(new Date(), 'yyyy-MM-dd'),
+): MarcaRegua[] {
   return linha.intervalos.map(intervalo => ({
     inicio: intervalo.inicio,
     fim: intervalo.fim,
-    marca: marcaDaJanela(intervalo),
+    marca: marcaDaJanela(intervalo, hoje),
     meta: intervalo.meta,
     quantidade: intervalo.quantidade,
   }));
@@ -64,7 +85,10 @@ function progressoTextoDaLinha(linha: LinhaContinuidade<unknown>): string | null
 }
 
 /** Linhas ativas da continuidade → formato da régua. */
-export function linhasDaRegua(continuidade: Continuidade<unknown> | null | undefined): LinhaDaRegua[] {
+export function linhasDaRegua(
+  continuidade: Continuidade<unknown> | null | undefined,
+  hoje = format(new Date(), 'yyyy-MM-dd'),
+): LinhaDaRegua[] {
   if (!continuidade || continuidade.nenhumaAcompanhada) return [];
   return continuidade.linhas.map(linha => ({
     chave: linha.chave,
@@ -74,7 +98,7 @@ export function linhasDaRegua(continuidade: Continuidade<unknown> | null | undef
     tipo: linha.tipo,
     paiNome: linha.paiNome,
     frequencia: linha.frequencia,
-    marcas: marcasDaLinha(linha),
+    marcas: marcasDaLinha(linha, hoje),
     seriePausada: (linha.pausadas?.length ?? 0) > 0 || linha.intervalos.some(item => item.pausada),
     progressoTexto: linha.tipo === 'temporada' ? progressoTextoDaLinha(linha) : null,
   }));
@@ -166,17 +190,19 @@ export function comClasseDiaPausaPublicacao(
   return `${outras} ${pausa}`;
 }
 
-/** Rótulo acessível de uma marca (voz gentil, sem cobrança). */
+/** Rótulo acessível de uma marca. Os mesmos nomes da Saúde. */
 export function rotuloDaMarca(marca: MarcaDaJanela): string {
   switch (marca) {
     case 'atendida':
-      return 'janela atendida';
+      return 'No ritmo';
     case 'reservada':
-      return 'só com reserva';
+      return 'Só com post-it';
+    case 'no-prazo':
+      return 'No prazo';
     case 'pausada':
-      return 'em pausa';
-    case 'buraco':
-      return 'ainda em aberto';
+      return 'Em pausa';
+    case 'abaixo':
+      return 'Abaixo';
   }
 }
 
@@ -185,16 +211,17 @@ export function rotuloDaMarca(marca: MarcaDaJanela): string {
  * Conta as marcas de todas as linhas; voz gentil, sem cobrança.
  */
 export function resumoDaRegua(linhas: readonly Pick<LinhaDaRegua, 'marcas'>[]): string {
-  const conta: Record<MarcaDaJanela, number> = { atendida: 0, reservada: 0, buraco: 0, pausada: 0 };
+  const conta: Record<MarcaDaJanela, number> = { atendida: 0, reservada: 0, 'no-prazo': 0, abaixo: 0, pausada: 0 };
   for (const linha of linhas) for (const marca of linha.marcas) conta[marca.marca] += 1;
-  const total = conta.atendida + conta.reservada + conta.buraco + conta.pausada;
+  const total = conta.atendida + conta.reservada + conta['no-prazo'] + conta.abaixo + conta.pausada;
   if (total === 0) return 'Sem janela neste período';
   const partes: string[] = [];
-  if (conta.buraco > 0) partes.push(conta.buraco === 1 ? '1 janela em aberto' : `${conta.buraco} janelas em aberto`);
-  if (conta.reservada > 0) partes.push(`${conta.reservada} só com reserva`);
+  if (conta.abaixo > 0) partes.push(conta.abaixo === 1 ? '1 janela abaixo' : `${conta.abaixo} janelas abaixo`);
+  if (conta['no-prazo'] > 0) partes.push(conta['no-prazo'] === 1 ? '1 no prazo' : `${conta['no-prazo']} no prazo`);
+  if (conta.reservada > 0) partes.push(conta.reservada === 1 ? '1 só com post-it' : `${conta.reservada} só com post-it`);
   if (partes.length > 0) return partes.join(' · ');
   if (conta.atendida === 0) return 'Em pausa';
-  return 'Tudo atendido';
+  return 'No ritmo';
 }
 
 /** Link canônico para editar a wave no Editorial (Continuidade). */

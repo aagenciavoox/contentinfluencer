@@ -21,6 +21,7 @@ import {contaDaRef, iconeDaConta, redeDaRef, rotuloConta, rotuloCurtoConta} from
 import {formatoNoYoutube} from '../../../../editorial/lib/publicacoes';
 import {legendaComHashtags} from '../../../../editorial/lib/captions';
 import {PostingTimeSuggestions} from '../../../../settings/components/PostingTimeSuggestions';
+import {MetricasDaPublicacao} from './MetricasDaPublicacao';
 import {ConfirmModal} from '../../../../../components/feedback/modals/ConfirmModal';
 import {Drawer} from '../../../../../components/overlays/Drawer';
 import {OverlayBody} from '../../../../../components/overlays/OverlayBody';
@@ -34,7 +35,7 @@ import {Text} from '../../../../../components/ui/Text';
 type PublishingDraft = Pick<
   Content,
   'status' | 'publishDate' | 'publishDateEnabled' | 'publishTime' | 'plataformas' | 'notes' | 'legendaBase' | 'title'
-> & Partial<Pick<Content, 'postedAt' | 'edicaoConcluidaEm' | 'formatoVisual' | 'writingMode'>>;
+> & Partial<Pick<Content, 'postedAt' | 'edicaoConcluidaEm' | 'formatoVisual' | 'writingMode' | 'youtubeTitulo' | 'youtubeDescricao'>>;
 
 interface PublishingSectionProps {
   draft: PublishingDraft;
@@ -181,6 +182,9 @@ export function PublishingSection({
     legendaBase: draft.legendaBase ?? null,
     titulo: draft.title,
     onTituloChange: (title: string) => onChange({title}),
+    youtubeTitulo: draft.youtubeTitulo,
+    youtubeDescricao: draft.youtubeDescricao,
+    onYoutubeCopyChange: (patch: {youtubeTitulo?: string; youtubeDescricao?: string}) => onChange(patch),
     onChange: (plataformas: ContentPlataforma[]) => onChange({plataformas}),
   };
 
@@ -313,7 +317,11 @@ export function PublishingSection({
           <ul className="mt-2">
             {contasMarcadas.map(plataforma => {
               const nome = nomeDaConta(plataforma);
-              const texto = legendaComHashtags(draft.legendaBase ?? null, plataforma).trim();
+              const longo = redeDaRef(plataforma.platformId, state.platforms) === 'youtube'
+                && formatoNoYoutube({formatoVisual: draft.formatoVisual ?? null, writingMode: draft.writingMode}, plataforma).formato === 'video-longo';
+              const texto = (longo
+                ? (draft.youtubeDescricao ?? '')
+                : legendaComHashtags(draft.legendaBase ?? null, plataforma)).trim();
               const diaDaConta = plataforma.publishDate ? plataforma.publishDate.slice(0, 10) : '';
               const outroDia = Boolean(diaDaConta) && diaDaConta !== publishDateOnly;
               const conta = contaDaRef(plataforma.platformId, state.platforms);
@@ -333,8 +341,8 @@ export function PublishingSection({
                         size="xs"
                         variant="ghost"
                         disabled={!texto}
-                        disabledReason="Escreva a legenda desta conta primeiro."
-                        aria-label={`Copiar legenda de ${nomeCompleto}`}
+                        disabledReason={longo ? 'Escreva a descrição deste vídeo primeiro.' : 'Escreva a legenda desta conta primeiro.'}
+                        aria-label={longo ? `Copiar descrição de ${nomeCompleto}` : `Copiar legenda de ${nomeCompleto}`}
                         leftIcon={copiadoId === plataforma.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                         onClick={() => void copiar(plataforma, texto)}
                       >
@@ -370,12 +378,15 @@ export function PublishingSection({
                       ) : null}
                     </div>
                   </div>
+                  {longo && draft.youtubeTitulo?.trim() ? (
+                    <Text variant="bodyStrong" as="p">{draft.youtubeTitulo.trim()}</Text>
+                  ) : null}
                   <Text
                     variant="secondary"
                     as="p"
                     className={texto ? 'line-clamp-3 whitespace-pre-line text-[var(--text-secondary)]' : 'text-[var(--text-tertiary)]'}
                   >
-                    {texto || 'Sem legenda ainda.'}
+                    {texto || (longo ? 'Sem descrição ainda.' : 'Sem legenda ainda.')}
                   </Text>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                     <label className="inline-flex items-center gap-1">
@@ -422,6 +433,14 @@ export function PublishingSection({
             })}
           </ul>
         </Surface>
+      ) : null}
+
+      {contasMarcadas.length > 0 ? (
+        <MetricasDaPublicacao
+          contentId={contentId}
+          publicacoes={contasMarcadas}
+          nomeDa={nomeDaConta}
+        />
       ) : null}
 
       {isPosted ? (

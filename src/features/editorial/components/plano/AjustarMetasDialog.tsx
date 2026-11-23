@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { AppButton } from '../../../../components/ui/AppButton';
+import { SegmentTabs, type SegmentTabOption } from '../../../../components/ui/SegmentTabs';
 import { SelectField } from '../../../../components/ui/SelectField';
 import { Text } from '../../../../components/ui/Text';
 import { Dialog } from '../../../../components/overlays/Dialog';
@@ -24,6 +25,9 @@ export type ObjetivoNoEditor = {
   origem: OrigemDaMeta;
 };
 
+/** Seção focada ao abrir o diálogo de metas. */
+export type SecaoAjusteMetas = 'geral' | 'objetivos' | 'semanas' | 'contas';
+
 export interface AjustarMetasDialogProps {
   open: boolean;
   onClose: () => void;
@@ -42,6 +46,8 @@ export interface AjustarMetasDialogProps {
   metaDoPeriodo?: number | null;
   /** Meta de cada conta pelo ritmo dela (Contas e formatos), sem o número do período. */
   metaDaContaPeloRitmo?: Record<string, number | null>;
+  /** Seção para rolar automaticamente ao abrir o diálogo. */
+  secaoInicial?: SecaoAjusteMetas;
   onSalvar: (patch: Partial<Omit<DecisaoPeriodo, 'inicio' | 'fim'>>) => void | Promise<void>;
 }
 
@@ -71,6 +77,7 @@ export function AjustarMetasDialog({
   limiteSemanal = null,
   metaDoPeriodo = null,
   metaDaContaPeloRitmo = {},
+  secaoInicial = 'geral',
   onSalvar,
 }: AjustarMetasDialogProps) {
   const [prioridade, setPrioridade] = useState('');
@@ -86,6 +93,10 @@ export function AjustarMetasDialog({
   const [metasObjetivoIniciais, setMetasObjetivoIniciais] = useState<Record<string, string>>({});
   const [metaPublicacaoInicial, setMetaPublicacaoInicial] = useState('');
   const [ajustesSemana, setAjustesSemana] = useState<Record<string, string>>({});
+  const [abaAtiva, setAbaAtiva] = useState<SecaoAjusteMetas>('geral');
+
+  const temObjetivos = objetivos.length > 0;
+  const temSemanas = semanasParciais.length > 0;
 
   useEffect(() => {
     if (open) {
@@ -112,6 +123,16 @@ export function AjustarMetasDialog({
     }
     // Lê a decisão ao abrir; enquanto aberto, o rascunho é da pessoa.
   }, [open, decisao]);
+
+  useEffect(() => {
+    if (!open) return;
+    const disponivel =
+      secaoInicial === 'geral' ||
+      secaoInicial === 'contas' ||
+      (secaoInicial === 'objetivos' && temObjetivos) ||
+      (secaoInicial === 'semanas' && temSemanas);
+    setAbaAtiva(disponivel ? secaoInicial : 'geral');
+  }, [open, secaoInicial, temObjetivos, temSemanas]);
 
   const metasDoRascunho = (): MetasPeriodo => {
     const metas: MetasPeriodo = {};
@@ -157,12 +178,101 @@ export function AjustarMetasDialog({
   const bloqueiaDistribuicao = somaDiverge && (distribuicaoMudou || metaMudou);
 
   const [salvando, setSalvando] = useState(false);
-  const numeroInvalido = [
-    metasProducao,
-    metasPublicacao,
-    ...objetivos.map(linha => metasObjetivo[linha.funcao] ?? ''),
-    ...semanasParciais.map(semana => ajustesSemana[semana.inicio] ?? ''),
-  ].some(texto => texto.trim() !== '' && inteiro(texto) == null);
+  const textoInvalido = (texto: string) => texto.trim() !== '' && inteiro(texto) == null;
+  const numeroInvalidoGeral = [metasProducao, metasPublicacao].some(textoInvalido);
+  const numeroInvalidoObjetivos = objetivos.some(linha => textoInvalido(metasObjetivo[linha.funcao] ?? ''));
+  const numeroInvalidoSemanas = semanasParciais.some(semana => textoInvalido(ajustesSemana[semana.inicio] ?? ''));
+  const numeroInvalido = numeroInvalidoGeral || numeroInvalidoObjetivos || numeroInvalidoSemanas;
+
+  const objetivosPreenchidos = objetivos.filter(linha => inteiro(metasObjetivo[linha.funcao] ?? '') != null).length;
+  const contasComMeta = platforms.filter(conta => {
+    const dadosConta = metasPorConta[conta.id];
+    return dadosConta?.producao != null || dadosConta?.publicacao != null;
+  }).length;
+  const semanasComAjuste = semanasParciais.filter(semana => inteiro(ajustesSemana[semana.inicio] ?? '') != null).length;
+
+  const abas: SegmentTabOption<SecaoAjusteMetas>[] = [
+    {
+      id: 'geral',
+      label: 'Geral',
+      indicator: numeroInvalidoGeral ? (
+        <span className="h-1.5 w-1.5 rounded-full bg-[var(--danger)]" />
+      ) : undefined,
+    },
+    ...(temObjetivos
+      ? [
+          {
+            id: 'objetivos' as const,
+            label: 'Objetivos',
+            count: objetivosPreenchidos > 0 ? objetivosPreenchidos : undefined,
+            indicator: numeroInvalidoObjetivos ? (
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--danger)]" />
+            ) : somaDiverge ? (
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--warning)]" />
+            ) : undefined,
+          },
+        ]
+      : []),
+    {
+      id: 'contas',
+      label: 'Contas',
+      count: contasComMeta > 0 ? contasComMeta : undefined,
+    },
+    ...(temSemanas
+      ? [
+          {
+            id: 'semanas' as const,
+            label: 'Semanas',
+            count: semanasComAjuste > 0 ? semanasComAjuste : undefined,
+            indicator: numeroInvalidoSemanas ? (
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--danger)]" />
+            ) : undefined,
+          },
+        ]
+      : []),
+  ];
+
+  const abaEfetiva: SecaoAjusteMetas = abas.some(aba => aba.id === abaAtiva) ? abaAtiva : 'geral';
+
+  const rotuloAba: Record<SecaoAjusteMetas, string> = {
+    geral: 'Geral',
+    objetivos: 'Objetivos',
+    contas: 'Contas',
+    semanas: 'Semanas',
+  };
+
+  const numeroInvalidoNaAbaAtual =
+    (abaEfetiva === 'geral' && numeroInvalidoGeral) ||
+    (abaEfetiva === 'objetivos' && numeroInvalidoObjetivos) ||
+    (abaEfetiva === 'semanas' && numeroInvalidoSemanas);
+
+  const outraAbaComNumeroInvalido: SecaoAjusteMetas | null =
+    numeroInvalidoGeral && abaEfetiva !== 'geral'
+      ? 'geral'
+      : temObjetivos && numeroInvalidoObjetivos && abaEfetiva !== 'objetivos'
+        ? 'objetivos'
+        : temSemanas && numeroInvalidoSemanas && abaEfetiva !== 'semanas'
+          ? 'semanas'
+          : null;
+
+  const pendenciaOutraAba: { aba: SecaoAjusteMetas; rotulo: string; mensagem: string } | null =
+    !numeroInvalidoNaAbaAtual && outraAbaComNumeroInvalido
+      ? {
+          aba: outraAbaComNumeroInvalido,
+          rotulo: rotuloAba[outraAbaComNumeroInvalido],
+          mensagem: `Há um número inválido em ${rotuloAba[outraAbaComNumeroInvalido]}. Use inteiros, sem ponto nem sinal.`,
+        }
+      : !numeroInvalido && bloqueiaDistribuicao && temObjetivos && abaEfetiva !== 'objetivos'
+        ? {
+            aba: 'objetivos',
+            rotulo: rotuloAba.objetivos,
+            mensagem:
+              metaParaConferir != null
+                ? `Em Objetivos, a soma está em ${somaObjetivos} e precisa fechar em ${metaParaConferir}.`
+                : 'As metas por objetivo precisam somar a meta do período.',
+          }
+        : null;
+
   const handleSave = async () => {
     if (bloqueiaDistribuicao || salvando || numeroInvalido) return;
     const prod = inteiro(metasProducao);
@@ -190,6 +300,7 @@ export function AjustarMetasDialog({
 
   const placeholderMeta = (calculada: number | null) =>
     calculada == null ? 'Sem meta' : `${calculada} pelo ritmo`;
+  const mostrarPausaLegada = Boolean(decisao?.pausaEditorial?.trim() || pausaEditorial.trim());
 
   return (
     <Dialog open={open} onClose={onClose} desktopMaxW="md:max-w-[680px]" ariaLabel="Ajustar Metas do Período">
@@ -197,107 +308,121 @@ export function AjustarMetasDialog({
         title="Ajustar Metas do Período"
         subtitle={`Metas do período: ${rotuloDoPeriodo(periodo)}.`}
       />
+      <div className="shrink-0 border-b border-[var(--border-subtle)] px-6 py-3">
+        <SegmentTabs<SecaoAjusteMetas>
+          options={abas}
+          value={abaEfetiva}
+          onChange={setAbaAtiva}
+          ariaLabel="Seções do ajuste de metas"
+        />
+      </div>
       <OverlayBody className="stack-md">
-        <div className="stack-xs">
-          <label htmlFor="foco-periodo">
-            <Text variant="bodyStrong" as="span">
-              Foco / Prioridade Estratégica
-            </Text>
-          </label>
-          <input
-            id="foco-periodo"
-            type="text"
-            className="input w-full"
-            placeholder="Ex.: Foco em Cosmere & Ritmo de Final de Ano"
-            value={prioridade}
-            onChange={e => setPrioridade(e.target.value)}
-          />
-        </div>
+        {abaEfetiva === 'geral' ? (
+          <div role="tabpanel" id="ajuste-secao-geral" aria-label="Geral" className="stack-md">
+            <div className="stack-xs">
+              <label htmlFor="foco-periodo">
+                <Text variant="bodyStrong" as="span">
+                  Foco / Prioridade Estratégica
+                </Text>
+              </label>
+              <input
+                id="foco-periodo"
+                type="text"
+                className="input w-full"
+                placeholder="Ex.: Foco em Cosmere & Ritmo de Final de Ano"
+                value={prioridade}
+                onChange={e => setPrioridade(e.target.value)}
+              />
+            </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="stack-xs">
-            <label htmlFor="nivel-prioridade">
-              <Text variant="bodyStrong" as="span">
-                Nível de Prioridade
-              </Text>
-            </label>
-            <SelectField
-              id="nivel-prioridade"
-              value={prioridadeNivel}
-              onChange={val => setPrioridadeNivel(val)}
-              options={[
-                { value: 'Alta', label: 'Alta' },
-                { value: 'Média', label: 'Média' },
-                { value: 'Baixa', label: 'Baixa' },
-              ]}
-            />
+            <div className={mostrarPausaLegada ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : 'stack-xs'}>
+              <div className="stack-xs">
+                <label htmlFor="nivel-prioridade">
+                  <Text variant="bodyStrong" as="span">
+                    Nível de Prioridade
+                  </Text>
+                </label>
+                <SelectField
+                  id="nivel-prioridade"
+                  value={prioridadeNivel}
+                  onChange={val => setPrioridadeNivel(val)}
+                  options={[
+                    { value: 'Alta', label: 'Alta' },
+                    { value: 'Média', label: 'Média' },
+                    { value: 'Baixa', label: 'Baixa' },
+                  ]}
+                />
+              </div>
+
+              {mostrarPausaLegada ? (
+                <div className="stack-xs">
+                  <label htmlFor="pausa-editorial">
+                    <Text variant="bodyStrong" as="span">
+                      Pausas &amp; Exceções
+                    </Text>
+                  </label>
+                  <input
+                    id="pausa-editorial"
+                    type="text"
+                    className="input w-full"
+                    placeholder="Ex.: 24/12 a 26/12"
+                    aria-describedby="pausa-editorial-ajuda"
+                    value={pausaEditorial}
+                    onChange={e => setPausaEditorial(e.target.value)}
+                  />
+                  <Text id="pausa-editorial-ajuda" variant="meta" as="p" className="text-[var(--text-tertiary)]">
+                    Texto livre. Para tirar dias da meta, use Pausas no plano; data escrita aqui pode ser convertida lá.
+                  </Text>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="stack-xs">
+                <label htmlFor="meta-producao">
+                  <Text variant="bodyStrong" as="span">
+                    Roteiros com data (produção/gravação)
+                  </Text>
+                </label>
+                <input
+                  id="meta-producao"
+                  type="number"
+                  min="0"
+                  className="input w-full"
+                  placeholder={placeholderMeta(producaoCalculada)}
+                  value={metasProducao}
+                  onChange={e => setMetasProducao(e.target.value)}
+                />
+                <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
+                  Conta roteiros com data de publicação ou de gravação. Não indica produção concluída.
+                </Text>
+              </div>
+
+              <div className="stack-xs">
+                <label htmlFor="meta-publicacao">
+                  <Text variant="bodyStrong" as="span">
+                    Meta de publicação do período
+                  </Text>
+                </label>
+                <input
+                  id="meta-publicacao"
+                  type="number"
+                  min="0"
+                  className="input w-full"
+                  placeholder={placeholderMeta(publicacaoCalculada)}
+                  value={metasPublicacao}
+                  onChange={e => setMetasPublicacao(e.target.value)}
+                />
+                <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
+                  Cada conteúdo conta uma vez, como na Saúde. Um número aqui vale no lugar do ritmo.
+                </Text>
+              </div>
+            </div>
           </div>
+        ) : null}
 
-          <div className="stack-xs">
-            <label htmlFor="pausa-editorial">
-              <Text variant="bodyStrong" as="span">
-                Pausas &amp; Exceções
-              </Text>
-            </label>
-            <input
-              id="pausa-editorial"
-              type="text"
-              className="input w-full"
-              placeholder="Ex.: 24/12 a 26/12"
-              aria-describedby="pausa-editorial-ajuda"
-              value={pausaEditorial}
-              onChange={e => setPausaEditorial(e.target.value)}
-            />
-            <Text id="pausa-editorial-ajuda" variant="meta" as="p" className="text-[var(--text-tertiary)]">
-              Texto livre. Para tirar dias da meta, use Pausas no plano; data escrita aqui pode ser convertida lá.
-            </Text>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="stack-xs">
-            <label htmlFor="meta-producao">
-              <Text variant="bodyStrong" as="span">
-                Roteiros com data no período
-              </Text>
-            </label>
-            <input
-              id="meta-producao"
-              type="number"
-              min="0"
-              className="input w-full"
-              placeholder={placeholderMeta(producaoCalculada)}
-              value={metasProducao}
-              onChange={e => setMetasProducao(e.target.value)}
-            />
-            <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
-              Conta roteiros com data de publicação ou de gravação. Não indica produção concluída.
-            </Text>
-          </div>
-
-          <div className="stack-xs">
-            <label htmlFor="meta-publicacao">
-              <Text variant="bodyStrong" as="span">
-                Meta de roteiros do período
-              </Text>
-            </label>
-            <input
-              id="meta-publicacao"
-              type="number"
-              min="0"
-              className="input w-full"
-              placeholder={placeholderMeta(publicacaoCalculada)}
-              value={metasPublicacao}
-              onChange={e => setMetasPublicacao(e.target.value)}
-            />
-            <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
-              Cada conteúdo conta uma vez, como na Saúde. Um número aqui vale no lugar do ritmo.
-            </Text>
-          </div>
-        </div>
-
-        {objetivos.length > 0 ? (
-          <div className="stack-sm pt-2 border-t border-[var(--border-subtle)]">
+        {abaEfetiva === 'objetivos' && temObjetivos ? (
+          <div role="tabpanel" id="ajuste-secao-objetivos" aria-label="Objetivos" className="stack-sm">
             <Text variant="itemTitle" as="h4">Distribuição por objetivo</Text>
             <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
               Em branco, vale a proporção × meta do período. Um número vale só para este período e aparece também na Saúde.
@@ -334,7 +459,7 @@ export function AjustarMetasDialog({
                   variant="meta"
                   as="p"
                   role="status"
-                  className={somaDiverge ? 'text-[#92400e] dark:text-[#fde68a]' : 'text-[var(--text-secondary)]'}
+                  className={somaDiverge ? 'text-[color-mix(in_srgb,var(--warning)_60%,var(--text-primary))]' : 'text-[var(--text-secondary)]'}
                 >
                   {metaParaConferir == null
                     ? `As metas por objetivo somam ${somaObjetivos}. Sem meta de publicação no período, a soma não é conferida.`
@@ -357,8 +482,90 @@ export function AjustarMetasDialog({
           </div>
         ) : null}
 
-        {semanasParciais.length > 0 ? (
-          <div className="stack-sm pt-2 border-t border-[var(--border-subtle)]">
+        {abaEfetiva === 'contas' ? (
+          <div role="tabpanel" id="ajuste-secao-contas" aria-label="Contas" className="stack-sm">
+            <Text variant="itemTitle" as="h4">
+              Metas Individuais por Conta
+            </Text>
+            <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
+              Vazio segue a meta da conta (Editorial › Contas e formatos). Um número aqui vale só para este período.
+            </Text>
+            <div className="stack-sm">
+              {platforms.length === 0 ? (
+                <Text variant="secondary" as="p">Nenhuma conta ativa.</Text>
+              ) : null}
+              {platforms.map(conta => {
+                const dadosConta = metasPorConta[conta.id] ?? {};
+                return (
+                  <div
+                    key={conta.id}
+                    className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-subtle)] p-3 stack-xs"
+                  >
+                    <Text variant="bodyStrong" as="p">
+                      {conta.nome}
+                    </Text>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label htmlFor={`prod-${conta.id}`}>
+                          <Text variant="meta" as="span" className="block text-[var(--text-tertiary)]">
+                            Produção (roteiros)
+                          </Text>
+                        </label>
+                        <input
+                          id={`prod-${conta.id}`}
+                          type="number"
+                          min="0"
+                          className="input w-full py-1"
+                          value={dadosConta.producao ?? ''}
+                          onChange={e => {
+                            const val = e.target.value === '' ? undefined : inteiro(e.target.value);
+                            if (e.target.value !== '' && val == null) return;
+                            setMetasPorConta(prev => ({
+                              ...prev,
+                              [conta.id]: { ...prev[conta.id], producao: val },
+                            }));
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor={`pub-${conta.id}`}>
+                          <Text variant="meta" as="span" className="block text-[var(--text-tertiary)]">
+                            Publicação (posts)
+                          </Text>
+                        </label>
+                        <input
+                          id={`pub-${conta.id}`}
+                          type="number"
+                          min="0"
+                          className="input w-full py-1"
+                          value={dadosConta.publicacao ?? ''}
+                          placeholder={metaDaContaPeloRitmo[conta.id] == null ? 'Sem meta na conta' : `${metaDaContaPeloRitmo[conta.id]} pela conta`}
+                          onChange={e => {
+                            const val = e.target.value === '' ? undefined : inteiro(e.target.value);
+                            if (e.target.value !== '' && val == null) return;
+                            setMetasPorConta(prev => ({
+                              ...prev,
+                              [conta.id]: { ...prev[conta.id], publicacao: val },
+                            }));
+                          }}
+                        />
+                      </div>
+                      {/* O texto antigo "posts por semana" fica só como nota; a meta vem do número da conta. */}
+                      {dadosConta.ritmoSemanal?.trim() ? (
+                        <Text variant="meta" as="p" className="col-span-2 text-[var(--text-tertiary)]">
+                          Nota antiga: {dadosConta.ritmoSemanal}
+                        </Text>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+
+        {abaEfetiva === 'semanas' && temSemanas ? (
+          <div role="tabpanel" id="ajuste-secao-semanas" aria-label="Semanas" className="stack-sm">
             <Text variant="itemTitle" as="h4">Semanas que cruzam o período</Text>
             <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
               Quantas publicações cabem na parte da semana dentro do período. Vazio usa o ritmo proporcional aos dias.
@@ -390,87 +597,28 @@ export function AjustarMetasDialog({
             </div>
           </div>
         ) : null}
-
-        <div className="stack-sm pt-2 border-t border-[var(--border-subtle)]">
-          <Text variant="itemTitle" as="h4">
-            Metas Individuais por Conta
-          </Text>
-          <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
-            Vazio segue a meta da conta (Editorial › Contas e formatos). Um número aqui vale só para este período.
-          </Text>
-          <div className="stack-sm">
-            {platforms.length === 0 ? (
-              <Text variant="secondary" as="p">Nenhuma conta ativa.</Text>
-            ) : null}
-            {platforms.map(conta => {
-              const dadosConta = metasPorConta[conta.id] ?? {};
-              return (
-                <div
-                  key={conta.id}
-                  className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-subtle)] p-3 stack-xs"
-                >
-                  <Text variant="bodyStrong" as="p">
-                    {conta.nome}
-                  </Text>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label htmlFor={`prod-${conta.id}`}>
-                        <Text variant="meta" as="span" className="block text-[var(--text-tertiary)]">
-                          Produção (roteiros)
-                        </Text>
-                      </label>
-                      <input
-                        id={`prod-${conta.id}`}
-                        type="number"
-                        min="0"
-                        className="input w-full py-1"
-                        value={dadosConta.producao ?? ''}
-                        onChange={e => {
-                          const val = e.target.value === '' ? undefined : inteiro(e.target.value);
-                          if (e.target.value !== '' && val == null) return;
-                          setMetasPorConta(prev => ({
-                            ...prev,
-                            [conta.id]: { ...prev[conta.id], producao: val },
-                          }));
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor={`pub-${conta.id}`}>
-                        <Text variant="meta" as="span" className="block text-[var(--text-tertiary)]">
-                          Publicação (posts)
-                        </Text>
-                      </label>
-                      <input
-                        id={`pub-${conta.id}`}
-                        type="number"
-                        min="0"
-                        className="input w-full py-1"
-                        value={dadosConta.publicacao ?? ''}
-                        placeholder={metaDaContaPeloRitmo[conta.id] == null ? 'Sem meta na conta' : `${metaDaContaPeloRitmo[conta.id]} pela conta`}
-                        onChange={e => {
-                          const val = e.target.value === '' ? undefined : inteiro(e.target.value);
-                          if (e.target.value !== '' && val == null) return;
-                          setMetasPorConta(prev => ({
-                            ...prev,
-                            [conta.id]: { ...prev[conta.id], publicacao: val },
-                          }));
-                        }}
-                      />
-                    </div>
-                    {/* O texto antigo "posts por semana" fica só como nota; a meta vem do número da conta. */}
-                    {dadosConta.ritmoSemanal?.trim() ? (
-                      <Text variant="meta" as="p" className="col-span-2 text-[var(--text-tertiary)]">
-                        Nota antiga: {dadosConta.ritmoSemanal}
-                      </Text>
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
       </OverlayBody>
+      {pendenciaOutraAba ? (
+        <div
+          role="alert"
+          className="shrink-0 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-subtle)] bg-[var(--warning-bg)] px-6 py-2"
+        >
+          <Text
+            variant="meta"
+            as="p"
+            className="min-w-0 flex-1 text-[color-mix(in_srgb,var(--warning)_60%,var(--text-primary))]"
+          >
+            {pendenciaOutraAba.mensagem}
+          </Text>
+          <AppButton
+            variant="ghost"
+            size="xs"
+            onClick={() => setAbaAtiva(pendenciaOutraAba.aba)}
+          >
+            Ir para {pendenciaOutraAba.rotulo}
+          </AppButton>
+        </div>
+      ) : null}
       <OverlayFooter>
         <AppButton variant="secondary" onClick={onClose}>
           Cancelar

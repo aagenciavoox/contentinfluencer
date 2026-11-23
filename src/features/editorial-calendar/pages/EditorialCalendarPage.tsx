@@ -66,6 +66,7 @@ import {getGentleExperienceSettings} from '../../settings/lib/gentleExperience';
 import {itensPendenciaDoDia, type ItemPendenciaDoDia} from '../../planejamento/lib/avisosPendencia';
 import {generateUUID} from '../../../utils/uuid';
 import {calendarEntryIcon, CalendarLegend} from '../components/CalendarNetworkIcons';
+import {PublishCalendarCard} from '../components/PublishCalendarCard';
 import {contasAtivas, rotuloConta, rotuloDaRef} from '../../contas/lib/contas';
 import {editarVersaoPropria, ESTADO_LEGENDA_ROTULO, estadoLegenda, legendaEfetiva} from '../../editorial/lib/captions';
 import {
@@ -987,20 +988,36 @@ function CalendarWeekView({
                   </div>
                 ) : (
                   entries.map(entry => (
-                    <CalendarEventPill
-                      key={entry.id}
-                      label={entry.label}
-                      icon={calendarEntryIcon(entry)}
-                      time={entry.time}
-                      secondary={getEntryLabel(entry)}
-                      variant="expanded"
-                      style={calendarEntryPillStyle(entry)}
-                      onClick={event => {
-                        event.stopPropagation();
-                        onSelectDate(day);
-                        onSelectEntry(entry);
-                      }}
-                    />
+                    entry.type === 'publish' ? (
+                      <PublishCalendarCard
+                        key={entry.id}
+                        label={entry.label}
+                        time={entry.time}
+                        secondary={getEntryLabel(entry)}
+                        contas={entry.contas}
+                        variant="expanded"
+                        style={calendarEntryPillStyle(entry)}
+                        onOpen={() => {
+                          onSelectDate(day);
+                          onSelectEntry(entry);
+                        }}
+                      />
+                    ) : (
+                      <CalendarEventPill
+                        key={entry.id}
+                        label={entry.label}
+                        icon={calendarEntryIcon(entry)}
+                        time={entry.time}
+                        secondary={getEntryLabel(entry)}
+                        variant="expanded"
+                        style={calendarEntryPillStyle(entry)}
+                        onClick={event => {
+                          event.stopPropagation();
+                          onSelectDate(day);
+                          onSelectEntry(entry);
+                        }}
+                      />
+                    )
                   ))
                 )}
               </div>
@@ -1043,7 +1060,7 @@ function CalendarAgendaListView({
       return isWithinInterval(date, {start: periodStart, end: periodEnd});
     })
     .sort(([left], [right]) => left.localeCompare(right))
-    .map(([dateKey, entries]) => [dateKey, collapseSameDayContentEntries(entries)] as const);
+    .map(([dateKey, entries]) => [dateKey, entries] as const);
 
   const totalRows = groupedEntries.reduce((total, [, rows]) => total + rows.length, 0);
 
@@ -1087,27 +1104,22 @@ function CalendarAgendaListView({
                 </button>
 
                 <div className="stack-sm">
-                  {rows.map(row => {
-                    if (row.kind === 'dual') {
-                      const primary = row.recording || row.publish!;
-                      return (
-                        <CalendarEventPill
-                          key={`dual-${row.contentId}-${dateKey}`}
-                          label={row.label}
-                          time={row.publish?.time || row.recording?.time}
-                          secondary="Gravação e postagem no mesmo dia"
-                          variant="expanded"
-                          style={calendarEntryPillStyle(primary)}
-                          onClick={() => {
-                            onSelectDate(date);
-                            onSelectEntry(primary);
-                          }}
-                        />
-                      );
-                    }
-
-                    const entry = row.entry;
-                    return (
+                  {rows.map(entry => (
+                    entry.type === 'publish' ? (
+                      <PublishCalendarCard
+                        key={entry.id}
+                        label={entry.label}
+                        time={entry.time}
+                        secondary={[...new Set([getEntryLabel(entry), entry.secondary].filter(Boolean))].join(' · ')}
+                        contas={entry.contas}
+                        variant="expanded"
+                        style={calendarEntryPillStyle(entry)}
+                        onOpen={() => {
+                          onSelectDate(date);
+                          onSelectEntry(entry);
+                        }}
+                      />
+                    ) : (
                       <CalendarEventPill
                         key={entry.id}
                         label={entry.label}
@@ -1121,8 +1133,8 @@ function CalendarAgendaListView({
                           onSelectEntry(entry);
                         }}
                       />
-                    );
-                  })}
+                    )
+                  ))}
                 </div>
               </div>
             );
@@ -1131,57 +1143,6 @@ function CalendarAgendaListView({
       </div>
     </section>
   );
-}
-
-type AgendaListRow =
-  | {kind: 'single'; entry: CalendarEntry}
-  | {
-      kind: 'dual';
-      contentId: string;
-      label: string;
-      recording?: CalendarEntry;
-      publish?: CalendarEntry;
-    };
-
-function collapseSameDayContentEntries(entries: CalendarEntry[]): AgendaListRow[] {
-  const byContent = new Map<string, {recording?: CalendarEntry; publishes: CalendarEntry[]}>();
-  const others: CalendarEntry[] = [];
-
-  entries.forEach(entry => {
-    if (entry.type === 'recording' && entry.contentId) {
-      const group = byContent.get(entry.contentId) || {publishes: []};
-      group.recording = entry;
-      byContent.set(entry.contentId, group);
-      return;
-    }
-    if (entry.type === 'publish' && entry.contentId) {
-      const group = byContent.get(entry.contentId) || {publishes: []};
-      group.publishes.push(entry);
-      byContent.set(entry.contentId, group);
-      return;
-    }
-    others.push(entry);
-  });
-
-  const rows: AgendaListRow[] = [];
-
-  byContent.forEach((group, contentId) => {
-    if (group.recording && group.publishes.length > 0) {
-      rows.push({
-        kind: 'dual',
-        contentId,
-        label: group.recording.label || group.publishes[0].label,
-        recording: group.recording,
-        publish: group.publishes[0],
-      });
-      return;
-    }
-    if (group.recording) rows.push({kind: 'single', entry: group.recording});
-    group.publishes.forEach(publish => rows.push({kind: 'single', entry: publish}));
-  });
-
-  others.forEach(entry => rows.push({kind: 'single', entry}));
-  return rows;
 }
 
 function CalendarDayPanel({
@@ -1253,20 +1214,31 @@ function CalendarDayPanel({
               </Text>
             ) : (
               entries.map(entry => (
-                <button
-                  key={entry.id}
-                  type="button"
-                  onClick={() => onSelectEntry(entry)}
-                  className={cn(
-                    'w-full rounded-[var(--radius-input)] border px-3 py-2 text-left transition-all hover:-translate-y-0.5',
-                  )}
-                  style={calendarEntryPillStyle(entry)}
-                >
-                  <Text variant="label" as="p" className="text-[var(--text-primary)]">{entry.label}</Text>
-                  <Text variant="meta" as="p" className="mt-0.5 text-[var(--text-secondary)]">
-                    {[entry.time, entry.secondary].filter(Boolean).join(' - ') || 'Sem horário'}
-                  </Text>
-                </button>
+                entry.type === 'publish' ? (
+                  <PublishCalendarCard
+                    key={entry.id}
+                    label={entry.label}
+                    time={entry.time}
+                    secondary={entry.secondary}
+                    contas={entry.contas}
+                    variant="expanded"
+                    style={calendarEntryPillStyle(entry)}
+                    onOpen={() => onSelectEntry(entry)}
+                  />
+                ) : (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    onClick={() => onSelectEntry(entry)}
+                    className="w-full rounded-[var(--radius-input)] border px-3 py-2 text-left transition-all hover:-translate-y-0.5"
+                    style={calendarEntryPillStyle(entry)}
+                  >
+                    <Text variant="label" as="p" className="text-[var(--text-primary)]">{entry.label}</Text>
+                    <Text variant="meta" as="p" className="mt-0.5 text-[var(--text-secondary)]">
+                      {[entry.time, entry.secondary].filter(Boolean).join(' - ') || 'Sem horário'}
+                    </Text>
+                  </button>
+                )
               ))
             )}
           </div>

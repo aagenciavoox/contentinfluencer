@@ -2,6 +2,7 @@ import type {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {z} from 'zod';
 import {FORMATO_DESCRICAO, JANELAS, horaEscolhida, primeiroFormato} from '../campos.ts';
 import {modoEscrita, rascunhoDasNotas, roteiroDoConteudo, scriptEditado, temRoteiroEscrito} from '../carrossel.ts';
+import {htmlDosBlocos, lerBlocosYoutube} from '../youtubeBlocos.ts';
 import {notasAoVoltarParaIdeia} from '../ideia.ts';
 import {descreverColunasOmitidas, livrosDoConteudo, unirLivros} from '../editorial.ts';
 import {anexarTemas, gravarTemasDoConteudo, idsComTema, temasDosConteudos} from '../temas.ts';
@@ -103,6 +104,27 @@ function funcaoColumns(choice: z.infer<typeof funcaoSchema> | null): {funcao: st
   return {funcao: choice, funcao_origem: 'escolhida'};
 }
 
+function textoDaColuna(row: Row | undefined, coluna: string): string | null {
+  const valor = row?.[coluna];
+  return typeof valor === 'string' && valor.trim() ? valor.trim() : null;
+}
+
+/** Título e descrição do YouTube longo sobem na série, cada um por si. Shorts ficam na legenda. */
+function modeloYoutubeDaSerie(serieId: string | null, series: readonly Row[]): {titulo: string | null; descricao: string | null} {
+  let titulo: string | null = null;
+  let descricao: string | null = null;
+  const vistos = new Set<string>();
+  let atual = serieId;
+  while (atual && !vistos.has(atual) && (!titulo || !descricao)) {
+    vistos.add(atual);
+    const serie = series.find(item => item.id === atual);
+    if (!titulo) titulo = textoDaColuna(serie, 'youtube_titulo_base');
+    if (!descricao) descricao = textoDaColuna(serie, 'youtube_descricao_base');
+    atual = typeof serie?.parent_id === 'string' ? serie.parent_id : null;
+  }
+  return {titulo, descricao};
+}
+
 function comGravadoSem<T extends Row>(payload: T, omitidas: string[]): T {
   if (omitidas.length === 0) return payload;
   return {...payload, gravado_sem: descreverColunasOmitidas(omitidas, 'contents')};
@@ -131,6 +153,9 @@ function contentDetail(row: Row, lookups: Lookups, roteiroFormato: 'texto' | 'ht
     link: row.link ?? null,
     energia: row.energia_necessaria ?? null,
     legenda_base: row.legenda_base ?? null,
+    youtube_titulo: typeof row.youtube_titulo === 'string' && row.youtube_titulo.trim() ? row.youtube_titulo : null,
+    youtube_descricao: typeof row.youtube_descricao === 'string' && row.youtube_descricao.trim() ? row.youtube_descricao : null,
+    ...('youtube_blocos' in row ? {blocos_youtube: lerBlocosYoutube(row.youtube_blocos)} : {}),
     plataformas: (row.content_plataformas ?? []).map((p: Row) => ({
       id: p.id,
       plataforma: lookups.platformName(p.platform_id),
@@ -350,6 +375,7 @@ export function registerConteudos(server: McpServer) {
     const funcao = funcaoColumns(escolha);
     const funcaoInicial = escolha === 'da_serie' ? herdada : escolha === 'nenhuma' ? null : escolha;
     const horaPublicacao = horaEscolhida(input.hora_publicacao, input.janela);
+    const modeloYoutube = modeloYoutubeDaSerie(serieId, lookups.series);
     const temporadaId = await temporadaPedida(session, lookups, input.temporada, serieId);
     const now = nowIso();
     const id = newId();
@@ -387,9 +413,12 @@ export function registerConteudos(server: McpServer) {
       ...funcao,
       conta_na_grade: input.conta_na_grade ?? contaNaGradePadrao(formato, funcaoInicial),
       legenda_base: input.legenda_base ?? null,
+      ...(modeloYoutube.titulo ? {youtube_titulo: modeloYoutube.titulo} : {}),
+      ...(modeloYoutube.descricao ? {youtube_descricao: modeloYoutube.descricao} : {}),
       ...(temporadaId ? {temporada_id: temporadaId} : {}),
       ...(input.ordem_episodio != null ? {ordem_episodio: input.ordem_episodio} : {}),
       created_at: now,
+      status_entered_at: now,
       updated_at: now,
     }, row => session.client.from('contents').insert(row));
 
@@ -449,7 +478,13 @@ export function registerConteudos(server: McpServer) {
       inputSchema: {
         id: z.string().min(1),
         titulo: z.string().min(1).optional(),
-        roteiro: z.string().optional().describe('Texto do roteiro. Roteiro em modo Carrossel não aceita: as telas são editadas no app'),
+        roteiro: z.string().optional().describe('Texto do roteiro. Roteiro em modo Carrossel não aceita: as telas são editadas no app. YouTube longo em blocos usa blocos_youtube.'),
+        blocos_youtube: z.array(z.object({
+          id: z.string().optional(),
+          nome: z.string(),
+          roteiro: z.string(),
+          referencias: z.string(),
+        })).optional().describe('Blocos do YouTube longo: nome, roteiro em HTML e referências de imagem, som e vídeo. Substitui os blocos e reescreve o texto corrido.'),
         modo_roteiro: z.enum(['substituir', 'acrescentar']).default('substituir'),
         notas: z.string().optional(),
         notas_de_escrita: z.string().optional(),
@@ -483,7 +518,16 @@ export function registerConteudos(server: McpServer) {
       const patch: Row = {};
 
       // Antes de qualquer gravação (temas inclusive): no carrossel a chamada inteira é recusada.
-      if (args.roteiro !== undefined) patch.script = scriptEditado(current, args.roteiro, args.modo_roteiro);
+      if (args.blocos_youtube !== undefined) {
+        const blocos = lerBlocosYoutube(args.blocos_youtube) ?? [];
+        patch.youtube_blocos = blocos;
+        patch.script = htmlDosBlocos(blocos);
+      } else if (args.roteiro !== undefined) {
+        if (Array.isArray(current.youtube_blocos)) {
+          throw new Error('Este YouTube longo está em blocos. Envie blocos_youtube com nome, roteiro e referências. Nada foi alterado.');
+        }
+        patch.script = scriptEditado(current, args.roteiro, args.modo_roteiro);
+      }
       if (args.titulo !== undefined) patch.title = args.titulo.trim();
       if (args.notas !== undefined) patch.notes = args.notas.trim() || null;
       if (args.notas_de_escrita !== undefined) patch.writing_notes = args.notas_de_escrita.trim() || null;
@@ -519,6 +563,7 @@ export function registerConteudos(server: McpServer) {
       // Gravado leva o vídeo para Edição, como no app. Quem já passou da gravação não volta.
       if (args.gravado && statusRank(current.status) < statusRank('Edição')) {
         patch.status = 'Edição';
+        patch.status_entered_at = nowIso();
       }
       if (args.legenda_base !== undefined) patch.legenda_base = args.legenda_base || null;
       // Temporada: precisa valer no escopo da série final (temporadaNoEscopo). Trocar de série sem
@@ -602,6 +647,7 @@ export function registerConteudos(server: McpServer) {
       for (const row of rows) {
         const from = normalizeStatus(row.status);
         const patch: Row = {status: args.status, archived_at: null};
+        if (from !== args.status) patch.status_entered_at = now;
         const rascunho = from === 'Ideia' && args.status !== 'Ideia' ? rascunhoDasNotas(row) : null;
         if (rascunho) patch.script = rascunho;
         // Ao voltar para Ideia, o roteiro e o rascunho entram no texto da ideia, como no app. O roteiro fica.

@@ -1,5 +1,15 @@
 import assert from 'node:assert/strict';
-import { acompanhaNoGeral, coberturaNoGeral, comAcompanhamentoGeral, idsComAncestrais, serieAcompanhada } from './acompanhamento.ts';
+import {
+  acompanhaNoGeral,
+  acompanhamentosDosEscopos,
+  coberturaNoGeral,
+  comAcompanhamentoGeral,
+  idsComAncestrais,
+  linhasDeEscopo,
+  linhasDeEscopoIguais,
+  metasDosEscopos,
+  serieAcompanhada,
+} from './acompanhamento.ts';
 
 const antiga = { id: 's', acompanharContinuidade: true };
 assert.equal(acompanhaNoGeral(antiga), true);
@@ -33,3 +43,53 @@ assert.equal(serieAcompanhada(porConta), true);
 assert.deepEqual([...idsComAncestrais('q', [{ id: 'q', parentId: 's' }, { id: 's', parentId: 'f' }, { id: 'f', parentId: null }])], ['q', 's', 'f']);
 
 console.log('acompanhamento: ok');
+
+// --- Conta e formato: meta vazia usa a geral; a janela do geral permanece.
+{
+  const base = {
+    id: 'c',
+    serieId: 's',
+    escopo: 'conta' as const,
+    platformId: 'ig',
+    formato: null,
+    ativo: true,
+    inicio: '',
+    termino: null,
+    distanciaMaxDias: null,
+    evitarDiasSeguidos: false,
+  };
+  const serie = {
+    id: 's',
+    acompanhamentos: [
+      { ...base, id: 'g', escopo: 'geral' as const, platformId: null, inicio: '2026-01-01', termino: '2026-06-01' },
+      base,
+    ],
+    metasPorEscopo: [{ serieId: 's', platformId: 'ig', formato: null, vezes: 2, unidade: 'semana' as const, aPartirDe: null }],
+  };
+  const linhas = linhasDeEscopo(serie);
+  assert.equal(linhas.length, 1);
+  assert.equal(linhas[0].metaVezes, '2');
+  assert.equal(linhasDeEscopoIguais(linhas, linhas), true);
+  assert.equal(linhasDeEscopoIguais(linhas, [{ ...linhas[0], metaVezes: '' }]), false);
+
+  const semMeta = linhas.map(linha => ({ ...linha, metaVezes: '', inicio: '' }));
+  assert.deepEqual(metasDosEscopos('s', semMeta), []);
+  const comMeta = metasDosEscopos('s', [{ ...linhas[0], metaVezes: '3', metaUnidade: 'mes', metaAPartirDe: '2026-03-01' }]);
+  assert.deepEqual(comMeta, [{
+    serieId: 's',
+    platformId: 'ig',
+    formato: null,
+    vezes: 3,
+    unidade: 'mes',
+    aPartirDe: '2026-03-01',
+  }]);
+
+  const geral = serie.acompanhamentos[0];
+  const gravados = acompanhamentosDosEscopos([geral], semMeta);
+  assert.equal(gravados.length, 2);
+  assert.equal(gravados[0].inicio, '2026-01-01');
+  assert.equal(gravados[0].termino, '2026-06-01');
+  assert.equal(gravados[1].inicio, null);
+  assert.equal(gravados[1].escopo, 'conta');
+  console.log('acompanhamento (escopos): ok');
+}

@@ -12,7 +12,8 @@ import {useAppContext} from '../../../../../context/AppContext';
 import type {CarouselSlide, Content, ContentPlataforma, Pilar, Serie, WritingMode} from '../../../../../lib/database';
 import {cn, htmlToReadableText} from '../../../../../lib/utils';
 import {shouldOpenDraftByDefault} from '../../../../settings/lib/writingWorkspace';
-import {WRITING_MODE_LABELS, WRITING_MODES, normalizeWritingMode, writingModeChange} from '../../../lib/carouselSlides';
+import {WRITING_MODE_LABELS, WRITING_MODES, normalizeWritingMode, podeTrocarModoDeEscrita, writingModeChange} from '../../../lib/carouselSlides';
+import {blocosDesdeRoteiro, blocosParaHtml, htmlParaBlocos, type YoutubeBloco} from '../../../lib/youtubeBlocos';
 import {
   CONTENT_STATUS,
   getStatusOptions,
@@ -33,6 +34,7 @@ import {
   type ScriptBlockLabel,
 } from '../ScriptBlockToolbar';
 import {WritingNotesPane} from '../WritingNotesPane';
+import {YoutubeColunasEditor} from '../YoutubeColunasEditor';
 import {YoutubeScriptHeader} from '../YoutubeScriptHeader';
 
 export type ScriptDraft = {
@@ -69,6 +71,12 @@ export type ScriptDraft = {
   postedAt: string | null;
   plataformas: ContentPlataforma[];
   legendaBase: string | null;
+  /** Título do vídeo longo. Ausente enquanto o corpo não carregou. */
+  youtubeTitulo?: string | null;
+  /** Descrição do vídeo longo. Shorts continuam na legenda. */
+  youtubeDescricao?: string | null;
+  /** Blocos da visão em colunas. `null` ou ausente = o roteiro ainda é só texto corrido. */
+  youtubeBlocos?: YoutubeBloco[] | null;
   temaIds: string[];
   tags: string[];
   temporadaId?: string | null;
@@ -109,6 +117,8 @@ interface RoteiroSectionProps {
   onOpenDraft?: () => void;
   /** Na Gestão, ao ir para Produção, oferece um bloco de gravação. */
   onAddToBlock?: () => void;
+  /** Peça de texto do clube: só a escrita, sem a Gestão feita para vídeo. */
+  pecaDeTexto?: boolean;
 }
 
 export function RoteiroSection({
@@ -140,6 +150,7 @@ export function RoteiroSection({
   primaryBusy = false,
   onOpenDraft,
   onAddToBlock,
+  pecaDeTexto = false,
 }: RoteiroSectionProps) {
   const writingAreaRef = useRef<HTMLDivElement>(null);
   const insertIntoScriptRef = useRef<((text: string) => void) | null>(null);
@@ -159,6 +170,7 @@ export function RoteiroSection({
   } | null>(null);
   const [notesChoice, setNotesChoice] = useState<{contentId: string; open: boolean} | null>(null);
   const [structureChoice, setStructureChoice] = useState<{contentId: string; open: boolean} | null>(null);
+  const [visaoChoice, setVisaoChoice] = useState<{contentId: string; visao: 'texto' | 'colunas'} | null>(null);
   const [draftEditor, setDraftEditor] = useState<Editor | null>(null);
   const [focusedPane, setFocusedPane] = useState<'script' | 'draft'>('script');
   const [draftScrollTop, setDraftScrollTop] = useState(0);
@@ -167,6 +179,7 @@ export function RoteiroSection({
   const workspacePane = workspacePaneChoice?.contentId === contentId
     ? workspacePaneChoice.pane
     : 'write';
+  const visaoYoutube = visaoChoice?.contentId === (contentId ?? '') ? visaoChoice.visao : 'texto';
   const handleWorkspacePrimary = (actionId?: ContentPrimaryActionId) => {
     const id = actionId ?? primaryAction?.id;
     onPrimaryAction?.(actionId);
@@ -246,7 +259,7 @@ export function RoteiroSection({
     onChange(writingModeChange(mode, draft));
   };
 
-  const writingModeSelect = (
+  const writingModeSelect = podeTrocarModoDeEscrita(writingMode) ? (
     <WritingModeSelect
       value={writingMode}
       disabled={bodyLoading || Boolean(bodyError)}
@@ -254,7 +267,7 @@ export function RoteiroSection({
       youtubeAvailable={youtubeAvailable}
       onChange={handleWritingModeChange}
     />
-  );
+  ) : null;
 
   const handleInsertBlock = (label: ScriptBlockLabel) => {
     onChange({script: appendScriptBlock(draft.script, label)});
@@ -315,7 +328,13 @@ export function RoteiroSection({
       documentTitle={draft.title?.trim() || 'Novo roteiro'}
       authorName={authorName}
       referencias={draft.referencias}
-      onScriptChange={html => onChange({script: html})}
+      onScriptChange={html => {
+        if (isYoutube && draft.youtubeBlocos) {
+          onChange({script: html, youtubeBlocos: htmlParaBlocos(html, draft.youtubeBlocos)});
+          return;
+        }
+        onChange({script: html});
+      }}
       onReferenciasChange={value => onChange({referencias: value})}
       saveState={saveState}
       showReferencias={layout !== 'workspace'}
@@ -362,6 +381,45 @@ export function RoteiroSection({
   /** Área de escrita do modo atual: roteiro em texto ou telas do carrossel. */
   const writingArea = (fullscreenAside?: ReactNode) => (isCarousel ? carouselEditor : scriptWorkspace(fullscreenAside));
 
+  const guardarBlocos = (blocos: YoutubeBloco[]) => {
+    onChange({youtubeBlocos: blocos, script: blocosParaHtml(blocos)});
+  };
+
+  const escolherVisao = (proxima: 'texto' | 'colunas') => {
+    if (proxima === 'colunas' && draft.youtubeBlocos == null) {
+      guardarBlocos(blocosDesdeRoteiro(draft.script, draft.youtubeBlocos));
+    }
+    setVisaoChoice({contentId: contentId ?? '', visao: proxima});
+  };
+
+  /** No YouTube longo do computador, Texto e Colunas editam os mesmos blocos. */
+  const areaDeEscrita = (fullscreenAside?: ReactNode) => {
+    if (!isYoutube) return writingArea(fullscreenAside);
+    return (
+      <div className="stack-sm">
+        <SegmentTabs<'texto' | 'colunas'>
+          ariaLabel="Visão do roteiro"
+          activateOnPointerDown
+          value={visaoYoutube}
+          onChange={escolherVisao}
+          options={[
+            {id: 'texto', label: 'Texto'},
+            {id: 'colunas', label: 'Colunas'},
+          ]}
+        />
+        {visaoYoutube === 'colunas' ? (
+          <YoutubeColunasEditor
+            blocos={draft.youtubeBlocos ?? blocosDesdeRoteiro(draft.script)}
+            onChange={guardarBlocos}
+            documentTitle={draft.title?.trim() || 'Novo roteiro'}
+            authorName={authorName}
+            saveState={saveState}
+          />
+        ) : writingArea(fullscreenAside)}
+      </div>
+    );
+  };
+
   const captionEditor = (
     <PlatformCopyEditor
       plataformas={draft.plataformas}
@@ -376,9 +434,62 @@ export function RoteiroSection({
       legendaBase={draft.legendaBase}
       titulo={draft.title}
       onTituloChange={title => onChange({title})}
+      youtubeTitulo={draft.youtubeTitulo}
+      youtubeDescricao={draft.youtubeDescricao}
+      onYoutubeCopyChange={patch => onChange(patch)}
       onChange={plataformas => onChange({plataformas})}
     />
   );
+
+  if (pecaDeTexto && !mobileComposer) {
+    if (layout === 'workspace' && writingWorkspace) {
+      const titleValue = title ?? draft.title;
+      const changeTitle = onTitleChange ?? ((value: string) => onChange({title: value}));
+      const focusWritingArea = () => {
+        writingAreaRef.current?.querySelector<HTMLElement>('.ProseMirror[contenteditable="true"]')?.focus();
+      };
+      return (
+        <div className="stack-md">
+          <div className="min-w-0 stack-sm">
+            <label className="group relative block min-w-0">
+              <span className="sr-only">Título do texto</span>
+              <input
+                type="text"
+                value={titleValue === 'Novo arquivo' || titleValue === 'Novo roteiro' ? '' : titleValue}
+                onChange={event => changeTitle(event.target.value)}
+                onKeyDown={event => {
+                  if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
+                  event.preventDefault();
+                  focusWritingArea();
+                }}
+                placeholder="Sem título"
+                aria-label="Título do texto"
+                autoComplete="off"
+                className={cn(
+                  'w-full min-w-0 border-0 bg-transparent py-1 pr-8 t-section-title tracking-tight',
+                  'text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]',
+                  'rounded-none shadow-none focus:border-0 focus:shadow-none',
+                )}
+              />
+              <Pencil
+                className="pointer-events-none absolute right-0 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)] opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+                aria-hidden
+              />
+            </label>
+            <ContentTemaChips temaIds={draft.temaIds} max={6} />
+          </div>
+          <div ref={writingAreaRef} className="min-h-0 min-w-0">
+            {writingArea(
+              notesOpen
+                ? notesPane('h-full max-h-none min-h-0 flex-1 rounded-none border-0 shadow-none')
+                : undefined,
+            )}
+          </div>
+        </div>
+      );
+    }
+    return <div className="min-w-0">{writingArea()}</div>;
+  }
 
   if (layout === 'workspace' && !mobileComposer) {
     if (writingWorkspace) {
@@ -493,7 +604,7 @@ export function RoteiroSection({
                   </button>
                 </div>
               ) : null}
-              {writingArea(
+              {areaDeEscrita(
                 notesOpen
                   ? notesPane('h-full max-h-none min-h-0 flex-1 rounded-none border-0 shadow-none')
                   : undefined,
@@ -508,7 +619,7 @@ export function RoteiroSection({
       return (
         <div className="grid gap-3">
           <div>{writingModeSelect}</div>
-          {writingArea()}
+          {areaDeEscrita()}
           {captionEditor}
         </div>
       );
@@ -518,7 +629,7 @@ export function RoteiroSection({
       <div className="grid-editor">
         <div className="flex min-w-0 flex-col gap-3">
           <div>{writingModeSelect}</div>
-          {writingArea()}
+          {areaDeEscrita()}
           {captionEditor}
         </div>
         <div className="sticky top-4 min-w-0">
@@ -570,7 +681,7 @@ export function RoteiroSection({
           // Title 2 (22px): o campo herdava 16px e ficava menor que o texto do roteiro (17px).
           className="t-page-title w-full border-0 bg-transparent py-1 !text-[length:var(--font-size-title-2)] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
           placeholder="Título"
-          aria-label="Título do roteiro"
+          aria-label={pecaDeTexto ? 'Título do texto' : 'Título do roteiro'}
         />
         {onOpenDraft && hasWritingNotesText(draft.writingNotes) && !htmlToReadableText(draft.script) ? (
           <button
@@ -585,8 +696,8 @@ export function RoteiroSection({
           <MobileScriptEditor
             content={draft.script || ''}
             onChange={html => onChange({script: html})}
-            placeholder="Escreva o roteiro…"
-            documentTitle={draft.title?.trim() || 'Novo roteiro'}
+            placeholder={pecaDeTexto ? 'Escreva o texto…' : 'Escreva o roteiro…'}
+            documentTitle={draft.title?.trim() || (pecaDeTexto ? 'Novo texto' : 'Novo roteiro')}
             autoFocus={autoFocusScript}
             saveState={saveState}
             toolbarStart={
@@ -617,7 +728,7 @@ export function RoteiroSection({
         onChange={onChange}
       />
       <div>{writingModeSelect}</div>
-      {writingArea()}
+      {areaDeEscrita()}
       {captionEditor}
     </div>
   );

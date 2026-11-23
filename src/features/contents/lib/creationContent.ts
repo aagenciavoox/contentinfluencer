@@ -213,6 +213,7 @@ export function applyStatusChange(
     ...content,
     ...applyStatusMilestones(content, nextStatus, {now}),
     status: nextStatus,
+    statusEnteredAt: now,
     updatedAt: now,
   };
 
@@ -395,6 +396,15 @@ export function filterCreationContents(
     });
 }
 
+/** Quando o conteúdo entrou na etapa atual. Sem a data gravada, vale a criação. */
+export function dataDeEntradaNaEtapa(
+  content: Pick<Content, 'createdAt'> & Partial<Pick<Content, 'statusEnteredAt'>>,
+): number {
+  const value = content.statusEnteredAt || content.createdAt;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
 export function sortCreationContents(
   contents: readonly Content[],
   sort: CreationSort,
@@ -403,7 +413,7 @@ export function sortCreationContents(
     if (sort === 'title') {
       return left.title.localeCompare(right.title, 'pt-BR');
     }
-    const delta = new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+    const delta = dataDeEntradaNaEtapa(right) - dataDeEntradaNaEtapa(left);
     return sort === 'oldest' ? -delta : delta;
   });
 }

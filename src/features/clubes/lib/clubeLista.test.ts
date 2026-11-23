@@ -153,8 +153,9 @@ assert.equal(
 );
 
 const html = htmlInicialDoClube();
+assert.equal(html, '');
 for (const rotulo of ['Leitura do mês', 'Pauta do encontro', 'Materiais de apoio', 'Recados do apoio', 'O que falta fazer']) {
-  assert.equal(html.includes(`[${rotulo}]`), true);
+  assert.equal(html.includes(rotulo), false);
 }
 
 const familia: Serie = {

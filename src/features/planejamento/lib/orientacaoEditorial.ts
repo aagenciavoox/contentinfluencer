@@ -17,10 +17,13 @@ import {
 import {diasDePausa, type PausaEditorial} from '../../editorial/lib/pausas.ts';
 import {contarSerieAgrupada} from '../../editorial/lib/frequenciaAgrupada.ts';
 import {idsDeObras} from './assuntosObras.ts';
-import {itensPendenciaDoDia} from './avisosPendencia.ts';
+import {avisoDeGravacaoAntecedencia, itensPendenciaDoDia} from './avisosPendencia.ts';
 import {semanaDe} from '../../editorial/lib/periodoEditorial.ts';
 import {avisoLigado, limiteSaturacaoQuadro, semAvisosDesligados, type AvisosLigados} from '../../editorial/lib/avisosEditoriais.ts';
 import {avaliarFaixa, type IndicadoresProducao} from '../../editorial/lib/indicadoresProducao.ts';
+import {avisosDasFaixas, cienteReconhecido, faixaDeGravacao} from '../../editorial/lib/faixasEditoriais.ts';
+import type {AvisoCiente, PreferenciasGerais, TipoDeAvisoCiente, VigenciaEditorial} from '../../editorial/lib/editorialSettings.ts';
+import type {MetaDaContaVigencia} from '../../editorial/lib/metasPorConta.ts';
 import {lerFrequencia} from '../../editorial/lib/frequenciaSerie.ts';
 import {ehFamiliaNaArvore, ehQuadroNaArvore, unidadesDaRegraDeOuro, vezesNaRegraDeOuro} from '../../editorial/lib/regraDeOuro.ts';
 import {roteirosPorSemana} from '../../settings/lib/statusSerie.ts';
@@ -47,7 +50,11 @@ export type TipoAvisoOrientacao =
   | 'ausencia-mes'
   | 'videos-dia-abaixo'
   | 'videos-dia-acima'
-  | 'saturacao-quadro';
+  | 'saturacao-quadro'
+  | 'gravacao-antecedencia'
+  | 'faixa-abaixo'
+  | 'faixa-acima'
+  | 'faixa-config';
 
 /** Avisos da semana corrente, dos próximos dias e do fim do mês: valem para todas as redes, não seguem o filtro. */
 export const TIPOS_AVISO_GLOBAIS: ReadonlySet<TipoAvisoOrientacao> = new Set([
@@ -57,6 +64,10 @@ export const TIPOS_AVISO_GLOBAIS: ReadonlySet<TipoAvisoOrientacao> = new Set([
   'ausencia-mes',
   'videos-dia-abaixo',
   'videos-dia-acima',
+  'gravacao-antecedencia',
+  'faixa-abaixo',
+  'faixa-acima',
+  'faixa-config',
 ]);
 
 /** Janela fixa do aviso "não aparece nos próximos dias", contando hoje. */
@@ -77,6 +88,9 @@ export type AvisoOrientacao = {
   alvoId?: string;
   /** Abaixo da frequência só informa; os demais pedem revisão. */
   severidade: 'revisar' | 'info';
+  /** Pedido para gravar "quero fazer a mais" na segunda desta semana. */
+  ciente?: { tipo: TipoDeAvisoCiente; platformId: string | null; formato: string | null };
+  reconhecido?: boolean;
 };
 
 type PautaNoDia = {
@@ -570,6 +584,40 @@ function avisosDeGravacao(
   return avisos;
 }
 
+/** Não bloqueia. Sem antecedência, ou quando a gravação cabe na meta da semana, não avisa. */
+function avisosDeGravacaoAntecedencia(input: {
+  contents: readonly Content[];
+  platforms: readonly Platform[];
+  antecedenciaPostagemDias: number | null;
+  limiteSemanal: number | null;
+  gravacaoMetaSemanal?: number | null;
+  hoje: Date;
+  cientes?: readonly AvisoCiente[];
+}): AvisoOrientacao[] {
+  const aviso = avisoDeGravacaoAntecedencia({
+    contents: input.contents,
+    platforms: input.platforms,
+    antecedenciaPostagemDias: input.antecedenciaPostagemDias,
+    limiteSemanal: input.limiteSemanal,
+    gravacaoMetaSemanal: input.gravacaoMetaSemanal,
+    hoje: input.hoje,
+  });
+  if (!aviso) return [];
+  const pedido = { tipo: 'precisa-gravar' as const, platformId: null, formato: null };
+  const reconhecido = cienteReconhecido(input.cientes, pedido, format(input.hoje, 'yyyy-MM-dd'));
+  return [{
+    id: `gravacao-antecedencia:${aviso.inicio}`,
+    tipo: 'gravacao-antecedencia',
+    texto: reconhecido ? `${aviso.texto} Você quis fazer a mais.` : aviso.texto,
+    postItIds: [],
+    contentIds: aviso.contentIds,
+    intervalo: {inicio: aviso.inicio, fim: aviso.fim},
+    severidade: 'info',
+    ciente: pedido,
+    reconhecido,
+  }];
+}
+
 /**
  * Vídeos por dia de gravação (indicador opcional da Rotina de criação), dia a dia.
  * Só dias com gravação marcada entram; dia em pausa de gravação ou produção fica de fora
@@ -759,6 +807,40 @@ export function avisosDeAusenciaNoMes(input: {
   }));
 }
 
+function avisosDeFaixa(input: {
+  contents: readonly Content[];
+  platforms: readonly Platform[];
+  preferencias: PreferenciasGerais | null;
+  vigencias: readonly VigenciaEditorial[] | null;
+  metasDasContas: readonly MetaDaContaVigencia[] | null;
+  avisosCientes: readonly AvisoCiente[] | null;
+  hoje: Date;
+}): AvisoOrientacao[] {
+  if (!input.preferencias) return [];
+  const hoje = format(input.hoje, 'yyyy-MM-dd');
+  return avisosDasFaixas({
+    contents: input.contents,
+    platforms: input.platforms,
+    preferencias: input.preferencias,
+    vigencias: input.vigencias,
+    metasDasContas: input.metasDasContas ?? [],
+    hoje,
+  }).map(aviso => {
+    const reconhecido = aviso.ciente ? cienteReconhecido(input.avisosCientes, aviso.ciente, hoje) : false;
+    const tipo = aviso.lado === 'abaixo' ? 'faixa-abaixo' as const : aviso.lado === 'config' ? 'faixa-config' as const : 'faixa-acima' as const;
+    return {
+      id: aviso.id,
+      tipo,
+      texto: reconhecido ? `${aviso.texto} Você quis fazer a mais.` : aviso.texto,
+      postItIds: [],
+      contentIds: aviso.contentIds,
+      intervalo: aviso.intervalo,
+      severidade: aviso.lado === 'acima' ? 'revisar' as const : 'info' as const,
+      ...(aviso.ciente ? { ciente: aviso.ciente, reconhecido } : {}),
+    };
+  });
+}
+
 export function avisosDeOrientacao({
   postIts,
   contents,
@@ -777,6 +859,12 @@ export function avisosDeOrientacao({
   redeReferenciaId = null,
   diasGravacao = [],
   antecedenciaPostagemDias = null,
+  limiteSemanal = null,
+  gravacaoMetaSemanal = null,
+  preferencias = null,
+  vigencias = null,
+  metasDasContas = null,
+  avisosCientes = null,
   temporadas = [],
   hoje = new Date(),
   continuidadeDaSemana = null,
@@ -814,6 +902,14 @@ export function avisosDeOrientacao({
   diasGravacao?: readonly number[];
   /** Null desliga a antecedência da postagem. */
   antecedenciaPostagemDias?: number | null;
+  /** Meta de postagem da semana. Vale no aviso de gravação quando a meta de gravação está vazia. */
+  limiteSemanal?: number | null;
+  /** Meta de gravação da semana. Vazia: o aviso de antecedência usa o teto de postagem. */
+  gravacaoMetaSemanal?: number | null;
+  preferencias?: PreferenciasGerais | null;
+  vigencias?: readonly VigenciaEditorial[] | null;
+  metasDasContas?: readonly MetaDaContaVigencia[] | null;
+  avisosCientes?: readonly AvisoCiente[] | null;
   /** Waves: as com ritmo próprio saem da frequência da série. */
   temporadas?: readonly (OndaDaExclusao & {frequenciaUnidade?: string | null})[];
   hoje?: Date;
@@ -857,6 +953,24 @@ export function avisosDeOrientacao({
       hoje,
     }),
     ...avisosDeGravacao(postIts, contents, periodo, limiteGravacoesDia, pausas),
+    ...avisosDeGravacaoAntecedencia({
+      contents,
+      platforms,
+      antecedenciaPostagemDias,
+      limiteSemanal,
+      gravacaoMetaSemanal: gravacaoMetaSemanal ?? (preferencias ? faixaDeGravacao(preferencias)?.meta ?? null : null),
+      hoje,
+      cientes: avisosCientes ?? [],
+    }),
+    ...avisosDeFaixa({
+      contents,
+      platforms,
+      preferencias,
+      vigencias,
+      metasDasContas,
+      avisosCientes,
+      hoje,
+    }),
     ...avisosDeVideosPorDia(postIts, contents, periodo, indicadoresProducao, pausas, avisosLigados),
     ...avisoDeCapacidadeDaSemana({continuidadeDaSemana, series, ondas: temporadas, diasGravacao, limiteGravacoesDia, hoje}),
     ...avisosDeAusenciaProxima({continuidadeProxima, hoje}),

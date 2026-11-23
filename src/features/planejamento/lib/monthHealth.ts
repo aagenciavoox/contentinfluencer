@@ -3,7 +3,7 @@ import type {Content, Pilar, Serie} from '../../../lib/database.ts';
 import {buildGradeEntries, type GradeEntry} from '../../editorial/lib/gradeEntries.ts';
 import {contaNaGradeEfetiva} from '../../editorial/lib/contaNaGradeOrigem.ts';
 import {countGrade, type GradeCounts, type PeriodoGrade, type PostItContagem} from '../../editorial/lib/gradeCounts.ts';
-import type {EditorialSettings} from '../../editorial/lib/editorialSettings.ts';
+import type {DecisaoPeriodo, EditorialSettings} from '../../editorial/lib/editorialSettings.ts';
 import {contarSerieAgrupada} from '../../editorial/lib/frequenciaAgrupada.ts';
 import {resolveFuncao} from '../../editorial/lib/funcoes.ts';
 import {pilarHerdadoDaSerie} from '../../editorial/lib/herancaSerie.ts';
@@ -22,8 +22,26 @@ function noPeriodo(data: string | null, periodo: PeriodoGrade): boolean {
 }
 
 type AjustesDoMes = Pick<EditorialSettings, 'redeReferenciaId'> & Partial<
-  Pick<EditorialSettings, 'proporcaoFuncoes' | 'preferencias' | 'periodos' | 'vigencias'>
+  Pick<EditorialSettings, 'proporcaoFuncoes' | 'preferencias' | 'periodos' | 'vigencias' | 'pausas'>
 >;
+
+/**
+ * A Saúde lê o ritmo vigente, a vigência e as pausas com data.
+ * Meta absoluta, metas por objetivo, meta de produção e ajuste de semana do período ficam no banco
+ * e não mudam o limite nem os objetivos deste trecho.
+ */
+function semPlanoDoPeriodo(settings: AjustesDoMes): AjustesDoMes {
+  const periodos: DecisaoPeriodo[] = (settings.periodos ?? []).map(periodo => ({
+    ...periodo,
+    metas: {},
+    ajustesSemana: [],
+    metasPublicacao: undefined,
+    metasProducao: undefined,
+    metasPorConta: undefined,
+    pausaEditorial: undefined,
+  }));
+  return {...settings, periodos};
+}
 
 function postItsParaContagem(
   postIts: readonly PlanejamentoPostIt[],
@@ -320,7 +338,7 @@ export function saudeDoMes({
     entries: oficiais,
     postIts: postItsParaContagem(postIts, contents),
     pilares,
-    settings,
+    settings: semPlanoDoPeriodo(settings),
     periodo,
     series,
     hoje,

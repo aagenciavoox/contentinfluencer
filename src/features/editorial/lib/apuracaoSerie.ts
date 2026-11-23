@@ -181,8 +181,9 @@ function notaDoIntervalo(unidade: UnidadeDaMeta, intervalo: Intervalo, periodo: 
 }
 
 /**
- * Estado da janela: atendida (episódios bastam), reservada (só com post-it chega à meta,
- * conteúdo a desenvolver), abaixo (falta mesmo contando reservas) ou vazia.
+ * Estado da janela pela contagem: atendida (episódios bastam), reservada (só com post-it chega à meta),
+ * abaixo (falta mesmo contando reservas) ou vazia.
+ * Abaixo e vazia ainda não dizem se a janela segue aberta. `situacaoDaJanela` separa "no prazo" de buraco.
  */
 export type EstadoDaJanela = 'atendida' | 'reservada' | 'abaixo' | 'vazia';
 
@@ -439,4 +440,82 @@ const ROTULO_DO_ESTADO: Record<EstadoDaJanela, string> = {
 export function textoDaJanela(janela: JanelaApurada): string {
   const volume = textoDoVolume({ episodios: janela.episodios, reservas: janela.reservas, publicados: 0 });
   return `${curta(janela.inicio)}–${curta(janela.fim)}: ${volume} de ${janela.meta} · ${ROTULO_DO_ESTADO[janela.estado]}`;
+}
+
+/**
+ * Situação da série no recorte que a pessoa abriu.
+ * A janela é sempre inteira. "No prazo" é janela ainda aberta; "Abaixo" é buraco, com a janela já fechada.
+ */
+export type SituacaoNoRecorte = 'no-ritmo' | 'so-com-post-it' | 'no-prazo' | 'abaixo' | 'pausada';
+
+export type JanelaNoRecorte = Pick<JanelaApurada, 'inicio' | 'fim' | 'meta' | 'estado'> & {
+  pausada?: boolean;
+  parcial?: boolean;
+};
+
+/** A janela ainda não fechou: o fim (yyyy-MM-dd) é hoje ou depois. */
+export function janelaAindaAberta(janela: Pick<JanelaApurada, 'fim'>, hoje: string): boolean {
+  return janela.fim >= hoje;
+}
+
+/** No ritmo, só com post-it, no prazo (janela aberta), abaixo (buraco) ou em pausa. */
+export function situacaoDaJanela(janela: JanelaNoRecorte, hoje: string): SituacaoNoRecorte {
+  if (janela.pausada) return 'pausada';
+  if (janela.estado === 'atendida') return 'no-ritmo';
+  if (janela.estado === 'reservada') return 'so-com-post-it';
+  // Parcial (início, término ou pausa de parte dos dias) não vira buraco.
+  if (janela.parcial) return janelaAindaAberta(janela, hoje) ? 'no-prazo' : 'no-ritmo';
+  if (janela.estado === 'abaixo' || janela.estado === 'vazia') {
+    return janelaAindaAberta(janela, hoje) ? 'no-prazo' : 'abaixo';
+  }
+  return 'no-ritmo';
+}
+
+/**
+ * Situação da série no recorte: buraco fechado pesa mais que janela ainda aberta,
+ * que pesa mais que reserva só em post-it. Pausa só manda quando todas as janelas estão pausadas.
+ */
+export function situacaoDoRecorte(janelas: readonly JanelaNoRecorte[], hoje: string): SituacaoNoRecorte {
+  if (janelas.length === 0) return 'no-ritmo';
+  const situacoes = janelas.map(janela => situacaoDaJanela(janela, hoje));
+  if (situacoes.every(situacao => situacao === 'pausada')) return 'pausada';
+  const ativas = situacoes.filter(situacao => situacao !== 'pausada');
+  if (ativas.includes('abaixo')) return 'abaixo';
+  if (ativas.includes('no-prazo')) return 'no-prazo';
+  if (ativas.includes('so-com-post-it')) return 'so-com-post-it';
+  return 'no-ritmo';
+}
+
+const ROTULO_SITUACAO_NO_RECORTE: Record<SituacaoNoRecorte, string> = {
+  'no-ritmo': 'No ritmo',
+  'so-com-post-it': 'Só com post-it',
+  'no-prazo': 'No prazo',
+  'abaixo': 'Abaixo',
+  'pausada': 'Em pausa',
+};
+
+export function rotuloDaSituacaoNoRecorte(situacao: SituacaoNoRecorte): string {
+  return ROTULO_SITUACAO_NO_RECORTE[situacao];
+}
+
+function diasDoTrecho(inicio: string, fim: string): number {
+  return differenceInCalendarDays(parseISO(fim), parseISO(inicio)) + 1;
+}
+
+/**
+ * Meta das janelas inteiras dentro do recorte.
+ * Janela menor que o recorte: soma (2 por semana num mês de 4 semanas = 8).
+ * Janela maior: a janela inteira que contém o recorte, com o prazo, sem fração.
+ */
+export function textoDaMetaNoRecorte(
+  janelas: readonly Pick<JanelaApurada, 'inicio' | 'fim' | 'meta'>[],
+  recorte: Intervalo,
+): string {
+  const diasRecorte = diasDoTrecho(recorte.inicio, recorte.fim);
+  const meta = janelas.reduce((soma, janela) => soma + janela.meta, 0);
+  const maiores = janelas.filter(janela => diasDoTrecho(janela.inicio, janela.fim) > diasRecorte);
+  if (maiores.length === 0) return meta === 1 ? '1 no período' : `${meta} no período`;
+  if (maiores.length === 1) return `${maiores[0].meta} até ${curta(maiores[0].fim)}`;
+  const prazo = [...maiores].sort((a, b) => a.fim.localeCompare(b.fim)).at(-1)!;
+  return `${meta} até ${curta(prazo.fim)}`;
 }

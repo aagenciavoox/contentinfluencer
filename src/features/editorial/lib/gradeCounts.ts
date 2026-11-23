@@ -80,9 +80,8 @@ export type ContagemObjetivo = {
 };
 
 /**
- * Unidade da meta geral e do teto no período. Vem da decisão salva para o intervalo exato;
- * sem ela, da menor decisão salva que contém o intervalo (uma semana dentro do mês segue o mês);
- * sem nenhuma, Por roteiro.
+ * Lê o método gravado no período (a ficha ainda mostra essa escolha).
+ * A meta geral e o teto não usam este valor: a conta é sempre por roteiro.
  */
 export function metodoDoPeriodo(
   periodos: readonly DecisaoPeriodo[] | null | undefined,
@@ -99,9 +98,9 @@ export function metodoDoPeriodo(
 }
 
 export type GradeCounts = {
-  /** Como a meta geral e o teto foram contados neste período. */
+  /** A meta geral é sempre por roteiro. O método gravado no período não entra nesta conta. */
   metodoCalculo: MetodoCalculo;
-  /** `roteiro`: cada roteiro uma vez; `publicacao`: cada publicação em cada conta, reposts inclusive. */
+  /** Sempre `roteiro`: cada roteiro uma vez. O método gravado não troca isto para publicação. */
   unidade: 'roteiro' | 'publicacao';
   semanas: number;
   /** Limite semanal declarado. Não é a meta do período. */
@@ -212,8 +211,8 @@ type ItemContado = {
   temPauta: boolean;
   publicado: boolean;
   /**
-   * O que este item soma na meta geral e no teto. Por roteiro, 1. Por publicação, uma por conta
-   * com data no período (o ciclo sem conta nenhuma vale 1).
+   * O que este item soma na meta geral e no teto. Por roteiro, 1.
+   * Repost do mesmo roteiro no período fica com a lista vazia.
    */
   unidades?: UnidadeContada[];
 };
@@ -346,7 +345,7 @@ function montarItens(
   return itens;
 }
 
-/** As unidades do item: por roteiro, ele mesmo; por publicação, as publicações calculadas. */
+/** As unidades do item: por roteiro, ele mesmo. */
 function unidadesDe(item: ItemContado): UnidadeContada[] {
   return item.unidades ?? [{ publicado: item.publicado, etapa: etapaDoItem(item.entry) }];
 }
@@ -411,52 +410,6 @@ function aplicarPorRoteiro(itens: readonly ItemContado[]): ItemContado[] {
 }
 
 /**
- * Por publicação: cada publicação do ciclo numa conta, com data no período e contando na meta.
- * O ciclo sem nenhuma conta (roteiro só com a data dele) vale 1, como planejamento.
- */
-function unidadesPorPublicacao(entry: GradeEntry, periodo: PeriodoGrade): UnidadeContada[] {
-  const publicacoes = entry.publicacoes ?? [];
-  if (publicacoes.length === 0) {
-    return noPeriodo(entry.data, periodo) ? [{ publicado: entry.realizada, etapa: etapaDoItem(entry) }] : [];
-  }
-  return publicacoes
-    .filter(publicacao => publicacao.contaNaGrade && noPeriodo(publicacao.data, periodo))
-    .map(publicacao => ({ publicado: publicacao.realizada, etapa: publicacao.etapa }));
-}
-
-/**
- * Por publicação, cada item do período passa a somar as publicações dele no período.
- * O ciclo com a data de referência fora do período, mas com outra conta dentro, entra só na conta
- * (não vira item da lista: a lista e a Continuidade continuam por roteiro e episódio).
- */
-function aplicarPorPublicacao(
-  itens: readonly ItemContado[],
-  entries: readonly GradeEntry[],
-  periodo: PeriodoGrade,
-): ItemContado[] {
-  const pesados = itens.map(item => {
-    // Post-it sem conteúdo é uma vaga planejada: 1.
-    if (item.entry.postItId) return { ...item, unidades: [{ publicado: item.publicado, etapa: etapaDoItem(item.entry) }] };
-    return { ...item, unidades: unidadesPorPublicacao(item.entry, periodo) };
-  });
-  const presentes = new Set(itens.map(item => item.entry.id));
-  const originaisPresentes = new Set(itens.filter(item => item.entry.tipo === 'original').map(item => item.entry.contentId));
-  const vistos = new Set<string>();
-  const extras: ItemContado[] = [];
-  for (const entry of entries) {
-    if (!entry.contaNaGrade || presentes.has(entry.id) || noPeriodo(entry.data, periodo)) continue;
-    if (entry.tipo === 'original' && (originaisPresentes.has(entry.contentId) || vistos.has(entry.contentId))) continue;
-    if (entry.tipo === 'original') vistos.add(entry.contentId);
-    const unidades = (entry.publicacoes ?? [])
-      .filter(publicacao => publicacao.contaNaGrade && noPeriodo(publicacao.data, periodo))
-      .map(publicacao => ({ publicado: publicacao.realizada, etapa: publicacao.etapa }));
-    if (unidades.length === 0) continue;
-    extras.push({ entry, temPauta: entry.temPauta === true, publicado: entry.realizada, unidades });
-  }
-  return [...pesados, ...extras];
-}
-
-/**
  * Conta o intervalo uma vez.
  * O limite é a meta do período (`metaDoPeriodo`): absoluta, ajustes das semanas, ritmo. Null continua null.
  * Excesso fica registrado e não apaga item.
@@ -503,9 +456,8 @@ export function contarPeriodo({
     hoje,
   });
   const itens = montarItens(entries, postIts, periodo, series, hoje ?? format(new Date(), 'yyyy-MM-dd'));
-  // A escolha do período vale para a meta geral e o teto. A lista de itens continua um por roteiro.
-  const metodoCalculo = metodoDoPeriodo(settings.periodos, periodo.inicio, periodo.fim);
-  const contados = metodoCalculo === 'publicacoes-v2' ? aplicarPorPublicacao(itens, entries, periodo) : aplicarPorRoteiro(itens);
+  // Meta geral e teto são sempre por roteiro. O método gravado (publicacoes-v2) é ignorado.
+  const contados = aplicarPorRoteiro(itens);
 
   let previsto = 0;
   let comPauta = 0;
@@ -570,8 +522,8 @@ export function contarPeriodo({
 
   const dias = diasInclusivos(periodo);
   return {
-    metodoCalculo,
-    unidade: metodoCalculo === 'publicacoes-v2' ? 'publicacao' : 'roteiro',
+    metodoCalculo: METODO_CALCULO_PADRAO,
+    unidade: 'roteiro',
     semanas: Math.max(1, dias / 7),
     espacosPorSemana: limiteSemanal ?? 0,
     totalMeta: limite,

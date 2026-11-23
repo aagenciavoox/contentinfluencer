@@ -59,8 +59,10 @@ function linha(parcial: Partial<LinhaContinuidade<unknown>> = {}): LinhaContinui
 // --- Marcas espelham a apuração.
 assert.equal(marcaDaJanela({ estado: 'atendida' }), 'atendida');
 assert.equal(marcaDaJanela({ estado: 'reservada' }), 'reservada');
-assert.equal(marcaDaJanela({ estado: 'abaixo' }), 'buraco');
-assert.equal(marcaDaJanela({ estado: 'vazia' }), 'buraco');
+assert.equal(marcaDaJanela({ estado: 'abaixo', fim: '2026-11-08' }, '2026-11-22'), 'abaixo');
+assert.equal(marcaDaJanela({ estado: 'vazia', fim: '2026-11-08' }, '2026-11-22'), 'abaixo');
+assert.equal(marcaDaJanela({ estado: 'vazia', inicio: '2026-11-16', fim: '2026-11-22' }, '2026-11-22'), 'no-prazo');
+assert.equal(marcaDaJanela({ estado: 'vazia', inicio: '2026-11-02', fim: '2026-11-08', parcial: true }, '2026-11-22'), 'atendida');
 assert.equal(marcaDaJanela({ estado: 'abaixo', pausada: true }), 'pausada');
 
 {
@@ -71,8 +73,8 @@ assert.equal(marcaDaJanela({ estado: 'abaixo', pausada: true }), 'pausada');
       janela({ inicio: '2026-11-16', fim: '2026-11-22', estado: 'vazia', abaixo: true }),
       janela({ inicio: '2026-11-23', fim: '2026-11-29', estado: 'abaixo', pausada: true, abaixo: true }),
     ],
-  });
-  assert.deepEqual(marcas.map(m => m.marca), ['atendida', 'reservada', 'buraco', 'pausada']);
+  }, '2026-12-01');
+  assert.deepEqual(marcas.map(m => m.marca), ['atendida', 'reservada', 'abaixo', 'pausada']);
   assert.equal(marcas[0].meta, 2);
   assert.equal(marcas[1].quantidade, 2);
 }
@@ -150,10 +152,11 @@ assert.equal(vistaTemRoteiroNosPostIts([{ contentId: null }, { contentId: '' }])
   );
 }
 
-assert.equal(rotuloDaMarca('buraco'), 'ainda em aberto');
+assert.equal(rotuloDaMarca('abaixo'), 'Abaixo');
+assert.equal(rotuloDaMarca('no-prazo'), 'No prazo');
 
 {
-  const marca = (inicio: string, fim: string, tipo: MarcaRegua['marca'] = 'buraco'): MarcaRegua => ({
+  const marca = (inicio: string, fim: string, tipo: MarcaRegua['marca'] = 'abaixo'): MarcaRegua => ({
     inicio, fim, marca: tipo, meta: 1, quantidade: 0,
   });
   const base = {
@@ -200,11 +203,12 @@ assert.equal(rotuloDaMarca('buraco'), 'ainda em aberto');
 assert.equal(hrefEditorialDaWave('w1'), '/editorial?editar=t%3Aw1');
 
 {
-  const m = (marca: 'atendida' | 'reservada' | 'buraco' | 'pausada') => ({ inicio: 'a', fim: 'b', marca, meta: 1, quantidade: 0 });
+  const m = (marca: MarcaRegua['marca']) => ({ inicio: 'a', fim: 'b', marca, meta: 1, quantidade: 0 });
   assert.equal(resumoDaRegua([]), 'Sem janela neste período');
-  assert.equal(resumoDaRegua([{ marcas: [m('buraco'), m('atendida')] }, { marcas: [m('buraco')] }]), '2 janelas em aberto');
-  assert.equal(resumoDaRegua([{ marcas: [m('buraco'), m('reservada')] }]), '1 janela em aberto · 1 só com reserva');
-  assert.equal(resumoDaRegua([{ marcas: [m('atendida'), m('pausada')] }]), 'Tudo atendido');
+  assert.equal(resumoDaRegua([{ marcas: [m('abaixo'), m('atendida')] }, { marcas: [m('abaixo')] }]), '2 janelas abaixo');
+  assert.equal(resumoDaRegua([{ marcas: [m('abaixo'), m('reservada')] }]), '1 janela abaixo · 1 só com post-it');
+  assert.equal(resumoDaRegua([{ marcas: [m('no-prazo')] }]), '1 no prazo');
+  assert.equal(resumoDaRegua([{ marcas: [m('atendida'), m('pausada')] }]), 'No ritmo');
   assert.equal(resumoDaRegua([{ marcas: [m('pausada')] }]), 'Em pausa');
 }
 

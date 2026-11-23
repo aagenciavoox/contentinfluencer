@@ -9,6 +9,7 @@ import {RecordingMobileScreen} from '../../../mobile/screens/recording/Recording
 import {createContentDraft} from '../../contents/lib/createContentDraft';
 import {CONTENT_STATUS} from '../../contents/lib/contentPipeline';
 import {AvisosFaixa} from './AvisosFaixa';
+import {PlanejamentoSaudeBar} from './PlanejamentoSaudeBar';
 import type {AvisoOrientacao} from '../lib/orientacaoEditorial';
 import {SugestaoGravacaoConteudo} from '../../recording/components/SugestaoGravacaoPanel';
 import {SaveFeedbackToast} from '../../../components/ui/SaveFeedbackToast';
@@ -77,6 +78,31 @@ describe('ajustes do planejamento', () => {
     assert.ok(!html.includes('30,5 roteiros nesta semana'));
     assert.ok(!html.includes('Ajustar ritmo'));
     assert.ok(!html.includes('1 de 1'));
+  });
+  it('renderiza a barra unificada de saúde recolhida por padrão com período e Ver análise', () => {
+    const capacidade: AvisoOrientacao = {
+      id: 'cap', tipo: 'capacidade-semana',
+      texto: 'Esta semana pede 30,5 roteiros e cabem 12 gravações (4 dias × 3).',
+      postItIds: [], contentIds: [], severidade: 'revisar',
+    };
+    const html = renderToStaticMarkup(
+      <PlanejamentoSaudeBar
+        avisos={[capacidade]}
+        onLocalizar={noop}
+        continuidade={null}
+        vista="mes"
+        trecho="calendario"
+        onTrechoChange={noop}
+        intervalo={intervalo}
+        onIntervaloChange={noop}
+        onVerAnalise={noop}
+      />,
+    );
+    assert.match(html, /Ajustes \(1\)/);
+    assert.match(html, /Mês visível/);
+    assert.match(html, /Ver análise/);
+    assert.match(html, /aria-expanded="false"/);
+    assert.ok(!html.includes('30,5 roteiros'));
   });
 });
 

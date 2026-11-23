@@ -15,6 +15,7 @@ import {fetchContentsByIds} from '../../../lib/database';
 import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
 import {buildDetailBackState} from '../../../lib/navigation/detailBack';
 import {isContentBodyLoaded, upsertContent} from '../../contents/lib/contentBody';
+import {dataDeEntradaNaEtapa} from '../../contents/lib/creationContent';
 import {getRecordingQueueContents} from '../../contents/lib/contentWorkflow';
 import {cn} from '../../../lib/utils';
 import {getErrorMessage} from '../../../lib/saveFeedback';
@@ -244,7 +245,7 @@ export function RecordingPage() {
         }
         case 'recentes':
         default:
-          return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+          return dataDeEntradaNaEtapa(right) - dataDeEntradaNaEtapa(left);
       }
     });
 

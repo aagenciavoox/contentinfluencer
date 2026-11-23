@@ -5,9 +5,14 @@ import { Text } from '../../../../components/ui/Text';
 import { useAppContext } from '../../../../context/AppContext';
 import { useAuth } from '../../../../context/AuthContext';
 import type { Serie } from '../../../../lib/database';
+import { inteiroNaoNegativo } from '../../../../lib/inteiro';
 import { generateUUID } from '../../../../utils/uuid';
-import { filhosDaSerie } from '../../../editorial/lib/serieArvore';
+import { CamposDoRitmo } from '../../../editorial/components/EditorDeRitmo';
+import { limiteRegraDeOuro } from '../../../editorial/lib/avisosEditoriais';
 import { rotuloDoFoco } from '../../../editorial/lib/focoTemporada';
+import { fraseDaFrequencia, frequenciaParaGravar, unidadeDaMeta } from '../../../editorial/lib/metaDaOnda';
+import { unidadesDaRegraDeOuro } from '../../../editorial/lib/regraDeOuro';
+import { filhosDaSerie } from '../../../editorial/lib/serieArvore';
 import { temporadasDoEscopo } from '../../../editorial/lib/temporadas';
 import { normalizarRedesPostIt } from '../../../planejamento/lib/redesPostIt';
 import { SerieCreateModal, type SerieCreateModalTarget } from '../SerieCreateModal';
@@ -20,6 +25,91 @@ const campoClass =
   'ds-input w-full min-w-0 rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-3 py-1.5 t-body text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
 const episodios = (n: number) => textoQuantidade(n, 'episódio', 'episódios');
+
+function resumoDoRitmo(temporada: { frequenciaVezes?: number | null; frequenciaUnidade?: string | null }): string {
+  const vezes = temporada.frequenciaVezes;
+  if (vezes == null || vezes <= 0) return 'Sem ritmo próprio';
+  return fraseDaFrequencia(vezes, temporada.frequenciaUnidade ?? '') ?? `${vezes} episódios`;
+}
+
+/** Ritmo da temporada: quantidade, período e início. A wave inteira continua no modal do Plano. */
+function EditorDoRitmoDaTemporada({
+  temporadaId,
+  onFechar,
+}: {
+  temporadaId: string;
+  onFechar: () => void;
+}) {
+  const { state, dispatch } = useAppContext();
+  const temporada = state.temporadas.find(item => item.id === temporadaId);
+  const [vezes, setVezes] = useState(temporada?.frequenciaVezes ? String(temporada.frequenciaVezes) : '');
+  const [unidade, setUnidade] = useState(unidadeDaMeta(temporada?.frequenciaUnidade));
+  const [inicio, setInicio] = useState(temporada?.frequenciaAPartirDe ?? '');
+  const [erro, setErro] = useState<{ campo: 'quantidade' | 'periodo' | 'inicio'; mensagem: string } | null>(null);
+  const [gravando, setGravando] = useState(false);
+
+  if (!temporada) return null;
+
+  const salvar = async () => {
+    if (gravando) return;
+    const frequencia = frequenciaParaGravar({
+      vezes: inteiroNaoNegativo(vezes),
+      unidade,
+      aPartirDe: inicio,
+      tipo: 'temporada',
+      unidadesDaRegra: unidadesDaRegraDeOuro(temporada.serieId, state.series, limiteRegraDeOuro(state.editorial.avisos)),
+    });
+    if ('erro' in frequencia) {
+      setErro({ campo: frequencia.campo, mensagem: frequencia.erro });
+      return;
+    }
+    setErro(null);
+    setGravando(true);
+    try {
+      await dispatch({
+        type: 'UPDATE_TEMPORADA',
+        payload: {
+          ...temporada,
+          frequenciaVezes: frequencia.vezes,
+          frequenciaUnidade: frequencia.unidade,
+          frequenciaAPartirDe: frequencia.aPartirDe,
+        },
+      });
+      onFechar();
+    } catch {
+      setGravando(false);
+    }
+  };
+
+  return (
+    <div className="stack-sm rounded-[var(--radius-input)] bg-[var(--surface-subtle)] p-4">
+      <Text variant="bodyStrong" as="span">Ritmo desta temporada</Text>
+      <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+        Quantidade vazia tira a meta. Vale ao salvar o ritmo, sem esperar o botão da série.
+      </Text>
+      <CamposDoRitmo
+        idPrefix={`temporada-${temporada.id}`}
+        vezes={vezes}
+        unidade={unidade}
+        inicio={inicio}
+        onVezes={setVezes}
+        onUnidade={setUnidade}
+        onInicio={setInicio}
+        erros={{
+          quantidade: erro?.campo === 'quantidade' ? erro.mensagem : undefined,
+          periodo: erro?.campo === 'periodo' ? erro.mensagem : undefined,
+          inicio: erro?.campo === 'inicio' ? erro.mensagem : undefined,
+        }}
+      />
+      <div className="flex flex-wrap justify-end gap-2">
+        <AppButton variant="secondary" size="sm" onClick={onFechar} disabled={gravando}>Cancelar</AppButton>
+        <AppButton variant="primary" size="sm" onClick={() => { void salvar(); }} disabled={gravando}>
+          {gravando ? 'Salvando…' : 'Salvar ritmo'}
+        </AppButton>
+      </div>
+    </div>
+  );
+}
 
 /** "Editar série": criar, renomear e excluir quadros e temporadas, com os fluxos que já existem. */
 export function QuadrosETemporadasSection({
@@ -35,6 +125,7 @@ export function QuadrosETemporadasSection({
   const [criarQuadro, setCriarQuadro] = useState<SerieCreateModalTarget | null>(null);
   const [renomeando, setRenomeando] = useState<{ id: string; nome: string } | null>(null);
   const [edicaoTemporada, setEdicaoTemporada] = useState<EdicaoTemporada | null>(null);
+  const [ritmoAberto, setRitmoAberto] = useState<string | null>(null);
   const [excluir, setExcluir] = useState<AlvoExclusao | null>(null);
 
   const quadros = filhosDaSerie(serie.id, state.series)
@@ -132,22 +223,37 @@ export function QuadrosETemporadasSection({
         ) : temporadas.length === 0 ? <Text variant="meta" as="p">Nenhuma temporada. Os quadros desta série usam as mesmas temporadas.</Text> : (
           <ul className="divide-y divide-[var(--border-color)]">
             {temporadas.map(temporada => (
-              <li key={temporada.id} className="flex items-center gap-2 py-2">
-                <div className="min-w-0 flex-1">
-                  <Text variant="bodyStrong" as="p" className="truncate">{temporada.nome}</Text>
-                  <Text variant="meta" as="p">
-                    {episodios(episodiosDaTemporada(temporada.id, state.contents).length)}
-                    {normalizarRedesPostIt(temporada.focoRedes ?? []).length > 0
-                      ? ` · ${rotuloDoFoco(temporada.focoRedes ?? [])}`
-                      : ''}
-                  </Text>
+              <li key={temporada.id} className="stack-xs py-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <Text variant="bodyStrong" as="p" className="truncate">{temporada.nome}</Text>
+                    <Text variant="meta" as="p">
+                      {episodios(episodiosDaTemporada(temporada.id, state.contents).length)}
+                      {normalizarRedesPostIt(temporada.focoRedes ?? []).length > 0
+                        ? ` · ${rotuloDoFoco(temporada.focoRedes ?? [])}`
+                        : ''}
+                      {` · ${resumoDoRitmo(temporada)}`}
+                    </Text>
+                  </div>
+                  <AppButton
+                    variant="ghost"
+                    size="sm"
+                    aria-expanded={ritmoAberto === temporada.id}
+                    aria-label={`Ritmo de ${temporada.nome}`}
+                    onClick={() => setRitmoAberto(atual => (atual === temporada.id ? null : temporada.id))}
+                  >
+                    Ritmo
+                  </AppButton>
+                  <AppButton variant="ghost" size="sm" iconOnly aria-label={`Editar ${temporada.nome}`} title="Editar" onClick={() => setEdicaoTemporada({ modo: 'renomear', temporada })}>
+                    <Pencil className="h-4 w-4" />
+                  </AppButton>
+                  <AppButton variant="ghost" size="sm" iconOnly aria-label={`Excluir ${temporada.nome}`} title="Excluir" onClick={() => setExcluir({ tipo: 'temporada', temporada })}>
+                    <Trash2 className="h-4 w-4" />
+                  </AppButton>
                 </div>
-                <AppButton variant="ghost" size="sm" iconOnly aria-label={`Editar ${temporada.nome}`} title="Editar" onClick={() => setEdicaoTemporada({ modo: 'renomear', temporada })}>
-                  <Pencil className="h-4 w-4" />
-                </AppButton>
-                <AppButton variant="ghost" size="sm" iconOnly aria-label={`Excluir ${temporada.nome}`} title="Excluir" onClick={() => setExcluir({ tipo: 'temporada', temporada })}>
-                  <Trash2 className="h-4 w-4" />
-                </AppButton>
+                {ritmoAberto === temporada.id ? (
+                  <EditorDoRitmoDaTemporada temporadaId={temporada.id} onFechar={() => setRitmoAberto(null)} />
+                ) : null}
               </li>
             ))}
           </ul>

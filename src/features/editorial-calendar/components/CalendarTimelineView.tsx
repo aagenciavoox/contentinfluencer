@@ -12,6 +12,7 @@ import {
 import {ptBR} from 'date-fns/locale';
 import {calendarEntryPillStyle, CalendarEventPill} from '../../../components/calendar';
 import {calendarEntryIcon} from './CalendarNetworkIcons';
+import {PublishCalendarCard} from './PublishCalendarCard';
 import {Text} from '../../../components/ui/Text';
 import {keyboardActivation} from '../../../lib/a11y/keyboardActivation';
 import {cn} from '../../../lib/utils';
@@ -149,20 +150,36 @@ export function CalendarTimelineView({
                   >
                     <div className="stack-sm">
                       {entries.map(entry => (
-                        <CalendarEventPill
-                          key={entry.id}
-                          label={entry.label}
-                          time={entry.time}
-                          icon={calendarEntryIcon(entry)}
-                          secondary={entry.secondary}
-                          variant="compact"
-                          style={calendarEntryPillStyle(entry)}
-                          onClick={event => {
-                            event.stopPropagation();
-                            onSelectDate?.(day);
-                            onSelectEntry?.(entry);
-                          }}
-                        />
+                        entry.type === 'publish' ? (
+                          <PublishCalendarCard
+                            key={entry.id}
+                            label={entry.label}
+                            time={entry.time}
+                            secondary={entry.secondary}
+                            contas={entry.contas}
+                            variant="compact"
+                            style={calendarEntryPillStyle(entry)}
+                            onOpen={() => {
+                              onSelectDate?.(day);
+                              onSelectEntry?.(entry);
+                            }}
+                          />
+                        ) : (
+                          <CalendarEventPill
+                            key={entry.id}
+                            label={entry.label}
+                            time={entry.time}
+                            icon={calendarEntryIcon(entry)}
+                            secondary={entry.secondary}
+                            variant="compact"
+                            style={calendarEntryPillStyle(entry)}
+                            onClick={event => {
+                              event.stopPropagation();
+                              onSelectDate?.(day);
+                              onSelectEntry?.(entry);
+                            }}
+                          />
+                        )
                       ))}
                     </div>
                   </div>

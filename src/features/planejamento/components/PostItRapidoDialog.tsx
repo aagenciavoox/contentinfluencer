@@ -1,13 +1,13 @@
 import {useEffect, useRef, useState} from 'react';
-import {Calendar, StickyNote} from 'lucide-react';
 import {AppButton} from '../../../components/ui/AppButton';
-import {TagSelect} from '../../../components/ui/TagSelect';
+import {PropertyDatePicker} from '../../../components/ui/PropertyDatePicker';
+import {SelectField} from '../../../components/ui/SelectField';
 import {Text} from '../../../components/ui/Text';
 import {Dialog} from '../../../components/overlays/Dialog';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
 import {OverlayFooter} from '../../../components/overlays/OverlayFooter';
 import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
-import {dia} from '../../../lib/dates';
+import {cn} from '../../../lib/utils';
 import type {Pilar, Platform, Serie} from '../../../lib/database';
 import {opcoesSerieDoPostIt} from '../lib/opcoesSerieDoPostIt';
 import {escolherSerieNoPostIt, type PostItEdit} from '../lib/postIt';
@@ -23,18 +23,16 @@ export function PostItRapidoDialog({
   date,
   initialSerieId,
   series,
-  pilares,
   platforms = [],
   onClose,
   onSalvar,
-  onMaisOpcoes,
 }: {
   open: boolean;
   /** Dia clicado. Null fica fora do calendário (Sem data). */
   date: string | null;
   initialSerieId?: string | null;
   series: readonly Serie[];
-  pilares: readonly Pilar[];
+  pilares?: readonly Pilar[];
   platforms?: readonly Platform[];
   onClose: () => void;
   onSalvar: (draft: PostItEdit) => void;
@@ -77,17 +75,18 @@ export function PostItRapidoDialog({
   };
 
   const opcoesDeSerie = [
-    {value: '', label: 'Sem série (pauta avulsa)'},
-    ...opcoesSerieDoPostIt(series, draft.serieId ?? initialSerieId),
+    {value: '', label: 'Sem série'},
+    ...opcoesSerieDoPostIt(series, draft.serieId ?? initialSerieId).map(opcao => ({
+      value: opcao.value,
+      label: opcao.label ?? opcao.value,
+    })),
   ];
 
   return (
-    <Dialog open={open} onClose={onClose} desktopMaxW="max-w-md" ariaLabel="Criar post-it">
+    <Dialog open={open} onClose={onClose} desktopMaxW="max-w-lg" ariaLabel="Criar post-it">
       <div className="flex h-full min-h-0 flex-col bg-[var(--bg-elevated)]">
         <OverlayHeader
           title="Criar post-it"
-          subtitle={draft.date ? dia(draft.date) : 'Sem data definida'}
-          icon={<StickyNote className="h-6 w-6 text-[var(--brand-accent-text)]" />}
           onClose={onClose}
         />
         <OverlayBody>
@@ -122,62 +121,65 @@ export function PostItRapidoDialog({
                 required
                 aria-required="true"
                 placeholder="Ex: Resenha rápida ou bastidores"
-                className="w-full rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-secondary)] px-3 py-2 t-body text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                className="input h-11 w-full"
               />
             </div>
 
-            {/* Agrupamento Editorial (Série ou Quadro) */}
-            <div className="stack-xs">
-              <Text variant="label" as="span" aria-hidden>Série ou quadro</Text>
-              <TagSelect
-                id="postit-rapido-serie"
-                label="Série ou quadro"
-                hideLabel
-                placeholder="Sem série (cor neutra)"
-                searchable
-                maxSelections={1}
-                values={draft.serieId ? [draft.serieId] : []}
-                options={opcoesDeSerie}
-                onChange={values => {
-                  const serieEscolhida = series.find(s => s.id === values[0]) ?? null;
-                  setDraft(atual => escolherSerieNoPostIt(atual, serieEscolhida, series));
-                }}
-              />
+            {/* Série e Data lado a lado */}
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem]">
+              <div className="min-w-0">
+                <label htmlFor="postit-rapido-serie" className="mb-1.5 block">
+                  <Text variant="label" as="span">Série ou quadro</Text>
+                </label>
+                <SelectField
+                  id="postit-rapido-serie"
+                  block
+                  ariaLabel="Série ou quadro"
+                  value={draft.serieId ?? ''}
+                  options={opcoesDeSerie}
+                  className="min-h-11 md:min-h-11"
+                  onChange={value => {
+                    const serieEscolhida = series.find(s => s.id === value) ?? null;
+                    setDraft(atual => escolherSerieNoPostIt(atual, serieEscolhida, series));
+                  }}
+                />
+              </div>
+
+              <div className="min-w-0">
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <Text variant="label" as="span">Data</Text>
+                  {draft.date ? (
+                    <button
+                      type="button"
+                      onClick={() => setDraft(atual => ({...atual, date: null}))}
+                      className="t-meta rounded-[var(--radius-sm)] text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                    >
+                      Sem data
+                    </button>
+                  ) : null}
+                </div>
+                <PropertyDatePicker
+                  variant="field"
+                  ariaLabel="Data do post-it"
+                  placeholder="Sem data"
+                  value={draft.date}
+                  onChange={next => setDraft(atual => ({...atual, date: next}))}
+                  className={cn(
+                    'input flex h-11 items-center py-0',
+                    !draft.date && 'text-[var(--text-tertiary)]',
+                  )}
+                />
+              </div>
             </div>
 
-            {/* Conta de Destino */}
+            {/* Onde publicar */}
             <div className="stack-xs">
-              <Text variant="label" as="span">Conta de publicação</Text>
+              <Text variant="label" as="span">Onde publicar</Text>
               <RedeChips
                 value={draft.redes ?? []}
                 onChange={redes => setDraft(atual => ({...atual, redes}))}
                 platforms={platforms}
               />
-            </div>
-
-            {/* Data e Alternar Sem Data */}
-            <div className="flex items-center justify-between pt-1 t-secondary text-[var(--text-secondary)]">
-              <span className="flex items-center gap-1.5">
-                <Calendar className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
-                {draft.date ? dia(draft.date) : 'Sem data definida'}
-              </span>
-              {draft.date ? (
-                <button
-                  type="button"
-                  onClick={() => setDraft(atual => ({...atual, date: null}))}
-                  className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] underline underline-offset-2"
-                >
-                  Mover para Sem data
-                </button>
-              ) : date ? (
-                <button
-                  type="button"
-                  onClick={() => setDraft(atual => ({...atual, date}))}
-                  className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] underline underline-offset-2"
-                >
-                  Usar data {dia(date)}
-                </button>
-              ) : null}
             </div>
           </form>
         </OverlayBody>

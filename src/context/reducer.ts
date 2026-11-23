@@ -21,7 +21,7 @@ import type {
   Content, Idea, Pilar, Serie, Tema, Temporada, Clube, ClubeConteudo, ClubePasta, ClubeSerie, Cenario, Look,
   BibliotecaItem, Anotacao, Projeto, ProjetoEtapa, ProjetoLivro,
   RecordingBlock, RecordingBlockContent, Template,
-  AgendaItem, GoldenRule, ContentMetric, Platform, DnaVoz, PlanejamentoPostIt,
+  AgendaItem, GoldenRule, ContentMetric, ContaMetrica, PeriodoAnalise, Platform, DnaVoz, PlanejamentoPostIt,
 } from '../lib/database';
 
 // ============================================================================
@@ -169,6 +169,10 @@ export type AppAction =
   | { type: 'ADD_CONTENT_METRIC';    payload: ContentMetric }
   | { type: 'UPDATE_CONTENT_METRIC'; payload: ContentMetric }
   | { type: 'DELETE_CONTENT_METRIC'; payload: string }
+  | { type: 'ADD_CONTA_METRICA'; payload: ContaMetrica }
+  | { type: 'UPDATE_CONTA_METRICA'; payload: ContaMetrica }
+  | { type: 'ADD_PERIODO_ANALISE'; payload: PeriodoAnalise }
+  | { type: 'UPDATE_PERIODO_ANALISE'; payload: PeriodoAnalise }
 
   // ─── Plataformas ────────────────────────────────────────────────────────────
   | { type: 'ADD_PLATFORM';    payload: Platform }
@@ -221,6 +225,24 @@ function comLivroNoProjeto(state: AppState, livro: ProjetoLivro | undefined): Ap
 function comLivroNaBiblioteca(state: AppState, livro: BibliotecaItem | undefined): AppState {
   if (!livro || state.bibliotecaItems.some(atual => atual.id === livro.id)) return state;
   return {...state, bibliotecaItems: [livro, ...state.bibliotecaItems]};
+}
+
+function mesmaLeitura(item: ContaMetrica, leitura: ContaMetrica): boolean {
+  return item.id === leitura.id
+    || (
+      item.platformId === leitura.platformId
+      && item.registradoEm.slice(0, 10) === leitura.registradoEm.slice(0, 10)
+      && item.origem === leitura.origem
+    );
+}
+
+function gravarLeitura(lista: readonly ContaMetrica[], leitura: ContaMetrica): ContaMetrica[] {
+  return [leitura, ...lista.filter(item => !mesmaLeitura(item, leitura))];
+}
+
+function gravarPeriodo(lista: readonly PeriodoAnalise[], periodo: PeriodoAnalise): PeriodoAnalise[] {
+  return [periodo, ...lista.filter(item => item.id !== periodo.id)]
+    .sort((a, b) => b.inicio.localeCompare(a.inicio) || a.nome.localeCompare(b.nome, 'pt-BR'));
 }
 
 export function appReducer(state: AppState, action: AppAction): AppState {
@@ -861,6 +883,13 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case 'DELETE_RESULT':
     case 'DELETE_CONTENT_METRIC':
       return { ...state, contentMetrics: state.contentMetrics.filter(m => m.id !== action.payload) };
+
+    case 'ADD_CONTA_METRICA':
+    case 'UPDATE_CONTA_METRICA':
+      return { ...state, contasMetricas: gravarLeitura(state.contasMetricas ?? [], action.payload) };
+    case 'ADD_PERIODO_ANALISE':
+    case 'UPDATE_PERIODO_ANALISE':
+      return { ...state, periodosAnalise: gravarPeriodo(state.periodosAnalise ?? [], action.payload) };
 
     // ─── Energia ──────────────────────────────────────────────────────────────
     case 'LOG_ENERGY':

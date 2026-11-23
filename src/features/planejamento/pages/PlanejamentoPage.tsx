@@ -44,8 +44,7 @@ import {pilarDoConteudo, pilarHerdadoDaSerie} from '../../editorial/lib/herancaS
 import {sortPilares} from '../../settings/lib/activePilares';
 import {CampoDia} from '../components/CampoDia';
 import {EncaixeDialog} from '../components/EncaixeDialog';
-import {AvisosFaixa} from '../components/AvisosFaixa';
-import {ReguaDeFrequencia} from '../components/ReguaDeFrequencia';
+import {PlanejamentoSaudeBar} from '../components/PlanejamentoSaudeBar';
 import {PlanejamentoWeekGrid} from '../components/PlanejamentoWeekGrid';
 import {PlanejamentoContentCard} from '../components/PlanejamentoContentCard';
 import {PlanejamentoReservaCard} from '../components/PlanejamentoReservaCard';
@@ -157,7 +156,7 @@ export function PlanejamentoPage() {
   const {
     periodo, periodoDaSaude, contentsDoFiltro, postItsDoFiltro, vistaTemRoteiro,
     pausedDateKeys, monthHealth, rotuloSaude, avisoSaude, avisosOrientacao,
-    verPautasDoAviso, localizarAviso, marcarFoiDeProposito, handlePlanejarIntervalo, handleReorganizarEpisodios,
+    verPautasDoAviso, localizarAviso, marcarFoiDeProposito, queroFazerAMais, faixasDaSaude, handlePlanejarIntervalo, handleReorganizarEpisodios,
     roteiroIdsDoPeriodo, handleOpenGravacao, foraDoPrazo, avisoAtivoId, setAvisoAtivoId,
     limparDestaque,
   } = saude;
@@ -501,97 +500,65 @@ export function PlanejamentoPage() {
               >
                 Adicionar conteúdo
               </AppButton>
+              <AppButton
+                variant="ghost"
+                leftIcon={<ExternalLink className="h-4 w-4" />}
+                onClick={() => navigate('/editorial')}
+              >
+                Editorial
+              </AppButton>
             </>
           )}
         />
       )}
-      navigation={(
-        <CalendarPeriodNav
-          anchorDate={month}
-          onAnchorDateChange={navegarCalendario}
-          viewMode={vista}
-          onViewModeChange={mode => setVista(mode)}
-          weekStartsOn={INICIO_DA_SEMANA}
-          weekViewId="semana"
-          views={[
-            {id: 'mes' as const, label: 'Mês'},
-            {id: 'semana' as const, label: 'Semana'},
-          ]}
-        />
-      )}
       toolbar={(
         <PageToolbar
-          filters={
-            <>
-            {/* O mesmo filtro rápido de redes da Criação; com uma rede só, não aparece. */}
-            {redesDoFiltroRapido(state.platforms, filtro.redes).length > 1 ? (
-              <CreationRedeQuickFilter
-                redes={redesDoFiltroRapido(state.platforms, filtro.redes)}
-                value={filtro.redes}
-                onChange={redes => setFiltro(atual => ({...atual, redes}))}
-              />
-            ) : null}
-            <SelectField
-              ariaLabel="Filtrar por formato"
-              prefix="Formato:"
-              value={filtro.formato ?? 'todos'}
-              onChange={value => setFiltro(atual => ({...atual, formato: value === 'todos' ? null : value}))}
-              selected={Boolean(filtro.formato)}
-              options={[{value: 'todos', label: 'Todos'}, ...formatosDoFiltro()]}
-            />
-            <SelectField
-              ariaLabel="Trecho da Saúde"
-              prefix="Saúde:"
-              value={trecho}
-              onChange={value => setTrecho(value === 'intervalo' ? 'intervalo' : 'calendario')}
-              selected={trecho === 'intervalo'}
-              options={[
-                {value: 'calendario', label: vista === 'semana' ? 'Semana visível' : 'Mês visível'},
-                {value: 'intervalo', label: 'Intervalo'},
+          leading={(
+            <CalendarPeriodNav
+              anchorDate={month}
+              onAnchorDateChange={navegarCalendario}
+              viewMode={vista}
+              onViewModeChange={mode => setVista(mode)}
+              weekStartsOn={INICIO_DA_SEMANA}
+              weekViewId="semana"
+              views={[
+                {id: 'mes' as const, label: 'Mês'},
+                {id: 'semana' as const, label: 'Semana'},
               ]}
             />
-            {trecho === 'intervalo' ? (
-              <span className="inline-flex flex-wrap items-center gap-1">
-                <input
-                  type="date"
-                  aria-label="Início do intervalo da Saúde"
-                  value={intervalo.inicio}
-                  onChange={event => setIntervalo(atual => ({...atual, inicio: event.target.value}))}
-                  className="min-h-9 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-2 text-[var(--text-primary)]"
+          )}
+          filters={(
+            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+              {/* O mesmo filtro rápido de redes da Criação; com uma rede só, não aparece. */}
+              {redesDoFiltroRapido(state.platforms, filtro.redes).length > 1 ? (
+                <CreationRedeQuickFilter
+                  redes={redesDoFiltroRapido(state.platforms, filtro.redes)}
+                  value={filtro.redes}
+                  onChange={redes => setFiltro(atual => ({...atual, redes}))}
                 />
-                <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">a</Text>
-                <input
-                  type="date"
-                  aria-label="Fim do intervalo da Saúde"
-                  value={intervalo.fim}
-                  onChange={event => setIntervalo(atual => ({...atual, fim: event.target.value}))}
-                  className="min-h-9 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-2 text-[var(--text-primary)]"
-                />
-              </span>
-            ) : null}
-            {assuntosDoPlanejamento.length > 0 ? (
+              ) : null}
               <SelectField
-                ariaLabel="Destacar por assunto"
-                prefix="Assunto:"
-                value={assuntoFiltro?.id ?? 'todos'}
-                onChange={value => setAssuntoFiltroId(value === 'todos' ? null : value)}
-                selected={Boolean(assuntoFiltro)}
-                options={[
-                  {value: 'todos', label: 'Todos'},
-                  ...assuntosDoPlanejamento.map(tema => ({value: tema.id, label: tema.nome})),
-                ]}
+                ariaLabel="Filtrar por formato"
+                prefix="Formato:"
+                value={filtro.formato ?? 'todos'}
+                onChange={value => setFiltro(atual => ({...atual, formato: value === 'todos' ? null : value}))}
+                selected={Boolean(filtro.formato)}
+                options={[{value: 'todos', label: 'Todos'}, ...formatosDoFiltro()]}
               />
-            ) : null}
-            </>
-          }
-          view={(
-            <AppButton
-              variant="secondary"
-              leftIcon={<ExternalLink className="h-4 w-4" />}
-              onClick={() => navigate('/editorial')}
-            >
-              Abrir Editorial
-            </AppButton>
+              {assuntosDoPlanejamento.length > 0 ? (
+                <SelectField
+                  ariaLabel="Destacar por assunto"
+                  prefix="Assunto:"
+                  value={assuntoFiltro?.id ?? 'todos'}
+                  onChange={value => setAssuntoFiltroId(value === 'todos' ? null : value)}
+                  selected={Boolean(assuntoFiltro)}
+                  options={[
+                    {value: 'todos', label: 'Todos'},
+                    ...assuntosDoPlanejamento.map(tema => ({value: tema.id, label: tema.nome})),
+                  ]}
+                />
+              ) : null}
+            </div>
           )}
         />
       )}
@@ -804,6 +771,7 @@ export function PlanejamentoPage() {
                 avisoAtivoId={avisoAtivoId}
                 onLocalizarAviso={localizarAviso}
                 onFoiDeProposito={marcarFoiDeProposito}
+                onQueroFazerAMais={queroFazerAMais}
                 onLimparDestaque={limparDestaque}
                 assuntoFiltroId={assuntoFiltroId}
                 onAssuntoFiltroChange={setAssuntoFiltroId}
@@ -817,24 +785,23 @@ export function PlanejamentoPage() {
         return (
           // Sem padding lateral próprio: o frame já dá a margem, e assim o conteúdo alinha com o título.
           <div className="stack-md pt-4 pb-8">
-            <AvisosFaixa
-              modo="ajustes"
+            <PlanejamentoSaudeBar
               avisos={avisosOrientacao}
               avisoAtivoId={avisoAtivoId}
               onLocalizar={localizarAviso}
               onFoiDeProposito={marcarFoiDeProposito}
+              onQueroFazerAMais={queroFazerAMais}
               onLimparDestaque={limparDestaque}
+              continuidade={monthHealth.continuidade}
+              vista={vista}
+              trecho={trecho}
+              onTrechoChange={setTrecho}
+              intervalo={intervalo}
+              onIntervaloChange={setIntervalo}
               onVerAnalise={() => setAnaliseAberta(true)}
-              onAbrirEditorial={() => navigate('/editorial')}
             />
 
             {orientacaoCalendario}
-
-            {/* Régua de frequência (3.2). Só no desktop: no mobile a grade de dias vem primeiro. */}
-            <div data-planejamento-regua-slot>
-              <ReguaDeFrequencia continuidade={monthHealth.continuidade} />
-            </div>
-
 
             {selectedIds.size > 0 ? (
               <Surface variant="outlined" padding="sm" className="flex flex-wrap items-center justify-between gap-3">
@@ -875,11 +842,7 @@ export function PlanejamentoPage() {
                   </AppButton>
                 </div>
               </Surface>
-            ) : (
-              <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
-                Dica: Ctrl (ou ⌘) + clique seleciona vários cards para mover, salvar no calendário ou apagar juntos.
-              </Text>
-            )}
+            ) : null}
 
             <div className={cn(
               vista === 'semana'
@@ -1047,6 +1010,7 @@ export function PlanejamentoPage() {
         publicacoes={monthHealth.publicacoes}
         filtroRotulo={filtroRotulo}
         avisos={avisosOrientacao}
+        faixas={faixasDaSaude}
         onLocalizarAviso={localizarAviso}
         onAddReserva={() => addEmpty(format(new Date(), 'yyyy-MM-dd'))}
         onOpenGravacao={handleOpenGravacao}

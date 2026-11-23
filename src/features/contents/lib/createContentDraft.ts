@@ -56,6 +56,9 @@ export function createContentDraft(
     contaNaGradeOrigem: 'regra',
     redeReferenciaCongeladaId: null,
     legendaBase: null,
+    youtubeTitulo: null,
+    youtubeDescricao: null,
+    youtubeBlocos: null,
     publishDate: null,
     publishTime: null,
     recordingDate: null,
@@ -72,6 +75,9 @@ export function createContentDraft(
     legacyIdeaId: null,
     plataformas: [],
     ...overrides,
+    statusEnteredAt: overrides.statusEnteredAt !== undefined
+      ? overrides.statusEnteredAt
+      : (overrides.createdAt ?? now),
   };
   const comSerie = serie?.id ? aplicarEscolhasDaSerie(draft, serie) : draft;
 
@@ -80,6 +86,8 @@ export function createContentDraft(
     const resolvido = resolverHerancaSerie(alvo, catalogoSeries);
     const scriptVazio = !(alvo.script?.trim());
     const legendaVazia = !(alvo.legendaBase?.trim());
+    const tituloYoutubeVazio = !(alvo.youtubeTitulo?.trim());
+    const descricaoYoutubeVazia = !(alvo.youtubeDescricao?.trim());
     const comHeranca: Content = {
       ...alvo,
       pilarId: resolvido.pilar.pilarId,
@@ -99,6 +107,8 @@ export function createContentDraft(
         : alvo.script,
       scriptOrigem: scriptVazio && resolvido.modelo.template ? 'modelo' : alvo.scriptOrigem,
       legendaBase: legendaVazia ? resolvido.legendaBase.legendaBase : alvo.legendaBase,
+      youtubeTitulo: tituloYoutubeVazio ? resolvido.youtube.titulo : alvo.youtubeTitulo,
+      youtubeDescricao: descricaoYoutubeVazia ? resolvido.youtube.descricao : alvo.youtubeDescricao,
     };
     comHeranca.contaNaGrade = contaNaGradePadrao(comHeranca.formatoVisual, comHeranca.funcao);
     return { ...comHeranca, ...aplicarLivros(comHeranca) };

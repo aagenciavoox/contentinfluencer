@@ -97,7 +97,7 @@ assert.equal(hojeNoFuso(new Date('2026-11-04T01:30:00Z'), 'Fuso/Inexistente'), '
 
 // --- Stories fica fora das metas, mas continua na agenda.
 {
-  // Mesma regra da grade: Stories pela regra fica fora; ligado à mão, entra.
+  // Stories não entra na meta. A agenda ainda lista a publicação.
   const c = conteudo('c3', { formatoVisual: 'Stories', contaNaGradeOrigem: 'regra', plataformas: [pub('s', 'ig', { publishDate: '2026-11-05' })] });
   const agenda = publicacoesDaAgenda({ contents: [c], contas, agora: AGORA });
   assert.equal(agenda.length, 1);
@@ -147,18 +147,32 @@ assert.deepEqual(formatoNoYoutube({ formatoVisual: null }, { formatoPublicacao: 
 
 console.log('publicacoes: ok');
 
-// --- Stories: formato do Instagram nos destinos, fora das metas (salvo marcado à mão).
+// --- Stories: formato do Instagram nos destinos, fora das metas mesmo marcado à mão.
 {
   const { FORMATOS_DA_REDE, FORMATOS_DE_DESTINO, formatoContaNaMeta } = await import('./publicacoes.ts');
   assert.ok(FORMATOS_DE_DESTINO.instagram?.includes('stories'));
   assert.ok(!FORMATOS_DA_REDE.instagram?.includes('stories'), 'Stories não divide a meta da conta');
   assert.equal(formatoContaNaMeta('stories', false), false);
-  assert.equal(formatoContaNaMeta('stories', true), true);
+  assert.equal(formatoContaNaMeta('stories', true), false);
   assert.equal(formatoContaNaMeta('reels', false), true);
+  assert.equal(formatoContaNaMeta('carrossel', true), true);
+  assert.equal(formatoContaNaMeta('post-estatico', false), true);
   const c = conteudo('st', { plataformas: [pub('s1', 'ig', { publishDate: '2026-11-10', formatoPublicacao: 'stories' }), pub('s2', 'tt', { publishDate: '2026-11-10' })] });
   const agenda = publicacoesDaAgenda({ contents: [c], contas, agora: AGORA });
   assert.equal(agenda.find(p => p.platformId === 'ig')!.contaNaMeta, false);
   assert.equal(agenda.find(p => p.platformId === 'tt')!.contaNaMeta, true);
   const manual = conteudo('st2', { contaNaGradeOrigem: 'manual', plataformas: [pub('s3', 'ig', { publishDate: '2026-11-10', formatoPublicacao: 'stories' })] });
-  assert.equal(publicacoesDaAgenda({ contents: [manual], contas, agora: AGORA })[0].contaNaMeta, true);
+  assert.equal(publicacoesDaAgenda({ contents: [manual], contas, agora: AGORA })[0].contaNaMeta, false);
+  const misto = conteudo('st3', {
+    formatoVisual: 'Stories',
+    contaNaGrade: false,
+    contaNaGradeOrigem: 'regra',
+    plataformas: [
+      pub('s4', 'ig', { publishDate: '2026-11-10', formatoPublicacao: 'stories' }),
+      pub('s5', 'tt', { publishDate: '2026-11-10', formatoPublicacao: 'reels' }),
+    ],
+  });
+  const agendaMista = publicacoesDaAgenda({ contents: [misto], contas, agora: AGORA });
+  assert.equal(agendaMista.find(p => p.platformId === 'ig')!.contaNaMeta, false);
+  assert.equal(agendaMista.find(p => p.platformId === 'tt')!.contaNaMeta, true, 'a peça de câmera continua na meta da conta');
 }

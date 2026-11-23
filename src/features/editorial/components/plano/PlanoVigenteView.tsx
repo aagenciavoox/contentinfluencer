@@ -1,21 +1,24 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ChevronDown, ChevronRight, ChevronUp, Pencil } from 'lucide-react';
+import { Ajuda } from '../../../../components/ui/Ajuda';
 import { AppButton } from '../../../../components/ui/AppButton';
+import { Badge } from '../../../../components/ui/Badge';
 import { PlatformIcon } from '../../../../components/ui/PlatformIcon';
 import { Surface } from '../../../../components/ui/Surface';
 import { Text } from '../../../../components/ui/Text';
 import { useAppContext } from '../../../../context/AppContext';
-import { CONTENT_STATUS, normalizeContentStatus } from '../../../contents/lib/contentPipeline';
 import type { Pilar, Platform, Serie } from '../../../../lib/database';
 import { apurarSerie, textoDaFrequencia, textoDoVolume, type ItemDaApuracao } from '../../lib/apuracaoSerie';
+import { reservaPronta } from '../../lib/estoque';
 import { exclusaoDeMetaPropria } from '../../lib/metaPropria';
 import type { DecisaoPeriodo } from '../../lib/editorialSettings';
 import type { GradeCounts } from '../../lib/gradeCounts';
 import { pilarHerdadoDaSerie } from '../../lib/herancaSerie';
-import { AjustarMetasDialog, type ObjetivoNoEditor } from './AjustarMetasDialog';
+import { listarSoEmOutrasRedes } from '../../lib/soEmOutrasRedes';
+import { AjustarMetasDialog, type ObjetivoNoEditor, type SecaoAjusteMetas } from './AjustarMetasDialog';
 import { PausasDoPeriodo } from './PausasDoPeriodo';
-import type { PeriodoSelecionado } from './PeriodoEditorialControl';
+import { PeriodoEditorialControl, type PeriodoSelecionado } from './PeriodoEditorialControl';
 import { metaComAjuste } from '../../lib/vigencias';
 import { metasDasContas } from '../../lib/metasPorConta';
 import { readProporcao } from '../../lib/proporcaoObjetivos';
@@ -23,6 +26,8 @@ import { publicacoesDaAgenda, resumoDePublicacoes } from '../../lib/publicacoes'
 
 export interface PlanoVigenteViewProps {
   periodo: PeriodoSelecionado;
+  /** Quando informado, integra o seletor de período no topo do próprio card. */
+  onPeriodoChange?: (periodo: PeriodoSelecionado) => void;
   decisao: DecisaoPeriodo | null;
   platforms: readonly Platform[];
   series: readonly Serie[];
@@ -38,6 +43,8 @@ export interface PlanoVigenteViewProps {
   /** O editor de metas aberto, controlado por quem mostra o painel. */
   ajustarAberto: boolean;
   onAjustarAbertoChange: (aberto: boolean) => void;
+  /** Seção inicial focada ao abrir o editor de metas. */
+  secaoInicialAjuste?: SecaoAjusteMetas;
   onSalvarDecisao: (patch: Partial<Omit<DecisaoPeriodo, 'inicio' | 'fim'>>) => void;
   /** No Planejamento o card abre fechado, com "Ver detalhes". No Editorial fica sempre aberto. */
   recolhivel?: boolean;
@@ -99,6 +106,7 @@ function decimal(n: number): string {
 
 export function PlanoVigenteView({
   periodo,
+  onPeriodoChange,
   decisao,
   platforms,
   series,
@@ -110,6 +118,7 @@ export function PlanoVigenteView({
   semanasParciais = [],
   ajustarAberto,
   onAjustarAbertoChange,
+  secaoInicialAjuste,
   onSalvarDecisao,
   recolhivel = false,
   semListas = false,
@@ -228,11 +237,48 @@ export function PlanoVigenteView({
     })
     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
+  const estoque = reservaPronta(state.contents, {
+    redeReferenciaId: state.editorial.preferencias.redeReferenciaId,
+  });
+  const reservaMeta = state.editorial.preferencias.reservaProntos;
+  const pctReserva = percentual(estoque.total, reservaMeta);
+  const soEmOutras = listarSoEmOutrasRedes({
+    contents: state.contents,
+    settings: { redeReferenciaId: state.editorial.preferencias.redeReferenciaId },
+    platforms: state.platforms,
+  });
+
+  const textoAjudaMetas = `Publicação é o ritmo semanal nos dias do período, sem as pausas com data, a mesma conta da Saúde. ${porPublicacao ? 'Conta cada publicação em cada conta, reposts inclusive.' : 'Conta cada roteiro uma vez no período.'} Mudar o ritmo ou o período ajusta o período vigente na hora; períodos encerrados ficam como eram.`;
+
   const textoDosDias = meta.diasDePausa > 0
-    ? `${diasAtivos} dias (${meta.diasDePausa} de pausa fora) · ${decimal(semanasAtivas)} semanas`
+    ? `${diasAtivos} dias (${meta.diasDePausa} de pausa) · ${decimal(semanasAtivas)} sem.`
     : `${diasAtivos} dias · ${decimal(semanasAtivas)} semanas`;
 
-  const cardMetrica = 'rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-4 flex flex-col justify-between';
+  const celulaMetrica = 'flex flex-col justify-between gap-3 p-4';
+
+  const acoesMetas = (
+    <div className="flex items-center gap-2">
+      <AppButton
+        variant="secondary"
+        size="sm"
+        leftIcon={<Pencil className="h-3.5 w-3.5" />}
+        onClick={() => onAjustarAbertoChange(true)}
+      >
+        Ajustar metas
+      </AppButton>
+      {recolhivel ? (
+        <AppButton
+          variant="ghost"
+          size="sm"
+          aria-expanded={expanded}
+          onClick={() => setExpanded(prev => !prev)}
+          rightIcon={expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+        >
+          {expanded ? 'Ocultar detalhes' : 'Ver detalhes'}
+        </AppButton>
+      ) : null}
+    </div>
+  );
 
   return (
     <Surface
@@ -240,119 +286,162 @@ export function PlanoVigenteView({
       padding="none"
       className="w-full overflow-hidden rounded-[var(--radius-card)] bg-[var(--bg-elevated)] border-[var(--border-subtle)] p-4 sm:p-6 stack-md"
     >
-      {/* Cabeçalho: o resumo do período e a ação de mudar as metas. */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 stack-xs">
-          <Text variant="sectionTitle" as="h2">Metas do período</Text>
-          <Text variant="secondary" as="p" className="tabular-nums">
-            {resumo}
-          </Text>
-          {prioridadeTexto ? (
-            <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-              Prioridade: {prioridadeTexto}
-            </Text>
-          ) : null}
+      {onPeriodoChange ? (
+        <PeriodoEditorialControl
+          periodo={periodo}
+          onChange={onPeriodoChange}
+          embutido
+          ajudaTexto={`Os dados e a análise são calculados a partir deste intervalo. ${textoAjudaMetas}`}
+          acoesExtras={acoesMetas}
+        />
+      ) : (
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 stack-xs">
+            <div className="inline-flex items-center">
+              <Text variant="sectionTitle" as="h2">Metas do período</Text>
+              <Ajuda rotulo="Como as metas são calculadas" texto={textoAjudaMetas} />
+            </div>
+            {!aberto ? (
+              <Text variant="secondary" as="p" className="tabular-nums">
+                {resumo}
+              </Text>
+            ) : null}
+          </div>
+          {acoesMetas}
         </div>
+      )}
 
-        <div className="flex items-center gap-2">
-          <AppButton
-            variant="secondary"
-            size="sm"
-            leftIcon={<Pencil className="h-3.5 w-3.5" />}
-            onClick={() => onAjustarAbertoChange(true)}
-          >
-            Ajustar metas
-          </AppButton>
-          {recolhivel ? (
-            <AppButton
-              variant="ghost"
-              size="sm"
-              aria-expanded={expanded}
-              onClick={() => setExpanded(prev => !prev)}
-              rightIcon={expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-            >
-              {expanded ? 'Ocultar detalhes' : 'Ver detalhes'}
-            </AppButton>
-          ) : null}
+      {prioridadeTexto ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="tag">
+            {decisao?.prioridadeNivel ? `Prioridade ${decisao.prioridadeNivel}` : 'Prioridade'}
+          </Badge>
+          <Text variant="body" as="p" className="min-w-0">
+            {prioridadeTexto}
+          </Text>
         </div>
-      </div>
+      ) : null}
 
       {aberto ? (
-        <div className={recolhivel ? 'stack-md pt-2 border-t border-[var(--border-subtle)]' : 'stack-md'}>
-          {/* A pausa muda todas as contas abaixo, então vem antes delas. */}
-          <PausasDoPeriodo periodo={periodo} decisao={decisao} pendencia={meta.pendenciaDePausa} />
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className={cardMetrica}>
-              <div>
-                <div className="flex items-center justify-between">
-                  <Text variant="label" as="span" className="uppercase tracking-wider">Publicação</Text>
+        <div className="stack-md">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] divide-y sm:divide-y-0 lg:divide-x divide-[var(--border-subtle)]">
+            <div className={celulaMetrica}>
+              <div className="stack-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <Text variant="eyebrow" as="span">Publicação</Text>
                   {totalPublicacao != null ? (
-                    <Text variant="bodyStrong" as="span" className="text-[var(--text-secondary)] tabular-nums">{pctPublicacao}%</Text>
+                    <Text variant="meta" as="span" className="tabular-nums text-[var(--text-secondary)]">{pctPublicacao}%</Text>
                   ) : null}
                 </div>
-                <Text variant="sectionTitle" as="p" className="mt-1.5 tabular-nums">
-                  {totalPublicacao == null ? 'Meta não definida' : unidadeMeta(totalPublicacao)}
-                </Text>
-                <Text variant="meta" as="p" className="mt-0.5 text-[var(--text-secondary)] tabular-nums">
-                  {totalPublicacao == null
-                    ? `${plural(previstosPublicacao, 'previsto', 'previstos')} · ${plural(publicados, 'publicado', 'publicados')}`
-                    : `${previstosPublicacao} de ${totalPublicacao} previstos · ${plural(publicados, 'publicado', 'publicados')}`}
-                  {meta.origem === 'absoluta' ? ' · meta ajustada' : ''}
+                <div className="flex items-baseline gap-1.5 tabular-nums">
+                  <Text variant="pageTitle" as="span" className="tabular-nums">
+                    {previstosPublicacao}
+                  </Text>
+                  <Text variant="secondary" as="span" className="text-[var(--text-tertiary)]">
+                    {totalPublicacao == null
+                      ? (previstosPublicacao === 1 ? 'previsto' : 'previstos')
+                      : `/ ${totalPublicacao} ${porPublicacao ? 'pub.' : 'roteiros'}`}
+                  </Text>
+                </div>
+                <Text variant="meta" as="p" className="text-[var(--text-secondary)] tabular-nums">
+                  {plural(publicados, 'publicado', 'publicados')}
+                  {meta.origem === 'absoluta' ? ' · meta ajustada' : totalPublicacao == null ? ' · sem meta' : ''}
                 </Text>
               </div>
-              <div className="h-1.5 w-full bg-[var(--border-subtle)] rounded-[var(--radius-pill)] mt-3 overflow-hidden">
-                <div className="h-full bg-[var(--accent-green)] rounded-[var(--radius-pill)] transition-all duration-300" style={{ width: `${pctPublicacao}%` }} />
-              </div>
+              {totalPublicacao != null ? (
+                <div className="h-1.5 w-full overflow-hidden rounded-[var(--radius-pill)] bg-[var(--border-subtle)]">
+                  <div className="h-full rounded-[var(--radius-pill)] bg-[var(--accent-green)] transition-all duration-300" style={{ width: `${pctPublicacao}%` }} />
+                </div>
+              ) : null}
             </div>
 
-            <div className={cardMetrica}>
-              <div>
-                <div className="flex items-center justify-between">
-                  <Text variant="label" as="span" className="uppercase tracking-wider">Roteiros com data</Text>
+            <div className={`${celulaMetrica} sm:border-l sm:border-[var(--border-subtle)] lg:border-l-0`}>
+              <div className="stack-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <Text variant="eyebrow" as="span">Roteiros com data</Text>
                   {totalProducao != null ? (
-                    <Text variant="bodyStrong" as="span" className="text-[var(--text-secondary)] tabular-nums">{pctProducao}%</Text>
+                    <Text variant="meta" as="span" className="tabular-nums text-[var(--text-secondary)]">{pctProducao}%</Text>
                   ) : null}
                 </div>
-                <Text variant="sectionTitle" as="p" className="mt-1.5 tabular-nums">
-                  {totalProducao == null ? 'Sem meta' : plural(totalProducao, 'roteiro', 'roteiros')}
-                </Text>
-                <Text variant="meta" as="p" className="mt-0.5 text-[var(--text-secondary)] tabular-nums">
-                  {totalProducao == null
-                    ? `${plural(realizadosProducao, 'roteiro', 'roteiros')} com data de publicação ou gravação`
-                    : `${realizadosProducao} de ${totalProducao} com data de publicação ou gravação`}
-                  {decisao?.metasProducao != null ? ' · meta ajustada' : ''}
+                <div className="flex items-baseline gap-1.5 tabular-nums">
+                  <Text variant="pageTitle" as="span" className="tabular-nums">
+                    {realizadosProducao}
+                  </Text>
+                  <Text variant="secondary" as="span" className="text-[var(--text-tertiary)]">
+                    {totalProducao == null ? 'roteiros' : `/ ${totalProducao}`}
+                  </Text>
+                </div>
+                <Text variant="meta" as="p" className="text-[var(--text-secondary)] tabular-nums">
+                  Publicação ou gravação
+                  {decisao?.metasProducao != null ? ' · ajustada' : totalProducao == null ? ' · sem meta' : ''}
                 </Text>
               </div>
-              <div className="h-1.5 w-full bg-[var(--border-subtle)] rounded-[var(--radius-pill)] mt-3 overflow-hidden">
-                <div className="h-full bg-[var(--accent-pink)] rounded-[var(--radius-pill)] transition-all duration-300" style={{ width: `${pctProducao}%` }} />
-              </div>
+              {totalProducao != null ? (
+                <div className="h-1.5 w-full overflow-hidden rounded-[var(--radius-pill)] bg-[var(--border-subtle)]">
+                  <div className="h-full rounded-[var(--radius-pill)] bg-[var(--accent-pink)] transition-all duration-300" style={{ width: `${pctProducao}%` }} />
+                </div>
+              ) : null}
             </div>
 
-            {/* De onde vem a meta de publicação: o ritmo da aba Ritmo nos dias do período. */}
-            <div className={cardMetrica}>
-              <div>
-                <Text variant="label" as="span" className="uppercase tracking-wider">Ritmo</Text>
-                <Text variant="sectionTitle" as="p" className="mt-1.5 tabular-nums">
-                  {limiteSemanal ? `${limiteSemanal} por semana` : 'Sem ritmo'}
+            <div className={`${celulaMetrica} sm:border-t sm:border-[var(--border-subtle)] lg:border-t-0`}>
+              <div className="stack-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <Text variant="eyebrow" as="span">Prontos de reserva</Text>
+                  {reservaMeta != null ? (
+                    <Text variant="meta" as="span" className="tabular-nums text-[var(--text-secondary)]">{pctReserva}%</Text>
+                  ) : null}
+                </div>
+                <div className="flex items-baseline gap-1.5 tabular-nums">
+                  <Text variant="pageTitle" as="span" className="tabular-nums">
+                    {estoque.total}
+                  </Text>
+                  <Text variant="secondary" as="span" className="text-[var(--text-tertiary)]">
+                    {reservaMeta != null ? `/ ${reservaMeta}` : (estoque.total === 1 ? 'pronto' : 'prontos')}
+                  </Text>
+                </div>
+                <Text variant="meta" as="p" className="text-[var(--text-secondary)] tabular-nums">
+                  {plural(estoque.ineditos, 'inédito', 'inéditos')} · {estoque.reaproveitar} reaproveitar
                 </Text>
-                <Text variant="meta" as="p" className="mt-0.5 text-[var(--text-secondary)] tabular-nums">
+              </div>
+              {reservaMeta != null ? (
+                <div className="h-1.5 w-full overflow-hidden rounded-[var(--radius-pill)] bg-[var(--border-subtle)]">
+                  <div className="h-full rounded-[var(--radius-pill)] bg-[var(--accent-purple)] transition-all duration-300" style={{ width: `${pctReserva}%` }} />
+                </div>
+              ) : soEmOutras.length > 0 ? (
+                <Text variant="meta" as="p" className="text-[var(--text-tertiary)] tabular-nums">
+                  +{soEmOutras.length} só em outras redes
+                </Text>
+              ) : null}
+            </div>
+
+            {/* De onde vem a meta de publicação: o ritmo da aba Rotina nos dias do período. */}
+            <div className={`${celulaMetrica} sm:border-t sm:border-l sm:border-[var(--border-subtle)] lg:border-t-0 lg:border-l-0`}>
+              <div className="stack-xs">
+                <Text variant="eyebrow" as="span">Ritmo</Text>
+                <div className="flex items-baseline gap-1.5 tabular-nums">
+                  <Text variant="pageTitle" as="span" className="tabular-nums">
+                    {limiteSemanal ?? '—'}
+                  </Text>
+                  <Text variant="secondary" as="span" className="text-[var(--text-tertiary)]">
+                    {limiteSemanal ? '/ semana' : 'sem ritmo'}
+                  </Text>
+                </div>
+                <Text variant="meta" as="p" className="text-[var(--text-secondary)] tabular-nums">
                   {textoDosDias}
-                  {meta.semanasAjustadas > 0 ? ` · ${plural(meta.semanasAjustadas, 'semana ajustada', 'semanas ajustadas')}` : ''}
+                  {meta.semanasAjustadas > 0 ? ` · ${plural(meta.semanasAjustadas, 'sem. ajustada', 'sem. ajustadas')}` : ''}
                 </Text>
               </div>
-              <div className="mt-3">
-                <AppButton
-                  variant="ghost"
-                  size="sm"
-                  rightIcon={<ChevronRight className="h-3.5 w-3.5" />}
-                  onClick={() => navigate('/editorial?aba=ajustes')}
-                >
-                  {limiteSemanal ? 'Editar ritmo' : 'Definir ritmo'}
-                </AppButton>
-              </div>
+              <Link
+                to="/editorial?aba=ajustes"
+                className="inline-flex w-fit items-center gap-1 rounded-[var(--radius-sm)] t-button text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              >
+                {limiteSemanal ? 'Editar ritmo' : 'Definir ritmo'}
+                <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              </Link>
             </div>
           </div>
+
+          <PausasDoPeriodo periodo={periodo} decisao={decisao} pendencia={meta.pendenciaDePausa} />
 
           {!semListas ? (<>
           <section className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-4 stack-sm">
@@ -454,10 +543,6 @@ export function PlanoVigenteView({
             )}
           </section>
           </>) : null}
-
-          <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
-            Publicação é o ritmo semanal nos dias do período, sem as pausas com data, a mesma conta da Saúde. {porPublicacao ? 'Conta cada publicação em cada conta, reposts inclusive.' : 'Conta cada roteiro uma vez no período.'} Mudar o ritmo ou o período ajusta o período vigente na hora; períodos encerrados ficam como eram.
-          </Text>
         </div>
       ) : null}
 
@@ -474,6 +559,7 @@ export function PlanoVigenteView({
         limiteSemanal={limiteSemanal}
         metaDoPeriodo={meta.valor}
         metaDaContaPeloRitmo={metaDaContaPeloRitmo}
+        secaoInicial={secaoInicialAjuste}
         onSalvar={onSalvarDecisao}
       />
     </Surface>

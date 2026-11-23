@@ -38,6 +38,7 @@ import {
 } from '../../features/contents/lib/writingDraftLayout';
 import { DraftSplitDivider } from '../../features/contents/components/detail/DraftSplitDivider';
 import { EditorShortcuts, ReadableHighlight, SelectionClicks } from './editorExtensions';
+import { SectionHeading } from './sectionHeading';
 import { OnScreenNote } from './onScreenNote';
 import { EditorColorMenu } from './EditorColorMenu';
 import { EditorToolbar } from './EditorToolbar';
@@ -699,11 +700,13 @@ function RichTextEditorInstance({
 
   const extensions = useMemo(() => [
     StarterKit.configure({
+      heading: false,
       underline: false,
       link: { openOnClick: false },
       bulletList: { keepMarks: true, keepAttributes: false },
       orderedList: { keepMarks: true, keepAttributes: false },
     }),
+    SectionHeading.configure({ levels: [1, 2, 3] }),
     Underline, ReadableHighlight, TextStyle, Color,
     TextAlign.configure({ types: ['heading', 'paragraph'] }), Typography, SelectionClicks,
     EditorShortcuts.configure({

@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
-import { Activity, AlertCircle, Plus, Trash2 } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { Fragment, useMemo, useState } from 'react';
+import { Activity, AlertCircle } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Dialog } from '../../../../components/overlays/Dialog';
 import { OverlayFooter } from '../../../../components/overlays/OverlayFooter';
 import { OverlayHeader } from '../../../../components/overlays/OverlayHeader';
@@ -8,10 +8,12 @@ import { Ajuda } from '../../../../components/ui/Ajuda';
 import { AjudaDaRegraDeOuro } from '../AjudaDaRegraDeOuro';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { EmptyState } from '../../../../components/ui/EmptyState';
+import { PageToolbar } from '../../../../components/ui/PageToolbar';
 import { Section } from '../../../../components/ui/Section';
 import { SelectField } from '../../../../components/ui/SelectField';
 import { Surface } from '../../../../components/ui/Surface';
 import { Text } from '../../../../components/ui/Text';
+import { ToggleSwitch } from '../../../../components/ui/ToggleSwitch';
 import { useAppContext } from '../../../../context/AppContext';
 import type { Platform, Serie, Temporada as TemporadaDb } from '../../../../lib/database';
 import { PlatformIcon } from '../../../../components/ui/PlatformIcon';
@@ -44,117 +46,23 @@ import { tipoDaSerie } from '../../../settings/lib/serieAgrupamento';
 import { iconeDaConta, rotuloConta } from '../../../contas/lib/contas';
 import {
   acompanhamentoGeral,
-  acompanhamentosPorEscopo,
+  acompanhamentosDosEscopos,
   acompanhaNoGeral,
   comAcompanhamentoGeral,
-  metaDoEscopo,
+  linhasDeEscopo,
+  metasDosEscopos,
   novoAcompanhamento,
+  type LinhaDeEscopo,
 } from '../../lib/acompanhamento';
 import type { AcompanhamentoSerie, MetaDaSerieNoEscopo } from '../../lib/continuidadeEscopo';
-import { errosDaMeta, idDaJanela, idDoEscopo, ID_META, type ErroDaMeta } from '../../lib/errosDaMeta';
+import { errosDaMeta, idDaJanela, ID_META, type ErroDaMeta } from '../../lib/errosDaMeta';
 import { frequenciaParaGravar, unidadeDaMeta, type UnidadeDaMeta } from '../../lib/metaDaOnda';
-import { FORMATOS_DA_REDE, publicacoesDaAgenda, rotuloDoFormato } from '../../lib/publicacoes';
+import { publicacoesDaAgenda } from '../../lib/publicacoes';
+import { CamposDoRitmo, RegrasDoAcompanhamento, RegrasPorContaEFormato, rotuloDoEscopo } from '../EditorDeRitmo';
 import { CAMPO } from './campos';
-import { CamposDaMeta, UNIDADES } from './CamposDaMeta';
 import { textoDoChip } from '../../lib/frequenciaChip';
 import { ehErroDaRegraDeOuro, unidadesDaRegraDeOuro } from '../../lib/regraDeOuro';
 import { limiteRegraDeOuro } from '../../lib/avisosEditoriais';
-
-const FORMATOS = [...new Set(Object.values(FORMATOS_DA_REDE).flatMap(lista => [...(lista ?? [])]))];
-
-type Linha = AcompanhamentoSerie & {
-  metaVezes: string;
-  metaUnidade: MetaDaSerieNoEscopo['unidade'];
-  metaAPartirDe: string;
-};
-
-
-function numeroDeDias(texto: string): number | null {
-  const n = inteiroNaoNegativo(texto);
-  return n != null && n > 0 ? n : null;
-}
-
-function rotuloDoEscopo(linha: Pick<AcompanhamentoSerie, 'escopo' | 'platformId' | 'formato'>, contas: readonly Platform[]): string {
-  const conta = contas.find(item => item.id === linha.platformId);
-  const nomeConta = conta ? rotuloConta(conta) : null;
-  if (linha.escopo === 'conta') return nomeConta ?? 'Conta removida';
-  const formato = linha.formato ? rotuloDoFormato(linha.formato, conta?.rede ?? null) : 'Formato';
-  return nomeConta ? `${formato} em ${nomeConta}` : `${formato} em todas as contas`;
-}
-
-function linhasDaSerie(serie: Serie): Linha[] {
-  return acompanhamentosPorEscopo(serie).map(item => {
-    const meta = metaDoEscopo(serie.metasPorEscopo, item);
-    return {
-      ...item,
-      metaVezes: meta ? String(meta.vezes) : '',
-      metaUnidade: meta?.unidade ?? 'semana',
-      metaAPartirDe: meta?.aPartirDe ?? '',
-    };
-  });
-}
-
-function TextoErro({ id, children }: { id: string; children: string }) {
-  return <Text id={id} variant="meta" as="span" className="texto-erro">{children}</Text>;
-}
-
-function RegrasDoAcompanhamento({
-  item,
-  onChange,
-  idPrefix,
-  erroTermino,
-}: {
-  item: Pick<AcompanhamentoSerie, 'inicio' | 'termino' | 'distanciaMaxDias' | 'evitarDiasSeguidos'>;
-  onChange: (patch: Partial<AcompanhamentoSerie>) => void;
-  idPrefix: string;
-  erroTermino?: string;
-}) {
-  const terminoId = idDaJanela(idPrefix, 'termino');
-  return (
-    <>
-      <div className="grid-form">
-        <label className="flex flex-col gap-1" htmlFor={idDaJanela(idPrefix, 'inicio')}>
-          <Text variant="meta" as="span">Início do acompanhamento (opcional)</Text>
-          <input id={idDaJanela(idPrefix, 'inicio')} type="date" className={CAMPO} value={item.inicio ?? ''} onChange={event => onChange({ inicio: event.target.value || null })} />
-        </label>
-        <label className="flex flex-col gap-1" htmlFor={terminoId}>
-          <Text variant="meta" as="span">Término (opcional)</Text>
-          <input
-            id={terminoId}
-            type="date"
-            aria-invalid={erroTermino ? true : undefined}
-            aria-describedby={erroTermino ? `${terminoId}-erro` : undefined}
-            className={CAMPO}
-            style={erroTermino ? { borderColor: 'var(--danger)' } : undefined}
-            value={item.termino ?? ''}
-            onChange={event => onChange({ termino: event.target.value || null })}
-          />
-          {erroTermino ? <TextoErro id={`${terminoId}-erro`}>{erroTermino}</TextoErro> : null}
-        </label>
-        <label className="flex flex-col gap-1">
-          <Text variant="meta" as="span">Distância máxima sem episódio (dias)</Text>
-          <input
-            type="text"
-            inputMode="numeric"
-            className={CAMPO}
-            value={item.distanciaMaxDias ?? ''}
-            onChange={event => onChange({ distanciaMaxDias: numeroDeDias(event.target.value) })}
-          />
-        </label>
-      </div>
-      <label className="flex w-fit items-center gap-2 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={item.evitarDiasSeguidos}
-          onChange={event => onChange({ evitarDiasSeguidos: event.target.checked })}
-          className="h-4 w-4 accent-[var(--brand-accent)]"
-        />
-        <Text variant="body" as="span">Avisar episódios em dias seguidos</Text>
-      </label>
-    </>
-  );
-}
-
 
 /** Quadro é sob demanda: não tem meta, então não abre este modal. */
 type AlvoSerie = { tipo: 'serie'; serie: Serie };
@@ -173,7 +81,7 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
   // Ritmo próprio da wave: com meta, os episódios dela saem da conta da série. Ligado por padrão.
   const [ritmoProprio, setRitmoProprio] = useState(alvo.tipo === 'temporada' ? ritmoProprioMarcado(alvo.temporada) : true);
   const [geral, setGeral] = useState<AcompanhamentoSerie | null>(alvo.tipo === 'temporada' ? null : acompanhamentoGeral(alvo.serie));
-  const [linhas, setLinhas] = useState<Linha[]>(alvo.tipo === 'temporada' ? [] : linhasDaSerie(alvo.serie));
+  const [linhas, setLinhas] = useState<LinhaDeEscopo[]>(alvo.tipo === 'temporada' ? [] : linhasDeEscopo(alvo.serie));
   const [erros, setErros] = useState<ErroDaMeta[]>([]);
   const [gravando, setGravando] = useState(false);
   const [regrasDaOnda, setRegrasDaOnda] = useState(() => ({
@@ -183,13 +91,6 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
     evitarDiasSeguidos: alvo.tipo === 'temporada' ? alvo.temporada.evitarDiasSeguidos === true : false,
   }));
   const comEscopos = alvo.tipo !== 'temporada' && alvo.serie.acompanhamentos !== undefined;
-
-  const mudar = (id: string, patch: Partial<Linha>) => setLinhas(prev => prev.map(linha => (linha.id === id ? { ...linha, ...patch } : linha)));
-  const adicionar = (escopo: 'conta' | 'formato') => {
-    if (alvo.tipo === 'temporada') return;
-    const criada = novoAcompanhamento(alvo.serie.id, escopo, escopo === 'conta' ? contas[0]?.id ?? null : null, escopo === 'formato' ? FORMATOS[0] ?? 'reels' : null, generateUUID());
-    setLinhas(prev => [...prev, { ...criada, metaVezes: '', metaUnidade: 'semana', metaAPartirDe: '' }]);
-  };
 
   const mensagem = (id: string) => erros.find(item => item.id === id)?.mensagem;
   const temAsterisco = vezes.trim() !== ''
@@ -265,29 +166,10 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
         : { ...item, ativo: acompanhar }
     ));
     const acompanhamentos = comEscopos
-      ? [
-        ...gerais,
-        ...linhas.map(({ metaVezes: _vezes, metaUnidade: _unidade, metaAPartirDe: _inicio, ...item }) => ({
-          ...item,
-          platformId: item.escopo === 'conta' || item.escopo === 'formato' ? item.platformId || null : null,
-          inicio: item.inicio || null,
-          termino: item.termino || null,
-        })),
-      ]
+      ? acompanhamentosDosEscopos(gerais, linhas)
       : comGeral.acompanhamentos;
     const metas: MetaDaSerieNoEscopo[] | undefined = comEscopos
-      ? linhas.flatMap(linha => {
-        const quantidade = inteiroNaoNegativo(linha.metaVezes);
-        if (!Number.isFinite(quantidade) || quantidade <= 0) return [];
-        return [{
-          serieId: alvo.serie.id,
-          platformId: linha.platformId || null,
-          formato: linha.formato || null,
-          vezes: quantidade,
-          unidade: linha.metaUnidade,
-          aPartirDe: linha.metaAPartirDe || null,
-        }];
-      })
+      ? metasDosEscopos(alvo.serie.id, linhas)
       : alvo.serie.metasPorEscopo;
 
       await dispatch({
@@ -312,7 +194,6 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
     }
   };
 
-  const opcoesConta = contas.map(conta => ({ value: conta.id, label: rotuloConta(conta) }));
   const titulo = alvo.tipo === 'temporada' ? alvo.temporada.nome : alvo.serie.name;
   const subtitulo = alvo.tipo === 'temporada'
     ? `Temporada de ${alvo.serie.name}. A Saúde conta só os episódios desta wave.`
@@ -353,7 +234,7 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
           />
           <Text variant="body" as="span">Acompanhar na Saúde</Text>
         </label>
-        <CamposDaMeta
+        <CamposDoRitmo
           idPrefix="meta-geral"
           vezes={vezes}
           unidade={unidade}
@@ -415,119 +296,13 @@ function ModalDaMeta({ alvo, contas, onClose }: { alvo: Alvo; contas: readonly P
           </div>
         ) : null}
         {comEscopos ? (
-          <div className="stack-sm border-t border-[var(--border-subtle)] pt-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <Text variant="bodyStrong" as="span">Por conta ou formato</Text>
-              <div className="flex flex-wrap items-center gap-2">
-                <AppButton variant="secondary" size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />} disabled={contas.length === 0} onClick={() => adicionar('conta')}>Por conta</AppButton>
-                <AppButton variant="secondary" size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />} onClick={() => adicionar('formato')}>Por formato</AppButton>
-              </div>
-            </div>
-            <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-              Cada escopo é conferido à parte. Sem meta própria, usa a meta geral.
-            </Text>
-            {linhas.length === 0 ? <Text variant="meta" as="p">Nenhum acompanhamento por conta ou formato.</Text> : null}
-            {linhas.map(linha => (
-              <div key={linha.id} className="stack-xs border-t border-[var(--border-subtle)] pt-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <Text variant="bodyStrong" as="span">{rotuloDoEscopo(linha, contas)}</Text>
-                  <AppButton variant="ghost" size="sm" leftIcon={<Trash2 className="h-3.5 w-3.5" />} onClick={() => setLinhas(prev => prev.filter(item => item.id !== linha.id))}>
-                    Remover
-                  </AppButton>
-                </div>
-                <div className="grid-form">
-                  {linha.escopo === 'formato' ? (
-                    <label className="flex flex-col gap-1" htmlFor={idDoEscopo(linha.id, 'formato')}>
-                      <Text variant="meta" as="span">Formato</Text>
-                      <SelectField
-                        id={idDoEscopo(linha.id, 'formato')}
-                        block
-                        ariaLabel="Formato"
-                        describedBy={mensagem(idDoEscopo(linha.id, 'formato')) ? `${idDoEscopo(linha.id, 'formato')}-erro` : undefined}
-                        className={mensagem(idDoEscopo(linha.id, 'formato')) ? 'border-[var(--danger)]' : undefined}
-                        value={linha.formato ?? ''}
-                        onChange={formato => mudar(linha.id, { formato })}
-                        options={FORMATOS.map(formato => ({ value: formato, label: rotuloDoFormato(formato) }))}
-                      />
-                      {mensagem(idDoEscopo(linha.id, 'formato')) ? <TextoErro id={`${idDoEscopo(linha.id, 'formato')}-erro`}>{mensagem(idDoEscopo(linha.id, 'formato'))!}</TextoErro> : null}
-                    </label>
-                  ) : null}
-                  <label className="flex flex-col gap-1" htmlFor={idDoEscopo(linha.id, 'conta')}>
-                    <Text variant="meta" as="span">
-                      Conta
-                      {linha.escopo === 'conta' ? <span className="text-[var(--brand-accent-text)]"> *</span> : null}
-                    </Text>
-                    <SelectField
-                      id={idDoEscopo(linha.id, 'conta')}
-                      block
-                      ariaLabel="Conta"
-                      describedBy={mensagem(idDoEscopo(linha.id, 'conta')) ? `${idDoEscopo(linha.id, 'conta')}-erro` : undefined}
-                      className={mensagem(idDoEscopo(linha.id, 'conta')) ? 'border-[var(--danger)]' : undefined}
-                      value={linha.platformId ?? ''}
-                      onChange={platformId => mudar(linha.id, { platformId: platformId || null })}
-                      options={linha.escopo === 'formato' ? [{ value: '', label: 'Todas as contas' }, ...opcoesConta] : opcoesConta}
-                    />
-                    {mensagem(idDoEscopo(linha.id, 'conta')) ? <TextoErro id={`${idDoEscopo(linha.id, 'conta')}-erro`}>{mensagem(idDoEscopo(linha.id, 'conta'))!}</TextoErro> : null}
-                  </label>
-                </div>
-                <RegrasDoAcompanhamento
-                  idPrefix={`escopo-${linha.id}`}
-                  erroTermino={mensagem(idDoEscopo(linha.id, 'termino'))}
-                  item={linha}
-                  onChange={patch => mudar(linha.id, patch)}
-                />
-                <div className="grid-form">
-                  <label className="flex flex-col gap-1" htmlFor={idDoEscopo(linha.id, 'meta-vezes')}>
-                    <Text variant="meta" as="span">Meta neste escopo (vazio = meta geral)</Text>
-                    <input
-                      id={idDoEscopo(linha.id, 'meta-vezes')}
-                      type="text"
-                      inputMode="numeric"
-                      aria-label="Meta neste escopo"
-                      aria-invalid={mensagem(idDoEscopo(linha.id, 'meta-vezes')) ? true : undefined}
-                      aria-describedby={mensagem(idDoEscopo(linha.id, 'meta-vezes')) ? `${idDoEscopo(linha.id, 'meta-vezes')}-erro` : undefined}
-                      className={CAMPO}
-                      style={mensagem(idDoEscopo(linha.id, 'meta-vezes')) ? { borderColor: 'var(--danger)' } : undefined}
-                      value={linha.metaVezes}
-                      onChange={event => mudar(linha.id, { metaVezes: event.target.value.slice(0, 4) })}
-                    />
-                    {mensagem(idDoEscopo(linha.id, 'meta-vezes')) ? <TextoErro id={`${idDoEscopo(linha.id, 'meta-vezes')}-erro`}>{mensagem(idDoEscopo(linha.id, 'meta-vezes'))!}</TextoErro> : null}
-                  </label>
-                  <div className="flex flex-col gap-1">
-                    <Text variant="meta" as="span" aria-hidden>Período</Text>
-                    <SelectField
-                      block
-                      ariaLabel="Período da meta"
-                      value={linha.metaUnidade}
-                      onChange={valor => mudar(linha.id, { metaUnidade: unidadeDaMeta(valor) })}
-                      options={UNIDADES}
-                    />
-                  </div>
-                  <label className="flex flex-col gap-1" htmlFor={idDoEscopo(linha.id, 'meta-inicio')}>
-                    <Text variant="meta" as="span">
-                      Meta a partir de
-                    </Text>
-                    <input
-                      id={idDoEscopo(linha.id, 'meta-inicio')}
-                      type="date"
-                      aria-label="Meta a partir de"
-                      aria-invalid={mensagem(idDoEscopo(linha.id, 'meta-inicio')) ? true : undefined}
-                      aria-describedby={mensagem(idDoEscopo(linha.id, 'meta-inicio')) ? `${idDoEscopo(linha.id, 'meta-inicio')}-erro` : undefined}
-                      className={CAMPO}
-                      style={mensagem(idDoEscopo(linha.id, 'meta-inicio')) ? { borderColor: 'var(--danger)' } : undefined}
-                      value={linha.metaAPartirDe}
-                      onChange={event => mudar(linha.id, { metaAPartirDe: event.target.value })}
-                    />
-                    {mensagem(idDoEscopo(linha.id, 'meta-inicio')) ? <TextoErro id={`${idDoEscopo(linha.id, 'meta-inicio')}-erro`}>{mensagem(idDoEscopo(linha.id, 'meta-inicio'))!}</TextoErro> : null}
-                  </label>
-                </div>
-                <label className="flex w-fit items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={linha.ativo} onChange={event => mudar(linha.id, { ativo: event.target.checked })} className="h-4 w-4 accent-[var(--brand-accent)]" />
-                  <Text variant="body" as="span">Acompanhando</Text>
-                </label>
-              </div>
-            ))}
-          </div>
+          <RegrasPorContaEFormato
+            serieId={alvo.serie.id}
+            linhas={linhas}
+            contas={contas}
+            erros={erros}
+            onChange={setLinhas}
+          />
         ) : null}
       </div>
       <OverlayFooter className="justify-end">
@@ -574,6 +349,64 @@ const FILTROS: Array<{ value: FiltroDoPlano; label: string }> = [
 
 function diaMes(data: string): string {
   return `${data.slice(8, 10)}/${data.slice(5, 7)}`;
+}
+
+function BarraProgressoMeta({
+  meta,
+  planejados,
+  alinhadoDireita = false,
+}: {
+  meta: number;
+  planejados: number;
+  alinhadoDireita?: boolean;
+}) {
+  const pct = Math.min(100, Math.round((planejados / meta) * 100));
+  const atingiu = planejados >= meta;
+  return (
+    <div className={cn('flex flex-col gap-1', alinhadoDireita ? 'mt-1.5 items-end' : 'w-full')}>
+      <div
+        className={cn(
+          'flex flex-wrap items-center gap-1.5 tabular-nums',
+          alinhadoDireita ? 'justify-end' : 'w-full justify-between',
+        )}
+      >
+        <Text
+          variant="meta"
+          as="span"
+          style={atingiu ? { color: 'var(--success)' } : undefined}
+        >
+          {planejados}/{meta}
+        </Text>
+        {atingiu ? (
+          <Badge variant="success" className="whitespace-nowrap">Meta atingida</Badge>
+        ) : !alinhadoDireita ? (
+          <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">
+            {pct}%
+          </Text>
+        ) : null}
+      </div>
+      <div
+        role="progressbar"
+        aria-valuenow={planejados}
+        aria-valuemin={0}
+        aria-valuemax={meta}
+        aria-label={`${planejados} de ${meta} planejados no período`}
+        title={`${planejados} de ${meta} (${pct}%)`}
+        className={cn(
+          'h-1 w-full overflow-hidden rounded-[var(--radius-pill)] bg-[var(--bg-hover)]',
+          alinhadoDireita && 'max-w-[5.5rem]',
+        )}
+      >
+        <div
+          className="h-full rounded-[var(--radius-pill)] transition-[width] duration-200"
+          style={{
+            width: `${pct}%`,
+            backgroundColor: atingiu ? 'var(--success)' : 'var(--accent-blue)',
+          }}
+        />
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -716,7 +549,31 @@ export function ContinuidadePanel({ periodo }: { periodo: Intervalo }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contas, episodios, intervalo, periodo, porSemana, settings.periodos, state.editorial, state.series, state.temporadas]);
 
+  const contagensPorTipo = useMemo(() => {
+    const mapa: Record<FiltroDoPlano, number> = {
+      todos: linhas.length,
+      conta: 0,
+      familia: 0,
+      serie: 0,
+      quadro: 0,
+      temporada: 0,
+    };
+    for (const linha of linhas) {
+      mapa[linha.tipo] += 1;
+    }
+    return mapa;
+  }, [linhas]);
+
   const visiveis = filtrarLinhas(linhas, busca, filtro);
+  const contasVisiveis = visiveis.filter(linha => linha.tipo === 'conta');
+  const seriesVisiveis = visiveis.filter(linha => linha.tipo !== 'conta');
+  const separarGrupos = filtro === 'todos' && contasVisiveis.length > 0 && seriesVisiveis.length > 0;
+  const gruposVisiveis: Array<{ chave: string; titulo: string | null; itens: LinhaDoPlano[] }> = separarGrupos
+    ? [
+      { chave: 'contas', titulo: 'Contas', itens: contasVisiveis },
+      { chave: 'series', titulo: 'Séries e temporadas', itens: seriesVisiveis },
+    ]
+    : [{ chave: 'todos', titulo: null, itens: visiveis }];
   const semTabela = state.series.length > 0 && state.series.every(serie => serie.acompanhamentos === undefined);
 
   const abrir = (chave: string) => {
@@ -771,29 +628,66 @@ export function ContinuidadePanel({ periodo }: { periodo: Intervalo }) {
           Acompanhar por conta ou formato precisa da migração 20261103120000. A meta geral já pode ser editada aqui.
         </Text>
       ) : null}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <input
-          type="search"
-          value={busca}
-          onChange={event => setBusca(event.target.value)}
-          placeholder="Buscar por nome"
-          aria-label="Buscar no plano do período"
-          className={cn(CAMPO, 'min-h-[var(--control-height-mobile)] md:min-h-[var(--control-height)] md:max-w-xs')}
-        />
-        <div className="flex min-w-0 flex-wrap items-center gap-4 md:justify-end">
-          <SelectField ariaLabel="Exibir" value={filtro} onChange={valor => setFiltro(valor as FiltroDoPlano)} options={FILTROS} />
-          <SelectField
-            ariaLabel="Ver por semana"
-            prefix="Ver:"
-            value={semana}
-            onChange={setSemana}
-            options={[
-              { value: '', label: `Período inteiro (${diaMes(periodo.inicio)} a ${diaMes(periodo.fim)})` },
-              ...semanas.map(item => ({ value: item.inicio, label: `Semana ${diaMes(item.inicio)} a ${diaMes(item.fim)}` })),
-            ]}
+      <PageToolbar
+        search={
+          <input
+            type="search"
+            value={busca}
+            onChange={event => setBusca(event.target.value)}
+            placeholder="Buscar por nome"
+            aria-label="Buscar no plano do período"
+            className={cn(CAMPO, 'min-h-[var(--control-height-mobile)] md:min-h-[var(--control-height)]')}
           />
-        </div>
-      </div>
+        }
+        chips={
+          <div role="group" aria-label="Exibir por tipo" className="flex flex-wrap items-center gap-2">
+            {FILTROS.map(opcao => {
+              const ativo = filtro === opcao.value;
+              const contagem = contagensPorTipo[opcao.value];
+              return (
+                <button
+                  key={opcao.value}
+                  type="button"
+                  aria-pressed={ativo}
+                  aria-label={`${opcao.label}, ${contagem}`}
+                  onClick={() => setFiltro(opcao.value)}
+                  className={cn(
+                    'inline-flex min-h-[var(--control-height-mobile)] md:min-h-[var(--control-height)] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[var(--radius-pill)] border px-3 py-1.5 t-label transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                    ativo
+                      ? 'border-[var(--accent)] bg-[var(--accent)] text-[var(--bg-elevated)]'
+                      : 'border-[var(--border-input)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]',
+                  )}
+                >
+                  <span>{opcao.label}</span>
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      'tabular-nums',
+                      ativo ? 'text-[var(--bg-elevated)]' : 'text-[var(--text-tertiary)]',
+                    )}
+                  >
+                    {contagem}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        }
+        filters={
+          <div className="flex items-center md:justify-end">
+            <SelectField
+              ariaLabel="Ver por semana"
+              prefix="Ver:"
+              value={semana}
+              onChange={setSemana}
+              options={[
+                { value: '', label: `Período inteiro (${diaMes(periodo.inicio)} a ${diaMes(periodo.fim)})` },
+                ...semanas.map(item => ({ value: item.inicio, label: `Semana ${diaMes(item.inicio)} a ${diaMes(item.fim)}` })),
+              ]}
+            />
+          </div>
+        }
+      />
       {porSemana ? (
         <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
           Vendo uma semana. Meta temporária do período não vale aqui: as contas mostram a meta da conta. Ritmo mensal ou de 14 dias mostra a janela inteira que toca a semana.
@@ -809,107 +703,301 @@ export function ContinuidadePanel({ periodo }: { periodo: Intervalo }) {
           </AppButton>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-[var(--radius-card)] border border-[var(--border-subtle)]">
-          <table className="w-full min-w-[760px] border-collapse text-left">
-            <thead className="bg-[var(--bg-elevated)]">
-              <tr>
-                <th scope="col" className={celula}><Text variant="label" as="span">Série, quadro ou família</Text></th>
-                <th scope="col" className={celula}><Text variant="label" as="span">Ritmo</Text></th>
-                <th scope="col" className={cn(celula, 'text-right')}><Text variant="label" as="span">Meta no período</Text></th>
-                <th scope="col" className={cn(celula, 'text-right')}>
-                  <span className="inline-flex items-center justify-end">
-                    <Text variant="label" as="span">Com data</Text>
-                    <Ajuda alinhar="fim" rotulo="Sobre com data" texto="Já tem data no calendário e ainda vai ao ar. Programado: já está na conta, com o material pronto." />
-                  </span>
-                </th>
-                <th scope="col" className={cn(celula, 'text-right')}>
-                  <span className="inline-flex items-center justify-end">
-                    <Text variant="label" as="span">Publicados</Text>
-                    <Ajuda alinhar="fim" rotulo="Sobre publicados" texto="O que já foi ao ar neste período." />
-                  </span>
-                </th>
-                <th scope="col" className={celula}><Text variant="label" as="span">Acompanhar</Text></th>
-                <th scope="col" className={celula}><span className="sr-only">Ações</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              {visiveis.map(linha => {
-                const rascunho = linha.selo === 'Rascunho';
-                return (
-                  <tr key={linha.chave} className="border-t border-[var(--border-subtle)]">
-                    <td className={cn(celula, linha.nivel === 1 && 'pl-8')}>
-                      <div className="flex min-w-0 items-center gap-2">
-                        {linha.conta ? <PlatformIcon platform={iconeDaConta(linha.conta)} className="h-4 w-4 shrink-0" /> : null}
-                        <div className="min-w-0">
-                          <Text variant="body" as="span" className="block truncate">{linha.nome}</Text>
-                          <Text variant="meta" as="span" className="block text-[var(--text-tertiary)]">
-                            {linha.detalhe ?? ROTULO_DO_TIPO[linha.tipo]}
+        <>
+          <div className="hidden md:block overflow-x-auto rounded-[var(--radius-card)] border border-[var(--border-subtle)]">
+            <table className="w-full min-w-[760px] border-collapse text-left">
+              <thead className="bg-[var(--bg-elevated)]">
+                <tr>
+                  <th scope="col" className={celula}><Text variant="label" as="span">Conta, série ou temporada</Text></th>
+                  <th scope="col" className={celula}><Text variant="label" as="span">Ritmo</Text></th>
+                  <th scope="col" className={cn(celula, 'text-right')}><Text variant="label" as="span">Meta no período</Text></th>
+                  <th scope="col" className={cn(celula, 'text-right')}>
+                    <span className="inline-flex items-center justify-end">
+                      <Text variant="label" as="span">Com data</Text>
+                      <Ajuda alinhar="fim" rotulo="Sobre com data" texto="Já tem data no calendário e ainda vai ao ar. Programado: já está na conta, com o material pronto." />
+                    </span>
+                  </th>
+                  <th scope="col" className={cn(celula, 'text-right')}>
+                    <span className="inline-flex items-center justify-end">
+                      <Text variant="label" as="span">Publicados</Text>
+                      <Ajuda alinhar="fim" rotulo="Sobre publicados" texto="O que já foi ao ar neste período." />
+                    </span>
+                  </th>
+                  <th scope="col" className={celula}><Text variant="label" as="span">Acompanhar</Text></th>
+                  <th scope="col" className={celula}><span className="sr-only">Ações</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {gruposVisiveis.map(grupo => (
+                  <Fragment key={grupo.chave}>
+                    {grupo.titulo ? (
+                      <tr className="border-t border-[var(--border-subtle)] bg-[var(--surface-subtle)]">
+                        <td colSpan={7} className="px-3 py-1.5">
+                          <Text variant="eyebrow" as="span" className="text-[var(--text-tertiary)]">
+                            {grupo.titulo}
                           </Text>
+                        </td>
+                      </tr>
+                    ) : null}
+                    {grupo.itens.map(linha => {
+                      const rascunho = linha.selo === 'Rascunho';
+                      const planejados = linha.contagem.publicados + linha.contagem.comData;
+                      const temProgresso = linha.meta != null && linha.meta > 0;
+                      return (
+                        <tr key={linha.chave} className="border-t border-[var(--border-subtle)]">
+                          <td className={cn(celula, linha.nivel === 1 && 'pl-8')}>
+                            <div className="flex min-w-0 items-center gap-2">
+                              {linha.conta ? <PlatformIcon platform={iconeDaConta(linha.conta)} className="h-4 w-4 shrink-0" /> : null}
+                              <div className="min-w-0">
+                                {linha.serie && linha.tipo === 'serie' ? (
+                                  <Link
+                                    to={`/series/${linha.serie.id}`}
+                                    className="block truncate rounded-[var(--radius-sm)] text-[var(--text-primary)] hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                                  >
+                                    <Text variant="body" as="span">{linha.nome}</Text>
+                                  </Link>
+                                ) : (
+                                  <Text variant="body" as="span" className="block truncate">{linha.nome}</Text>
+                                )}
+                                {linha.serie && linha.tipo === 'temporada' ? (
+                                  <Text variant="meta" as="span" className="block text-[var(--text-tertiary)]">
+                                    Temporada de{' '}
+                                    <Link
+                                      to={`/series/${linha.serie.id}`}
+                                      className="rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                                    >
+                                      {linha.serie.name}
+                                    </Link>
+                                  </Text>
+                                ) : (
+                                  <Text variant="meta" as="span" className="block text-[var(--text-tertiary)]">
+                                    {linha.detalhe ?? ROTULO_DO_TIPO[linha.tipo]}
+                                  </Text>
+                                )}
+                              </div>
+                              {linha.selo ? <Badge variant="neutral">{linha.selo}</Badge> : null}
+                              {linha.temporada && ondaComRitmoProprio(linha.temporada) ? <Badge variant="tag">Ritmo próprio</Badge> : null}
+                            </div>
+                          </td>
+                          <td className={celula}>
+                            {linha.serie && linha.tipo !== 'temporada' && !rascunho ? (
+                              <FrequenciaChip serieId={linha.serie.id} aparencia="linha" />
+                            ) : linha.temporada ? (
+                              <Text variant="meta" as="span" className="text-[var(--text-secondary)]">{textoDoChip(linha.temporada)}</Text>
+                            ) : (
+                              <Text variant="meta" as="span" className="text-[var(--text-secondary)]">{linha.metaTexto}</Text>
+                            )}
+                          </td>
+                          <td className={cn(celula, 'text-right tabular-nums')}>
+                            {linha.meta != null ? (
+                              <>
+                                <Text variant="body" as="span" className="block">{linha.meta}</Text>
+                                {linha.tipo !== 'conta' ? <Text variant="meta" as="span" className="block text-[var(--text-tertiary)]">{linha.metaTexto}</Text> : null}
+                                {temProgresso ? (
+                                  <BarraProgressoMeta meta={linha.meta} planejados={planejados} alinhadoDireita />
+                                ) : null}
+                              </>
+                            ) : (
+                              <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">{linha.tipo === 'conta' ? 'Sem meta para este período' : '—'}</Text>
+                            )}
+                          </td>
+                          <td className={cn(celula, 'text-right tabular-nums')}>
+                            <Text variant="body" as="span" className="block">{linha.contagem.comData}</Text>
+                            {linha.contagem.programados > 0 ? (
+                              <Badge variant="success">{linha.contagem.programados} {linha.contagem.programados === 1 ? 'Programado' : 'Programados'}</Badge>
+                            ) : null}
+                          </td>
+                          <td className={cn(celula, 'text-right tabular-nums')}>
+                            <Text variant="body" as="span">{linha.contagem.publicados}</Text>
+                          </td>
+                          <td className={celula}>
+                            {linha.serie && linha.tipo !== 'temporada' && !rascunho ? (
+                              <ToggleSwitch
+                                size="sm"
+                                enabled={acompanhaNoGeral(linha.serie)}
+                                onToggle={() => alternarSerie(linha.serie!, !acompanhaNoGeral(linha.serie!))}
+                                label={`Acompanhar ${linha.nome} na Saúde`}
+                              />
+                            ) : linha.temporada && !rascunho && linha.temporada.status !== 'arquivada' ? (
+                              <ToggleSwitch
+                                size="sm"
+                                enabled={linha.temporada.acompanhar === true}
+                                onToggle={() => alternarTemporada(linha.temporada!, linha.temporada!.acompanhar !== true)}
+                                label={`Acompanhar ${linha.nome} na Saúde`}
+                              />
+                            ) : null}
+                          </td>
+                          <td className={cn(celula, 'text-right')}>
+                            {linha.tipo !== 'conta' && !rascunho && linha.temporada?.status !== 'arquivada' ? (
+                              <AppButton variant="ghost" size="sm" onClick={() => abrir(linha.chave)}>
+                                Editar ritmo
+                              </AppButton>
+                            ) : null}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="md:hidden stack-md">
+            {gruposVisiveis.map(grupo => (
+              <div key={grupo.chave} className="stack-sm">
+                {grupo.titulo ? (
+                  <Text variant="eyebrow" as="p" className="text-[var(--text-tertiary)]">
+                    {grupo.titulo}
+                  </Text>
+                ) : null}
+                <ul className="stack-sm">
+                  {grupo.itens.map(linha => {
+                    const rascunho = linha.selo === 'Rascunho';
+                    const planejados = linha.contagem.publicados + linha.contagem.comData;
+                    const temProgresso = linha.meta != null && linha.meta > 0;
+                    const temRitmoProprio = Boolean(linha.temporada && ondaComRitmoProprio(linha.temporada));
+                    const temBadges = Boolean(linha.selo || temRitmoProprio);
+                    const podeEditar = linha.tipo !== 'conta' && !rascunho && linha.temporada?.status !== 'arquivada';
+                    return (
+                      <Surface
+                        key={linha.chave}
+                        as="li"
+                        variant="outlined"
+                        padding="sm"
+                        className={cn('stack-sm', linha.nivel === 1 && 'ml-3')}
+                        style={linha.nivel === 1 ? { borderLeftWidth: 2, borderLeftColor: 'var(--border-strong)' } : undefined}
+                      >
+                        <div className="stack-xs">
+                          <div className="flex min-w-0 items-start gap-2">
+                            {linha.conta ? (
+                              <PlatformIcon platform={iconeDaConta(linha.conta)} className="mt-0.5 h-4 w-4 shrink-0" />
+                            ) : null}
+                            <div className="min-w-0 flex-1">
+                              {linha.serie && linha.tipo === 'serie' ? (
+                                <Link
+                                  to={`/series/${linha.serie.id}`}
+                                  className="inline-block max-w-full rounded-[var(--radius-sm)] text-[var(--text-primary)] hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                                >
+                                  <Text variant="bodyStrong" as="span" className="break-words">{linha.nome}</Text>
+                                </Link>
+                              ) : (
+                                <Text variant="bodyStrong" as="p" className="break-words">{linha.nome}</Text>
+                              )}
+                              {linha.serie && linha.tipo === 'temporada' ? (
+                                <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
+                                  Temporada de{' '}
+                                  <Link
+                                    to={`/series/${linha.serie.id}`}
+                                    className="rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                                  >
+                                    {linha.serie.name}
+                                  </Link>
+                                </Text>
+                              ) : (
+                                <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
+                                  {linha.detalhe ?? ROTULO_DO_TIPO[linha.tipo]}
+                                </Text>
+                              )}
+                            </div>
+                          </div>
+                          {temBadges ? (
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {linha.selo ? <Badge variant="neutral">{linha.selo}</Badge> : null}
+                              {temRitmoProprio ? <Badge variant="tag">Ritmo próprio</Badge> : null}
+                            </div>
+                          ) : null}
                         </div>
-                        {linha.selo ? <Badge variant="neutral">{linha.selo}</Badge> : null}
-                        {linha.temporada && ondaComRitmoProprio(linha.temporada) ? <Badge variant="tag">Ritmo próprio</Badge> : null}
-                      </div>
-                    </td>
-                    <td className={celula}>
-                      {linha.serie && linha.tipo !== 'temporada' && !rascunho ? (
-                        <FrequenciaChip serieId={linha.serie.id} aparencia="linha" />
-                      ) : linha.temporada ? (
-                        <Text variant="meta" as="span" className="text-[var(--text-secondary)]">{textoDoChip(linha.temporada)}</Text>
-                      ) : (
-                        <Text variant="meta" as="span" className="text-[var(--text-secondary)]">{linha.metaTexto}</Text>
-                      )}
-                    </td>
-                    <td className={cn(celula, 'text-right tabular-nums')}>
-                      {linha.meta != null ? (
-                        <>
-                          <Text variant="body" as="span" className="block">{linha.meta}</Text>
-                          {linha.tipo !== 'conta' ? <Text variant="meta" as="span" className="block text-[var(--text-tertiary)]">{linha.metaTexto}</Text> : null}
-                        </>
-                      ) : (
-                        <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">{linha.tipo === 'conta' ? 'Sem meta para este período' : '—'}</Text>
-                      )}
-                    </td>
-                    <td className={cn(celula, 'text-right tabular-nums')}>
-                      <Text variant="body" as="span" className="block">{linha.contagem.comData}</Text>
-                      {linha.contagem.programados > 0 ? (
-                        <Badge variant="success">{linha.contagem.programados} {linha.contagem.programados === 1 ? 'Programado' : 'Programados'}</Badge>
-                      ) : null}
-                    </td>
-                    <td className={cn(celula, 'text-right tabular-nums')}>
-                      <Text variant="body" as="span">{linha.contagem.publicados}</Text>
-                    </td>
-                    <td className={celula}>
-                      {linha.serie && linha.tipo !== 'temporada' && !rascunho ? (
-                        <input
-                          type="checkbox"
-                          aria-label={`Acompanhar ${linha.nome} na Saúde`}
-                          checked={acompanhaNoGeral(linha.serie)}
-                          onChange={event => alternarSerie(linha.serie!, event.target.checked)}
-                          className="h-4 w-4 accent-[var(--brand-accent)]"
-                        />
-                      ) : linha.temporada && !rascunho && linha.temporada.status !== 'arquivada' ? (
-                        <input
-                          type="checkbox"
-                          aria-label={`Acompanhar ${linha.nome} na Saúde`}
-                          checked={linha.temporada.acompanhar === true}
-                          onChange={event => alternarTemporada(linha.temporada!, event.target.checked)}
-                          className="h-4 w-4 accent-[var(--brand-accent)]"
-                        />
-                      ) : null}
-                    </td>
-                    <td className={cn(celula, 'text-right')}>
-                      {linha.tipo !== 'conta' && !rascunho && linha.temporada?.status !== 'arquivada' ? (
-                        <AppButton variant="ghost" size="sm" onClick={() => abrir(linha.chave)}>
-                          Editar ritmo
-                        </AppButton>
-                      ) : null}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <Text variant="label" as="span">Ritmo</Text>
+                          {linha.serie && linha.tipo !== 'temporada' && !rascunho ? (
+                            <FrequenciaChip serieId={linha.serie.id} aparencia="linha" />
+                          ) : linha.temporada ? (
+                            <Text variant="meta" as="span" className="text-[var(--text-secondary)]">{textoDoChip(linha.temporada)}</Text>
+                          ) : (
+                            <Text variant="meta" as="span" className="text-[var(--text-secondary)]">{linha.metaTexto}</Text>
+                          )}
+                        </div>
+
+                        <div className="stack-xs">
+                          <div className="grid grid-cols-3 gap-2 rounded-[var(--radius-input)] bg-[var(--surface-subtle)] p-2.5 tabular-nums">
+                            <div className="min-w-0">
+                              <Text variant="label" as="span" className="block">Meta</Text>
+                              {linha.meta != null ? (
+                                <>
+                                  <Text variant="bodyStrong" as="span" className="block">{linha.meta}</Text>
+                                  {linha.tipo !== 'conta' ? (
+                                    <Text variant="meta" as="span" className="block truncate text-[var(--text-tertiary)]">
+                                      {linha.metaTexto}
+                                    </Text>
+                                  ) : null}
+                                </>
+                              ) : (
+                                <Text variant="meta" as="span" className="block text-[var(--text-tertiary)]">—</Text>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <Text variant="label" as="span" className="block">Com data</Text>
+                              <Text variant="bodyStrong" as="span" className="block">{linha.contagem.comData}</Text>
+                              {linha.contagem.programados > 0 ? (
+                                <Badge variant="success" className="mt-1">
+                                  {linha.contagem.programados} {linha.contagem.programados === 1 ? 'Programado' : 'Programados'}
+                                </Badge>
+                              ) : null}
+                            </div>
+                            <div className="min-w-0">
+                              <Text variant="label" as="span" className="block">Publicados</Text>
+                              <Text variant="bodyStrong" as="span" className="block">{linha.contagem.publicados}</Text>
+                            </div>
+                          </div>
+                          {temProgresso ? (
+                            <BarraProgressoMeta meta={linha.meta!} planejados={planejados} />
+                          ) : null}
+                        </div>
+
+                        {podeEditar ? (() => {
+                          const acompanhando = linha.temporada
+                            ? linha.temporada.acompanhar === true
+                            : linha.serie
+                              ? acompanhaNoGeral(linha.serie)
+                              : false;
+                          const toggleId = `acompanhar-mobile-${linha.chave}`;
+                          return (
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-subtle)] pt-2.5">
+                              <div className="flex items-center gap-1.5">
+                                <ToggleSwitch
+                                  id={toggleId}
+                                  size="sm"
+                                  enabled={acompanhando}
+                                  onToggle={() => {
+                                    if (linha.temporada) {
+                                      alternarTemporada(linha.temporada, !acompanhando);
+                                    } else if (linha.serie) {
+                                      alternarSerie(linha.serie, !acompanhando);
+                                    }
+                                  }}
+                                  label={`Acompanhar ${linha.nome} na Saúde`}
+                                />
+                                <label htmlFor={toggleId} className="cursor-pointer">
+                                  <Text variant="meta" as="span" className="text-[var(--text-secondary)]">
+                                    Acompanhar na Saúde
+                                  </Text>
+                                </label>
+                              </div>
+                              <AppButton variant="secondary" size="sm" onClick={() => abrir(linha.chave)}>
+                                Editar ritmo
+                              </AppButton>
+                            </div>
+                          );
+                        })() : null}
+                      </Surface>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </>
       )}
       {alvo ? <ModalDaMeta key={editar ?? alvo.tipo} alvo={alvo} contas={contas} onClose={fechar} /> : null}
     </Section>

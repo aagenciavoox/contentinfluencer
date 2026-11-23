@@ -5,6 +5,7 @@ import {
   ChevronDown,
   Copy,
 } from 'lucide-react';
+import { Ajuda } from '../../../components/ui/Ajuda';
 import { AppButton } from '../../../components/ui/AppButton';
 import { ChoiceChips } from '../../../components/ui/ChoiceChips';
 import { MultiFilterChips } from '../../../components/ui/MultiFilterChips';
@@ -37,7 +38,17 @@ import {
   lerModoSequencia,
   ROTULO_MODO_SEQUENCIA,
 } from '../lib/modoSequencia';
-import { acompanhaNoGeral, comAcompanhamentoGeral } from '../../editorial/lib/acompanhamento';
+import {
+  acompanhaNoGeral,
+  acompanhamentosDosEscopos,
+  comAcompanhamentoGeral,
+  linhasDeEscopo,
+  linhasDeEscopoIguais,
+  metasDosEscopos,
+} from '../../editorial/lib/acompanhamento';
+import { errosDaMeta } from '../../editorial/lib/errosDaMeta';
+import { PausasDaSerie } from '../../editorial/components/PausasDaSerie';
+import { RegrasPorContaEFormato, rotuloDoEscopo } from '../../editorial/components/EditorDeRitmo';
 import { OpenInfoNotice } from '../../editorial/components/OpenInfoNotice';
 import { LegendaBaseField } from '../../editorial/components/legendas/LegendaBaseField';
 import { LegendaVersaoField } from '../../editorial/components/legendas/LegendaVersaoField';
@@ -529,6 +540,8 @@ export function SerieEditForm({
       pilarPrincipalId: pilarPrincipalDaSerie(initial),
       orientacoesEditoriais: orientacoesIniciais,
       legendaBase: initial.legendaBase || '',
+      youtubeTituloBase: initial.youtubeTituloBase || '',
+      youtubeDescricaoBase: initial.youtubeDescricaoBase || '',
       parentId: initial.parentId ?? null,
       usaTemporadas: initial.usaTemporadas === true,
       focoRedes: normalizarRedesPostIt(initial.focoRedes ?? []),
@@ -541,6 +554,12 @@ export function SerieEditForm({
   });
 
   const [form, setForm] = useState(initialSnapshot.current.form);
+  const linhasIniciais = useRef(linhasDeEscopo({
+    id: initial.id ?? '',
+    acompanhamentos: initial.acompanhamentos,
+    metasPorEscopo: initial.metasPorEscopo,
+  }));
+  const [linhasEscopo, setLinhasEscopo] = useState(linhasIniciais.current);
 
   const seriePai = useMemo(
     () => (form.parentId ? series.find(item => item.id === form.parentId) ?? null : null),
@@ -569,6 +588,9 @@ export function SerieEditForm({
   );
   const [quadroLegendaPropria, setQuadroLegendaPropria] = useState<boolean>(
     () => tipo !== 'quadro' || Boolean(initial.legendaBase?.trim()),
+  );
+  const [quadroYoutubeProprio, setQuadroYoutubeProprio] = useState<boolean>(
+    () => tipo !== 'quadro' || Boolean(initial.youtubeTituloBase?.trim() || initial.youtubeDescricaoBase?.trim()),
   );
   const [quadroContasProprias, setQuadroContasProprias] = useState<boolean>(
     () => tipo !== 'quadro' || (initial.plataformas?.length ?? 0) > 0,
@@ -599,14 +621,17 @@ export function SerieEditForm({
     if (form.pilarPrincipalId !== snap.form.pilarPrincipalId) return true;
     if (form.orientacoesEditoriais !== snap.form.orientacoesEditoriais) return true;
     if (form.legendaBase !== snap.form.legendaBase) return true;
+    if (form.youtubeTituloBase !== snap.form.youtubeTituloBase) return true;
+    if (form.youtubeDescricaoBase !== snap.form.youtubeDescricaoBase) return true;
     if (form.parentId !== snap.form.parentId) return true;
     if (form.usaTemporadas !== snap.form.usaTemporadas) return true;
     if (JSON.stringify(form.focoRedes) !== JSON.stringify(snap.form.focoRedes)) return true;
     if (form.modoSequencia !== snap.form.modoSequencia) return true;
     if (form.ativa !== snap.form.ativa) return true;
     if (JSON.stringify(form.plataformas) !== JSON.stringify(snap.form.plataformas)) return true;
+    if (!linhasDeEscopoIguais(linhasEscopo, linhasIniciais.current)) return true;
     return false;
-  }, [form]);
+  }, [form, linhasEscopo]);
 
   const usandoCorPropria = tipo !== 'quadro' || quadroIdentidadePropria;
   const colorTaken = usandoCorPropria && isSerieColorTaken(
@@ -622,7 +647,28 @@ export function SerieEditForm({
   const erroRegraDeOuro = metaNoFormulario && form.temMeta && tipo !== 'quadro'
     ? erroDaRegraDeOuro(form.frequenciaVezes, form.frequenciaUnidade || 'semana', unidadesDaRegraDeOuro(form.id, series, limiteRegraDeOuro(state.editorial.avisos)))
     : null;
-  const valido = Boolean(form.name.trim()) && !colorTaken && !erroVinculo && !erroRegraDeOuro;
+  const contasDoEscopo = useMemo(
+    () => state.platforms.filter(conta => conta.ativo),
+    [state.platforms],
+  );
+  const errosEscopo = useMemo(() => {
+    if (tipo !== 'serie' || initial.acompanhamentos === undefined) return [];
+    return errosDaMeta({
+      vezes: '',
+      unidade: 'semana',
+      inicio: '',
+      tipo: 'serie',
+      unidadesDaRegra: unidadesDaRegraDeOuro(form.id, series, limiteRegraDeOuro(state.editorial.avisos)),
+      comEscopos: true,
+      linhas: linhasEscopo.flatMap(linha => (
+        linha.escopo === 'conta' || linha.escopo === 'formato'
+          ? [{ ...linha, escopo: linha.escopo, rotulo: rotuloDoEscopo(linha, contasDoEscopo) }]
+          : []
+      )),
+    });
+  }, [contasDoEscopo, form.id, initial.acompanhamentos, linhasEscopo, series, state.editorial.avisos, tipo]);
+  const escopoInvalido = !linhasDeEscopoIguais(linhasEscopo, linhasIniciais.current) && errosEscopo.length > 0;
+  const valido = Boolean(form.name.trim()) && !colorTaken && !erroVinculo && !erroRegraDeOuro && !escopoInvalido;
   const erroNome = tentouSalvar && !form.name.trim() ? `Dê um nome para identificar ${NOME_DO_TIPO[tipo].artigo}.` : null;
   const erroCor = colorTaken ? 'Esta cor já está em outra série. Escolha outra.' : null;
 
@@ -726,6 +772,18 @@ export function SerieEditForm({
         acompanharContinuidade: initial.acompanharContinuidade,
         acompanhamentos: (initial.acompanhamentos ?? []).map(item => ({ ...item, serieId: form.id })),
       }, form.acompanharContinuidade, generateUUID);
+      const linhasMudaram = !linhasDeEscopoIguais(linhasEscopo, linhasIniciais.current);
+      if (linhasMudaram && initial.acompanhamentos !== undefined) {
+        const gerais = (comGeral.acompanhamentos ?? []).filter(item => item.escopo === 'geral');
+        return {
+          acompanharContinuidade: form.acompanharContinuidade,
+          acompanhamentos: acompanhamentosDosEscopos(
+            gerais,
+            linhasEscopo.map(linha => ({ ...linha, serieId: form.id })),
+          ),
+          metasPorEscopo: metasDosEscopos(form.id, linhasEscopo),
+        };
+      }
       return {
         acompanharContinuidade: form.acompanharContinuidade,
         acompanhamentos: comGeral.acompanhamentos,
@@ -760,6 +818,8 @@ export function SerieEditForm({
         motivoSalvar: null,
         motivoEnviar: null,
         legendaBase: null,
+        youtubeTituloBase: null,
+        youtubeDescricaoBase: null,
         parentId: null,
         usaTemporadas: false,
         tipoAgrupamento: 'familia',
@@ -793,6 +853,9 @@ export function SerieEditForm({
     const legendaFinal = tipo === 'quadro' && !quadroLegendaPropria
       ? null
       : (form.legendaBase.trim() || null);
+    const youtubeProprio = tipo !== 'quadro' || quadroYoutubeProprio;
+    const youtubeTituloFinal = youtubeProprio ? (form.youtubeTituloBase.trim() || null) : null;
+    const youtubeDescricaoFinal = youtubeProprio ? (form.youtubeDescricaoBase.trim() || null) : null;
     const plataformasFinal = tipo === 'quadro' && !quadroContasProprias
       ? []
       : contas
@@ -830,13 +893,16 @@ export function SerieEditForm({
       motivoSalvar: orientacoesFinal,
       motivoEnviar: null,
       legendaBase: legendaFinal,
+      youtubeTituloBase: youtubeTituloFinal,
+      youtubeDescricaoBase: youtubeDescricaoFinal,
       parentId: form.parentId,
       usaTemporadas: form.usaTemporadas,
       focoRedes: tipo === 'quadro' ? normalizarRedesPostIt(form.focoRedes) : normalizarRedesPostIt(initial.focoRedes ?? []),
       modoSequencia: tipo === 'serie' ? lerModoSequencia(form.modoSequencia) : (initial.modoSequencia ?? null),
       tipoAgrupamento: tipo,
       semPilar: !form.pilarPrincipalId && form.semPilar,
-      // Acompanhamento geral na tabela nova (coluna antiga espelhada); por conta/formato e metas seguem como estavam.
+      // Acompanhamento geral na tabela nova (coluna antiga espelhada).
+      // Conta e formato entram quando o editor mudou; senão ficam como estavam.
       // Série nova começa com a lista vazia: sem isso a marcação ia só para a coluna antiga e sumia ao recarregar.
       ...acompanhamentoGeral(),
       // Quadro em "Usar da série": a cor acompanha a série na hora.
@@ -852,6 +918,7 @@ export function SerieEditForm({
     initial.acompanhamentos,
     initial.acompanharContinuidade,
     initial.metasPorEscopo,
+    linhasEscopo,
     initial.createdAt,
     modoModelo,
     quadroContasProprias,
@@ -891,8 +958,13 @@ export function SerieEditForm({
       }
       return;
     }
+    if (escopoInvalido) {
+      setTentouSalvar(true);
+      irParaCampoSerie('ritmo', errosEscopo[0]?.id ?? 'serie-ritmo');
+      return;
+    }
     onSave(buildPayload());
-  }, [buildPayload, colorTaken, erroRegraDeOuro, erroVinculo, form.name, irParaCampoSerie, onSave, tipo]);
+  }, [buildPayload, colorTaken, erroRegraDeOuro, erroVinculo, errosEscopo, escopoInvalido, form.name, irParaCampoSerie, onSave, tipo]);
 
   useUnsavedChangesRegistration(!inModal && isDirty, () => {
     if (valido) handleSaveRef.current();
@@ -987,8 +1059,11 @@ export function SerieEditForm({
     form.temMeta
       ? formatarResumoMeta(form.frequenciaVezes, form.frequenciaUnidade || 'semana', form.frequenciaAPartirDe)
       : 'Sem ritmo definido',
+    linhasEscopo.length > 0
+      ? (linhasEscopo.length === 1 ? '1 regra por conta ou formato' : `${linhasEscopo.length} regras por conta ou formato`)
+      : null,
     ROTULO_MODO_SEQUENCIA[modoSequencia],
-  ].join(' · ');
+  ].filter(Boolean).join(' · ');
   const resumoDestinos = contasDestinoIds.length === 0 && form.formatoVisualPadrao.length === 0
     ? 'Contas de destino e formatos padrão'
     : [
@@ -999,7 +1074,12 @@ export function SerieEditForm({
         ? form.formatoVisualPadrao.slice(0, 2).join(', ')
         : 'sem formato padrão',
     ].join(' · ');
-  const resumoTextos = form.legendaBase.trim() ? 'Legenda-base definida' : 'Sem legenda-base';
+  const resumoTextos = [
+    form.legendaBase.trim() ? 'Legenda-base' : null,
+    (tipo === 'quadro' && !quadroYoutubeProprio)
+      ? null
+      : (form.youtubeTituloBase.trim() || form.youtubeDescricaoBase.trim() ? 'YouTube longo' : null),
+  ].filter(Boolean).join(' · ') || 'Sem textos de publicação';
   const contasComLegendaPropria = contas.filter(conta => (
     form.plataformas.find(item => item.platformId === conta.id)?.legenda ?? ''
   ).trim().length > 0).length;
@@ -1104,12 +1184,18 @@ export function SerieEditForm({
   };
   const renderChipDaMeta = (notaAdicional?: string) => (
     <div className="stack-sm scroll-mt-28">
-      <FieldLabel optional>Ritmo de episódios</FieldLabel>
+      <span className="inline-flex items-center">
+        <FieldLabel optional>Ritmo de episódios</FieldLabel>
+        <Ajuda
+          rotulo="Sobre o ritmo de episódios"
+          texto={[
+            'O ritmo é salvo ao confirmar o ajuste, no mesmo lugar do cabeçalho e da Continuidade.',
+            notaAdicional,
+            form.usaTemporadas ? 'O ritmo de cada temporada fica em Estrutura interna.' : '',
+          ].filter(Boolean).join(' ')}
+        />
+      </span>
       <FrequenciaChip id="serie-meta" serieId={initial.id!} className="w-fit" onSalvo={aplicarFrequencia} />
-      <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-        O ritmo é salvo ao confirmar o ajuste, no mesmo lugar do cabeçalho e da Continuidade.
-        {notaAdicional ? ` ${notaAdicional}` : ''}
-      </Text>
       {form.temMeta ? (
         <label className="flex items-center gap-2 w-fit cursor-pointer">
           <input
@@ -1162,6 +1248,43 @@ export function SerieEditForm({
           />
         </div>
       ) : null}
+    </div>
+  );
+
+  const renderModeloYoutube = (idPrefix: string) => (
+    <div className="stack-sm">
+      <div className="stack-xs">
+        <Text variant="label" as="p">YouTube longo</Text>
+        <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+          Um modelo só, com título e descrição. Os episódios novos puxam estes textos. Shorts e as outras redes continuam na legenda.
+        </Text>
+      </div>
+      <div className="stack-xs">
+        <label htmlFor={`${idPrefix}-titulo`}>
+          <FieldLabel optional>Título</FieldLabel>
+        </label>
+        <input
+          id={`${idPrefix}-titulo`}
+          type="text"
+          value={form.youtubeTituloBase}
+          onChange={event => setForm(previous => ({ ...previous, youtubeTituloBase: event.target.value }))}
+          placeholder="Título que os vídeos longos já nascem usando"
+          className={inputClass}
+        />
+      </div>
+      <div className="stack-xs">
+        <label htmlFor={`${idPrefix}-descricao`}>
+          <FieldLabel optional>Descrição</FieldLabel>
+        </label>
+        <textarea
+          id={`${idPrefix}-descricao`}
+          value={form.youtubeDescricaoBase}
+          onChange={event => setForm(previous => ({ ...previous, youtubeDescricaoBase: event.target.value }))}
+          placeholder="Descrição que os vídeos longos já nascem usando"
+          rows={6}
+          className={cn(inputClass, 'min-h-[140px] resize-y leading-relaxed')}
+        />
+      </div>
     </div>
   );
 
@@ -1537,10 +1660,26 @@ export function SerieEditForm({
                         {form.temMeta ? renderCamposMeta() : null}
                       </>
                     )}
+                    {initial.acompanhamentos !== undefined ? (
+                      <RegrasPorContaEFormato
+                        serieId={form.id}
+                        linhas={linhasEscopo}
+                        contas={contasDoEscopo}
+                        erros={escopoInvalido ? errosEscopo : []}
+                        onChange={setLinhasEscopo}
+                      />
+                    ) : null}
+                    {serieGravada ? <PausasDaSerie serieId={form.id} /> : null}
                     <div className="scroll-mt-28">
-                      <label htmlFor="serie-modo-sequencia">
-                        <FieldLabel optional>Sequência dos episódios</FieldLabel>
-                      </label>
+                      <span className="inline-flex items-center">
+                        <label htmlFor="serie-modo-sequencia">
+                          <FieldLabel optional>Sequência dos episódios</FieldLabel>
+                        </label>
+                        <Ajuda
+                          rotulo="Sobre a sequência dos episódios"
+                          texto={AJUDA_MODO_SEQUENCIA[modoSequencia]}
+                        />
+                      </span>
                       <SelectField
                         id="serie-modo-sequencia"
                         block
@@ -1556,9 +1695,6 @@ export function SerieEditForm({
                           { value: 'ordem_temporada', label: ROTULO_MODO_SEQUENCIA.ordem_temporada },
                         ]}
                       />
-                      <Text variant="meta" as="p" className="mt-1.5 text-[var(--text-secondary)]">
-                        {AJUDA_MODO_SEQUENCIA[modoSequencia]}
-                      </Text>
                     </div>
                   </FichaSecao>
 
@@ -1620,6 +1756,7 @@ export function SerieEditForm({
                     <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
                       {fraseLegendaDasContas(contas.length, contasComLegendaPropria)}
                     </Text>
+                    {renderModeloYoutube('serie-youtube')}
                     {contas.length === 0 ? null : (
                       <div>
                         {contas.map(conta => {
@@ -1918,6 +2055,20 @@ export function SerieEditForm({
                   </div>
 
                   <div>
+                    <FieldLabel>YouTube longo</FieldLabel>
+                    <SelectField
+                      block
+                      ariaLabel="YouTube longo"
+                      value={quadroYoutubeProprio ? 'proprio' : 'herdar'}
+                      onChange={valor => setQuadroYoutubeProprio(valor === 'proprio')}
+                      options={[
+                        { value: 'herdar', label: 'Usar da série' },
+                        { value: 'proprio', label: 'Definir outro' },
+                      ]}
+                    />
+                  </div>
+
+                  <div>
                     <FieldLabel>Contas e hashtags</FieldLabel>
                     <SelectField
                       block
@@ -1955,6 +2106,8 @@ export function SerieEditForm({
                     onChange={legendaBase => setForm(previous => ({ ...previous, legendaBase }))}
                   />
                 ) : null}
+
+                {quadroYoutubeProprio ? renderModeloYoutube('quadro-youtube') : null}
 
                 {quadroContasProprias ? (
                   <div className="stack-md">

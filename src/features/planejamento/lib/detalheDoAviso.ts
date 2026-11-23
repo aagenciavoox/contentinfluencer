@@ -20,6 +20,10 @@ const BLOCO: Record<TipoAvisoOrientacao, BlocoDoAviso> = {
   'videos-dia-abaixo': 'producao',
   'videos-dia-acima': 'producao',
   'saturacao-quadro': 'concentracao',
+  'gravacao-antecedencia': 'producao',
+  'faixa-abaixo': 'producao',
+  'faixa-acima': 'producao',
+  'faixa-config': 'producao',
 };
 
 const REGRA: Record<TipoAvisoOrientacao, { regra: string; acao: string }> = {
@@ -36,6 +40,10 @@ const REGRA: Record<TipoAvisoOrientacao, { regra: string; acao: string }> = {
   'videos-dia-abaixo': { regra: 'vídeos por dia de gravação abaixo do mínimo (ou da meta, sem mínimo) da Rotina de criação', acao: 'juntar gravações no mesmo dia ou rever a faixa no Editorial' },
   'videos-dia-acima': { regra: 'vídeos por dia de gravação acima do máximo (ou da meta, sem máximo) da Rotina de criação', acao: 'mover gravações para outro dia ou rever a faixa no Editorial' },
   'saturacao-quadro': { regra: 'mesmo quadro mais vezes na semana do que o limite de saturação (Rotina de criação › Avisos)', acao: 'trocar uma das pautas por outro quadro ou série, ou mover para outra semana' },
+  'gravacao-antecedencia': { regra: 'roteiros de câmera sem gravação na antecedência, contra a meta de gravação da semana (ou o teto de postagem, se a meta de gravação estiver vazia)', acao: 'adiantar uma gravação, mover a postagem, ou confirmar que quer fazer a mais' },
+  'faixa-abaixo': { regra: 'abaixo do mínimo da faixa (ou da meta, sem mínimo)', acao: 'planejar mais ou rever a faixa no Editorial' },
+  'faixa-acima': { regra: 'acima do máximo da faixa (ou da meta, sem máximo). Não bloqueia', acao: 'tirar uma publicação da semana ou confirmar que quer fazer a mais' },
+  'faixa-config': { regra: 'a soma dos formatos passa do máximo da conta, ou um formato de câmera pede mais do que a gravação geral. Não bloqueia o salvamento', acao: 'rever o número no Editorial' },
 };
 
 const ABRE_ANALISE: ReadonlySet<TipoAvisoOrientacao> = new Set(['capacidade-semana', 'ausencia-12-dias', 'ausencia-mes']);

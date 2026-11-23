@@ -46,6 +46,8 @@ assert.equal(canDomainPayloadSatisfyRequest(['content-schedule'], lightweightPay
 assert.equal(canDomainPayloadSatisfyRequest(['content-summary'], lightweightPayload), true);
 assert.equal(canDomainPayloadSatisfyRequest(['content'], emptyPayload), false);
 assert.equal(canDomainPayloadSatisfyRequest(['production'], emptyPayload), true);
+assert.equal(canDomainPayloadSatisfyRequest(['analytics'], emptyPayload), false);
+assert.equal(canDomainPayloadSatisfyRequest(['analytics'], { contentMetrics: [], contasMetricas: [], periodosAnalise: [] }), true);
 
 assert.equal(hasNewerOverlappingDomainCache('domain:analytics|schedule', 100, [
   {key: 'domain:schedule', fetchedAt: 200},

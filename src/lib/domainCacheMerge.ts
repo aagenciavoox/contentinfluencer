@@ -36,6 +36,9 @@ function mergeContentRecords(local: Content, remote: Content): Content {
       writingMode: remote.writingMode ?? local.writingMode,
       carouselSlides: remote.carouselSlides ?? local.carouselSlides,
       proposta: remote.proposta ?? local.proposta,
+      youtubeTitulo: remote.youtubeTitulo ?? local.youtubeTitulo,
+      youtubeDescricao: remote.youtubeDescricao ?? local.youtubeDescricao,
+      youtubeBlocos: remote.youtubeBlocos ?? local.youtubeBlocos,
     };
   }
 
@@ -50,6 +53,9 @@ function mergeContentRecords(local: Content, remote: Content): Content {
     writingMode: local.writingMode ?? remote.writingMode,
     carouselSlides: local.carouselSlides ?? remote.carouselSlides,
     proposta: local.proposta ?? remote.proposta,
+    youtubeTitulo: local.youtubeTitulo ?? remote.youtubeTitulo,
+    youtubeDescricao: local.youtubeDescricao ?? remote.youtubeDescricao,
+    youtubeBlocos: local.youtubeBlocos ?? remote.youtubeBlocos,
     plataformas: local.plataformas?.length ? local.plataformas : remote.plataformas,
   };
 }

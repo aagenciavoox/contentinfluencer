@@ -3,7 +3,7 @@ import {RedeIcon} from '../../../components/ui/PlatformIcons';
 import type {Platform} from '../../../lib/database';
 import {cn} from '../../../lib/utils';
 import {REDE_ROTULO, redeDaConta, rotuloCurtoConta, type RedeDoFiltro} from '../../contas/lib/contas';
-import {agruparPorBlocoVisual, alternarRedeNoFoco, compararExibicaoRede} from '../lib/redesPostIt';
+import {alternarRedeNoFoco, compararExibicaoRede, grupoVisualDaRede} from '../lib/redesPostIt';
 
 export interface RedeChipsProps {
   value: readonly RedeDoFiltro[];
@@ -18,28 +18,41 @@ function nomeDaRede(rede: string): string | null {
   return null;
 }
 
-/** Com uma conta na rede, o @ não distingue nada: o chip usa o nome da rede. */
-function rotuloDoChip(conta: Parameters<typeof rotuloCurtoConta>[0], rede: string, unica: boolean, sufixo?: string): string {
+/** Com uma conta na rede, o ícone já identifica a plataforma: usa o rótulo curto do formato. */
+function rotuloDoChip(
+  conta: Parameters<typeof rotuloCurtoConta>[0],
+  rede: string,
+  unica: boolean,
+  sufixo?: string,
+  rotuloCurtoUnico?: string,
+): string {
+  if (unica && rotuloCurtoUnico) return rotuloCurtoUnico;
   const curto = rotuloCurtoConta(conta);
   const base = unica && curto.startsWith('@') ? (nomeDaRede(rede) ?? conta.nome.trim()) : curto;
   return sufixo ? `${base} · ${sufixo}` : base;
 }
 
-const VARIANTES_POR_REDE: Partial<Record<string, Array<{rede: RedeDoFiltro; sufixo: string}>>> = {
+const VARIANTES_POR_REDE: Partial<Record<string, Array<{rede: RedeDoFiltro; sufixo: string; rotuloUnico: string}>>> = {
   youtube: [
-    {rede: 'youtube-shorts', sufixo: 'Shorts'},
-    {rede: 'youtube', sufixo: 'Vídeo longo'},
+    {rede: 'youtube-shorts', sufixo: 'Shorts', rotuloUnico: 'Shorts'},
+    {rede: 'youtube', sufixo: 'Vídeo longo', rotuloUnico: 'YouTube longo'},
   ],
   instagram: [
-    {rede: 'instagram-video', sufixo: 'Vídeo'},
-    {rede: 'instagram-carrossel', sufixo: 'Carrossel'},
+    {rede: 'instagram-video', sufixo: 'Reels', rotuloUnico: 'Reels'},
+    {rede: 'instagram-carrossel', sufixo: 'Carrossel', rotuloUnico: 'Carrossel'},
   ],
 };
 
 const chipClass = (active: boolean) => cn(
-  'filter-chip min-h-9 pointer-coarse:min-h-11 flex items-center gap-1.5 px-2.5 py-1 t-secondary',
+  'filter-chip min-h-10 pointer-coarse:min-h-11 inline-flex w-full items-center justify-center gap-1.5 px-3 py-1.5 t-secondary',
   active && 'filter-chip-active',
 );
+
+function gridColsPara(quantidade: number): string {
+  if (quantidade <= 1) return 'grid-cols-1';
+  if (quantidade === 2) return 'grid-cols-2';
+  return 'grid-cols-2 sm:grid-cols-3';
+}
 
 function ChipsEmBlocos({
   chips,
@@ -48,15 +61,16 @@ function ChipsEmBlocos({
   chips: ReadonlyArray<{destino: RedeDoFiltro; node: ReactNode}>;
   rotulo: string;
 }) {
-  const grupos = agruparPorBlocoVisual(
-    [...chips].sort((a, b) => compararExibicaoRede(a.destino, b.destino)),
-    chip => chip.destino,
-  );
+  const ordenados = [...chips].sort((a, b) => compararExibicaoRede(a.destino, b.destino));
+  const curtos = ordenados.filter(chip => grupoVisualDaRede(chip.destino) === 0);
+  const outros = ordenados.filter(chip => grupoVisualDaRede(chip.destino) !== 0);
+  const linhas = [curtos, outros].filter(linha => linha.length > 0);
+
   return (
-    <div role="group" aria-label={rotulo} className="flex flex-wrap items-center gap-4">
-      {grupos.map(grupo => (
-        <div key={grupo[0].destino} className="flex flex-wrap items-center gap-2">
-          {grupo.map(chip => chip.node)}
+    <div role="group" aria-label={rotulo} className="stack-xs">
+      {linhas.map((linha, indice) => (
+        <div key={linha[0]?.destino ?? indice} className={cn('grid gap-2', gridColsPara(linha.length))}>
+          {linha.map(chip => chip.node)}
         </div>
       ))}
     </div>
@@ -83,7 +97,7 @@ export function RedeChips({value, onChange, platforms = []}: RedeChipsProps) {
       const unica = (quantas.get(rede) ?? 0) <= 1;
       const variantes = VARIANTES_POR_REDE[rede];
       if (variantes) {
-        return variantes.map(({rede: destino, sufixo}) => ({
+        return variantes.map(({rede: destino, sufixo, rotuloUnico}) => ({
           destino,
           node: (
             <button
@@ -94,7 +108,7 @@ export function RedeChips({value, onChange, platforms = []}: RedeChipsProps) {
               className={chipClass(value.includes(destino))}
             >
               <RedeIcon rede={destino} className="h-4 w-4 shrink-0" />
-              <span>{rotuloDoChip(conta, rede, unica, sufixo)}</span>
+              <span>{rotuloDoChip(conta, rede, unica, sufixo, rotuloUnico)}</span>
             </button>
           ),
         }));
@@ -121,11 +135,11 @@ export function RedeChips({value, onChange, platforms = []}: RedeChipsProps) {
   }
 
   const redesPadrao: Array<{destino: RedeDoFiltro; label: string}> = [
-    {destino: 'instagram-video', label: 'Instagram (vídeo)'},
+    {destino: 'instagram-video', label: 'Reels'},
     {destino: 'tiktok', label: 'TikTok'},
-    {destino: 'youtube-shorts', label: 'YouTube Shorts'},
-    {destino: 'youtube', label: 'YouTube (vídeo longo)'},
-    {destino: 'instagram-carrossel', label: 'Instagram (carrossel)'},
+    {destino: 'youtube-shorts', label: 'Shorts'},
+    {destino: 'youtube', label: 'YouTube longo'},
+    {destino: 'instagram-carrossel', label: 'Carrossel'},
   ];
 
   return (

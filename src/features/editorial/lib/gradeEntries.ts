@@ -1,7 +1,8 @@
 import type { Content, ContentPlataforma, FuncaoEditorial, Serie } from '../../../lib/database.ts';
 import { CONTENT_STATUS, normalizeContentStatus } from '../../contents/lib/contentPipeline.ts';
 import { cicloDaPublicacao } from './cicloPublicacao.ts';
-import { contaNaGradeEfetiva, type ContaNaGradeOrigem } from './contaNaGradeOrigem.ts';
+import { type ContaNaGradeOrigem } from './contaNaGradeOrigem.ts';
+import { roteiroContaNaPostagem } from './publicacoes.ts';
 import { type DestinoPlataforma, mesmoDestino, resolverRedeReferencia } from './destinations.ts';
 import { etapaDoStatus, type Etapa } from './etapas.ts';
 import { objetivoDoConteudo, pilarDoConteudo } from './herancaSerie.ts';
@@ -65,7 +66,7 @@ export type GradeContent = Pick<
   | 'publishDate'
   | 'plataformas'
   | 'deletedAt'
-> & Partial<Pick<Content, 'publishTime' | 'postedAt' | 'archivedAt' | 'formatoVisual' | 'script' | 'title' | 'pautaDefinida' | 'temporadaId'>> & {
+> & Partial<Pick<Content, 'publishTime' | 'postedAt' | 'archivedAt' | 'formatoVisual' | 'script' | 'title' | 'pautaDefinida' | 'temporadaId' | 'writingMode'>> & {
   redeReferenciaCongeladaId?: string | null;
   scriptOrigem?: 'autor' | 'modelo' | string | null;
   contaNaGradeOrigem?: ContaNaGradeOrigem | null;
@@ -171,11 +172,19 @@ export function buildGradeEntries({
 
     // Mesma resolução da ficha e da Saúde: gravado vale, campo vazio sobe quadro → série.
     const funcao = objetivoDoConteudo(content, series);
-    const contaNaGrade = contaNaGradeEfetiva({
+    const redeDe = (platformId: string) =>
+      platforms.find(plataforma => mesmoDestino(platformId, plataforma))?.rede ?? null;
+    const pubsOriginais = (content.plataformas ?? [])
+      .filter(publicacao => cicloDaPublicacao(publicacao) < 2 && publicacaoValida(publicacao));
+    // Meta geral: 1 por roteiro, se houver peça que não é Stories. Só Stories fica fora.
+    const contaNaGrade = roteiroContaNaPostagem({
       contaNaGrade: content.contaNaGrade !== false,
       contaNaGradeOrigem: content.contaNaGradeOrigem,
       formato: content.formatoVisual,
       funcao,
+      writingMode: content.writingMode,
+      publicacoes: pubsOriginais,
+      redeDe,
     });
     const classificacao = {
       pilarId: pilarDoConteudo(content, series),
@@ -214,9 +223,7 @@ export function buildGradeEntries({
       realizadaEm: realizadaEmOriginal,
       etapa,
       ...(content.temporadaId ? { temporadaId: content.temporadaId } : {}),
-      publicacoes: (content.plataformas ?? [])
-        .filter(publicacao => cicloDaPublicacao(publicacao) < 2 && publicacaoValida(publicacao))
-        .map(publicacao => publicacaoDaEntrada(publicacao, etapaDoStatus(content.status))),
+      publicacoes: pubsOriginais.map(publicacao => publicacaoDaEntrada(publicacao, etapaDoStatus(content.status))),
     });
 
     const publicacoes = content.plataformas ?? [];
@@ -255,7 +262,15 @@ export function buildGradeEntries({
         data: quandoRepost.date,
         hora: quandoRepost.time,
         ...classificacao,
-        contaNaGrade: classificacao.contaNaGrade && contaCiclo,
+        contaNaGrade: contaCiclo && roteiroContaNaPostagem({
+          contaNaGrade: content.contaNaGrade !== false,
+          contaNaGradeOrigem: content.contaNaGradeOrigem,
+          formato: content.formatoVisual,
+          funcao,
+          writingMode: content.writingMode,
+          publicacoes: lista,
+          redeDe,
+        }),
         realizada: publicada,
         realizadaEm: realizadaEmRepost,
         etapa: publicada ? 'postado' : etapa,

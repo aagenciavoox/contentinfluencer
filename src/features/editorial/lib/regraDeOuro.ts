@@ -3,7 +3,7 @@ import type { UnidadeDaMeta } from './metaDaOnda.ts';
 
 /**
  * Regra de Ouro do plano: cada série consome no máximo N episódios por semana.
- * N é escolhido pela pessoa em Editorial › Rotina de criação ("Limite por série"); sem nada gravado, 1.
+ * N é escolhido pela pessoa em Editorial › Geral ("Limite por série"); sem nada gravado, 1.
  * Quadro é sob demanda: não tem meta, não entra na conta da série nem da família
  * e não soma no teto da semana. Os números gravados no banco ficam como estão; só a conta muda.
  *
@@ -168,7 +168,7 @@ export function ehErroDaRegraDeOuro(mensagem: string | null | undefined): boolea
 export function explicacaoDoLimiteDaRegraDeOuro(limitePorSemana: number = limiteConfigurado): string {
   const porSemana = Math.max(1, Math.trunc(limitePorSemana) || 1);
   const janela = (unidade: UnidadeDaMeta) => tetoDaRegraDeOuro(unidade, porSemana);
-  return `Esse limite vem de “Limite por série”, em Editorial › Rotina de criação › Regra de Ouro. `
+  return `Esse limite vem de “Limite por série”, em Editorial › Geral › Regra de Ouro. `
     + `Hoje: ${porSemana} ${porSemana === 1 ? 'episódio' : 'episódios'} por semana da mesma série. `
     + `Janelas maiores seguem a mesma proporção: até ${janela('quinzena')} a cada 14 dias, ${janela('mes')} por mês, `
     + `${janela('bimestre')} por bimestre, ${janela('trimestre')} por trimestre e ${janela('semestre')} por semestre.`;

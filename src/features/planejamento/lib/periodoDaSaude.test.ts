@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { avisoDoCalendario, distribuicaoPorPilar, comMetaDoPeriodo, relacaoComCalendario, rotuloDoPeriodo } from './periodoDaSaude.ts';
+import { avisoDoCalendario, distribuicaoPorPilar, relacaoComCalendario, rotuloDoPeriodo } from './periodoDaSaude.ts';
 
 const HOJE = new Date(2026, 10, 2, 12);
 const periodo = { inicio: '2026-10-16', fim: '2026-12-30' };
@@ -12,12 +12,6 @@ assert.equal(relacaoComCalendario(periodo, { inicio: '2026-10-01', fim: '2026-10
 assert.equal(relacaoComCalendario(periodo, { inicio: '2027-01-01', fim: '2027-01-31' }), 'fora');
 assert.equal(avisoDoCalendario(periodo, { inicio: '2026-11-01', fim: '2026-11-30' }), null);
 assert.match(avisoDoCalendario(periodo, { inicio: '2027-01-01', fim: '2027-01-31' }) ?? '', /fora deste período/);
-
-const counts = { limite: 108, totalMeta: 108, previsto: 3 };
-const periodos = [{ inicio: '2026-10-16', fim: '2026-12-30', metasPublicacao: 60 }] as never;
-assert.deepEqual(comMetaDoPeriodo(counts, periodos, periodo), { limite: 60, totalMeta: 60, previsto: 3 });
-assert.equal(comMetaDoPeriodo(counts, periodos, { inicio: '2026-11-01', fim: '2026-11-30' }), counts);
-assert.equal(comMetaDoPeriodo(counts, [], periodo), counts);
 
 // Distribuição: 6 itens com pilar entre 24 do período (caso real de 03/10–30/12).
 const dist = distribuicaoPorPilar(

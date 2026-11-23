@@ -3,7 +3,7 @@ import { ROTA_DA_REGRA_DE_OURO } from '../lib/abasEditorial';
 import { explicacaoDoLimiteDaRegraDeOuro, limiteDaRegraDeOuro } from '../lib/regraDeOuro';
 
 /**
- * “?” ao lado do erro da Regra de Ouro: de onde vem o limite (Rotina de criação › Regra de Ouro),
+ * “?” ao lado do erro da Regra de Ouro: de onde vem o limite (Geral › Regra de Ouro),
  * o valor atual e as janelas maiores. O limite é o que o AppContext sincroniza a cada render.
  * `comLink` só onde sair da tela não perde nada além do rascunho que a regra já barrou.
  */
@@ -14,7 +14,7 @@ export function AjudaDaRegraDeOuro({ comLink = false, alinhar = 'inicio' }: { co
       texto={explicacaoDoLimiteDaRegraDeOuro(limiteDaRegraDeOuro())}
       alinhar={alinhar}
       abrirAoPassar
-      acao={comLink ? { rotulo: 'Abrir Rotina de criação', para: ROTA_DA_REGRA_DE_OURO } : undefined}
+      acao={comLink ? { rotulo: 'Abrir Regra de Ouro', para: ROTA_DA_REGRA_DE_OURO } : undefined}
     />
   );
 }

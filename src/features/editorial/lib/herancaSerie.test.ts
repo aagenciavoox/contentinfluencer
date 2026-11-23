@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { pilarDoConteudo, resolverHerancaSerie, resolverFuncaoHerdada, resolverPilar, resolverModelo, resolverLegendaBase } from './herancaSerie.ts';
+import { pilarDoConteudo, resolverHerancaSerie, resolverFuncaoHerdada, resolverPilar, resolverModelo, resolverLegendaBase, resolverYoutubeModelo } from './herancaSerie.ts';
 
 const series = [
   {
@@ -11,6 +11,8 @@ const series = [
     pilarPrincipalId: 'pilar-pai',
     pilarIds: ['pilar-pai'],
     legendaBase: 'Legenda pai',
+    youtubeTituloBase: 'Título longo do pai',
+    youtubeDescricaoBase: 'Descrição longa do pai',
     plataformas: [{ serieId: 'pai', platformId: 'ig', hashtags: '#pai' }],
     formatoVisualPadrao: ['Reels'],
     energiaPadrao: 'alta' as const,
@@ -101,6 +103,23 @@ const series = [
   const legenda = resolverLegendaBase({ seriesId: 'filho', legendaBase: 'Minha' }, series);
   assert.equal(legenda.legendaBase, 'Minha');
   assert.equal(legenda.preservarPropria, true);
+}
+
+{
+  const modelo = resolverYoutubeModelo({ seriesId: 'filho', youtubeTitulo: null, youtubeDescricao: null }, series);
+  assert.equal(modelo.titulo, 'Título longo do pai');
+  assert.equal(modelo.descricao, 'Descrição longa do pai');
+  assert.equal(modelo.origemSerieId, 'pai');
+}
+
+{
+  const modelo = resolverYoutubeModelo({
+    seriesId: 'filho',
+    youtubeTitulo: 'Meu título',
+    youtubeDescricao: null,
+  }, series);
+  assert.equal(modelo.titulo, 'Meu título');
+  assert.equal(modelo.descricao, 'Descrição longa do pai');
 }
 
 {

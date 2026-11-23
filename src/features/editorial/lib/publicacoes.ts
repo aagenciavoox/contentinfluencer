@@ -1,7 +1,7 @@
 import type { Content, ContentPlataforma, FormatoEscolhidoNaPublicacao, FuncaoEditorial, RedeSocial } from '../../../lib/database.ts';
 import { redeDaConta, type ContaRef } from '../../contas/lib/contas.ts';
 import { cicloDaPublicacao } from './cicloPublicacao.ts';
-import { contaNaGradeEfetiva } from './contaNaGradeOrigem.ts';
+import { classificarOrigemContaNaGrade, type ContaNaGradeOrigem } from './contaNaGradeOrigem.ts';
 import { etapaDoStatus, type Etapa } from './etapas.ts';
 import { normalizarFormato } from './funcoes.ts';
 import { FUSO_PADRAO, noFuso, hojeNoFuso } from './fuso.ts';
@@ -47,9 +47,22 @@ export const FORMATOS_DE_DESTINO: Partial<Record<RedeSocial, readonly FormatoEsc
   tiktok: ['reels', 'carrossel'],
 };
 
-/** Stories não contam em meta, salvo quando a pessoa marcou "conta na grade" à mão. */
-export function formatoContaNaMeta(formato: FormatoPublicacao, origemManual: boolean): boolean {
-  return formato !== 'stories' || origemManual;
+/**
+ * Stories não contam em meta nenhuma. O segundo argumento fica na assinatura porque
+ * chamadas antigas ainda passam a marca manual; ela não coloca Stories na meta.
+ */
+export function formatoContaNaMeta(formato: FormatoPublicacao, _origemManual: boolean): boolean {
+  return formato !== 'stories';
+}
+
+/**
+ * Gravação é peça de câmera: Reels, Short, vídeo longo e o vídeo do TikTok (gravado como reels).
+ * Produção é carrossel e post estático. Stories e o resto ficam fora das faixas.
+ */
+export function grupoDoFormato(formato: string): 'gravacao' | 'producao' | null {
+  if (formato === 'reels' || formato === 'short' || formato === 'video-longo') return 'gravacao';
+  if (formato === 'carrossel' || formato === 'post-estatico') return 'producao';
+  return null;
 }
 
 const ROTULO_FORMATO: Record<string, string> = {
@@ -162,6 +175,54 @@ export function formatoDaPublicacao(
   return formato ?? 'sem-classificacao';
 }
 
+function origemDaContaNoConteudo(input: {
+  contaNaGrade: boolean;
+  contaNaGradeOrigem?: ContaNaGradeOrigem | null;
+  formato?: string | null;
+  funcao?: FuncaoEditorial | null;
+}): ContaNaGradeOrigem {
+  if (input.contaNaGradeOrigem === 'manual' || input.contaNaGradeOrigem === 'regra') {
+    return input.contaNaGradeOrigem;
+  }
+  return classificarOrigemContaNaGrade(input.contaNaGrade, input.formato, input.funcao);
+}
+
+/** Desligado à mão no conteúdo. A regra que tira Stories não é desligamento. */
+function conteudoDesligadoAMao(input: {
+  contaNaGrade: boolean;
+  contaNaGradeOrigem?: ContaNaGradeOrigem | null;
+  formato?: string | null;
+  funcao?: FuncaoEditorial | null;
+}): boolean {
+  return origemDaContaNoConteudo(input) === 'manual' && input.contaNaGrade === false;
+}
+
+/**
+ * Meta geral de postagem: o roteiro conta 1 se alguma peça não é Stories
+ * (reels, shorts, vídeo, carrossel, imagem, live). Só Stories conta 0,
+ * mesmo marcado à mão. Não separa gravação: carrossel e imagem entram aqui.
+ */
+export function roteiroContaNaPostagem(input: {
+  contaNaGrade: boolean;
+  contaNaGradeOrigem?: ContaNaGradeOrigem | null;
+  formato?: string | null;
+  funcao?: FuncaoEditorial | null;
+  writingMode?: Content['writingMode'] | null;
+  publicacoes?: readonly Pick<ContentPlataforma, 'platformId' | 'formatoPublicacao'>[];
+  redeDe?: (platformId: string) => RedeSocial | null;
+}): boolean {
+  if (conteudoDesligadoAMao(input)) return false;
+  const content = { formatoVisual: input.formato ?? null, writingMode: input.writingMode ?? null };
+  const publicacoes = input.publicacoes ?? [];
+  if (publicacoes.length === 0) {
+    return formatoContaNaMeta(formatoDaPublicacao(content, null), false);
+  }
+  return publicacoes.some(publicacao => formatoContaNaMeta(
+    formatoDaPublicacao(content, input.redeDe?.(publicacao.platformId) ?? null, publicacao),
+    false,
+  ));
+}
+
 type ConteudoDaAgenda = Pick<
   Content,
   'id' | 'status' | 'formatoVisual' | 'deletedAt' | 'contaNaGrade' | 'seriesId' | 'funcao'
@@ -217,7 +278,7 @@ export function publicacoesDaAgenda(input: {
   for (const content of input.contents) {
     if (content.deletedAt || content.archivedAt) continue;
     const objetivo = objetivoDoConteudo(content, series);
-    const contaNoConteudo = contaNaGradeEfetiva({
+    const desligadoAMao = conteudoDesligadoAMao({
       contaNaGrade: content.contaNaGrade !== false,
       contaNaGradeOrigem: content.contaNaGradeOrigem,
       formato: content.formatoVisual,
@@ -258,8 +319,8 @@ export function publicacoesDaAgenda(input: {
         hora,
         situacao,
         programado: publicacaoProgramada({ situacao, etapa, data, hora, agora }),
-        contaNaMeta: contaNoConteudo
-          && publicacao.contaNaGrade !== false
+        contaNaMeta: publicacao.contaNaGrade !== false
+          && !desligadoAMao
           && formatoContaNaMeta(formato, content.contaNaGradeOrigem === 'manual' && content.contaNaGrade !== false),
         etapa,
         objetivo,

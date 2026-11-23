@@ -112,11 +112,14 @@ function ChipsDeHorario({ times, proprio = false }: { times: string[]; proprio?:
  * Horários de postagem: o padrão geral e, ao lado, só as contas com horário próprio.
  * "Editar horários" abre o editor completo.
  */
-export function PostingTimesOverview() {
+export function PostingTimesOverview({ somenteContaId }: { somenteContaId?: string } = {}) {
   const { state } = useAppContext();
   const [editorAberto, setEditorAberto] = useState(false);
   const salvos = useMemo(() => agruparHorarios(state.postingTimeEntries ?? []), [state.postingTimeEntries]);
-  const contas = useMemo(() => ordenarContas(state.platforms).filter(conta => conta.ativo), [state.platforms]);
+  const contas = useMemo(() => {
+    const ativas = ordenarContas(state.platforms).filter(conta => conta.ativo);
+    return somenteContaId ? ativas.filter(conta => conta.id === somenteContaId) : ativas;
+  }, [somenteContaId, state.platforms]);
 
   const horarios = (platformId: string | null, weekday: Weekday) => salvos.get(chave(platformId, weekday)) ?? [];
   const diasProprios = (conta: Platform) => WEEKDAYS_ORDERED.filter(day => horarios(conta.id, day).length > 0).length;
@@ -140,7 +143,7 @@ export function PostingTimesOverview() {
         </AppButton>
       </div>
 
-      <div className="overflow-x-auto rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)]">
+      <div className="hidden md:block overflow-x-auto rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)]">
         <table className="w-full border-collapse text-left">
           <thead className="bg-[var(--surface-subtle)]">
             <tr>
@@ -178,6 +181,37 @@ export function PostingTimesOverview() {
           </tbody>
         </table>
       </div>
+
+      <ul className="md:hidden stack-sm" aria-label="Horários sugeridos por dia da semana">
+        {WEEKDAYS_ORDERED.map(day => {
+          const contasNoDia = comExcecao.filter(conta => horarios(conta.id, day).length > 0);
+          return (
+            <li
+              key={day}
+              className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-3.5 stack-sm"
+            >
+              <Text variant="bodyStrong" as="h3">{WEEKDAY_LABELS[day]}</Text>
+              <div className="stack-xs">
+                <Text variant="meta" as="span" className="text-[var(--text-secondary)]">
+                  Padrão geral
+                </Text>
+                <ChipsDeHorario times={horarios(null, day)} />
+              </div>
+              {contasNoDia.map(conta => (
+                <div
+                  key={conta.id}
+                  className="stack-xs border-t border-[var(--border-subtle)] pt-2"
+                >
+                  <Text variant="meta" as="span" style={{ color: 'var(--brand-accent-strong)' }}>
+                    {nomeDaConta(conta)}
+                  </Text>
+                  <ChipsDeHorario times={horarios(conta.id, day)} proprio />
+                </div>
+              ))}
+            </li>
+          );
+        })}
+      </ul>
 
       <SidePanel
         open={editorAberto}

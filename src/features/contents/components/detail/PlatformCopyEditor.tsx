@@ -46,7 +46,7 @@ import {
 } from '../../../editorial/lib/destinations';
 import {limiteHashtagsDaRede} from '../../../editorial/lib/editorialSettings';
 import {hashtagsPadraoForaSerie} from '../../../editorial/lib/hashtagsForaSerie';
-import {limiteDeCaracteres, platformShowsField} from '../../../editorial/lib/platformFields';
+import {limiteDeCaracteres, limiteDoCampo, platformShowsField} from '../../../editorial/lib/platformFields';
 import {suggestHashtags} from '../../lib/captionHashtags';
 
 export function ensurePlatformRecord(
@@ -116,6 +116,11 @@ interface PlatformCopyEditorProps {
   secoes?: 'tudo' | 'contas' | 'legenda';
   /** Aba aberta ao montar (ex.: a conta do botão Editar). */
   abaInicialId?: string | null;
+  /** Título do vídeo longo. Não é o título do roteiro nem a legenda dos Shorts. */
+  youtubeTitulo?: string | null;
+  /** Descrição do vídeo longo, puxada do modelo da série. */
+  youtubeDescricao?: string | null;
+  onYoutubeCopyChange?: (patch: {youtubeTitulo?: string; youtubeDescricao?: string}) => void;
 }
 
 /**
@@ -138,6 +143,9 @@ export function PlatformCopyEditor({
   writingMode = null,
   secoes = 'tudo',
   abaInicialId = null,
+  youtubeTitulo = null,
+  youtubeDescricao = null,
+  onYoutubeCopyChange,
 }: PlatformCopyEditorProps) {
   const {state} = useAppContext();
   const editorial = state.editorial;
@@ -191,7 +199,19 @@ export function PlatformCopyEditor({
   const redeAtiva = ativa ? redeDaRef(ativa.platformId, contas) : null;
   const chaveDaRede = redeAtiva && redeAtiva !== 'outra' ? redeAtiva : contaAtiva?.nome ?? ativa?.platformId ?? '';
   const rotuloAtiva = contaAtiva ? rotuloConta(contaAtiva) : ativa?.platformId ?? '';
-  const texto = ativa ? legendaComHashtags(legendaBase, ativa) : '';
+  const videoLongoDa = (item: ContentPlataforma) => (
+    redeDaRef(item.platformId, contas) === 'youtube'
+    && (
+      conteudo.writingMode === 'youtube'
+      || formatoNoYoutube(
+        {formatoVisual: conteudo.formatoVisual ?? null, writingMode: conteudo.writingMode},
+        item,
+      ).formato === 'video-longo'
+    )
+  );
+  const videoLongo = Boolean(ativa && videoLongoDa(ativa));
+  const texto = !ativa ? '' : videoLongo ? (youtubeDescricao ?? '') : legendaComHashtags(legendaBase, ativa);
+  const limiteTitulo = limiteDoCampo('youtube', 'titulo') ?? 100;
   const publicada = ativa ? publicacaoJaPostada(ativa, conteudo) : false;
   const limite = limiteDeCaracteres(chaveDaRede);
   const mostraTitulo = Boolean(ativa) && platformShowsField(redeAtiva ?? '', 'titulo');
@@ -408,7 +428,8 @@ export function PlatformCopyEditor({
                 ? formatoNoYoutube({ formatoVisual: conteudo?.formatoVisual ?? null, writingMode: conteudo?.writingMode }, item)
                 : null;
               const icone = noYt && noYt.formato === 'short' ? 'youtube-shorts' : (conta ? iconeDaConta(conta) : item.platformId);
-              const textoItem = legendaComHashtags(legendaBase, item);
+              const longoItem = videoLongoDa(item);
+              const textoItem = longoItem ? (youtubeDescricao ?? '') : legendaComHashtags(legendaBase, item);
               const pubItem = publicacaoJaPostada(item, conteudo);
               const vaziaItem = !textoItem.trim();
               const limChars = limiteDeCaracteres(chave);
@@ -435,23 +456,27 @@ export function PlatformCopyEditor({
           <div
             role="tabpanel"
             id={`legenda-painel-${contentId || 'novo'}`}
-            aria-label={`Legenda de ${rotuloAtiva}`}
+            aria-label={videoLongo ? `Descrição de ${rotuloAtiva}` : `Legenda de ${rotuloAtiva}`}
             className={cn('stack-sm', esticarCard && 'flex flex-1 flex-col')}
           >
-            {redeAtiva === 'youtube' ? renderFormatoYoutube(ativa) : null}
+            {redeAtiva === 'youtube' && conteudo.writingMode !== 'youtube' ? renderFormatoYoutube(ativa) : null}
 
             {mostraTitulo ? (
               <div className="block">
                 <label htmlFor={tituloInputId} className="mb-1.5 block">
                   <Text variant="secondary" as="span" className="text-[var(--text-secondary)]">
-                    {`Título no ${rotuloAtiva}`}
+                    {videoLongo ? 'Título' : `Título no ${rotuloAtiva}`}
                   </Text>
                 </label>
                 <input
                   id={tituloInputId}
-                  value={titulo}
+                  value={videoLongo ? (youtubeTitulo ?? '') : titulo}
                   disabled={disabled}
-                  onChange={event => onTituloChange?.(event.target.value)}
+                  maxLength={videoLongo ? limiteTitulo : undefined}
+                  onChange={event => {
+                    if (videoLongo) onYoutubeCopyChange?.({youtubeTitulo: event.target.value.slice(0, limiteTitulo)});
+                    else onTituloChange?.(event.target.value);
+                  }}
                   className="input h-11 w-full bg-[var(--bg-primary)] px-3 t-body text-[var(--text-primary)] disabled:opacity-60"
                 />
               </div>
@@ -464,9 +489,12 @@ export function PlatformCopyEditor({
                 disabled={disabled}
                 readOnly={publicada}
                 rows={4}
-                aria-label={`Legenda de ${rotuloAtiva}`}
-                placeholder={`Escreva a legenda para ${rotuloAtiva}…`}
-                onChange={event => onChange(editarLegendaDaConta(plataformas, ativa.id, event.target.value, conteudo))}
+                aria-label={videoLongo ? `Descrição de ${rotuloAtiva}` : `Legenda de ${rotuloAtiva}`}
+                placeholder={videoLongo ? 'Descrição do vídeo no YouTube…' : `Escreva a legenda para ${rotuloAtiva}…`}
+                onChange={event => {
+                  if (videoLongo) onYoutubeCopyChange?.({youtubeDescricao: event.target.value});
+                  else onChange(editarLegendaDaConta(plataformas, ativa.id, event.target.value, conteudo));
+                }}
                 className={cn(
                   'block min-h-40 w-full resize-none overflow-hidden rounded-[var(--radius-input)] border border-[var(--border-input)] bg-[var(--bg-primary)] px-3 py-2.5 t-body leading-6 outline-none placeholder:text-[var(--text-tertiary)] focus-visible:shadow-[var(--focus-ring)] disabled:opacity-60',
                   publicada ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)]',
@@ -522,14 +550,14 @@ export function PlatformCopyEditor({
                 size="sm"
                 variant="secondary"
                 disabled={!texto.trim()}
-                disabledReason="Escreva a legenda desta conta primeiro."
-                aria-label={`Copiar legenda de ${rotuloAtiva}`}
+                disabledReason={videoLongo ? 'Escreva a descrição deste vídeo primeiro.' : 'Escreva a legenda desta conta primeiro.'}
+                aria-label={videoLongo ? `Copiar descrição de ${rotuloAtiva}` : `Copiar legenda de ${rotuloAtiva}`}
                 leftIcon={copiado ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                 onClick={() => void copiar()}
               >
-                {copiado ? 'Copiada' : 'Copiar legenda'}
+                {copiado ? 'Copiada' : videoLongo ? 'Copiar descrição' : 'Copiar legenda'}
               </AppButton>
-              {abas.length > 1 ? (
+              {abas.length > 1 && !videoLongo ? (
                 <AppButton
                   size="sm"
                   variant="secondary"

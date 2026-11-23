@@ -493,35 +493,39 @@ function settingsComMetodo(metodoCalculo: 'conteudos-v1' | 'publicacoes-v2') {
   };
 }
 
-function testMetodoMudaMetaGeralETeto() {
+function testMetodoGravadoNaoMudaMetaGeral() {
   const porRoteiro = countGrade({
     pilares: pilaresGrandes, settings: settingsComMetodo('conteudos-v1'), periodo: NOVEMBRO,
     entries: entradasDeTresPublicacoes(), hoje: '2026-11-11',
   });
-  const porPublicacao = countGrade({
+  const comMetodoGravado = countGrade({
     pilares: pilaresGrandes, settings: settingsComMetodo('publicacoes-v2'), periodo: NOVEMBRO,
     entries: entradasDeTresPublicacoes(), hoje: '2026-11-11',
   });
-  // A meta (o número) não muda; muda o que se conta contra ela.
+  // O método gravado (publicacoes-v2) é ignorado: a meta geral continua por roteiro.
   assert.equal(porRoteiro.limite, 3);
-  assert.equal(porPublicacao.limite, 3);
+  assert.equal(comMetodoGravado.limite, 3);
+  assert.equal(porRoteiro.metodoCalculo, 'conteudos-v1');
+  assert.equal(comMetodoGravado.metodoCalculo, 'conteudos-v1');
   assert.equal(porRoteiro.unidade, 'roteiro');
-  assert.equal(porPublicacao.unidade, 'publicacao');
+  assert.equal(comMetodoGravado.unidade, 'roteiro');
   assert.equal(porRoteiro.previsto, 2, 'r1 e r2, uma vez cada');
-  assert.equal(porPublicacao.previsto, 4, 'r1 no Instagram e no TikTok, o repost e r2 no Instagram');
+  assert.equal(comMetodoGravado.previsto, 2, 'o método gravado não passa a contar cada conta');
   assert.equal(porRoteiro.excesso, 0);
-  assert.equal(porPublicacao.excesso, 1, 'o teto passa no método por publicação');
-  assert.equal(porPublicacao.publicado, 1);
-  assert.equal(porPublicacao.porEtapa.postado + porPublicacao.porEtapa.edicao + porPublicacao.porEtapa.roteiro, 4);
-  assert.equal(porPublicacao.objetivos.find(linha => linha.id === 'atrair')?.previsto, 4);
-  // A lista do período (base da Continuidade) é a mesma nos dois métodos: um item por ciclo, não por conta.
-  assert.deepEqual(porPublicacao.itens.map(item => item.id), porRoteiro.itens.map(item => item.id));
-  // Continuidade conta episódios: o método não muda a apuração da série.
+  assert.equal(comMetodoGravado.excesso, 0);
+  // Uma conta publicada não publica o roteiro: a meta geral olha o roteiro, não a conta.
+  assert.equal(porRoteiro.publicado, 0);
+  assert.equal(comMetodoGravado.publicado, porRoteiro.publicado);
+  assert.equal(comMetodoGravado.porEtapa.postado + comMetodoGravado.porEtapa.edicao + comMetodoGravado.porEtapa.roteiro, 2);
+  assert.equal(comMetodoGravado.objetivos.find(linha => linha.id === 'atrair')?.previsto, 2);
+  // A lista do período (base da Continuidade) continua um item por ciclo, não por conta.
+  assert.deepEqual(comMetodoGravado.itens.map(item => item.id), porRoteiro.itens.map(item => item.id));
+  // Continuidade conta episódios: o método gravado não muda a apuração da série.
   const serie = { id: 'serie-1', name: 'Série', parentId: null, frequenciaRecomendada: null, frequenciaVezes: 1, frequenciaUnidade: 'semana', frequenciaAPartirDe: null };
   const apurar = (itens: readonly GradeEntry[]) => apurarSerie({ serie, series: [serie], itens, periodo: NOVEMBRO });
-  assert.deepEqual(apurar(porPublicacao.itens).noPeriodo, apurar(porRoteiro.itens).noPeriodo);
+  assert.deepEqual(apurar(comMetodoGravado.itens).noPeriodo, apurar(porRoteiro.itens).noPeriodo);
   assert.deepEqual(
-    apurar(porPublicacao.itens).janelas.map(janela => janela.episodios),
+    apurar(comMetodoGravado.itens).janelas.map(janela => janela.episodios),
     apurar(porRoteiro.itens).janelas.map(janela => janela.episodios),
   );
 }
@@ -535,7 +539,7 @@ function testMetodoDoPeriodoSegueODecidido() {
   assert.equal(metodoDoPeriodo([], NOVEMBRO.inicio, NOVEMBRO.fim), 'conteudos-v1', 'o padrão é por roteiro');
 }
 
-function testPorPublicacaoContaContaDeOutroDiaNoPeriodo() {
+function testMetodoGravadoNaoPuxaPublicacaoDeOutroMes() {
   const entries = [entrada({
     id: 'r3:original', contentId: 'r3', data: '2026-10-31',
     publicacoes: [
@@ -543,11 +547,95 @@ function testPorPublicacaoContaContaDeOutroDiaNoPeriodo() {
       { platformId: 'tt', data: '2026-11-01', realizada: false, contaNaGrade: true, etapa: 'edicao' },
     ],
   })];
-  const porPublicacao = countGrade({ pilares: pilaresGrandes, settings: settingsComMetodo('publicacoes-v2'), periodo: NOVEMBRO, entries, hoje: '2026-11-11' });
+  // O método gravado é ignorado: a data do roteiro é outubro, então novembro continua 0.
+  const comMetodoGravado = countGrade({ pilares: pilaresGrandes, settings: settingsComMetodo('publicacoes-v2'), periodo: NOVEMBRO, entries, hoje: '2026-11-11' });
   const porRoteiro = countGrade({ pilares: pilaresGrandes, settings: settingsComMetodo('conteudos-v1'), periodo: NOVEMBRO, entries, hoje: '2026-11-11' });
-  assert.equal(porPublicacao.previsto, 1, 'a publicação do TikTok em novembro conta em novembro');
-  assert.equal(porPublicacao.itens.length, 0, 'mas o roteiro de outubro não vira item de novembro');
+  assert.equal(comMetodoGravado.previsto, 0);
+  assert.equal(comMetodoGravado.unidade, 'roteiro');
   assert.equal(porRoteiro.previsto, 0);
+}
+
+function pubGrade(
+  contentId: string,
+  id: string,
+  formatoPublicacao: 'stories' | 'reels' | 'short' | 'video-longo' | 'carrossel',
+) {
+  return {
+    id,
+    contentId,
+    platformId: id,
+    legenda: '',
+    hashtags: '',
+    publishDate: '2026-04-27',
+    publicationKind: 'post' as const,
+    status: 'agendada' as const,
+    formatoPublicacao,
+  };
+}
+
+function testStoriesNaoEntramNaMetaGeral() {
+  const entries = buildGradeEntries({
+    series: serie,
+    settings: { redeReferenciaId: null },
+    contents: [
+      conteudoGrade({
+        id: 'so-stories',
+        formatoVisual: 'Stories',
+        contaNaGrade: true,
+        contaNaGradeOrigem: 'manual',
+        publishDate: '2026-04-27',
+        plataformas: [pubGrade('so-stories', 'st', 'stories')],
+      }),
+      conteudoGrade({
+        id: 'stories-e-reels',
+        formatoVisual: 'Stories',
+        contaNaGrade: false,
+        contaNaGradeOrigem: 'regra',
+        publishDate: '2026-04-27',
+        plataformas: [pubGrade('stories-e-reels', 'st2', 'stories'), pubGrade('stories-e-reels', 'rl', 'reels')],
+      }),
+      conteudoGrade({
+        id: 'stories-e-short',
+        formatoVisual: 'Stories',
+        contaNaGrade: true,
+        contaNaGradeOrigem: 'manual',
+        publishDate: '2026-04-28',
+        plataformas: [pubGrade('stories-e-short', 'st3', 'stories'), pubGrade('stories-e-short', 'sh', 'short')],
+      }),
+      conteudoGrade({
+        id: 'stories-e-longo',
+        formatoVisual: 'Stories',
+        contaNaGrade: false,
+        contaNaGradeOrigem: 'regra',
+        publishDate: '2026-04-28',
+        plataformas: [pubGrade('stories-e-longo', 'st4', 'stories'), pubGrade('stories-e-longo', 'vl', 'video-longo')],
+      }),
+      conteudoGrade({
+        id: 'carrossel',
+        formatoVisual: 'Carrossel',
+        publishDate: '2026-04-29',
+        plataformas: [pubGrade('carrossel', 'cr', 'carrossel')],
+      }),
+      conteudoGrade({
+        id: 'imagem',
+        formatoVisual: 'Post estático',
+        publishDate: '2026-04-30',
+      }),
+    ],
+  });
+  const resultado = countGrade({
+    entries,
+    pilares: pilaresGrandes,
+    settings: settingsComMetodo('publicacoes-v2'),
+    periodo: SEMANA,
+  });
+  // Só Stories não é 1. Câmera, carrossel e imagem contam como roteiro de postagem.
+  // Não há faixa de gravação: Stories não entra nela nem na postagem.
+  assert.equal(entries.find(entry => entry.contentId === 'so-stories')?.contaNaGrade, false);
+  assert.equal(resultado.itens.some(item => item.contentId === 'so-stories'), false);
+  assert.equal(resultado.previsto, 5);
+  assert.equal(resultado.unidade, 'roteiro');
+  assert.equal(resultado.metodoCalculo, 'conteudos-v1', 'o método gravado é ignorado');
 }
 
 testContaCicloDeRepostEIgnoraFora();
@@ -560,8 +648,9 @@ testPostItLigadoContaUmaVez();
 testOrigemEPautaNoFluxoDaGrade();
 testPublicadoSoEmOutrasRedesNaoConta();
 testContaPorEtapa();
-testMetodoMudaMetaGeralETeto();
+testMetodoGravadoNaoMudaMetaGeral();
 testMetodoDoPeriodoSegueODecidido();
-testPorPublicacaoContaContaDeOutroDiaNoPeriodo();
+testMetodoGravadoNaoPuxaPublicacaoDeOutroMes();
+testStoriesNaoEntramNaMetaGeral();
 
 console.log('gradeCounts tests passed');

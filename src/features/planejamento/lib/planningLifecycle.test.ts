@@ -23,7 +23,18 @@ assert.deepEqual(ocupacaoDoMes(before), {preenchidos:1, capacidade:31, livres:30
 assert.equal(counts([pauta], [], outubro, '2026-11-01').previsto, 0);
 assert.equal(counts([pauta], [], outubro, '2026-10-31').previsto, 1);
 assert.equal(before.funcoes.find(item => item.id === 'comunidade')?.meta, null, 'o mês não herda metas do intervalo salvo');
-assert.equal(counts([pauta], [], custom).funcoes.find(item => item.id === 'comunidade')?.meta, 4);
+assert.equal(counts([pauta], [], custom).funcoes.find(item => item.id === 'comunidade')?.meta, null, 'a saúde não aplica o ajuste de meta do período');
+{
+  const base = counts([pauta], [], custom).limite;
+  const comPlano = saudeDoMes({
+    postIts: [pauta], contents: [], series: [], pilares: [],
+    settings: {...settings, periodos: [{...custom, metasPublicacao: 60, metasProducao: 9, ajustesSemana: [{inicio: '2026-10-12', fim: '2026-10-18', limite: 1}]}]},
+    periodo: custom,
+    hoje: '2026-10-01',
+  });
+  assert.equal(comPlano.limite, base, 'meta absoluta, produção e ajuste de semana do período não mudam a saúde');
+  assert.notEqual(comPlano.limite, 60);
+}
 assert.equal(JSON.stringify(settings), savedSettings, 'consultar meses não grava decisões ou metas');
 assert.equal(counts([movePostIt(pauta,'2026-11-01')]).previsto, 0);
 assert.equal(counts([movePostIt(pauta,'2026-11-01')], [], novembro).previsto, 1);
@@ -66,18 +77,18 @@ existente.plataformas.push(publicacao('repost','instagram','2026-10-20',2));
 const cycles=saudeDoMes({postIts:[],contents:[existente],series:[],pilares:[],settings:{...settings,redeReferenciaId:'instagram',preferencias:{...settings.preferencias,redeReferenciaId:'instagram'}},periodo:outubro,platforms});
 assert.equal(cycles.previsto,1,'por roteiro: duas contas do original e o repost no mesmo período contam o roteiro uma vez');
 assert.equal(cycles.itens.length,2,'o ciclo de repost continua na lista do período');
+// O método gravado é ignorado: a meta geral continua por roteiro.
 const porPublicacao=saudeDoMes({postIts:[],contents:[existente],series:[],pilares:[],settings:{...settings,redeReferenciaId:'instagram',preferencias:{...settings.preferencias,redeReferenciaId:'instagram'},periodos:[{...outubro,prioridade:'',metas:{},ajustesSemana:[],metodoCalculo:'publicacoes-v2'}]},periodo:outubro,platforms});
-assert.equal(porPublicacao.previsto,3,'por publicação: Instagram e YouTube do original e o repost no Instagram');
-assert.equal(porPublicacao.unidade,'publicacao');
+assert.equal(porPublicacao.previsto,1,'o método gravado não muda a meta geral');
+assert.equal(porPublicacao.unidade,'roteiro');
 {
   // Metas de conta contam publicação nos dois métodos: o seletor não muda a conta de cada conta.
   const contas=[{id:'instagram',nome:'Instagram',ativo:true},{id:'youtube',nome:'YouTube',ativo:true}] as unknown as Parameters<typeof publicacoesNaSaude>[0]['platforms'];
-  const porConta=(metodoCalculo:'conteudos-v1'|'publicacoes-v2')=>publicacoesNaSaude({
+  const porConta=()=>publicacoesNaSaude({
     contents:[existente], platforms:contas, series:[], periodo:outubro, linhas:[], proporcaoGeral:null, pausas:[],
-    decisao:{...outubro,prioridade:'',metas:{},ajustesSemana:[],metodoCalculo},
   });
-  assert.deepEqual(porConta('conteudos-v1').contas.map(conta=>conta.total),[2,1]);
-  assert.deepEqual(porConta('publicacoes-v2'),porConta('conteudos-v1'));
+  assert.deepEqual(porConta().contas.map(conta=>conta.total),[2,1]);
+  assert.deepEqual(porConta(),porConta());
 }
 const cards=publicacoesPorDia({contents:[existente],platforms,series:[],redeReferenciaId:'instagram',postIts:[{...pulled.postIts[0],date:'2026-10-05'}]});
 assert.equal(cards.get('2026-10-05')?.length ?? 0,0,'o original vinculado não duplica o cartão');

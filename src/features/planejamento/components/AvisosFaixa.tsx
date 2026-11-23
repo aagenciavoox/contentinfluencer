@@ -24,6 +24,7 @@ type AvisosFaixaProps = {
   avisoAtivoId?: string | null;
   onLocalizar: (aviso: AvisoOrientacao) => void;
   onFoiDeProposito?: (aviso: AvisoOrientacao) => void;
+  onQueroFazerAMais?: (aviso: AvisoOrientacao) => void;
   onLimparDestaque?: () => void;
   onVerAnalise?: () => void;
   onAbrirEditorial?: () => void;
@@ -37,6 +38,7 @@ function FaixaPaginada({
   avisoAtivoId,
   onLocalizar,
   onFoiDeProposito,
+  onQueroFazerAMais,
   onLimparDestaque,
   onVerAnalise,
   onAbrirEditorial,
@@ -151,6 +153,11 @@ function FaixaPaginada({
                 Foi de propósito
               </AppButton>
             ) : null}
+            {onQueroFazerAMais && atual.ciente && !atual.reconhecido ? (
+              <AppButton variant="secondary" size="sm" onClick={() => onQueroFazerAMais(atual)}>
+                Quero fazer a mais
+              </AppButton>
+            ) : null}
             {avisoAtivoId === atual.id && onLimparDestaque ? (
               <AppButton variant="secondary" size="sm" onClick={onLimparDestaque}>
                 Limpar
@@ -164,18 +171,105 @@ function FaixaPaginada({
 }
 
 const GRUPOS: {id: string; titulo: string; tipos: readonly TipoAvisoOrientacao[]}[] = [
-  {id: 'capacidade', titulo: 'Capacidade', tipos: ['capacidade-semana', 'gravacoes-no-dia', 'videos-dia-abaixo', 'videos-dia-acima']},
+  {id: 'capacidade', titulo: 'Capacidade', tipos: ['capacidade-semana', 'gravacoes-no-dia', 'gravacao-antecedencia', 'videos-dia-abaixo', 'videos-dia-acima', 'faixa-abaixo', 'faixa-acima', 'faixa-config']},
   {id: 'frequencia', titulo: 'Frequência', tipos: ['serie-acima', 'serie-reservada']},
   {id: 'continuidade', titulo: 'Continuidade', tipos: ['ausencia-12-dias', 'ausencia-mes', 'vespera-sem-pronto']},
   {id: 'metas', titulo: 'Metas do período', tipos: ['serie-abaixo']},
   {id: 'assuntos', titulo: 'Assuntos repetidos', tipos: ['obra-repetida', 'tema-concentrado', 'saturacao-quadro']},
 ];
 
+/** Lista expansível de grupos de ajustes, reutilizada tanto no card avulso quanto na barra unificada. */
+export function AjustesGruposPainel({
+  id,
+  avisos,
+  avisoAtivoId,
+  onLocalizar,
+  onFoiDeProposito,
+  onQueroFazerAMais,
+  onLimparDestaque,
+}: {
+  id?: string;
+  avisos: readonly AvisoOrientacao[];
+  avisoAtivoId?: string | null;
+  onLocalizar: (aviso: AvisoOrientacao) => void;
+  onFoiDeProposito?: (aviso: AvisoOrientacao) => void;
+  onQueroFazerAMais?: (aviso: AvisoOrientacao) => void;
+  onLimparDestaque?: () => void;
+}) {
+  const [escolhidos, setEscolhidos] = useState<Record<string, boolean>>({});
+  const grupos = GRUPOS.map(grupo => ({
+    ...grupo,
+    itens: avisos
+      .filter(aviso => grupo.tipos.includes(aviso.tipo))
+      .sort((a, b) => (a.severidade === b.severidade ? 0 : a.severidade === 'revisar' ? -1 : 1)),
+  })).filter(grupo => grupo.itens.length > 0);
+
+  const alternar = (grupoId: string, padrao: boolean) => {
+    setEscolhidos(atual => ({...atual, [grupoId]: !(grupoId in atual ? atual[grupoId] : padrao)}));
+  };
+
+  if (grupos.length === 0) {
+    return (
+      <div id={id} className="border-t border-[var(--border-subtle)] px-4 py-3">
+        <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+          Nada para revisar neste trecho.
+        </Text>
+      </div>
+    );
+  }
+
+  return (
+    <div id={id} className="border-t border-[var(--border-subtle)]">
+      {grupos.map(grupo => {
+        const pedeRevisao = grupo.itens.some(aviso => aviso.severidade === 'revisar');
+        // Capacidade e frequência abrem quando pedem revisão. As outras linhas ficam recolhidas, com o resumo na frente.
+        const padraoAberto = (grupo.id === 'capacidade' || grupo.id === 'frequencia') && pedeRevisao;
+        const aberto = grupo.id in escolhidos ? escolhidos[grupo.id] : padraoAberto;
+        return (
+          <section key={grupo.id} className="border-t border-[var(--border-subtle)] first:border-t-0">
+            <button
+              type="button"
+              className="flex w-full items-center gap-3 px-4 py-3 text-left"
+              aria-expanded={aberto}
+              onClick={() => alternar(grupo.id, padraoAberto)}
+            >
+              <MarcaDoGrupo id={grupo.id} revisar={pedeRevisao} />
+              <Text variant="bodyStrong" as="span" className="shrink-0">{grupo.titulo}</Text>
+              <Text variant="meta" as="span" className="min-w-0 flex-1 truncate">{resumoDoGrupo(grupo.id, grupo.itens)}</Text>
+              <ChevronDown
+                className={cn(
+                  'h-4 w-4 shrink-0 text-[var(--text-tertiary)] transition-transform',
+                  !aberto && '-rotate-90',
+                )}
+                aria-hidden
+              />
+            </button>
+            {aberto ? (
+              <div className="px-4 pb-3 pl-9">
+                <DetalheDoGrupo
+                  id={grupo.id}
+                  itens={grupo.itens}
+                  avisoAtivoId={avisoAtivoId}
+                  onLocalizar={onLocalizar}
+                  onFoiDeProposito={onFoiDeProposito}
+                  onQueroFazerAMais={onQueroFazerAMais}
+                  onLimparDestaque={onLimparDestaque}
+                />
+              </div>
+            ) : null}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
 function AjustesDoPlanejamento({
   avisos,
   avisoAtivoId,
   onLocalizar,
   onFoiDeProposito,
+  onQueroFazerAMais,
   onLimparDestaque,
   onVerAnalise,
   onAbrirEditorial,
@@ -184,18 +278,7 @@ function AjustesDoPlanejamento({
   const revisar = pontosParaRevisar(avisos);
   // Começa fechado. O detalhe só entra na página quando a pessoa abre o título.
   const [painelAberto, setPainelAberto] = useState(false);
-  const [escolhidos, setEscolhidos] = useState<Record<string, boolean>>({});
-  const grupos = GRUPOS.map(grupo => ({
-    ...grupo,
-    itens: avisos
-      .filter(aviso => grupo.tipos.includes(aviso.tipo))
-      .sort((a, b) => (a.severidade === b.severidade ? 0 : a.severidade === 'revisar' ? -1 : 1)),
-  })).filter(grupo => grupo.itens.length > 0);
   const painelId = 'ajustes-do-planejamento';
-
-  const alternar = (id: string, padrao: boolean) => {
-    setEscolhidos(atual => ({...atual, [id]: !(id in atual ? atual[id] : padrao)}));
-  };
 
   return (
     <Surface
@@ -254,48 +337,16 @@ function AjustesDoPlanejamento({
         </div>
       </div>
 
-      {painelAberto && grupos.length > 0 ? (
-        <div id={painelId} className="border-t border-[var(--border-subtle)]">
-          {grupos.map(grupo => {
-            const pedeRevisao = grupo.itens.some(aviso => aviso.severidade === 'revisar');
-            // Capacidade e frequência abrem quando pedem revisão. As outras linhas ficam recolhidas, com o resumo na frente.
-            const padraoAberto = (grupo.id === 'capacidade' || grupo.id === 'frequencia') && pedeRevisao;
-            const aberto = grupo.id in escolhidos ? escolhidos[grupo.id] : padraoAberto;
-            return (
-              <section key={grupo.id} className="border-t border-[var(--border-subtle)] first:border-t-0">
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left"
-                  aria-expanded={aberto}
-                  onClick={() => alternar(grupo.id, padraoAberto)}
-                >
-                  <MarcaDoGrupo id={grupo.id} revisar={pedeRevisao} />
-                  <Text variant="bodyStrong" as="span" className="shrink-0">{grupo.titulo}</Text>
-                  <Text variant="meta" as="span" className="min-w-0 flex-1 truncate">{resumoDoGrupo(grupo.id, grupo.itens)}</Text>
-                  <ChevronDown
-                    className={cn(
-                      'h-4 w-4 shrink-0 text-[var(--text-tertiary)] transition-transform',
-                      !aberto && '-rotate-90',
-                    )}
-                    aria-hidden
-                  />
-                </button>
-                {aberto ? (
-                  <div className="px-4 pb-3 pl-9">
-                    <DetalheDoGrupo
-                      id={grupo.id}
-                      itens={grupo.itens}
-                      avisoAtivoId={avisoAtivoId}
-                      onLocalizar={onLocalizar}
-                      onFoiDeProposito={onFoiDeProposito}
-                      onLimparDestaque={onLimparDestaque}
-                    />
-                  </div>
-                ) : null}
-              </section>
-            );
-          })}
-        </div>
+      {painelAberto && avisos.length > 0 ? (
+        <AjustesGruposPainel
+          id={painelId}
+          avisos={avisos}
+          avisoAtivoId={avisoAtivoId}
+          onLocalizar={onLocalizar}
+          onFoiDeProposito={onFoiDeProposito}
+          onQueroFazerAMais={onQueroFazerAMais}
+          onLimparDestaque={onLimparDestaque}
+        />
       ) : null}
     </Surface>
   );
@@ -323,6 +374,7 @@ function DetalheDoGrupo({
   avisoAtivoId,
   onLocalizar,
   onFoiDeProposito,
+  onQueroFazerAMais,
   onLimparDestaque,
 }: {
   id: string;
@@ -330,9 +382,21 @@ function DetalheDoGrupo({
   avisoAtivoId?: string | null;
   onLocalizar: (aviso: AvisoOrientacao) => void;
   onFoiDeProposito?: (aviso: AvisoOrientacao) => void;
+  onQueroFazerAMais?: (aviso: AvisoOrientacao) => void;
   onLimparDestaque?: () => void;
 }) {
-  if (id === 'capacidade') return <DetalheCapacidade itens={itens} onLocalizar={onLocalizar} />;
+  if (id === 'capacidade') {
+    return (
+      <DetalheCapacidade
+        itens={itens}
+        onLocalizar={onLocalizar}
+        onFoiDeProposito={onFoiDeProposito}
+        onQueroFazerAMais={onQueroFazerAMais}
+        onLimparDestaque={onLimparDestaque}
+        avisoAtivoId={avisoAtivoId}
+      />
+    );
+  }
   if (id === 'frequencia') return <DetalheFrequencia itens={itens} onLocalizar={onLocalizar} />;
   return (
     <div className="stack-sm">
@@ -344,6 +408,7 @@ function DetalheDoGrupo({
             avisoAtivoId={avisoAtivoId}
             onLocalizar={onLocalizar}
             onFoiDeProposito={onFoiDeProposito}
+            onQueroFazerAMais={onQueroFazerAMais}
             onLimparDestaque={onLimparDestaque}
           />
         </div>
@@ -355,28 +420,52 @@ function DetalheDoGrupo({
 function DetalheCapacidade({
   itens,
   onLocalizar,
+  onFoiDeProposito,
+  onQueroFazerAMais,
+  onLimparDestaque,
+  avisoAtivoId,
 }: {
   itens: readonly AvisoOrientacao[];
   onLocalizar: (aviso: AvisoOrientacao) => void;
+  onFoiDeProposito?: (aviso: AvisoOrientacao) => void;
+  onQueroFazerAMais?: (aviso: AvisoOrientacao) => void;
+  onLimparDestaque?: () => void;
+  avisoAtivoId?: string | null;
 }) {
   const semana = itens.find(aviso => aviso.tipo === 'capacidade-semana') ?? null;
   const gravacoes = itens.filter(aviso => aviso.tipo === 'gravacoes-no-dia');
+  const faixas = itens.filter(aviso => aviso.tipo === 'gravacao-antecedencia' || aviso.tipo === 'faixa-abaixo' || aviso.tipo === 'faixa-acima' || aviso.tipo === 'faixa-config');
   const detalhe = semana ? detalheDaCapacidade(semana.texto) : null;
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="min-w-0 flex-1 stack-xs">
-        {detalhe ? <Text variant="meta" as="p">{detalhe}</Text> : null}
-        {gravacoes.map(aviso => (
-          <Text key={aviso.id} variant="meta" as="p">{aviso.texto}</Text>
-        ))}
+    <div className="stack-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0 flex-1 stack-xs">
+          {detalhe ? <Text variant="meta" as="p">{detalhe}</Text> : null}
+          {gravacoes.map(aviso => (
+            <Text key={aviso.id} variant="meta" as="p">{aviso.texto}</Text>
+          ))}
+        </div>
+        {semana ? (
+          <AppButton variant="secondary" size="sm" onClick={abrirRitmo}>
+            Ajustar ritmo →
+          </AppButton>
+        ) : gravacoes[0] ? (
+          <LinkVerPautas onClick={() => onLocalizar(gravacoes[0])} />
+        ) : null}
       </div>
-      {semana ? (
-        <AppButton variant="secondary" size="sm" onClick={abrirRitmo}>
-          Ajustar ritmo →
-        </AppButton>
-      ) : gravacoes[0] ? (
-        <LinkVerPautas onClick={() => onLocalizar(gravacoes[0])} />
-      ) : null}
+      {faixas.map(aviso => (
+        <div key={aviso.id} className="flex flex-wrap items-center justify-between gap-2">
+          <Text variant="meta" as="p" className="min-w-0 flex-1">{aviso.texto}</Text>
+          <AcoesDoAviso
+            aviso={aviso}
+            avisoAtivoId={avisoAtivoId}
+            onLocalizar={onLocalizar}
+            onFoiDeProposito={onFoiDeProposito}
+            onQueroFazerAMais={onQueroFazerAMais}
+            onLimparDestaque={onLimparDestaque}
+          />
+        </div>
+      ))}
     </div>
   );
 }
@@ -415,12 +504,14 @@ function AcoesDoAviso({
   avisoAtivoId,
   onLocalizar,
   onFoiDeProposito,
+  onQueroFazerAMais,
   onLimparDestaque,
 }: {
   aviso: AvisoOrientacao;
   avisoAtivoId?: string | null;
   onLocalizar: (aviso: AvisoOrientacao) => void;
   onFoiDeProposito?: (aviso: AvisoOrientacao) => void;
+  onQueroFazerAMais?: (aviso: AvisoOrientacao) => void;
   onLimparDestaque?: () => void;
 }) {
   return (
@@ -429,6 +520,11 @@ function AcoesDoAviso({
       {onFoiDeProposito && podeMarcar(aviso) ? (
         <AppButton variant="secondary" size="sm" onClick={() => onFoiDeProposito(aviso)}>
           Foi de propósito
+        </AppButton>
+      ) : null}
+      {onQueroFazerAMais && aviso.ciente && !aviso.reconhecido ? (
+        <AppButton variant="secondary" size="sm" onClick={() => onQueroFazerAMais(aviso)}>
+          Quero fazer a mais
         </AppButton>
       ) : null}
       {avisoAtivoId === aviso.id && onLimparDestaque ? (
@@ -474,6 +570,15 @@ function resumoDaCapacidade(itens: readonly AvisoOrientacao[]): string {
       return `${pede} ${pede === '1' ? 'roteiro' : 'roteiros'} nesta semana · ${grava} ${grava === '1' ? 'gravação disponível' : 'gravações disponíveis'}`;
     }
     return semana.texto;
+  }
+  const gravacao = itens.find(aviso => aviso.tipo === 'gravacao-antecedencia');
+  const faixa = itens.find(aviso => aviso.tipo === 'faixa-abaixo' || aviso.tipo === 'faixa-acima' || aviso.tipo === 'faixa-config');
+  const dias = itens.filter(aviso => aviso.tipo === 'gravacoes-no-dia' || aviso.tipo === 'videos-dia-acima' || aviso.tipo === 'videos-dia-abaixo');
+  if (!semana && gravacao && dias.length === 0 && !faixa) return gravacao.texto;
+  if (!semana && faixa && dias.length === 0 && !gravacao) return faixa.texto;
+  if (gravacao) {
+    const diasTexto = dias.length === 1 ? '1 dia acima do limite de gravação' : `${dias.length} dias acima do limite de gravação`;
+    return `${diasTexto} · ${gravacao.texto}`;
   }
   return itens.length === 1 ? itens[0].texto : `${itens.length} dias acima do limite de gravação`;
 }

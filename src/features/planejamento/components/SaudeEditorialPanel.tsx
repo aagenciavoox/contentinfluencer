@@ -25,19 +25,20 @@ import { readStoredJson, writeStoredJson } from '../../../lib/browserStorage';
 import type { Content, Pilar, Serie, Tema } from '../../../lib/database';
 import type { GradeCounts } from '../../editorial/lib/gradeCounts';
 import type { PreparoDoPeriodo } from '../lib/monthHealth';
-import { distribuicaoPorPilar } from '../lib/periodoDaSaude';
 import { distribuicaoAssuntosNaSaude } from '../lib/distribuicaoAssuntosNaSaude';
 import { cn } from '../../../lib/utils';
 import type { GradeEntry } from '../../editorial/lib/gradeEntries';
-import { resumoDosDesvios, resumoSemFrequencia, rotuloIntervalo, TEXTO_ACOMPANHADA_SEM_RITMO, textoMaisPraFechar, textoRitmoAbaixo, textoSemObjetivo, type Continuidade, type LinhaContinuidade, type DistribuicaoObjetivos } from '../lib/saudeIndicadores';
-import { textoDaJanela } from '../../editorial/lib/apuracaoSerie';
+import { resumoDosDesvios, resumoSemFrequencia, rotuloIntervalo, TEXTO_ACOMPANHADA_SEM_RITMO, textoMaisPraFechar, textoSemObjetivo, type Continuidade, type LinhaContinuidade, type DistribuicaoObjetivos } from '../lib/saudeIndicadores';
+import { rotuloDaSituacaoNoRecorte, situacaoDaJanela, situacaoDoRecorte, textoDaMetaNoRecorte } from '../../editorial/lib/apuracaoSerie';
 import { ItensDaSaudeDialog, type ListaDaSaude } from './ItensDaSaudeDialog';
 import type { LinhaDoEscopoNaSaude } from '../lib/continuidadePorEscopoNaSaude';
 import type { PublicacoesNaSaude } from '../lib/publicacoesNaSaude';
 import { pontosParaRevisar, type AvisoOrientacao } from '../lib/orientacaoEditorial';
+import type { FaixasNoPeriodo, LinhaDeFaixa } from '../../editorial/lib/faixasEditoriais';
 import { blocoDoAviso, detalheDoAviso } from '../lib/detalheDoAviso';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import { secoesSalvas, type IntervaloSaude } from '../lib/saudeActions';
+import { linhasDaConferencia, TabelaConferenciaSeries } from './TabelaConferenciaSeries';
 import { withDetailBack } from '../../../lib/navigation/detailBack';
 import { textoDoProgresso } from '../lib/episodioNaTemporada';
 
@@ -84,6 +85,8 @@ export interface SaudeEditorialPanelProps {
   onFechar?: () => void;
   /** Avisos do trecho, cada um no seu bloco (Continuidade, Concentração ou Produção). */
   avisos?: readonly AvisoOrientacao[];
+  /** Faixas da semana escaladas no trecho. Clique abre a seção da Saúde. */
+  faixas?: FaixasNoPeriodo | null;
   onLocalizarAviso?: (aviso: AvisoOrientacao) => void;
   /** "Instagram · Reels" quando o calendário está filtrado. */
   filtroRotulo?: string | null;
@@ -232,6 +235,7 @@ export function SaudeEditorialPanel({
   onVerAnalise,
   onFechar,
   avisos = [],
+  faixas = null,
   onLocalizarAviso,
   filtroRotulo,
   onAddReserva,
@@ -249,8 +253,11 @@ export function SaudeEditorialPanel({
 
   // Multi-open accordion state persisted in localStorage
   const [secoesAbertas, setSecoesAbertas] = useState<Set<string>>(() => {
-    const salvo = readStoredJson<unknown>(STORAGE_SECOES_KEY, SECOES_PADRAO);
-    return secoesSalvas(salvo, SECOES_IDS);
+    const salvo = secoesSalvas(readStoredJson<unknown>(STORAGE_SECOES_KEY, SECOES_PADRAO), SECOES_IDS);
+    if (typeof window !== 'undefined' && window.location.hash.replace(/^#/, '') === 'conferencia-series') {
+      salvo.add('series');
+    }
+    return salvo;
   });
 
   const [seriesAbertas, setSeriesAbertas] = useState<Set<string>>(() => {
@@ -266,6 +273,34 @@ export function SaudeEditorialPanel({
       return next;
     });
   };
+  useEffect(() => {
+    if (location.hash.replace(/^#/, '') !== 'conferencia-series') return;
+    setSecoesAbertas(prev => {
+      if (prev.has('series')) return prev;
+      const next = new Set(prev);
+      next.add('series');
+      writeStoredJson(STORAGE_SECOES_KEY, Array.from(next));
+      return next;
+    });
+    const id = window.setTimeout(() => {
+      document.getElementById('conferencia-series')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+    return () => window.clearTimeout(id);
+  }, [location.hash]);
+
+  const abrirSecaoDaSaude = (id: string) => {
+    setSecoesAbertas(prev => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      writeStoredJson(STORAGE_SECOES_KEY, Array.from(next));
+      return next;
+    });
+    window.setTimeout(() => {
+      document.getElementById(`secao-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  };
+
   const toggleSecao = (id: string) => {
     setSecoesAbertas(prev => {
       const next = new Set(prev);
@@ -289,6 +324,7 @@ export function SaudeEditorialPanel({
   // Preservação da rolagem do painel lateral/drawer
   useEffect(() => {
     if (modo !== 'analise') return;
+    if (location.hash.replace(/^#/, '') === 'conferencia-series') return;
     const scrollParent = rootRef.current?.closest('.overflow-y-auto') ?? rootRef.current?.parentElement;
     if (!scrollParent) return;
 
@@ -321,7 +357,7 @@ export function SaudeEditorialPanel({
       scrollParent.removeEventListener('touchstart', interagir);
       scrollParent.removeEventListener('keydown', interagir);
     };
-  }, [modo]);
+  }, [modo, location.hash]);
 
   const preenchidos = counts.previsto ?? counts.somaPlanejado ?? 0;
   const comFiltro = Boolean(filtroRotulo);
@@ -337,7 +373,13 @@ export function SaudeEditorialPanel({
   const pilaresNaConta = pilares.filter(p => p.ativo !== false || (previstosPorPilar.get(p.id) ?? 0) > 0);
   const itensSemPilar = counts.itens.filter(item => !item.pilarId);
   const faltamParaMeta = metaTotal == null ? 0 : Math.max(0, metaTotal - preenchidos);
-  const distribuicao = distribuicaoPorPilar(pilaresNaConta.map(p => p.id), counts.pilares, preenchidos);
+  const totalPrevistosPilares = pilaresNaConta.reduce((soma, pilar) => soma + (previstosPorPilar.get(pilar.id) ?? 0), 0);
+  const textoExcesso = !comFiltro && counts.excesso != null && counts.excesso > 0
+    ? (counts.notaSoma ?? `O período tem ${preenchidos} e o limite é ${metaTotal}.`)
+    : null;
+  const textoSemPauta = counts.espacosLivres > 0
+    ? (counts.espacosLivres === 1 ? '1 espaço sem pauta.' : `${counts.espacosLivres} espaços sem pauta.`)
+    : null;
 
   const distribuicaoAssuntos = useMemo(() => {
     return distribuicaoAssuntosNaSaude({
@@ -390,10 +432,7 @@ export function SaudeEditorialPanel({
   }, [continuidade, escopos, series]);
 
   const seriesAbaixo = useMemo(() => {
-    return linhasContinuidade.filter(l => {
-      const futuros = l.intervalos.filter(i => i.fim >= hojeIso);
-      return futuros.some(i => i.abaixo && !i.pausada && !i.parcial);
-    });
+    return linhasContinuidade.filter(l => situacaoDoRecorte(l.intervalos, hojeIso) === 'abaixo');
   }, [linhasContinuidade, hojeIso]);
 
   const seriesConcentradas = useMemo(() => {
@@ -716,6 +755,10 @@ export function SaudeEditorialPanel({
               </button>
             </div>
 
+            {faixas && (faixas.gerais.length > 0 || faixas.contas.length > 0) ? (
+              <FaixasDaSaude faixas={faixas} onAbrir={abrirSecaoDaSaude} />
+            ) : null}
+
             {/* SEÇÕES EM ACORDEON INDEPENDENTE (Multi-Open) */}
             <div className="stack-md mt-2">
               {/* ---------------- 1. HOJE & URGÊNCIAS ---------------- */}
@@ -891,6 +934,12 @@ export function SaudeEditorialPanel({
                     </AppButton>
                   </div>
                 ) : null}
+                {textoExcesso ? (
+                  <Text variant="body" as="p" className="text-[var(--text-secondary)]">{textoExcesso}</Text>
+                ) : null}
+                {textoSemPauta ? (
+                  <Text variant="body" as="p" className="text-[var(--text-secondary)]">{textoSemPauta}</Text>
+                ) : null}
               </SecaoAccordion>
 
               {/* ---------------- 2. PRODUÇÃO & GRAVAÇÃO ---------------- */}
@@ -1017,22 +1066,23 @@ export function SaudeEditorialPanel({
                 }
               >
                 {nenhumaAcompanhada ? (
-                  <div className="p-3 rounded-[var(--radius-sm)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] stack-xs">
+                  <div id="conferencia-series" className="scroll-mt-24 p-3 rounded-[var(--radius-sm)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] stack-xs">
                     <Text variant="body" as="p">
                       Nada marcado para acompanhamento neste período.
                     </Text>
                     <button
                       type="button"
-                      onClick={() => navigate('/editorial#continuidade')}
+                      onClick={() => navigate('/series')}
                       className="w-fit text-left text-[var(--brand-accent-text)] hover:underline focus-visible:outline-none"
                     >
                       <Text variant="meta" as="span" className="text-[var(--brand-accent-text)]">
-                        Escolha no Editorial quais séries acompanhar ›
+                        Editar séries ›
                       </Text>
                     </button>
                   </div>
                 ) : (
                   <div className="stack-sm">
+                    <TabelaConferenciaSeries linhas={linhasDaConferencia(linhasContinuidade, hojeIso, counts.periodo)} />
                     {/* Acompanhadas sem ritmo: aviso neutro, fora de "em dia" e de "abaixo" */}
                     {semFrequencia ? (
                       <div
@@ -1052,10 +1102,9 @@ export function SaudeEditorialPanel({
                     {linhasContinuidade.map(linha => {
                       const futuros = linha.intervalos.filter(i => i.fim >= hojeIso);
                       const passados = linha.intervalos.filter(i => i.fim < hojeIso);
-                      const futurosAbaixo = futuros.filter(i => i.abaixo && !i.pausada && !i.parcial);
+                      const situacaoLinha = situacaoDoRecorte(linha.intervalos, hojeIso);
                       const futurosExcesso = futuros.filter(i => i.quantidade > i.meta && !i.pausada);
-
-                      const temAtencao = futurosAbaixo.length > 0 || futurosExcesso.length > 0 || escopos.some(e => e.serieId === linha.serieId && e.atencao);
+                      const temAtencao = situacaoLinha === 'abaixo' || futurosExcesso.length > 0 || escopos.some(e => e.serieId === linha.serieId && e.atencao);
 
                       return (
                         <details
@@ -1093,21 +1142,16 @@ export function SaudeEditorialPanel({
                               </div>
                               <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
                                 {linha.frequencia}
-                                {futurosAbaixo.length > 0 || futurosExcesso.length > 0 ? (
-                                  <span className="ml-1 text-[var(--accent-orange)]">· {[
-                                    futurosAbaixo.length > 0 ? (futurosAbaixo.length === 1 ? '1 intervalo com ritmo em aberto' : `${futurosAbaixo.length} intervalos com ritmo em aberto`) : '',
-                                    futurosExcesso.length > 0 ? futurosExcesso.length + ' intervalo(s) com excesso' : '',
-                                  ].filter(Boolean).join(' · ')}</span>
-                                ) : passados.length > 0 && futuros.length === 0 ? (
-                                  <span className="ml-1 text-[var(--text-tertiary)]">· {passados.length} intervalo(s) encerrado(s)</span>
+                                {linha.intervalos.length > 0 ? (
+                                  <span className="ml-1">· {textoDaMetaNoRecorte(linha.intervalos, counts.periodo)} · {rotuloDaSituacaoNoRecorte(situacaoLinha)}</span>
                                 ) : escopos.some(e => e.serieId === linha.serieId && e.atencao) ? (
                                   <span className="ml-1 text-[var(--accent-orange)]">· Revisar acompanhamento</span>
                                 ) : linha.intervalos.length === 0 && escopos.some(e => e.serieId === linha.serieId && e.semFrequencia) ? (
                                   <span className="ml-1 text-[var(--text-tertiary)]">· Sem ritmo definido</span>
-                                ) : (
-                                  <span className="ml-1 text-[var(--accent-green)]">· Em dia</span>
-                                )}
-
+                                ) : null}
+                                {futurosExcesso.length > 0 ? (
+                                  <span className="ml-1 text-[var(--accent-orange)]">· {futurosExcesso.length} intervalo(s) com excesso</span>
+                                ) : null}
                               </Text>
                             </div>
 
@@ -1137,22 +1181,22 @@ export function SaudeEditorialPanel({
                                   .map(i => i.contentId || i.postItId)
                                   .filter(Boolean) as string[];
 
-                                const abaixo = intervalo.abaixo && !intervalo.pausada && !intervalo.parcial;
+                                const situacao = situacaoDaJanela(intervalo, hojeIso);
                                 const excesso = intervalo.quantidade > intervalo.meta && !intervalo.pausada;
+                                const faltam = Math.max(0, intervalo.meta - intervalo.quantidade);
 
-                                if (abaixo) {
-                                  const faltam = Math.max(1, intervalo.meta - intervalo.quantidade);
+                                if (situacao === 'no-prazo' && faltam > 0) {
                                   return (
                                     <div
                                       key={intervalo.inicio}
-                                      className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-[var(--radius-sm)] bg-[var(--surface-subtle)] dark:bg-[var(--bg-secondary)]/20 border border-[var(--border-color)] dark:border-[var(--accent-orange)]/30"
+                                      className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-[var(--radius-sm)] bg-[var(--surface-subtle)] border border-[var(--border-subtle)]"
                                     >
                                       <div>
-                                        <Text variant="bodyStrong" as="span" className="text-[var(--text-primary)] dark:text-[var(--border-color)]">
+                                        <Text variant="bodyStrong" as="span" className="text-[var(--text-primary)]">
                                           {rotuloIntervalo(intervalo)}
                                         </Text>
                                         <Text variant="meta" as="span" className="ml-2 text-[var(--text-secondary)]">
-                                          {intervalo.quantidade} de {intervalo.meta} {intervalo.meta === 1 ? 'episódio' : 'episódios'} ({textoMaisPraFechar(faltam, intervalo)})
+                                          {intervalo.quantidade} de {intervalo.meta} {intervalo.meta === 1 ? 'episódio' : 'episódios'} · No prazo, até {format(parseISO(intervalo.fim), 'dd/MM')} ({textoMaisPraFechar(faltam, intervalo)})
                                         </Text>
                                       </div>
 
@@ -1167,7 +1211,6 @@ export function SaudeEditorialPanel({
                                               fim: intervalo.fim,
                                             })
                                           }
-                                          className="border-[var(--accent-orange)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] dark:border-[var(--accent-orange)] dark:text-[var(--border-color)]"
                                         >
                                           Planejar neste intervalo
                                         </AppButton>
@@ -1217,8 +1260,7 @@ export function SaudeEditorialPanel({
                                     className="flex items-center justify-between gap-2 px-2 py-1 text-[var(--text-secondary)]"
                                   >
                                     <Text variant="meta" as="span">
-                                      {rotuloIntervalo(intervalo)}: {intervalo.quantidade} de {intervalo.meta} episódios
-                                      {intervalo.pausada ? ' (em pausa)' : intervalo.parcial ? ' (parcial)' : ' · em dia'}
+                                      {rotuloIntervalo(intervalo)}: {intervalo.quantidade} de {intervalo.meta} episódios · {rotuloDaSituacaoNoRecorte(situacao)}
                                     </Text>
                                   </div>
                                 );
@@ -1258,8 +1300,7 @@ export function SaudeEditorialPanel({
                                         intervalo.abaixo ? 'text-[var(--text-secondary)]' : 'text-[var(--text-tertiary)]'
                                       )}
                                     >
-                                      {rotuloIntervalo(intervalo)}: {intervalo.quantidade} de {intervalo.meta} episódios
-                                      {intervalo.abaixo ? ` (${textoRitmoAbaixo(intervalo.fim, hojeIso)})` : ' (cumprido)'}
+                                      {rotuloIntervalo(intervalo)}: {intervalo.quantidade} de {intervalo.meta} episódios · {rotuloDaSituacaoNoRecorte(situacaoDaJanela(intervalo, hojeIso))}
                                     </Text>
                                   </li>
                                 ))}
@@ -1487,13 +1528,20 @@ export function SaudeEditorialPanel({
                 {/* Pilares */}
                 <div className="stack-sm">
                   <Text variant="label" as="h4" className="tracking-wider text-[var(--text-tertiary)] uppercase">
-                    Distribuição dos Pilares
+                    Balanço por pilar
                   </Text>
+                  {textoExcesso ? (
+                    <Text variant="meta" as="p" className="text-[var(--text-secondary)]">{textoExcesso}</Text>
+                  ) : null}
+                  {textoSemPauta ? (
+                    <Text variant="meta" as="p" className="text-[var(--text-secondary)]">{textoSemPauta}</Text>
+                  ) : null}
                   <div className="stack-sm">
-                    {pilaresNaConta.map((pilar, index) => {
-                      const pautas = distribuicao.linhas[index]?.pautas ?? 0;
-                      const atualPct = distribuicao.linhas[index]?.atualPct ?? 0;
-                      const barColor = pilar.cor || (index === 0 ? '#84cc16' : index === 1 ? '#ec4899' : '#374151');
+                    {pilaresNaConta.map(pilar => {
+                      const previstos = previstosPorPilar.get(pilar.id) ?? 0;
+                      const pct = totalPrevistosPilares > 0 ? Math.round((previstos / totalPrevistosPilares) * 100) : 0;
+                      const barColor = pilar.cor || 'var(--accent)';
+                      const texto = previstos === 1 ? '1 previsto' : `${previstos} previstos`;
                       return (
                         <div key={pilar.id} className="stack-xs">
                           <div className="flex items-center justify-between gap-3">
@@ -1504,13 +1552,13 @@ export function SaudeEditorialPanel({
                               </Text>
                             </div>
                             <Text variant="meta" as="span" className="text-[var(--text-secondary)] shrink-0 tabular-nums">
-                              {pautas} · {atualPct}%
+                              {texto}{totalPrevistosPilares > 0 ? ` · ${pct}%` : ''}
                             </Text>
                           </div>
                           <div className="h-1.5 w-full bg-[var(--border-subtle)] rounded-[var(--radius-pill)] overflow-hidden">
                             <div
                               className="h-full rounded-[var(--radius-pill)] transition-all duration-300"
-                              style={{ width: `${Math.min(100, Math.max(atualPct, pautas > 0 ? 5 : 0))}%`, backgroundColor: barColor }}
+                              style={{ width: `${Math.min(100, Math.max(pct, previstos > 0 ? 5 : 0))}%`, backgroundColor: barColor }}
                             />
                           </div>
                         </div>
@@ -1627,6 +1675,60 @@ export function SaudeEditorialPanel({
 
         <ItensDaSaudeDialog lista={lista} onClose={() => setLista(null)} />
       </Surface>
+    </div>
+  );
+}
+
+function textoDaFaixa(linha: LinhaDeFaixa): string {
+  if (!linha.faixa) return `${linha.rotulo}: ${linha.valor}`;
+  const partes = [
+    linha.faixa.minimo != null ? `mín ${linha.faixa.minimo}` : null,
+    `meta ${linha.faixa.meta}`,
+    linha.faixa.maximo != null ? `máx ${linha.faixa.maximo}` : null,
+  ].filter((parte): parte is string => parte != null);
+  const aviso = linha.leitura?.aviso === 'abaixo' ? 'abaixo do mínimo' : linha.leitura?.aviso === 'acima' ? 'acima do máximo' : null;
+  return `${linha.rotulo}: ${linha.valor} (${partes.join(' · ')})${aviso ? ` · ${aviso}` : ''}`;
+}
+
+function FaixasDaSaude({
+  faixas,
+  onAbrir,
+}: {
+  faixas: FaixasNoPeriodo;
+  onAbrir: (secao: 'producao' | 'contas') => void;
+}) {
+  return (
+    <div className="stack-sm">
+      <Text variant="label" as="h3">Faixas do período</Text>
+      {faixas.gerais.map(linha => (
+        <button key={linha.id} type="button" className="text-left" onClick={() => onAbrir('producao')}>
+          <Text variant="meta" as="span">{textoDaFaixa(linha)}</Text>
+        </button>
+      ))}
+      {faixas.contas.map(conta => (
+        <div key={conta.id} className="stack-xs">
+          <button type="button" className="text-left" onClick={() => onAbrir('contas')}>
+            <Text variant="bodyStrong" as="span">{conta.nome}</Text>
+          </button>
+          {conta.total ? (
+            <button type="button" className="text-left" onClick={() => onAbrir('contas')}>
+              <Text variant="meta" as="span">{textoDaFaixa(conta.total)}</Text>
+            </button>
+          ) : null}
+          {conta.gravacao.length > 0 ? <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">Gravação</Text> : null}
+          {conta.gravacao.map(linha => (
+            <button key={linha.id} type="button" className="text-left" onClick={() => onAbrir('contas')}>
+              <Text variant="meta" as="span">{textoDaFaixa(linha)}</Text>
+            </button>
+          ))}
+          {conta.producao.length > 0 ? <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">Produção</Text> : null}
+          {conta.producao.map(linha => (
+            <button key={linha.id} type="button" className="text-left" onClick={() => onAbrir('contas')}>
+              <Text variant="meta" as="span">{textoDaFaixa(linha)}</Text>
+            </button>
+          ))}
+        </div>
+      ))}
     </div>
   );
 }

@@ -241,6 +241,11 @@ function testFrequenciaDoPilarNaoFechaOMes() {
       proporcaoFuncoes: PERCENTUAIS,
       preferencias: {
         limiteSemanal: 1,
+        minimoSemanal: null,
+        maximoSemanal: null,
+        gravacaoMinimoSemanal: null,
+        gravacaoMetaSemanal: null,
+        gravacaoMaximoSemanal: null,
         reservaForaSeriesSemanal: null,
         redeReferenciaId: null,
         reservaProntos: null,
@@ -400,6 +405,11 @@ function testProporcaoDefineMetaDosObjetivos() {
       proporcaoFuncoes: PERCENTUAIS,
       preferencias: {
         limiteSemanal: 7,
+        minimoSemanal: null,
+        maximoSemanal: null,
+        gravacaoMinimoSemanal: null,
+        gravacaoMetaSemanal: null,
+        gravacaoMaximoSemanal: null,
         reservaForaSeriesSemanal: null,
         redeReferenciaId: null,
         reservaProntos: null,

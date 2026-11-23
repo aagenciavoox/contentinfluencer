@@ -1,11 +1,9 @@
 import { format, parseISO } from 'date-fns';
-import { decisaoDoPeriodo } from '../../editorial/lib/periodoEditorial.ts';
-import type { DecisaoPeriodo } from '../../editorial/lib/editorialSettings.ts';
-import { metaComAjuste } from '../../editorial/lib/vigencias.ts';
 
 /**
- * Saúde e distribuição por pilar do Planejamento seguem o período salvo no Editorial
- * (editorial_visao), não o mês visível do calendário. Só calcula.
+ * Rótulos e a distribuição por pilar da Saúde. Só calcula.
+ * A meta do trecho vem do ritmo vigente, da vigência e das pausas.
+ * A decisão gravada do período não entra nesta conta.
  */
 
 type Intervalo = { inicio: string; fim: string };
@@ -33,18 +31,6 @@ export function avisoDoCalendario(periodo: Intervalo, visivel: Intervalo): strin
   return relacao === 'fora'
     ? 'O calendário mostra datas fora deste período; a saúde não conta essas datas.'
     : 'Parte das datas do calendário fica fora deste período e não entra na saúde.';
-}
-
-/** Meta de publicação escrita em "Ajustar metas" do mesmo período vale no lugar do ritmo. */
-export function comMetaDoPeriodo<T extends { limite: number | null; totalMeta?: number | null }>(
-  counts: T,
-  periodos: readonly DecisaoPeriodo[],
-  periodo: Intervalo,
-): T {
-  const ajustada = decisaoDoPeriodo(periodos, periodo.inicio, periodo.fim)?.metasPublicacao;
-  if (ajustada == null) return counts;
-  const limite = metaComAjuste(ajustada, counts.limite);
-  return { ...counts, limite, totalMeta: limite };
 }
 
 export type LinhaDistribuicao = { id: string; pautas: number; atualPct: number };

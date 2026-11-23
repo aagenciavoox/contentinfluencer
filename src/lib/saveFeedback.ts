@@ -205,6 +205,12 @@ const ACAO_POR_TIPO: Record<string, string> = {
   DESVINCULAR_CLUBE: 'desvincular do clube',
   DESVINCULAR_SERIE_CLUBE: 'desvincular a série do clube',
   LOG_ENERGY: 'registrar a energia',
+  ADD_CONTA_METRICA: 'registrar a leitura da conta',
+  UPDATE_CONTA_METRICA: 'registrar a leitura da conta',
+  ADD_PERIODO_ANALISE: 'salvar o período',
+  UPDATE_PERIODO_ANALISE: 'salvar o período',
+  ADD_CONTENT_METRIC: 'salvar as métricas da publicação',
+  UPDATE_CONTENT_METRIC: 'salvar as métricas da publicação',
 };
 
 /** Verbo da ação gravada, para a mensagem de erro nomear o que a pessoa fez. */

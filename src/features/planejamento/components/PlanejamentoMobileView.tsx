@@ -62,6 +62,7 @@ interface PlanejamentoMobileViewProps {
   avisoAtivoId?: string | null;
   onLocalizarAviso?: (aviso: AvisoOrientacao) => void;
   onFoiDeProposito?: (aviso: AvisoOrientacao) => void;
+  onQueroFazerAMais?: (aviso: AvisoOrientacao) => void;
   onLimparDestaque?: () => void;
   temas: readonly Pick<Tema, 'id' | 'nome'>[];
   assuntoFiltroId: string | null;
@@ -230,6 +231,7 @@ export function PlanejamentoMobileView({
   avisoAtivoId = null,
   onLocalizarAviso,
   onFoiDeProposito,
+  onQueroFazerAMais,
   onLimparDestaque,
   temas,
   assuntoFiltroId,
@@ -477,6 +479,7 @@ export function PlanejamentoMobileView({
         <OverlayBody className="stack-md">
           <AvisosFaixa
             onFoiDeProposito={onFoiDeProposito}
+            onQueroFazerAMais={onQueroFazerAMais}
             avisos={avisos}
             avisoAtivoId={avisoAtivoId}
             onLocalizar={aviso => {

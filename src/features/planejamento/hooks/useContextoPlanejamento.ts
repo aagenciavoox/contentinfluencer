@@ -1,9 +1,13 @@
 import {useEffect, useRef, useState} from 'react';
 import {useLocation, useSearchParams} from 'react-router-dom';
 import {format} from 'date-fns';
-import {gravarContextoPlanejamento, lerContextoPlanejamento} from '../lib/saudeActions';
+import {gravarContextoPlanejamento, lerContextoPlanejamento, type ContextoPlanejamento} from '../lib/saudeActions';
 import type {FiltroCalendario} from '../lib/filtroCalendario';
 import type {VistaPlanejamento} from '../lib/periodoPlanejamento';
+
+function assinaturaDoContexto(contexto: ContextoPlanejamento, saude: boolean): string {
+  return gravarContextoPlanejamento(new URLSearchParams(), contexto, saude).toString();
+}
 
 /** Mês, vista, filtro, intervalo, assunto, destaques e análise na query. */
 export function useContextoPlanejamento() {
@@ -33,14 +37,39 @@ export function useContextoPlanejamento() {
   const [intervalo, setIntervalo] = useState<{inicio: string; fim: string}>(contextoInicial.intervalo);
   const [analiseAberta, setAnaliseAberta] = useState(() => searchParams.get('saude') === '1');
   const [seriePlanejandoId, setSeriePlanejandoId] = useState<string | null>(contextoInicial.serieId);
+  // Assinatura da consulta que este hook acabou de gravar. Outra consulta
+  // (voltar, link com ?saude=1) entra no estado. Sem isso o efeito regrava
+  // o estado antigo e a tela não acompanha a URL.
+  const consultaEscrita = useRef<string | null>(null);
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const next = gravarContextoPlanejamento(params, {
+    const vindo = lerContextoPlanejamento(params);
+    const saudeVinda = params.get('saude') === '1';
+    const assinaturaUrl = assinaturaDoContexto(vindo, saudeVinda);
+    if (consultaEscrita.current !== null && assinaturaUrl !== consultaEscrita.current) {
+      consultaEscrita.current = assinaturaUrl;
+      setMonth(new Date(`${vindo.data}T12:00:00`));
+      setVistaRaw(vindo.vista);
+      setTrecho(vindo.trecho);
+      setIntervalo(vindo.intervalo);
+      setIntervaloEmFoco(vindo.foco);
+      setOrigemSaude(vindo.origem);
+      setAssuntoFiltroId(vindo.assuntoId);
+      setDestaqueIds(new Set(vindo.destaques));
+      setFiltro(vindo.filtro);
+      setAnaliseAberta(saudeVinda);
+      setSeriePlanejandoId(vindo.serieId);
+      return;
+    }
+    const estado: ContextoPlanejamento = {
       data: format(month, 'yyyy-MM-dd'), vista, trecho, intervalo,
       foco: intervaloEmFoco, serieId: seriePlanejandoId, destaques: [...destaqueIds],
       filtro, assuntoId: assuntoFiltroId, origem: origemSaude,
-    }, analiseAberta);
-    if (next.toString() !== params.toString()) setSearchParams(next, {replace: true});
+    };
+    const assinaturaEstado = assinaturaDoContexto(estado, analiseAberta);
+    consultaEscrita.current = assinaturaEstado;
+    if (assinaturaEstado === assinaturaUrl) return;
+    setSearchParams(gravarContextoPlanejamento(params, estado, analiseAberta), {replace: true});
   }, [month, vista, trecho, intervalo, intervaloEmFoco, seriePlanejandoId, destaqueIds, analiseAberta, filtro, assuntoFiltroId, origemSaude, location.search, setSearchParams]);
 
   return {

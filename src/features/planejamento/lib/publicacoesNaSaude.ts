@@ -2,7 +2,6 @@ import type { Content, Platform, Serie } from '../../../lib/database.ts';
 import type { RedeDoFiltro } from '../../contas/lib/contas.ts';
 import { contaNoFiltro } from './filtroCalendario.ts';
 import { redeDaConta, rotuloConta } from '../../contas/lib/contas.ts';
-import type { DecisaoPeriodo } from '../../editorial/lib/editorialSettings.ts';
 import { metasDasContas, type MetaDaConta, type MetaDaContaVigencia } from '../../editorial/lib/metasPorConta.ts';
 import type { PausaEditorial } from '../../editorial/lib/pausas.ts';
 import type { ProporcaoFuncoes } from '../../editorial/lib/proporcaoObjetivos.ts';
@@ -49,7 +48,6 @@ export function publicacoesNaSaude(input: {
   series: readonly Serie[];
   periodo: { inicio: string; fim: string };
   linhas: readonly MetaDaContaVigencia[];
-  decisao: DecisaoPeriodo | null;
   proporcaoGeral: ProporcaoFuncoes | null;
   pausas: readonly PausaEditorial[];
   /** Filtros do calendário: só a conta e o formato escolhidos. */
@@ -62,7 +60,6 @@ export function publicacoesNaSaude(input: {
     platformIds: ativas.map(conta => conta.id),
     linhas: input.linhas,
     periodo: input.periodo,
-    decisao: input.decisao,
     proporcaoGeral: input.proporcaoGeral,
     pausas: input.pausas,
   });

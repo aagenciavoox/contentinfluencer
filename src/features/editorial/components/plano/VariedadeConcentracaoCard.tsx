@@ -360,18 +360,27 @@ export function VariedadeConcentracaoCard() {
             </div>
           </div>
         ) : (
-          <div className="stack-xs">
-            <div className="flex flex-wrap items-center gap-2">
-              <Text variant="body" as="p">
-                Mesma obra: aviso com {limites.obraRepeticoes} pautas ou mais em {limites.obraJanelaDias} dias.
-              </Text>
-            </div>
-            <Text variant="body" as="p">
-              Mesmo assunto: aviso acima de {rotuloFracao(limites.assuntoFracaoMax)} das pautas do intervalo, com pelo menos {limites.assuntoMinPautas} pautas.
-            </Text>
-            <Text variant="body" as="p">
-              Mesmo assunto: aviso com {limites.assuntoRepeticoes} pautas ou mais em {limites.assuntoJanelaDias} dias, mesmo com menos de {limites.assuntoMinPautas} pautas no intervalo.
-            </Text>
+          <div className="stack-sm">
+            <ul className="stack-xs">
+              <li className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <Badge variant="neutral" className="shrink-0">Mesma obra</Badge>
+                <Text variant="body" as="span">
+                  Aviso com {limites.obraRepeticoes} pautas ou mais em {limites.obraJanelaDias} dias.
+                </Text>
+              </li>
+              <li className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <Badge variant="neutral" className="shrink-0">Assunto (proporção)</Badge>
+                <Text variant="body" as="span">
+                  Aviso acima de {rotuloFracao(limites.assuntoFracaoMax)} das pautas do intervalo, com pelo menos {limites.assuntoMinPautas} pautas.
+                </Text>
+              </li>
+              <li className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <Badge variant="neutral" className="shrink-0">Assunto (janela curta)</Badge>
+                <Text variant="body" as="span">
+                  Aviso com {limites.assuntoRepeticoes} pautas ou mais em {limites.assuntoJanelaDias} dias, mesmo com menos de {limites.assuntoMinPautas} pautas no intervalo.
+                </Text>
+              </li>
+            </ul>
             <div>
               <Badge variant="neutral">{limitesPadrao(limites) ? 'Limites padrão' : 'Limites seus'}</Badge>
             </div>

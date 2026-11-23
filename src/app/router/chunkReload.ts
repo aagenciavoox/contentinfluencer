@@ -45,8 +45,7 @@ export function importPage<T>(importer: () => Promise<T>): Promise<T> {
     } catch {
       alreadyTried = false;
     }
-    if (alreadyTried) throw error;
-    void recoverFromChunkError();
-    return new Promise<T>(() => {});
+    if (!alreadyTried) void recoverFromChunkError();
+    throw error;
   });
 }

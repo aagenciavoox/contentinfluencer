@@ -193,11 +193,12 @@ console.log('metaDaOnda: ok');
   assert.equal(regra.ehErroDaRegraDeOuro(undefined), false);
   assert.equal(
     regra.explicacaoDoLimiteDaRegraDeOuro(1),
-    'Esse limite vem de “Limite por série”, em Editorial › Rotina de criação › Regra de Ouro. Hoje: 1 episódio por semana da mesma série. Janelas maiores seguem a mesma proporção: até 2 a cada 14 dias, 4 por mês, 8 por bimestre, 13 por trimestre e 26 por semestre.',
+    'Esse limite vem de “Limite por série”, em Editorial › Geral › Regra de Ouro. Hoje: 1 episódio por semana da mesma série. Janelas maiores seguem a mesma proporção: até 2 a cada 14 dias, 4 por mês, 8 por bimestre, 13 por trimestre e 26 por semestre.',
   );
   assert.match(regra.explicacaoDoLimiteDaRegraDeOuro(3), /Hoje: 3 episódios por semana.*até 6 a cada 14 dias, 12 por mês, 24 por bimestre, 39 por trimestre e 78 por semestre\./);
-  // O link abre a Rotina de criação e rola até o card.
-  assert.equal(abas.ROTA_DA_REGRA_DE_OURO, '/editorial?aba=ajustes#regra-de-ouro');
-  assert.equal(abas.abaEditorialDaUrl('ajustes'), 'ajustes');
+  // O link abre o Geral e rola até o card. ?aba=ajustes continua caindo nas faixas.
+  assert.equal(abas.ROTA_DA_REGRA_DE_OURO, '/editorial#regra-de-ouro');
+  assert.equal(abas.abaEditorialDaUrl('ajustes'), 'geral');
+  assert.equal(abas.ancoraDaAbaAntiga('ajustes'), 'faixas');
 }
 console.log('metaDaOnda (regra de ouro): ok');

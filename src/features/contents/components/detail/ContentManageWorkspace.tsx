@@ -239,6 +239,9 @@ export function ContentManageWorkspace({
           legendaBase={draft.legendaBase}
           titulo={draft.title}
           onTituloChange={title => onChange({title})}
+          youtubeTitulo={draft.youtubeTitulo}
+          youtubeDescricao={draft.youtubeDescricao}
+          onYoutubeCopyChange={patch => onChange(patch)}
           onChange={plataformas => onChange({plataformas})}
         />
 

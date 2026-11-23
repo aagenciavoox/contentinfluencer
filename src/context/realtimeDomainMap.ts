@@ -198,6 +198,18 @@ const REALTIME_TABLE_MAP: Record<string, RealtimeTableMapping> = {
     domains: ['analytics'],
     namespaces: [],
   },
+  conta_metrica: {
+    domains: ['analytics'],
+    namespaces: [],
+  },
+  periodo_analise: {
+    domains: ['analytics'],
+    namespaces: [],
+  },
+  periodo_analise_conta: {
+    domains: ['analytics'],
+    namespaces: [],
+  },
 };
 
 export function getDomainsForRealtimeTable(table: string): AppDataDomain[] {

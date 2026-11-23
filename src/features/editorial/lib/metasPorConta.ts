@@ -26,8 +26,14 @@ export type MetaDaContaVigencia = {
   limiteSemanal: number | null;
   /** Null = usa a proporção geral do Editorial. */
   proporcaoFuncoes: ProporcaoFuncoes | null;
-  /** Formato → quantas por semana, dentro do limite da conta. */
+  /** Formato → quantas por semana, dentro do limite da conta. A meta do formato. */
   parcelasFormato: Record<string, number> | null;
+  /** Mínimo opcional do total da conta. Vazio não avisa esforço. */
+  minimoSemanal?: number | null;
+  /** Máximo opcional do total. Vazio avisa quando a soma dos formatos passa da meta. */
+  maximoSemanal?: number | null;
+  /** Por formato: mínimo e máximo. A meta continua em `parcelasFormato`. */
+  faixasFormato?: Record<string, { minimo: number | null; maximo: number | null }> | null;
 };
 
 export type ParcelaDeFormato = {
@@ -103,7 +109,8 @@ export function agendarMetaDaConta(
   linhas: readonly MetaDaContaVigencia[],
   platformId: string,
   desde: string,
-  valores: Pick<MetaDaContaVigencia, 'limiteSemanal' | 'proporcaoFuncoes' | 'parcelasFormato'>,
+  valores: Pick<MetaDaContaVigencia, 'limiteSemanal' | 'proporcaoFuncoes' | 'parcelasFormato'>
+    & Partial<Pick<MetaDaContaVigencia, 'minimoSemanal' | 'maximoSemanal' | 'faixasFormato'>>,
   hoje: string,
 ): MetaDaContaVigencia[] {
   const estaSemana = semanaDe(hoje).inicio;
@@ -128,8 +135,30 @@ export function desfazerMudancaDaConta(
 function parcelasLimpas(parcelas: Record<string, number> | null | undefined): Array<{ formato: string; porSemana: number }> {
   if (!parcelas) return [];
   return Object.entries(parcelas)
-    .filter(([formato, valor]) => formato.trim() && typeof valor === 'number' && Number.isInteger(valor) && valor > 0)
+    .filter(([formato, valor]) => formato.trim() && formato !== 'stories' && typeof valor === 'number' && Number.isInteger(valor) && valor > 0)
     .map(([formato, porSemana]) => ({ formato, porSemana }));
+}
+
+/** Total vazio: a conta vale a soma dos formatos. Sem formato, continua sem meta. */
+export function limiteEfetivoDaConta(linha: Pick<MetaDaContaVigencia, 'limiteSemanal' | 'parcelasFormato'> | null | undefined): number | null {
+  if (!linha) return null;
+  if (linha.limiteSemanal != null) return linha.limiteSemanal;
+  const soma = parcelasLimpas(linha.parcelasFormato).reduce((total, parcela) => total + parcela.porSemana, 0);
+  return soma > 0 ? soma : null;
+}
+
+/**
+ * Soma dos formatos acima do máximo da conta. Máximo vazio usa a meta.
+ * Não bloqueia: a linha continua gravável.
+ */
+export function avisoDaSomaDeFormatos(
+  linha: Pick<MetaDaContaVigencia, 'limiteSemanal' | 'maximoSemanal' | 'parcelasFormato'>,
+): string | null {
+  const soma = parcelasLimpas(linha.parcelasFormato).reduce((total, parcela) => total + parcela.porSemana, 0);
+  const teto = linha.maximoSemanal ?? linha.limiteSemanal ?? null;
+  if (teto == null || soma <= teto) return null;
+  const nome = linha.maximoSemanal != null ? 'máximo' : 'meta';
+  return `Os formatos somam ${soma} e passam do ${nome} da conta (${teto}).`;
 }
 
 /**
@@ -159,7 +188,7 @@ export function metaDaConta(input: {
   const absoluta = input.decisao?.metasPorConta?.[input.platformId]?.publicacao;
   const meta = metaDoPeriodo({
     periodo: input.periodo,
-    limiteSemanal: atual?.limiteSemanal ?? null,
+    limiteSemanal: limiteEfetivoDaConta(atual),
     decisao: { metasPublicacao: absoluta, pausaEditorial: input.decisao?.pausaEditorial },
     hoje,
     diasPausados: diasDePausa(input.pausas ?? [], { tipo: 'conta', platformId: input.platformId }, input.periodo),
@@ -167,9 +196,9 @@ export function metaDaConta(input: {
       // Vigente: o ritmo de hoje, e nas semanas futuras a mudança da conta já agendada.
       ? inicioSemana => {
         const agendada = inicioSemana > estaSemana ? linhaDaContaEm(linhas, inicioSemana) : null;
-        return agendada && agendada.vigenteDesde > estaSemana ? agendada.limiteSemanal : atual?.limiteSemanal ?? null;
+        return agendada && agendada.vigenteDesde > estaSemana ? limiteEfetivoDaConta(agendada) : limiteEfetivoDaConta(atual);
       }
-      : inicioSemana => linhaDaContaEm(linhas, inicioSemana)?.limiteSemanal ?? null,
+      : inicioSemana => limiteEfetivoDaConta(linhaDaContaEm(linhas, inicioSemana)),
   });
 
   const propria = readProporcao(referencia?.proporcaoFuncoes ?? null);
@@ -179,12 +208,12 @@ export function metaDaConta(input: {
   const parcelasSemana = parcelasLimpas(referencia?.parcelasFormato);
   const limiteSemana = referencia?.limiteSemanal ?? null;
   const somaParcelas = parcelasSemana.reduce((soma, parcela) => soma + parcela.porSemana, 0);
-  const conflitoDeFormato = limiteSemana != null && somaParcelas > limiteSemana;
+  const conflitoDeFormato = avisoDaSomaDeFormatos(referencia ?? { limiteSemanal: null, parcelasFormato: null }) != null;
   let parcelas: ParcelaDeFormato[] = parcelasSemana.map(parcela => ({ ...parcela, noPeriodo: 0 }));
   let semFormatoDefinido = meta.valor ?? 0;
   if (meta.valor != null && parcelasSemana.length > 0) {
     // Reparte a meta do período na mesma proporção das parcelas; o que o limite deixa livre fica sem formato.
-    const livre = limiteSemana != null && !conflitoDeFormato ? limiteSemana - somaParcelas : 0;
+    const livre = limiteSemana != null && somaParcelas <= limiteSemana ? limiteSemana - somaParcelas : 0;
     const partes = distribuirEspacos(meta.valor, [...parcelasSemana.map(parcela => parcela.porSemana), livre]);
     parcelas = parcelasSemana.map((parcela, index) => ({ ...parcela, noPeriodo: partes[index] }));
     semFormatoDefinido = partes[parcelasSemana.length] ?? 0;

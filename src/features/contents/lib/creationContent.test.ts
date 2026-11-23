@@ -352,6 +352,18 @@ function testCreationSortingAndPaginationClampInvalidPages() {
   const sorted = sortCreationContents(contents, 'recent');
   assert.equal(sorted[0]?.id, 'content-5');
 
+  const entrouAgora = createContent({
+    id: 'entrou',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    statusEnteredAt: '2026-11-19T00:00:00.000Z',
+  });
+  const criadoDepois = createContent({
+    id: 'criado',
+    createdAt: '2026-11-01T00:00:00.000Z',
+  });
+  assert.equal(sortCreationContents([criadoDepois, entrouAgora], 'recent')[0]?.id, 'entrou');
+  assert.equal(sortCreationContents([criadoDepois, entrouAgora], 'oldest')[0]?.id, 'criado');
+
   const page = paginateCreationContents(sorted, 99, 2);
   assert.equal(page.page, 3);
   assert.equal(page.totalPages, 3);
@@ -423,9 +435,13 @@ function testStatusChangeIsTheSameRuleEverywhere() {
   assert.equal(desfeito.plataformas[0]?.realizadaManualEm, null);
   assert.equal(desfeito.plataformas[1]?.status, 'prevista');
 
-  // Mesma etapa não muda nada.
-  const same = createContent({status: 'Edição'});
+  // Mesma etapa não muda nada, inclusive a data de entrada.
+  const same = createContent({status: 'Edição', statusEnteredAt: '2026-02-01T00:00:00.000Z'});
   assert.equal(applyStatusChange(same, 'Edição', now), same);
+  assert.equal(
+    applyStatusChange(createContent({status: 'Roteiro', statusEnteredAt: '2026-02-01T00:00:00.000Z'}), 'Produção', now).statusEnteredAt,
+    now,
+  );
 }
 
 function testNewScriptCarriesChosenPublications() {

@@ -9,6 +9,7 @@ import {
   isCarouselContent,
   moveSlide,
   normalizeWritingMode,
+  podeTrocarModoDeEscrita,
   readCarouselSlides,
   removeSlide,
   slideHasContent,
@@ -90,6 +91,9 @@ assert.equal(read[0]?.id, 's1');
 assert.deepEqual(read[0]?.images.map(image => image.value), ['https://x.com/i.png', 'nota']);
 assert.equal(normalizeWritingMode('carrossel'), 'carrossel');
 assert.equal(normalizeWritingMode('qualquer'), 'texto');
+assert.equal(podeTrocarModoDeEscrita('texto'), true);
+assert.equal(podeTrocarModoDeEscrita('youtube'), false);
+assert.equal(podeTrocarModoDeEscrita('carrossel'), false);
 assert.equal(isCarouselContent({writingMode: 'carrossel'}), true);
 assert.equal(isCarouselContent({writingMode: undefined}), false);
 console.log('ok - carousel: reads stored screens defensively');

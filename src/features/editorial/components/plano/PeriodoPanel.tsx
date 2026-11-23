@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ArrowRight, CalendarRange, Flag, Layers, Target } from 'lucide-react';
+import { ArrowRight, CalendarRange, Layers, Target } from 'lucide-react';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { Badge } from '../../../../components/ui/Badge';
 import { DisclosureButton } from '../../../../components/ui/DisclosureButton';
@@ -12,14 +12,13 @@ import { Text } from '../../../../components/ui/Text';
 import { useMediaQuery } from '../../../../hooks/useMediaQuery';
 import type { FuncaoEditorial } from '../../../../lib/database';
 import { BREAKPOINTS } from '../../../../shared/breakpoints';
-import { reservaPronta, rotuloCapacidadeSeries, textoEstoque } from '../../lib/estoque';
-import { listarSoEmOutrasRedes } from '../../lib/soEmOutrasRedes';
+import { rotuloCapacidadeSeries } from '../../lib/estoque';
 import { entriesDaConcentracao } from '../../../planejamento/lib/concentracaoAoColocar';
 import { avisosDeOrientacao, mapaSequenciaPorConteudo } from '../../../planejamento/lib/orientacaoEditorial';
 import { ETAPA_LABEL, ETAPAS, ETAPAS_DE_CONTEUDO, contagemPorEtapaVazia, somaDasEtapas, type ContagemPorEtapa, type Etapa } from '../../lib/etapas';
 import { apurarSerie, textoDaFrequencia, textoDoVolume } from '../../lib/apuracaoSerie';
 import { exclusaoDeMetaPropria } from '../../lib/metaPropria';
-import { FUNCAO_CURTA, FUNCOES } from '../../lib/funcoes';
+import { COR_DA_FUNCAO, FUNCAO_CURTA, FUNCOES } from '../../lib/funcoes';
 import { decisaoDoPeriodo } from '../../lib/periodoEditorial';
 import {
   frasesDoResumo,
@@ -30,12 +29,11 @@ import {
 } from '../../lib/proporcaoObjetivos';
 import { sortPilares } from '../../../settings/lib/activePilares';
 import { CardConfiguracao } from './campos';
-import type { ObjetivoNoEditor } from './AjustarMetasDialog';
+import type { ObjetivoNoEditor, SecaoAjusteMetas } from './AjustarMetasDialog';
 import { ItensDoPeriodoDialog, type FiltroDosItens } from './ItensDoPeriodoDialog';
 import { PlanoVigenteView } from './PlanoVigenteView';
 import { ProporcaoObjetivosEditor } from './ProporcaoObjetivosEditor';
 import {
-  PeriodoEditorialControl,
   semanasParciais,
   useContagemDoPeriodo,
   useItensDaJanela,
@@ -55,26 +53,11 @@ function textoSemObjetivo(roteiros: number, reservas: number): string {
   return `${partes.join(' e ')} ${verbo} sem objetivo; a distribuição está incompleta.`;
 }
 
-function celula(valor: number | null): string {
-  return valor == null ? '—' : String(valor);
-}
-
-
 /** "27 de set. a 3 de out.": a semana parcial no cartão; o rótulo longo fica para o leitor de tela. */
 function rotuloCurtoDaSemana(inicio: string, fim: string): string {
   const dia = (iso: string) => format(parseISO(iso), "d 'de' MMM", { locale: ptBR });
   return `${dia(inicio)}. a ${dia(fim)}.`;
 }
-
-/** Cor de cada objetivo: só enfeita, o nome vem sempre ao lado. */
-const COR_DA_FUNCAO: Record<FuncaoEditorial, string> = {
-  atrair: 'var(--accent-pink)',
-  converter: 'var(--accent-blue)',
-  aprofundar: 'var(--accent-orange)',
-  comunidade: 'var(--accent-green)',
-  acao: 'var(--accent-red)',
-  reter: 'var(--accent-purple)',
-};
 
 /** Uma linha da distribuição. `funcao` null é "Sem objetivo": não tem meta. */
 type LinhaObjetivo = {
@@ -332,7 +315,7 @@ function MetasPorObjetivo({
   );
 }
 
-type LinhaDoPeriodo = { id: string; nome: string; cor?: string | null; texto: string };
+type LinhaDoPeriodo = { id: string; nome: string; cor?: string | null; texto: string; quantidade?: number };
 
 function GrupoDoPeriodo({ titulo, linhas }: { titulo: string; linhas: LinhaDoPeriodo[] }) {
   return (
@@ -385,6 +368,11 @@ export function PeriodoPanel({
   const [detalhesAvancados, setDetalhesAvancados] = useState(false);
   // Um editor de metas só, aberto do card de metas ou das seções abaixo.
   const [ajustarAberto, setAjustarAberto] = useState(false);
+  const [secaoAjuste, setSecaoAjuste] = useState<SecaoAjusteMetas>('geral');
+  const abrirAjuste = (secao: SecaoAjusteMetas = 'geral') => {
+    setSecaoAjuste(secao);
+    setAjustarAberto(true);
+  };
   const contagem = useContagemDoPeriodo(periodo.inicio, periodo.fim);
   const itensJanela = useItensDaJanela(periodo.inicio, periodo.fim);
   const postIts = usePostItsNaData();
@@ -396,15 +384,6 @@ export function PeriodoPanel({
     periodo,
   );
   const semLimite = limiteSemanal == null;
-  const estoque = reservaPronta(state.contents, {
-    redeReferenciaId: settings.preferencias.redeReferenciaId,
-  });
-  const reserva = settings.preferencias.reservaProntos;
-  const soEmOutras = listarSoEmOutrasRedes({
-    contents: state.contents,
-    settings: { redeReferenciaId: settings.preferencias.redeReferenciaId },
-    platforms: state.platforms,
-  });
   const capacidadeSeries = rotuloCapacidadeSeries({
     limite: contagem.limite,
     reservaFora: contagem.reservaForaSeriesSemanal,
@@ -482,17 +461,6 @@ export function PeriodoPanel({
     });
   }
 
-  const numeros = [
-    { id: 'limite', rotulo: periodo.modo === 'semana' ? 'Limite da semana' : 'Limite do período', valor: celula(contagem.limite) },
-    { id: 'previstos', rotulo: 'Previstos', valor: String(contagem.previsto) },
-    { id: 'postados', rotulo: 'Publicados', valor: String(contagem.porEtapa.postado) },
-    {
-      id: 'prontos',
-      rotulo: 'Prontos de reserva',
-      valor: reserva == null ? String(estoque.total) : textoEstoque(estoque.total, reserva),
-    },
-  ];
-
   const proporcao = settings.proporcaoFuncoes;
   const somaProporcao = somaDaProporcao(proporcao);
   const metas = metasDoPeriodo({ limite: contagem.limite, proporcao, ajustes: decisao?.metas });
@@ -541,45 +509,41 @@ export function PeriodoPanel({
         nome: pilar.nome,
         cor: pilar.cor,
         texto: previstos === 1 ? '1 previsto' : `${previstos} previstos`,
+        quantidade: previstos,
       };
     });
+  const totalPrevistosPilares = pilares.reduce((soma, item) => soma + (item.quantidade ?? 0), 0);
 
   // Mesma apuração das séries em todas as telas: episódios + reservas no período, frequência por janela.
-  const series: LinhaDoPeriodo[] = state.series
-    .filter(serie => serie.ativa)
-    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
-    .map(serie => {
-      const apuracao = apurarSerie({
-        serie,
-        series: state.series,
-        itens: itensJanela,
-        periodo,
-        excluir: exclusaoDeMetaPropria(serie, state.series, state.temporadas),
-      });
-      return {
-        id: serie.id,
-        nome: serie.name,
-        cor: serie.cor,
-        texto: `${textoDoVolume(apuracao.noPeriodo)} · ${textoDaFrequencia(apuracao)}`,
-      };
-    });
+  const series: LinhaDoPeriodo[] = semListasDoPeriodo
+    ? []
+    : state.series
+        .filter(serie => serie.ativa)
+        .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+        .map(serie => {
+          const apuracao = apurarSerie({
+            serie,
+            series: state.series,
+            itens: itensJanela,
+            periodo,
+            excluir: exclusaoDeMetaPropria(serie, state.series, state.temporadas),
+          });
+          return {
+            id: serie.id,
+            nome: serie.name,
+            cor: serie.cor,
+            texto: `${textoDoVolume(apuracao.noPeriodo)} · ${textoDaFrequencia(apuracao)}`,
+          };
+        });
   const objetivosDoEditor: ObjetivoNoEditor[] = linhasObjetivo.flatMap(linha => (linha.funcao
     ? [{ funcao: linha.funcao, nome: linha.nome, meta: linha.meta, calculada: linha.calculada, percentual: linha.percentual, origem: linha.origem }]
     : []));
 
-
-  const notaCapacidade = semLimite
-    ? null
-    : periodo.modo === 'semana'
-      ? `Limite semanal de ${limiteSemanal}, salvo um ajuste desta semana.`
-      : `Ritmo de ${limiteSemanal} por semana nos dias do período, sem as pausas com data, arredondado uma vez no total. Semanas ajustadas entram como estão.`;
-
   return (
     <div className="stack-lg">
-      <PeriodoEditorialControl periodo={periodo} onChange={onPeriodoChange} />
-
       <PlanoVigenteView
         periodo={periodo}
+        onPeriodoChange={onPeriodoChange}
         decisao={decisao}
         platforms={state.platforms}
         series={state.series}
@@ -590,57 +554,28 @@ export function PeriodoPanel({
         objetivos={objetivosDoEditor}
         semanasParciais={parciais}
         ajustarAberto={ajustarAberto}
-        onAjustarAbertoChange={setAjustarAberto}
+        onAjustarAbertoChange={aberto => {
+          if (aberto) {
+            abrirAjuste('geral');
+          } else {
+            setAjustarAberto(false);
+            setSecaoAjuste('geral');
+          }
+        }}
+        secaoInicialAjuste={secaoAjuste}
         onSalvarDecisao={patch => salvarDecisao(periodo, patch)}
         recolhivel={planoRecolhivel}
         semListas={semListasDoPeriodo}
       />
 
-      <div className="pt-2">
-        <DisclosureButton
-          open={detalhesAvancados}
-          onToggle={() => setDetalhesAvancados(aberto => !aberto)}
-          controls="detalhes-avancados-periodo"
-        >
-          <Text variant="bodyStrong" as="span">Distribuição por objetivo e capacidade avançada</Text>
-          <Text variant="secondary" as="span">Ver balanço por objetivo, pilares e semanas parciais.</Text>
-        </DisclosureButton>
-      </div>
-
-      {detalhesAvancados ? (
-        <div id="detalhes-avancados-periodo" className="stack-lg pt-2 border-t border-[var(--border-subtle)]">
-          {/* Leitura do período: os números primeiro, numa faixa só. */}
-          <div className="stack-sm">
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-          {numeros.map(item => (
-            <Surface key={item.id} variant="info" padding="sm">
-              <Text variant="label">{item.rotulo}</Text>
-              <Text variant="itemTitle" as="p" className="mt-1 tabular-nums">{item.valor}</Text>
-            </Surface>
-          ))}
-        </div>
-        <Text variant="meta" as="p">
-          {notaCapacidade ? `${notaCapacidade} ` : ''}
-          {capacidadeSeries ? `${capacidadeSeries}. ` : ''}
-          Cada ciclo conta uma vez na grade.
-        </Text>
-        <Text variant="meta" as="p">
-          Reserva: {estoque.ineditos} {estoque.ineditos === 1 ? 'inédito' : 'inéditos'}
-          {' · '}
-          {estoque.reaproveitar} para reaproveitar
-          {soEmOutras.length > 0
-            ? ` · ${soEmOutras.length} só em outras redes`
-            : ''}
-        </Text>
-        {semLimite ? (
-          <div className="flex flex-wrap items-center gap-3">
-            <Text variant="secondary" as="p">Quantos roteiros cabem na sua semana?</Text>
-            <AppButton variant="secondary" size="sm" onClick={onAbrirAjustes}>
-              Definir limite
-            </AppButton>
-          </div>
-        ) : null}
-      </div>
+      {semLimite ? (
+        <Surface variant="info" padding="sm" className="flex flex-wrap items-center justify-between gap-3">
+          <Text variant="secondary" as="p">Quantos roteiros cabem na sua semana?</Text>
+          <AppButton variant="secondary" size="sm" onClick={onAbrirAjustes}>
+            Definir limite
+          </AppButton>
+        </Surface>
+      ) : null}
 
       {avisos.length > 0 ? (
         <div className="stack-sm">
@@ -648,88 +583,179 @@ export function PeriodoPanel({
         </div>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <CardConfiguracao
-          icone={<Flag className="h-5 w-5" />}
-          titulo="Prioridade do período"
-          acao={<AppButton variant="secondary" size="sm" onClick={() => setAjustarAberto(true)}>Ajustar metas</AppButton>}
-        >
-          <Text variant={decisao?.prioridade?.trim() ? 'body' : 'secondary'} as="p" className="whitespace-pre-wrap">
-            {decisao?.prioridade?.trim() || 'Nenhuma prioridade escrita para este período.'}
-          </Text>
-        </CardConfiguracao>
-
-        <CardConfiguracao
-          icone={<Layers className="h-5 w-5" />}
-          titulo="Pilares e séries no período"
-          acao={(
-            <AppButton
-              variant="secondary"
-              size="sm"
-              rightIcon={<ArrowRight className="h-4 w-4" />}
-              onClick={() => navigate('/series')}
-            >
-              Ver todas as séries
-            </AppButton>
+      <Surface variant="outlined" padding="sm">
+        <DisclosureButton
+          open={detalhesAvancados}
+          onToggle={() => setDetalhesAvancados(aberto => !aberto)}
+          controls="detalhes-avancados-periodo"
+          trailing={(
+            <Badge variant="neutral">
+              {proporcao ? `${somaProporcao}% distribuído` : 'Sem distribuição'}
+            </Badge>
           )}
         >
-          {pilares.length > 0 || series.length > 0 ? (
-            <div className="grid gap-6 sm:grid-cols-2">
-              {pilares.length > 0 ? <GrupoDoPeriodo titulo="Pilares" linhas={pilares} /> : null}
-              {series.length > 0 ? <GrupoDoPeriodo titulo="Séries" linhas={series} /> : null}
+          <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <Text variant="bodyStrong" as="span">Distribuição por objetivo e capacidade avançada</Text>
+            <Text variant="secondary" as="span">Ver balanço por objetivo, pilares e semanas parciais.</Text>
+          </span>
+        </DisclosureButton>
+      </Surface>
+
+      {detalhesAvancados ? (
+        <div id="detalhes-avancados-periodo" className="stack-lg">
+          {capacidadeSeries ? (
+            <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+              {capacidadeSeries}. Cada ciclo conta uma vez na grade.
+            </Text>
+          ) : null}
+
+          <CardConfiguracao
+            icone={<Layers className="h-5 w-5" />}
+            titulo={semListasDoPeriodo ? 'Balanço por pilar' : 'Pilares e séries no período'}
+            acao={semListasDoPeriodo ? undefined : (
+              <AppButton
+                variant="secondary"
+                size="sm"
+                rightIcon={<ArrowRight className="h-4 w-4" />}
+                onClick={() => navigate('/series')}
+              >
+                Ver todas as séries
+              </AppButton>
+            )}
+          >
+            {semListasDoPeriodo ? (
+              pilares.length > 0 ? (
+                <ul className="stack-sm">
+                  {pilares.map(pilar => {
+                    const qtd = pilar.quantidade ?? 0;
+                    const pct = totalPrevistosPilares > 0 ? Math.round((qtd / totalPrevistosPilares) * 100) : 0;
+                    return (
+                      <li key={pilar.id} className="stack-xs">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="flex min-w-0 items-center gap-2.5">
+                            <span
+                              aria-hidden
+                              className="h-2.5 w-2.5 shrink-0 rounded-full border border-[var(--border-color)]"
+                              style={pilar.cor ? { backgroundColor: pilar.cor } : undefined}
+                            />
+                            <Text variant="body" as="span" className="truncate">{pilar.nome}</Text>
+                          </span>
+                          <Text variant="secondary" as="span" className="shrink-0 tabular-nums">
+                            {pilar.texto}{totalPrevistosPilares > 0 ? ` · ${pct}%` : ''}
+                          </Text>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-[var(--radius-pill)] bg-[var(--bg-hover)]">
+                          <div
+                            className="h-full rounded-[var(--radius-pill)] transition-all duration-300"
+                            style={{ width: `${pct}%`, backgroundColor: pilar.cor || 'var(--accent)' }}
+                          />
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <Text variant="secondary">Nenhum pilar ativo neste período.</Text>
+              )
+            ) : pilares.length > 0 || series.length > 0 ? (
+              <div className="grid gap-6 sm:grid-cols-2">
+                {pilares.length > 0 ? <GrupoDoPeriodo titulo="Pilares" linhas={pilares} /> : null}
+                {series.length > 0 ? <GrupoDoPeriodo titulo="Séries" linhas={series} /> : null}
+              </div>
+            ) : (
+              <Text variant="secondary">Nenhum pilar ou série ativa neste período.</Text>
+            )}
+          </CardConfiguracao>
+
+          <CardConfiguracao
+            icone={<Target className="h-5 w-5" />}
+            titulo="Distribuição por objetivo"
+            descricao="Quanto espaço você quer dar para cada objetivo neste período?"
+            acao={editandoProporcao ? undefined : (
+              <AppButton variant="secondary" size="sm" onClick={() => setEditandoProporcao(true)}>
+                {proporcao ? 'Editar distribuição' : 'Definir distribuição'}
+              </AppButton>
+            )}
+          >
+            {editandoProporcao ? (
+              <ProporcaoObjetivosEditor
+                idBase="proporcao-periodo"
+                valor={proporcao}
+                onCancelar={() => setEditandoProporcao(false)}
+                onSalvar={nova => {
+                  salvarProporcao(nova);
+                  setEditandoProporcao(false);
+                }}
+              />
+            ) : null}
+            {!editandoProporcao && proporcao && somaProporcao !== 100 ? (
+              <InlineNotice
+                texto={`Total: ${somaProporcao}%. ${somaProporcao < 100 ? `Faltam ${100 - somaProporcao}% para fechar 100%.` : `Passou ${somaProporcao - 100}%. Ajuste os percentuais para somarem 100%.`}`}
+                acao={{ rotulo: 'Ajustar a distribuição', onClick: () => setEditandoProporcao(true) }}
+              />
+            ) : null}
+            {!editandoProporcao && !proporcao ? (
+              <Text variant="secondary">Sem distribuição definida, as metas ficam em branco. Você ainda pode digitar uma meta só para este período.</Text>
+            ) : null}
+            {proporcao && contagem.limite == null ? (
+              <Text variant="secondary" as="p">Sem limite no período, a distribuição aparece só em %. Defina o limite para ver quantos roteiros cabem em cada objetivo.</Text>
+            ) : null}
+            {frasesDasMetas.length > 0 ? (
+              <Surface variant="info" padding="sm">
+                <p role="status"><Text variant="body" as="span">{frasesDasMetas.join(' · ')}</Text></p>
+              </Surface>
+            ) : null}
+            <MetasPorObjetivo linhas={linhasObjetivo} onAbrir={setFiltroItens} />
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Text variant="secondary">
+                Planejamento conta os post-its com data. As outras colunas seguem a etapa de cada roteiro.
+              </Text>
+              <AppButton variant="secondary" size="sm" onClick={() => abrirAjuste('objetivos')}>Ajustar metas</AppButton>
             </div>
-          ) : (
-            <Text variant="secondary">Nenhum pilar ou série ativa neste período.</Text>
-          )}
-        </CardConfiguracao>
-      </div>
+          </CardConfiguracao>
 
-      <CardConfiguracao
-        icone={<Target className="h-5 w-5" />}
-        titulo="Distribuição por objetivo"
-        descricao="Quanto espaço você quer dar para cada objetivo neste período?"
-        acao={editandoProporcao ? undefined : (
-          <AppButton variant="secondary" size="sm" onClick={() => setEditandoProporcao(true)}>
-            {proporcao ? 'Editar distribuição' : 'Definir distribuição'}
-          </AppButton>
-        )}
-      >
-        {editandoProporcao ? (
-          <ProporcaoObjetivosEditor
-            idBase="proporcao-periodo"
-            valor={proporcao}
-            onCancelar={() => setEditandoProporcao(false)}
-            onSalvar={nova => {
-              salvarProporcao(nova);
-              setEditandoProporcao(false);
-            }}
-          />
-        ) : null}
-        {!editandoProporcao && proporcao && somaProporcao !== 100 ? (
-          <InlineNotice
-            texto={`Total: ${somaProporcao}%. ${somaProporcao < 100 ? `Faltam ${100 - somaProporcao}% para fechar 100%.` : `Passou ${somaProporcao - 100}%. Ajuste os percentuais para somarem 100%.`}`}
-            acao={{ rotulo: 'Ajustar a distribuição', onClick: () => setEditandoProporcao(true) }}
-          />
-        ) : null}
-        {!editandoProporcao && !proporcao ? (
-          <Text variant="secondary">Sem distribuição definida, as metas ficam em branco. Você ainda pode digitar uma meta só para este período.</Text>
-        ) : null}
-        {proporcao && contagem.limite == null ? (
-          <Text variant="secondary" as="p">Sem limite no período, a distribuição aparece só em %. Defina o limite para ver quantos roteiros cabem em cada objetivo.</Text>
-        ) : null}
-        {frasesDasMetas.length > 0 ? (
-          <Surface variant="info" padding="sm">
-            <p role="status"><Text variant="body" as="span">{frasesDasMetas.join(' · ')}</Text></p>
-          </Surface>
-        ) : null}
-        <MetasPorObjetivo linhas={linhasObjetivo} onAbrir={setFiltroItens} />
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Text variant="secondary">
-            Planejamento conta os post-its com data. As outras colunas seguem a etapa de cada roteiro.
-          </Text>
-          <AppButton variant="secondary" size="sm" onClick={() => setAjustarAberto(true)}>Ajustar metas</AppButton>
+          {parciais.length > 0 ? (
+            <Surface padding="sm" className="stack-sm">
+              <DisclosureButton
+                open={semanasAbertas}
+                onToggle={() => setSemanasAbertas(aberto => !aberto)}
+                controls="semanas-parciais"
+              >
+                <CalendarRange className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" aria-hidden />
+                <Text variant="bodyStrong" as="span">Semanas que cruzam o período</Text>
+                <Text variant="secondary" as="span">Capacidade das semanas parciais.</Text>
+              </DisclosureButton>
+              {semanasAbertas ? (
+                <div id="semanas-parciais" className="stack-sm">
+                  <ul className="stack-sm">
+                    {parciais.map(semana => {
+                      const ajuste = decisao?.ajustesSemana.find(
+                        item => item.inicio === semana.inicio && item.fim === semana.fim,
+                      );
+                      return (
+                        <li
+                          key={`${semana.inicio}:${semana.fim}`}
+                          className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[var(--radius-input)] bg-[var(--surface-subtle)] px-4 py-2.5"
+                        >
+                          <Text variant="bodyStrong" as="span">{rotuloCurtoDaSemana(semana.inicio, semana.fim)}</Text>
+                          <Text variant="secondary" as="span">
+                            {ajuste != null
+                              ? `Ajustada: ${ajuste.limite}`
+                              : semLimite ? 'Sem ritmo definido' : `Pelo ritmo de ${limiteSemanal} por semana, proporcional aos dias`}
+                          </Text>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <div>
+                    <AppButton variant="secondary" size="sm" onClick={() => abrirAjuste('semanas')}>Ajustar metas</AppButton>
+                  </div>
+                </div>
+              ) : null}
+            </Surface>
+          ) : null}
         </div>
-      </CardConfiguracao>
+      ) : null}
 
       <ItensDoPeriodoDialog
         filtro={filtroItens}
@@ -737,49 +763,6 @@ export function PeriodoPanel({
         periodo={periodo}
         onClose={() => setFiltroItens(null)}
       />
-
-      {parciais.length > 0 ? (
-        <Surface padding="sm" className="stack-sm">
-          <DisclosureButton
-            open={semanasAbertas}
-            onToggle={() => setSemanasAbertas(aberto => !aberto)}
-            controls="semanas-parciais"
-          >
-            <CalendarRange className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" aria-hidden />
-            <Text variant="bodyStrong" as="span">Semanas que cruzam o período</Text>
-            <Text variant="secondary" as="span">Capacidade das semanas parciais.</Text>
-          </DisclosureButton>
-          {semanasAbertas ? (
-            <div id="semanas-parciais" className="stack-sm">
-              <ul className="stack-sm">
-                {parciais.map(semana => {
-                  const ajuste = decisao?.ajustesSemana.find(
-                    item => item.inicio === semana.inicio && item.fim === semana.fim,
-                  );
-                  return (
-                    <li
-                      key={`${semana.inicio}:${semana.fim}`}
-                      className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[var(--radius-input)] bg-[var(--surface-subtle)] px-4 py-2.5"
-                    >
-                      <Text variant="bodyStrong" as="span">{rotuloCurtoDaSemana(semana.inicio, semana.fim)}</Text>
-                      <Text variant="secondary" as="span">
-                        {ajuste != null
-                          ? `Ajustada: ${ajuste.limite}`
-                          : semLimite ? 'Sem ritmo definido' : `Pelo ritmo de ${limiteSemanal} por semana, proporcional aos dias`}
-                      </Text>
-                    </li>
-                  );
-                })}
-              </ul>
-              <div>
-                <AppButton variant="secondary" size="sm" onClick={() => setAjustarAberto(true)}>Ajustar metas</AppButton>
-              </div>
-            </div>
-          ) : null}
-        </Surface>
-      ) : null}
-        </div>
-      ) : null}
     </div>
   );
 }

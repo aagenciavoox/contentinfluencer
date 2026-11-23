@@ -313,6 +313,12 @@ const serieFields = {
     'Entra na Continuidade da Saúde. Família não entra; sem frequência definida aparece como pendência',
   ),
   legenda_base: z.string().nullable().optional().describe('Legenda base da série, herdada pelos roteiros dela. null limpa'),
+  youtube_titulo_base: z.string().nullable().optional().describe(
+    'Título-base do YouTube longo. Episódio novo puxa. Shorts continuam na legenda. null limpa. Quadro vazio herda da série.',
+  ),
+  youtube_descricao_base: z.string().nullable().optional().describe(
+    'Descrição-base do YouTube longo, um modelo por série. null limpa. Quadro vazio herda da série.',
+  ),
   foco_redes: z.array(z.string()).nullable().optional().describe(
     'Redes do quadro. Os episódios novos nascem nelas quando a temporada não escolhe as suas. null ou [] tira o foco. ' +
     'Vale instagram, instagram-video, instagram-carrossel, tiktok, tiktok-video, tiktok-carrossel, youtube, youtube-shorts, blog, outra.',
@@ -350,6 +356,8 @@ type SerieArgs = Partial<Record<keyof typeof serieFields | 'nome', unknown>> & {
   frequencia_a_partir_de?: string | null;
   acompanhar_continuidade?: boolean;
   legenda_base?: string | null;
+  youtube_titulo_base?: string | null;
+  youtube_descricao_base?: string | null;
 };
 
 /**
@@ -426,6 +434,16 @@ function estruturaDaSerie(
   if (args.legenda_base !== undefined) {
     patch.legenda_base = typeof args.legenda_base === 'string' && args.legenda_base.trim() ? args.legenda_base : null;
   }
+  if (args.youtube_titulo_base !== undefined) {
+    patch.youtube_titulo_base = typeof args.youtube_titulo_base === 'string' && args.youtube_titulo_base.trim()
+      ? args.youtube_titulo_base
+      : null;
+  }
+  if (args.youtube_descricao_base !== undefined) {
+    patch.youtube_descricao_base = typeof args.youtube_descricao_base === 'string' && args.youtube_descricao_base.trim()
+      ? args.youtube_descricao_base
+      : null;
+  }
   if (args.foco_redes !== undefined) patch.foco_redes = focoDaSerie(args.foco_redes);
   return {patch, avisos: avisosEstrutura};
 }
@@ -435,6 +453,8 @@ function exigeMigracao(row: Row, column: string | undefined): string | null {
   if (column === 'tipo_agrupamento' && row.tipo_agrupamento != null) return MIGRACAO_SERIE_TIPO;
   if (column === 'acompanhar_continuidade' && row.acompanhar_continuidade === true) return MIGRACAO_SERIE_CONTINUIDADE;
   if (column === 'legenda_base' && row.legenda_base != null) return MIGRACAO_CONTAS;
+  if ((column === 'youtube_titulo_base' || column === 'youtube_descricao_base')
+    && row[column] != null) return '20261123021731_youtube_longo_modelo';
   if (column === 'parent_id' && row.parent_id != null) return MIGRACAO_SERIE_TIPO;
   if (column === 'foco_redes' && Array.isArray(row.foco_redes) && row.foco_redes.length > 0) return '20261104190000_serie_foco_redes';
   return null;
@@ -466,6 +486,12 @@ function estruturaView(row: Row, lookups: Lookups) {
     frequencia_detalhada: {vezes: freq.vezes, unidade: freq.unidade, a_partir_de: freq.a_partir_de, resumo: freq.resumo},
     acompanhar_continuidade: acompanhaNoGeralDaLinha(row),
     legenda_base: typeof row.legenda_base === 'string' && row.legenda_base.trim() ? row.legenda_base : null,
+    youtube_titulo_base: typeof row.youtube_titulo_base === 'string' && row.youtube_titulo_base.trim()
+      ? row.youtube_titulo_base
+      : null,
+    youtube_descricao_base: typeof row.youtube_descricao_base === 'string' && row.youtube_descricao_base.trim()
+      ? row.youtube_descricao_base
+      : null,
   };
 }
 
@@ -501,8 +527,9 @@ function viewDaProporcao(proporcao: Proporcao | null) {
 }
 
 /**
- * Proporção fixa por função, em % (`editorial_conta.proporcao_funcoes`). A meta de cada período
- * é proporção × limite; `decisao_periodo.meta_*` é o ajuste daquele período e passa na frente.
+ * Proporção fixa por função, em % (`editorial_conta.proporcao_funcoes`). Na Saúde, a meta
+ * de cada trecho é proporção × limite vigente, com a vigência e as pausas. A decisão do período
+ * continua no banco e não substitui essa meta.
  * Sem a migração 20261016220000 a coluna não existe e a leitura devolve null.
  */
 export async function distribuicaoView(session: Session) {
@@ -521,8 +548,8 @@ export function registerEditorial(server: McpServer) {
       title: 'Definir proporção por função (funil)',
       description:
         'Grava a proporção fixa de cada função editorial, em %, para todos os períodos. ' +
-        'A meta de cada período é proporção × limite do período (maior resto, a soma bate com o limite). ' +
-        'Um ajuste de meta num período (decisao_periodo) passa na frente da proporção só naquele período. ' +
+        'Na Saúde, a meta de cada trecho é proporção × limite vigente (maior resto, a soma bate com o limite), com a vigência e as pausas. ' +
+        'A decisão gravada de um período não substitui essa meta. ' +
         'As funções enviadas substituem a proporção inteira; função ausente fica sem proporção. A soma deve ser 100. ' +
         'limpar: true apaga a proporção.',
       inputSchema: {

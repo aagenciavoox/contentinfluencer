@@ -14,7 +14,8 @@ import {
   ALL_STATUSES,
   matchesContentFilters,
 } from '../lib/calendarContentFilters';
-import {buildPublishCalendarItems, isScheduledItem, publishItemStatus, todayKey} from '../lib/publishCalendarItems';
+import {buildPublishCalendarItems, isScheduledItem, publishItemStatus, todayKey, type PublishCalendarConta} from '../lib/publishCalendarItems';
+import {PublishCalendarCard} from './PublishCalendarCard';
 import type {GradeSerie} from '../../editorial/lib/gradeEntries';
 import {diasCobertos, papelNoIntervalo} from '../../projects/lib/agendaEventos';
 import {calendarEntryIcon} from './CalendarNetworkIcons';
@@ -59,6 +60,8 @@ export type CalendarEntry = {
   contentId?: string;
   plataformaId?: string;
   platformNames?: string[];
+  /** Contas deste card, com horário, legenda e status de cada publicação. */
+  contas?: PublishCalendarConta[];
   /** Publicação que já foi ao ar. */
   posted?: boolean;
   /** Publicação que ainda vai ao ar, hoje ou depois. */
@@ -151,6 +154,7 @@ export function buildCalendarEntries(
         contentId: content.id,
         plataformaId: item.plataformaId,
         platformNames: item.platformNames,
+        contas: item.contas,
         posted: item.posted,
         scheduled: isScheduledItem(item, content),
         secondary: networkLabel,
@@ -318,6 +322,24 @@ export function MonthlyCalendarView({
             return (
               <>
                 {visible.map(entry => {
+                  const aberto = () => {
+                    onSelectEntry?.(entry);
+                    onSelectDate?.(dayProps.day);
+                  };
+                  if (entry.type === 'publish') {
+                    return (
+                      <PublishCalendarCard
+                        key={entry.id}
+                        label={entry.label}
+                        time={entry.time}
+                        secondary={entry.secondary}
+                        contas={entry.contas}
+                        variant="compact"
+                        style={calendarEntryPillStyle(entry)}
+                        onOpen={aberto}
+                      />
+                    );
+                  }
                   return (
                     <CalendarEventPill
                       key={entry.id}
@@ -338,8 +360,7 @@ export function MonthlyCalendarView({
                       }
                       onClick={event => {
                         event.stopPropagation();
-                        onSelectEntry?.(entry);
-                        onSelectDate?.(dayProps.day);
+                        aberto();
                       }}
                     />
                   );

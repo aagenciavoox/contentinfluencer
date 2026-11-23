@@ -1,12 +1,47 @@
 import { addDays, format, parseISO } from 'date-fns';
 import type { FuncaoEditorial } from '../../../lib/database.ts';
-import { atualizarPreferencias, atualizarProporcao, type EditorialSettings, type VigenciaEditorial } from './editorialSettings.ts';
+import { atualizarPreferencias, atualizarProporcao, type EditorialSettings, type PreferenciasGerais, type VigenciaEditorial } from './editorialSettings.ts';
 import { FUNCOES } from './funcoes.ts';
 import { semanaDe, semanasNoIntervalo } from './periodoEditorial.ts';
 import type { ProporcaoFuncoes } from './proporcaoObjetivos.ts';
 
 /** Valores que a vigência guarda. */
 export type DiretrizDaSemana = Pick<VigenciaEditorial, 'limiteSemanal' | 'proporcaoFuncoes'>;
+
+const CHAVES_FAIXA = ['minimoSemanal', 'maximoSemanal', 'gravacaoMinimoSemanal', 'gravacaoMetaSemanal', 'gravacaoMaximoSemanal'] as const;
+
+type ChaveDeFaixa = (typeof CHAVES_FAIXA)[number];
+
+function faixasDaFonte(fonte: Partial<VigenciaEditorial> | Partial<PreferenciasGerais> | null | undefined): Partial<VigenciaEditorial> {
+  const saida: Partial<VigenciaEditorial> = {};
+  if (!fonte) return saida;
+  for (const chave of CHAVES_FAIXA) {
+    const valor = fonte[chave];
+    if (typeof valor === 'number') saida[chave] = valor;
+  }
+  return saida;
+}
+
+function faixasIguais(
+  a: Partial<VigenciaEditorial> | null | undefined,
+  b: Partial<VigenciaEditorial> | Partial<PreferenciasGerais> | null | undefined,
+): boolean {
+  return CHAVES_FAIXA.every(chave => (a?.[chave] ?? null) === (b?.[chave] ?? null));
+}
+
+function faixasAplicadas(
+  base: Partial<VigenciaEditorial>,
+  valores: Partial<Record<ChaveDeFaixa, number | null>>,
+): Partial<VigenciaEditorial> {
+  const saida: Partial<VigenciaEditorial> = { ...base };
+  for (const chave of CHAVES_FAIXA) {
+    if (!(chave in valores)) continue;
+    const valor = valores[chave];
+    if (typeof valor === 'number') saida[chave] = valor;
+    else delete saida[chave];
+  }
+  return saida;
+}
 
 function ordenadas(vigencias: readonly VigenciaEditorial[]): VigenciaEditorial[] {
   return [...vigencias].sort((a, b) => a.vigenteDesde.localeCompare(b.vigenteDesde));
@@ -50,10 +85,15 @@ export function registrarVigencia(
   };
   const vigencias = settings.vigencias ?? [];
   const vale = vigenciaNaSemana(vigencias, desde);
-  if (vale && vale.limiteSemanal === atual.limiteSemanal && mesmaProporcao(vale.proporcaoFuncoes, atual.proporcaoFuncoes)) {
+  if (
+    vale
+    && vale.limiteSemanal === atual.limiteSemanal
+    && mesmaProporcao(vale.proporcaoFuncoes, atual.proporcaoFuncoes)
+    && faixasIguais(vale, settings.preferencias)
+  ) {
     return settings;
   }
-  const linha: VigenciaEditorial = { vigenteDesde: desde, ...atual };
+  const linha: VigenciaEditorial = { vigenteDesde: desde, ...atual, ...faixasDaFonte(settings.preferencias) };
   return {
     ...settings,
     vigencias: ordenadas([...vigencias.filter(item => item.vigenteDesde !== desde), linha]),
@@ -216,15 +256,27 @@ export function proporcaoDoPeriodo(input: {
 export function agendarVigencia(
   settings: EditorialSettings,
   desde: string,
-  valores: DiretrizDaSemana,
+  valores: DiretrizDaSemana & Partial<Record<ChaveDeFaixa, number | null>>,
   hoje: string = format(new Date(), 'yyyy-MM-dd'),
 ): EditorialSettings {
   const estaSemana = semanaDe(hoje).inicio;
   const domingo = semanaDe(desde < estaSemana ? estaSemana : desde).inicio;
-  const linha: VigenciaEditorial = { vigenteDesde: domingo, ...valores };
+  const existente = (settings.vigencias ?? []).find(item => item.vigenteDesde === domingo);
+  const herdada = vigenciaNaSemana(settings.vigencias, domingo);
+  const base = faixasDaFonte(existente ?? (domingo <= estaSemana ? settings.preferencias : (herdada ?? settings.preferencias)));
+  const linha: VigenciaEditorial = {
+    vigenteDesde: domingo,
+    limiteSemanal: valores.limiteSemanal,
+    proporcaoFuncoes: valores.proporcaoFuncoes,
+    ...faixasAplicadas(base, valores),
+  };
   const vigencias = ordenadas([...(settings.vigencias ?? []).filter(item => item.vigenteDesde !== domingo), linha]);
   if (domingo > estaSemana) return { ...settings, vigencias };
-  const comValores = atualizarProporcao(atualizarPreferencias(settings, { limiteSemanal: valores.limiteSemanal }), valores.proporcaoFuncoes);
+  const patch: Partial<PreferenciasGerais> = { limiteSemanal: valores.limiteSemanal };
+  for (const chave of CHAVES_FAIXA) {
+    if (chave in valores) patch[chave] = valores[chave] ?? null;
+  }
+  const comValores = atualizarProporcao(atualizarPreferencias(settings, patch), valores.proporcaoFuncoes);
   return { ...comValores, vigencias };
 }
 
@@ -252,7 +304,15 @@ export function alinharComVigenciaAgendada(
   return {
     ...settings,
     proporcaoFuncoes: vale.proporcaoFuncoes,
-    preferencias: { ...settings.preferencias, limiteSemanal: vale.limiteSemanal },
+    preferencias: {
+      ...settings.preferencias,
+      limiteSemanal: vale.limiteSemanal,
+      minimoSemanal: vale.minimoSemanal ?? null,
+      maximoSemanal: vale.maximoSemanal ?? null,
+      gravacaoMinimoSemanal: vale.gravacaoMinimoSemanal ?? null,
+      gravacaoMetaSemanal: vale.gravacaoMetaSemanal ?? null,
+      gravacaoMaximoSemanal: vale.gravacaoMaximoSemanal ?? null,
+    },
   };
 }
 
@@ -284,7 +344,9 @@ export function desfazerMudanca(
   const nova: VigenciaEditorial = campo === 'limite'
     ? { ...linha, limiteSemanal: antes.limiteSemanal }
     : { ...linha, proporcaoFuncoes: antes.proporcaoFuncoes };
-  const igualAntes = nova.limiteSemanal === antes.limiteSemanal && mesmaProporcao(nova.proporcaoFuncoes, antes.proporcaoFuncoes);
+  const igualAntes = nova.limiteSemanal === antes.limiteSemanal
+    && mesmaProporcao(nova.proporcaoFuncoes, antes.proporcaoFuncoes)
+    && faixasIguais(nova, antes);
   const outras = (settings.vigencias ?? []).filter(item => item.vigenteDesde !== vigenteDesde);
   return { ...settings, vigencias: igualAntes ? outras : ordenadas([...outras, nova]) };
 }

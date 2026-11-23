@@ -1,4 +1,5 @@
 import { differenceInCalendarDays, parseISO } from 'date-fns';
+import { inteiroNaoNegativo } from '../../../lib/inteiro.ts';
 import type { AcompanhamentoSerie, MetaDaSerieNoEscopo } from './continuidadeEscopo.ts';
 import { diasDePausa, type PausaEditorial } from './pausas.ts';
 
@@ -78,6 +79,91 @@ export function metaDoEscopo(
 ): MetaDaSerieNoEscopo | null {
   return (metas ?? []).find(meta => (meta.platformId ?? null) === (item.platformId ?? null)
     && (meta.formato ?? null) === (item.formato ?? null)) ?? null;
+}
+
+/** Linha do editor por conta ou formato: o acompanhamento e a meta própria (vazia = meta geral). */
+export type LinhaDeEscopo = AcompanhamentoSerie & {
+  metaVezes: string;
+  metaUnidade: MetaDaSerieNoEscopo['unidade'];
+  metaAPartirDe: string;
+};
+
+/** Conta e formato da série, com a meta do mesmo escopo já no campo (vazio quando usa a geral). */
+export function linhasDeEscopo(
+  serie: SerieComAcompanhamento & { metasPorEscopo?: readonly MetaDaSerieNoEscopo[] },
+): LinhaDeEscopo[] {
+  return acompanhamentosPorEscopo(serie).map(item => {
+    const meta = metaDoEscopo(serie.metasPorEscopo, item);
+    return {
+      ...item,
+      metaVezes: meta ? String(meta.vezes) : '',
+      metaUnidade: meta?.unidade ?? 'semana',
+      metaAPartirDe: meta?.aPartirDe ?? '',
+    };
+  });
+}
+
+function camposDaLinha(linha: LinhaDeEscopo) {
+  return {
+    id: linha.id,
+    escopo: linha.escopo,
+    platformId: linha.platformId ?? null,
+    formato: linha.formato ?? null,
+    ativo: linha.ativo,
+    inicio: linha.inicio ?? null,
+    termino: linha.termino ?? null,
+    distanciaMaxDias: linha.distanciaMaxDias ?? null,
+    evitarDiasSeguidos: linha.evitarDiasSeguidos,
+    metaVezes: linha.metaVezes,
+    metaUnidade: linha.metaUnidade,
+    metaAPartirDe: linha.metaAPartirDe,
+  };
+}
+
+/** A ordem entra na comparação: o editor não reordena. */
+export function linhasDeEscopoIguais(a: readonly LinhaDeEscopo[], b: readonly LinhaDeEscopo[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((linha, index) => JSON.stringify(camposDaLinha(linha)) === JSON.stringify(camposDaLinha(b[index])));
+}
+
+/**
+ * Acompanhamentos gravados: os gerais que o chamador já ajustou, mais conta e formato.
+ * Meta vazia não vai para a lista de metas — o escopo usa a meta geral.
+ */
+export function acompanhamentosDosEscopos(
+  gerais: readonly AcompanhamentoSerie[],
+  linhas: readonly LinhaDeEscopo[],
+): AcompanhamentoSerie[] {
+  return [
+    ...gerais,
+    ...linhas.map(linha => ({
+      id: linha.id,
+      serieId: linha.serieId,
+      escopo: linha.escopo,
+      platformId: linha.escopo === 'conta' || linha.escopo === 'formato' ? (linha.platformId || null) : null,
+      formato: linha.formato,
+      ativo: linha.ativo,
+      inicio: linha.inicio || null,
+      termino: linha.termino || null,
+      distanciaMaxDias: linha.distanciaMaxDias,
+      evitarDiasSeguidos: linha.evitarDiasSeguidos,
+    })),
+  ];
+}
+
+export function metasDosEscopos(serieId: string, linhas: readonly LinhaDeEscopo[]): MetaDaSerieNoEscopo[] {
+  return linhas.flatMap(linha => {
+    const quantidade = inteiroNaoNegativo(linha.metaVezes);
+    if (quantidade == null || quantidade <= 0) return [];
+    return [{
+      serieId,
+      platformId: linha.platformId || null,
+      formato: linha.formato || null,
+      vezes: quantidade,
+      unidade: linha.metaUnidade,
+      aPartirDe: linha.metaAPartirDe || null,
+    }];
+  });
 }
 
 export type CoberturaDaJanelaNoGeral = 'fora' | 'integral' | 'parcial' | 'pausada';

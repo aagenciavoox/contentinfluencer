@@ -1,42 +1,33 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { AtSign, Compass, Palette, Plus, SlidersHorizontal, Target } from 'lucide-react';
+import { Palette, Plus } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { SettingsGridCard, SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/SettingsGridCard';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Badge } from '../../../components/ui/Badge';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { Section } from '../../../components/ui/Section';
-import { SegmentTabs, type SegmentTabOption } from '../../../components/ui/SegmentTabs';
 import { useAppContext } from '../../../context/AppContext';
-import type { Pilar } from '../../../lib/database';
+import type { Pilar, Platform } from '../../../lib/database';
 import { CONFIRM, type ConfirmState } from '../../../lib/uiCopy';
 import { sortPilares } from '../../settings/lib/activePilares';
 import { ContasHorariosPanel } from '../../contas/components/ContasHorariosPanel';
-import { AjustesEditorialPanel } from './plano/AjustesEditorialPanel';
-import { AvisosEditorialPanel } from './plano/AvisosEditorialPanel';
-import { MetodoCalculoCard } from './plano/MetodoCalculoCard';
-import { ContinuidadePanel } from './plano/ContinuidadePanel';
-import { PeriodoPanel } from './plano/PeriodoPanel';
-import { PerfilEditorialCard } from './plano/PerfilEditorialCard';
-import { RegraDeOuroCard } from './plano/RegraDeOuroCard';
-import { IndicadoresDaRotinaCard } from './plano/IndicadoresDaRotinaCard';
-import { PilarEditDrawer } from './plano/PilarEditDrawer';
 import {
-  abaEditorialDaUrl,
-  ancoraDaAbaAntiga,
   ANCORA_AVISOS,
-  ANCORA_CONTINUIDADE,
-  ANCORA_HASHTAGS,
+  ANCORA_PILARES,
   ANCORA_REGRA_DE_OURO,
-  paramsDaAba,
-  ROTULO_DA_ABA,
-  type EditorialAba,
 } from '../lib/abasEditorial';
-import { periodoInicial, type PeriodoSelecionado } from './plano/PeriodoEditorialControl';
-import { lerPeriodoSalvo } from '../lib/periodoEditorial';
 import { pilarHerdadoDaSerie } from '../lib/herancaSerie';
 import { pilarPrincipalDaSerie } from '../lib/pilarDaSerie';
+import { ContaEditorialPanel } from './ContaEditorialPanel';
+import { AjustesEditorialPanel } from './plano/AjustesEditorialPanel';
+import { AvisosEditorialPanel } from './plano/AvisosEditorialPanel';
+import { DnaDaVozCard } from './plano/DnaDaVozCard';
+import { IndicadoresDaRotinaCard } from './plano/IndicadoresDaRotinaCard';
+import { PausasDoPeriodo } from './plano/PausasDoPeriodo';
+import { PilarEditDrawer } from './plano/PilarEditDrawer';
+import { RegraDeOuroCard } from './plano/RegraDeOuroCard';
+import { VariedadeConcentracaoCard } from './plano/VariedadeConcentracaoCard';
 
 function linhaDeSeries(nomes: string[]) {
   if (nomes.length === 0) return 'Sem séries ligadas';
@@ -48,64 +39,43 @@ function nomeChave(nome: string): string {
   return nome.trim().toLocaleLowerCase('pt-BR');
 }
 
-export { abaEditorialDaUrl, type EditorialAba };
-
-/** Ordem em `EDITORIAL_ABAS` (lib/abasEditorial). */
-export function opcoesAbasEditorial(): SegmentTabOption<EditorialAba>[] {
-  return [
-    { id: 'plano', label: ROTULO_DA_ABA.plano, icon: <Target className="h-4 w-4" /> },
-    { id: 'direcao', label: ROTULO_DA_ABA.direcao, icon: <Compass className="h-4 w-4" /> },
-    { id: 'ajustes', label: ROTULO_DA_ABA.ajustes, icon: <SlidersHorizontal className="h-4 w-4" /> },
-    { id: 'contas', label: ROTULO_DA_ABA.contas, icon: <AtSign className="h-4 w-4" /> },
-  ];
-}
-
-interface DirecaoEditorialPanelProps {
-  abaAtiva?: EditorialAba;
-}
-
 function rolarAte(id: string) {
   window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
 }
 
-/**
- * Conteúdo das 4 abas do Editorial.
- * Plano do período inclui a Continuidade; Direção editorial inclui as hashtags fora das séries;
- * Rotina de criação inclui os Avisos.
- */
-export function DirecaoEditorialPanel({ abaAtiva: abaAtivaProp }: DirecaoEditorialPanelProps = {}) {
+interface DirecaoEditorialPanelProps {
+  conta: Platform | null;
+  formularioConta: Platform | 'nova' | null;
+  onFormularioConta: (valor: Platform | 'nova' | null) => void;
+  pilarAberto?: string | null;
+  onPilarAbertoChange?: (id: string | null) => void;
+}
+
+/** Geral, ou a conta aberta em `?conta=`. O Plano do período saiu daqui: a conferência mora na Saúde. */
+export function DirecaoEditorialPanel({
+  conta,
+  formularioConta,
+  onFormularioConta,
+  pilarAberto: pilarAbertoProp,
+  onPilarAbertoChange,
+}: DirecaoEditorialPanelProps) {
   const { state, dispatch } = useAppContext();
-  const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const abaParam = searchParams.get('aba');
-  const abaAtiva: EditorialAba = abaAtivaProp ?? abaEditorialDaUrl(abaParam);
   const location = useLocation();
-  // Bloco que antes era aba própria (#continuidade, #avisos, #hashtags ou id antigo em ?aba=).
-  const ancora = location.hash.replace(/^#/, '') || ancoraDaAbaAntiga(abaParam);
+  const ancora = location.hash.replace(/^#/, '');
   useEffect(() => {
-    if (ancora) rolarAte(ancora);
-  }, [ancora, abaAtiva]);
+    if (!conta && ancora) rolarAte(ancora);
+  }, [ancora, conta]);
 
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
-  // Pilar aberto na gaveta (id, 'nova' para criar, null fechado).
-  const [pilarAberto, setPilarAberto] = useState<string | null>(null);
-  // O mesmo período salvo que o Planejamento usa: as metas ficam presas ao início e fim exatos.
-  const periodo = useMemo(
-    () => (state.editorialVisao ? lerPeriodoSalvo(state.editorialVisao) : null) ?? periodoInicial(),
-    [state.editorialVisao],
-  );
-  const salvarPeriodo = (next: PeriodoSelecionado) => {
-    dispatch({ type: 'SET_EDITORIAL_VISAO', payload: next });
+  const [pilarInterno, setPilarInterno] = useState<string | null>(null);
+  const pilarControlado = pilarAbertoProp !== undefined;
+  const pilarAberto = pilarControlado ? pilarAbertoProp : pilarInterno;
+  const setPilarAberto = (id: string | null) => {
+    if (!pilarControlado) setPilarInterno(id);
+    onPilarAbertoChange?.(id);
   };
 
   const pilares = useMemo(() => sortPilares(state.pilares), [state.pilares]);
-
-  const abaOptions = opcoesAbasEditorial();
-
-  const handleAbaChange = (novaAba: EditorialAba) => {
-    setSearchParams(prev => paramsDaAba(prev, novaAba), { replace: true });
-  };
-
   const nomesRepetidos = useMemo(() => {
     const result = new Map<string, number>();
     pilares.forEach(pilar => {
@@ -119,11 +89,9 @@ export function DirecaoEditorialPanel({ abaAtiva: abaAtivaProp }: DirecaoEditori
     const map = new Map<string, string[]>();
     for (const serie of state.series) {
       if (serie.tipoAgrupamento === 'familia') continue;
-      // O pilar que vale para a série: o próprio ou o herdado da série de cima.
       const pilarId = pilarHerdadoDaSerie(serie.id, state.series);
       if (!pilarId) continue;
       const propria = pilarPrincipalDaSerie(serie) === pilarId;
-      // De quem veio: o primeiro acima que tem esse pilar escolhido (pode ser a família, não só o pai).
       let origem = serie.parentId ? state.series.find(item => item.id === serie.parentId) ?? null : null;
       for (let passo = 0; origem && pilarPrincipalDaSerie(origem) !== pilarId && passo < 6; passo += 1) {
         origem = origem.parentId ? state.series.find(item => item.id === origem!.parentId) ?? null : null;
@@ -144,106 +112,78 @@ export function DirecaoEditorialPanel({ abaAtiva: abaAtivaProp }: DirecaoEditori
 
   return (
     <div className="stack-lg">
-      {!abaAtivaProp ? (
-        <SegmentTabs<EditorialAba>
-          options={abaOptions}
-          value={abaAtiva}
-          onChange={handleAbaChange}
-          ariaLabel="Abas do Editorial"
-        />
-      ) : null}
+      {conta ? (
+        <ContaEditorialPanel conta={conta} onEditarConta={() => onFormularioConta(conta)} />
+      ) : (
+        <>
+          <DnaDaVozCard />
 
-      {/* O mesmo painel do "Prioridade e metas" do Planejamento: mesmos campos, mesmo editor. */}
-      {/* Plano: respiro fixo de --space-2xl (32px no desktop) entre o bloco de cima e a Continuidade. */}
-      {abaAtiva === 'plano' && (
-        <div className="stack-2xl">
-          <PeriodoPanel
-            periodo={periodo}
-            onPeriodoChange={salvarPeriodo}
-            onAbrirAjustes={() => handleAbaChange('ajustes')}
-            planoRecolhivel={false}
-            semListasDoPeriodo
-          />
-          <div id={ANCORA_CONTINUIDADE} className="scroll-mt-24">
-            <ContinuidadePanel periodo={periodo} />
-          </div>
-        </div>
-      )}
-
-      {/* Direção editorial: perfil, distribuição por objetivo, pilares e hashtags fora das séries. */}
-      {abaAtiva === 'direcao' && <PerfilEditorialCard />}
-
-      {abaAtiva === 'direcao' && <AjustesEditorialPanel secao="proporcao" />}
-
-      {abaAtiva === 'direcao' && (
-        <Section title="Pilares">
-          {pilares.length === 0 ? (
-            <EmptyState
-              icon={<Palette className="h-8 w-8" />}
-              title="Nenhum pilar ainda"
-              description="Um pilar junta as séries que falam do mesmo assunto."
-              action={(
-                <AppButton variant="secondary" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setPilarAberto('nova')}>
-                  Adicionar pilar
-                </AppButton>
+          <div id={ANCORA_PILARES} className="scroll-mt-24">
+            <Section title="Pilares">
+              {pilares.length === 0 ? (
+                <EmptyState
+                  icon={<Palette className="h-8 w-8" />}
+                  title="Nenhum pilar ainda"
+                  description="Um pilar junta as séries que falam do mesmo assunto."
+                  action={(
+                    <AppButton variant="secondary" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setPilarAberto('nova')}>
+                      Adicionar pilar
+                    </AppButton>
+                  )}
+                />
+              ) : (
+                <div className={SETTINGS_ENTITY_GRID_CLASS}>
+                  {pilares.map(pilar => {
+                    const nomeRepetido = (nomesRepetidos.get(nomeChave(pilar.nome)) ?? 0) > 1;
+                    const ligadas = seriesPorPilar.get(pilar.id) ?? [];
+                    return (
+                      <SettingsGridCard
+                        key={pilar.id}
+                        compact
+                        title={pilar.nome}
+                        color={pilar.cor}
+                        active={pilar.ativo}
+                        inactiveLabel="Inativo"
+                        dimmed={!pilar.ativo}
+                        onToggle={() => dispatch({ type: 'UPDATE_PILAR', payload: { ...pilar, ativo: !pilar.ativo } })}
+                        onOpen={() => setPilarAberto(pilar.id)}
+                        onEdit={() => setPilarAberto(pilar.id)}
+                        editLabel="Editar definições"
+                        onDelete={() => remove(pilar)}
+                        meta={linhaDeSeries(ligadas)}
+                        badges={nomeRepetido ? <Badge variant="warning">Nome repetido</Badge> : undefined}
+                      />
+                    );
+                  })}
+                </div>
               )}
-            />
-          ) : (
-            <div className={SETTINGS_ENTITY_GRID_CLASS}>
-              {pilares.map(pilar => {
-                const nomeRepetido = (nomesRepetidos.get(nomeChave(pilar.nome)) ?? 0) > 1;
-                const ligadas = seriesPorPilar.get(pilar.id) ?? [];
-                return (
-                  <SettingsGridCard
-                    key={pilar.id}
-                    compact
-                    title={pilar.nome}
-                    color={pilar.cor}
-                    active={pilar.ativo}
-                    inactiveLabel="Inativo"
-                    dimmed={!pilar.ativo}
-                    onToggle={() => dispatch({ type: 'UPDATE_PILAR', payload: { ...pilar, ativo: !pilar.ativo } })}
-                    onOpen={() => setPilarAberto(pilar.id)}
-                    onEdit={() => setPilarAberto(pilar.id)}
-                    editLabel="Editar definições"
-                    onDelete={() => remove(pilar)}
-                    meta={linhaDeSeries(ligadas)}
-                    badges={nomeRepetido ? <Badge variant="warning">Nome repetido</Badge> : undefined}
-                  />
-                );
-              })}
-            </div>
-          )}
-        </Section>
-      )}
+            </Section>
+          </div>
 
-      {abaAtiva === 'direcao' && (
-        <div id={ANCORA_HASHTAGS} className="scroll-mt-24">
           <AjustesEditorialPanel secao="operacional" />
-        </div>
+          <AjustesEditorialPanel secao="proporcao" />
+          <AjustesEditorialPanel secao="gravacao" />
+          <AjustesEditorialPanel secao="faixas" />
+          <PausasDoPeriodo armazenadas escopos={['publicacao', 'gravacao', 'producao']} />
+          <IndicadoresDaRotinaCard />
+          <div id={ANCORA_AVISOS} className="scroll-mt-24">
+            <AvisosEditorialPanel />
+          </div>
+          <div id={ANCORA_REGRA_DE_OURO} className="scroll-mt-24">
+            <RegraDeOuroCard />
+          </div>
+          <VariedadeConcentracaoCard />
+        </>
       )}
 
-      {/* Rotina de criação: capacidade, método de cálculo e teto, e logo abaixo os avisos. */}
-      {/* Duas colunas: capacidade e indicadores à esquerda, avisos à direita (uma coluna no celular). */}
-      {abaAtiva === 'ajustes' && (
-        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
-          <div id="ritmo-editorial" className="min-w-0 stack-lg">
-            <AjustesEditorialPanel />
-            <div id={ANCORA_REGRA_DE_OURO} className="scroll-mt-24">
-              <RegraDeOuroCard />
-            </div>
-            <MetodoCalculoCard periodo={periodo} />
-            <IndicadoresDaRotinaCard />
-          </div>
-          <div id={ANCORA_AVISOS} className="min-w-0 scroll-mt-24">
-            <AvisosEditorialPanel onAbrirCapacidade={() => rolarAte('dias-de-gravacao')} />
-          </div>
-        </div>
-      )}
+      <ContasHorariosPanel
+        aberto={formularioConta != null}
+        contaInicial={formularioConta && formularioConta !== 'nova' ? formularioConta : null}
+        onFechar={() => onFormularioConta(null)}
+        contaId={conta?.id ?? null}
+      />
 
-      {abaAtiva === 'contas' && <ContasHorariosPanel />}
-
-      <PilarEditDrawer pilarId={pilarAberto} onClose={() => setPilarAberto(null)} />
+      <PilarEditDrawer pilarId={pilarAberto ?? null} onClose={() => setPilarAberto(null)} />
 
       <ConfirmModal
         open={Boolean(confirm)}

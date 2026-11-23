@@ -7,6 +7,7 @@ import { aplicarLivros, livroIdsEfetivos } from './livroIds.ts';
 import { generateUUID } from '../utils/uuid.ts';
 import { normalizarRedesPostIt } from '../features/planejamento/lib/redesPostIt.ts';
 import { normalizeWritingMode, readCarouselSlides, slidesHaveContent } from '../features/contents/lib/carouselSlides.ts';
+import { blocosTemConteudo, readYoutubeBlocos, type YoutubeBloco } from '../features/contents/lib/youtubeBlocos.ts';
 import { nomeIndicaBlog, type RedeDoFiltro } from '../features/contas/lib/contas.ts';
 import { readAvisoDias } from '../features/projects/lib/evento.ts';
 import { DEFAULT_EDITORIAL_SETTINGS, lerMetodoCalculo, lerPerfilEditorial, METODO_CALCULO_PADRAO, type EditorialSettings } from '../features/editorial/lib/editorialSettings.ts';
@@ -210,6 +211,13 @@ export interface Serie {
   motivoEnviar?: string | null;
   /** Legenda que orienta os roteiros novos da série. Ausente no banco antigo. */
   legendaBase?: string | null;
+  /**
+   * Título-base do YouTube longo. Um modelo por série, puxado no episódio novo.
+   * Shorts continuam na legenda. Ausente antes da migração 20261123021731.
+   */
+  youtubeTituloBase?: string | null;
+  /** Descrição-base do YouTube longo. Mesma herança do título. */
+  youtubeDescricaoBase?: string | null;
   /** Série pai opcional. Null = raiz. Ausente no banco antigo. */
   parentId?: string | null;
   /** Este registro é o escopo das temporadas. Ausente no banco antigo. */
@@ -616,6 +624,18 @@ export interface Content {
   redeReferenciaCongeladaId?: string | null;
   /** Legenda compartilhada. Cada rede usa esta até adaptar a própria. */
   legendaBase?: string | null;
+  /**
+   * Título do vídeo longo neste episódio. Vazio na criação recebe o modelo da série.
+   * Ausente quando a coluna não veio na leitura: gravar não apaga o valor do servidor.
+   */
+  youtubeTitulo?: string | null;
+  /** Descrição do vídeo longo neste episódio. Shorts não usam este campo. */
+  youtubeDescricao?: string | null;
+  /**
+   * Blocos da visão em colunas do YouTube longo.
+   * Ausente quando a coluna não veio na leitura. `null` = o roteiro ainda é só texto corrido.
+   */
+  youtubeBlocos?: YoutubeBloco[] | null;
   publishDate: string | null;
   publishTime?: string | null;
   recordingDate: string | null;
@@ -627,6 +647,8 @@ export interface Content {
   /** A pessoa dispensou a edição em vez de concluí-la. */
   edicaoDispensada?: boolean;
   postedAt?: string | null;
+  /** Quando entrou na etapa atual. Ausente no banco antigo; a ordenação usa a criação. */
+  statusEnteredAt?: string | null;
   publishDateEnabled?: boolean;
   recordingDateEnabled?: boolean;
   link: string | null;
@@ -867,6 +889,39 @@ export interface ContentMetric {
   createdAt: string;
 }
 
+/** Leitura da conta num dia. Não entra na Saúde. */
+export interface ContaMetrica {
+  id: string;
+  userId: string;
+  platformId: string;
+  registradoEm: string;
+  seguidores: number | null;
+  alcance: number | null;
+  visualizacoes: number | null;
+  interacoes: number | null;
+  janelaDias: number | null;
+  extras: Record<string, unknown>;
+  origem: MetricaOrigem;
+  externoRef: string | null;
+  nota: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Período guardado na área de Análises. Não entra na Saúde. */
+export interface PeriodoAnalise {
+  id: string;
+  userId: string;
+  nome: string;
+  inicio: string;
+  fim: string;
+  oQueMudei: string;
+  conclusao: string;
+  contaIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PostingTimeEntry {
   id: string;
   userId: string;
@@ -904,6 +959,10 @@ export interface AppData {
   postIts: PlanejamentoPostIt[];
   goldenRules: GoldenRule[];
   contentMetrics: ContentMetric[];
+  /** Leituras de seguidores, alcance e visualizações da conta. Fora da Saúde. */
+  contasMetricas: ContaMetrica[];
+  /** Períodos salvos em Análises, com as contas escolhidas. Fora da Saúde. */
+  periodosAnalise: PeriodoAnalise[];
   postingTimeEntries: PostingTimeEntry[];
   /** Ajustes e decisões do editorial. Uma conta, várias decisões de intervalo. */
   editorial: EditorialSettings;
@@ -965,7 +1024,8 @@ function empty(): AppData {
     clubeSeries: [],
     cenarios: [], looks: [], bibliotecaGeneros: [], bibliotecaItems: [],
     contents: [], ideas: [], projetos: [], recordingBlocks: [], templates: [],
-    agendaItems: [], postIts: [], goldenRules: [], contentMetrics: [], postingTimeEntries: [],
+    agendaItems: [], postIts: [], goldenRules: [], contentMetrics: [],
+    contasMetricas: [], periodosAnalise: [], postingTimeEntries: [],
     editorial: DEFAULT_EDITORIAL_SETTINGS,
     editorialVisao: null,
   };
@@ -1089,7 +1149,15 @@ const SERIE_OPTIONAL_COLUMNS = [
   'status',
   'modo_sequencia',
   'frequencia_ancora',
+  'youtube_titulo_base',
+  'youtube_descricao_base',
 ] as const;
+
+/** Título e descrição do YouTube longo na série, e a cópia puxada no episódio. */
+export const MIGRACAO_YOUTUBE_LONGO = '20261123021731_youtube_longo_modelo';
+
+/** Migração dos blocos (nome, roteiro, referências) do YouTube longo. */
+export const MIGRACAO_YOUTUBE_BLOCOS = '20261123022235_youtube_blocos';
 
 /** Migração das três bases do Editorial: âncora da quinzena, perfil editorial e avisos. */
 export const MIGRACAO_EDITORIAL_BASES = '20261111120000_editorial_bases';
@@ -1223,6 +1291,25 @@ function readPropostaColumn(row: Row): Pick<Content, 'proposta'> {
   return {proposta: typeof row.proposta === 'string' ? row.proposta : null};
 }
 
+/** Sem a coluna na consulta fica ausente, para o salvar não apagar o texto já gravado. */
+function readYoutubeLongoColumns(row: Row): Pick<Content, 'youtubeTitulo' | 'youtubeDescricao'> {
+  if (!row) return {};
+  const out: Pick<Content, 'youtubeTitulo' | 'youtubeDescricao'> = {};
+  if ('youtube_titulo' in row) {
+    out.youtubeTitulo = typeof row.youtube_titulo === 'string' ? row.youtube_titulo : null;
+  }
+  if ('youtube_descricao' in row) {
+    out.youtubeDescricao = typeof row.youtube_descricao === 'string' ? row.youtube_descricao : null;
+  }
+  return out;
+}
+
+/** Sem a coluna na consulta fica ausente, para o salvar não apagar os blocos já gravados. */
+function readYoutubeBlocosColumn(row: Row): Pick<Content, 'youtubeBlocos'> {
+  if (!row || !('youtube_blocos' in row)) return {};
+  return { youtubeBlocos: readYoutubeBlocos(row.youtube_blocos) };
+}
+
 function readLivroIds(row: Row): string[] {
   return livroIdsEfetivos({
     livroIds: Array.isArray(row.livro_ids) ? row.livro_ids.filter((id: unknown): id is string => typeof id === 'string') : undefined,
@@ -1307,6 +1394,17 @@ function readTextoOpcional(value: unknown): string | null {
 
 function readMetricaOrigem(value: unknown): MetricaOrigem {
   return value === 'importacao' || value === 'api' ? value : 'manual';
+}
+
+function numeroNaoNegativo(value: unknown): number | null {
+  const bruto = typeof value === 'string' && value.trim() ? Number(value) : value;
+  if (typeof bruto !== 'number' || !Number.isFinite(bruto) || bruto < 0) return null;
+  return bruto;
+}
+
+function extrasDaLinha(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return value as Record<string, unknown>;
 }
 
 function mapContentPlataforma(p: Row): ContentPlataforma {
@@ -1513,6 +1611,12 @@ const mp = {
     motivoSalvar: typeof r.motivo_salvar === 'string' ? r.motivo_salvar : null,
     motivoEnviar: typeof r.motivo_enviar === 'string' ? r.motivo_enviar : null,
     legendaBase: typeof r.legenda_base === 'string' ? r.legenda_base : null,
+    ...('youtube_titulo_base' in r
+      ? {youtubeTituloBase: typeof r.youtube_titulo_base === 'string' ? r.youtube_titulo_base : null}
+      : {}),
+    ...('youtube_descricao_base' in r
+      ? {youtubeDescricaoBase: typeof r.youtube_descricao_base === 'string' ? r.youtube_descricao_base : null}
+      : {}),
     parentId: typeof r.parent_id === 'string' && r.parent_id ? r.parent_id : null,
     usaTemporadas: r.usa_temporadas === true,
     tipoAgrupamento: readTipoAgrupamento(r.tipo_agrupamento),
@@ -1659,6 +1763,9 @@ const mp = {
     publishDate: r.publish_date, publishTime: r.publish_time, recordingDate: r.recording_date,
     recordingTime: typeof r.recording_time === 'string' ? r.recording_time : null,
     recordedAt: r.recorded_at ?? null, postedAt: r.posted_at ?? null,
+    ...('status_entered_at' in r
+      ? {statusEnteredAt: typeof r.status_entered_at === 'string' ? r.status_entered_at : null}
+      : {}),
     // Sem a coluna na consulta fica ausente, para o salvar não apagar o valor do servidor.
     ...('edicao_concluida_em' in r ? {edicaoConcluidaEm: r.edicao_concluida_em ?? null} : {}),
     ...('edicao_dispensada' in r ? {edicaoDispensada: r.edicao_dispensada === true} : {}),
@@ -1682,6 +1789,8 @@ const mp = {
     writingNotes: r.writing_notes,
     ...readCarouselColumns(r),
     ...readPropostaColumn(r),
+    ...readYoutubeLongoColumns(r),
+    ...readYoutubeBlocosColumn(r),
     createdAt: r.created_at, updatedAt: r.updated_at, deletedAt: r.deleted_at,
     archivedAt: r.archived_at ?? null,
     legacyIdeaId: r.legacy_idea_id ?? null,
@@ -1782,6 +1891,35 @@ const mp = {
     retentionRate: r.retention_rate, completionRate: r.completion_rate,
     qualitativeNotes: r.qualitative_notes, registeredAt: r.registered_at,
     createdAt: r.created_at,
+  }),
+  contaMetrica: (r: Row): ContaMetrica => ({
+    id: String(r.id),
+    userId: String(r.user_id),
+    platformId: String(r.platform_id),
+    registradoEm: diaDaLinha(r.registrado_em) ?? String(r.registrado_em ?? '').slice(0, 10),
+    seguidores: numeroNaoNegativo(r.seguidores),
+    alcance: numeroNaoNegativo(r.alcance),
+    visualizacoes: numeroNaoNegativo(r.visualizacoes),
+    interacoes: numeroNaoNegativo(r.interacoes),
+    janelaDias: numeroNaoNegativo(r.janela_dias),
+    extras: extrasDaLinha(r.extras),
+    origem: readMetricaOrigem(r.origem),
+    externoRef: readTextoOpcional(r.externo_ref),
+    nota: typeof r.nota === 'string' ? r.nota : '',
+    createdAt: String(r.created_at ?? ''),
+    updatedAt: String(r.updated_at ?? r.created_at ?? ''),
+  }),
+  periodoAnalise: (r: Row): PeriodoAnalise => ({
+    id: String(r.id),
+    userId: String(r.user_id),
+    nome: typeof r.nome === 'string' ? r.nome : '',
+    inicio: diaDaLinha(r.inicio) ?? String(r.inicio ?? '').slice(0, 10),
+    fim: diaDaLinha(r.fim) ?? String(r.fim ?? '').slice(0, 10),
+    oQueMudei: typeof r.o_que_mudei === 'string' ? r.o_que_mudei : '',
+    conclusao: typeof r.conclusao === 'string' ? r.conclusao : '',
+    contaIds: [],
+    createdAt: String(r.created_at ?? ''),
+    updatedAt: String(r.updated_at ?? r.created_at ?? ''),
   }),
   postingTimeEntry: (r: Row): PostingTimeEntry => ({
     id: r.id, userId: r.user_id, platformId: r.platform_id ?? null,
@@ -1907,6 +2045,7 @@ function buildContentScheduleSelect(
   includeOrdemEpisodio = true,
   includeFormatoPublicacao = true,
   includeClube = true,
+  includeStatusEntered = true,
 ): string {
   let columns: readonly string[] = includeMilestones
     ? [
@@ -1952,6 +2091,10 @@ function buildContentScheduleSelect(
     const relation = columns[columns.length - 1];
     columns = [...columns.slice(0, -1), CONTENT_CLUBE_COLUMN, relation];
   }
+  if (includeStatusEntered) {
+    const relation = columns[columns.length - 1];
+    columns = [...columns.slice(0, -1), 'status_entered_at', relation];
+  }
   if (includeWritingMode) {
     // Leve: só o modo. As telas vêm com o corpo, como o roteiro.
     const relation = columns[columns.length - 1];
@@ -1991,6 +2134,7 @@ async function runContentScheduleSelect<T>(
   let includeOrdemEpisodio = true;
   let includeFormatoPublicacao = true;
   let includeClube = true;
+  let includeStatusEntered = true;
 
   for (let attempt = 0; attempt < 18; attempt += 1) {
     const result = await run(
@@ -2010,6 +2154,7 @@ async function runContentScheduleSelect<T>(
         includeOrdemEpisodio,
         includeFormatoPublicacao,
         includeClube,
+        includeStatusEntered,
       ),
     );
     if (!result.error) return result;
@@ -2024,6 +2169,10 @@ async function runContentScheduleSelect<T>(
     }
     if (includeClube && isMissingNamedColumn(result.error?.message ?? '', CONTENT_CLUBE_COLUMN)) {
       includeClube = false;
+      continue;
+    }
+    if (includeStatusEntered && isMissingNamedColumn(result.error?.message ?? '', 'status_entered_at')) {
+      includeStatusEntered = false;
       continue;
     }
     if (includeEdicao && isMissingEdicaoColumns(result.error)) {
@@ -2081,7 +2230,7 @@ async function runContentScheduleSelect<T>(
     return result;
   }
 
-  return run(buildContentScheduleSelect(false, false, false, false, false, false, false, false, false, false, false));
+  return run(buildContentScheduleSelect(false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, false));
 }
 const CONTENT_LIST_SORT_COLUMNS: Record<string, string> = {
   createdAt: 'created_at',
@@ -2556,7 +2705,7 @@ export async function fetchDataDomains(
 
   if (requested.has('bootstrap')) {
     tasks.push((async () => {
-      const [platformsResult, prefsResult, contaResult, visaoResult, destinosResult, limitesResult, decisoesResult, ajustesResult, vigenciasResult, metasContaResult, pausasResult, excecoesResult] = await Promise.all([
+      const [platformsResult, prefsResult, contaResult, visaoResult, destinosResult, limitesResult, decisoesResult, ajustesResult, vigenciasResult, metasContaResult, pausasResult, excecoesResult, cientesResult] = await Promise.all([
         platformsPromise!,
         supabase.from('user_preferences').select('*').eq('user_id', uid),
         supabase.from('editorial_conta').select('*').eq('user_id', uid).maybeSingle(),
@@ -2565,10 +2714,11 @@ export async function fetchDataDomains(
         supabase.from('editorial_limite_hashtag').select('platform_id, limite').eq('user_id', uid),
         supabase.from('decisao_periodo').select('*').eq('user_id', uid),
         supabase.from('ajuste_semana').select('decisao_id, inicio, fim, limite').eq('user_id', uid),
-        supabase.from('editorial_vigencia').select('vigente_desde, limite_semanal, proporcao_funcoes').eq('user_id', uid),
-        supabase.from('editorial_conta_meta').select('platform_id, vigente_desde, limite_semanal, proporcao_funcoes, parcelas_formato').eq('user_id', uid),
+        lerEditorialComColunasOpcionais('editorial_vigencia', 'vigente_desde, limite_semanal, proporcao_funcoes', COLUNAS_FAIXA_GERAL, uid),
+        lerEditorialComColunasOpcionais('editorial_conta_meta', 'platform_id, vigente_desde, limite_semanal, proporcao_funcoes, parcelas_formato', ['minimo_semanal', 'maximo_semanal', 'faixas_formato'], uid),
         supabase.from('editorial_pausa').select('id, inicio, fim, escopo, platform_id, serie_id, nota').eq('user_id', uid),
         supabase.from('concentracao_excecao').select('id, tipo, alvo_id, platform_id, inicio, fim, nota').eq('user_id', uid),
+        supabase.from('editorial_aviso_ciente').select('semana_inicio, tipo, platform_id, formato, nota').eq('user_id', uid),
       ]);
       const platforms = assertQuerySuccess('platforms fetch', platformsResult) || [];
       const prefs = assertQuerySuccess('preferences fetch', prefsResult) || [];
@@ -2593,6 +2743,10 @@ export async function fetchDataDomains(
           excecoes: linhasDeTabelaNova('concentracao_excecao fetch', excecoesResult),
         },
       );
+      payload.editorial = {
+        ...payload.editorial,
+        avisosCientes: linhasDeTabelaNova('editorial_aviso_ciente fetch', cientesResult).flatMap(cienteDaLinha),
+      };
       lembrarGravadoPorConta(uid, payload.editorial);
       payload.editorialVisao = visaoDaLinha(assertQuerySuccess('editorial_visao fetch', visaoResult));
     })());
@@ -2809,10 +2963,32 @@ export async function fetchDataDomains(
 
   if (requested.has('analytics')) {
     tasks.push((async () => {
+      const [metricsResult, contasResult, periodosResult, vinculosResult] = await Promise.all([
+        supabase.from('content_metrics').select('*').eq('user_id', uid),
+        supabase.from('conta_metrica').select('*').eq('user_id', uid).order('registrado_em'),
+        supabase.from('periodo_analise').select('*').eq('user_id', uid).order('inicio', { ascending: false }),
+        supabase.from('periodo_analise_conta').select('periodo_id, platform_id').eq('user_id', uid),
+      ]);
       payload.contentMetrics = (assertQuerySuccess(
         'content_metrics fetch',
-        await supabase.from('content_metrics').select('*').eq('user_id', uid),
+        metricsResult,
       ) || []).map(mp.contentMetric);
+      // Sem a migração 20261122184032 as tabelas não existem: lista vazia, o bootstrap segue.
+      // Estes números não alimentam a Saúde.
+      payload.contasMetricas = linhasDeTabelaNova('conta_metrica fetch', contasResult).map(mp.contaMetrica);
+      const contasPorPeriodo = new Map<string, string[]>();
+      for (const row of linhasDeTabelaNova('periodo_analise_conta fetch', vinculosResult)) {
+        const periodoId = String(row.periodo_id ?? '');
+        const platformId = typeof row.platform_id === 'string' ? row.platform_id : '';
+        if (!periodoId || !platformId) continue;
+        const lista = contasPorPeriodo.get(periodoId) ?? [];
+        lista.push(platformId);
+        contasPorPeriodo.set(periodoId, lista);
+      }
+      payload.periodosAnalise = linhasDeTabelaNova('periodo_analise fetch', periodosResult).map(row => ({
+        ...mp.periodoAnalise(row),
+        contaIds: contasPorPeriodo.get(String(row.id)) ?? [],
+      }));
     })());
   }
 
@@ -2927,6 +3103,106 @@ function faltaColunaDoPlano(error: { code?: string; message: string }): boolean 
     || /prioridade_nivel|pausa_editorial|meta_producao|meta_publicacao|metas_por_conta/.test(error.message);
 }
 
+const COLUNAS_FAIXA_GERAL = ['minimo_semanal', 'maximo_semanal', 'gravacao_minimo_semanal', 'gravacao_meta_semanal', 'gravacao_maximo_semanal'] as const;
+
+/**
+ * Lê a tabela com as colunas novas. Se o banco ainda não tem uma delas, repete sem essa coluna
+ * para o app abrir antes da migração. Tabela ausente continua sendo erro de quem chama.
+ */
+async function lerEditorialComColunasOpcionais(tabela: string, fixas: string, opcionais: readonly string[], uid: string) {
+  if (!supabase) return { data: [], error: null };
+  let pedidas = [...opcionais];
+  for (let tentativa = 0; tentativa <= opcionais.length; tentativa += 1) {
+    const colunas = [fixas, ...pedidas].filter(Boolean).join(', ');
+    const result = await supabase.from(tabela).select(colunas).eq('user_id', uid);
+    if (!result.error) return result;
+    const ausente = pedidas.find(coluna => isMissingNamedColumn(result.error?.message ?? '', coluna));
+    if (!ausente) return result;
+    pedidas = pedidas.filter(coluna => coluna !== ausente);
+  }
+  return supabase.from(tabela).select(fixas).eq('user_id', uid);
+}
+
+async function upsertSemColunaOpcional(
+  tabela: string,
+  rows: Record<string, unknown>[],
+  onConflict: string,
+  opcionais: readonly string[],
+) {
+  if (!supabase) return null;
+  let atuais = rows.map(row => ({ ...row }));
+  let restantes = [...opcionais];
+  let error: { code?: string; message: string } | null = null;
+  for (let tentativa = 0; tentativa <= opcionais.length; tentativa += 1) {
+    const gravou = await supabase.from(tabela).upsert(atuais, { onConflict });
+    if (!gravou.error) return null;
+    error = gravou.error;
+    const ausente = restantes.find(coluna => isMissingNamedColumn(error?.message ?? '', coluna));
+    if (!ausente) return error;
+    restantes = restantes.filter(coluna => coluna !== ausente);
+    atuais = atuais.map(row => {
+      const copia = { ...row };
+      delete copia[ausente];
+      return copia;
+    });
+  }
+  return error;
+}
+
+function inteiroDeFaixa(value: unknown): number | null {
+  return inteiroOpcional(value) ?? null;
+}
+
+function metaDeGravacao(value: unknown): number | null {
+  const numero = inteiroDeFaixa(value);
+  return numero != null && numero > 0 ? numero : null;
+}
+
+function faixasGeraisDaLinha(row: Row) {
+  return {
+    minimoSemanal: inteiroDeFaixa(row.minimo_semanal),
+    maximoSemanal: inteiroDeFaixa(row.maximo_semanal),
+    gravacaoMinimoSemanal: inteiroDeFaixa(row.gravacao_minimo_semanal),
+    gravacaoMetaSemanal: metaDeGravacao(row.gravacao_meta_semanal),
+    gravacaoMaximoSemanal: inteiroDeFaixa(row.gravacao_maximo_semanal),
+  };
+}
+
+function faixasFormatoDaLinha(value: unknown): MetaDaContaVigencia['faixasFormato'] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const saida: NonNullable<MetaDaContaVigencia['faixasFormato']> = {};
+  for (const [formato, bruto] of Object.entries(value as Record<string, unknown>)) {
+    if (!formato.trim() || formato === 'stories' || !bruto || typeof bruto !== 'object' || Array.isArray(bruto)) continue;
+    const item = bruto as Record<string, unknown>;
+    const minimo = inteiroDeFaixa(item.minimo);
+    const maximo = inteiroDeFaixa(item.maximo);
+    if (minimo == null && maximo == null) continue;
+    saida[formato] = { minimo, maximo };
+  }
+  return Object.keys(saida).length > 0 ? saida : null;
+}
+
+const TIPOS_DE_CIENTE = new Set([
+  'gravacao-acima', 'gravacao-abaixo', 'precisa-gravar',
+  'postagem-acima', 'postagem-abaixo',
+  'conta-acima', 'conta-abaixo',
+  'formato-acima', 'formato-abaixo',
+  'producao-acima', 'producao-abaixo',
+]);
+
+function cienteDaLinha(row: Row): NonNullable<EditorialSettings['avisosCientes']> {
+  const semanaInicio = diaDaLinha(row.semana_inicio);
+  const tipo = typeof row.tipo === 'string' ? row.tipo : '';
+  if (!semanaInicio || !TIPOS_DE_CIENTE.has(tipo)) return [];
+  return [{
+    semanaInicio,
+    tipo: tipo as NonNullable<EditorialSettings['avisosCientes']>[number]['tipo'],
+    platformId: textoOuNull(row.platform_id),
+    formato: textoOuNull(row.formato),
+    nota: typeof row.nota === 'string' ? row.nota : '',
+  }];
+}
+
 function editorialDasLinhas(
   conta: Row | null,
   destinos: Row[],
@@ -3004,6 +3280,7 @@ function editorialDasLinhas(
       vigenteDesde,
       limiteSemanal: inteiroOpcional(row.limite_semanal) ?? null,
       proporcaoFuncoes: readProporcao(row.proporcao_funcoes),
+      ...faixasGeraisDaLinha(row),
     }];
   }).sort((a, b) => a.vigenteDesde.localeCompare(b.vigenteDesde));
 
@@ -3033,6 +3310,7 @@ function editorialDasLinhas(
     limitesHashtags,
     preferencias: {
       limiteSemanal: inteiroOpcional(conta.limite_semanal) ?? null,
+      ...faixasGeraisDaLinha(conta),
       reservaForaSeriesSemanal: inteiroOpcional(conta.reserva_fora_series_semanal) ?? null,
       redeReferenciaId: rede,
       reservaProntos,
@@ -3090,6 +3368,9 @@ function metaDaContaDaLinha(row: Row): MetaDaContaVigencia[] {
     limiteSemanal: inteiroOpcional(row.limite_semanal) ?? null,
     proporcaoFuncoes: readProporcao(row.proporcao_funcoes),
     parcelasFormato: Object.keys(parcelas).length > 0 ? parcelas : null,
+    minimoSemanal: inteiroDeFaixa(row.minimo_semanal),
+    maximoSemanal: inteiroDeFaixa(row.maximo_semanal),
+    faixasFormato: faixasFormatoDaLinha(row.faixas_formato),
   }];
 }
 
@@ -3191,6 +3472,11 @@ export async function saveEditorial(settings: EditorialSettings): Promise<void> 
   const contaRow: Record<string, unknown> = {
     user_id: uid,
     limite_semanal: preferencias.limiteSemanal,
+    minimo_semanal: preferencias.minimoSemanal,
+    maximo_semanal: preferencias.maximoSemanal,
+    gravacao_minimo_semanal: preferencias.gravacaoMinimoSemanal,
+    gravacao_meta_semanal: preferencias.gravacaoMetaSemanal,
+    gravacao_maximo_semanal: preferencias.gravacaoMaximoSemanal,
     reserva_fora_series_semanal: preferencias.reservaForaSeriesSemanal,
     rede_referencia_id: preferencias.redeReferenciaId,
     reserva_prontos: preferencias.reservaProntos,
@@ -3213,7 +3499,7 @@ export async function saveEditorial(settings: EditorialSettings): Promise<void> 
   // (proporção: 20261016220000; gravações por dia: 20261030130000; concentração: 20261103120000; avisos: 20261104160000).
   // (perfil editorial e avisos: 20261111120000).
   // (indicadores da rotina de criação: 20261111150000).
-  const colunasOpcionais = ['proporcao_funcoes', 'limite_gravacoes_dia', 'concentracao', 'dias_gravacao', 'antecedencia_postagem_dias', 'perfil_editorial', 'avisos', 'indicadores_producao'];
+  const colunasOpcionais = ['proporcao_funcoes', 'limite_gravacoes_dia', 'concentracao', 'dias_gravacao', 'antecedencia_postagem_dias', 'perfil_editorial', 'avisos', 'indicadores_producao', ...COLUNAS_FAIXA_GERAL];
   const semMigracao: string[] = [];
   let linhaConta = contaRow;
   let { error: contaError } = await supabase.from('editorial_conta').upsert(linhaConta, { onConflict: 'user_id' });
@@ -3241,14 +3527,21 @@ export async function saveEditorial(settings: EditorialSettings): Promise<void> 
 
   // Vigência do limite e da proporção. Sem a tabela, a conta usa os valores de hoje.
   if (settings.vigencias && settings.vigencias.length > 0) {
-    const { error: vigenciaError } = await supabase.from('editorial_vigencia').upsert(
+    const vigenciaError = await upsertSemColunaOpcional(
+      'editorial_vigencia',
       settings.vigencias.map(vigencia => ({
         user_id: uid,
         vigente_desde: vigencia.vigenteDesde,
         limite_semanal: vigencia.limiteSemanal,
         proporcao_funcoes: vigencia.proporcaoFuncoes,
+        minimo_semanal: vigencia.minimoSemanal ?? null,
+        maximo_semanal: vigencia.maximoSemanal ?? null,
+        gravacao_minimo_semanal: vigencia.gravacaoMinimoSemanal ?? null,
+        gravacao_meta_semanal: vigencia.gravacaoMetaSemanal ?? null,
+        gravacao_maximo_semanal: vigencia.gravacaoMaximoSemanal ?? null,
       })),
-      { onConflict: 'user_id,vigente_desde' },
+      'user_id,vigente_desde',
+      COLUNAS_FAIXA_GERAL,
     );
     if (vigenciaError && !vigenciaError.message.includes('editorial_vigencia')) {
       throw new Error(`editorial_vigencia: ${vigenciaError.message}`);
@@ -3401,6 +3694,9 @@ function linhasPorConta(uid: string, settings: EditorialSettings): Partial<Linha
       limite_semanal: meta.limiteSemanal,
       proporcao_funcoes: meta.proporcaoFuncoes,
       parcelas_formato: meta.parcelasFormato,
+      minimo_semanal: meta.minimoSemanal ?? null,
+      maximo_semanal: meta.maximoSemanal ?? null,
+      faixas_formato: meta.faixasFormato ?? null,
     })),
     pausas: settings.pausas?.map(pausa => ({
       id: pausa.id,
@@ -3481,10 +3777,13 @@ async function gravarTabelasPorConta(uid: string, settings: EditorialSettings): 
     metas: async rows => {
       if (!supabase) return { error: null };
       if (rows.length > 0) {
-        const gravou = await supabase.from('editorial_conta_meta').upsert(rows, {
-          onConflict: 'user_id,platform_id,vigente_desde',
-        });
-        if (gravou.error) return gravou;
+        const erro = await upsertSemColunaOpcional(
+          'editorial_conta_meta',
+          rows,
+          'user_id,platform_id,vigente_desde',
+          ['minimo_semanal', 'maximo_semanal', 'faixas_formato'],
+        );
+        if (erro) return { error: erro };
       }
       const atuais = await supabase.from('editorial_conta_meta').select('platform_id, vigente_desde').eq('user_id', uid);
       if (atuais.error) return atuais;
@@ -3516,6 +3815,23 @@ async function gravarTabelasPorConta(uid: string, settings: EditorialSettings): 
     if (error && !tabelaAusente(error)) throw new Error(`${tabelas[chave]}: ${error.message}`);
     if (!error) gravadoPorConta.set(chave, json);
   }
+}
+
+/** Confirma "quero fazer a mais" na segunda daquela semana. Tabela ausente não derruba o app. */
+export async function saveAvisoCiente(entrada: NonNullable<EditorialSettings['avisosCientes']>[number]): Promise<void> {
+  if (!supabase) return;
+  const uid = await currentUserId();
+  if (!uid) return;
+  const { error } = await supabase.from('editorial_aviso_ciente').insert({
+    user_id: uid,
+    semana_inicio: entrada.semanaInicio,
+    tipo: entrada.tipo,
+    platform_id: entrada.platformId,
+    formato: entrada.formato,
+    nota: entrada.nota,
+  });
+  if (!error || error.code === '23505' || tabelaAusente(error)) return;
+  throw new Error(`editorial_aviso_ciente: ${error.message}`);
 }
 
 export async function saveEditorialVisao(visao: PeriodoSelecionado): Promise<void> {
@@ -3713,6 +4029,8 @@ export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 
   if ('frequenciaAPartirDe' in serie) row.frequencia_a_partir_de = serie.frequenciaAPartirDe || null;
   if (serie.frequenciaAncora) row.frequencia_ancora = serie.frequenciaAncora;
   if ('legendaBase' in serie) row.legenda_base = serie.legendaBase?.trim() ? serie.legendaBase : null;
+  if ('youtubeTituloBase' in serie) row.youtube_titulo_base = serie.youtubeTituloBase?.trim() ? serie.youtubeTituloBase : null;
+  if ('youtubeDescricaoBase' in serie) row.youtube_descricao_base = serie.youtubeDescricaoBase?.trim() ? serie.youtubeDescricaoBase : null;
   if ('parentId' in serie) row.parent_id = serie.parentId?.trim() || null;
   if ('usaTemporadas' in serie) row.usa_temporadas = serie.usaTemporadas === true;
   if ('tipoAgrupamento' in serie) row.tipo_agrupamento = serie.tipoAgrupamento ?? null;
@@ -3739,6 +4057,10 @@ export async function saveSerie(serie: Omit<Serie, 'pilarIds' | 'plataformas' | 
       // A legenda da série não pode sumir calada quando a coluna ainda não existe.
       if (missing === 'legenda_base' && row.legenda_base != null) {
         throw new Error(`Para guardar a legenda da série, aplique a migração ${MIGRACAO_CONTAS}.`);
+      }
+      if ((missing === 'youtube_titulo_base' && row.youtube_titulo_base != null)
+        || (missing === 'youtube_descricao_base' && row.youtube_descricao_base != null)) {
+        throw new Error(`Para guardar o modelo do YouTube longo, aplique a migração ${MIGRACAO_YOUTUBE_LONGO}.`);
       }
       // Tipo escolhido e "sem pilar" também não somem calados.
       if ((missing === 'tipo_agrupamento' && row.tipo_agrupamento != null)
@@ -4546,6 +4868,7 @@ export async function saveContent(
     ...(content.edicaoConcluidaEm !== undefined ? {edicao_concluida_em: content.edicaoConcluidaEm} : {}),
     ...(content.edicaoDispensada !== undefined ? {edicao_dispensada: content.edicaoDispensada} : {}),
     posted_at: content.postedAt,
+    ...(content.statusEnteredAt !== undefined ? {status_entered_at: content.statusEnteredAt} : {}),
     recording_date_enabled: content.recordingDateEnabled ?? (content.recordingDate != null),
     link: content.link, script: content.script,
     // Listas leves não trazem os comentários: gravar `[]` apagaria os do servidor.
@@ -4572,6 +4895,9 @@ export async function saveContent(
     ...(content.writingMode !== undefined ? {writing_mode: content.writingMode} : {}),
     ...(content.carouselSlides !== undefined ? {carousel_slides: content.carouselSlides} : {}),
     ...(content.proposta !== undefined ? {proposta: content.proposta} : {}),
+    ...(content.youtubeTitulo !== undefined ? {youtube_titulo: content.youtubeTitulo} : {}),
+    ...(content.youtubeDescricao !== undefined ? {youtube_descricao: content.youtubeDescricao} : {}),
+    ...(content.youtubeBlocos !== undefined ? {youtube_blocos: content.youtubeBlocos} : {}),
     archived_at: content.archivedAt ?? null,
     legacy_idea_id: content.legacyIdeaId ?? null,
     updated_at: new Date().toISOString(),
@@ -4581,12 +4907,20 @@ export async function saveContent(
   let carouselDropped = false;
   // Sem a migração do YouTube, o roteiro fica salvo como Texto (o texto é o mesmo) e avisa.
   let youtubeDropped = false;
+  let youtubeLongoDropped = false;
+  let youtubeBlocosDropped = false;
 
-  for (let attempt = 0; attempt < 18; attempt += 1) {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
     const {error} = await supabase.from('contents').upsert(row);
     if (!error) {
       if (carouselDropped) throw new CarrosselMigracaoPendenteError();
       if (youtubeDropped) throw new YoutubeMigracaoPendenteError();
+      if (youtubeBlocosDropped) {
+        throw new Error(`Para guardar os blocos do YouTube longo, aplique a migração ${MIGRACAO_YOUTUBE_BLOCOS}. O resto do roteiro foi salvo.`);
+      }
+      if (youtubeLongoDropped) {
+        throw new Error(`Para guardar título e descrição do YouTube longo, aplique a migração ${MIGRACAO_YOUTUBE_LONGO}. O resto do roteiro foi salvo.`);
+      }
       return;
     }
 
@@ -4605,6 +4939,29 @@ export async function saveContent(
       continue;
     }
 
+    if (isMissingNamedColumn(error.message ?? '', 'youtube_blocos') && 'youtube_blocos' in row) {
+      youtubeBlocosDropped = youtubeBlocosDropped || blocosTemConteudo(row.youtube_blocos as YoutubeBloco[] | null);
+      const {youtube_blocos: _blocos, ...rowWithoutBlocos} = row;
+      row = rowWithoutBlocos;
+      continue;
+    }
+
+    if (isMissingNamedColumn(error.message ?? '', 'youtube_titulo') && 'youtube_titulo' in row) {
+      youtubeLongoDropped = youtubeLongoDropped
+        || (typeof row.youtube_titulo === 'string' && row.youtube_titulo.trim().length > 0);
+      const {youtube_titulo: _titulo, ...rowWithoutTitulo} = row;
+      row = rowWithoutTitulo;
+      continue;
+    }
+
+    if (isMissingNamedColumn(error.message ?? '', 'youtube_descricao') && 'youtube_descricao' in row) {
+      youtubeLongoDropped = youtubeLongoDropped
+        || (typeof row.youtube_descricao === 'string' && row.youtube_descricao.trim().length > 0);
+      const {youtube_descricao: _descricao, ...rowWithoutDescricao} = row;
+      row = rowWithoutDescricao;
+      continue;
+    }
+
     if (isMissingCarouselColumns(error) && ('writing_mode' in row || 'carousel_slides' in row)) {
       contentCarouselColumnsAvailable = false;
       const slides = row.carousel_slides;
@@ -4618,6 +4975,12 @@ export async function saveContent(
     if (isMissingLivroIdsColumn(error) && 'livro_ids' in row) {
       const {livro_ids: _livroIds, ...rowWithoutLivroIds} = row;
       row = rowWithoutLivroIds;
+      continue;
+    }
+
+    if (isMissingNamedColumn(error.message ?? '', 'status_entered_at') && 'status_entered_at' in row) {
+      const {status_entered_at: _statusEnteredAt, ...rowWithoutStatusEntered} = row;
+      row = rowWithoutStatusEntered;
       continue;
     }
 
@@ -5267,6 +5630,92 @@ export async function saveContentMetric(metric: Omit<ContentMetric, 'id' | 'crea
 
   const { error } = await supabase.from('content_metrics').upsert(numeros, { onConflict: 'content_id,platform_id' });
   if (error) throw new Error(`content_metrics: ${error.message}`);
+}
+
+/** Leitura manual da conta. A mesma data e origem atualiza a linha que já existe. */
+export async function saveContaMetrica(leitura: ContaMetrica): Promise<void> {
+  if (!supabase) return;
+  const platformIds = await resolvePlatformIds([leitura.platformId]);
+  const platformId = platformIds.get(leitura.platformId);
+  if (!platformId) throw new Error(`conta_metrica: conta não encontrada para "${leitura.platformId}"`);
+  const origem = leitura.origem === 'importacao' || leitura.origem === 'api' ? leitura.origem : 'manual';
+  const registradoEm = leitura.registradoEm.slice(0, 10);
+  const row = {
+    user_id: leitura.userId,
+    platform_id: platformId,
+    registrado_em: registradoEm,
+    seguidores: leitura.seguidores,
+    alcance: leitura.alcance,
+    visualizacoes: leitura.visualizacoes,
+    interacoes: leitura.interacoes,
+    janela_dias: leitura.janelaDias,
+    extras: leitura.extras ?? {},
+    origem,
+    externo_ref: leitura.externoRef,
+    nota: leitura.nota ?? '',
+    updated_at: new Date().toISOString(),
+  };
+  const existente = await supabase
+    .from('conta_metrica')
+    .select('id')
+    .eq('user_id', leitura.userId)
+    .eq('platform_id', platformId)
+    .eq('registrado_em', registradoEm)
+    .eq('origem', origem)
+    .maybeSingle();
+  if (existente.error) {
+    if (tabelaAusente(existente.error)) throw new Error('conta_metrica: a tabela ainda não existe neste projeto.');
+    throw new Error(`conta_metrica: ${existente.error.message}`);
+  }
+  const gravacao = existente.data?.id
+    ? await supabase.from('conta_metrica').update(row).eq('id', existente.data.id)
+    : await supabase.from('conta_metrica').insert({ ...row, id: leitura.id });
+  if (gravacao.error) {
+    if (tabelaAusente(gravacao.error)) throw new Error('conta_metrica: a tabela ainda não existe neste projeto.');
+    throw new Error(`conta_metrica: ${gravacao.error.message}`);
+  }
+}
+
+/** Período de análise e as contas dele. Troca a lista de contas inteira. */
+export async function savePeriodoAnalise(periodo: PeriodoAnalise): Promise<void> {
+  if (!supabase) return;
+  const inicio = periodo.inicio.slice(0, 10);
+  const fim = periodo.fim.slice(0, 10);
+  if (fim < inicio) throw new Error('periodo_analise: o fim é anterior ao início.');
+  const contas = [...new Set(periodo.contaIds.filter(Boolean))];
+  const platformIds = await resolvePlatformIds(contas);
+  const linhas = contas.map(ref => {
+    const platformId = platformIds.get(ref);
+    if (!platformId) throw new Error(`periodo_analise: conta não encontrada para "${ref}"`);
+    return { periodo_id: periodo.id, platform_id: platformId, user_id: periodo.userId };
+  });
+  const { error } = await supabase.from('periodo_analise').upsert({
+    id: periodo.id,
+    user_id: periodo.userId,
+    nome: periodo.nome ?? '',
+    inicio,
+    fim,
+    o_que_mudei: periodo.oQueMudei ?? '',
+    conclusao: periodo.conclusao ?? '',
+    updated_at: new Date().toISOString(),
+  });
+  if (error) {
+    if (tabelaAusente(error)) throw new Error('periodo_analise: a tabela ainda não existe neste projeto.');
+    throw new Error(`periodo_analise: ${error.message}`);
+  }
+
+  const apagar = await supabase
+    .from('periodo_analise_conta')
+    .delete()
+    .eq('periodo_id', periodo.id)
+    .eq('user_id', periodo.userId);
+  if (apagar.error) {
+    if (tabelaAusente(apagar.error)) throw new Error('periodo_analise_conta: a tabela ainda não existe neste projeto.');
+    throw new Error(`periodo_analise_conta: ${apagar.error.message}`);
+  }
+  if (linhas.length === 0) return;
+  const { error: insertError } = await supabase.from('periodo_analise_conta').insert(linhas);
+  if (insertError) throw new Error(`periodo_analise_conta: ${insertError.message}`);
 }
 
 // ============================================================================

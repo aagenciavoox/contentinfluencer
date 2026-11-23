@@ -975,10 +975,52 @@ input.caption-locked:focus {
   gap: var(--space-md);
 }
 
-/* Fila de gravação: cards menores, mais colunas na mesma largura. */
+/* Fila de gravação: cards limpos com coluna confortável e alinhamento consistente. */
 .recording-queue-grid.grid-content {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
-  gap: var(--space-sm);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+  gap: var(--space-md);
+}
+
+.recording-queue-card,
+.surface-interactive.recording-queue-card {
+  height: 100%;
+  padding: var(--space-md);
+  border-top-width: 3px;
+}
+
+.recording-queue-card.recording-queue-card--selected {
+  border-color: var(--text-primary);
+  background: var(--bg-hover);
+  outline: 1px solid var(--text-primary);
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .recording-queue-card:hover {
+    transform: translateY(-1px);
+  }
+}
+
+.recording-queue-card__actions {
+  opacity: 0.65;
+  transition: opacity 0.15s ease;
+}
+
+@media (hover: hover) {
+  .recording-queue-card__actions {
+    opacity: 0;
+  }
+
+  .recording-queue-card:hover .recording-queue-card__actions,
+  .recording-queue-card:focus-within .recording-queue-card__actions {
+    opacity: 1;
+  }
+}
+
+.recording-queue-card__title {
+  font-size: var(--font-size-item-title);
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-primary);
 }
 
 .creation-hub-grid .creation-hub-card {

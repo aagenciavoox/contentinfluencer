@@ -28,6 +28,11 @@ export function normalizeWritingMode(value: unknown): WritingMode {
   return value === 'carrossel' || value === 'youtube' ? value : 'texto';
 }
 
+/** YouTube longo e carrossel nascem no formato escolhido e não trocam de modo. */
+export function podeTrocarModoDeEscrita(mode: WritingMode): boolean {
+  return mode === 'texto';
+}
+
 /**
  * O que muda no roteiro ao trocar de modo. Texto e YouTube usam o mesmo `script`;
  * entrar no Carrossel transforma o texto na Tela 1 (ou volta às telas guardadas).

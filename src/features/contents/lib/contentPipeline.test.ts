@@ -8,6 +8,7 @@ import {
   edicaoPatch,
   effectsOfLeavingPublished,
   getAllowedStatuses,
+  ehPecaDeTexto,
   getContentStage,
   getDisplayStatus,
   getPrimaryAction,
@@ -112,7 +113,7 @@ function testRecordedVideoGoesToEditing() {
   const now = '2026-10-28T12:00:00.000Z';
   assert.deepEqual(
     recordedPatch({status: CONTENT_STATUS.PRODUCAO, recordedAt: null}, now),
-    {recordedAt: now, status: CONTENT_STATUS.EDICAO, edicaoConcluidaEm: null, edicaoDispensada: false},
+    {recordedAt: now, status: CONTENT_STATUS.EDICAO, edicaoConcluidaEm: null, edicaoDispensada: false, statusEnteredAt: now},
   );
   // Quem já passou da gravação não volta para Edição.
   assert.deepEqual(
@@ -266,6 +267,16 @@ function testPublicationTabOpensFromRoteiro() {
   assert.deepEqual(getVisibleTabsForContent(createContent({status: CONTENT_STATUS.IDEIA})), ['roteiro']);
 }
 
+function testPecaDeTextoFicaForaDoVideo() {
+  const peca = createContent({clubeId: 'clube-1', seriesId: null, status: CONTENT_STATUS.ROTEIRO});
+  assert.equal(ehPecaDeTexto(peca), true);
+  assert.deepEqual(getVisibleTabsForContent(peca), ['roteiro']);
+  assert.equal(getPrimaryAction(peca).id, 'none');
+  const atalho = createContent({clubeId: 'clube-1', seriesId: 'serie-1', status: CONTENT_STATUS.ROTEIRO});
+  assert.equal(ehPecaDeTexto(atalho), false);
+  assert.deepEqual(getVisibleTabsForContent(atalho), ['roteiro', 'publicacao']);
+}
+
 function testCarouselMarkProduced() {
   const carousel = createContent({status: CONTENT_STATUS.PRODUCAO, writingMode: 'carrossel', recordedAt: null});
   assert.equal(getPrimaryAction(carousel).id, 'finish_design');
@@ -281,6 +292,7 @@ const tests: Array<[string, () => void]> = [
   ['planStatusChange gates publish and unpublish', testPlanStatusChangeGatesPublishAndUnpublish],
   ['block is badge not stage', testBlockIsBadgeNotStage],
   ['publication tab opens from Roteiro', testPublicationTabOpensFromRoteiro],
+  ['text piece stays out of the video flow', testPecaDeTextoFicaForaDoVideo],
   ['carousel mark produced goes to Edição', testCarouselMarkProduced],
   ['future publish date shows Programado', testDisplayStatusFuturePublishDate],
   ['past publish date keeps canonical status', testDisplayStatusPastPublishDateKeepsCanonical],

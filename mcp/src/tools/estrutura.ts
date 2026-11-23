@@ -18,6 +18,7 @@ import {
   isFuncao,
   json,
   loadLookups,
+  readCompat,
   normalizeStatus,
   tool,
   type Lookups,
@@ -42,6 +43,56 @@ const DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 
 function today(): string {
   return new Intl.DateTimeFormat('en-CA', {timeZone: 'America/Sao_Paulo'}).format(new Date());
+}
+
+function numeroDaFaixa(row: Row | null, chave: string): number | null {
+  const valor = row?.[chave];
+  return typeof valor === 'number' && Number.isFinite(valor) ? valor : null;
+}
+
+async function lerComColunasOpcionais(
+  label: string,
+  columns: string,
+  run: (columns: string) => PromiseLike<{data: Row[] | null; error: {message?: string} | null}>,
+): Promise<{linhas: Row[] | null; omitidas: string[]}> {
+  try {
+    const lido = await readCompat(label, columns, run);
+    return {linhas: lido.data ?? [], omitidas: lido.omitidas};
+  } catch {
+    return {linhas: null, omitidas: [`${label}.indisponivel`]};
+  }
+}
+
+function descreverFaixas(vigente: Row | null, metas: readonly Row[], lookups: Lookups, hoje: string) {
+  const gravacaoMeta = numeroDaFaixa(vigente, 'gravacao_meta_semanal');
+  const porConta = new Map<string, Row>();
+  for (const row of metas) {
+    if (typeof row.platform_id !== 'string' || typeof row.vigente_desde !== 'string' || row.vigente_desde > hoje) continue;
+    porConta.set(row.platform_id, row);
+  }
+  return {
+    regra: 'Geral: esforço por roteiro (um roteiro em três contas conta uma vez). Conta e formato: por publicação. Gravação é reels, short, vídeo longo e o vídeo do TikTok. Produção é carrossel e imagem. Stories ficam fora de toda faixa. Meta de gravação vazia esconde a faixa. Máximo vazio avisa acima da meta. Mínimo e máximo são opcionais. Abaixo do mínimo é esforço, acima do máximo é sobrecarga, entre eles é progresso. Nada bloqueia. Total da conta vazio é a soma dos formatos.',
+    postagem: {
+      minimo: numeroDaFaixa(vigente, 'minimo_semanal'),
+      meta: numeroDaFaixa(vigente, 'limite_semanal'),
+      maximo: numeroDaFaixa(vigente, 'maximo_semanal'),
+    },
+    gravacao: gravacaoMeta != null && gravacaoMeta > 0
+      ? {
+        minimo: numeroDaFaixa(vigente, 'gravacao_minimo_semanal'),
+        meta: gravacaoMeta,
+        maximo: numeroDaFaixa(vigente, 'gravacao_maximo_semanal'),
+      }
+      : null,
+    contas: [...porConta.values()].map(row => ({
+      conta: lookups.platformName(String(row.platform_id)),
+      minimo: numeroDaFaixa(row, 'minimo_semanal'),
+      meta: numeroDaFaixa(row, 'limite_semanal'),
+      maximo: numeroDaFaixa(row, 'maximo_semanal'),
+      formatos: row.parcelas_formato ?? null,
+      faixas_formato: row.faixas_formato ?? null,
+    })),
+  };
 }
 
 
@@ -81,6 +132,12 @@ function estruturaDaSerieView(row: Row, series: SerieNoMcp[], temporadas: Tempor
     frequencia_detalhada: {vezes: freq.vezes, unidade: freq.unidade, a_partir_de: freq.a_partir_de, resumo: freq.resumo},
     acompanhar_continuidade: acompanhaNoGeralDaLinha(row),
     legenda_base: typeof row.legenda_base === 'string' && row.legenda_base.trim() ? row.legenda_base : null,
+    youtube_titulo_base: typeof row.youtube_titulo_base === 'string' && row.youtube_titulo_base.trim()
+      ? row.youtube_titulo_base
+      : null,
+    youtube_descricao_base: typeof row.youtube_descricao_base === 'string' && row.youtube_descricao_base.trim()
+      ? row.youtube_descricao_base
+      : null,
   };
 }
 
@@ -93,7 +150,8 @@ export function registerEstrutura(server: McpServer) {
         'Mostra o DNA da voz, os pilares, as séries (com estrutura de roteiro, função padrão, formato, motivos e pilar principal; ' +
         'tipo família/série/quadro, pai, árvore de quadros, temporadas, frequência detalhada, continuidade e legenda), ' +
         'os temas, as opções fechadas (formatos, janelas, energia), as funções editoriais (antigo funil) com a distribuição desejada, ' +
-        'as plataformas, as regras de ouro e os ajustes (rede de referência, destinos padrão, distribuição e estoque). ' +
+        'as plataformas, as regras de ouro e os ajustes (rede de referência, destinos padrão, distribuição, estoque e faixas). ' +
+        'Faixa geral: esforço por roteiro. Conta e formato: por publicação. Gravação (reels, short, vídeo longo, vídeo do TikTok) e produção (carrossel, imagem) saem do formato. Stories ficam fora. Meta de gravação vazia esconde a faixa. Máximo vazio avisa acima da meta. Nada bloqueia. ' +
         'Leia antes de escrever roteiros para manter a voz e o formato do perfil.',
       inputSchema: {
         secoes: z.array(z.enum(['voz', 'pilares', 'series', 'temas', 'opcoes', 'funcoes', 'plataformas', 'regras', 'ajustes'])).optional().describe('Vazio = tudo'),
@@ -191,13 +249,28 @@ export function registerEstrutura(server: McpServer) {
         }));
       }
       if (want.has('ajustes')) {
-        const conta = check('ajustes editoriais', await client.from('editorial_conta')
-          .select('rede_referencia_id, reserva_prontos, publico_linguagem, hashtags_fora_series')
-          .eq('user_id', userId)
-          .maybeSingle());
+        const faixasColunas = 'limite_semanal, minimo_semanal, maximo_semanal, gravacao_minimo_semanal, gravacao_meta_semanal, gravacao_maximo_semanal';
+        const contaLida = await readCompat(
+          'ajustes editoriais',
+          `rede_referencia_id, reserva_prontos, publico_linguagem, hashtags_fora_series, ${faixasColunas}`,
+          columns => client.from('editorial_conta').select(columns).eq('user_id', userId).maybeSingle(),
+        );
+        const conta = (contaLida.data ?? null) as Row | null;
+        const vigencias = await lerComColunasOpcionais('vigências editoriais', `vigente_desde, ${faixasColunas}`, columns =>
+          client.from('editorial_vigencia').select(columns).eq('user_id', userId).order('vigente_desde'));
+        const metas = await lerComColunasOpcionais(
+          'metas das contas',
+          'platform_id, vigente_desde, limite_semanal, minimo_semanal, maximo_semanal, parcelas_formato, faixas_formato',
+          columns => client.from('editorial_conta_meta').select(columns).eq('user_id', userId).order('vigente_desde'),
+        );
         const destinos = check('destinos padrão', await client.from('editorial_destino_padrao')
           .select('platform_id')
           .eq('user_id', userId)) ?? [];
+        const hoje = today();
+        const vigente = (vigencias.linhas ?? [])
+          .filter(row => typeof row.vigente_desde === 'string' && row.vigente_desde <= hoje)
+          .at(-1) ?? conta;
+        const omitidas = [...contaLida.omitidas, ...vigencias.omitidas, ...metas.omitidas];
         result.ajustes = {
           rede_de_referencia: typeof conta?.rede_referencia_id === 'string' && conta.rede_referencia_id
             ? lookups.platformName(conta.rede_referencia_id)
@@ -211,6 +284,8 @@ export function registerEstrutura(server: McpServer) {
           hashtags_fora_series: typeof conta?.hashtags_fora_series === 'string' && conta.hashtags_fora_series.trim()
             ? conta.hashtags_fora_series.trim()
             : null,
+          faixas: descreverFaixas(vigente, metas.linhas ?? [], lookups, hoje),
+          ...(omitidas.length > 0 ? { faixas_colunas_ausentes: omitidas } : {}),
         };
       }
       return json(result);

@@ -80,10 +80,19 @@ export function CampoTexto({
   placeholder?: string;
 }) {
   const [draft, setDraft] = useState(value);
+  const [estado, setEstado] = useState<'ocioso' | 'pendente' | 'salvo'>('ocioso');
   const draftRef = useRef(value);
   const savedRef = useRef(value);
   const onSaveRef = useRef(onSave);
+  const timerRef = useRef<number | null>(null);
   onSaveRef.current = onSave;
+
+  const limparTimer = () => {
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
 
   useEffect(() => {
     if (draftRef.current === savedRef.current) {
@@ -94,13 +103,23 @@ export function CampoTexto({
   }, [value]);
 
   useEffect(() => () => {
+    limparTimer();
     if (draftRef.current !== savedRef.current) onSaveRef.current(draftRef.current);
   }, []);
 
   const commit = () => {
-    if (draftRef.current === savedRef.current) return;
+    if (draftRef.current === savedRef.current) {
+      setEstado(atual => (atual === 'pendente' ? 'ocioso' : atual));
+      return;
+    }
     savedRef.current = draftRef.current;
     onSaveRef.current(draftRef.current);
+    limparTimer();
+    setEstado('salvo');
+    timerRef.current = window.setTimeout(() => {
+      timerRef.current = null;
+      setEstado('ocioso');
+    }, 2000);
   };
 
   const campo = (
@@ -111,21 +130,48 @@ export function CampoTexto({
       placeholder={placeholder}
       aria-label={label ? undefined : nome}
       onChange={event => {
-        draftRef.current = event.target.value;
-        setDraft(event.target.value);
+        const proximo = event.target.value;
+        draftRef.current = proximo;
+        setDraft(proximo);
+        limparTimer();
+        setEstado(proximo !== savedRef.current ? 'pendente' : 'ocioso');
       }}
       onBlur={commit}
       className={`${CAMPO} min-h-24 resize-y`}
     />
   );
 
-  if (!label) return campo;
+  const status = (
+    <Text
+      variant="meta"
+      as="span"
+      role="status"
+      aria-live="polite"
+      className="min-h-4 text-[var(--text-tertiary)]"
+    >
+      {estado === 'pendente' ? 'Salva ao sair do campo' : estado === 'salvo' ? 'Salvo' : ''}
+    </Text>
+  );
+
+  if (!label) {
+    return (
+      <div className="flex flex-col gap-1">
+        {campo}
+        {status}
+      </div>
+    );
+  }
 
   return (
-    <label className="flex flex-col gap-1" htmlFor={id}>
-      <Text variant="bodyStrong" as="span">{label}</Text>
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between gap-2">
+        <label htmlFor={id}>
+          <Text variant="bodyStrong" as="span">{label}</Text>
+        </label>
+        {status}
+      </div>
       {campo}
-    </label>
+    </div>
   );
 }
 

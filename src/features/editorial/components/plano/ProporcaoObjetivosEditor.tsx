@@ -3,20 +3,20 @@ import { Ajuda } from '../../../../components/ui/Ajuda';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { Text } from '../../../../components/ui/Text';
 import type { FuncaoEditorial } from '../../../../lib/database';
-import { FUNCAO_CURTA, FUNCAO_DESCRICOES, FUNCOES } from '../../lib/funcoes';
+import { COR_DA_FUNCAO, FUNCAO_CURTA, FUNCAO_DESCRICOES, FUNCOES } from '../../lib/funcoes';
 import { proporcaoIgual, somaDaProporcao, type ProporcaoFuncoes } from '../../lib/proporcaoObjetivos';
 import { inteiroNaoNegativo } from '../../../../lib/inteiro';
-import { cn } from '../../../../lib/utils';
+import { cn, tintedTextColor } from '../../../../lib/utils';
 
 type Rascunho = Record<FuncaoEditorial, string>;
 
 const OBJETIVO_CONFIG: Record<FuncaoEditorial, { nome: string; etapa: string; cor: string }> = {
-  atrair: { nome: 'Atrair alcance', etapa: 'Topo', cor: '#0284c7' },
-  converter: { nome: 'Converter', etapa: 'Topo', cor: '#059669' },
-  aprofundar: { nome: 'Aprofundar', etapa: 'Meio', cor: '#7c3aed' },
-  comunidade: { nome: 'Comunidade', etapa: 'Meio', cor: '#d97706' },
-  acao: { nome: 'Ação', etapa: 'Fundo', cor: '#db2777' },
-  reter: { nome: 'Reter', etapa: 'Fidelização', cor: '#4f46e5' },
+  atrair: { nome: 'Atrair alcance', etapa: 'Topo', cor: COR_DA_FUNCAO.atrair },
+  converter: { nome: 'Converter', etapa: 'Topo', cor: COR_DA_FUNCAO.converter },
+  aprofundar: { nome: 'Aprofundar', etapa: 'Meio', cor: COR_DA_FUNCAO.aprofundar },
+  comunidade: { nome: 'Comunidade', etapa: 'Meio', cor: COR_DA_FUNCAO.comunidade },
+  acao: { nome: 'Ação', etapa: 'Fundo', cor: COR_DA_FUNCAO.acao },
+  reter: { nome: 'Reter', etapa: 'Fidelização', cor: COR_DA_FUNCAO.reter },
 };
 
 function rascunhoDe(proporcao: ProporcaoFuncoes | null): Rascunho {
@@ -134,12 +134,14 @@ export function ProporcaoObjetivosEditor({
   onSalvar,
   onCancelar,
   rotuloSalvar = 'Salvar distribuição',
+  varianteSalvar = 'primary',
 }: {
   idBase: string;
   valor: ProporcaoFuncoes | null;
   onSalvar: (proporcao: ProporcaoFuncoes | null) => void;
   onCancelar: () => void;
   rotuloSalvar?: string;
+  varianteSalvar?: 'primary' | 'secondary';
 }) {
   const [rascunho, setRascunho] = useState<Rascunho>(() => rascunhoDe(valor));
   const proporcao = proporcaoDoRascunho(rascunho);
@@ -199,7 +201,7 @@ export function ProporcaoObjetivosEditor({
                   className="px-2 py-0.5 rounded-[var(--radius-pill)]"
                   style={{ backgroundColor: `color-mix(in srgb, ${cfg.cor} 12%, transparent)` }}
                 >
-                  <Text variant="label" as="span" style={{ color: cfg.cor }} className="uppercase">
+                  <Text variant="label" as="span" style={{ color: tintedTextColor(cfg.cor) }} className="uppercase">
                     {cfg.etapa}
                   </Text>
                 </span>
@@ -238,14 +240,23 @@ export function ProporcaoObjetivosEditor({
       <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-[var(--border-subtle)]">
         <div id={somaId} role="status" aria-live="polite" className="flex items-center gap-2">
           <Text variant="meta" as="span" className="text-[var(--text-secondary)]">Total:</Text>
-          <span className={cn(
-            'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[var(--radius-pill)] border tabular-nums',
-            fecha
-              ? 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-700/50 dark:bg-emerald-950/40 dark:text-emerald-300'
-              : vazio
-                ? 'border-[var(--border-subtle)] bg-[var(--surface-subtle)] text-[var(--text-secondary)]'
-                : 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700/50 dark:bg-amber-950/40 dark:text-amber-300'
-          )}>
+          <span
+            className={cn(
+              'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[var(--radius-pill)] border tabular-nums',
+              fecha
+                ? 'border-[color-mix(in_srgb,var(--success)_40%,var(--border-color))] bg-[color-mix(in_srgb,var(--success)_14%,transparent)]'
+                : vazio
+                  ? 'border-[var(--border-subtle)] bg-[var(--surface-subtle)] text-[var(--text-secondary)]'
+                  : 'border-[color-mix(in_srgb,var(--warning)_40%,var(--border-color))] bg-[color-mix(in_srgb,var(--warning)_14%,transparent)]',
+            )}
+            style={
+              fecha
+                ? { color: tintedTextColor('var(--success)') }
+                : !vazio
+                  ? { color: tintedTextColor('var(--warning)') }
+                  : undefined
+            }
+          >
             <Text variant="label" as="span" className="text-current">
               {fecha ? '✓ ' : ''}{soma}% de 100%
             </Text>
@@ -265,7 +276,7 @@ export function ProporcaoObjetivosEditor({
             Cancelar
           </AppButton>
           <AppButton
-            variant="primary"
+            variant={varianteSalvar}
             size="sm"
             disabled={!podeSalvar}
             disabledReason={podeSalvar ? undefined : 'A soma precisa fechar em 100%.'}

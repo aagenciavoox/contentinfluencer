@@ -35,6 +35,16 @@ export const FUNCAO_CURTA: Record<FuncaoEditorial, string> = {
   reter: 'Reter',
 };
 
+/** Cor semântica de cada objetivo (CSS token). Sempre acompanhada do rótulo. */
+export const COR_DA_FUNCAO: Record<FuncaoEditorial, string> = {
+  atrair: 'var(--accent-pink)',
+  converter: 'var(--accent-blue)',
+  aprofundar: 'var(--accent-orange)',
+  comunidade: 'var(--accent-green)',
+  acao: 'var(--accent-red)',
+  reter: 'var(--accent-purple)',
+};
+
 export const FUNCAO_DESCRICOES: Record<FuncaoEditorial, string> = {
   atrair: 'Traz gente nova pelo humor ou pela curiosidade.',
   converter: 'Convida quem chegou a seguir.',

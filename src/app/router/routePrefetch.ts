@@ -13,6 +13,7 @@ const loadPlanejamento = () => importPage(() => import('../../pages/Planejamento
 const loadEditorial = () => importPage(() => import('../../pages/Editorial'));
 const loadLibrary = () => importPage(() => import('../../pages/Biblioteca'));
 const loadLibraryAnalysis = () => importPage(() => import('../../pages/Analise'));
+const loadLibraryAnnotations = () => importPage(() => import('../../features/library/pages/LibraryAnnotationsPage'));
 const loadBookDetail = () => importPage(() => import('../../pages/BookDetail'));
 const loadSettings = () => importPage(() => import('../../pages/Settings'));
 const loadProfile = () => importPage(() => import('../../pages/settings/Perfil'));
@@ -39,6 +40,7 @@ export const routeLoaders = {
   editorial: loadEditorial,
   library: loadLibrary,
   libraryAnalysis: loadLibraryAnalysis,
+  libraryAnnotations: loadLibraryAnnotations,
   bookDetail: loadBookDetail,
   settings: loadSettings,
   profile: loadProfile,
@@ -85,7 +87,7 @@ const PRIMARY_LOADERS: RouteLoader[] = [
   loadRecordingBlock,
 ];
 
-function loaderForPath(pathname: string): RouteLoader | null {
+export function loaderForPath(pathname: string): RouteLoader | null {
   const path = pathname.split('#')[0].split('?')[0];
 
   if (path === '/hoje' || path === '/dashboard') return loadDashboard;
@@ -100,6 +102,7 @@ function loaderForPath(pathname: string): RouteLoader | null {
   if (path === '/editorial/series/nova' || path === '/series/nova' || path === '/series/novo') return loadSeriesEdit;
   if (path.startsWith('/editorial/series/')) return loadSeriesEdit;
   if (path === '/biblioteca/analise') return loadLibraryAnalysis;
+  if (path === '/biblioteca/anotacoes') return loadLibraryAnnotations;
   if (path === '/biblioteca') return loadLibrary;
   if (path.startsWith('/biblioteca/')) return loadBookDetail;
   if (path === '/projetos') return loadProjects;
@@ -116,6 +119,7 @@ function loaderForPath(pathname: string): RouteLoader | null {
   if (path === '/series') return loadSeries;
   if (path.startsWith('/series/') && (path.endsWith('/editar') || path.endsWith('/quadros/novo'))) return loadSeriesEdit;
   if (path.startsWith('/series/')) return loadSeriesScripts;
+  if (path.startsWith('/clubes/')) return loadClube;
   // Contas e horários é uma aba do Editorial.
   if (path === '/contas' || path.startsWith('/configuracoes/plataformas') || path.startsWith('/configuracoes/horarios')) return loadEditorial;
   if (path === '/analises') return loadAnalises;

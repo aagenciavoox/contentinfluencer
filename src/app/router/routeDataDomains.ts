@@ -62,30 +62,3 @@ export function getRouteDataDomains(href: string): AppDataDomain[] {
   }
   return [];
 }
-
-const DETAIL_PATH = /^\/(?:conteudos|projetos|gravacao|series|clubes|configuracoes\/pilares|editorial\/pilares|editorial\/series)\/.+|^\/biblioteca\/(?!analise$|anotacoes$)[^/]+$/;
-
-/**
- * List screens share one outlet key so moving between them does not remount
- * Suspense and flash the loading fallback. Detail URLs stay unique so the
- * editor resets when the id changes. Query strings are ignored.
- */
-export function getRouteOutletKey(pathname: string): string {
-  return DETAIL_PATH.test(pathname) ? pathname : 'section';
-}
-
-/** True when a navigation to a different pathname is in flight. */
-export function isPathnameTransitionPending(
-  currentPathname: string,
-  pendingPathname: string | undefined,
-): boolean {
-  return Boolean(pendingPathname && pendingPathname !== currentPathname);
-}
-
-/** Sequential smoke paths used by navigation remount tests. */
-export const NAVIGATION_SEQUENCE_PATHS = [
-  '/criacao',
-  '/biblioteca',
-  '/series',
-  '/editorial',
-] as const;
