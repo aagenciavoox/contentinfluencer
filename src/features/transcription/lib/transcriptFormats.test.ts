@@ -3,6 +3,9 @@ import {
   buildParagraphs,
   buildPlainText,
   buildSrt,
+  buildTimedSegments,
+  CAPTION_MAX_CHARS,
+  CAPTION_MAX_WORDS,
   formatClock,
   formatSrtTime,
   transcriptFileName,
@@ -95,6 +98,83 @@ function testPlainTextSeparatesParagraphsWithBlankLine() {
   );
 }
 
+function wordCount(text: string) {
+  return text.split(/\s+/).filter(Boolean).length;
+}
+
+function captionRows(text: string) {
+  return text.split('\n');
+}
+
+function testKeepsAShortCaptionOnOneLine() {
+  assert.deepEqual(
+    buildTimedSegments([{ start: 0, end: 1.5, text: ' Oi, gente. ' }]),
+    [{ start: 0, end: 1.5, text: 'Oi, gente.' }],
+  );
+}
+
+function testBreaksACaptionIntoTwoShortLines() {
+  assert.deepEqual(
+    buildTimedSegments([{ start: 1, end: 4, text: ' Virar vampiro parecia muito melhor quando eu era nova. ' }]),
+    [{ start: 1, end: 4, text: 'Virar vampiro parecia muito melhor\nquando eu era nova.' }],
+  );
+}
+
+function testSplitsALongCaptionAndSharesItsTimeByWordCount() {
+  const [first, second] = buildTimedSegments([{
+    start: 1.5,
+    end: 18.5,
+    text: 'Quando eu terminei o livro inteiro numa noite só, eu fiquei olhando para o teto até amanhecer.',
+  }]);
+  assert.equal(first.text, 'Quando eu terminei o livro inteiro\nnuma noite só,');
+  assert.equal(second.text, 'eu fiquei olhando para o teto\naté amanhecer.');
+  assert.equal(first.start, 1.5);
+  assert.equal(first.end, 10.5);
+  assert.equal(second.start, 10.5);
+  assert.equal(second.end, 18.5);
+}
+
+function testPutsTwoShortSentencesOnSeparateCaptionLines() {
+  assert.deepEqual(
+    buildTimedSegments([{ start: 0, end: 7, text: 'Oi, gente. Hoje é dia de livro.' }]),
+    [{ start: 0, end: 7, text: 'Oi, gente.\nHoje é dia de livro.' }],
+  );
+}
+
+function testDoesNotEndACaptionLineOnALooseWord() {
+  assert.deepEqual(
+    buildTimedSegments([{ start: 0, end: 2, text: 'palavraa palavrab palavrac de palavrad' }]),
+    [{ start: 0, end: 2, text: 'palavraa palavrab palavrac\nde palavrad' }],
+  );
+}
+
+function testTimedCuesStayWithinTheCaptionLimit() {
+  const words = Array.from({ length: 28 }, (_, index) => `palavra${index}`).join(' ');
+  const cues = buildTimedSegments([{ start: 0, end: 28, text: words }]);
+  assert.equal(cues.map(cue => cue.text.replaceAll('\n', ' ')).join(' '), words);
+  assert.ok(cues.some(cue => cue.text.includes('\n')));
+  cues.forEach(cue => {
+    const rows = captionRows(cue.text);
+    assert.ok(rows.length <= 2, cue.text);
+    rows.forEach(row => {
+      assert.ok(row.length <= CAPTION_MAX_CHARS, row);
+      assert.ok(wordCount(row) <= CAPTION_MAX_WORDS, row);
+    });
+  });
+  assert.equal(cues[0].start, 0);
+  assert.equal(cues.at(-1)?.end, 28);
+  for (let index = 1; index < cues.length; index++) {
+    assert.equal(cues[index].start, cues[index - 1].end);
+  }
+}
+
+function testSrtKeepsTheCaptionLineBreak() {
+  assert.equal(
+    buildSrt(buildTimedSegments([{ start: 0, end: 7, text: 'Oi, gente. Hoje é dia de livro.' }])),
+    '1\n00:00:00,000 --> 00:00:07,000\nOi, gente.\nHoje é dia de livro.\n',
+  );
+}
+
 function testNamesDownloadAfterSourceFile() {
   assert.equal(transcriptFileName('meu vídeo.final.mp4', 'txt'), 'meu vídeo.final.txt');
   assert.equal(transcriptFileName('reels', 'srt'), 'reels.srt');
@@ -113,6 +193,13 @@ const tests = [
   ['keeps segment start and skips empty segments', testKeepsSegmentStartAndSkipsEmptySegments],
   ['splits text without times into sentences', testSplitsTextWithoutTimesIntoSentences],
   ['separates paragraphs with a blank line', testPlainTextSeparatesParagraphsWithBlankLine],
+  ['keeps a short caption on one line', testKeepsAShortCaptionOnOneLine],
+  ['breaks a caption into two short lines', testBreaksACaptionIntoTwoShortLines],
+  ['splits a long caption and shares its time by word count', testSplitsALongCaptionAndSharesItsTimeByWordCount],
+  ['puts two short sentences on separate caption lines', testPutsTwoShortSentencesOnSeparateCaptionLines],
+  ['does not end a caption line on a loose word', testDoesNotEndACaptionLineOnALooseWord],
+  ['keeps timed cues within the caption limit', testTimedCuesStayWithinTheCaptionLimit],
+  ['keeps the caption line break in the SRT', testSrtKeepsTheCaptionLineBreak],
   ['names downloads after the source file', testNamesDownloadAfterSourceFile],
 ] as const;
 

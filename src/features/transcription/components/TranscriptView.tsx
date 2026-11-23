@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
-import { buildParagraphs, formatClock, type Transcript } from '../lib/transcriptFormats';
+import { buildParagraphs, buildTimedSegments, formatClock, type Transcript } from '../lib/transcriptFormats';
 import { transcriptMeta } from '../lib/transcriptMeta';
 import { TranscriptActions } from './TranscriptActions';
 
@@ -27,9 +27,11 @@ export function TranscriptView({
   mobile: boolean;
 }) {
   const [view, setView] = useState<TranscriptViewMode>('texto');
-  const paragraphs = buildParagraphs(transcript);
   const hasSegments = transcript.segments.length > 0;
   const showTimes = view === 'tempos' && hasSegments;
+  const paragraphs = buildParagraphs(
+    showTimes ? { text: transcript.text, segments: buildTimedSegments(transcript.segments) } : transcript,
+  );
   const meta = transcriptMeta(transcript);
   // No celular a barra do topo já diz "Transcrição": o card fica só com as abas.
   const showCardHeader = !mobile || hasSegments;
@@ -71,7 +73,7 @@ export function TranscriptView({
                   {paragraph.map((line, lineIndex) => (
                     <li key={`${line.start}-${lineIndex}`} className="flex items-baseline gap-4">
                       <span className="t-meta w-12 shrink-0 tabular-nums">{formatClock(line.start ?? 0)}</span>
-                      <span className="min-w-0 flex-1">{line.text}</span>
+                      <span className="min-w-0 flex-1 whitespace-pre-line">{line.text}</span>
                     </li>
                   ))}
                 </ol>

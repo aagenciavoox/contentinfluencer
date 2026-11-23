@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Captions, Check, ChevronDown, Copy, Download, FileText } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
 import { copyText, downloadText } from '../lib/downloadText';
-import { buildPlainText, buildSrt, transcriptFileName, type Transcript } from '../lib/transcriptFormats';
+import { buildPlainText, buildSrt, buildTimedSegments, transcriptFileName, type Transcript } from '../lib/transcriptFormats';
 
 function DownloadMenuItem({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) {
   return (
@@ -97,7 +97,7 @@ export function TranscriptActions({ fileName, transcript }: { fileName: string; 
 
   const downloadTxt = () => downloadText(plainText, transcriptFileName(fileName, 'txt'));
   const downloadSrt = () =>
-    downloadText(buildSrt(transcript.segments), transcriptFileName(fileName, 'srt'), 'application/x-subrip;charset=utf-8');
+    downloadText(buildSrt(buildTimedSegments(transcript.segments)), transcriptFileName(fileName, 'srt'), 'application/x-subrip;charset=utf-8');
 
   return (
     <div className="flex flex-wrap items-center gap-2">

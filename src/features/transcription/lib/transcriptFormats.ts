@@ -46,10 +46,116 @@ export function buildSrt(segments: readonly TranscriptSegment[]) {
     .join('\n');
 }
 
+/**
+ * Legenda para o editor: cada linha cabe na tela e cada bloco tem no máximo
+ * duas, com a quebra escrita no arquivo.
+ */
+export const CAPTION_MAX_CHARS = 37;
+export const CAPTION_MAX_WORDS = 6;
+const CAPTION_LINES_PER_CUE = 2;
+
+const SENTENCE_END = /[.!?…]["'”»)]*$/;
+const CLAUSE_END = /[,;:—–]$/;
+
+const LINE_END_STOPWORDS = new Set([
+  'a', 'o', 'as', 'os', 'um', 'uma', 'de', 'da', 'do', 'das', 'dos', 'em', 'na', 'no', 'nas', 'nos',
+  'e', 'ou', 'que', 'se', 'por', 'pra', 'pro', 'para', 'com', 'sem', 'mas', 'ao', 'à', 'num', 'numa',
+]);
+
+function countWords(text: string) {
+  return text.split(/\s+/).filter(Boolean).length;
+}
+
+function measure(words: readonly string[]) {
+  return words.join(' ').length;
+}
+
+function isWeakLineEnd(word: string) {
+  const normalized = word.toLocaleLowerCase('pt-BR').replace(/[^\p{L}']/gu, '');
+  return LINE_END_STOPWORDS.has(normalized);
+}
+
+function fits(line: readonly string[], word: string) {
+  const next = [...line, word];
+  return next.length <= CAPTION_MAX_WORDS && measure(next) <= CAPTION_MAX_CHARS;
+}
+
+/** Tira do fim da linha uma palavra que pede a seguinte, quando ainda há texto. */
+function withoutWeakEnding(words: string[]) {
+  const line = [...words];
+  const carry: string[] = [];
+  while (line.length > 1 && isWeakLineEnd(line[line.length - 1])) carry.unshift(line.pop()!);
+  return { line, carry };
+}
+
+/** Uma frase longa vira linhas curtas, quebrando em pontuação e fora de "de", "que", "o". */
+function captionLines(text: string) {
+  const pending = text.trim().split(/\s+/).filter(Boolean);
+  const lines: string[][] = [];
+
+  while (pending.length > 0) {
+    const current: string[] = [];
+    while (pending.length > 0 && fits(current, pending[0])) {
+      current.push(pending.shift()!);
+      const last = current[current.length - 1];
+      const clauseReady = CLAUSE_END.test(last) && current.length >= 3;
+      if ((clauseReady || SENTENCE_END.test(last)) && pending.length > 0) break;
+    }
+
+    if (current.length === 0) {
+      lines.push([pending.shift()!]);
+      continue;
+    }
+
+    const { line, carry } = withoutWeakEnding(current);
+    if (carry.length > 0 && pending.length > 0) pending.unshift(...carry);
+    lines.push(carry.length > 0 && pending.length === 0 ? [...line, ...carry] : line);
+  }
+
+  return lines.map(line => line.join(' ')).filter(Boolean);
+}
+
+/** Até duas linhas por bloco. A quebra fica no texto, que é o que o editor lê. */
+function captionCues(text: string) {
+  const lines = captionLines(text);
+  const cues: string[] = [];
+  for (let index = 0; index < lines.length; index += CAPTION_LINES_PER_CUE) {
+    cues.push(lines.slice(index, index + CAPTION_LINES_PER_CUE).join('\n'));
+  }
+  return cues;
+}
+
+/**
+ * Reparte cada trecho do Whisper em blocos de legenda e divide o tempo do trecho
+ * na proporção das palavras de cada bloco.
+ */
+export function buildTimedSegments(segments: readonly TranscriptSegment[]) {
+  return segments.flatMap(segment => {
+    const cues = captionCues(segment.text);
+    if (cues.length === 0) return [];
+
+    const start = segment.start;
+    const end = Math.max(segment.end, segment.start);
+    if (cues.length === 1) return [{ start, end, text: cues[0] }];
+
+    const weights = cues.map(countWords);
+    const total = weights.reduce((sum, weight) => sum + weight, 0);
+    if (total === 0) return [{ start, end, text: cues.join('\n') }];
+
+    const duration = end - start;
+    let consumed = 0;
+    return cues.map((cue, index) => {
+      const cueStart = start + (duration * consumed) / total;
+      consumed += weights[index];
+      const cueEnd = index === cues.length - 1 ? end : start + (duration * consumed) / total;
+      return { start: cueStart, end: Math.max(cueStart, cueEnd), text: cue };
+    });
+  });
+}
+
 /** Uma linha da transcrição. `start` é nulo quando o áudio veio sem tempos. */
 export type TranscriptLine = { text: string; start: number | null };
 
-const SENTENCE_END = /[.!?…]["'”»)]*$/;
 /** Silêncio entre dois trechos que já fecha o parágrafo. */
 const PARAGRAPH_PAUSE_SECONDS = 1.2;
 /** A partir de quantas linhas um fim de frase fecha o parágrafo. */
