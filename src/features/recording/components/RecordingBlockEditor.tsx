@@ -1,14 +1,15 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {Reorder, useDragControls} from 'motion/react';
-import {ArrowDown, ArrowUp, CheckCircle2, FileText, GripVertical, Plus, X} from 'lucide-react';
+import {ArrowDown, ArrowUp, CheckCircle2, FileText, GripVertical, Plus, Video, X} from 'lucide-react';
 import {TagSelect} from '../../../components/ui/TagSelect';
 import {AppButton} from '../../../components/ui/AppButton';
+import {EmptyState} from '../../../components/ui/EmptyState';
 import {SelectField} from '../../../components/ui/SelectField';
 import {Surface} from '../../../components/ui/Surface';
 import {Text} from '../../../components/ui/Text';
 import {ToggleRow} from '../../../components/ui/ToggleSwitch';
 import type {Content, RecordingBlock, RecordingBlockContent} from '../../../lib/database';
-import {cn} from '../../../lib/utils';
+import {cn, tintedTextColor} from '../../../lib/utils';
 import {
   addBlockContent,
   getOrderedBlockContents,
@@ -28,6 +29,13 @@ interface RecordingBlockEditorProps {
   availableTags: string[];
   onUpdateBlock: (block: RecordingBlock) => void;
   onUpdateContents: (contents: RecordingBlockContent[]) => void;
+  /**
+   * `stack` é o celular: Configurações em cima e Roteiros embaixo, como hoje.
+   * `columns` é o desktop a partir de lg: Roteiros à esquerda e Configurações
+   * à direita (368px, 16px entre elas). Abaixo de lg, `columns` empilha com
+   * Roteiros primeiro. A página do celular passa `stack` de propósito.
+   */
+  layout?: 'columns' | 'stack';
   className?: string;
 }
 
@@ -46,6 +54,7 @@ export function RecordingBlockEditor({
   availableTags,
   onUpdateBlock,
   onUpdateContents,
+  layout = 'stack',
   className,
 }: RecordingBlockEditorProps) {
   const [name, setName] = useState(block.name);
@@ -159,14 +168,17 @@ export function RecordingBlockEditor({
   const teleprompterEnabled = isRecordingBlockTeleprompterEnabled(block);
   const nameFieldId = `recording-block-name-${block.id}`;
   const queueFieldId = `recording-block-queue-${block.id}`;
+  const columns = layout === 'columns';
 
-  return (
-    <div className={cn('stack-xl', className)}>
-      <Surface padding="none" className="p-4 md:p-8">
+  const settingsCard = (
+      <Surface padding="none" className={cn('p-4 md:p-8', columns && 'min-w-0')}>
         <div className="stack-lg">
           <Text variant="sectionTitle">Configurações do bloco</Text>
 
-          <div className="grid gap-4 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] md:gap-6">
+          <div className={cn(
+            'grid gap-4',
+            columns ? undefined : 'md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] md:gap-6',
+          )}>
             <div className="stack-sm">
               <label htmlFor={nameFieldId} className={fieldLabelClass}>
                 Nome do bloco
@@ -222,14 +234,19 @@ export function RecordingBlockEditor({
           />
         </div>
       </Surface>
+  );
 
-      <Surface padding="none" className="p-4 md:p-8">
+  const scriptsCard = (
+      <Surface padding="none" className={cn('p-4 md:p-8', columns && 'min-w-0')}>
         <div className="stack-lg">
           <div className="stack-xs">
-            <div className="flex items-center gap-3">
-              <Text variant="sectionTitle">Roteiros do bloco</Text>
+            <div className={cn('flex items-center gap-3', columns && 'min-w-0 flex-nowrap')}>
+              <Text variant="sectionTitle" className={cn(columns && 'min-w-0 truncate')}>Roteiros do bloco</Text>
               <Text variant="secondary" as="span"
-                className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-[var(--bg-hover)] px-2 text-[var(--text-secondary)]"
+                className={cn(
+                  'inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-[var(--bg-hover)] px-2 text-[var(--text-secondary)]',
+                  columns && 'shrink-0',
+                )}
                 aria-label={`${orderedEntries.length} ${orderedEntries.length === 1 ? 'roteiro' : 'roteiros'}`}
               >
                 {orderedEntries.length}
@@ -239,10 +256,20 @@ export function RecordingBlockEditor({
           </div>
 
           {visibleEntries.length === 0 ? (
-            <div className="rounded-[var(--radius-input)] border border-dashed border-[var(--border-color)] px-4 py-8 text-center">
-              <Text variant="bodyStrong" as="p" className="text-[var(--text-secondary)]">Nenhum roteiro neste bloco.</Text>
-              <Text variant="secondary" as="p" className="mt-1 text-[var(--text-tertiary)]">Adicione um roteiro pronto logo abaixo.</Text>
-            </div>
+            columns ? (
+              <EmptyState
+                compact
+                className="shadow-none"
+                icon={<Video className="h-8 w-8" aria-hidden />}
+                title="Nenhum roteiro neste bloco."
+                description="Adicione um roteiro pronto logo abaixo."
+              />
+            ) : (
+              <div className="rounded-[var(--radius-input)] border border-dashed border-[var(--border-color)] px-4 py-8 text-center">
+                <Text variant="bodyStrong" as="p" className="text-[var(--text-secondary)]">Nenhum roteiro neste bloco.</Text>
+                <Text variant="secondary" as="p" className="mt-1 text-[var(--text-tertiary)]">Adicione um roteiro pronto logo abaixo.</Text>
+              </div>
+            )
           ) : (
             <Reorder.Group
               as="ol"
@@ -263,12 +290,16 @@ export function RecordingBlockEditor({
                   onMoveDown={() => handleMove(index, 1)}
                   onRemove={() => handleRemove(content.id)}
                   onDragEnd={handleDragEnd}
+                  layout={layout}
                 />
               ))}
             </Reorder.Group>
           )}
 
-          <div className="stack-md border-t border-[var(--border-color)] pt-6">
+          <div className={cn(
+            'stack-md',
+            columns ? 'surface-separator pt-4' : 'border-t border-[var(--border-color)] pt-6',
+          )}>
             <div className="stack-xs">
               <label htmlFor={queueFieldId} className={fieldLabelClass}>
                 Adicionar roteiro
@@ -281,7 +312,7 @@ export function RecordingBlockEditor({
             </div>
 
             {addableQueueContents.length > 0 ? (
-              <div className="flex flex-col gap-3 sm:flex-row">
+              <div className={cn('flex flex-col gap-3', columns ? 'lg:flex-row' : 'sm:flex-row')}>
                 <SelectField
                   id={queueFieldId}
                   block
@@ -301,7 +332,7 @@ export function RecordingBlockEditor({
                   leftIcon={<Plus className="h-4 w-4" />}
                   disabled={!selectedQueueId}
                   onClick={handleAddFromQueue}
-                  className="md:h-12"
+                  className={cn('md:h-12', columns && 'shrink-0')}
                 >
                   Adicionar ao bloco
                 </AppButton>
@@ -310,6 +341,21 @@ export function RecordingBlockEditor({
           </div>
         </div>
       </Surface>
+  );
+
+  if (columns) {
+    return (
+      <div className={cn('grid items-start gap-4 lg:grid-cols-[minmax(0,2fr)_368px]', className)}>
+        <div className="order-1 min-w-0 lg:col-start-1 lg:row-start-1">{scriptsCard}</div>
+        <div className="order-2 min-w-0 lg:col-start-2 lg:row-start-1">{settingsCard}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn('stack-xl', className)}>
+      {settingsCard}
+      {scriptsCard}
     </div>
   );
 }
@@ -324,6 +370,7 @@ function BlockScriptRow({
   onMoveDown,
   onRemove,
   onDragEnd,
+  layout,
 }: {
   content: Content;
   position: number;
@@ -334,9 +381,11 @@ function BlockScriptRow({
   onMoveDown: () => void;
   onRemove: () => void;
   onDragEnd: () => void;
+  layout: 'columns' | 'stack';
 }) {
   const dragControls = useDragControls();
   const title = content.title || 'Roteiro sem título';
+  const columns = layout === 'columns';
 
   return (
     <Reorder.Item
@@ -345,7 +394,10 @@ function BlockScriptRow({
       dragControls={dragControls}
       onDragEnd={onDragEnd}
       whileDrag={{boxShadow: 'var(--shadow-dropdown)'}}
-      className="relative flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] py-3 pl-1 pr-3 sm:flex-nowrap"
+      className={cn(
+        'relative flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] py-3 pl-1 pr-3 sm:flex-nowrap',
+        columns && 'min-w-0',
+      )}
     >
       <button
         type="button"
@@ -361,18 +413,39 @@ function BlockScriptRow({
       </button>
 
       <Text variant="bodyStrong" as="span"
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)]"
+        className={cn(
+          'flex shrink-0 items-center justify-center rounded-full',
+          columns ? 'h-8 w-8' : 'h-11 w-11',
+          columns && completed
+            ? undefined
+            : 'border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)]',
+        )}
+        style={columns && completed ? {
+          backgroundColor: 'color-mix(in srgb, var(--success) 18%, var(--bg-primary))',
+          color: tintedTextColor('var(--success)'),
+        } : undefined}
         aria-hidden
       >
         {position}
       </Text>
 
-      <div className="min-w-0 flex-1">
+      <div className={cn('min-w-0 flex-1', columns && 'overflow-hidden')}>
         <Text variant="bodyStrong" as="p" className="line-clamp-2 text-[var(--text-primary)] sm:line-clamp-1">{title}</Text>
-        <Text variant="secondary" as="p" className="flex items-center gap-1.5 text-[var(--text-secondary)]">
+        <Text
+          variant="secondary"
+          as="p"
+          className={cn(
+            'flex items-center gap-1.5 text-[var(--text-secondary)]',
+            columns && 'whitespace-nowrap',
+          )}
+        >
           {completed ? (
             <>
-              <CheckCircle2 className="h-3.5 w-3.5 text-[var(--success)]" aria-hidden />
+              <CheckCircle2
+                className={cn('h-3.5 w-3.5', columns ? 'shrink-0' : 'text-[var(--success)]')}
+                style={columns ? {color: tintedTextColor('var(--success)')} : undefined}
+                aria-hidden
+              />
               Gravado
             </>
           ) : (

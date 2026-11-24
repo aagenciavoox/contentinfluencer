@@ -76,6 +76,7 @@ export function AnalyticsPage() {
           title="Análise"
           backLabel="Biblioteca"
           backTo="/biblioteca"
+          rowAlign="center"
           actions={(
             <AppButton variant="primary" leftIcon={<Plus className="h-4 w-4" />} onClick={newItem}>
               Novo item

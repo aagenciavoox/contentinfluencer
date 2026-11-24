@@ -39,7 +39,12 @@ export function MobileSegmentTabs<T extends string>({
 }: MobileSegmentTabsProps<T>) {
   return (
     <SegmentTabs<T>
-      options={tabs.map(tab => ({ id: tab.value, label: tab.label, count: tab.count }))}
+      options={tabs.map(tab => ({
+        id: tab.value,
+        label: tab.label,
+        count: tab.count,
+        muted: typeof tab.count === 'number' && tab.count === 0,
+      }))}
       value={value}
       onChange={onChange}
       className={className}

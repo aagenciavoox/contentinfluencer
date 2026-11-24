@@ -205,6 +205,7 @@ export function PillarEditPage() {
             backLabel="Pilares"
             backTo="/editorial?aba=direcao"
             title={pageTitle}
+            rowAlign="center"
             actions={headerActions}
           />
         }

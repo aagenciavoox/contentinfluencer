@@ -655,6 +655,7 @@ export function LibraryPage() {
         <DesktopPageHeader
           section="Biblioteca"
           title="Biblioteca"
+          rowAlign="center"
           actions={(
             <AppButton
               onClick={handleOpenModal}

@@ -196,6 +196,7 @@ export function RecordingBlockPage() {
             title="Bloco concluído"
             backLabel="Gravação"
             backTo="/gravacao?tab=blocks"
+            rowAlign="center"
             actions={(
               <AppButton variant="primary" onClick={() => navigate('/criacao?tab=edicao')}>
                 Ir para Edição
@@ -251,6 +252,7 @@ export function RecordingBlockPage() {
             availableTags={availableTags}
             onUpdateBlock={handleUpdateBlock}
             onUpdateContents={handleUpdateContents}
+            layout="stack"
           />
 
           <AppButton
@@ -334,6 +336,7 @@ export function RecordingBlockPage() {
         availableTags={availableTags}
         onUpdateBlock={handleUpdateBlock}
         onUpdateContents={handleUpdateContents}
+        layout="columns"
       />
     </PageLayout>
   );

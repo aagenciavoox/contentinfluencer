@@ -48,6 +48,8 @@ interface FilterBarProps {
   onClearExtra?: () => void;
   panelMode?: 'inline' | 'dropdown';
   fluidSearch?: boolean;
+  /** Contagem que a tela já calculou, à direita dos chips ativos. Ex.: "12 de 48 roteiros". */
+  resultSummary?: ReactNode;
 }
 
 const INACTIVE_FILTER_VALUES = new Set(['', 'todos', 'todas']);
@@ -85,6 +87,7 @@ export function FilterBar({
   onClearExtra,
   panelMode = 'dropdown',
   fluidSearch = false,
+  resultSummary,
 }: FilterBarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const toggleRef = useRef<HTMLButtonElement>(null);
@@ -238,8 +241,8 @@ export function FilterBar({
               aria-expanded={panelOpen}
               aria-controls={panelOpen ? panelId : undefined}
               className={cn(
-                'filter-bar-toggle shrink-0 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]',
-                (panelOpen || activeFiltersCount > 0) && 'filter-bar-toggle-active',
+                'filter-bar-toggle shrink-0 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                activeFiltersCount > 0 && 'filter-bar-toggle-active !border-[var(--text-primary)] !bg-[var(--text-primary)] !text-[var(--bg-primary)]',
               )}
             >
               <Filter className="h-3.5 w-3.5" aria-hidden="true" />
@@ -287,6 +290,7 @@ export function FilterBar({
           <AppButton type="button" variant="ghost" size="xs" onClick={clearFilters}>
             Limpar filtros
           </AppButton>
+          {resultSummary ? <div className="ml-auto flex min-w-0 items-center">{resultSummary}</div> : null}
         </div>
       ) : null}
 

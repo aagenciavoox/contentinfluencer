@@ -334,6 +334,7 @@ export function SeriesEditPage() {
             backTo={destinoDeVolta}
             title={pageTitle}
             subtitle={tipo === 'serie' || isCreate ? pageMeta : undefined}
+            rowAlign={tipo === 'serie' || isCreate ? 'start' : 'center'}
             actions={
               <SerieEditHeaderActions
                 isCreate={isCreate}

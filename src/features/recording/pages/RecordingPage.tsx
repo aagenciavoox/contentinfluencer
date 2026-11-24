@@ -431,6 +431,7 @@ export function RecordingPage() {
         <DesktopPageHeader
           section="Produção"
           title="Gravação"
+          rowAlign="center"
           actions={
             activeTab === 'queue' ? (
               <>
@@ -469,11 +470,13 @@ export function RecordingPage() {
               id: 'queue',
               label: 'Sem bloco',
               count: recordingReady ? queueContents.length : undefined,
+              muted: recordingReady && queueContents.length === 0,
             },
             {
               id: 'blocks',
               label: 'Blocos',
               count: recordingReady ? state.recordingBlocks.length : undefined,
+              muted: recordingReady && state.recordingBlocks.length === 0,
             },
           ]}
         />

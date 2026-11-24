@@ -535,6 +535,7 @@ export function EditorialCalendarPage() {
         <DesktopPageHeader
           section="Agenda"
           title="Calendário"
+          rowAlign="center"
           actions={(
             <AppButton
               variant="primary"

@@ -1214,9 +1214,9 @@ export function BookDetailPage() {
           value={tab}
           onChange={setTab}
           options={[
-            { id: 'anotacoes', label: 'Anotações', count: tabCounts.anotacoes ?? 0 },
+            { id: 'anotacoes', label: 'Anotações', count: tabCounts.anotacoes ?? 0, muted: (tabCounts.anotacoes ?? 0) === 0 },
             { id: 'info', label: 'Info' },
-            { id: 'conteudos', label: 'Roteiros', count: tabCounts.conteudos ?? 0 },
+            { id: 'conteudos', label: 'Roteiros', count: tabCounts.conteudos ?? 0, muted: (tabCounts.conteudos ?? 0) === 0 },
           ]}
         />
       }

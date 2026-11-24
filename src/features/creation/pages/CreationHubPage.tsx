@@ -1347,6 +1347,7 @@ export function CreationHubPage() {
           <DesktopPageHeader
             section="Produção"
             title="Criação"
+            rowAlign="center"
             actions={(
               <CreateMenuButton
                 onCreateIdea={openIdeaComposer}

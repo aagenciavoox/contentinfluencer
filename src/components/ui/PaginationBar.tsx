@@ -95,10 +95,14 @@ export function PaginationBar({
               ) : (
                 <AppButton
                   key={page}
-                  variant={page === currentPage ? 'primary' : 'secondary'}
+                  variant="secondary"
                   size="xs"
                   onClick={() => onPageChange(page)}
-                  className="min-w-8 px-2"
+                  className={cn(
+                    'min-w-8 px-2',
+                    page === currentPage &&
+                      '!border-[var(--text-primary)] !bg-[var(--text-primary)] !text-[var(--bg-primary)] hover:!border-[var(--text-primary)] hover:!bg-[var(--text-primary)]',
+                  )}
                   aria-current={page === currentPage ? 'page' : undefined}
                 >
                   {page}

@@ -263,6 +263,7 @@ export function ProjectsPage() {
         <DesktopPageHeader
           section="Agenda"
           title="Projetos"
+          rowAlign="center"
           actions={(
             <AppButton
               onClick={() => setShowForm(true)}
