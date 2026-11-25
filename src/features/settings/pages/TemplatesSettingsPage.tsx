@@ -5,6 +5,7 @@ import {useAppContext} from '../../../context/AppContext';
 import {useAuth} from '../../../context/AuthContext';
 import type {Template, TemplateBloco} from '../../../lib/database';
 import {cn} from '../../../lib/utils';
+import {PAGE_SECTION} from '../../../layouts/navigation/navConfig';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {Text} from '../../../components/ui/Text';
@@ -609,17 +610,12 @@ export function TemplatesSettingsPage({
                     </div>
                   </div>
                 ) : (
-                  <div className="flex h-full min-h-[420px] items-center justify-center rounded-[var(--radius-card-mobile)] border border-dashed border-[var(--border-color)] bg-[var(--bg-secondary)] px-8 text-center">
-                    <div className="stack-md">
-                      <Layout className="mx-auto h-10 w-10 opacity-20" />
-                      <Text variant="bodyStrong">
-                        Selecione um bloco
-                      </Text>
-                      <Text variant="secondary" as="p" className="text-[var(--text-secondary)]">
-                        Escolha um bloco à esquerda para editar.
-                      </Text>
-                    </div>
-                  </div>
+                  <EmptyState
+                    className="h-full min-h-[420px]"
+                    icon={<Layout className="h-10 w-10" />}
+                    title="Selecione um bloco"
+                    description="Escolha um bloco à esquerda para editar."
+                  />
                 )}
               </section>
             </div>
@@ -806,7 +802,7 @@ export function TemplatesSettingsPage({
         contentStack="settings"
         header={
           <DesktopPageHeader
-            section="Configurações"
+            section={PAGE_SECTION.configuracoes}
             title="Modelos de roteiro"
             backLabel="Configurações"
             backTo="/configuracoes"

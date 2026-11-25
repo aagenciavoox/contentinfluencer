@@ -15,6 +15,7 @@ import { OverlayFooter } from '../../../components/overlays/OverlayFooter';
 import { OverlayHeader } from '../../../components/overlays/OverlayHeader';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { PageLayout } from '../../../layouts/page/PageLayout';
+import { PAGE_SECTION } from '../../../layouts/navigation/navConfig';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { AppButton } from '../../../components/ui/AppButton';
 import { FilterChips, type FilterChipOption } from '../../../components/ui/FilterChips';
@@ -653,7 +654,7 @@ export function LibraryPage() {
       contentWidth="wide"
       header={(
         <DesktopPageHeader
-          section="Biblioteca"
+          section={PAGE_SECTION.biblioteca}
           title="Biblioteca"
           rowAlign="center"
           actions={(

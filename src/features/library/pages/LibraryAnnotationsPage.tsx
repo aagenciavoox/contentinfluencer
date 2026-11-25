@@ -4,6 +4,7 @@ import { useAppContext } from '../../../context/AppContext';
 import { useDomainsReady } from '../../../hooks/useDomainsReady';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
+import { PAGE_SECTION } from '../../../layouts/navigation/navConfig';
 import { PageToolbar } from '../../../components/ui/PageToolbar';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { Surface } from '../../../components/ui/Surface';
@@ -40,7 +41,7 @@ export function LibraryAnnotationsPage() {
       contentWidth="wide"
       header={(
         <DesktopPageHeader
-          section="Biblioteca"
+          section={PAGE_SECTION.biblioteca}
           title="Anotações"
           backLabel="Biblioteca"
           backTo="/biblioteca"

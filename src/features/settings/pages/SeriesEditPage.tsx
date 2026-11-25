@@ -11,6 +11,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { returnTo } from '../../../lib/navigation/goBack';
 import { PageLayout } from '../../../layouts/page/PageLayout';
+import { PAGE_SECTION } from '../../../layouts/navigation/navConfig';
 import type { Serie, SerieTipoAgrupamento } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
 import { CONFIRM } from '../../../lib/uiCopy';
@@ -329,7 +330,7 @@ export function SeriesEditPage() {
         contentStack="dense"
         header={
           <DesktopPageHeader
-            section="Produção"
+            section={PAGE_SECTION.producao}
             backLabel={tipo === 'serie' && !isCreate ? 'Série' : rotuloVolta}
             backTo={destinoDeVolta}
             title={pageTitle}

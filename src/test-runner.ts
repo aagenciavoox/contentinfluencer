@@ -157,6 +157,7 @@ await import('./mobile/config/mobileRouteMeta.test.ts');
 await import('./hooks/useVisualViewportBounds.test.ts');
 await import('./layouts/navigation/userInitials.test.ts');
 await import('./layouts/navigation/navConfig.test.ts');
+await import('./layouts/navigation/pageSection.test.ts');
 await import('./features/captions/lib/captionQueue.test.ts');
 await import('./features/transcription/lib/transcriptFormats.test.ts');
 await import('./features/transcription/lib/transcriptionQueue.test.ts');

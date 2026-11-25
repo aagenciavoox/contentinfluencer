@@ -20,10 +20,12 @@ import { buildDetailBackState } from '../../../lib/navigation/detailBack';
 import { returnTo } from '../../../lib/navigation/goBack';
 import { CONFIRM, type ConfirmState } from '../../../lib/uiCopy';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
+import { PAGE_SECTION } from '../../../layouts/navigation/navConfig';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import { Section } from '../../../components/ui/Section';
 import { AppButton } from '../../../components/ui/AppButton';
+import { EmptyState } from '../../../components/ui/EmptyState';
 import { Badge } from '../../../components/ui/Badge';
 import { MoreMenu } from '../../../components/ui/MoreMenu';
 import { Surface } from '../../../components/ui/Surface';
@@ -146,7 +148,7 @@ export function ProjectDetailPage() {
       <PageLayout
         header={
           <DesktopPageHeader
-            section="Agenda"
+            section={PAGE_SECTION.agenda}
             title="Projeto não encontrado"
             backLabel="Projetos"
             backTo="/projetos"
@@ -376,7 +378,7 @@ export function ProjectDetailPage() {
       contentStack="dense"
       header={
         <DesktopPageHeader
-          section="Agenda"
+          section={PAGE_SECTION.agenda}
           title={projeto.nome}
           titleContent={(
             <div className="min-w-0">
@@ -484,14 +486,11 @@ export function ProjectDetailPage() {
               )}
 
               {projetoContents.length === 0 ? (
-                <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] px-6 py-8 text-center">
-                  <Text variant="bodyStrong">Nenhum roteiro vinculado</Text>
-                  {evento ? (
-                    <Text variant="secondary" className="mt-2">
-                      Cada roteiro deste evento fica com o próprio objetivo.
-                    </Text>
-                  ) : null}
-                </div>
+                <EmptyState
+                  compact
+                  title="Nenhum roteiro vinculado"
+                  description={evento ? 'Cada roteiro deste evento fica com o próprio objetivo.' : ''}
+                />
               ) : (
                 <div className="stack-md">
                   {evento ? (

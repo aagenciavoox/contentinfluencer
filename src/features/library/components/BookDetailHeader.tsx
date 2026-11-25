@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Text } from '../../../components/ui/Text';
 import { ValorVazio } from '../../../components/ui/ValorVazio';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
+import { PAGE_SECTION } from '../../../layouts/navigation/navConfig';
 
 interface BookDetailHeaderProps {
   title: string;
@@ -27,7 +28,7 @@ export function BookDetailHeader({
 }: BookDetailHeaderProps) {
   return (
     <DesktopPageHeader
-      section={backLabel}
+      section={PAGE_SECTION.biblioteca}
       title={title}
       backLabel={backLabel}
       backTo={backTo}

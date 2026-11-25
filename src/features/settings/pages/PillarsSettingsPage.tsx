@@ -13,6 +13,7 @@ import { PillarsMobileScreen } from '../../../mobile/screens/settings/PillarsMob
 import { sortPilares } from '../lib/activePilares';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
+import { PAGE_SECTION } from '../../../layouts/navigation/navConfig';
 import { SettingsGridCard, SETTINGS_ENTITY_GRID_CLASS } from '../../../components/settings/SettingsGridCard';
 
 export function PillarsSettingsPage() {
@@ -85,7 +86,7 @@ export function PillarsSettingsPage() {
       variant="default"
       header={
         <DesktopPageHeader
-          section="Estratégia"
+          section={PAGE_SECTION.estrategia}
           title="Pilares"
           backLabel="Editorial"
           backTo="/editorial?aba=direcao"

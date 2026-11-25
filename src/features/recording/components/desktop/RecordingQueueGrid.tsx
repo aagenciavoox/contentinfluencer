@@ -4,6 +4,7 @@ import {CountBadge} from '../../../../components/ui/CountBadge';
 import {Surface} from '../../../../components/ui/Surface';
 import {Text} from '../../../../components/ui/Text';
 import {AppButton} from '../../../../components/ui/AppButton';
+import {EmptyState} from '../../../../components/ui/EmptyState';
 import {PlatformIcons} from '../../../../components/ui/PlatformIcons';
 import type {Content} from '../../../../lib/database';
 import {useAppContext} from '../../../../context/AppContext';
@@ -51,13 +52,11 @@ export function RecordingQueueGrid({
 
   if (contents.length === 0) {
     return (
-      <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] bg-[var(--bg-secondary)] px-6 py-16 text-center">
-        <Clapperboard className="mx-auto mb-4 h-10 w-10 text-[var(--text-tertiary)]" />
-        <Text variant="itemTitle" as="p" className="text-[var(--text-primary)]">{EMPTY.roteirosSemBloco.title}</Text>
-        <Text variant="secondary" as="p" className="mx-auto mt-2 max-w-sm text-[var(--text-secondary)]">
-          {EMPTY.roteirosSemBloco.description}
-        </Text>
-      </div>
+      <EmptyState
+        icon={<Clapperboard className="h-10 w-10" />}
+        title={EMPTY.roteirosSemBloco.title}
+        description={EMPTY.roteirosSemBloco.description}
+      />
     );
   }
 

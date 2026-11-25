@@ -1,3 +1,4 @@
+import { EmptyState } from '../../../../components/ui/EmptyState';
 import { Text } from '../../../../components/ui/Text';
 import { useState } from 'react';
 import { X, Plus, MessageSquare } from 'lucide-react';
@@ -183,12 +184,11 @@ export function BookNotesModal({ book, onClose }: BookNotesModalProps) {
           </div>
 
           {anotacoesFiltradas.length === 0 ? (
-            <div className="rounded-[var(--radius-card-mobile)] border border-dashed border-[var(--border-color)] py-16 text-center md:rounded-[var(--radius-card)]">
-              <MessageSquare className="mx-auto mb-3 h-10 w-10 text-[var(--text-tertiary)]" />
-              <Text variant="label" as="p" className="text-[var(--text-tertiary)]">
-                Nenhuma anotação nesse filtro
-              </Text>
-            </div>
+            <EmptyState
+              icon={<MessageSquare className="h-10 w-10" />}
+              title="Nenhuma anotação nesse filtro"
+              description=""
+            />
           ) : (
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
               {anotacoesFiltradas.map(anotacao => (

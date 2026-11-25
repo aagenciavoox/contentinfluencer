@@ -1,3 +1,4 @@
+import { EmptyState } from '../../../../components/ui/EmptyState';
 import { Text } from '../../../../components/ui/Text';
 import { Eye } from 'lucide-react';
 import { Content } from '../../../../lib/database';
@@ -40,13 +41,14 @@ export function ContentKanban({
 
   if (contents.length === 0) {
     return (
-      <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] py-16 text-center">
-        <Text variant="secondary" as="p" className="text-[var(--text-tertiary)]">
-          {filterStatus === 'Todos'
+      <EmptyState
+        title={
+          filterStatus === 'Todos'
             ? 'Nenhum roteiro nesta visão.'
-            : `Nenhum roteiro em "${filterStatus}".`}
-        </Text>
-      </div>
+            : `Nenhum roteiro em "${filterStatus}".`
+        }
+        description=""
+      />
     );
   }
 

@@ -1,6 +1,7 @@
 import {useMemo, useState, type ReactNode} from 'react';
 import {Search} from 'lucide-react';
 import {SelectField} from '../../../components/ui/SelectField';
+import {EmptyState} from '../../../components/ui/EmptyState';
 import {Surface} from '../../../components/ui/Surface';
 import {Text} from '../../../components/ui/Text';
 import {cn} from '../../../lib/utils';
@@ -157,13 +158,15 @@ export function SemDataPanel({
       </div>
 
       {filtrados.length === 0 ? (
-        <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-8 text-center">
-          <Text variant="meta" className="text-[var(--text-secondary)]">
-            {undated.length === 0
+        <EmptyState
+          compact
+          title={
+            undated.length === 0
               ? (compactHint ? 'Nenhuma pauta sem data.' : 'Solte aqui para deixar a pauta sem data.')
-              : 'Nada combina com a busca ou os filtros.'}
-          </Text>
-        </div>
+              : 'Nada combina com a busca ou os filtros.'
+          }
+          description=""
+        />
       ) : (
         <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-1">
           {filtrados.map(postIt => (

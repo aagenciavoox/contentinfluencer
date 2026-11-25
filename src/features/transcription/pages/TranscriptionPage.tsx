@@ -8,6 +8,7 @@ import { Text } from '../../../components/ui/Text';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
+import { PAGE_SECTION } from '../../../layouts/navigation/navConfig';
 import { TranscriptActions } from '../components/TranscriptActions';
 import { TranscriptView } from '../components/TranscriptView';
 import { TranscriptionDropzone } from '../components/TranscriptionDropzone';
@@ -60,7 +61,7 @@ export function TranscriptionPage() {
         contentStack="dense"
         header={(
           <DesktopPageHeader
-            section="Transcrição"
+            section={PAGE_SECTION.producao}
             title={viewing.file.name}
             backLabel="Fila de transcrição"
             onBack={backToQueue}
@@ -96,7 +97,7 @@ export function TranscriptionPage() {
       contentStack="dense"
       header={(
         <DesktopPageHeader
-          section="Produção"
+          section={PAGE_SECTION.producao}
           title="Transcrição"
           backLabel="Criação"
           backTo="/criacao"

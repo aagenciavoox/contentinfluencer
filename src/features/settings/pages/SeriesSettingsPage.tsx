@@ -18,6 +18,7 @@ import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { useScrollMemory } from '../../../hooks/useSessionState';
+import { PAGE_SECTION } from '../../../layouts/navigation/navConfig';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import type { Serie } from '../../../lib/database';
@@ -147,7 +148,7 @@ export function SeriesSettingsPage() {
     <PageLayout
       header={
         <DesktopPageHeader
-          section="Produção"
+          section={PAGE_SECTION.producao}
           title="Inventário & Projetos"
           subtitle="Séries com ritmo, quadros sob demanda, famílias para a vitrine e clubes para reunir roteiros."
           actions={[
@@ -186,7 +187,7 @@ export function SeriesSettingsPage() {
                     className={cn(
                       'rounded-[var(--radius-sm)] px-3 py-1.5 transition-colors',
                       ativo
-                        ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] shadow-sm'
+                        ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
                         : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
                     )}
                   >
@@ -317,14 +318,14 @@ function QuickCreateSheet({
               className={cn(
                 'flex flex-col items-center justify-center rounded-[var(--radius-input)] border p-2.5 text-center transition-all',
                 tipo === 'serie'
-                  ? 'border-[var(--brand-accent)] bg-[var(--surface-subtle)] shadow-sm'
+                  ? 'border-[var(--text-primary)] bg-[var(--surface-subtle)]'
                   : 'border-[var(--border-color)] bg-[var(--bg-primary)] hover:border-[var(--border-strong)]',
               )}
             >
               <Text
                 variant="itemTitle"
                 as="span"
-                className={tipo === 'serie' ? 'text-[var(--brand-accent)]' : 'text-[var(--text-primary)]'}
+                className="text-[var(--text-primary)]"
               >
                 Série
               </Text>
@@ -338,14 +339,14 @@ function QuickCreateSheet({
               className={cn(
                 'flex flex-col items-center justify-center rounded-[var(--radius-input)] border p-2.5 text-center transition-all',
                 tipo === 'familia'
-                  ? 'border-[var(--brand-accent)] bg-[var(--surface-subtle)] shadow-sm'
+                  ? 'border-[var(--text-primary)] bg-[var(--surface-subtle)]'
                   : 'border-[var(--border-color)] bg-[var(--bg-primary)] hover:border-[var(--border-strong)]',
               )}
             >
               <Text
                 variant="itemTitle"
                 as="span"
-                className={tipo === 'familia' ? 'text-[var(--brand-accent)]' : 'text-[var(--text-primary)]'}
+                className="text-[var(--text-primary)]"
               >
                 Família
               </Text>

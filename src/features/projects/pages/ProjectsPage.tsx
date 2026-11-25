@@ -10,6 +10,7 @@ import { dia } from '../../../lib/dates';
 import { cn, tintedTextColor } from '../../../lib/utils';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
+import { PAGE_SECTION } from '../../../layouts/navigation/navConfig';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Badge } from '../../../components/ui/Badge';
 import { EmptyState } from '../../../components/ui/EmptyState';
@@ -261,7 +262,7 @@ export function ProjectsPage() {
     <PageLayout
       header={
         <DesktopPageHeader
-          section="Agenda"
+          section={PAGE_SECTION.agenda}
           title="Projetos"
           rowAlign="center"
           actions={(

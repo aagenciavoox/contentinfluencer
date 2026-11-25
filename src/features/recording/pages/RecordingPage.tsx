@@ -23,6 +23,7 @@ import {SkeletonList} from '../../../components/ui/Skeleton';
 import {useHydrateContentBodies} from '../../../hooks/useHydrateContentBodies';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PageLayout} from '../../../layouts/page/PageLayout';
+import {PAGE_SECTION} from '../../../layouts/navigation/navConfig';
 import {RecordingMobileScreen} from '../../../mobile/screens/recording/RecordingMobileScreen';
 import {RecordingQueueGrid} from '../components/desktop/RecordingQueueGrid';
 import {RecordingQueueTab} from '../components/desktop/RecordingQueueTab';
@@ -429,7 +430,7 @@ export function RecordingPage() {
       contentStack="dense"
       header={
         <DesktopPageHeader
-          section="Produção"
+          section={PAGE_SECTION.producao}
           title="Gravação"
           rowAlign="center"
           actions={

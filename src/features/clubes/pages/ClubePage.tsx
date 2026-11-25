@@ -610,7 +610,7 @@ export function ClubePage() {
         onDragLeave={() => setPastaSobre(atual => atual === chave ? null : atual)}
         onDrop={event => soltarNaPasta(pastaId, event)}
         className={cn(
-          'overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-sm',
+          'overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)]',
           pastaSobre === chave && 'ring-2 ring-[var(--text-primary)]',
         )}
       >

@@ -7,6 +7,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
+import { PAGE_SECTION } from '../../../layouts/navigation/navConfig';
 import { ProfileMobileScreen } from '../../../mobile/screens/settings/ProfileMobileScreen';
 import { ERRORS } from '../../../lib/uiCopy';
 import { normalizeProfileAuthError } from '../lib/profileAuth';
@@ -236,7 +237,7 @@ export function ProfileSettingsPage() {
       contentStack="settings"
       header={
         <DesktopPageHeader
-          section="Configurações"
+          section={PAGE_SECTION.configuracoes}
           title="Perfil"
           backLabel="Configurações"
           backTo="/configuracoes"

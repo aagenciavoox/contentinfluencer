@@ -11,6 +11,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { returnTo } from '../../../lib/navigation/goBack';
 import { PageLayout } from '../../../layouts/page/PageLayout';
+import { PAGE_SECTION } from '../../../layouts/navigation/navConfig';
 import type { Pilar } from '../../../lib/database';
 import { CONFIRM } from '../../../lib/uiCopy';
 import { contasAtivas } from '../../contas/lib/contas';
@@ -201,7 +202,7 @@ export function PillarEditPage() {
         contentStack="dense"
         header={
           <DesktopPageHeader
-            section="Estratégia"
+            section={PAGE_SECTION.estrategia}
             backLabel="Pilares"
             backTo="/editorial?aba=direcao"
             title={pageTitle}

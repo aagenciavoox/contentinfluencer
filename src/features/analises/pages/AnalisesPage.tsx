@@ -12,6 +12,7 @@ import { Text } from '../../../components/ui/Text';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useDomainsReady } from '../../../hooks/useDomainsReady';
+import { PAGE_SECTION } from '../../../layouts/navigation/navConfig';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import { intervalo } from '../../../lib/dates';
@@ -273,7 +274,7 @@ export function AnalisesPage() {
       contentStack="dense"
       header={(
         <DesktopPageHeader
-          section="Estratégia"
+          section={PAGE_SECTION.estrategia}
           title="Análises"
         />
       )}
@@ -294,199 +295,205 @@ export function AnalisesPage() {
           {' '}O alcance de cada conta é contado à parte. Taxa de engajamento: {FORMULA_ENGAJAMENTO}.
         </Text>
 
-        <Surface variant="outlined" padding="md" className="stack-sm">
-          <Text variant="sectionTitle" as="h2">Período</Text>
-          <div className="grid-form">
-            <label htmlFor="analises-inicio" className="block">
-              <Text variant="label" as="span" className="mb-2 block">Início</Text>
-              <input
-                id="analises-inicio"
-                className="input"
-                type="date"
-                value={inicioEfetivo}
-                onChange={event => mudarDatas(event.target.value, fimEfetivo)}
-              />
-            </label>
-            <label htmlFor="analises-fim" className="block">
-              <Text variant="label" as="span" className="mb-2 block">Fim</Text>
-              <input
-                id="analises-fim"
-                className="input"
-                type="date"
-                value={fimEfetivo}
-                onChange={event => mudarDatas(inicioEfetivo, event.target.value)}
-              />
-            </label>
-          </div>
-          <TagSelect
-            id="analises-contas"
-            label="Contas"
-            values={contasIds}
-            onChange={ids => {
-              setContasIds(ids);
-              if (ids.length === 0) setPainel(atual => atual === 'leitura' ? null : atual);
-            }}
-            options={opcoesContas.map(conta => ({ value: conta.id, label: rotuloConta(conta) }))}
-            placeholder="Escolher contas"
-            searchable
-          />
-          {periodos.length > 0 ? (
-            <div>
-              <label htmlFor="analises-salvo" className="mb-2 block">
-                <Text variant="label" as="span">Período salvo</Text>
-              </label>
-              <SelectField
-                id="analises-salvo"
-                block
-                ariaLabel="Período salvo"
-                value={periodoAtual ? periodoAtual.id : 'nenhum'}
-                onChange={value => {
-                  if (value === 'nenhum') {
-                    setPeriodoAberto('');
-                    return;
-                  }
-                  abrirPeriodo(value);
-                }}
-                options={[
-                  { value: 'nenhum', label: 'Nenhum' },
-                  ...periodos.map(periodo => ({ value: periodo.id, label: rotuloDoSalvo(periodo) })),
-                ]}
-              />
-            </div>
-          ) : null}
-          {!periodoValido ? (
-            <Text variant="secondary">O fim precisa ser no mesmo dia ou depois do início.</Text>
-          ) : null}
-          {periodoAtual && painel !== 'periodo' && (periodoAtual.oQueMudei || periodoAtual.conclusao) ? (
-            <div className="grid-form">
-              {periodoAtual.oQueMudei ? <Campo rotulo="O que mudei" valor={periodoAtual.oQueMudei} /> : null}
-              {periodoAtual.conclusao ? <Campo rotulo="Conclusão" valor={periodoAtual.conclusao} /> : null}
-            </div>
-          ) : null}
-          {painel === null ? (
-            <div className="flex flex-wrap gap-2">
-              <AppButton variant="secondary" onClick={() => setPainel('periodo')}>
-                {periodoAtual ? 'Editar período' : 'Salvar período'}
-              </AppButton>
-              {periodoValido ? (
-                <AppButton
-                  variant="secondary"
-                  disabled={contasIds.length === 0}
-                  disabledReason="Escolha ao menos uma conta."
-                  onClick={() => setPainel('leitura')}
-                >
-                  Registrar leitura
-                </AppButton>
-              ) : null}
-            </div>
-          ) : null}
-          {painel === 'periodo' ? (
-            <FormularioPeriodo
-              key={periodoAtual?.id ?? 'novo'}
-              inicial={{
-                nome: periodoAtual?.nome ?? '',
-                oQueMudei: periodoAtual?.oQueMudei ?? '',
-                conclusao: periodoAtual?.conclusao ?? '',
-              }}
-              podeSalvar={Boolean(user?.id) && periodoValido && contasIds.length > 0}
-              motivo={motivoDoPeriodo}
-              onCancel={() => setPainel(null)}
-              onSave={salvarPeriodo}
-            />
-          ) : null}
-        </Surface>
-
-        {periodoValido ? (
-          <Surface variant="outlined" padding="md" className="stack-sm">
-            <Text variant="sectionTitle" as="h2">Contas no período</Text>
-            <LeiturasDaConta
-              contas={contasEscolhidas}
-              leituras={leituras}
-              inicio={inicioEfetivo}
-              fim={fimEfetivo}
-              formAberto={painel === 'leitura'}
-              onFechar={() => setPainel(null)}
-              onSave={salvarLeitura}
-            />
-          </Surface>
-        ) : null}
-
-        {periodoValido ? (
-          <Surface variant="outlined" padding="md" className="stack-sm">
-            <Text variant="sectionTitle" as="h2">Ritmo</Text>
-            <RitmoDoPeriodo
-              contents={state.contents}
-              platforms={state.platforms}
-              editorial={state.editorial}
-              inicio={inicioEfetivo}
-              fim={fimEfetivo}
-              hoje={hoje}
-              contasIds={contasIds}
-            />
-          </Surface>
-        ) : null}
-
-        {!pronto ? (
-          <Text variant="secondary">Carregando publicações.</Text>
-        ) : linhasVisiveis.length === 0 ? (
-          <EmptyState
-            icon={<ChartColumn className="h-6 w-6" />}
-            title="Nenhuma publicação neste filtro"
-            description="Troque o período, a plataforma ou a conta para ver outras publicações."
-          />
-        ) : (
-          <div className="stack-sm">
+        <div className="grid w-full min-w-0 grid-cols-1 items-start gap-2 lg:grid-cols-[400px_minmax(0,1fr)] lg:gap-4">
+          <div className="stack-sm min-w-0">
             <Surface variant="outlined" padding="md" className="stack-sm">
-              <Text variant="sectionTitle" as="h2">Resultados das publicações</Text>
-              <Text variant="meta" as="p">Soma do que esta lista mostra. O alcance de cada publicação entra à parte do alcance da conta.</Text>
-              <div className="grid-metrics-3">
-                <Campo rotulo="Visualizações" valor={textoDeMetrica(soma.views)} />
-                <Campo rotulo="Alcance" valor={textoDeMetrica(soma.alcance)} />
-                <Campo rotulo="Interações" valor={textoDeMetrica(soma.interacoes)} />
+              <Text variant="sectionTitle" as="h2">Período</Text>
+              <div className="grid-form">
+                <label htmlFor="analises-inicio" className="block">
+                  <Text variant="label" as="span" className="mb-2 block">Início</Text>
+                  <input
+                    id="analises-inicio"
+                    className="input"
+                    type="date"
+                    value={inicioEfetivo}
+                    onChange={event => mudarDatas(event.target.value, fimEfetivo)}
+                  />
+                </label>
+                <label htmlFor="analises-fim" className="block">
+                  <Text variant="label" as="span" className="mb-2 block">Fim</Text>
+                  <input
+                    id="analises-fim"
+                    className="input"
+                    type="date"
+                    value={fimEfetivo}
+                    onChange={event => mudarDatas(inicioEfetivo, event.target.value)}
+                  />
+                </label>
               </div>
-            </Surface>
-            {nenhumaComMetricas ? (
-              <Text variant="secondary">Nenhuma destas publicações tem métricas ainda.</Text>
-            ) : null}
-            {linhasVisiveis.map(linha => (
-            <Surface key={linha.publicacaoId} variant="outlined" padding="md" className="stack-sm">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <Link
-                  to={`/conteudos/${linha.contentId}?tab=publicacao`}
-                  className="min-w-0 rounded-[var(--radius-sm)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-                >
-                  <Text variant="itemTitle">{linha.titulo}</Text>
-                </Link>
-                <Text variant="meta">{linha.contaRotulo}</Text>
-              </div>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
-                {linha.pilar ? <Campo rotulo="Pilar" valor={linha.pilar} /> : null}
-                {linha.serie ? <Campo rotulo="Série" valor={linha.serie} /> : null}
-                {linha.objetivo ? <Campo rotulo="Objetivo" valor={linha.objetivo} /> : null}
-                {linha.dataPlanejada ? <Campo rotulo="Data planejada" valor={dataCurta(linha.dataPlanejada)} /> : null}
-                {linha.dataEfetiva ? <Campo rotulo="Data efetiva" valor={dataCurta(linha.dataEfetiva)} /> : null}
-                {linha.link ? <Campo rotulo="Link" valor={linha.link} /> : null}
-                {semMetricas(linha) ? null : (
-                  <>
-                    <Campo rotulo="Visualizações" valor={textoDeMetrica(linha.views)} />
-                    <Campo rotulo="Alcance" valor={textoDeMetrica(linha.alcance)} />
-                    <Campo rotulo="Interações" valor={textoDeMetrica(linha.interacoes)} />
-                    <Campo
-                      rotulo="Taxa de engajamento"
-                      valor={linha.taxa == null ? textoDeMetrica(null) : `${(linha.taxa * 100).toFixed(1)}%`}
-                    />
-                  </>
-                )}
-              </div>
-              {(semMetricas(linha) && !nenhumaComMetricas) || linha.atualizadoEm ? (
-                <Text variant="meta">
-                  {semMetricas(linha) ? 'Sem métricas ainda.' : `Atualizado em ${dataCurta(linha.atualizadoEm!)}.`}
-                </Text>
+              <TagSelect
+                id="analises-contas"
+                label="Contas"
+                values={contasIds}
+                onChange={ids => {
+                  setContasIds(ids);
+                  if (ids.length === 0) setPainel(atual => atual === 'leitura' ? null : atual);
+                }}
+                options={opcoesContas.map(conta => ({ value: conta.id, label: rotuloConta(conta) }))}
+                placeholder="Escolher contas"
+                searchable
+              />
+              {periodos.length > 0 ? (
+                <div>
+                  <label htmlFor="analises-salvo" className="mb-2 block">
+                    <Text variant="label" as="span">Período salvo</Text>
+                  </label>
+                  <SelectField
+                    id="analises-salvo"
+                    block
+                    ariaLabel="Período salvo"
+                    value={periodoAtual ? periodoAtual.id : 'nenhum'}
+                    onChange={value => {
+                      if (value === 'nenhum') {
+                        setPeriodoAberto('');
+                        return;
+                      }
+                      abrirPeriodo(value);
+                    }}
+                    options={[
+                      { value: 'nenhum', label: 'Nenhum' },
+                      ...periodos.map(periodo => ({ value: periodo.id, label: rotuloDoSalvo(periodo) })),
+                    ]}
+                  />
+                </div>
+              ) : null}
+              {!periodoValido ? (
+                <Text variant="secondary">O fim precisa ser no mesmo dia ou depois do início.</Text>
+              ) : null}
+              {periodoAtual && painel !== 'periodo' && (periodoAtual.oQueMudei || periodoAtual.conclusao) ? (
+                <div className="grid-form">
+                  {periodoAtual.oQueMudei ? <Campo rotulo="O que mudei" valor={periodoAtual.oQueMudei} /> : null}
+                  {periodoAtual.conclusao ? <Campo rotulo="Conclusão" valor={periodoAtual.conclusao} /> : null}
+                </div>
+              ) : null}
+              {painel === null ? (
+                <div className="flex flex-wrap gap-2">
+                  <AppButton variant="secondary" onClick={() => setPainel('periodo')}>
+                    {periodoAtual ? 'Editar período' : 'Salvar período'}
+                  </AppButton>
+                  {periodoValido ? (
+                    <AppButton
+                      variant="secondary"
+                      disabled={contasIds.length === 0}
+                      disabledReason="Escolha ao menos uma conta."
+                      onClick={() => setPainel('leitura')}
+                    >
+                      Registrar leitura
+                    </AppButton>
+                  ) : null}
+                </div>
+              ) : null}
+              {painel === 'periodo' ? (
+                <FormularioPeriodo
+                  key={periodoAtual?.id ?? 'novo'}
+                  inicial={{
+                    nome: periodoAtual?.nome ?? '',
+                    oQueMudei: periodoAtual?.oQueMudei ?? '',
+                    conclusao: periodoAtual?.conclusao ?? '',
+                  }}
+                  podeSalvar={Boolean(user?.id) && periodoValido && contasIds.length > 0}
+                  motivo={motivoDoPeriodo}
+                  onCancel={() => setPainel(null)}
+                  onSave={salvarPeriodo}
+                />
               ) : null}
             </Surface>
-          ))}
+
+            {periodoValido ? (
+              <Surface variant="outlined" padding="md" className="stack-sm">
+                <Text variant="sectionTitle" as="h2">Contas no período</Text>
+                <LeiturasDaConta
+                  contas={contasEscolhidas}
+                  leituras={leituras}
+                  inicio={inicioEfetivo}
+                  fim={fimEfetivo}
+                  formAberto={painel === 'leitura'}
+                  onFechar={() => setPainel(null)}
+                  onSave={salvarLeitura}
+                />
+              </Surface>
+            ) : null}
           </div>
-        )}
+
+          <div className="stack-sm min-w-0">
+            {periodoValido ? (
+              <Surface variant="outlined" padding="md" className="stack-sm">
+                <Text variant="sectionTitle" as="h2">Ritmo</Text>
+                <RitmoDoPeriodo
+                  contents={state.contents}
+                  platforms={state.platforms}
+                  editorial={state.editorial}
+                  inicio={inicioEfetivo}
+                  fim={fimEfetivo}
+                  hoje={hoje}
+                  contasIds={contasIds}
+                />
+              </Surface>
+            ) : null}
+
+            {!pronto ? (
+              <Text variant="secondary">Carregando publicações.</Text>
+            ) : linhasVisiveis.length === 0 ? (
+              <EmptyState
+                icon={<ChartColumn className="h-6 w-6" />}
+                title="Nenhuma publicação neste filtro"
+                description="Troque o período, a plataforma ou a conta para ver outras publicações."
+              />
+            ) : (
+              <div className="stack-sm">
+                <Surface variant="outlined" padding="md" className="stack-sm">
+                  <Text variant="sectionTitle" as="h2">Resultados das publicações</Text>
+                  <Text variant="meta" as="p">Soma do que esta lista mostra. O alcance de cada publicação entra à parte do alcance da conta.</Text>
+                  <div className="grid-metrics-3">
+                    <Campo rotulo="Visualizações" valor={textoDeMetrica(soma.views)} />
+                    <Campo rotulo="Alcance" valor={textoDeMetrica(soma.alcance)} />
+                    <Campo rotulo="Interações" valor={textoDeMetrica(soma.interacoes)} />
+                  </div>
+                </Surface>
+                {nenhumaComMetricas ? (
+                  <Text variant="secondary">Nenhuma destas publicações tem métricas ainda.</Text>
+                ) : null}
+                {linhasVisiveis.map(linha => (
+                <Surface key={linha.publicacaoId} variant="outlined" padding="md" className="stack-sm">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <Link
+                      to={`/conteudos/${linha.contentId}?tab=publicacao`}
+                      className="min-w-0 rounded-[var(--radius-sm)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                    >
+                      <Text variant="itemTitle">{linha.titulo}</Text>
+                    </Link>
+                    <Text variant="meta">{linha.contaRotulo}</Text>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
+                    {linha.pilar ? <Campo rotulo="Pilar" valor={linha.pilar} /> : null}
+                    {linha.serie ? <Campo rotulo="Série" valor={linha.serie} /> : null}
+                    {linha.objetivo ? <Campo rotulo="Objetivo" valor={linha.objetivo} /> : null}
+                    {linha.dataPlanejada ? <Campo rotulo="Data planejada" valor={dataCurta(linha.dataPlanejada)} /> : null}
+                    {linha.dataEfetiva ? <Campo rotulo="Data efetiva" valor={dataCurta(linha.dataEfetiva)} /> : null}
+                    {linha.link ? <Campo rotulo="Link" valor={linha.link} /> : null}
+                    {semMetricas(linha) ? null : (
+                      <>
+                        <Campo rotulo="Visualizações" valor={textoDeMetrica(linha.views)} />
+                        <Campo rotulo="Alcance" valor={textoDeMetrica(linha.alcance)} />
+                        <Campo rotulo="Interações" valor={textoDeMetrica(linha.interacoes)} />
+                        <Campo
+                          rotulo="Taxa de engajamento"
+                          valor={linha.taxa == null ? textoDeMetrica(null) : `${(linha.taxa * 100).toFixed(1)}%`}
+                        />
+                      </>
+                    )}
+                  </div>
+                  {(semMetricas(linha) && !nenhumaComMetricas) || linha.atualizadoEm ? (
+                    <Text variant="meta">
+                      {semMetricas(linha) ? 'Sem métricas ainda.' : `Atualizado em ${dataCurta(linha.atualizadoEm!)}.`}
+                    </Text>
+                  ) : null}
+                </Surface>
+              ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </PageLayout>
   );

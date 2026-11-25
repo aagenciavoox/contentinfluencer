@@ -7,6 +7,7 @@ import { Look, Cenario } from '../../../lib/database';
 import { generateUUID } from '../../../utils/uuid';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
+import { PAGE_SECTION } from '../../../layouts/navigation/navConfig';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
@@ -68,7 +69,7 @@ export function LooksSettingsPage() {
       contentStack="settings"
       header={
         <DesktopPageHeader
-          section="Configurações"
+          section={PAGE_SECTION.configuracoes}
           title="Looks e cenários"
           backLabel="Configurações"
           backTo="/configuracoes"

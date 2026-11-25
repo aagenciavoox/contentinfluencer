@@ -33,8 +33,8 @@ import {
   type LibraryPeriodAnalysis,
 } from '../lib/libraryPeriodAnalysis';
 
-/** Card branco sobre o fundo da página: borda sutil e sombra leve. */
-export const CARD_CLASS = 'shadow-[var(--shadow-input)]!';
+/** Card plano: a borda vem do Surface outlined, sem sombra. */
+export const CARD_CLASS = '';
 
 const FORMAT_ICONS: Record<string, LucideIcon> = {
   todos: LayoutGrid,
