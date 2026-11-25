@@ -49,6 +49,7 @@ import { livroIdsEfetivos } from '../../../lib/livroIds';
 import { BookDetailMobileScreen } from '../../../mobile/screens/library/BookDetailMobileScreen';
 import { Badge } from '../../../components/ui/Badge';
 import { Text } from '../../../components/ui/Text';
+import { EmptyState } from '../../../components/ui/EmptyState';
 import { Surface } from '../../../components/ui/Surface';
 import { AppButton } from '../../../components/ui/AppButton';
 import { PropertyDatePicker } from '../../../components/ui/PropertyDatePicker';
@@ -1474,16 +1475,14 @@ export function BookDetailPage() {
               </div>
 
               {anotacoesFiltradas.length === 0 ? (
-                <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] px-6 py-16 text-center">
-                  <Text variant="bodyStrong" className="text-[var(--text-secondary)]">
-                    {termoBusca || filtroTipo !== 'Todos' ? 'Nenhuma anotação nesse filtro' : 'Nenhuma anotação ainda'}
-                  </Text>
-                  <Text variant="meta" as="p" className="mt-1">
-                    {termoBusca || filtroTipo !== 'Todos'
+                <EmptyState
+                  title={termoBusca || filtroTipo !== 'Todos' ? 'Nenhuma anotação nesse filtro' : 'Nenhuma anotação ainda'}
+                  description={
+                    termoBusca || filtroTipo !== 'Todos'
                       ? 'Ajuste a busca ou o filtro para ver outras anotações.'
-                      : 'Use o painel ao lado para registrar a primeira.'}
-                  </Text>
-                </div>
+                      : 'Use o painel ao lado para registrar a primeira.'
+                  }
+                />
               ) : (
                 <div className="stack-md">
                   {anotacoesFiltradas.map(a => (

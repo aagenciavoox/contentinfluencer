@@ -1,6 +1,6 @@
 import {Text} from '../../../components/ui/Text';
 import {cn} from '../../../lib/utils';
-import {corProjetoValida, PROJECT_COLORS} from '../lib/projetoCores';
+import {COR_PROJETO_PADRAO, corProjetoValida, PROJECT_COLORS} from '../lib/projetoCores';
 
 export function ProjetoCorPicker({
   value,
@@ -35,7 +35,7 @@ export function ProjetoCorPicker({
           <span className="sr-only">Cor personalizada</span>
           <input
             type="color"
-            value={corProjetoValida(value) ? value : '#78716c'}
+            value={corProjetoValida(value) ? value : COR_PROJETO_PADRAO}
             onChange={event => onChange(event.target.value)}
             className={cn(
               'h-7 w-7 cursor-pointer rounded-full border-2 bg-transparent p-0',

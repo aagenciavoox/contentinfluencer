@@ -39,7 +39,7 @@ import {
   tiposPersonalizadosUsados,
   type ProjetoTipoFormulario,
 } from '../lib/evento';
-import { PROJECT_COLORS } from '../lib/projetoCores';
+import { COR_PROJETO_PADRAO, PROJECT_COLORS } from '../lib/projetoCores';
 
 type StatusFilter = 'todos' | 'com_eventos' | 'sem_eventos';
 
@@ -351,7 +351,7 @@ export function ProjectsPage() {
                   <span
                     aria-hidden
                     className="absolute inset-y-0 left-0 w-1"
-                    style={{ backgroundColor: projeto.color || '#78716c' }}
+                    style={{ backgroundColor: projeto.color || COR_PROJETO_PADRAO }}
                   />
                   <div className="flex items-start gap-3 pl-1">
                     {coverUrl ? (
@@ -366,7 +366,7 @@ export function ProjectsPage() {
                         aria-hidden
                         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-input)] t-body-strong text-[var(--text-primary)]"
                         style={{
-                          backgroundColor: `color-mix(in srgb, ${projeto.color || '#78716c'} 18%, var(--bg-secondary))`,
+                          backgroundColor: `color-mix(in srgb, ${projeto.color || COR_PROJETO_PADRAO} 18%, var(--bg-secondary))`,
                           color: projeto.color ? tintedTextColor(projeto.color) : 'var(--text-primary)',
                         }}
                       >
@@ -378,7 +378,7 @@ export function ProjectsPage() {
                         <span
                           aria-hidden
                           className="entity-color-dot h-2.5 w-2.5 shrink-0 rounded-full"
-                          style={{backgroundColor: projeto.color || '#78716c'}}
+                          style={{backgroundColor: projeto.color || COR_PROJETO_PADRAO}}
                         />
                         <Text variant="itemTitle" className="line-clamp-2">{projeto.nome}</Text>
                       </span>

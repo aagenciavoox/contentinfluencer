@@ -43,6 +43,7 @@ import { ProjetoCorPicker } from '../components/ProjetoCorPicker';
 import { ProjetoEventoFields } from '../components/ProjetoEventoFields';
 import { ProjectMonthCalendar } from '../components/ProjectMonthCalendar';
 import { entregaDoProjeto } from '../lib/entrega';
+import { COR_PROJETO_PADRAO } from '../lib/projetoCores';
 import { getGentleExperienceSettings } from '../../settings/lib/gentleExperience';
 import {
   aplicarFuncaoNoEvento,
@@ -183,7 +184,7 @@ export function ProjectDetailPage() {
     setEditBrand(projeto.brand || '');
     setEditValue(projeto.value?.toString() || '');
     setEditNotes(projeto.notes || '');
-    setEditColor(projeto.color || '#78716c');
+    setEditColor(projeto.color || COR_PROJETO_PADRAO);
     setEditDriveUrl(projeto.driveUrl || '');
     setEditTipo(tipoDoFormulario(normalizeProjetoTipo(projeto.tipo)));
     setEditTipoPersonalizado(projeto.tipoPersonalizado || '');
