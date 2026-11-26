@@ -15,12 +15,12 @@ import {
   matchesContentFilters,
 } from '../lib/calendarContentFilters';
 import {buildPublishCalendarItems, isScheduledItem, publishItemStatus, todayKey, type PublishCalendarConta} from '../lib/publishCalendarItems';
-import {PublishCalendarCard} from './PublishCalendarCard';
+import {PublishCalendarCard, estadoDoCard} from './PublishCalendarCard';
 import type {GradeSerie} from '../../editorial/lib/gradeEntries';
 import {diasCobertos, papelNoIntervalo} from '../../projects/lib/agendaEventos';
 import {calendarEntryIcon} from './CalendarNetworkIcons';
 import {rotuloDaRef} from '../../contas/lib/contas';
-import {nomeDaEtapaNaTela, pendenciasDoRoteiro, rotuloDasPendencias} from '../../contents/lib/esteiraDisplay';
+import {estaEditado, pendenciasDoRoteiro, rotuloDaEtapaNaTela, rotuloDasPendencias} from '../../contents/lib/esteiraDisplay';
 
 const WEEK_STARTS_ON = INICIO_DA_SEMANA;
 
@@ -66,6 +66,8 @@ export type CalendarEntry = {
   posted?: boolean;
   /** Publicação que ainda vai ao ar, hoje ou depois. */
   scheduled?: boolean;
+  /** Roteiro com a edição (ou o design) pronta, ainda sem programar nem postar. */
+  editado?: boolean;
   agendaId?: string;
   projetoId?: string;
   agendaTipo?: string;
@@ -106,17 +108,18 @@ export function buildCalendarEntries(
   if (activeLayers.includes('recordings')) {
     contents.forEach(content => {
       const status = getDisplayStatus(content);
+      const editado = estaEditado(content, platforms);
       const platformNames = content.plataformas.map(
         plataforma => rotuloDaRef(plataforma.platformId, platforms),
       );
-      if (!matchesContentFilters({platformNames, status, platformFilter, statusFilter})) return;
+      if (!matchesContentFilters({platformNames, status, platformFilter, statusFilter, editado})) return;
       push(content.recordingDate, {
         id: `${content.id}-rec`,
         type: 'recording',
         label: content.title || '(sem título)',
         date: '',
         contentId: content.id,
-        secondary: status || 'Gravação',
+        secondary: (editado ? rotuloDaEtapaNaTela(content, platforms) : status) || 'Gravação',
       });
     });
   }
@@ -134,13 +137,16 @@ export function buildCalendarEntries(
       const content = contents.find(candidate => candidate.id === item.contentId);
       if (!content) return;
       const status = publishItemStatus(content, item, hoje);
+      // Conta já programada ou postada mantém a própria cor; o resto do roteiro editado fica com a de Editado.
+      const editado = !item.posted && !isScheduledItem(item, content) && estaEditado(content, platforms);
       if (!matchesContentFilters({
         platformNames: item.platformNames,
         status,
         platformFilter,
         statusFilter,
+        editado,
       })) return;
-      const etapaNaTela = nomeDaEtapaNaTela(content, platforms);
+      const etapaNaTela = rotuloDaEtapaNaTela(content, platforms);
       const pendencias = rotuloDasPendencias(pendenciasDoRoteiro(content, platforms));
       const networkLabel = platformFilter === ALL_PLATFORMS
         ? [etapaNaTela, pendencias].filter(Boolean).join(' · ') || 'Publicação'
@@ -157,6 +163,7 @@ export function buildCalendarEntries(
         contas: item.contas,
         posted: item.posted,
         scheduled: isScheduledItem(item, content),
+        editado,
         secondary: networkLabel,
       });
     });
@@ -335,7 +342,7 @@ export function MonthlyCalendarView({
                         secondary={entry.secondary}
                         contas={entry.contas}
                         variant="compact"
-                        style={calendarEntryPillStyle(entry)}
+                        estado={estadoDoCard(entry)}
                         onOpen={aberto}
                       />
                     );

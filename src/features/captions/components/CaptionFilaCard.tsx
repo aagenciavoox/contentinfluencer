@@ -10,7 +10,7 @@ import { Text } from '../../../components/ui/Text';
 import { useAppContext } from '../../../context/AppContext';
 import type { Content, ContentPlataforma, Pilar, Serie } from '../../../lib/database';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
-import { getDisplayStatus } from '../../contents/lib/contentPipeline';
+import { statusNaTela } from '../../contents/lib/esteiraDisplay';
 import { contaDaRef, iconeDaConta, redeDaRef, rotuloConta } from '../../contas/lib/contas';
 import { formatoNoYoutube } from '../../editorial/lib/publicacoes';
 import { definirLegendaCompartilhada } from '../../editorial/lib/captions';
@@ -51,7 +51,7 @@ export function CaptionFilaCard({
   const pilar = pilares.find(item => item.id === content.pilarId) ?? null;
   const visiveis = publicacoes.map(item => draft.plataformas.find(atual => atual.id === item.id) ?? item);
   const selecionada = visiveis.find(item => item.id === selecionadaId) ?? visiveis[0] ?? null;
-  const status = getDisplayStatus(draft);
+  const selo = statusNaTela(draft);
   const baseVazia = !(draft.legendaBase ?? '').trim();
   const titulo = content.title.trim() || 'Sem título';
 
@@ -113,7 +113,7 @@ export function CaptionFilaCard({
           className="min-h-14 px-3"
           trailing={(
             <span className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-              <Badge variant="status" status={status}>{status}</Badge>
+              <Badge variant="status" status={selo.status}>{selo.rotulo}</Badge>
               {!open && baseVazia ? <Badge variant="neutral">Sem legenda</Badge> : null}
               <span className="flex items-center gap-2 pl-1" aria-label={visiveis.map(rotuloDa).join(', ')}>
                 {visiveis.map(publicacao => (

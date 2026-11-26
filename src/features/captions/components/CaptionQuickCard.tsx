@@ -18,7 +18,7 @@ import { limiteDoCampo } from '../../editorial/lib/platformFields';
 import { limiteHashtagsDaRede } from '../../editorial/lib/editorialSettings';
 import { useAppContext } from '../../../context/AppContext';
 import { isContentBodyLoaded } from '../../contents/lib/contentBody';
-import { getDisplayStatus, getDisplayStatusLabel } from '../../contents/lib/contentPipeline';
+import { statusNaTela } from '../../contents/lib/esteiraDisplay';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import type { Content, ContentPlataforma, Pilar, Serie } from '../../../lib/database';
 import { getVisualFormatLabel } from '../../../constants';
@@ -184,7 +184,7 @@ function CaptionGridRow({
   const [copiedScript, setCopiedScript] = useState(false);
   const pulledRef = useRef(false);
   const title = content.title.trim() || 'Sem título';
-  const status = getDisplayStatus(content);
+  const selo = statusNaTela(content);
   const formatValue = content.formatoVisual?.trim();
   const format = formatValue ? getVisualFormatLabel(formatValue) : null;
   const serie = useMemo(() => {
@@ -277,7 +277,7 @@ function CaptionGridRow({
           <Text variant="itemTitle">{title}</Text>
         </Link>
         <div className="mt-1 flex flex-wrap items-center gap-2">
-          <Badge variant="status" status={status}>{getDisplayStatusLabel(content)}</Badge>
+          <Badge variant="status" status={selo.status}>{selo.rotulo}</Badge>
           {format ? <Text variant="meta">{format}</Text> : null}
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">

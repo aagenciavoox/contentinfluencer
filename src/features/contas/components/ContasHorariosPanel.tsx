@@ -13,12 +13,9 @@ import {MoreMenu} from '../../../components/ui/MoreMenu';
 import {TagSelect} from '../../../components/ui/TagSelect';
 import {Surface} from '../../../components/ui/Surface';
 import {Text} from '../../../components/ui/Text';
-import {Dialog} from '../../../components/overlays/Dialog';
-import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
-import {OverlayBody} from '../../../components/overlays/OverlayBody';
-import {OverlayFooter} from '../../../components/overlays/OverlayFooter';
 import {ConfirmModal} from '../../../components/feedback/modals/ConfirmModal';
 import {PainelMetaDaConta, textoPorFormato} from '../../editorial/components/plano/ContasEFormatosCard';
+import {EditorialDrawer} from '../../editorial/components/plano/EditorialDrawer';
 import {useEditorialPlano} from '../../editorial/components/plano/useEditorialPlano';
 import {diaMes} from '../../editorial/components/plano/ValeAPartirDe';
 import {desfazerMudancaDaConta, metaDaContaHoje, proximaMudancaDaConta, type MetaDaContaVigencia} from '../../editorial/lib/metasPorConta';
@@ -247,83 +244,101 @@ export function ContasHorariosPanel({
     });
   };
 
+  const rascunhoBase: Rascunho = contaInicial
+    ? {
+        id: contaInicial.id,
+        rede: redeDaConta(contaInicial) ?? 'outra',
+        nome: contaInicial.nome,
+        handle: exibirHandle(contaInicial.handle) ?? '',
+        ativo: contaInicial.ativo,
+      }
+    : RASCUNHO_NOVO;
+
+  const rascunhoSujo = Boolean(
+    rascunho && (
+      rascunho.rede !== rascunhoBase.rede
+      || rascunho.nome !== rascunhoBase.nome
+      || rascunho.handle !== rascunhoBase.handle
+      || rascunho.ativo !== rascunhoBase.ativo
+    ),
+  );
+
   return (
     <>
-      <Dialog open={rascunho != null} onClose={fechar} desktopMaxW="max-w-md">
-        <OverlayHeader title={rascunho?.id ? 'Editar conta' : 'Nova conta'} onClose={fechar} />
-        <OverlayBody>
-          {rascunho ? (
-            <div className="stack-sm">
-              <TagSelect
-                id="conta-rede"
-                label="Plataforma"
-                maxSelections={1}
-                values={[rascunho.rede]}
-                options={REDES.map(rede => ({ value: rede, label: REDE_ROTULO[rede] }))}
-                onChange={values => {
-                  const rede = values[0];
-                  if (rede !== 'instagram' && rede !== 'tiktok' && rede !== 'youtube' && rede !== 'blog' && rede !== 'outra') return;
-                  setRascunho({ ...rascunho, rede });
-                }}
-              />
-              <label className="flex flex-col gap-1" htmlFor="conta-nome">
-                <Text variant="label" as="span">Nome de identificação</Text>
-                <input
-                  id="conta-nome"
-                  autoFocus
-                  value={rascunho.nome}
-                  onChange={event => setRascunho({ ...rascunho, nome: event.target.value })}
-                  placeholder="Ex.: Diza principal"
-                  className="input w-full"
-                />
-              </label>
-              <label className="flex flex-col gap-1" htmlFor="conta-handle">
-                <Text variant="label" as="span">@</Text>
-                <input
-                  id="conta-handle"
-                  value={rascunho.handle}
-                  onChange={event => setRascunho({ ...rascunho, handle: event.target.value })}
-                  placeholder="@dizaianne"
-                  className="input w-full"
-                />
-                <Text variant="meta">O @ identifica a conta na tela e pode mudar. Os vínculos usam o identificador interno. Informar o @ não conecta a conta.</Text>
-              </label>
-              <label className="inline-flex min-h-11 items-center gap-2" htmlFor="conta-ativa">
-                <input
-                  id="conta-ativa"
-                  type="checkbox"
-                  checked={rascunho.ativo}
-                  onChange={event => setRascunho({ ...rascunho, ativo: event.target.checked })}
-                />
-                <Text variant="body" as="span">Ativa</Text>
-              </label>
-              {state.platforms.some(conta => !conta.ativo) ? (
-                <div className="stack-xs border-t border-[var(--border-subtle)] pt-3">
-                  <Text variant="label" as="p">Contas inativas</Text>
-                  <ul className="stack-xs">
-                    {state.platforms.filter(conta => !conta.ativo).map(conta => (
-                      <li key={conta.id} className="flex flex-wrap items-center justify-between gap-2">
-                        <Text variant="body" as="span">{rotuloConta(conta)}</Text>
-                        <AppButton variant="secondary" size="sm" onClick={() => { void toggleAtivo(conta); }}>
-                          Reativar
-                        </AppButton>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-        </OverlayBody>
+      <EditorialDrawer
+        open={rascunho != null}
+        onClose={fechar}
+        title={rascunho?.id ? 'Editar conta' : 'Nova conta'}
+        escopoConta={contaInicial ? rotuloConta(contaInicial) : 'Contas'}
+        secao="Dados da conta"
+        dirty={rascunhoSujo}
+        onSave={salvar}
+        canSave={Boolean(rascunho?.nome.trim() && user?.id)}
+        saveLabel="Salvar conta"
+      >
         {rascunho ? (
-          <OverlayFooter className="justify-end">
-            <AppButton type="button" onClick={fechar} variant="secondary">Cancelar</AppButton>
-            <AppButton onClick={salvar} disabled={!rascunho.nome.trim() || !user?.id} variant="primary">
-              Salvar conta
-            </AppButton>
-          </OverlayFooter>
+          <div className="stack-md">
+            <TagSelect
+              id="conta-rede"
+              label="Plataforma"
+              maxSelections={1}
+              values={[rascunho.rede]}
+              options={REDES.map(rede => ({ value: rede, label: REDE_ROTULO[rede] }))}
+              onChange={values => {
+                const rede = values[0];
+                if (rede !== 'instagram' && rede !== 'tiktok' && rede !== 'youtube' && rede !== 'blog' && rede !== 'outra') return;
+                setRascunho({ ...rascunho, rede });
+              }}
+            />
+            <label className="flex flex-col gap-1" htmlFor="conta-nome">
+              <Text variant="label" as="span">Nome de identificação</Text>
+              <input
+                id="conta-nome"
+                autoFocus
+                value={rascunho.nome}
+                onChange={event => setRascunho({ ...rascunho, nome: event.target.value })}
+                placeholder="Ex.: Diza principal"
+                className="input w-full"
+              />
+            </label>
+            <label className="flex flex-col gap-1" htmlFor="conta-handle">
+              <Text variant="label" as="span">@</Text>
+              <input
+                id="conta-handle"
+                value={rascunho.handle}
+                onChange={event => setRascunho({ ...rascunho, handle: event.target.value })}
+                placeholder="@dizaianne"
+                className="input w-full"
+              />
+              <Text variant="meta">O @ identifica a conta na tela e pode mudar. Os vínculos usam o identificador interno. Informar o @ não conecta a conta.</Text>
+            </label>
+            <label className="inline-flex min-h-11 items-center gap-2" htmlFor="conta-ativa">
+              <input
+                id="conta-ativa"
+                type="checkbox"
+                checked={rascunho.ativo}
+                onChange={event => setRascunho({ ...rascunho, ativo: event.target.checked })}
+              />
+              <Text variant="body" as="span">Ativa</Text>
+            </label>
+            {state.platforms.some(conta => !conta.ativo) ? (
+              <div className="stack-xs border-t border-[var(--border-subtle)] pt-3">
+                <Text variant="label" as="p">Contas inativas</Text>
+                <ul className="stack-xs">
+                  {state.platforms.filter(conta => !conta.ativo).map(conta => (
+                    <li key={conta.id} className="flex flex-wrap items-center justify-between gap-2">
+                      <Text variant="body" as="span">{rotuloConta(conta)}</Text>
+                      <AppButton variant="secondary" size="sm" onClick={() => { void toggleAtivo(conta); }}>
+                        Reativar
+                      </AppButton>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
         ) : null}
-      </Dialog>
+      </EditorialDrawer>
 
       <div className="stack-xl">
         {revisoesVisiveis.length > 0 ? (

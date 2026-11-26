@@ -1,5 +1,9 @@
-import { useEffect, useId, useRef, useState } from 'react';
-import { ChevronDown, ExternalLink, Layers } from 'lucide-react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import {
+  ChevronDown,
+  ExternalLink,
+  Layers,
+} from 'lucide-react';
 import { createPortal } from 'react-dom';
 import {
   FLOATING_MENU_HIDDEN_STYLE,
@@ -9,13 +13,18 @@ import {
 import { Badge } from '../../../../components/ui/Badge';
 import { MoreMenu, type MoreMenuItem } from '../../../../components/ui/MoreMenu';
 import { Text } from '../../../../components/ui/Text';
+import { useAppContext } from '../../../../context/AppContext';
+import type { Platform } from '../../../../lib/database';
 import { cn } from '../../../../lib/utils';
+import { REDE_ROTULO, redeBaseDoFiltro, redeDaConta } from '../../../contas/lib/contas';
+import { fraseDaFrequencia } from '../../../editorial/lib/metaDaOnda';
 import {
   TIPO_AGRUPAMENTO_LABEL,
   plural,
 } from '../../lib/serieAgrupamento';
 import { etiquetaDoCard, type ItemLista } from '../../lib/seriesListaView';
-import { podeSerRascunho, statusDaSerie, type StatusSerie } from '../../lib/statusSerie';
+import { podeSerRascunho, ROTULO_STATUS, statusDaSerie, type StatusSerie } from '../../lib/statusSerie';
+import { useAbrirRitmoDaSerie } from '../SerieRitmoDrawer';
 
 export const ARRASTO_SERIE = 'application/x-criaki-serie';
 
@@ -24,6 +33,7 @@ export function itensDoMenuDaSerie(
   item: Pick<ItemLista, 'serie' | 'tipo'>,
   acoes: {
     onEdit: (serieId: string) => void;
+    onEditRitmo?: (serieId: string) => void;
     onToggleAtiva: (serieId: string) => void;
     onMudarStatus?: (serieId: string, status: StatusSerie) => void;
     onCriarFilho?: (item: Pick<ItemLista, 'serie' | 'tipo'>) => void;
@@ -32,6 +42,9 @@ export function itensDoMenuDaSerie(
 ): MoreMenuItem[] {
   const status = statusDaSerie(item.serie);
   const rotuloAlternar = status === 'ativa' ? 'Arquivar' : status === 'rascunho' ? 'Ativar' : 'Reativar';
+  const editarRitmo = acoes.onEditRitmo && item.tipo === 'serie'
+    ? [{ label: 'Editar ritmo', onClick: () => acoes.onEditRitmo?.(item.serie.id) }]
+    : [];
   const voltarParaRascunho = acoes.onMudarStatus && status === 'ativa' && podeSerRascunho(item.serie)
     ? [{ label: 'Voltar para rascunho', onClick: () => acoes.onMudarStatus?.(item.serie.id, 'rascunho') }]
     : [];
@@ -48,6 +61,7 @@ export function itensDoMenuDaSerie(
     }]
     : [];
   return [
+    ...editarRitmo,
     ...criarFilho,
     ...mover,
     { label: 'Configurar', onClick: () => acoes.onEdit(item.serie.id) },
@@ -69,24 +83,40 @@ function normalizarCapaUrl(value: string | null | undefined): string | null {
   return null;
 }
 
-/**
- * Card de série compacto com popover flutuante estável (sem scroll e sem saltos de animação).
- */
-export function SerieCard({
-  item,
-  pilarNome,
-  temporadasCount = 0,
-  ondasComRitmoProprio = 0,
-  emAberto = false,
-  onOpen,
-  onOpenFilhos,
-  onEdit,
-  onToggleAtiva,
-  onMudarStatus,
-  onCriarFilho,
-  onMoverParaFamilia,
-  arrastavel = false,
-}: {
+function resumoDeRitmo(item: Pick<ItemLista, 'tipo' | 'serie'>): string | null {
+  if (item.tipo === 'familia') return null;
+  if (item.tipo === 'quadro') return 'Sob demanda';
+  const recomendada = item.serie.frequenciaRecomendada?.trim();
+  if (recomendada && recomendada.toLowerCase() !== 'sob demanda') return recomendada;
+  if (item.serie.frequenciaVezes && item.serie.frequenciaVezes > 0 && item.serie.frequenciaUnidade) {
+    return fraseDaFrequencia(item.serie.frequenciaVezes, item.serie.frequenciaUnidade) ?? 'Sem ritmo';
+  }
+  return 'Sem ritmo';
+}
+
+function resumoDeRedes(serie: ItemLista['serie'], platforms: readonly Platform[]): string | null {
+  const nomes = new Set<string>();
+  for (const destino of serie.focoRedes ?? []) {
+    const base = redeBaseDoFiltro(destino);
+    const label = REDE_ROTULO[base];
+    if (label) nomes.add(label);
+  }
+  if (nomes.size === 0 && serie.plataformas.length > 0) {
+    const porId = new Map(platforms.map(platform => [platform.id, platform]));
+    for (const item of serie.plataformas) {
+      const conta = porId.get(item.platformId);
+      if (!conta) continue;
+      const rede = redeDaConta(conta);
+      nomes.add(rede ? REDE_ROTULO[rede] : conta.nome);
+    }
+  }
+  const lista = [...nomes];
+  if (lista.length === 0) return null;
+  if (lista.length <= 2) return lista.join(', ');
+  return `${lista[0]}, ${lista[1]} +${lista.length - 2}`;
+}
+
+type SerieCardProps = {
   item: ItemLista;
   pilarNome?: string | null;
   temporadasCount?: number;
@@ -97,13 +127,232 @@ export function SerieCard({
   onOpen: (serieId: string) => void;
   onOpenFilhos: (serieId: string) => void;
   onEdit?: (serieId: string) => void;
+  onEditRitmo?: (serieId: string) => void;
   onToggleAtiva?: (serieId: string) => void;
   onMudarStatus?: (serieId: string, status: StatusSerie) => void;
   onCriarFilho?: (item: Pick<ItemLista, 'serie' | 'tipo'>) => void;
   onMoverParaFamilia?: (serieId: string) => void;
   /** No celular o arrasto atrapalha a rolagem; lá a mudança fica no menu. */
   arrastavel?: boolean;
-}) {
+  /** Preserva o card mobile isolado da versão desktop V2. */
+  celular?: boolean;
+};
+
+const ROTULO_ACAO_DIRETA: Record<ItemLista['tipo'], string> = {
+  serie: 'Abrir série',
+  familia: 'Abrir família',
+  quadro: 'Abrir quadro',
+};
+
+/**
+ * Card de série, família e quadro.
+ * Desktop usa hierarquia limpa em 3 linhas com acesso direto em 1 clique.
+ * Mobile mantém o layout atual isolado.
+ */
+export function SerieCard(props: SerieCardProps) {
+  if (props.celular) {
+    return <SerieCardMobile {...props} />;
+  }
+  return <SerieCardDesktop {...props} />;
+}
+
+/**
+ * Card Desktop enxuto em 3 linhas:
+ * 1. Ponto de cor + título + badge de status (só quando inativa/rascunho) + menu ⋯
+ * 2. Pilar + resumo de ritmo (`1× por semana` ou `Sem ritmo`)
+ * 3. Resumo conciso de redes e roteiros/quadros
+ */
+function SerieCardDesktop({
+  item,
+  pilarNome,
+  onOpen,
+  onOpenFilhos,
+  onEdit,
+  onEditRitmo,
+  onToggleAtiva,
+  onMudarStatus,
+  onCriarFilho,
+  onMoverParaFamilia,
+  arrastavel = false,
+}: SerieCardProps) {
+  const { state } = useAppContext();
+  const abrirRitmoContexto = useAbrirRitmoDaSerie();
+  const onEditRitmoEfetivo = onEditRitmo ?? abrirRitmoContexto ?? undefined;
+
+  const { serie } = item;
+  const nome = serie.name.trim() || 'Sem nome';
+  const status = statusDaSerie(serie);
+  const ritmo = resumoDeRitmo(item);
+  const redes = useMemo(() => resumoDeRedes(serie, state.platforms), [serie, state.platforms]);
+  const rotuloAcao = ROTULO_ACAO_DIRETA[item.tipo];
+
+  const [imgError, setImgError] = useState(false);
+  const capa = normalizarCapaUrl(serie.capaUrl);
+  const temCapa = Boolean(capa && !imgError);
+
+  const corSerie = serie.cor || 'var(--brand-accent)';
+  const menuItems = onEdit && onToggleAtiva
+    ? itensDoMenuDaSerie(item, {
+      onEdit,
+      onEditRitmo: onEditRitmoEfetivo,
+      onToggleAtiva,
+      onMudarStatus,
+      onCriarFilho,
+      onMoverParaFamilia,
+    })
+    : [];
+
+  const linha2Partes = [pilarNome || null, ritmo].filter((parte): parte is string => Boolean(parte));
+  const linha2Texto = linha2Partes.length > 0 ? linha2Partes.join(' · ') : 'Sem pilar';
+
+  const roteirosTexto = plural(item.contagem.roteiros, 'roteiro', 'roteiros');
+  const filhosTexto = item.filhos > 0 ? rotuloDosFilhos(item) : null;
+  const resumoLinha3 = [redes, roteirosTexto, item.tipo !== 'serie' ? filhosTexto : null]
+    .filter((parte): parte is string => Boolean(parte))
+    .join(' · ');
+
+  const ariaLabelAcao = `${rotuloAcao} ${nome}, ${linha2Texto}`;
+
+  return (
+    <article
+      draggable={arrastavel}
+      onDragStart={event => {
+        if (!arrastavel) return;
+        event.dataTransfer.setData(ARRASTO_SERIE, serie.id);
+        event.dataTransfer.effectAllowed = 'move';
+      }}
+      style={{
+        '--card-accent': corSerie,
+      } as React.CSSProperties}
+      className={cn(
+        'ds-card group relative flex min-w-0 w-full cursor-pointer flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-[color-mix(in_srgb,var(--card-accent)_40%,var(--border-color))]',
+        !serie.ativa && 'is-dimmed',
+      )}
+    >
+      {temCapa ? (
+        <div className="relative h-[106px] w-full shrink-0 overflow-hidden bg-[var(--bg-subtle)]">
+          <img
+            src={capa!}
+            alt={nome}
+            onError={() => setImgError(true)}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+          <div
+            className="absolute inset-x-0 bottom-0 h-0.5"
+            style={{ backgroundColor: corSerie }}
+            aria-hidden="true"
+          />
+        </div>
+      ) : (
+        <div
+          className="h-1 w-full shrink-0"
+          style={{ backgroundColor: corSerie }}
+          aria-hidden="true"
+        />
+      )}
+
+      <div className="stack-xs flex min-w-0 flex-1 flex-col p-4">
+        {/* Linha 1: ponto de cor + título + badge de status (só quando inativa/rascunho) + menu */}
+        <div className="flex min-w-0 items-center gap-2">
+          <span
+            className="h-2.5 w-2.5 shrink-0 rounded-full"
+            style={{ backgroundColor: corSerie }}
+            aria-hidden="true"
+          />
+          <button
+            type="button"
+            onClick={() => onOpen(serie.id)}
+            aria-label={ariaLabelAcao}
+            className="min-w-0 flex-1 rounded-[var(--radius-sm)] text-left after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+          >
+            <Text
+              variant="itemTitle"
+              as="h3"
+              className="truncate text-[var(--text-primary)] transition-colors group-hover:text-[var(--brand-accent)]"
+              title={nome}
+            >
+              {nome}
+            </Text>
+          </button>
+
+          {status !== 'ativa' ? (
+            <Badge variant={status === 'rascunho' ? 'warning' : 'neutral'} className="shrink-0">
+              {status === 'rascunho'
+                ? ROTULO_STATUS.rascunho
+                : item.tipo === 'quadro'
+                  ? 'Arquivado'
+                  : ROTULO_STATUS.arquivada}
+            </Badge>
+          ) : null}
+
+          {menuItems.length > 0 ? (
+            <MoreMenu
+              size="sm"
+              label={`Mais opções de ${nome}`}
+              items={menuItems}
+              className="relative z-10 shrink-0"
+            />
+          ) : null}
+        </div>
+
+        {/* Linha 2: pilar + resumo de ritmo */}
+        <Text
+          variant="meta"
+          as="p"
+          className="truncate text-[var(--text-secondary)]"
+          title={linha2Texto}
+        >
+          {linha2Texto}
+        </Text>
+
+        {/* Linha 3: resumo conciso de redes e roteiros/quadros */}
+        <div className="mt-auto flex min-w-0 items-center justify-between gap-2 pt-1">
+          <Text
+            variant="meta"
+            as="span"
+            className="min-w-0 truncate text-[var(--text-tertiary)]"
+            title={resumoLinha3}
+          >
+            {resumoLinha3}
+          </Text>
+          {item.tipo === 'serie' && filhosTexto ? (
+            <button
+              type="button"
+              onClick={() => onOpenFilhos(serie.id)}
+              className="relative z-10 shrink-0 rounded-[var(--radius-sm)] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+            >
+              <Text variant="meta" as="span" className="text-current">
+                {filhosTexto}
+              </Text>
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+/**
+ * Card de série mobile (preservado sem alterações de comportamento).
+ */
+function SerieCardMobile({
+  item,
+  pilarNome,
+  temporadasCount = 0,
+  ondasComRitmoProprio = 0,
+  emAberto = false,
+  onOpen,
+  onOpenFilhos,
+  onEdit,
+  onEditRitmo,
+  onToggleAtiva,
+  onMudarStatus,
+  onCriarFilho,
+  onMoverParaFamilia,
+  arrastavel = false,
+}: SerieCardProps) {
+  const abrirRitmoContexto = useAbrirRitmoDaSerie();
+  const onEditRitmoEfetivo = onEditRitmo ?? abrirRitmoContexto ?? undefined;
   const { serie } = item;
   const nome = serie.name.trim() || 'Sem nome';
   // "Série · Ativa", "Quadro · Sob demanda": o tipo e o status numa etiqueta só.
@@ -244,6 +493,7 @@ export function SerieCard({
                     label={`Mais opções de ${nome}`}
                     items={itensDoMenuDaSerie(item, {
                       onEdit,
+                      onEditRitmo: onEditRitmoEfetivo,
                       onToggleAtiva,
                       onMudarStatus,
                       onCriarFilho,

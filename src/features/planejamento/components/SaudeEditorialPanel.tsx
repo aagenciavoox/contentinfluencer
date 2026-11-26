@@ -1,57 +1,46 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  AlertCircle,
-  AlertTriangle,
-  Calendar,
-  CheckCircle2,
-  ChevronDown,
-  ChevronUp,
-  Clapperboard,
-  Clock,
-  HelpCircle,
-  Layers,
-  Pin,
-  Sparkles,
-  Tag,
-  Target,
-} from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import { ChevronLeft, ChevronRight, SlidersHorizontal, X } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
 import { Badge } from '../../../components/ui/Badge';
-import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
 import { readStoredJson, writeStoredJson } from '../../../lib/browserStorage';
 import type { Content, Pilar, Serie, Tema } from '../../../lib/database';
-import type { GradeCounts } from '../../editorial/lib/gradeCounts';
-import type { PreparoDoPeriodo } from '../lib/monthHealth';
-import { distribuicaoAssuntosNaSaude } from '../lib/distribuicaoAssuntosNaSaude';
-import { cn } from '../../../lib/utils';
-import type { GradeEntry } from '../../editorial/lib/gradeEntries';
-import { resumoDosDesvios, resumoSemFrequencia, rotuloIntervalo, TEXTO_ACOMPANHADA_SEM_RITMO, textoMaisPraFechar, textoSemObjetivo, type Continuidade, type LinhaContinuidade, type DistribuicaoObjetivos } from '../lib/saudeIndicadores';
-import { rotuloDaSituacaoNoRecorte, situacaoDaJanela, situacaoDoRecorte, textoDaMetaNoRecorte } from '../../editorial/lib/apuracaoSerie';
-import { ItensDaSaudeDialog, type ListaDaSaude } from './ItensDaSaudeDialog';
-import type { LinhaDoEscopoNaSaude } from '../lib/continuidadePorEscopoNaSaude';
-import type { PublicacoesNaSaude } from '../lib/publicacoesNaSaude';
-import { pontosParaRevisar, type AvisoOrientacao } from '../lib/orientacaoEditorial';
-import type { FaixasNoPeriodo, LinhaDeFaixa } from '../../editorial/lib/faixasEditoriais';
-import { blocoDoAviso, detalheDoAviso } from '../lib/detalheDoAviso';
-import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
-import { secoesSalvas, type IntervaloSaude } from '../lib/saudeActions';
-import { linhasDaConferencia, TabelaConferenciaSeries } from './TabelaConferenciaSeries';
 import { withDetailBack } from '../../../lib/navigation/detailBack';
-import { textoDoProgresso } from '../lib/episodioNaTemporada';
+import { cn } from '../../../lib/utils';
+import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
+import { situacaoDoRecorte } from '../../editorial/lib/apuracaoSerie';
+import type { FaixasNoPeriodo, LinhaDeFaixa } from '../../editorial/lib/faixasEditoriais';
+import type { GradeCounts } from '../../editorial/lib/gradeCounts';
+import type { GradeEntry } from '../../editorial/lib/gradeEntries';
+import type { LinhaDoEscopoNaSaude } from '../lib/continuidadePorEscopoNaSaude';
+import { blocoDoAviso, detalheDoAviso } from '../lib/detalheDoAviso';
+import { distribuicaoAssuntosNaSaude } from '../lib/distribuicaoAssuntosNaSaude';
+import type { PreparoDoPeriodo } from '../lib/monthHealth';
+import type { AvisoOrientacao } from '../lib/orientacaoEditorial';
+import type { PublicacoesNaSaude } from '../lib/publicacoesNaSaude';
+import type { IntervaloSaude } from '../lib/saudeActions';
+import {
+  resumoSemFrequencia,
+  type Continuidade,
+  type DistribuicaoObjetivos,
+  type LinhaContinuidade,
+} from '../lib/saudeIndicadores';
+import { ItensDaSaudeDialog, type ListaDaSaude } from './ItensDaSaudeDialog';
+import { SaudeEquilibrioSection } from './SaudeEquilibrioSection';
+import { SaudeFaltaAlgoSection, type AlertaCardItem } from './SaudeFaltaAlgoSection';
+import { SaudePlacar, type PlacarSinal } from './SaudePlacar';
+import { SaudeSeriesSection } from './SaudeSeriesSection';
 
-const STORAGE_EXPANDED_KEY = 'content-os:saude-editorial-expanded';
-const STORAGE_SECOES_KEY = 'content-os:saude-editorial-secoes-v2';
 const STORAGE_SCROLL_KEY = 'content-os:saude-editorial-scroll';
-
-const SECOES_IDS = ['urgencias', 'producao', 'series', 'objetivos', 'contas', 'pilares-assuntos'];
-const SECOES_PADRAO = ['urgencias'];
+const STORAGE_SERIES_KEY = 'content-os:saude-editorial-series';
 
 export interface SaudeEditorialPanelProps {
-  /** "Período: 16/10 – 30/12": o período salvo no Editorial que a saúde cobre. */
+  /** Rótulo do período coberto pela Saúde (ex.: "11 a 17 nov"). */
   rotuloPeriodo: string;
+  /** Rótulo curto do recorte atual (ex.: "Semana visível", "Mês visível", "Intervalo"). */
+  escopoRotulo?: string;
   /** Quando o calendário mostra datas fora do período. */
   avisoPeriodo?: string | null;
   foraDoPrazo?: readonly GradeEntry[];
@@ -67,7 +56,7 @@ export interface SaudeEditorialPanelProps {
   pilares: readonly Pilar[];
   temas?: readonly Tema[];
   contents?: readonly Content[];
-  /** Objetivo de cada item (o do conteúdo, senão da série, senão do post-it) sobre todos os itens. */
+  /** Objetivo de cada item sobre todos os itens do período. */
   objetivos?: DistribuicaoObjetivos<GradeEntry>;
   /** Séries e quadros com meta, conferidos intervalo a intervalo. */
   continuidade?: Continuidade<GradeEntry>;
@@ -75,17 +64,14 @@ export interface SaudeEditorialPanelProps {
   escopos?: readonly LinhaDoEscopoNaSaude[];
   /** Publicações por conta no trecho e a soma das contas. */
   publicacoes?: PublicacoesNaSaude;
-  /**
-   * completo: card inline expansível.
-   * faixa: linha horizontal compacta no topo da tela com botão "Ver análise".
-   * analise: visual completo dentro do drawer com acordeons independentes.
-   */
   modo?: 'completo' | 'faixa' | 'analise';
   onVerAnalise?: () => void;
   onFechar?: () => void;
-  /** Avisos do trecho, cada um no seu bloco (Continuidade, Concentração ou Produção). */
+  onPeriodoAnterior?: () => void;
+  onProximoPeriodo?: () => void;
+  /** Avisos do trecho. */
   avisos?: readonly AvisoOrientacao[];
-  /** Faixas da semana escaladas no trecho. Clique abre a seção da Saúde. */
+  /** Faixas da semana escaladas no trecho. */
   faixas?: FaixasNoPeriodo | null;
   onLocalizarAviso?: (aviso: AvisoOrientacao) => void;
   /** "Instagram · Reels" quando o calendário está filtrado. */
@@ -97,127 +83,46 @@ export interface SaudeEditorialPanelProps {
   className?: string;
 }
 
-function AvisoDetalhado({
-  aviso,
-  onLocalizar,
-}: {
-  aviso: AvisoOrientacao;
-  onLocalizar?: (aviso: AvisoOrientacao) => void;
-}) {
-  const detalhe = detalheDoAviso(aviso);
-  return (
-    <li className="stack-xs rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--surface-subtle)] p-2.5">
-      <div className="flex items-start justify-between gap-2">
-        <Text variant="bodyStrong" as="p" className="text-[var(--text-primary)]">
-          {aviso.texto}
-        </Text>
-        {onLocalizar ? (
-          <button
-            type="button"
-            onClick={() => onLocalizar(aviso)}
-            className="shrink-0 text-[var(--brand-accent-text)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] rounded-[var(--radius-sm)]"
-          >
-            <Text variant="meta" as="span" className="text-[var(--brand-accent-text)]">
-              Localizar
-            </Text>
-          </button>
-        ) : null}
-      </div>
-      <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-        {detalhe.intervalo ? `Intervalo: ${detalhe.intervalo} · ` : ''}
-        {detalhe.acao}
-      </Text>
-    </li>
-  );
+function formatarFaixaCurta(linha: LinhaDeFaixa | undefined): string | null {
+  if (!linha?.faixa) return null;
+  return [
+    linha.faixa.minimo != null ? `Mín ${linha.faixa.minimo}` : null,
+    `Meta ${linha.faixa.meta}`,
+    linha.faixa.maximo != null ? `Máx ${linha.faixa.maximo}` : null,
+  ]
+    .filter((parte): parte is string => parte != null)
+    .join(' · ');
 }
 
-function SecaoAccordion({
-  id,
-  titulo,
-  resumo,
-  aberta,
-  onToggle,
-  alerta = 'ok',
-  icon: Icon,
-  children,
-}: {
-  id: string;
-  titulo: string;
-  resumo?: React.ReactNode;
-  aberta: boolean;
-  onToggle: () => void;
-  alerta?: 'erro' | 'aviso' | 'ok';
-  icon: typeof Calendar;
-  children: React.ReactNode;
-}) {
-  const dotColor =
-    alerta === 'erro'
-      ? 'bg-[var(--accent-red)]'
-      : alerta === 'aviso'
-      ? 'bg-[var(--accent-orange)]'
-      : 'bg-[var(--accent-green)]';
+function capitalizar(texto: string): string {
+  if (!texto) return texto;
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
 
-  return (
-    <section
-      id={`secao-${id}`}
-      aria-label={titulo}
-      className={cn(
-        'rounded-[var(--radius-card)] border bg-[var(--bg-primary)] transition-all',
-        alerta === 'erro'
-          ? 'border-[color-mix(in_srgb,var(--accent-red)_30%,var(--border-subtle))]'
-          : alerta === 'aviso'
-          ? 'border-[color-mix(in_srgb,var(--accent-orange)_30%,var(--border-subtle))]'
-          : 'border-[var(--border-subtle)]'
-      )}
-    >
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={aberta}
-        className="flex w-full items-center justify-between gap-3 p-3.5 sm:p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] rounded-[var(--radius-card)]"
-      >
-        <div className="flex items-center gap-2.5 min-w-0">
-          <span className={cn('h-2 w-2 rounded-full shrink-0', dotColor)} aria-hidden />
-          <Icon className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
-          <Text variant="bodyStrong" as="h3" className="text-[var(--text-primary)] truncate">
-            {titulo}
-          </Text>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          {resumo ? (
-            <span className="hidden sm:inline-block">
-              <Text variant="meta" as="span" className="text-[var(--text-secondary)] tabular-nums">
-                {resumo}
-              </Text>
-            </span>
-          ) : null}
-          <span className="p-1 text-[var(--text-tertiary)]">
-            {aberta ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </span>
-        </div>
-      </button>
-
-      {/* Resumo visível em telas menores quando recolhido */}
-      {!aberta && resumo ? (
-        <div className="px-3.5 pb-3 sm:hidden">
-          <Text variant="meta" as="p" className="text-[var(--text-secondary)] tabular-nums">
-            {resumo}
-          </Text>
-        </div>
-      ) : null}
-
-      {aberta ? (
-        <div className="border-t border-[var(--border-subtle)] p-3.5 sm:p-4 stack-md">
-          {children}
-        </div>
-      ) : null}
-    </section>
-  );
+function categoriaDoAviso(aviso: AvisoOrientacao): {
+  rotulo: string;
+  tone: AlertaCardItem['tone'];
+  icone: AlertaCardItem['acaoIcone'];
+} {
+  const bloco = blocoDoAviso(aviso);
+  if (aviso.tipo === 'vespera-sem-pronto' || aviso.tipo === 'gravacao-antecedencia') {
+    return { rotulo: 'Esteira', tone: 'aviso', icone: 'gravacao' };
+  }
+  if (aviso.tipo === 'faixa-abaixo' || aviso.tipo === 'faixa-acima' || aviso.tipo === 'faixa-config') {
+    return { rotulo: 'Volume e faixa', tone: 'aviso', icone: 'editorial' };
+  }
+  if (aviso.tipo === 'capacidade-semana' || aviso.tipo === 'gravacoes-no-dia' || aviso.tipo === 'videos-dia-abaixo' || aviso.tipo === 'videos-dia-acima') {
+    return { rotulo: 'Capacidade', tone: 'aviso', icone: 'gravacao' };
+  }
+  if (bloco === 'continuidade') {
+    return { rotulo: 'Espaço na grade', tone: 'erro', icone: 'calendario' };
+  }
+  return { rotulo: 'Variedade', tone: 'neutro', icone: 'localizar' };
 }
 
 export function SaudeEditorialPanel({
   rotuloPeriodo,
+  escopoRotulo,
   avisoPeriodo,
   counts,
   foraDoPrazo: pendenciasForaDoPrazo,
@@ -231,9 +136,9 @@ export function SaudeEditorialPanel({
   continuidade,
   escopos = [],
   publicacoes,
-  modo = 'completo',
-  onVerAnalise,
   onFechar,
+  onPeriodoAnterior,
+  onProximoPeriodo,
   avisos = [],
   faixas = null,
   onLocalizarAviso,
@@ -247,85 +152,37 @@ export function SaudeEditorialPanel({
   const navigate = useNavigate();
   const location = useLocation();
   const retornoPlanejamento = `${location.pathname}${location.search}`;
-  const rootRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const [lista, setLista] = useState<ListaDaSaude | null>(null);
-  const [expanded, setExpandedRaw] = useState(() => readStoredJson(STORAGE_EXPANDED_KEY, false));
-
-  // Multi-open accordion state persisted in localStorage
-  const [secoesAbertas, setSecoesAbertas] = useState<Set<string>>(() => {
-    const salvo = secoesSalvas(readStoredJson<unknown>(STORAGE_SECOES_KEY, SECOES_PADRAO), SECOES_IDS);
-    if (typeof window !== 'undefined' && window.location.hash.replace(/^#/, '') === 'conferencia-series') {
-      salvo.add('series');
-    }
-    return salvo;
-  });
 
   const [seriesAbertas, setSeriesAbertas] = useState<Set<string>>(() => {
-    const salvo = readStoredJson<unknown>('content-os:saude-editorial-series', []);
+    const salvo = readStoredJson<unknown>(STORAGE_SERIES_KEY, []);
     return new Set(Array.isArray(salvo) ? salvo.filter((id): id is string => typeof id === 'string') : []);
   });
-  const guardarAbertura = (id: string, aberta: boolean) => {
+
+  const guardarAberturaSerie = (id: string, aberta: boolean) => {
     setSeriesAbertas(prev => {
       if (prev.has(id) === aberta) return prev;
       const next = new Set(prev);
-      if (aberta) next.add(id); else next.delete(id);
-      writeStoredJson('content-os:saude-editorial-series', [...next]);
+      if (aberta) next.add(id);
+      else next.delete(id);
+      writeStoredJson(STORAGE_SERIES_KEY, [...next]);
       return next;
     });
   };
+
   useEffect(() => {
     if (location.hash.replace(/^#/, '') !== 'conferencia-series') return;
-    setSecoesAbertas(prev => {
-      if (prev.has('series')) return prev;
-      const next = new Set(prev);
-      next.add('series');
-      writeStoredJson(STORAGE_SECOES_KEY, Array.from(next));
-      return next;
-    });
     const id = window.setTimeout(() => {
       document.getElementById('conferencia-series')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 80);
     return () => window.clearTimeout(id);
   }, [location.hash]);
 
-  const abrirSecaoDaSaude = (id: string) => {
-    setSecoesAbertas(prev => {
-      if (prev.has(id)) return prev;
-      const next = new Set(prev);
-      next.add(id);
-      writeStoredJson(STORAGE_SECOES_KEY, Array.from(next));
-      return next;
-    });
-    window.setTimeout(() => {
-      document.getElementById(`secao-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 80);
-  };
-
-  const toggleSecao = (id: string) => {
-    setSecoesAbertas(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      writeStoredJson(STORAGE_SECOES_KEY, Array.from(next));
-      return next;
-    });
-  };
-
-  const toggleExpanded = () => {
-    setExpandedRaw(prev => {
-      const next = !prev;
-      writeStoredJson(STORAGE_EXPANDED_KEY, next);
-      return next;
-    });
-  };
-
-  const hojeIso = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
-
-  // Preservação da rolagem do painel lateral/drawer
+  // Preservação da rolagem interna do drawer
   useEffect(() => {
-    if (modo !== 'analise') return;
     if (location.hash.replace(/^#/, '') === 'conferencia-series') return;
-    const scrollParent = rootRef.current?.closest('.overflow-y-auto') ?? rootRef.current?.parentElement;
+    const scrollParent = scrollRef.current;
     if (!scrollParent) return;
 
     const savedScroll = readStoredJson<number>(STORAGE_SCROLL_KEY, 0);
@@ -337,15 +194,17 @@ export function SaudeEditorialPanel({
     };
     const frame = requestAnimationFrame(restaurar);
     const observer = new ResizeObserver(restaurar);
-    if (rootRef.current) observer.observe(rootRef.current);
+    observer.observe(scrollParent);
     const handleScroll = () => {
       if (!restaurando) writeStoredJson(STORAGE_SCROLL_KEY, scrollParent.scrollTop);
     };
-    const interagir = () => { restaurando = false; };
-    scrollParent.addEventListener('scroll', handleScroll, {passive: true});
-    scrollParent.addEventListener('pointerdown', interagir, {passive: true});
-    scrollParent.addEventListener('wheel', interagir, {passive: true});
-    scrollParent.addEventListener('touchstart', interagir, {passive: true});
+    const interagir = () => {
+      restaurando = false;
+    };
+    scrollParent.addEventListener('scroll', handleScroll, { passive: true });
+    scrollParent.addEventListener('pointerdown', interagir, { passive: true });
+    scrollParent.addEventListener('wheel', interagir, { passive: true });
+    scrollParent.addEventListener('touchstart', interagir, { passive: true });
     scrollParent.addEventListener('keydown', interagir);
     return () => {
       cancelAnimationFrame(frame);
@@ -357,1378 +216,642 @@ export function SaudeEditorialPanel({
       scrollParent.removeEventListener('touchstart', interagir);
       scrollParent.removeEventListener('keydown', interagir);
     };
-  }, [modo, location.hash]);
+  }, [location.hash]);
+
+  const hojeIso = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
 
   const preenchidos = counts.previsto ?? counts.somaPlanejado ?? 0;
   const comFiltro = Boolean(filtroRotulo);
   const metaTotal = comFiltro ? null : counts.limite ?? null;
-  const percentualGeral = metaTotal != null && metaTotal > 0 ? Math.min(100, Math.round((preenchidos / metaTotal) * 100)) : 0;
+  const faltamParaMeta = metaTotal == null ? 0 : Math.max(0, metaTotal - preenchidos);
 
   const preparo = counts.preparo;
   const gravacao = preparo?.gravacao ?? 0;
   const escrita = preparo?.escrita ?? 0;
   const edicao = preparo?.edicao ?? 0;
 
-  const previstosPorPilar = new Map(counts.pilares.map(linha => [linha.id, linha.planejado]));
-  const pilaresNaConta = pilares.filter(p => p.ativo !== false || (previstosPorPilar.get(p.id) ?? 0) > 0);
-  const itensSemPilar = counts.itens.filter(item => !item.pilarId);
-  const faltamParaMeta = metaTotal == null ? 0 : Math.max(0, metaTotal - preenchidos);
-  const totalPrevistosPilares = pilaresNaConta.reduce((soma, pilar) => soma + (previstosPorPilar.get(pilar.id) ?? 0), 0);
-  const textoExcesso = !comFiltro && counts.excesso != null && counts.excesso > 0
-    ? (counts.notaSoma ?? `O período tem ${preenchidos} e o limite é ${metaTotal}.`)
-    : null;
-  const textoSemPauta = counts.espacosLivres > 0
-    ? (counts.espacosLivres === 1 ? '1 espaço sem pauta.' : `${counts.espacosLivres} espaços sem pauta.`)
-    : null;
+  const previstosPorPilar = useMemo(
+    () => new Map(counts.pilares.map(linha => [linha.id, linha.planejado])),
+    [counts.pilares],
+  );
+  const pilaresNaConta = useMemo(
+    () => pilares.filter(p => p.ativo !== false || (previstosPorPilar.get(p.id) ?? 0) > 0),
+    [pilares, previstosPorPilar],
+  );
+  const itensPorPilar = useMemo(() => {
+    const map = new Map<string, GradeEntry[]>();
+    for (const item of counts.itens) {
+      if (!item.pilarId) continue;
+      const atual = map.get(item.pilarId);
+      if (atual) atual.push(item);
+      else map.set(item.pilarId, [item]);
+    }
+    return map;
+  }, [counts.itens]);
+  const itensSemPilar = useMemo(
+    () => counts.itens.filter(item => !item.pilarId),
+    [counts.itens],
+  );
+  const totalPrevistosPilares = pilaresNaConta.reduce(
+    (soma, pilar) => soma + (previstosPorPilar.get(pilar.id) ?? 0),
+    0,
+  );
+  const pilaresComItens = pilaresNaConta.filter(pilar => (previstosPorPilar.get(pilar.id) ?? 0) > 0).length;
 
-  const distribuicaoAssuntos = useMemo(() => {
-    return distribuicaoAssuntosNaSaude({
-      itens: counts.itens ?? [],
-      contents,
-      temas,
-    });
-  }, [counts.itens, contents, temas]);
+  const textoExcesso =
+    !comFiltro && counts.excesso != null && counts.excesso > 0
+      ? counts.notaSoma ?? `O período tem ${preenchidos} e o limite é ${metaTotal}.`
+      : null;
+  const textoSemPauta =
+    counts.espacosLivres > 0
+      ? counts.espacosLivres === 1
+        ? '1 espaço sem pauta.'
+        : `${counts.espacosLivres} espaços sem pauta.`
+      : null;
 
-  const emAnalise = modo === 'analise';
-  const aberto = emAnalise || (modo === 'completo' && expanded);
-  const avisosDe = (bloco: ReturnType<typeof blocoDoAviso>) => avisos.filter(aviso => blocoDoAviso(aviso) === bloco);
-  const revisar = pontosParaRevisar(avisos.filter(a => blocoDoAviso(a) !== 'continuidade'));
+  const distribuicaoAssuntos = useMemo(
+    () => distribuicaoAssuntosNaSaude({ itens: counts.itens ?? [], contents, temas }),
+    [counts.itens, contents, temas],
+  );
 
-  // 1. Urgências & Hoje: Publicações com data anterior a hoje não realizadas, e pendências de hoje
-  const foraDoPrazo = useMemo(() => {
-    return pendenciasForaDoPrazo ?? (counts.itens ?? []).filter(item => {
-      if (!item.data || item.data >= hojeIso) return false;
-      if (item.realizada || item.etapa === 'postado') return false;
-      return true;
-    });
-  }, [counts.itens, hojeIso, pendenciasForaDoPrazo]);
+  const foraDoPrazo = useMemo(
+    () =>
+      pendenciasForaDoPrazo ??
+      (counts.itens ?? []).filter(item => {
+        if (!item.data || item.data >= hojeIso) return false;
+        if (item.realizada || item.etapa === 'postado') return false;
+        return true;
+      }),
+    [counts.itens, hojeIso, pendenciasForaDoPrazo],
+  );
 
-  const deHoje = useMemo(() => {
-    return (counts.itens ?? []).filter(item => item.data === hojeIso);
-  }, [counts.itens, hojeIso]);
-
-  const pendentesHoje = useMemo(() => {
-    return deHoje.filter(item => !item.realizada && item.etapa !== 'postado');
-  }, [deHoje]);
-
-  const avisosVespera = useMemo(() => {
-    return avisos.filter(a => a.tipo === 'vespera-sem-pronto');
-  }, [avisos]);
+  const deHoje = useMemo(
+    () => (counts.itens ?? []).filter(item => item.data === hojeIso),
+    [counts.itens, hojeIso],
+  );
+  const pendentesHoje = useMemo(
+    () => deHoje.filter(item => !item.realizada && item.etapa !== 'postado'),
+    [deHoje],
+  );
 
   const roteiroIds = [...idsParaGravar];
-  const roteirosParaGravar = [...new Map(counts.itens.filter(item => roteiroIds.includes(item.contentId)).map(item => [item.contentId, item])).values()];
+  const roteirosParaGravar = useMemo(
+    () => [...new Map(counts.itens.filter(item => roteiroIds.includes(item.contentId)).map(item => [item.contentId, item])).values()],
+    [counts.itens, roteiroIds],
+  );
 
-  // 3. Séries: Avaliação agrupada por série (futuro vs passado)
+  // Séries e continuidade
   const linhasContinuidade = useMemo(() => {
     const linhas: LinhaContinuidade<GradeEntry>[] = [...(continuidade?.linhas ?? [])];
     for (const escopo of escopos) {
       if (linhas.some(linha => linha.serieId === escopo.serieId)) continue;
-      const serie = series.find(s => s.id === escopo.serieId);
-      linhas.push({chave: escopo.serieId, serieId: escopo.serieId, nome: serie?.name ?? 'Série', tipo: 'serie', paiNome: null,
-        frequencia: 'Acompanhamento por conta ou formato', intervalos: [], abaixo: [], reservadas: [],
-        concentrada: false, semEpisodios: false, foraDoPeriodo: 0, precisaAtencao: escopo.atencao, itens: []});
+      const serie = series.find(item => item.id === escopo.serieId);
+      linhas.push({
+        chave: escopo.serieId,
+        serieId: escopo.serieId,
+        nome: serie?.name ?? 'Série',
+        tipo: 'serie',
+        paiNome: null,
+        frequencia: 'Acompanhamento por conta ou formato',
+        intervalos: [],
+        abaixo: [],
+        reservadas: [],
+        concentrada: false,
+        semEpisodios: false,
+        foraDoPeriodo: 0,
+        precisaAtencao: escopo.atencao,
+        itens: [],
+      });
     }
     return linhas;
   }, [continuidade, escopos, series]);
 
-  const seriesAbaixo = useMemo(() => {
-    return linhasContinuidade.filter(l => situacaoDoRecorte(l.intervalos, hojeIso) === 'abaixo');
-  }, [linhasContinuidade, hojeIso]);
-
-  const seriesConcentradas = useMemo(() => {
-    return linhasContinuidade.filter(l => {
-      const futuros = l.intervalos.filter(i => i.fim >= hojeIso);
-      return futuros.some(i => i.quantidade > i.meta && !i.pausada);
-    });
-  }, [linhasContinuidade, hojeIso]);
-
-  const seriesComPendencias = linhasContinuidade.filter(l => seriesAbaixo.includes(l) || seriesConcentradas.includes(l)
-    || (l.diasSeguidos ?? []).some(d => d.seguinte >= hojeIso)
-    || (l.distancias ?? []).some(d => d.fim >= hojeIso)
-    || escopos.some(e => e.serieId === l.serieId && e.atencao));
+  const seriesAbaixo = useMemo(
+    () => linhasContinuidade.filter(linha => situacaoDoRecorte(linha.intervalos, hojeIso) === 'abaixo'),
+    [linhasContinuidade, hojeIso],
+  );
+  const seriesConcentradas = useMemo(
+    () =>
+      linhasContinuidade.filter(linha =>
+        linha.intervalos.some(intervalo => intervalo.fim >= hojeIso && intervalo.quantidade > intervalo.meta && !intervalo.pausada),
+      ),
+    [linhasContinuidade, hojeIso],
+  );
+  const seriesComPendencias = useMemo(
+    () =>
+      linhasContinuidade.filter(
+        linha =>
+          seriesAbaixo.includes(linha) ||
+          seriesConcentradas.includes(linha) ||
+          (linha.diasSeguidos ?? []).some(item => item.seguinte >= hojeIso) ||
+          (linha.distancias ?? []).some(item => item.fim >= hojeIso) ||
+          escopos.some(escopo => escopo.serieId === linha.serieId && escopo.atencao),
+      ),
+    [linhasContinuidade, seriesAbaixo, seriesConcentradas, escopos],
+  );
   const nenhumaAcompanhada = (!continuidade || continuidade.nenhumaAcompanhada) && escopos.length === 0;
-  // Intervalo já encerrado abaixo da meta: não há mais o que planejar nele, mas também não está "em dia".
-  const seriesFecharamAbaixo = linhasContinuidade.filter(l =>
-    l.intervalos.some(i => i.fim < hojeIso && i.abaixo && !i.pausada && !i.parcial));
-  const textoSeriesSemPendencia = nenhumaAcompanhada
-    ? 'Nenhuma série acompanhada no período'
-    : seriesFecharamAbaixo.length > 0 ? 'Em dia daqui pra frente' : 'Frequência em dia';
-  // Acompanhadas sem frequência: estado próprio, nem em dia nem abaixo. Reaproveita a pendência "sem-frequencia".
-  const semFrequencia = resumoSemFrequencia([
-    ...(continuidade?.pendencias ?? []).filter(pendencia => pendencia.motivo === 'sem-frequencia'),
-    ...escopos.filter(escopo => escopo.semFrequencia).map(escopo => ({ serieId: escopo.serieId, tipo: escopo.tipo ?? 'serie' as const })),
+  const semFrequencia = useMemo(
+    () =>
+      resumoSemFrequencia([
+        ...(continuidade?.pendencias ?? []).filter(pendencia => pendencia.motivo === 'sem-frequencia'),
+        ...escopos
+          .filter(escopo => escopo.semFrequencia)
+          .map(escopo => ({ serieId: escopo.serieId, tipo: escopo.tipo ?? ('serie' as const) })),
+      ]),
+    [continuidade?.pendencias, escopos],
+  );
+
+  // Cálculo do Sinal 1: Equilíbrio
+  const maiorDesvioObjetivo = useMemo(() => {
+    if (!objetivos || !objetivos.temProporcao || objetivos.total === 0) return null;
+    let maior: number | null = null;
+    for (const linha of objetivos.linhas) {
+      if (linha.desejadoPct == null) continue;
+      const diff = linha.previstoPct - linha.desejadoPct;
+      if (maior === null || Math.abs(diff) > Math.abs(maior)) maior = diff;
+    }
+    return maior;
+  }, [objetivos]);
+
+  const equilibrioStatus = useMemo<{ tone: 'ok' | 'aviso' | 'neutro'; rotulo: string }>(() => {
+    if (preenchidos === 0) return { tone: 'neutro', rotulo: 'Sem pautas no período' };
+    const semClassificacao = (objetivos?.semObjetivo.length ?? 0) + itensSemPilar.length;
+    if (semClassificacao > 0) return { tone: 'aviso', rotulo: 'Classificação incompleta' };
+    if (maiorDesvioObjetivo != null && Math.abs(maiorDesvioObjetivo) >= 15) {
+      return { tone: 'aviso', rotulo: 'Revisar proporção' };
+    }
+    if (distribuicaoAssuntos.linhas.some(linha => linha.concentrado)) {
+      return { tone: 'aviso', rotulo: 'Assunto concentrado' };
+    }
+    if (!objetivos?.temProporcao) return { tone: 'neutro', rotulo: 'Distribuição livre' };
+    return { tone: 'ok', rotulo: 'Proporção em dia' };
+  }, [preenchidos, objetivos, itensSemPilar.length, maiorDesvioObjetivo, distribuicaoAssuntos.linhas]);
+
+  // Cálculo dos 3 sinais do Placar
+  const placarSinais = useMemo<PlacarSinal[]>(() => {
+    // 1. Equilíbrio
+    const semObj = objetivos?.semObjetivo.length ?? 0;
+    const equilibrioRodape =
+      maiorDesvioObjetivo != null
+        ? {
+            chave: 'Desvio máx.',
+            valor: `${maiorDesvioObjetivo > 0 ? '+' : ''}${maiorDesvioObjetivo}% vs meta`,
+          }
+        : semObj > 0
+          ? { chave: 'Sem objetivo', valor: `${semObj}` }
+          : itensSemPilar.length > 0
+            ? { chave: 'Sem pilar', valor: `${itensSemPilar.length}` }
+            : { chave: 'Pilares ativos', valor: `${pilaresComItens} de ${pilaresNaConta.length}` };
+
+    const equilibrioSubtitulo =
+      preenchidos === 0
+        ? 'Nenhuma peça planejada no recorte'
+        : semObj > 0
+          ? `${semObj} ${semObj === 1 ? 'peça sem objetivo' : 'peças sem objetivo'} editorial`
+          : pilaresComItens > 0
+            ? `${pilaresComItens} ${pilaresComItens === 1 ? 'pilar distribuído' : 'pilares distribuídos'} no período`
+            : `${preenchidos} ${preenchidos === 1 ? 'peça prevista' : 'peças previstas'}`;
+
+    const sinalEquilibrio: PlacarSinal = {
+      id: 'equilibrio',
+      numero: '1',
+      etiqueta: 'Equilíbrio',
+      statusTexto:
+        equilibrioStatus.tone === 'ok'
+          ? 'Em dia'
+          : equilibrioStatus.tone === 'aviso'
+            ? 'Revisar'
+            : 'Livre',
+      tone: equilibrioStatus.tone,
+      titulo: 'Pilares e objetivos',
+      subtitulo: equilibrioSubtitulo,
+      rodapeChave: equilibrioRodape.chave,
+      rodapeValor: equilibrioRodape.valor,
+      alvoId: 'saude-equilibrio',
+    };
+
+    // 2. Ritmo
+    const faixaPrincipal = faixas?.gerais[0];
+    const faixaTexto = formatarFaixaCurta(faixaPrincipal);
+    const leituraAviso = faixaPrincipal?.leitura?.aviso ?? null;
+
+    const ritmoTone: PlacarSinal['tone'] =
+      foraDoPrazo.length > 0
+        ? 'erro'
+        : gravacao > 0 || leituraAviso === 'abaixo' || leituraAviso === 'acima' || faltamParaMeta > 0
+          ? 'aviso'
+          : preenchidos > 0
+            ? 'ok'
+            : 'neutro';
+
+    const ritmoStatus =
+      foraDoPrazo.length > 0
+        ? `${foraDoPrazo.length} ${foraDoPrazo.length === 1 ? 'data passada' : 'datas passadas'}`
+        : gravacao > 0
+          ? 'Atenção na gravação'
+          : leituraAviso === 'abaixo'
+            ? 'Abaixo da faixa'
+            : leituraAviso === 'acima'
+              ? 'Acima da faixa'
+              : faltamParaMeta > 0
+                ? 'Abaixo da meta'
+                : preenchidos > 0
+                  ? 'Em dia'
+                  : 'Sem pautas';
+
+    const ritmoSubtitulo = [
+      `${preenchidos} ${preenchidos === 1 ? 'peça' : 'peças'}`,
+      gravacao > 0 ? `${gravacao} ${gravacao === 1 ? 'gravação pendente' : 'gravações pendentes'}` : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+
+    const sinalRitmo: PlacarSinal = {
+      id: 'ritmo',
+      numero: '2',
+      etiqueta: 'Ritmo',
+      statusTexto: ritmoStatus,
+      tone: ritmoTone,
+      titulo: 'Faixa de produção',
+      subtitulo: ritmoSubtitulo,
+      rodapeChave: faixaTexto ? 'Faixa' : metaTotal != null ? 'Meta do trecho' : 'Em andamento',
+      rodapeValor:
+        faixaTexto ??
+        (metaTotal != null ? `${preenchidos} de ${metaTotal}` : `${escrita} escrita · ${edicao} edição`),
+      alvoId: 'saude-falta-algo',
+    };
+
+    // 3. Séries
+    const totalSeries = linhasContinuidade.length;
+    const emDiaSeries = Math.max(0, totalSeries - seriesComPendencias.length);
+    const alinhamentoPct = totalSeries > 0 ? Math.round((emDiaSeries / totalSeries) * 100) : null;
+
+    const seriesTone: PlacarSinal['tone'] = nenhumaAcompanhada
+      ? 'neutro'
+      : seriesAbaixo.length > 0
+        ? 'erro'
+        : seriesComPendencias.length > 0 || Boolean(semFrequencia)
+          ? 'aviso'
+          : 'ok';
+
+    const seriesStatus = nenhumaAcompanhada
+      ? 'Sem metas'
+      : seriesComPendencias.length > 0
+        ? `${seriesComPendencias.length} ${seriesComPendencias.length === 1 ? 'pendente' : 'pendentes'}`
+        : semFrequencia
+          ? 'Sem ritmo'
+          : 'Em dia';
+
+    const sinalSeries: PlacarSinal = {
+      id: 'series',
+      numero: '3',
+      etiqueta: 'Séries',
+      statusTexto: seriesStatus,
+      tone: seriesTone,
+      titulo: 'Grade programada',
+      subtitulo: nenhumaAcompanhada
+        ? 'Nenhuma série acompanhada no período'
+        : `${emDiaSeries} de ${totalSeries} ${totalSeries === 1 ? 'série' : 'séries'} em dia`,
+      rodapeChave: 'Alinhamento',
+      rodapeValor: alinhamentoPct != null ? `${alinhamentoPct}% da grade` : '—',
+      alvoId: 'conferencia-series',
+    };
+
+    return [sinalEquilibrio, sinalRitmo, sinalSeries];
+  }, [
+    objetivos,
+    maiorDesvioObjetivo,
+    itensSemPilar.length,
+    pilaresComItens,
+    pilaresNaConta.length,
+    preenchidos,
+    equilibrioStatus.tone,
+    faixas,
+    foraDoPrazo.length,
+    gravacao,
+    faltamParaMeta,
+    metaTotal,
+    escrita,
+    edicao,
+    linhasContinuidade.length,
+    seriesComPendencias.length,
+    nenhumaAcompanhada,
+    seriesAbaixo.length,
+    semFrequencia,
   ]);
-  // Resumo da seção 3: abaixo do ritmo e acima da meta à parte, com os mesmos critérios de seriesAbaixo e seriesConcentradas.
-  const resumoDesvios = resumoDosDesvios(seriesAbaixo, seriesConcentradas);
 
-  // Status visual geral
-  const statusGeral = foraDoPrazo.length > 0 ? 'erro' : seriesComPendencias.length > 0 || gravacao > 0 ? 'aviso' : 'ok';
+  // Cartões da Pergunta 2 ("Falta algo?") — 1 única ação por cartão
+  const alertaCards = useMemo<AlertaCardItem[]>(() => {
+    const cards: AlertaCardItem[] = [];
 
-  // --- Modo FAIXA: Linha horizontal compacta para topo da página ---
-  if (modo === 'faixa') {
-    return (
-      <Surface
-        variant="outlined"
-        padding="none"
-        className={cn(
-          'w-full overflow-hidden rounded-[var(--radius-card)] bg-[var(--bg-elevated)] border-[var(--border-subtle)] p-3 sm:p-4 shadow-[var(--shadow-soft)]',
-          className
-        )}
-      >
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={cn(
-                'h-2.5 w-2.5 rounded-full shrink-0',
-                statusGeral === 'erro' ? 'bg-[var(--accent-red)]' : statusGeral === 'aviso' ? 'bg-[var(--accent-orange)]' : 'bg-[var(--accent-green)]'
-              )}
-              aria-hidden
-            />
-            <Text variant="bodyStrong" as="h2" className="text-[var(--text-primary)]">
-              Saúde Editorial — {rotuloPeriodo}
-            </Text>
+    // 1. Publicações com data passada
+    for (const item of foraDoPrazo) {
+      const content = contents.find(c => c.id === item.contentId);
+      const tituloItem = content?.title || (item.postItId ? 'Post-it sem roteiro' : 'Conteúdo');
+      const dataFmt = item.data ? format(parseISO(item.data), 'dd/MM') : 'Sem data';
+      const temConteudo = Boolean(item.contentId && content);
 
-            {foraDoPrazo.length > 0 ? (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-[var(--radius-pill)] bg-[color-mix(in_srgb,var(--accent-red)_15%,var(--bg-elevated))] text-[var(--accent-red)] border border-[color-mix(in_srgb,var(--accent-red)_30%,transparent)]">
-                <Text variant="meta" as="span">
-                  {foraDoPrazo.length} {foraDoPrazo.length === 1 ? 'data passou' : 'datas passaram'}
-                </Text>
-              </span>
-            ) : null}
+      cards.push({
+        id: `fora-prazo:${item.id}`,
+        categoria: 'Data passada',
+        metaDireita: dataFmt,
+        titulo: tituloItem,
+        descricao: `Etapa atual: ${item.etapa ?? 'planejamento'}. Ainda sem publicação registrada ou nova data.`,
+        tone: 'erro',
+        destaqueAcao: true,
+        acaoRotulo: onResolverData ? 'Resolver data' : 'Abrir conteúdo',
+        acaoIcone: 'calendario',
+        onAcao: () => {
+          if (onResolverData) {
+            onResolverData(item);
+          } else if (temConteudo) {
+            navigate(
+              buildContentDetailRoute(item.contentId, item.etapa === 'roteiro' ? 'roteiro' : 'publicacao'),
+              withDetailBack(retornoPlanejamento),
+            );
+          }
+        },
+      });
+    }
 
-            <span className="inline-flex items-center px-2 py-0.5 rounded-[var(--radius-pill)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
-              <Text variant="meta" as="span">
-                {comFiltro
-                  ? `${preenchidos} na seleção`
-                  : metaTotal == null
-                  ? `${preenchidos} previstos`
-                  : `${preenchidos}/${metaTotal} espaços`}
-              </Text>
-            </span>
+    // 2. Gravação pendente
+    if (roteiroIds.length > 0) {
+      const primeiro = roteirosParaGravar[0];
+      const primeiroConteudo = primeiro ? contents.find(c => c.id === primeiro.contentId) : null;
+      const tituloGravacao =
+        roteiroIds.length === 1 && primeiroConteudo?.title
+          ? `Roteiro "${primeiroConteudo.title}" ainda sem gravação`
+          : `${roteiroIds.length} ${roteiroIds.length === 1 ? 'roteiro pronto aguardando gravação' : 'roteiros prontos aguardando gravação'}`;
 
-            {gravacao > 0 ? (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-[var(--radius-pill)] bg-[color-mix(in_srgb,var(--brand-accent)_15%,var(--bg-elevated))] text-[var(--brand-accent-text)] border border-[color-mix(in_srgb,var(--brand-accent)_30%,transparent)]">
-                <Text variant="meta" as="span">
-                  {gravacao} para gravar
-                </Text>
-              </span>
-            ) : null}
+      const nomesPreview = roteirosParaGravar
+        .slice(0, 2)
+        .map(item => contents.find(c => c.id === item.contentId)?.title)
+        .filter(Boolean)
+        .join(' · ');
 
-            {seriesAbaixo.length > 0 ? (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-[var(--radius-pill)] bg-[var(--surface-subtle)] dark:bg-[var(--bg-secondary)]/20 text-[var(--text-primary)] dark:text-[var(--border-color)] border border-[var(--border-color)] dark:border-[var(--accent-orange)]/30">
-                <Text variant="meta" as="span">
-                  {seriesComPendencias.length} {seriesComPendencias.length === 1 ? 'série para revisar' : 'séries para revisar'}
-                </Text>
-              </span>
-            ) : null}
+      cards.push({
+        id: 'gravacao-pendente',
+        categoria: 'Esteira',
+        metaDireita: 'Gravação',
+        titulo: tituloGravacao,
+        descricao: nomesPreview
+          ? `${nomesPreview}. ${escrita} em escrita · ${edicao} em edição.`
+          : `Prepare uma sessão com os roteiros deste período pré-selecionados.`,
+        tone: 'aviso',
+        acaoRotulo: 'Preparar sessão',
+        acaoIcone: 'gravacao',
+        onAcao: () => onOpenGravacao(roteiroIds),
+      });
+    }
 
-            {revisar > 0 ? (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-[var(--radius-pill)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
-                <Text variant="meta" as="span">
-                  {revisar} {revisar === 1 ? 'aviso' : 'avisos'}
-                </Text>
-              </span>
-            ) : null}
+    // 3. Volume abaixo da meta
+    if (faltamParaMeta > 0 && metaTotal != null) {
+      cards.push({
+        id: 'volume-meta',
+        categoria: 'Volume total',
+        metaDireita: 'Meta do período',
+        titulo: `${preenchidos} de ${metaTotal} espaços preenchidos`,
+        descricao: `Faltam ${faltamParaMeta} ${faltamParaMeta === 1 ? 'peça' : 'peças'} para fechar o volume previsto no período.`,
+        tone: 'neutro',
+        acaoRotulo: 'Adicionar reserva',
+        acaoIcone: 'reserva',
+        onAcao: onAddReserva,
+      });
+    }
 
-            {filtroRotulo ? (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-[var(--radius-pill)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
-                <Text variant="meta" as="span">Filtro: {filtroRotulo}</Text>
-              </span>
-            ) : null}
-          </div>
+    // 4. Previstos para hoje em aberto
+    if (pendentesHoje.length > 0) {
+      const primeiro = pendentesHoje[0];
+      const primeiroConteudo = contents.find(c => c.id === primeiro.contentId);
+      const abrirUnico = pendentesHoje.length === 1 && Boolean(primeiro.contentId && primeiroConteudo);
 
-          <AppButton variant="secondary" size="sm" onClick={onVerAnalise} className="shrink-0">
-            Ver análise
-          </AppButton>
-        </div>
-      </Surface>
+      cards.push({
+        id: 'pendentes-hoje',
+        categoria: 'Hoje',
+        metaDireita: `${pendentesHoje.length} em aberto`,
+        titulo:
+          pendentesHoje.length === 1
+            ? primeiroConteudo?.title || 'Post-it previsto para hoje'
+            : `${pendentesHoje.length} conteúdos previstos para hoje`,
+        descricao:
+          pendentesHoje.length === 1
+            ? `Etapa: ${primeiro.etapa ?? 'planejamento'}.`
+            : `Revise os itens marcados para hoje na sua grade.`,
+        tone: 'aviso',
+        acaoRotulo: abrirUnico ? 'Abrir conteúdo' : 'Ver itens de hoje',
+        acaoIcone: 'calendario',
+        onAcao: () => {
+          if (abrirUnico) {
+            navigate(
+              buildContentDetailRoute(primeiro.contentId, primeiro.etapa === 'roteiro' ? 'roteiro' : 'publicacao'),
+              withDetailBack(retornoPlanejamento),
+            );
+          } else {
+            setLista({ titulo: 'Previstos para hoje', itens: deHoje });
+          }
+        },
+      });
+    }
+
+    // 5. Avisos de orientação relevantes (produção, concentração e ausências de série)
+    const avisosParaCards = avisos.filter(
+      aviso =>
+        blocoDoAviso(aviso) !== 'continuidade' ||
+        aviso.tipo === 'ausencia-12-dias' ||
+        aviso.tipo === 'ausencia-mes',
     );
-  }
 
-  // --- Modo COMPLETO ou ANÁLISE (Drawer com 6 seções independentes) ---
+    for (const aviso of avisosParaCards) {
+      const detalhe = detalheDoAviso(aviso);
+      const metaVisual = categoriaDoAviso(aviso);
+      const vaiParaEditorial =
+        aviso.tipo === 'faixa-config' ||
+        aviso.tipo === 'capacidade-semana' ||
+        (!onLocalizarAviso && aviso.postItIds.length === 0 && aviso.contentIds.length === 0);
+
+      cards.push({
+        id: `aviso:${aviso.id}`,
+        categoria: metaVisual.rotulo,
+        metaDireita: detalhe.intervalo ?? undefined,
+        titulo: aviso.texto,
+        descricao: capitalizar(detalhe.acao) + '.',
+        tone: metaVisual.tone,
+        acaoRotulo: vaiParaEditorial ? 'Ajustar no Editorial' : 'Localizar na grade',
+        acaoIcone: vaiParaEditorial ? 'editorial' : metaVisual.icone,
+        onAcao: () => {
+          if (vaiParaEditorial) {
+            navigate('/editorial');
+          } else if (onLocalizarAviso) {
+            onLocalizarAviso(aviso);
+          }
+        },
+      });
+    }
+
+    return cards;
+  }, [
+    foraDoPrazo,
+    contents,
+    onResolverData,
+    navigate,
+    retornoPlanejamento,
+    roteiroIds,
+    roteirosParaGravar,
+    escrita,
+    edicao,
+    onOpenGravacao,
+    faltamParaMeta,
+    metaTotal,
+    preenchidos,
+    onAddReserva,
+    pendentesHoje,
+    deHoje,
+    avisos,
+    onLocalizarAviso,
+  ]);
+
+  const avisosConcentracao = useMemo(
+    () => avisos.filter(aviso => blocoDoAviso(aviso) === 'concentracao'),
+    [avisos],
+  );
+
+  const rolarParaSecao = (alvoId: string) => {
+    document.getElementById(alvoId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const resumoProducao = `${escrita} em escrita · ${gravacao} para gravar · ${edicao} em edição`;
+
   return (
-    <div ref={rootRef} className={cn('w-full stack-md', className)}>
-      <Surface
-        variant="outlined"
-        padding="none"
-        className="w-full overflow-hidden rounded-[var(--radius-card)] bg-[var(--bg-elevated)] border-[var(--border-subtle)] shadow-[var(--shadow-soft)] p-4 sm:p-6"
-      >
-        {/* Top Header */}
-        {avisoPeriodo ? (
-          <Text variant="meta" as="p" className="mb-2 text-[var(--text-tertiary)]">
+    <div className={cn('flex h-full min-h-0 flex-col bg-[var(--bg-elevated)]', className)}>
+      {/* Cabeçalho fixo do Drawer */}
+      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-3 sm:px-6">
+        <div className="flex min-w-0 items-center gap-2.5">
+          {onFechar ? (
+            <AppButton
+              variant="ghost"
+              size="xs"
+              iconOnly
+              onClick={onFechar}
+              aria-label="Fechar painel"
+              className="shrink-0"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </AppButton>
+          ) : null}
+
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <Text variant="itemTitle" as="h2" className="truncate text-[var(--text-primary)] leading-tight">
+                Saúde do Planejamento
+              </Text>
+              {filtroRotulo ? <Badge variant="neutral">Filtro: {filtroRotulo}</Badge> : null}
+            </div>
+
+            <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+              <Text variant="meta" as="span" className="text-[var(--text-secondary)]">
+                {rotuloPeriodo}
+              </Text>
+
+              {onPeriodoAnterior && onProximoPeriodo ? (
+                <div className="inline-flex items-center gap-0.5">
+                  <button
+                    type="button"
+                    onClick={onPeriodoAnterior}
+                    aria-label="Período anterior"
+                    className="inline-flex h-5 w-5 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onProximoPeriodo}
+                    aria-label="Próximo período"
+                    className="inline-flex h-5 w-5 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        <AppButton
+          variant="secondary"
+          size="xs"
+          leftIcon={<SlidersHorizontal className="h-3.5 w-3.5" aria-hidden />}
+          onClick={() => navigate('/editorial')}
+          className="shrink-0"
+        >
+          Metas
+        </AppButton>
+      </header>
+
+      {avisoPeriodo ? (
+        <div className="shrink-0 border-b border-[var(--border-subtle)] bg-[var(--bg-primary)] px-4 py-2 sm:px-6">
+          <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
             {avisoPeriodo}
           </Text>
-        ) : null}
-
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <span
-              className={cn(
-                'h-2.5 w-2.5 rounded-full shrink-0',
-                statusGeral === 'erro' ? 'bg-[var(--accent-red)]' : statusGeral === 'aviso' ? 'bg-[var(--accent-orange)]' : 'bg-[var(--accent-green)]'
-              )}
-              aria-hidden
-            />
-            <Text variant="sectionTitle" as="h2" className="text-[var(--text-primary)]">
-              Saúde Editorial — {rotuloPeriodo}
-            </Text>
-            {filtroRotulo ? (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-[var(--radius-pill)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
-                <Text variant="meta" as="span">Filtro: {filtroRotulo}</Text>
-              </span>
-            ) : null}
-          </div>
-
-          {emAnalise ? (
-            onFechar ? (
-              <AppButton variant="ghost" size="sm" onClick={onFechar} className="shrink-0">
-                Fechar
-              </AppButton>
-            ) : null
-          ) : (
-            <button
-              type="button"
-              onClick={toggleExpanded}
-              className="inline-flex items-center gap-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] rounded-[var(--radius-sm)] px-2 py-1"
-            >
-              <Text variant="meta" as="span">
-                {expanded ? 'Ocultar detalhes' : 'Ver detalhes'}
-              </Text>
-              {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-            </button>
-          )}
         </div>
+      ) : null}
 
-        {aberto && (
-          <div className="stack-md mt-4 pt-3 border-t border-[var(--border-subtle)]">
-            {/* Resumo visual no topo (Cards de Resultado) */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-              {/* Card 1: Urgências */}
-              <button
-                type="button"
-                onClick={() => toggleSecao('urgencias')}
-                className={cn(
-                  'rounded-[var(--radius-card)] border p-3 text-left transition-all hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]',
-                  foraDoPrazo.length > 0
-                    ? 'border-[color-mix(in_srgb,var(--accent-red)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent-red)_6%,var(--bg-primary))]'
-                    : 'border-[var(--border-subtle)] bg-[var(--bg-primary)]'
-                )}
-              >
-                <div className="flex items-center justify-between gap-1">
-                  <Text variant="label" as="span" className="text-[var(--text-tertiary)] uppercase tracking-wider truncate">
-                    Hoje & Em aberto
-                  </Text>
-                  <span
-                    className={cn(
-                      'h-1.5 w-1.5 rounded-full shrink-0',
-                      foraDoPrazo.length > 0 ? 'bg-[var(--accent-red)]' : pendentesHoje.length > 0 ? 'bg-[var(--accent-orange)]' : 'bg-[var(--accent-green)]'
-                    )}
-                  />
-                </div>
-                <div className="mt-1">
-                  <Text variant="bodyStrong" as="p" className="text-[var(--text-primary)] truncate">
-                    {foraDoPrazo.length > 0
-                      ? `${foraDoPrazo.length} com data passada`
-                      : pendentesHoje.length > 0
-                      ? `${pendentesHoje.length} em aberto`
-                      : 'Em dia'}
-                  </Text>
-                </div>
-              </button>
+      {/* Corpo rolável: Placar + 3 Perguntas */}
+      <div
+        ref={scrollRef}
+        className="flex-1 min-h-0 overflow-y-auto bg-[var(--bg-primary)] px-4 py-4 sm:px-6 sm:py-6"
+      >
+        <div className="stack-lg">
+          <SaudePlacar
+            sinais={placarSinais}
+            escopoRotulo={escopoRotulo}
+            onSelecionarSecao={rolarParaSecao}
+          />
 
-              {/* Card 2: Volume */}
-              <button
-                type="button"
-                onClick={() => toggleSecao('urgencias')}
-                className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-3 text-left transition-all hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-              >
-                <div className="flex items-center justify-between gap-1">
-                  <Text variant="label" as="span" className="text-[var(--text-tertiary)] uppercase tracking-wider truncate">
-                    Volume
-                  </Text>
-                  {metaTotal != null ? (
-                    <Text variant="meta" as="span" className="text-[var(--text-secondary)]">
-                      {percentualGeral}%
-                    </Text>
-                  ) : null}
-                </div>
-                <div className="mt-1">
-                  <Text variant="bodyStrong" as="p" className="text-[var(--text-primary)] truncate">
-                    {comFiltro
-                      ? `${preenchidos} na seleção`
-                      : metaTotal == null
-                      ? `${preenchidos} previstos`
-                      : `${preenchidos} de ${metaTotal} espaços`}
-                  </Text>
-                </div>
-              </button>
+          <div className="h-px bg-[var(--border-color)]" aria-hidden />
 
-              {/* Card 3: Produção */}
-              <button
-                type="button"
-                onClick={() => toggleSecao('producao')}
-                className={cn(
-                  'rounded-[var(--radius-card)] border p-3 text-left transition-all hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]',
-                  gravacao > 0
-                    ? 'border-[color-mix(in_srgb,var(--brand-accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--brand-accent)_6%,var(--bg-primary))]'
-                    : 'border-[var(--border-subtle)] bg-[var(--bg-primary)]'
-                )}
-              >
-                <div className="flex items-center justify-between gap-1">
-                  <Text variant="label" as="span" className="text-[var(--text-tertiary)] uppercase tracking-wider truncate">
-                    Produção
-                  </Text>
-                  <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', gravacao > 0 ? 'bg-[var(--brand-accent)]' : 'bg-[var(--accent-green)]')} />
-                </div>
-                <div className="mt-1">
-                  <Text variant="bodyStrong" as="p" className="text-[var(--text-primary)] truncate">
-                    {gravacao} para gravar
-                  </Text>
-                </div>
-              </button>
+          <SaudeEquilibrioSection
+            pilaresNaConta={pilaresNaConta}
+            previstosPorPilar={previstosPorPilar}
+            totalPrevistosPilares={totalPrevistosPilares}
+            itensPorPilar={itensPorPilar}
+            itensSemPilar={itensSemPilar}
+            textoSemPauta={textoSemPauta}
+            objetivos={objetivos}
+            distribuicaoAssuntos={distribuicaoAssuntos}
+            publicacoes={publicacoes}
+            faixasContas={faixas?.contas ?? []}
+            avisosConcentracao={avisosConcentracao}
+            equilibrioStatus={equilibrioStatus}
+            onAbrirLista={setLista}
+            onAbrirEditorialDirecao={() => navigate('/editorial?aba=direcao')}
+            onLocalizarAviso={onLocalizarAviso}
+          />
 
-              {/* Card 4: Séries */}
-              <button
-                type="button"
-                onClick={() => toggleSecao('series')}
-                className={cn(
-                  'rounded-[var(--radius-card)] border p-3 text-left transition-all hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]',
-                  seriesComPendencias.length > 0
-                    ? 'border-[var(--border-color)] bg-[var(--surface-subtle)] dark:bg-[var(--bg-secondary)]/15 dark:border-[var(--accent-orange)]/30'
-                    : 'border-[var(--border-subtle)] bg-[var(--bg-primary)]'
-                )}
-              >
-                <div className="flex items-center justify-between gap-1">
-                  <Text variant="label" as="span" className="text-[var(--text-tertiary)] uppercase tracking-wider truncate">
-                    Séries
-                  </Text>
-                  <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', seriesComPendencias.length > 0 ? 'bg-[var(--accent-orange)]' : semFrequencia ? 'bg-[var(--warning)]' : nenhumaAcompanhada || seriesFecharamAbaixo.length > 0 ? 'bg-[var(--text-tertiary)]' : 'bg-[var(--accent-green)]')} />
-                </div>
-                <div className="mt-1">
-                  <Text variant="bodyStrong" as="p" className="text-[var(--text-primary)] truncate">
-                    {seriesComPendencias.length > 0 ? `${seriesComPendencias.length} para revisar` : semFrequencia ? `${semFrequencia.total} sem ritmo definido` : textoSeriesSemPendencia}
-                  </Text>
-                </div>
-              </button>
+          <SaudeFaltaAlgoSection
+            cards={alertaCards}
+            resumoProducao={resumoProducao}
+            textoExcesso={textoExcesso}
+          />
 
-              {/* Card 5: Objetivos */}
-              <button
-                type="button"
-                onClick={() => toggleSecao('objetivos')}
-                className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-3 text-left transition-all hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-              >
-                <div className="flex items-center justify-between gap-1">
-                  <Text variant="label" as="span" className="text-[var(--text-tertiary)] uppercase tracking-wider truncate">
-                    Objetivos
-                  </Text>
-                  <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', objetivos?.semObjetivo.length ? 'bg-[var(--accent-orange)]' : 'bg-[var(--accent-green)]')} />
-                </div>
-                <div className="mt-1">
-                  <Text variant="bodyStrong" as="p" className="text-[var(--text-primary)] truncate">
-                    {objetivos?.semObjetivo.length ? `${objetivos.semObjetivo.length} sem objetivo definido` : 'Sem roteiros pendentes'}
-                  </Text>
-                </div>
-              </button>
-
-              {/* Card 6: Assuntos & Pilares */}
-              <button
-                type="button"
-                onClick={() => toggleSecao('pilares-assuntos')}
-                className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-3 text-left transition-all hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-              >
-                <div className="flex items-center justify-between gap-1">
-                  <Text variant="label" as="span" className="text-[var(--text-tertiary)] uppercase tracking-wider truncate">
-                    Assuntos & Pilares
-                  </Text>
-                  <span
-                    className={cn(
-                      'h-1.5 w-1.5 rounded-full shrink-0',
-                      distribuicaoAssuntos.semAssunto.length > 0 ? 'bg-[var(--accent-orange)]' : 'bg-[var(--accent-green)]'
-                    )}
-                  />
-                </div>
-                <div className="mt-1">
-                  <Text variant="bodyStrong" as="p" className="text-[var(--text-primary)] truncate">
-                    {distribuicaoAssuntos.linhas.length} {distribuicaoAssuntos.linhas.length === 1 ? 'assunto' : 'assuntos'}
-                  </Text>
-                </div>
-              </button>
-            </div>
-
-            {faixas && (faixas.gerais.length > 0 || faixas.contas.length > 0) ? (
-              <FaixasDaSaude faixas={faixas} onAbrir={abrirSecaoDaSaude} />
-            ) : null}
-
-            {/* SEÇÕES EM ACORDEON INDEPENDENTE (Multi-Open) */}
-            <div className="stack-md mt-2">
-              {/* ---------------- 1. HOJE & URGÊNCIAS ---------------- */}
-              <SecaoAccordion
-                id="urgencias"
-                titulo="1. Hoje & Em aberto"
-                icon={AlertCircle}
-                aberta={secoesAbertas.has('urgencias')}
-                onToggle={() => toggleSecao('urgencias')}
-                alerta={foraDoPrazo.length > 0 ? 'erro' : pendentesHoje.length > 0 || avisosVespera.length > 0 ? 'aviso' : 'ok'}
-                resumo={
-                  foraDoPrazo.length > 0
-                    ? `${foraDoPrazo.length} com data passada`
-                    : pendentesHoje.length > 0
-                    ? `${pendentesHoje.length} em aberto hoje`
-                    : `${deHoje.length} hoje · em dia`
-                }
-              >
-                {/* Publicações com data passada */}
-                {foraDoPrazo.length > 0 ? (
-                  <div className="rounded-[var(--radius-card)] border border-[color-mix(in_srgb,var(--accent-red)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent-red)_8%,var(--bg-elevated))] p-3.5 stack-sm">
-                    <div className="flex items-center gap-2">
-                      <AlertCircle className="h-4 w-4 text-[var(--accent-red)] shrink-0" />
-                      <Text variant="bodyStrong" as="h4" className="text-[var(--accent-red)]">
-                        {foraDoPrazo.length} {foraDoPrazo.length === 1 ? 'publicação pode ser retomada' : 'publicações podem ser retomadas'}
-                      </Text>
-                    </div>
-                    <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-                      Publicações com data anterior a hoje que ainda não foram marcadas como postadas nem reprogramadas.
-                    </Text>
-
-                    <ul className="stack-xs mt-1">
-                      {foraDoPrazo.map(item => {
-                        const content = contents.find(c => c.id === item.contentId);
-                        const tituloItem = content?.title || (item.postItId ? 'Post-it sem roteiro' : 'Conteúdo');
-                        const dataFmt = item.data ? format(parseISO(item.data), 'dd/MM') : 'Sem data';
-
-                        return (
-                          <li
-                            key={item.id}
-                            className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border border-[var(--border-subtle)]"
-                          >
-                            <div className="min-w-0">
-                              <Text variant="bodyStrong" as="span" className="text-[var(--text-primary)] truncate block">
-                                {tituloItem}
-                              </Text>
-                              <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">
-                                Previsto para {dataFmt} · Etapa: {item.etapa ?? 'planejamento'}
-                              </Text>
-                            </div>
-
-                            <div className="flex shrink-0 items-center gap-2">
-                              {onResolverData ? <AppButton variant="secondary" size="sm" onClick={() => onResolverData(item)}>Resolver data</AppButton> : null}
-                            {item.contentId && contents.some(c => c.id === item.contentId) ? (
-                              <AppButton
-                                variant="secondary"
-                                size="sm"
-                                onClick={() =>
-                                  navigate(
-                                    buildContentDetailRoute(
-                                      item.contentId,
-                                      item.etapa === 'roteiro' ? 'roteiro' : 'publicacao'
-                                    ),
-                                    withDetailBack(retornoPlanejamento)
-                                  )
-                                }
-                                className="shrink-0"
-                              >
-                                Abrir conteúdo
-                              </AppButton>
-                            ) : null}
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                ) : null}
-
-                {/* Conteúdos de Hoje */}
-                {deHoje.length > 0 ? (
-                  <div className="stack-xs">
-                    <Text variant="label" as="h4" className="tracking-wider text-[var(--text-tertiary)] uppercase">
-                      Previstos para hoje · {deHoje.length}
-                    </Text>
-                    <ul className="stack-xs">
-                      {deHoje.map(item => {
-                        const content = contents.find(c => c.id === item.contentId);
-                        const tituloItem = content?.title || (item.postItId ? 'Post-it sem roteiro' : 'Conteúdo de hoje');
-                        const concluido = item.realizada || item.etapa === 'postado';
-
-                        return (
-                          <li
-                            key={item.id}
-                            className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-[var(--radius-sm)] bg-[var(--surface-subtle)] border border-[var(--border-subtle)]"
-                          >
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span
-                                className={cn(
-                                  'h-2 w-2 rounded-full shrink-0',
-                                  concluido ? 'bg-[var(--accent-green)]' : 'bg-[var(--accent-orange)]'
-                                )}
-                              />
-                              <div className="min-w-0">
-                                <Text variant="body" as="span" className="text-[var(--text-primary)] truncate block">
-                                  {tituloItem}
-                                </Text>
-                                <Text variant="meta" as="span" className="text-[var(--text-secondary)]">
-                                  {concluido ? 'Publicado' : `Etapa: ${item.etapa ?? 'planejamento'}`}
-                                </Text>
-                              </div>
-                            </div>
-
-                            {item.contentId ? (
-                              <AppButton
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  navigate(
-                                    buildContentDetailRoute(
-                                      item.contentId,
-                                      item.etapa === 'roteiro' ? 'roteiro' : 'publicacao'
-                                    ),
-                                    withDetailBack(retornoPlanejamento)
-                                  )
-                                }
-                                className="shrink-0"
-                              >
-                                Abrir conteúdo
-                              </AppButton>
-                            ) : null}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                ) : null}
-
-                {/* Avisos de Véspera */}
-                {avisosVespera.length > 0 ? (
-                  <ul className="stack-xs border-t border-[var(--border-subtle)] pt-2">
-                    {avisosVespera.map(aviso => (
-                      <AvisoDetalhado key={aviso.id} aviso={aviso} onLocalizar={onLocalizarAviso} />
-                    ))}
-                  </ul>
-                ) : null}
-
-                {foraDoPrazo.length === 0 && pendentesHoje.length === 0 && avisosVespera.length === 0 ? (
-                  <div className="flex items-center gap-2 p-3 rounded-[var(--radius-sm)] bg-[var(--surface-subtle)] text-[var(--text-secondary)]">
-                    <CheckCircle2 className="h-4 w-4 text-[var(--accent-green)] shrink-0" />
-                    <Text variant="meta" as="p">
-                      Tudo em dia para hoje e nada com data passada esperando.
-                    </Text>
-                  </div>
-                ) : null}
-
-                {/* Banner de Espaços e Reserva quando faltam para meta */}
-                {faltamParaMeta > 0 ? (
-                  <div className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--surface-subtle)] dark:bg-[var(--bg-secondary)]/15 dark:border-[var(--accent-orange)]/30 p-3 flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 text-[var(--text-primary)] dark:text-[var(--border-color)]">
-                      <AlertCircle className="h-4 w-4 shrink-0 text-[var(--accent-orange)]" />
-                      <Text variant="body" as="span" className="text-[var(--text-primary)] dark:text-[var(--border-color)]">
-                        {preenchidos} de {metaTotal} espaços: mais {faltamParaMeta} pra fechar o período.
-                      </Text>
-                    </div>
-                    <AppButton
-                      variant="secondary"
-                      size="sm"
-                      onClick={onAddReserva}
-                      className="border-[var(--accent-orange)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] shrink-0"
-                    >
-                      Adicionar reserva
-                    </AppButton>
-                  </div>
-                ) : null}
-                {textoExcesso ? (
-                  <Text variant="body" as="p" className="text-[var(--text-secondary)]">{textoExcesso}</Text>
-                ) : null}
-                {textoSemPauta ? (
-                  <Text variant="body" as="p" className="text-[var(--text-secondary)]">{textoSemPauta}</Text>
-                ) : null}
-              </SecaoAccordion>
-
-              {/* ---------------- 2. PRODUÇÃO & GRAVAÇÃO ---------------- */}
-              <SecaoAccordion
-                id="producao"
-                titulo="2. Produção & Gravação"
-                icon={Clapperboard}
-                aberta={secoesAbertas.has('producao')}
-                onToggle={() => toggleSecao('producao')}
-                alerta={gravacao > 0 ? 'aviso' : 'ok'}
-                resumo={`${roteiroIds.length} disponíveis para gravar · ${edicao} em edição · ${escrita} em escrita`}
-              >
-                {/* Banner Principal de Gravação com Roteiros Pré-selecionados */}
-                {roteiroIds.length > 0 ? (
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-card)] border border-[color-mix(in_srgb,var(--brand-accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--brand-accent)_8%,var(--bg-elevated))] p-3.5">
-                    <div className="min-w-0">
-                      <Text variant="bodyStrong" as="h4" className="text-[var(--text-primary)]">
-                        {roteiroIds.length === 1 ? '1 roteiro disponível para gravar' : `${roteiroIds.length} roteiros disponíveis para gravar`}
-                      </Text>
-                      <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-                        Prepare uma sessão de gravação com os roteiros deste período pré-selecionados.
-                      </Text>
-                    </div>
-                    <AppButton
-                      variant="primary"
-                      size="sm"
-                      count={roteiroIds.length}
-                      onClick={() => onOpenGravacao(roteiroIds)}
-                      className="shrink-0"
-                    >
-                      Preparar sessão
-                    </AppButton>
-                  </div>
-                ) : null}
-
-                {/* Lista de Roteiros Prontos para Gravar */}
-                {roteirosParaGravar.length > 0 ? (
-                  <div className="stack-xs">
-                    <Text variant="label" as="h4" className="tracking-wider text-[var(--text-tertiary)] uppercase">
-                      Roteiros aguardando gravação · {roteirosParaGravar.length}
-                    </Text>
-                    <ul className="stack-xs">
-                      {roteirosParaGravar.map(item => {
-                        const content = contents.find(c => c.id === item.contentId);
-                        const tituloItem = content?.title || 'Roteiro sem título';
-                        const dataFmt = item.data ? format(parseISO(item.data), 'dd/MM') : 'Sem data';
-
-                        return (
-                          <li
-                            key={item.id}
-                            className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-[var(--radius-sm)] bg-[var(--surface-subtle)] border border-[var(--border-subtle)]"
-                          >
-                            <div className="min-w-0">
-                              <Text variant="bodyStrong" as="span" className="text-[var(--text-primary)] truncate block">
-                                {tituloItem}
-                              </Text>
-                              <Text variant="meta" as="span" className="text-[var(--text-secondary)]">
-                                Data prevista: {dataFmt} · Status: Produção
-                              </Text>
-                            </div>
-
-                            {item.contentId ? (
-                              <AppButton
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  navigate(
-                                    buildContentDetailRoute(item.contentId, 'gravacao'),
-                                    withDetailBack(retornoPlanejamento)
-                                  )
-                                }
-                                className="shrink-0"
-                              >
-                                Abrir roteiro
-                              </AppButton>
-                            ) : null}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                ) : null}
-
-                {/* Resumo de outras etapas */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-[var(--border-subtle)]">
-                  <div className="p-2.5 rounded-[var(--radius-sm)] bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                    <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-                      {escrita} ideia(s) em escrita
-                    </Text>
-                  </div>
-                  <div className="p-2.5 rounded-[var(--radius-sm)] bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                    <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-                      {edicao} peça(s) em edição
-                    </Text>
-                  </div>
-                </div>
-
-                {/* Avisos de Produção */}
-                {avisosDe('producao').length > 0 ? (
-                  <ul className="stack-xs border-t border-[var(--border-subtle)] pt-2">
-                    {avisosDe('producao').map(aviso => (
-                      <AvisoDetalhado key={aviso.id} aviso={aviso} onLocalizar={onLocalizarAviso} />
-                    ))}
-                  </ul>
-                ) : null}
-              </SecaoAccordion>
-
-              {/* ---------------- 3. SÉRIES & CONTINUIDADE ---------------- */}
-              <SecaoAccordion
-                id="series"
-                titulo="3. Séries & Continuidade"
-                icon={Layers}
-                aberta={secoesAbertas.has('series')}
-                onToggle={() => toggleSecao('series')}
-                alerta={seriesAbaixo.length > 0 ? 'aviso' : seriesConcentradas.length > 0 ? 'aviso' : 'ok'}
-                resumo={
-                  [
-                    resumoDesvios || (seriesComPendencias.length > 0 ? `${seriesComPendencias.length} para revisar` : ''),
-                    semFrequencia?.texto ?? '',
-                  ].filter(Boolean).join(' · ')
-                    || (nenhumaAcompanhada ? 'Nenhuma série acompanhada no período'
-                    : seriesFecharamAbaixo.length > 0 ? `${linhasContinuidade.length} acompanhadas · em dia daqui pra frente`
-                    : `${linhasContinuidade.length} acompanhadas · em dia`)
-                }
-              >
-                {nenhumaAcompanhada ? (
-                  <div id="conferencia-series" className="scroll-mt-24 p-3 rounded-[var(--radius-sm)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] stack-xs">
-                    <Text variant="body" as="p">
-                      Nada marcado para acompanhamento neste período.
-                    </Text>
-                    <button
-                      type="button"
-                      onClick={() => navigate('/series')}
-                      className="w-fit text-left text-[var(--brand-accent-text)] hover:underline focus-visible:outline-none"
-                    >
-                      <Text variant="meta" as="span" className="text-[var(--brand-accent-text)]">
-                        Editar séries ›
-                      </Text>
-                    </button>
-                  </div>
-                ) : (
-                  <div className="stack-sm">
-                    <TabelaConferenciaSeries linhas={linhasDaConferencia(linhasContinuidade, hojeIso, counts.periodo)} />
-                    {/* Acompanhadas sem ritmo: aviso neutro, fora de "em dia" e de "abaixo" */}
-                    {semFrequencia ? (
-                      <div
-                        role="status"
-                        className="rounded-[var(--radius-sm)] border p-3 stack-xs"
-                        style={{ backgroundColor: 'var(--warning-bg)', borderColor: 'color-mix(in srgb, var(--warning) 30%, transparent)' }}
-                      >
-                        <Text variant="bodyStrong" as="p" className="text-[var(--text-primary)]">
-                          {semFrequencia.texto}
-                        </Text>
-                        <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-                          {TEXTO_ACOMPANHADA_SEM_RITMO}
-                        </Text>
-                      </div>
-                    ) : null}
-                    {/* Lista Agrupada por Série */}
-                    {linhasContinuidade.map(linha => {
-                      const futuros = linha.intervalos.filter(i => i.fim >= hojeIso);
-                      const passados = linha.intervalos.filter(i => i.fim < hojeIso);
-                      const situacaoLinha = situacaoDoRecorte(linha.intervalos, hojeIso);
-                      const futurosExcesso = futuros.filter(i => i.quantidade > i.meta && !i.pausada);
-                      const temAtencao = situacaoLinha === 'abaixo' || futurosExcesso.length > 0 || escopos.some(e => e.serieId === linha.serieId && e.atencao);
-
-                      return (
-                        <details
-                          key={linha.chave ?? linha.serieId}
-                          open={seriesAbertas.has(linha.chave ?? linha.serieId)}
-                          onToggle={event => guardarAbertura(linha.chave ?? linha.serieId, event.currentTarget.open)}
-                          className={cn(
-                            'rounded-[var(--radius-card)] border p-3.5 stack-sm transition-all',
-                            temAtencao
-                              ? 'border-[var(--border-color)] bg-[var(--surface-subtle)]/40 dark:bg-[var(--bg-secondary)]/10 dark:border-[var(--accent-orange)]/30'
-                              : 'border-[var(--border-subtle)] bg-[var(--surface-subtle)]'
-                          )}
-                        >
-                          {/* Cabeçalho da Série */}
-                          <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2">
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <Text variant="bodyStrong" as="h4" className="text-[var(--text-primary)]">
-                                  {linha.nome}
-                                </Text>
-                                {linha.tipo === 'quadro' ? (
-                                  <Badge variant="neutral" className="px-1.5 py-0">
-                                    {linha.paiNome ? `Quadro de ${linha.paiNome}` : 'Quadro'}
-                                  </Badge>
-                                ) : linha.tipo === 'temporada' ? (
-                                  <Badge variant="neutral" className="px-1.5 py-0">
-                                    {linha.paiNome ? `Temporada de ${linha.paiNome}` : 'Temporada'}
-                                  </Badge>
-                                ) : null}
-                                {linha.tipo === 'temporada' && linha.progresso && linha.progresso.total > 0 ? (
-                                  <Badge variant="tag" className="px-1.5 py-0">
-                                    {textoDoProgresso(linha.progresso, linha.progresso.limiteDias)}
-                                  </Badge>
-                                ) : null}
-                              </div>
-                              <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-                                {linha.frequencia}
-                                {linha.intervalos.length > 0 ? (
-                                  <span className="ml-1">· {textoDaMetaNoRecorte(linha.intervalos, counts.periodo)} · {rotuloDaSituacaoNoRecorte(situacaoLinha)}</span>
-                                ) : escopos.some(e => e.serieId === linha.serieId && e.atencao) ? (
-                                  <span className="ml-1 text-[var(--accent-orange)]">· Revisar acompanhamento</span>
-                                ) : linha.intervalos.length === 0 && escopos.some(e => e.serieId === linha.serieId && e.semFrequencia) ? (
-                                  <span className="ml-1 text-[var(--text-tertiary)]">· Sem ritmo definido</span>
-                                ) : null}
-                                {futurosExcesso.length > 0 ? (
-                                  <span className="ml-1 text-[var(--accent-orange)]">· {futurosExcesso.length} intervalo(s) com excesso</span>
-                                ) : null}
-                              </Text>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={event => {
-                                event.stopPropagation();
-                                const alvo = linha.temporadaId ? `t:${linha.temporadaId}` : `s:${linha.serieId}`;
-                                navigate(`/editorial?editar=${encodeURIComponent(alvo)}`);
-                              }}
-                              className="text-[var(--brand-accent-text)] hover:underline inline-flex items-center gap-1 focus-visible:outline-none"
-                            >
-                              <Text variant="meta" as="span" className="text-[var(--brand-accent-text)]">
-                                Ajustar meta
-                              </Text>
-                            </button>
-                          </summary>
-
-                          {/* Intervalos Futuros (Ações de Planejamento) */}
-                          {futuros.length > 0 ? (
-                            <div className="stack-xs mt-1">
-                              {futuros.map(intervalo => {
-                                const itensDoIntervalo = linha.itens.filter(
-                                  i => i.data && i.data >= intervalo.inicio && i.data <= intervalo.fim
-                                );
-                                const itemIds = itensDoIntervalo
-                                  .map(i => i.contentId || i.postItId)
-                                  .filter(Boolean) as string[];
-
-                                const situacao = situacaoDaJanela(intervalo, hojeIso);
-                                const excesso = intervalo.quantidade > intervalo.meta && !intervalo.pausada;
-                                const faltam = Math.max(0, intervalo.meta - intervalo.quantidade);
-
-                                if (situacao === 'no-prazo' && faltam > 0) {
-                                  return (
-                                    <div
-                                      key={intervalo.inicio}
-                                      className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-[var(--radius-sm)] bg-[var(--surface-subtle)] border border-[var(--border-subtle)]"
-                                    >
-                                      <div>
-                                        <Text variant="bodyStrong" as="span" className="text-[var(--text-primary)]">
-                                          {rotuloIntervalo(intervalo)}
-                                        </Text>
-                                        <Text variant="meta" as="span" className="ml-2 text-[var(--text-secondary)]">
-                                          {intervalo.quantidade} de {intervalo.meta} {intervalo.meta === 1 ? 'episódio' : 'episódios'} · No prazo, até {format(parseISO(intervalo.fim), 'dd/MM')} ({textoMaisPraFechar(faltam, intervalo)})
-                                        </Text>
-                                      </div>
-
-                                      {onPlanejarIntervalo ? (
-                                        <AppButton
-                                          variant="secondary"
-                                          size="sm"
-                                          onClick={() =>
-                                            onPlanejarIntervalo({
-                                              serieId: linha.serieId,
-                                              inicio: intervalo.inicio,
-                                              fim: intervalo.fim,
-                                            })
-                                          }
-                                        >
-                                          Planejar neste intervalo
-                                        </AppButton>
-                                      ) : null}
-                                    </div>
-                                  );
-                                }
-
-                                if (excesso) {
-                                  return (
-                                    <div
-                                      key={intervalo.inicio}
-                                      className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-[var(--radius-sm)] bg-[color-mix(in_srgb,var(--accent-orange)_10%,var(--bg-elevated))] border border-[color-mix(in_srgb,var(--accent-orange)_30%,transparent)]"
-                                    >
-                                      <div>
-                                        <Text variant="bodyStrong" as="span" className="text-[var(--text-primary)]">
-                                          {rotuloIntervalo(intervalo)}
-                                        </Text>
-                                        <Text variant="meta" as="span" className="ml-2 text-[var(--text-secondary)]">
-                                          {intervalo.quantidade} previstos · frequência de {intervalo.meta}
-                                        </Text>
-                                      </div>
-
-                                      {onReorganizarEpisodios ? (
-                                        <AppButton
-                                          variant="secondary"
-                                          size="sm"
-                                          onClick={() =>
-                                            onReorganizarEpisodios({
-                                              inicio: intervalo.inicio,
-                                              fim: intervalo.fim,
-                                              itemIds,
-                                            })
-                                          }
-                                          className="border-[var(--accent-orange)] text-[var(--accent-orange)]"
-                                        >
-                                          Reorganizar episódios
-                                        </AppButton>
-                                      ) : null}
-                                    </div>
-                                  );
-                                }
-
-                                return (
-                                  <div
-                                    key={intervalo.inicio}
-                                    className="flex items-center justify-between gap-2 px-2 py-1 text-[var(--text-secondary)]"
-                                  >
-                                    <Text variant="meta" as="span">
-                                      {rotuloIntervalo(intervalo)}: {intervalo.quantidade} de {intervalo.meta} episódios · {rotuloDaSituacaoNoRecorte(situacao)}
-                                    </Text>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          ) : null}
-
-                          {(linha.diasSeguidos ?? []).filter(d => d.seguinte >= hojeIso).map(d => (
-                            <Surface key={d.dia} variant="info" padding="sm" className="flex flex-wrap items-center justify-between gap-2">
-                              <Text variant="meta">Episódios em dias seguidos: {format(parseISO(d.dia), 'dd/MM')} e {format(parseISO(d.seguinte), 'dd/MM')}</Text>
-                              {onReorganizarEpisodios ? <AppButton variant="secondary" size="sm" onClick={() => onReorganizarEpisodios({inicio: d.dia, fim: d.seguinte, itemIds: d.contentIds})}>Reorganizar episódios</AppButton> : null}
-                            </Surface>
-                          ))}
-                          {(linha.distancias ?? []).filter(d => d.fim >= hojeIso).map(d => (
-                            <Surface key={d.inicio} variant="info" padding="sm" className="flex flex-wrap items-center justify-between gap-2">
-                              <Text variant="meta">{d.dias} dias sem episódio: {format(parseISO(d.inicio), 'dd/MM')} a {format(parseISO(d.fim), 'dd/MM')}</Text>
-                              {onPlanejarIntervalo ? <AppButton variant="secondary" size="sm" onClick={() => onPlanejarIntervalo({serieId: linha.serieId, inicio: d.inicio, fim: d.fim})}>Planejar neste intervalo</AppButton> : null}
-                            </Surface>
-                          ))}
-
-                          {/* Intervalos Encerrados no Passado (Histórico para Consulta, sem Ações de Planejamento) */}
-                          {passados.length > 0 ? (
-                            <details open={seriesAbertas.has('historico:' + linha.serieId)} onToggle={event => guardarAbertura('historico:' + linha.serieId, event.currentTarget.open)} className="mt-1 pt-1 border-t border-[var(--border-subtle)]">
-                              <summary className="cursor-pointer">
-                                <Text variant="meta" as="span" className="text-[var(--text-tertiary)] hover:underline">
-                                  Histórico de intervalos encerrados — {passados.length}
-                                </Text>
-                              </summary>
-                              <ul className="mt-1 stack-xs pl-2">
-                                {passados.map(intervalo => (
-                                  <li key={intervalo.inicio}>
-                                    <Text
-                                      variant="meta"
-                                      as="span"
-                                      className={cn(
-                                        'tabular-nums',
-                                        intervalo.abaixo ? 'text-[var(--text-secondary)]' : 'text-[var(--text-tertiary)]'
-                                      )}
-                                    >
-                                      {rotuloIntervalo(intervalo)}: {intervalo.quantidade} de {intervalo.meta} episódios · {rotuloDaSituacaoNoRecorte(situacaoDaJanela(intervalo, hojeIso))}
-                                    </Text>
-                                  </li>
-                                ))}
-                              </ul>
-                            </details>
-                          ) : null}
-
-                          {/* Reservas em post-it */}
-                          {linha.reservadas.length > 0 ? (
-                            <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
-                              {linha.reservadas.length === 1 ? '1 intervalo reservado' : `${linha.reservadas.length} intervalos reservados`} com post-it.
-                            </Text>
-                          ) : null}
-                    {/* Escopos por Conta/Formato */}
-                    {escopos.some(escopo => escopo.serieId === linha.serieId) ? (
-                      <div className="stack-xs border-t border-[var(--border-subtle)] pt-2">
-                        <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
-                          Por conta ou formato
-                        </Text>
-                        <ul className="stack-xs">
-                          {escopos.filter(escopo => escopo.serieId === linha.serieId).map(linha => (
-                            <li key={linha.id}>
-                              <button
-                                type="button"
-                                onClick={() => navigate(`/editorial?editar=${encodeURIComponent(`s:${linha.serieId}`)}`)}
-                                className="w-full text-left rounded-[var(--radius-sm)] hover:underline focus-visible:outline-none"
-                              >
-                                <Text variant="body" as="span" className="block text-[var(--text-primary)]">
-                                  {linha.titulo}
-                                </Text>
-                                <Text variant="meta" as="span" className={cn('block', linha.atencao ? 'text-[var(--accent-orange)]' : 'text-[var(--text-secondary)]')}>
-                                  {linha.texto}
-                                </Text>
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ) : null}
-
-                        </details>
-                      );
-                    })}
-
-                    {/* Pendências de Configuração de Frequência */}
-                    {continuidade && continuidade.pendencias.length > 0 ? (
-                      <div className="stack-xs border-t border-[var(--border-subtle)] pt-2">
-                        <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
-                          {continuidade.resumoPendencias}
-                        </Text>
-                        <ul className="stack-xs">
-                          {continuidade.pendencias.map(pendencia => (
-                            <li key={`${pendencia.temporadaId ?? pendencia.serieId}:${pendencia.motivo}`}>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const alvo = pendencia.temporadaId ? `t:${pendencia.temporadaId}` : `s:${pendencia.serieId}`;
-                                  navigate(`/editorial?editar=${encodeURIComponent(alvo)}`);
-                                }}
-                                className="w-full text-left rounded-[var(--radius-sm)] hover:underline focus-visible:outline-none"
-                              >
-                                <Text variant="meta" as="span" className="text-[var(--text-secondary)]">
-                                  {pendencia.nome}: {pendencia.texto}
-                                </Text>
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ) : null}
-
-
-                  </div>
-                )}
-              </SecaoAccordion>
-
-              {/* ---------------- 4. OBJETIVOS & FUNIL ---------------- */}
-              <SecaoAccordion
-                id="objetivos"
-                titulo="4. Objetivos & Funil"
-                icon={Target}
-                aberta={secoesAbertas.has('objetivos')}
-                onToggle={() => toggleSecao('objetivos')}
-                alerta={objetivos?.semObjetivo.length ? 'aviso' : 'ok'}
-                resumo={
-                  objetivos
-                    ? objetivos.semObjetivo.length > 0
-                      ? `${objetivos.semObjetivo.length} sem objetivo definido`
-                      : 'Sem roteiros pendentes'
-                    : 'Sem dados'
-                }
-              >
-                {!objetivos || objetivos.total === 0 ? (
-                  <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-                    Nenhum conteúdo previsto no período.
-                  </Text>
-                ) : (
-                  <div className="stack-sm">
-                    {/* Alerta de Distribuição Incompleta com Botão de Ação Direta */}
-                    {objetivos.semObjetivo.length > 0 ? (
-                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--surface-subtle)] dark:bg-[var(--bg-secondary)]/15 dark:border-[var(--accent-orange)]/30 p-3.5">
-                        <div className="min-w-0">
-                          <Text variant="bodyStrong" as="h4" className="text-[var(--text-primary)] dark:text-[var(--border-color)]">
-                            Distribuição incompleta: {objetivos.semObjetivo.length} de {objetivos.total} conteúdos sem objetivo
-                          </Text>
-                          <Text variant="meta" as="p" className="text-[var(--text-primary)] dark:text-[var(--border-color)]">
-                            Defina o objetivo editorial de cada peça para equilibrar seu funil.
-                          </Text>
-                        </div>
-                        <AppButton
-                          variant="secondary"
-                          size="sm"
-                          count={objetivos.semObjetivo.length}
-                          onClick={() =>
-                            setLista({
-                              titulo: 'Sem objetivo',
-                              subtitulo: textoSemObjetivo(objetivos) ?? undefined,
-                              itens: objetivos.semObjetivo,
-                            })
-                          }
-                          className="border-[var(--accent-orange)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] shrink-0"
-                        >
-                          Definir objetivos
-                        </AppButton>
-                      </div>
-                    ) : null}
-
-                    {/* Barras de Distribuição das Funções */}
-                    <div className="stack-sm">
-                      {objetivos.linhas.map(linha => (
-                        <div key={linha.funcao} className="stack-xs">
-                          <button
-                            type="button"
-                            onClick={() => setLista({ titulo: linha.rotulo, itens: linha.itens })}
-                            className="flex w-full items-baseline justify-between gap-2 text-left rounded-[var(--radius-sm)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-                          >
-                            <Text variant="bodyStrong" as="span" className="text-[var(--text-primary)] truncate">
-                              {linha.rotulo}
-                            </Text>
-                            <Text variant="meta" as="span" className="text-[var(--text-secondary)] shrink-0 tabular-nums">
-                              {linha.quantidade} previstos ({linha.previstoPct}%)
-                              {linha.desejadoPct != null ? ` · meta ${linha.desejadoPct}%` : ''}
-                            </Text>
-                          </button>
-                          <div className="h-1.5 w-full bg-[var(--border-subtle)] rounded-[var(--radius-pill)] overflow-hidden">
-                            <div
-                              className="h-full bg-[var(--brand-accent)] rounded-[var(--radius-pill)] transition-all duration-300"
-                              style={{ width: `${Math.min(100, Math.max(linha.previstoPct, linha.quantidade > 0 ? 5 : 0))}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {!objetivos.temProporcao ? (
-                      <button
-                        type="button"
-                        onClick={() => navigate('/editorial?aba=direcao')}
-                        className="w-fit text-left text-[var(--brand-accent-text)] hover:underline focus-visible:outline-none"
-                      >
-                        <Text variant="meta" as="span" className="text-[var(--brand-accent-text)]">
-                          Definir a distribuição no Editorial ›
-                        </Text>
-                      </button>
-                    ) : null}
-                  </div>
-                )}
-              </SecaoAccordion>
-
-              {/* ---------------- 5. PUBLICAÇÕES POR CONTA ---------------- */}
-              {publicacoes && publicacoes.contas.length > 0 ? (
-                <SecaoAccordion
-                  id="contas"
-                  titulo="5. Publicações por Conta"
-                  icon={Calendar}
-                  aberta={secoesAbertas.has('contas')}
-                  onToggle={() => toggleSecao('contas')}
-                  alerta="ok"
-                  resumo={`${publicacoes.total} publicações · ${publicacoes.contas.length} contas`}
-                >
-                  <Text variant="bodyStrong" as="p" className="text-[var(--text-primary)] tabular-nums">
-                    {publicacoes.metaForaDoFiltro
-                      ? `${publicacoes.total} publicações na seleção`
-                      : publicacoes.meta == null
-                      ? `${publicacoes.total} publicações no trecho · sem meta definida`
-                      : `${publicacoes.total} de ${publicacoes.meta} publicações${publicacoes.incompleta ? ' (soma parcial)' : ''}`}
-                  </Text>
-
-                  <ul className="stack-sm mt-1">
-                    {publicacoes.contas.map(conta => (
-                      <li key={conta.id} className="p-2.5 rounded-[var(--radius-sm)] bg-[var(--surface-subtle)] border border-[var(--border-subtle)] stack-xs">
-                        <div className="flex items-center justify-between gap-2">
-                          <Text variant="bodyStrong" as="span" className="text-[var(--text-primary)]">
-                            {conta.nome}
-                          </Text>
-                          <Text variant="meta" as="span" className="text-[var(--text-secondary)] tabular-nums">
-                            {publicacoes.metaForaDoFiltro
-                              ? `${conta.total} na seleção`
-                              : conta.meta == null
-                              ? `${conta.total} publicações`
-                              : `${conta.total} de ${conta.meta}`}
-                          </Text>
-                        </div>
-                        {conta.formatos.length > 0 ? (
-                          <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">
-                            {conta.formatos.map(item => `${item.rotulo} ${item.total}`).join(' · ')}
-                          </Text>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ul>
-                </SecaoAccordion>
-              ) : null}
-
-              {/* ---------------- 6. PILARES & ASSUNTOS ---------------- */}
-              <SecaoAccordion
-                id="pilares-assuntos"
-                titulo="6. Pilares & Assuntos"
-                icon={Tag}
-                aberta={secoesAbertas.has('pilares-assuntos')}
-                onToggle={() => toggleSecao('pilares-assuntos')}
-                alerta={distribuicaoAssuntos.linhas.some(l => l.concentrado) ? 'aviso' : 'ok'}
-                resumo={`${pilaresNaConta.length} pilares · ${distribuicaoAssuntos.linhas.length} assuntos`}
-              >
-                {/* Pilares */}
-                <div className="stack-sm">
-                  <Text variant="label" as="h4" className="tracking-wider text-[var(--text-tertiary)] uppercase">
-                    Balanço por pilar
-                  </Text>
-                  {textoExcesso ? (
-                    <Text variant="meta" as="p" className="text-[var(--text-secondary)]">{textoExcesso}</Text>
-                  ) : null}
-                  {textoSemPauta ? (
-                    <Text variant="meta" as="p" className="text-[var(--text-secondary)]">{textoSemPauta}</Text>
-                  ) : null}
-                  <div className="stack-sm">
-                    {pilaresNaConta.map(pilar => {
-                      const previstos = previstosPorPilar.get(pilar.id) ?? 0;
-                      const pct = totalPrevistosPilares > 0 ? Math.round((previstos / totalPrevistosPilares) * 100) : 0;
-                      const barColor = pilar.cor || 'var(--accent)';
-                      const texto = previstos === 1 ? '1 previsto' : `${previstos} previstos`;
-                      return (
-                        <div key={pilar.id} className="stack-xs">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: barColor }} aria-hidden />
-                              <Text variant="body" as="span" className="text-[var(--text-primary)] truncate">
-                                {pilar.nome}{pilar.ativo === false ? ' (inativo)' : ''}
-                              </Text>
-                            </div>
-                            <Text variant="meta" as="span" className="text-[var(--text-secondary)] shrink-0 tabular-nums">
-                              {texto}{totalPrevistosPilares > 0 ? ` · ${pct}%` : ''}
-                            </Text>
-                          </div>
-                          <div className="h-1.5 w-full bg-[var(--border-subtle)] rounded-[var(--radius-pill)] overflow-hidden">
-                            <div
-                              className="h-full rounded-[var(--radius-pill)] transition-all duration-300"
-                              style={{ width: `${Math.min(100, Math.max(pct, previstos > 0 ? 5 : 0))}%`, backgroundColor: barColor }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {itensSemPilar.length > 0 ? (
-                    <button
-                      type="button"
-                      onClick={() => setLista({ titulo: 'Sem pilar', itens: itensSemPilar })}
-                      className="w-fit text-left text-[var(--brand-accent-text)] hover:underline focus-visible:outline-none"
-                    >
-                      <Text variant="meta" as="span" className="text-[var(--brand-accent-text)]">
-                        Sem pilar: {itensSemPilar.length} {itensSemPilar.length === 1 ? 'item' : 'itens'} (ver e atribuir) ›
-                      </Text>
-                    </button>
-                  ) : null}
-                </div>
-
-                {/* Assuntos & Variedade */}
-                <div className="stack-sm pt-3 border-t border-[var(--border-subtle)]">
-                  <div className="flex items-center justify-between gap-2">
-                    <Text variant="label" as="h4" className="tracking-wider text-[var(--text-tertiary)] uppercase">
-                      Assuntos & Concentração
-                    </Text>
-                    {distribuicaoAssuntos.linhas.length > 0 ? (
-                      <Text variant="meta" as="span" className="text-[var(--text-secondary)] tabular-nums">
-                        {distribuicaoAssuntos.linhas.length} {distribuicaoAssuntos.linhas.length === 1 ? 'assunto' : 'assuntos'}
-                      </Text>
-                    ) : null}
-                  </div>
-
-                  {distribuicaoAssuntos.linhas.length === 0 ? (
-                    <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-                      {distribuicaoAssuntos.totalPautas === 0
-                        ? 'Nenhuma pauta prevista no período.'
-                        : 'Nenhum assunto atribuído às pautas deste período.'}
-                    </Text>
-                  ) : (
-                    <div className="stack-sm">
-                      {distribuicaoAssuntos.linhas.map(linha => (
-                        <div key={linha.id} className="stack-xs">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setLista({
-                                titulo: `Assunto: ${linha.nome}`,
-                                subtitulo: `${linha.pautas} ${linha.pautas === 1 ? 'pauta' : 'pautas'} (${linha.pct}% do período)`,
-                                itens: linha.itens,
-                              })
-                            }
-                            className="flex w-full items-center justify-between gap-3 text-left rounded-[var(--radius-sm)] hover:underline focus-visible:outline-none"
-                          >
-                            <span className="flex items-center gap-1.5 min-w-0">
-                              <Tag className="h-3 w-3 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
-                              <Text variant="bodyStrong" as="span" className="text-[var(--text-primary)] truncate">
-                                {linha.nome}
-                              </Text>
-                              {linha.concentrado ? (
-                                <Badge variant="neutral" className="bg-[color-mix(in_srgb,var(--accent-orange)_20%,var(--bg-elevated))] text-[var(--accent-orange)] px-1.5 py-0">
-                                  Concentrado (&gt;33%)
-                                </Badge>
-                              ) : null}
-                            </span>
-                            <Text variant="meta" as="span" className="text-[var(--text-secondary)] shrink-0 tabular-nums">
-                              {linha.pautas} · {linha.pct}%
-                            </Text>
-                          </button>
-                          <div className="h-1.5 w-full bg-[var(--border-subtle)] rounded-[var(--radius-pill)] overflow-hidden">
-                            <div
-                              className={cn(
-                                'h-full rounded-[var(--radius-pill)] transition-all duration-300',
-                                linha.concentrado ? 'bg-[var(--accent-orange)]' : 'bg-[var(--brand-accent)]'
-                              )}
-                              style={{ width: `${Math.min(100, Math.max(linha.pct, 5))}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {distribuicaoAssuntos.semAssunto.length > 0 ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setLista({
-                          titulo: 'Pautas sem assunto',
-                          subtitulo: `${distribuicaoAssuntos.semAssunto.length} pautas sem assunto`,
-                          itens: distribuicaoAssuntos.semAssunto,
-                        })
-                      }
-                      className="w-fit text-left text-[var(--brand-accent-text)] hover:underline focus-visible:outline-none"
-                    >
-                      <Text variant="meta" as="span" className="text-[var(--brand-accent-text)]">
-                        Sem assunto: {distribuicaoAssuntos.semAssunto.length} pautas ({distribuicaoAssuntos.semAssuntoPct}%) ›
-                      </Text>
-                    </button>
-                  ) : null}
-
-                  {avisosDe('concentracao').length > 0 ? (
-                    <ul className="stack-xs border-t border-[var(--border-subtle)] pt-2">
-                      {avisosDe('concentracao').map(aviso => (
-                        <AvisoDetalhado key={aviso.id} aviso={aviso} onLocalizar={onLocalizarAviso} />
-                      ))}
-                    </ul>
-                  ) : null}
-                </div>
-              </SecaoAccordion>
-            </div>
-          </div>
-        )}
-
-        <ItensDaSaudeDialog lista={lista} onClose={() => setLista(null)} />
-      </Surface>
-    </div>
-  );
-}
-
-function textoDaFaixa(linha: LinhaDeFaixa): string {
-  if (!linha.faixa) return `${linha.rotulo}: ${linha.valor}`;
-  const partes = [
-    linha.faixa.minimo != null ? `mín ${linha.faixa.minimo}` : null,
-    `meta ${linha.faixa.meta}`,
-    linha.faixa.maximo != null ? `máx ${linha.faixa.maximo}` : null,
-  ].filter((parte): parte is string => parte != null);
-  const aviso = linha.leitura?.aviso === 'abaixo' ? 'abaixo do mínimo' : linha.leitura?.aviso === 'acima' ? 'acima do máximo' : null;
-  return `${linha.rotulo}: ${linha.valor} (${partes.join(' · ')})${aviso ? ` · ${aviso}` : ''}`;
-}
-
-function FaixasDaSaude({
-  faixas,
-  onAbrir,
-}: {
-  faixas: FaixasNoPeriodo;
-  onAbrir: (secao: 'producao' | 'contas') => void;
-}) {
-  return (
-    <div className="stack-sm">
-      <Text variant="label" as="h3">Faixas do período</Text>
-      {faixas.gerais.map(linha => (
-        <button key={linha.id} type="button" className="text-left" onClick={() => onAbrir('producao')}>
-          <Text variant="meta" as="span">{textoDaFaixa(linha)}</Text>
-        </button>
-      ))}
-      {faixas.contas.map(conta => (
-        <div key={conta.id} className="stack-xs">
-          <button type="button" className="text-left" onClick={() => onAbrir('contas')}>
-            <Text variant="bodyStrong" as="span">{conta.nome}</Text>
-          </button>
-          {conta.total ? (
-            <button type="button" className="text-left" onClick={() => onAbrir('contas')}>
-              <Text variant="meta" as="span">{textoDaFaixa(conta.total)}</Text>
-            </button>
-          ) : null}
-          {conta.gravacao.length > 0 ? <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">Gravação</Text> : null}
-          {conta.gravacao.map(linha => (
-            <button key={linha.id} type="button" className="text-left" onClick={() => onAbrir('contas')}>
-              <Text variant="meta" as="span">{textoDaFaixa(linha)}</Text>
-            </button>
-          ))}
-          {conta.producao.length > 0 ? <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">Produção</Text> : null}
-          {conta.producao.map(linha => (
-            <button key={linha.id} type="button" className="text-left" onClick={() => onAbrir('contas')}>
-              <Text variant="meta" as="span">{textoDaFaixa(linha)}</Text>
-            </button>
-          ))}
+          <SaudeSeriesSection
+            linhasContinuidade={linhasContinuidade}
+            escopos={escopos}
+            continuidade={continuidade}
+            nenhumaAcompanhada={nenhumaAcompanhada}
+            semFrequencia={semFrequencia}
+            hojeIso={hojeIso}
+            recorte={counts.periodo}
+            seriesAbertas={seriesAbertas}
+            onToggleSerie={guardarAberturaSerie}
+            onPlanejarIntervalo={onPlanejarIntervalo}
+            onReorganizarEpisodios={onReorganizarEpisodios}
+            onEditarMeta={alvo => navigate(`/editorial?editar=${encodeURIComponent(alvo)}`)}
+            onIrParaSeries={() => navigate('/series')}
+          />
         </div>
-      ))}
+      </div>
+
+      {lista ? <ItensDaSaudeDialog lista={lista} onClose={() => setLista(null)} /> : null}
     </div>
   );
 }

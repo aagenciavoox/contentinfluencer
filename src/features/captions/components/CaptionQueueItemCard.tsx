@@ -1,8 +1,10 @@
+import { Calendar, Check } from 'lucide-react';
 import { Badge } from '../../../components/ui/Badge';
+import { PlatformIcon } from '../../../components/ui/PlatformIcon';
 import { Text } from '../../../components/ui/Text';
 import { cn } from '../../../lib/utils';
 import type { Content, ContentPlataforma } from '../../../lib/database';
-import { contaDaRef, redeDaRef, rotuloConta, type ContaRef } from '../../contas/lib/contas';
+import { contaDaRef, iconeDaConta, redeDaRef, rotuloConta, type ContaRef } from '../../contas/lib/contas';
 import { temLegenda, legendaEfetiva, hashtagsNaLegenda } from '../../editorial/lib/captions';
 import { parseHashtags } from '../../contents/lib/captionHashtags';
 import { formatoNoYoutube } from '../../editorial/lib/publicacoes';
@@ -40,9 +42,18 @@ interface CaptionQueueItemCardProps {
   activePublicacoes: ContentPlataforma[];
   selected: boolean;
   onSelect: () => void;
+  onWriteNow?: () => void;
   contas: readonly ContaRef[];
+  hasHydrationError?: boolean;
+  onRetryHydration?: () => void;
 }
 
+/**
+ * Cartão enxuto da fila de legendas (3 linhas):
+ * 1. Título do roteiro + status (Pronta / Pendente)
+ * 2. Prévia curta da legenda ou "Sem legenda ainda"
+ * 3. Ícones das redes ativas + data prevista + contadores
+ */
 export function CaptionQueueItemCard({
   content,
   activePublicacoes,
@@ -50,12 +61,11 @@ export function CaptionQueueItemCard({
   onSelect,
   contas,
 }: CaptionQueueItemCardProps) {
-  // Preenchida logic:
   const temBase = Boolean((content.legendaBase ?? '').trim());
   const algumaComLegenda = activePublicacoes.some(p => temLegenda(content.legendaBase, p));
   const preenchida = temBase || (activePublicacoes.length > 0 && algumaComLegenda);
+  const pendente = !preenchida;
 
-  // Best preview text:
   const primeiraComTexto = activePublicacoes.find(p => p.legenda?.trim());
   const textoEfetivo =
     content.legendaBase?.trim() ||
@@ -68,120 +78,120 @@ export function CaptionQueueItemCard({
   const totalCarac = textoEfetivo.length;
 
   const dataPrevista = content.publishDate || activePublicacoes[0]?.publishDate || null;
-  const preview = textoEfetivo.trim()
-    ? textoEfetivo.replace(/\s+/g, ' ').slice(0, 120)
-    : 'Sem texto de legenda configurado.';
+  const preview = textoEfetivo.trim().replace(/\s+/g, ' ');
+  const titulo = content.title.trim() || 'Sem título';
 
-  const formato = inferPlatformFormat(
-    activePublicacoes[0]?.platformId || '',
-    content.formatoVisual,
-    contaDaRef(activePublicacoes[0]?.platformId || '', contas),
-    activePublicacoes[0],
-    content.writingMode,
-  );
+  const statusSrText = pendente
+    ? `Legenda pendente para ${activePublicacoes.length} ${activePublicacoes.length === 1 ? 'rede social' : 'redes sociais'}`
+    : `Legenda pronta com ${totalCarac} caracteres`;
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <article
       onClick={onSelect}
-      onKeyDown={e => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onSelect();
-        }
-      }}
+      aria-current={selected ? 'true' : undefined}
+      aria-label={`${titulo}. ${statusSrText}`}
       className={cn(
-        'group flex flex-col gap-2 rounded-[var(--radius-card)] border p-3.5 text-left transition-all cursor-pointer outline-none select-none shadow-xs',
+        'group relative flex shrink-0 flex-col gap-2 overflow-hidden rounded-[var(--radius-card)] border px-4 py-3 text-left transition-all cursor-pointer select-none',
         selected
-          ? 'border-[var(--brand-accent)] bg-[color-mix(in_srgb,var(--brand-accent)_6%,var(--bg-elevated))] ring-2 ring-[var(--brand-accent)]'
+          ? 'border-[var(--brand-accent)] bg-[color-mix(in_srgb,var(--brand-accent)_5%,var(--bg-elevated))] ring-1 ring-[var(--brand-accent)]'
           : 'border-[var(--border-color)] bg-[var(--bg-elevated)] hover:border-[var(--border-input)] hover:bg-[var(--bg-hover)]',
       )}
-      aria-current={selected ? 'true' : undefined}
     >
-      {/* Top row: redes ativas e status */}
-      <div className="flex items-center justify-between gap-2">
+      {pendente ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-[var(--warning)]"
+        />
+      ) : null}
+
+      {/* Linha 1: Título do roteiro + status */}
+      <div className="flex items-start justify-between gap-2">
+        <button
+          type="button"
+          onClick={e => {
+            e.stopPropagation();
+            onSelect();
+          }}
+          className="min-w-0 flex-1 rounded-[var(--radius-sm)] text-left focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+        >
+          <Text variant="itemTitle" as="h3" className="line-clamp-2 leading-snug">
+            {titulo}
+          </Text>
+        </button>
+
+        <div className="shrink-0 pt-0.5">
+          {preenchida ? (
+            <Badge variant="success" className="inline-flex items-center gap-1">
+              <Check className="h-3 w-3 shrink-0 text-[var(--success)]" aria-hidden />
+              Pronta
+            </Badge>
+          ) : (
+            <Badge variant="warning" className="inline-flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--warning)]" aria-hidden />
+              Pendente
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      {/* Linha 2: Prévia curta da legenda */}
+      {preview ? (
+        <Text variant="meta" as="p" className="line-clamp-2 text-[var(--text-secondary)]">
+          {preview}
+        </Text>
+      ) : (
+        <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
+          Sem legenda ainda
+        </Text>
+      )}
+
+      {/* Linha 3: Redes ativas + data prevista + contadores */}
+      <div className="flex items-center justify-between gap-2 pt-0.5">
         <div className="flex min-w-0 items-center gap-2">
-          {/* Dots das redes configuradas */}
           {activePublicacoes.length > 0 ? (
-            <div className="flex items-center -space-x-1 shrink-0">
+            <div className="flex shrink-0 items-center gap-1">
               {activePublicacoes.slice(0, 4).map(pub => {
                 const conta = contaDaRef(pub.platformId, contas);
                 const rede = redeDaRef(pub.platformId, contas);
                 const noYt = rede === 'youtube'
                   ? formatoNoYoutube({ formatoVisual: content.formatoVisual ?? null, writingMode: content.writingMode }, pub)
                   : null;
-                const dotClass = getPlatformDotClass(pub.platformId, conta);
+                const icone = noYt && noYt.formato === 'short'
+                  ? 'youtube-shorts'
+                  : (conta ? iconeDaConta(conta) : pub.platformId);
                 const rotulo = conta
                   ? `${rotuloConta(conta)}${noYt ? (noYt.formato === 'short' ? ' · Shorts' : ' · Vídeo longo') : ''}`
                   : pub.platformId;
                 return (
                   <span
                     key={pub.id}
-                    className={cn('h-2.5 w-2.5 rounded-full ring-2 ring-[var(--bg-elevated)]', dotClass)}
+                    className="inline-flex h-5 w-5 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--surface-subtle)]"
                     title={rotulo}
-                    aria-hidden
-                  />
+                  >
+                    <PlatformIcon platform={icone} colored className="h-3 w-3" />
+                  </span>
                 );
               })}
+              {activePublicacoes.length > 4 ? (
+                <Text variant="meta" as="span" className="text-[var(--text-tertiary)] tabular-nums">
+                  +{activePublicacoes.length - 4}
+                </Text>
+              ) : null}
             </div>
-          ) : (
-            <span className="h-2.5 w-2.5 rounded-full bg-[var(--text-tertiary)] shrink-0" aria-hidden />
-          )}
+          ) : null}
 
-          <Text variant="bodyStrong" as="span" className="truncate">
-            {activePublicacoes.length > 0
-              ? activePublicacoes
-                  .map(p => {
-                    const c = contaDaRef(p.platformId, contas);
-                    const rede = redeDaRef(p.platformId, contas);
-                    const noYt = rede === 'youtube'
-                      ? formatoNoYoutube({ formatoVisual: content.formatoVisual ?? null, writingMode: content.writingMode }, p)
-                      : null;
-                    const baseNome = c ? rotuloConta(c) : p.platformId;
-                    return noYt ? `${baseNome} (${noYt.formato === 'short' ? 'Shorts' : 'Vídeo longo'})` : baseNome;
-                  })
-                  .join(', ')
-              : 'Sem redes ativas'}
-          </Text>
-
-          <Badge variant="neutral" className="lowercase">
-            {formato}
-          </Badge>
+          <span className="inline-flex min-w-0 items-center gap-1 text-[var(--text-secondary)]">
+            <Calendar className="h-3 w-3 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
+            <Text variant="meta" as="span" className="truncate tabular-nums">
+              {dataPrevista ?? 'Sem data'}
+            </Text>
+          </span>
         </div>
 
-        <div className="shrink-0">
-          {preenchida ? (
-            <Badge variant="status" status="Postado">
-              Preenchida
-            </Badge>
-          ) : (
-            <Badge variant="neutral">
-              Em branco
-            </Badge>
-          )}
-        </div>
-      </div>
-
-      {/* Script Title */}
-      <Text variant="bodyStrong" as="h3" className="line-clamp-2 leading-snug">
-        {content.title.trim() || 'Sem título'}
-      </Text>
-
-      {/* Copy preview quote */}
-      <div className="rounded-[var(--radius-input)] bg-[var(--bg-primary)] px-2.5 py-1.5 border border-dashed border-[var(--border-color)]">
-        <Text variant="secondary" as="p" className="line-clamp-2 font-mono italic leading-relaxed">
-          &ldquo;{preview}&rdquo;
+        <Text variant="meta" as="span" className="shrink-0 tabular-nums text-[var(--text-tertiary)]">
+          {totalCarac} carac.{totalTags > 0 ? ` · ${totalTags} ${totalTags === 1 ? 'tag' : 'tags'}` : ''}
         </Text>
       </div>
-
-      {/* Footer */}
-      <div className="flex items-center justify-between gap-2 pt-1 border-t border-[var(--border-color)]">
-        <Text variant="meta" as="span">{dataPrevista ? `Previsto: ${dataPrevista}` : 'Sem data prevista'}</Text>
-        <Text variant="meta" as="span" className="tabular-nums">
-          {activePublicacoes.length} {activePublicacoes.length === 1 ? 'rede' : 'redes'} • {totalCarac} carac. • {totalTags} {totalTags === 1 ? 'tag' : 'tags'}
-        </Text>
-      </div>
-    </div>
+    </article>
   );
 }

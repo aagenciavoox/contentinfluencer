@@ -299,6 +299,7 @@ export function CardConfiguracao({
   acao,
   children,
   className,
+  embutido = false,
 }: {
   icone: ReactNode;
   titulo: string;
@@ -307,7 +308,24 @@ export function CardConfiguracao({
   acao?: ReactNode;
   children?: ReactNode;
   className?: string;
+  /** Quando embutido dentro de um painel agrupado, dispensa a borda externa duplicada. */
+  embutido?: boolean;
 }) {
+  if (embutido) {
+    return (
+      <div className={cn('stack-md', className)}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            {icone ? <span className="shrink-0 text-[var(--text-tertiary)]" aria-hidden>{icone}</span> : null}
+            <Text variant="itemTitle" as="h3" className="min-w-0">{titulo}</Text>
+            {descricao ? <Ajuda rotulo={`Sobre ${titulo}`} texto={descricao} /> : null}
+          </div>
+          {acao ? <div className="shrink-0">{acao}</div> : null}
+        </div>
+        {children}
+      </div>
+    );
+  }
   return (
     <SettingsSectionCard
       title={titulo}

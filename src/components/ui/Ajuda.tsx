@@ -113,7 +113,7 @@ export function Ajuda({
       <button
         ref={botao}
         type="button"
-        className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+        className="inline-flex h-11 w-11 -my-2.5 shrink-0 items-center justify-center rounded-full text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
         aria-expanded={aberto}
         aria-controls={id}
         aria-label={rotulo}

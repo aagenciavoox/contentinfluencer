@@ -36,10 +36,10 @@ export function SeriesMobileScreen({
   return (
     <div ref={rolagem} className="stack-lg">
       <div className="grid grid-cols-2 gap-2">
-        <AppButton variant="secondary" fullWidth onClick={onCreateFamilia} leftIcon={<Plus className="h-4 w-4" />}>
+        <AppButton variant="secondary" size="sm" fullWidth onClick={onCreateFamilia} leftIcon={<Plus className="h-4 w-4" />}>
           Criar família
         </AppButton>
-        <AppButton variant="primary" fullWidth onClick={onCreate} leftIcon={<Plus className="h-4 w-4" />}>
+        <AppButton variant="primary" size="sm" fullWidth onClick={onCreate} leftIcon={<Plus className="h-4 w-4" />}>
           Criar série
         </AppButton>
       </div>
@@ -52,9 +52,10 @@ export function SeriesMobileScreen({
             placeholder="Buscar séries"
             onFilterClick={() => setFiltrosAbertos(true)}
             filterLabel={ativos.length > 0 ? `Abrir filtros (${ativos.length} ativos)` : 'Abrir filtros'}
+            activeFilterCount={ativos.length}
           />
           {modelo.familias.length > 0 ? (
-            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="group" aria-label="Filtrar por família">
+            <div className="mobile-h-scroll scrollbar-none -mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="group" aria-label="Filtrar por família">
               {[{ id: 'todas', label: 'Todas' }, ...modelo.familias.map(item => ({ id: item.serie.id, label: item.serie.name.trim() || 'Sem nome' }))].map(chip => {
                 const ativo = filtros.familia === chip.id;
                 return (
@@ -91,7 +92,6 @@ export function SeriesMobileScreen({
       ) : null}
 
       <ClubesSecao grande celular />
-      <PreferenciasSeries preferencias={modelo.preferencias} />
 
       <QueryViewState
         status={modelo.status}
@@ -148,6 +148,9 @@ export function SeriesMobileScreen({
           onChange={valor => atualizarFiltro('situacao', valor as FiltroSituacao)}
           options={modelo.opcoesSituacao}
         />
+        <div className="border-t border-[var(--border-subtle)] pt-4">
+          <PreferenciasSeries preferencias={modelo.preferencias} />
+        </div>
       </MobileFilterSheet>
     </div>
   );

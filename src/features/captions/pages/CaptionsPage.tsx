@@ -8,11 +8,14 @@ import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { SelectField } from '../../../components/ui/SelectField';
 import { Badge } from '../../../components/ui/Badge';
 import { useAppContext } from '../../../context/AppContext';
+import { useHydrateContentBodies } from '../../../hooks/useHydrateContentBodies';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import type { Content } from '../../../lib/database';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
+import { PAGE_SECTION } from '../../../layouts/navigation/navConfig';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import { rotuloConta } from '../../contas/lib/contas';
+import { temLegenda } from '../../editorial/lib/captions';
 import { CaptionQueueItemCard } from '../components/CaptionQueueItemCard';
 import { CaptionEditorPanel } from '../components/CaptionEditorPanel';
 import {
@@ -42,6 +45,7 @@ export function CaptionsPage() {
   const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
   const [selectedPublicacaoId, setSelectedPublicacaoId] = useState<string | null>(null);
   const [mobileViewingEditor, setMobileViewingEditor] = useState(false);
+  const [focusEditorTarget, setFocusEditorTarget] = useState<{ id: string; seq: number } | null>(null);
 
   const orderRef = useRef<{ key: string; ids: string[] }>({ key: '', ids: [] });
   const editorScrollRef = useRef<HTMLDivElement>(null);
@@ -156,6 +160,16 @@ export function CaptionsPage() {
     return items[0] || null;
   }, [items, selectedContentId, state.contents]);
 
+  const visibleHydrationIds = useMemo(() => {
+    const ids = pageData.items.map(item => item.content.id);
+    if (selectedItem && !ids.includes(selectedItem.content.id)) {
+      ids.push(selectedItem.content.id);
+    }
+    return ids;
+  }, [pageData.items, selectedItem]);
+
+  const { hasHydrationError, retryHydration } = useHydrateContentBodies(visibleHydrationIds);
+
   const accountOptions = useMemo(() => {
     const base = [{ value: 'todas', label: 'Todas as contas' }];
     const configured = state.platforms.map(p => ({
@@ -164,6 +178,32 @@ export function CaptionsPage() {
     }));
     return [...base, ...configured];
   }, [state.platforms]);
+
+  const nextPendingItem = useMemo(() => {
+    const isPending = (item: (typeof items)[number]) => {
+      const temBase = Boolean((item.content.legendaBase ?? '').trim());
+      const algumaComLegenda = item.activePublicacoes.some(p => temLegenda(item.content.legendaBase, p));
+      return !(temBase || (item.activePublicacoes.length > 0 && algumaComLegenda));
+    };
+    const currentIndex = items.findIndex(item => item.content.id === selectedContentId);
+    for (let offset = 1; offset < items.length; offset += 1) {
+      const candidate = items[(currentIndex + offset) % items.length];
+      if (candidate && candidate.content.id !== selectedContentId && isPending(candidate)) {
+        return candidate;
+      }
+    }
+    return null;
+  }, [items, selectedContentId]);
+
+  const handleNextPending = () => {
+    if (!nextPendingItem) return;
+    setSelectedContentId(nextPendingItem.content.id);
+    setSelectedPublicacaoId(nextPendingItem.activePublicacoes[0]?.id ?? null);
+    const nextIndex = items.findIndex(item => item.content.id === nextPendingItem.content.id);
+    if (nextIndex >= 0) {
+      setPage(Math.floor(nextIndex / CAPTION_PAGE_SIZE) + 1);
+    }
+  };
 
   const hasQuery = search.trim().length > 0 || filter !== 'todas' || selectedAccount !== 'todas';
 
@@ -204,7 +244,7 @@ export function CaptionsPage() {
       contentStack="dense"
       header={
         <DesktopPageHeader
-          section="Produção"
+          section={PAGE_SECTION.producao}
           title="Legendas"
           titleAside={
             <Badge variant="neutral">
@@ -216,7 +256,7 @@ export function CaptionsPage() {
         />
       }
       toolbar={toolbar}
-      mobileHeader={toolbar}
+      mobileHeader={isMobile && mobileViewingEditor ? undefined : toolbar}
     >
       {items.length === 0 ? (
         <EmptyState
@@ -239,7 +279,7 @@ export function CaptionsPage() {
           >
             <div
               ref={listContainerRef}
-              className="stack-sm lg:flex-1 lg:overflow-y-auto lg:pr-1"
+              className="stack-sm min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1"
             >
               {pageData.items.map(item => {
                 const isSelected = selectedContentId === item.content.id;
@@ -254,7 +294,18 @@ export function CaptionsPage() {
                       setSelectedPublicacaoId(item.activePublicacoes[0]?.id ?? null);
                       if (isMobile) setMobileViewingEditor(true);
                     }}
+                    onWriteNow={() => {
+                      setSelectedContentId(item.content.id);
+                      setSelectedPublicacaoId(item.activePublicacoes[0]?.id ?? null);
+                      if (isMobile) setMobileViewingEditor(true);
+                      setFocusEditorTarget(prev => ({
+                        id: item.content.id,
+                        seq: (prev?.seq ?? 0) + 1,
+                      }));
+                    }}
                     contas={state.platforms}
+                    hasHydrationError={hasHydrationError(item.content.id)}
+                    onRetryHydration={() => retryHydration(item.content.id)}
                   />
                 );
               })}
@@ -299,6 +350,11 @@ export function CaptionsPage() {
                   pilares={state.pilares}
                   contas={state.platforms}
                   onBackToList={isMobile ? () => setMobileViewingEditor(false) : undefined}
+                  onNextPending={handleNextPending}
+                  hasNextPending={nextPendingItem != null}
+                  focusSignal={focusEditorTarget?.id === selectedItem.content.id ? focusEditorTarget.seq : 0}
+                  hasHydrationError={hasHydrationError(selectedItem.content.id)}
+                  onRetryHydration={() => retryHydration(selectedItem.content.id)}
                 />
               </div>
             </div>

@@ -238,10 +238,10 @@
   --warning-bg:          color-mix(in srgb, var(--warning), transparent 94%);
   --warning-bg-hover:    color-mix(in srgb, var(--warning), transparent 88%);
 
-  /* Idea cards sit beside script cards; a light warm tint keeps them distinct. */
-  --idea-card-bg: color-mix(in srgb, var(--warning) 22%, var(--bg-elevated));
-  --idea-card-bg-hover: color-mix(in srgb, var(--warning) 32%, var(--bg-elevated));
-  --idea-card-border: color-mix(in srgb, var(--warning) 38%, var(--border-color));
+  /* Idea cards sit beside script cards; a soft warm paper tint keeps them distinct. */
+  --idea-card-bg: #FCFAF5;
+  --idea-card-bg-hover: #F7F3EA;
+  --idea-card-border: color-mix(in srgb, var(--border-color) 85%, var(--warning));
 }
 
 [data-theme='dark'] {
@@ -328,6 +328,10 @@
 
   --tint-text-share: 72%;
   --user-tint-text-share: 50%;
+
+  --idea-card-bg: color-mix(in srgb, var(--warning) 8%, var(--bg-elevated));
+  --idea-card-bg-hover: color-mix(in srgb, var(--warning) 14%, var(--bg-elevated));
+  --idea-card-border: color-mix(in srgb, var(--warning) 24%, var(--border-color));
 }
 
 /* GLOBAL RESET & BEHAVIOR */
@@ -967,10 +971,9 @@ input.caption-locked:focus {
   }
 }
 
-/* Central de Criação — compact note/script cards */
-/* Até 4 colunas em telas largas; cada card nunca fica mais estreito que 13rem. */
+/* Central de Criação — cards de Ideia e Roteiro (largura mínima 260px, grade fluida) */
 .creation-hub-grid.grid-content {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, max(13rem, calc((100% - 3 * var(--space-md)) / 4))), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
   align-items: stretch;
   gap: var(--space-md);
 }
@@ -978,6 +981,13 @@ input.caption-locked:focus {
 /* Fila de gravação: cards limpos com coluna confortável e alinhamento consistente. */
 .recording-queue-grid.grid-content {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+  gap: var(--space-md);
+}
+
+/* Blocos de gravação (V2): largura mínima canônica de 300px com alinhamento fluido. */
+.recording-blocks-grid.grid-content {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  align-items: stretch;
   gap: var(--space-md);
 }
 
@@ -1047,12 +1057,13 @@ input.caption-locked:focus {
   box-shadow: var(--creation-card-shadow);
 }
 
-.creation-hub-card.creation-hub-card--selected {
-  outline: 1px solid var(--text-primary);
+.creation-hub-card.creation-hub-card--selected,
+.surface-interactive.creation-hub-card.creation-hub-card--selected {
+  box-shadow: 0 0 0 2px var(--focus-ring-color), var(--creation-card-shadow);
 }
 
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  .creation-hub-card:hover {
+  .creation-hub-card:not(.creation-hub-card--trash):hover {
     transform: translateY(-2px);
   }
 }
@@ -1142,18 +1153,22 @@ input.caption-locked:focus {
   min-width: 0;
 }
 
+.creation-hub-card__context--strong {
+  font-weight: 600;
+}
+
 .creation-hub-card .creation-hub-card__title {
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: var(--font-size-item-title); /* 14px */
+  font-size: 0.9375rem; /* 15px */
   font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.33;
 }
 
 .creation-hub-card .card-excerpt {
-  margin-top: var(--space-xs);
-  font-size: var(--font-size-footnote); /* 13px */
-  line-height: 1.4;
+  margin-top: 0;
+  font-size: var(--font-size-caption); /* 12px */
+  line-height: 1.5;
   color: var(--text-secondary);
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -1161,13 +1176,27 @@ input.caption-locked:focus {
   overflow: hidden;
 }
 
+.creation-hub-card__completion-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: var(--radius-sm);
+  padding: 0.125rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 .creation-hub-card__footer {
-  margin-top: var(--space-xs);
-  padding-top: var(--space-sm);
+  margin-top: auto;
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .creation-hub-card--idea,
 .surface-interactive.creation-hub-card--idea {
+  border-top-width: 1px;
+  border-color: var(--idea-card-border);
   background: var(--idea-card-bg);
 }
 
@@ -1176,6 +1205,21 @@ input.caption-locked:focus {
 .creation-hub-row--idea:hover,
 .creation-hub-row--idea:focus-within {
   background: var(--idea-card-bg-hover);
+}
+
+.creation-hub-card--trash,
+.surface-interactive.creation-hub-card--trash {
+  border-top-width: 1px;
+  border-color: var(--border-color);
+  background: var(--bg-secondary);
+  opacity: 0.78;
+  box-shadow: none;
+}
+
+.creation-hub-card--trash:hover,
+.surface-interactive.creation-hub-card--trash:hover {
+  background: var(--bg-secondary);
+  box-shadow: none;
 }
 
 @media (min-width: 769px) {
@@ -2992,12 +3036,14 @@ html.mobile-app-shell .segment-tabs--full .segment-tabs-item-active {
 }
 
 .planejamento-week-grid .planner-card-title {
-  display: block;
-  -webkit-line-clamp: unset;
-  line-clamp: unset;
-  overflow: visible;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
   overflow-wrap: anywhere;
-  padding-inline-end: var(--space-md);
+  font-size: 0.75rem;
+  line-height: 0.9375rem;
 }
 
 .planejamento-week-grid .planner-card :is(.truncate, .inline-flex),
@@ -3023,110 +3069,118 @@ html.mobile-app-shell .segment-tabs--full .segment-tabs-item-active {
 }
 
 /* ── Cards do Planejamento ───────────────────────────────────────────────
-   Conteúdo e reserva: a cor é só a do pilar. Sem pilar, o papel fica branco.
-   Publicado (já no calendário): papel cinza. A cor do pilar fica na faixa esquerda e no ponto.
+   Versão 1 (Atual Organizada): fundo tintado sutil (8–12%) na cor do pilar,
+   borda leve 1px, rodapé com separador e papel neutro quando publicado.
    Reserva (post-it sem conteúdo): quadrada, com a ponta inferior direita dobrada. */
 .planner-card {
   --card-accent: var(--border-subtle);
-  border: 1.5px solid var(--border-subtle);
+  --card-divider: var(--border-subtle);
+  border: 1px solid var(--border-subtle);
   background: var(--bg-elevated);
   border-radius: var(--radius-card);
-  transition: border-color 120ms ease, background-color 120ms ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease, opacity 120ms ease, transform 120ms ease;
 }
 
 .planner-card--pilar {
-  border-color: color-mix(in srgb, var(--card-accent) 85%, var(--border-subtle));
-  background: color-mix(in srgb, var(--card-accent) 22%, var(--bg-elevated));
+  --card-divider: color-mix(in srgb, var(--card-accent) 18%, var(--border-subtle));
+  border-color: color-mix(in srgb, var(--card-accent) 24%, var(--border-subtle));
+  background: color-mix(in srgb, var(--card-accent) 10%, var(--bg-elevated));
+}
+
+.planner-card--atrasado {
+  --card-divider: color-mix(in srgb, var(--warning) 28%, var(--border-subtle));
+  border-color: color-mix(in srgb, var(--warning) 48%, var(--border-subtle));
+  background: color-mix(in srgb, var(--warning) 12%, var(--bg-elevated));
 }
 
 .planner-card:hover {
-  border-color: color-mix(in srgb, var(--card-accent) 70%, var(--border-strong));
+  border-color: color-mix(in srgb, var(--card-accent) 48%, var(--border-strong));
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
 }
 
 .planner-card--pilar:hover {
-  border-color: var(--card-accent);
+  border-color: color-mix(in srgb, var(--card-accent) 55%, var(--border-subtle));
 }
 
-/* Já foi ao ar e está no calendário: o papel sai da cor do pilar para não parecer pauta em aberto. */
+.planner-card--atrasado:hover {
+  border-color: color-mix(in srgb, var(--warning) 70%, var(--border-subtle));
+}
+
+/* Já foi ao ar e está no calendário: papel cinza neutro para não parecer pauta em aberto. */
 .planner-card--publicado {
+  --card-divider: color-mix(in srgb, var(--status-archived) 24%, var(--border-subtle));
   background: color-mix(in srgb, var(--status-archived) 14%, var(--bg-elevated));
-  border-color: color-mix(in srgb, var(--status-archived) 50%, var(--border-color));
-  border-left-width: 3px;
-  border-left-color: var(--card-accent, var(--status-archived));
+  border-color: color-mix(in srgb, var(--status-archived) 34%, var(--border-subtle));
+  opacity: 0.95;
 }
 
 .planner-card--publicado:hover {
-  border-color: color-mix(in srgb, var(--status-archived) 70%, var(--border-strong));
-  border-left-color: var(--card-accent, var(--status-archived));
+  border-color: color-mix(in srgb, var(--status-archived) 56%, var(--border-strong));
+  opacity: 1;
 }
 
+.planner-card--selected,
 .planner-card:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
 }
 
+.planner-card--dragging {
+  opacity: 0.85;
+  transform: rotate(-1.5deg) scale(1.02);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
+}
+
+.planner-card-footer {
+  border-top: 1px solid var(--card-divider);
+}
+
+/* Reserva de espaço — Versão 2 (Borda Tracejada & Ação):
+   metáfora de "vaga aberta" com borda dashed na cor do pilar/série. */
 .post-it-card {
-  --card-accent: var(--border-subtle);
-  --card-fill-share: 0%;
-  --card-edge: var(--border-color);
-  --card-fill: var(--bg-elevated);
-  --card-fold-size: 14px;
-  --card-edge-width: 1.5px;
+  --card-accent: var(--border-strong);
   position: relative;
-  isolation: isolate;
-  background: var(--card-edge);
-  /* O recorte também some com a borda e a sombra; por isso a borda é o fundo e o papel fica num ::before recuado. */
-  clip-path: polygon(
-    0 0,
-    100% 0,
-    100% calc(100% - var(--card-fold-size)),
-    calc(100% - var(--card-fold-size)) 100%,
-    0 100%
-  );
-  transition: background-color 120ms ease;
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius-card);
+  background: var(--bg-elevated);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease, opacity 120ms ease, transform 120ms ease;
 }
 
 .post-it-card--pilar,
 .post-it-card--serie {
-  --card-fill-share: 14%;
-  --card-edge: color-mix(in srgb, var(--card-accent) 80%, var(--border-subtle));
-  --card-fill: color-mix(in srgb, var(--card-accent) var(--card-fill-share), var(--bg-elevated));
+  border-color: color-mix(in srgb, var(--card-accent) 62%, var(--border-subtle));
+  background: color-mix(in srgb, var(--card-accent) 5%, var(--bg-elevated));
 }
 
-.post-it-card::before {
-  content: '';
-  position: absolute;
-  inset: var(--card-edge-width);
-  z-index: -1;
-  background: var(--card-fill);
-  clip-path: polygon(
-    0 0,
-    100% 0,
-    100% calc(100% - var(--card-fold-size) + 0.9px),
-    calc(100% - var(--card-fold-size) + 0.9px) 100%,
-    0 100%
-  );
-}
-
-/* Dobra: triângulo na ponta recortada, um tom acima do papel. */
-.post-it-card::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: var(--card-fold-size);
-  height: var(--card-fold-size);
-  pointer-events: none;
-  background: linear-gradient(
-    315deg,
-    transparent 50%,
-    var(--card-edge) 50% 58%,
-    color-mix(in srgb, var(--card-accent) 28%, var(--bg-elevated)) 58%
-  );
+.post-it-card--pausada {
+  border-color: var(--border-strong);
+  background: color-mix(in srgb, var(--status-archived) 8%, var(--bg-elevated));
+  opacity: 0.82;
 }
 
 .post-it-card:hover {
-  --card-edge: var(--card-accent);
+  border-color: var(--card-accent);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+}
+
+.post-it-card--pausada:hover {
+  border-color: var(--text-tertiary);
+  opacity: 0.96;
+}
+
+.post-it-card--selected,
+.post-it-card:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.post-it-card--dragging {
+  border-color: var(--warning);
+  opacity: 0.9;
+  transform: rotate(-1.5deg) scale(1.02);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
 }
 
 .post-it-card:focus-visible,

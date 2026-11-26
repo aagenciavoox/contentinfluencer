@@ -1,8 +1,8 @@
-import { ValorVazio } from '../../../../components/ui/ValorVazio';
 import { useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { CalendarDays, Check, Clock, Copy, Hash, Pencil, Target, Undo2 } from 'lucide-react';
 import { AppButton } from '../../../../components/ui/AppButton';
+import { LinhaDeLeitura } from '../../../../components/ui/LinhaDeLeitura';
 import { Text } from '../../../../components/ui/Text';
 import { cn } from '../../../../lib/utils';
 import { CampoStepper, CardConfiguracao, inteiroOuNull } from './campos';
@@ -72,49 +72,35 @@ function reservaCabeNoLimite(ritmo: RitmoDraft): boolean {
   return !(reserva != null && limite != null && reserva > limite);
 }
 
-function ValorDoRitmo({
-  rotulo,
-  valor,
+function textoMinMax(minimo: number | null | undefined, maximo: number | null | undefined): string | undefined {
+  const partes = [
+    minimo != null ? `mín. ${minimo}` : null,
+    maximo != null ? `máx. ${maximo}` : null,
+  ].filter((parte): parte is string => parte != null);
+  return partes.length > 0 ? partes.join(' · ') : undefined;
+}
+
+function LinhaFaixa({
+  titulo,
   unidade,
-  dotColor = 'var(--accent-green)',
-  helper,
+  minimo,
+  meta,
+  maximo,
+  vazio,
 }: {
-  rotulo: string;
-  valor: number | null;
+  titulo: string;
   unidade: string;
-  dotColor?: string;
-  helper?: string;
+  minimo?: number | null;
+  meta?: number | null;
+  maximo?: number | null;
+  vazio: string;
 }) {
+  const rotulo = meta != null ? `${titulo} ${meta} ${unidade}` : titulo;
   return (
-    <div className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-4 flex flex-col justify-between transition-all hover:border-[var(--border-strong)]">
-      <div>
-        <div className="flex items-center justify-between gap-2">
-          <Text variant="label" as="span" className="tracking-wider uppercase text-[var(--text-tertiary)] truncate">
-            {rotulo}
-          </Text>
-          <span
-            className="h-2 w-2 rounded-full shrink-0"
-            style={{ backgroundColor: valor != null ? dotColor : 'var(--text-tertiary)' }}
-            aria-hidden
-          />
-        </div>
-        <div className="mt-2 flex items-baseline gap-1.5">
-          <Text variant="sectionTitle" as="div" className="tabular-nums text-[var(--text-primary)]">
-            {valor == null ? <ValorVazio /> : String(valor)}
-          </Text>
-          {valor != null ? (
-            <Text variant="meta" as="span" className="text-[var(--text-secondary)]">
-              {unidade}
-            </Text>
-          ) : null}
-        </div>
-      </div>
-      <div className="mt-3 pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between">
-        <Text variant="meta" as="span" className="text-[var(--text-secondary)]">
-          {valor == null ? 'Não definido' : helper ?? 'Meta ativa'}
-        </Text>
-      </div>
-    </div>
+    <LinhaDeLeitura
+      rotulo={rotulo}
+      meta={meta != null ? textoMinMax(minimo, maximo) : vazio}
+    />
   );
 }
 
@@ -137,7 +123,7 @@ export type SecaoAjustes = 'faixas' | 'gravacao' | 'proporcao' | 'avisos' | 'ope
  * Aba Ajustes: o que vale para todos os períodos. Não tem seletor de período; o que muda
  * de um período para outro fica na aba Período.
  */
-export function AjustesEditorialPanel({ secao = 'faixas' }: { secao?: SecaoAjustes } = {}) {
+export function AjustesEditorialPanel({ secao = 'faixas', embutido = false }: { secao?: SecaoAjustes; embutido?: boolean } = {}) {
   const { settings, gravar, salvarPreferencias } = useEditorialPlano();
   const preferencias = settings.preferencias;
   const hoje = format(new Date(), 'yyyy-MM-dd');
@@ -254,6 +240,7 @@ export function AjustesEditorialPanel({ secao = 'faixas' }: { secao?: SecaoAjust
       {secao === 'faixas' ? (
       <div id="faixas" className="scroll-mt-24">
       <CardConfiguracao
+        embutido={embutido}
         icone={<CalendarDays className="h-5 w-5" />}
         titulo="Faixas"
         descricao="A meta de postagem limita o plano. Espaços fora das séries e roteiros de reserva continuam dentro da semana."
@@ -274,7 +261,7 @@ export function AjustesEditorialPanel({ secao = 'faixas' }: { secao?: SecaoAjust
           </div>
         ) : (
           <AppButton variant="secondary" size="sm" leftIcon={<Pencil className="h-4 w-4" />} onClick={abrirRitmo}>
-            Editar ritmo
+            Editar
           </AppButton>
         )}
       >
@@ -282,7 +269,7 @@ export function AjustesEditorialPanel({ secao = 'faixas' }: { secao?: SecaoAjust
           <div className="stack-md">
             <div className="stack-sm">
               <Text variant="label" as="p">Postagem</Text>
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className={embutido ? 'grid gap-4 sm:grid-cols-2' : 'grid gap-4 md:grid-cols-3'}>
                 <CampoStepper
                   id="minimo-semanal"
                   label="Mínimo"
@@ -312,7 +299,7 @@ export function AjustesEditorialPanel({ secao = 'faixas' }: { secao?: SecaoAjust
             <div className="stack-sm">
               <Text variant="label" as="p">Gravação</Text>
               <Text variant="meta" as="p">Reels, Shorts, vídeo longo e o vídeo do TikTok. Stories, carrossel e imagem ficam de fora. Sem meta, esta faixa some.</Text>
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className={embutido ? 'grid gap-4 sm:grid-cols-2' : 'grid gap-4 md:grid-cols-3'}>
                 {gravacaoVisivel ? (
                   <CampoStepper
                     id="gravacao-minimo"
@@ -367,36 +354,36 @@ export function AjustesEditorialPanel({ secao = 'faixas' }: { secao?: SecaoAjust
             ) : null}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            <ValorDoRitmo rotulo="Mínimo de postagem" valor={preferencias.minimoSemanal} unidade="por semana" helper="Opcional" />
-            <ValorDoRitmo
-              rotulo="Meta de postagem"
-              valor={preferencias.limiteSemanal}
+          <div className="divide-y divide-[var(--border-subtle)]">
+            <LinhaFaixa
+              titulo="Postagem"
               unidade="por semana"
-              dotColor="var(--accent-green)"
-              helper="Por roteiro"
+              minimo={preferencias.minimoSemanal}
+              meta={preferencias.limiteSemanal}
+              maximo={preferencias.maximoSemanal}
+              vazio="Sem meta por semana"
             />
-            <ValorDoRitmo rotulo="Máximo de postagem" valor={preferencias.maximoSemanal} unidade="por semana" helper="Vazio avisa acima da meta" />
             {preferencias.gravacaoMetaSemanal != null && preferencias.gravacaoMetaSemanal > 0 ? (
-              <>
-                <ValorDoRitmo rotulo="Mínimo de gravação" valor={preferencias.gravacaoMinimoSemanal} unidade="por semana" helper="Opcional" />
-                <ValorDoRitmo rotulo="Meta de gravação" valor={preferencias.gravacaoMetaSemanal} unidade="por semana" dotColor="var(--accent-orange)" helper="Peças de câmera" />
-                <ValorDoRitmo rotulo="Máximo de gravação" valor={preferencias.gravacaoMaximoSemanal} unidade="por semana" helper="Vazio avisa acima da meta" />
-              </>
+              <LinhaFaixa
+                titulo="Gravação"
+                unidade="por semana"
+                minimo={preferencias.gravacaoMinimoSemanal}
+                meta={preferencias.gravacaoMetaSemanal}
+                maximo={preferencias.gravacaoMaximoSemanal}
+                vazio="Sem meta por semana"
+              />
             ) : null}
-            <ValorDoRitmo
-              rotulo="Espaços fora das séries"
-              valor={preferencias.reservaForaSeriesSemanal}
+            <LinhaFaixa
+              titulo="Espaços fora das séries"
               unidade="por semana"
-              dotColor="var(--accent-blue)"
-              helper="Ideias e pautas avulsas"
+              meta={preferencias.reservaForaSeriesSemanal}
+              vazio="Sem quantidade definida"
             />
-            <ValorDoRitmo
-              rotulo="Roteiros de reserva"
-              valor={preferencias.reservaProntos}
+            <LinhaFaixa
+              titulo="Roteiros de reserva"
               unidade="roteiros"
-              dotColor="var(--accent-purple)"
-              helper="Estoque sem data"
+              meta={preferencias.reservaProntos}
+              vazio="Sem quantidade definida"
             />
           </div>
         )}
@@ -414,6 +401,7 @@ export function AjustesEditorialPanel({ secao = 'faixas' }: { secao?: SecaoAjust
       {secao === 'gravacao' ? (
       <div id="dias-de-gravacao" className="scroll-mt-24">
       <CardConfiguracao
+        embutido={embutido}
         icone={<Clock className="h-5 w-5" />}
         titulo="Gravação"
         descricao="Em quais dias você costuma gravar? Sem dia marcado, o lembrete do dia de gravar fica desligado."
@@ -444,9 +432,9 @@ export function AjustesEditorialPanel({ secao = 'faixas' }: { secao?: SecaoAjust
                       gravar(atualizarPreferencias(settings, { diasGravacao: dias }));
                     }}
                     className={cn(
-                      'min-h-9 min-w-11 px-3 rounded-[var(--radius-input)] border transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                      'min-h-9 min-w-11 px-3 rounded-[var(--radius-input)] border transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] pointer-coarse:min-h-11',
                       marcado
-                        ? 'border-[var(--accent)] bg-[var(--accent)] text-[var(--bg-elevated)]'
+                        ? 'border-[var(--text-primary)] bg-[var(--bg-hover)] text-[var(--text-primary)]'
                         : 'border-[var(--border-input)] bg-[var(--bg-elevated)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]',
                     )}
                   >
@@ -456,30 +444,32 @@ export function AjustesEditorialPanel({ secao = 'faixas' }: { secao?: SecaoAjust
               })}
             </div>
           </div>
-          <CampoStepper
-            id="limite-gravacoes-dia"
-            label="Teto de gravações por dia"
-            unidade="no máximo"
-            hint="Mais do que isso, o dia não comporta. Vazio, não há aviso."
-            value={textoNumero(preferencias.limiteGravacoesDia)}
-            onChange={valor => {
-              gravar(atualizarPreferencias(settings, {
-                limiteGravacoesDia: inteiroOuNull(valor) || null,
-              }));
-            }}
-          />
-          <CampoStepper
-            id="antecedencia-postagem"
-            label="Dias de antecedência"
-            unidade="dias"
-            hint="Me avise com estes dias de antecedência se um vídeo já tem data para sair e ainda falta gravar. Vazio desliga a antecedência."
-            value={textoNumero(preferencias.antecedenciaPostagemDias)}
-            onChange={valor => {
-              gravar(atualizarPreferencias(settings, {
-                antecedenciaPostagemDias: inteiroOuNull(valor),
-              }));
-            }}
-          />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <CampoStepper
+              id="limite-gravacoes-dia"
+              label="Teto de gravações por dia"
+              unidade="no máximo"
+              hint="Mais do que isso, o dia não comporta. Vazio, não há aviso."
+              value={textoNumero(preferencias.limiteGravacoesDia)}
+              onChange={valor => {
+                gravar(atualizarPreferencias(settings, {
+                  limiteGravacoesDia: inteiroOuNull(valor) || null,
+                }));
+              }}
+            />
+            <CampoStepper
+              id="antecedencia-postagem"
+              label="Dias de antecedência"
+              unidade="dias"
+              hint="Me avise com estes dias de antecedência se um vídeo já tem data para sair e ainda falta gravar. Vazio desliga a antecedência."
+              value={textoNumero(preferencias.antecedenciaPostagemDias)}
+              onChange={valor => {
+                gravar(atualizarPreferencias(settings, {
+                  antecedenciaPostagemDias: inteiroOuNull(valor),
+                }));
+              }}
+            />
+          </div>
         </div>
       </CardConfiguracao>
       </div>
@@ -489,6 +479,7 @@ export function AjustesEditorialPanel({ secao = 'faixas' }: { secao?: SecaoAjust
       {secao === 'proporcao' ? (
       <div id="proporcao" className="scroll-mt-24">
       <CardConfiguracao
+        embutido={embutido}
         icone={<Target className="h-5 w-5" />}
         titulo="Distribuição por objetivo"
         descricao="Quanto espaço você quer dar para cada objetivo no seu conteúdo? O total precisa somar 100%."
@@ -502,7 +493,7 @@ export function AjustesEditorialPanel({ secao = 'faixas' }: { secao?: SecaoAjust
               setEditandoProporcao(true);
             }}
           >
-            {settings.proporcaoFuncoes ? 'Editar distribuição' : 'Definir distribuição'}
+            Editar
           </AppButton>
         )}
       >
@@ -530,7 +521,7 @@ export function AjustesEditorialPanel({ secao = 'faixas' }: { secao?: SecaoAjust
       </div>
       ) : null}
 
-      {secao === 'avisos' ? <VariedadeConcentracaoCard /> : null}
+      {secao === 'avisos' ? <VariedadeConcentracaoCard embutido={embutido} /> : null}
 
       {secao === 'operacional' ? (() => {
         const hashtags = preferencias.hashtagsForaSeries
@@ -540,6 +531,7 @@ export function AjustesEditorialPanel({ secao = 'faixas' }: { secao?: SecaoAjust
         return (
           <div id="hashtags" className="scroll-mt-24">
           <CardConfiguracao
+            embutido={embutido}
             icone={<Hash className="h-5 w-5" />}
             titulo="Hashtags gerais"
             descricao="Hashtags que você usa em qualquer conteúdo, além das de cada pilar."
@@ -553,21 +545,9 @@ export function AjustesEditorialPanel({ secao = 'faixas' }: { secao?: SecaoAjust
                 </AppButton>
               </div>
             ) : (
-              <div className="flex flex-wrap justify-end gap-2">
-                {hashtags.length > 0 ? (
-                  <AppButton
-                    variant="secondary"
-                    size="sm"
-                    leftIcon={copiadoHashtags ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                    onClick={() => void copiarHashtags(hashtags)}
-                  >
-                    {copiadoHashtags ? 'Copiadas!' : 'Copiar todas'}
-                  </AppButton>
-                ) : null}
-                <AppButton variant="secondary" size="sm" leftIcon={<Pencil className="h-4 w-4" />} onClick={abrirHashtags}>
-                  Editar
-                </AppButton>
-              </div>
+              <AppButton variant="secondary" size="sm" leftIcon={<Pencil className="h-4 w-4" />} onClick={abrirHashtags}>
+                Editar
+              </AppButton>
             )}
           >
             {editandoHashtags ? (
@@ -585,15 +565,27 @@ export function AjustesEditorialPanel({ secao = 'faixas' }: { secao?: SecaoAjust
                 />
               </div>
             ) : hashtags.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {hashtags.map((tag, index) => (
-                  <span
-                    key={`${tag}-${index}`}
-                    className="inline-flex items-center rounded-[var(--radius-pill)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-1 t-secondary text-[var(--text-primary)]"
+              <div className="stack-sm">
+                <div className="flex flex-wrap justify-end">
+                  <AppButton
+                    variant="secondary"
+                    size="sm"
+                    leftIcon={copiadoHashtags ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    onClick={() => void copiarHashtags(hashtags)}
                   >
-                    {tag}
-                  </span>
-                ))}
+                    {copiadoHashtags ? 'Copiadas!' : 'Copiar todas'}
+                  </AppButton>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {hashtags.map((tag, index) => (
+                    <span
+                      key={`${tag}-${index}`}
+                      className="inline-flex items-center rounded-[var(--radius-pill)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-1 t-secondary text-[var(--text-primary)]"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               </div>
             ) : (
               <Text variant="secondary" as="p" className="text-[var(--text-tertiary)]">

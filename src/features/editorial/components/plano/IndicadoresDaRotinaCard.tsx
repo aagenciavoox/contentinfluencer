@@ -38,7 +38,7 @@ function criarRascunhos(indicadores: IndicadoresProducao | undefined): Rascunhos
  * Mínimo e máximo viram referência de alerta na Saúde; entre eles, é progresso.
  * O teto de gravações por dia continua separado, na capacidade.
  */
-export function IndicadoresDaRotinaCard() {
+export function IndicadoresDaRotinaCard({ embutido = false }: { embutido?: boolean } = {}) {
   const { settings, gravar } = useEditorialPlano();
   const [editando, setEditando] = useState(false);
   const [rascunhos, setRascunhos] = useState<RascunhosIndicadores>(() => criarRascunhos(settings.indicadoresProducao));
@@ -93,9 +93,10 @@ export function IndicadoresDaRotinaCard() {
 
   return (
     <CardConfiguracao
+      embutido={embutido}
       icone={<Gauge className="h-5 w-5" />}
       titulo="Ritmo de criação"
-      descricao="Comece pela meta. Se quiser, acrescente um mínimo, um máximo ou os dois. O teto de gravações por dia fica em Tetos."
+      descricao="Comece pela meta. Se quiser, acrescente um mínimo, um máximo ou os dois. O teto de gravações por dia fica em Gravação."
       acao={editando ? (
         <div className="flex flex-wrap justify-end gap-2">
           <AppButton variant="secondary" size="sm" onClick={cancelarEdicao} disabled={gravando}>
@@ -187,13 +188,13 @@ export function IndicadoresDaRotinaCard() {
           })}
         </div>
       ) : (
-        <div className="stack-sm">
+        <div className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] divide-y divide-[var(--border-subtle)]">
           {INDICADORES_DE_PRODUCAO.map(item => {
             const gravada = settings.indicadoresProducao?.[item.id] ?? null;
             return (
               <div
                 key={item.id}
-                className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] px-4 py-3 flex flex-wrap items-center justify-between gap-2"
+                className="px-4 py-2.5 flex flex-wrap items-center justify-between gap-2"
               >
                 <div className="inline-flex items-center">
                   <Text variant="bodyStrong" as="h4">{item.titulo}</Text>

@@ -1,11 +1,13 @@
 /** Meta semanal de cada conta: o texto da tabela e a gaveta de edição. */
-import { useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { format } from 'date-fns';
-import { Pencil } from 'lucide-react';
+import { AlertTriangle, Gauge, Pencil } from 'lucide-react';
+import { ConfirmModal } from '../../../../components/feedback/modals/ConfirmModal';
 import { Drawer } from '../../../../components/overlays/Drawer';
 import { OverlayHeader } from '../../../../components/overlays/OverlayHeader';
 import { Ajuda } from '../../../../components/ui/Ajuda';
 import { AppButton } from '../../../../components/ui/AppButton';
+import { Badge } from '../../../../components/ui/Badge';
 import { PlatformIcon } from '../../../../components/ui/PlatformIcon';
 import { Surface } from '../../../../components/ui/Surface';
 import { Text } from '../../../../components/ui/Text';
@@ -24,7 +26,7 @@ import { domingosParaVigencia } from '../../lib/vigencias';
 import { CampoStepper, inteiroOuNull } from './campos';
 import { ProporcaoObjetivosEditor, proporcaoEmTexto } from './ProporcaoObjetivosEditor';
 import { useEditorialPlano } from './useEditorialPlano';
-import { ValeAPartirDe } from './ValeAPartirDe';
+import { ValeAPartirDe, segundaCurta } from './ValeAPartirDe';
 
 function textoNumero(valor: number | null | undefined): string {
   return valor == null ? '' : String(valor);
@@ -69,10 +71,12 @@ type ModoProporcao = 'geral' | 'propria';
 function OpcaoMarcada({
   marcada,
   children,
+  descricao,
   onClick,
 }: {
   marcada: boolean;
   children: string;
+  descricao?: string;
   onClick: () => void;
 }) {
   return (
@@ -82,17 +86,33 @@ function OpcaoMarcada({
       aria-checked={marcada}
       onClick={onClick}
       className={cn(
-        'min-h-11 rounded-[var(--radius-input)] border px-4 py-2 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+        'w-full rounded-[var(--radius-input)] border px-4 py-3 text-left focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
         marcada
-          ? 'border-[var(--brand-accent-strong)] bg-[var(--brand-accent-strong)] text-[var(--brand-on-accent)]'
-          : 'border-[var(--border-input)] bg-[var(--bg-elevated)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]',
+          ? 'border-[var(--text-primary)] bg-[var(--bg-elevated)] text-[var(--text-primary)]'
+          : 'border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]',
       )}
     >
-      <Text variant="button" as="span">
-        {children}
-      </Text>
+      <Text variant="bodyStrong" as="span" className="block">{children}</Text>
+      {descricao ? (
+        <Text variant="meta" as="span" className="mt-1 block text-[var(--text-secondary)]">{descricao}</Text>
+      ) : null}
     </button>
   );
+}
+
+function AvisoDaMeta({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex items-start gap-2 rounded-[var(--radius-input)] border border-[color-mix(in_srgb,var(--warning)_40%,var(--border-color))] bg-[color-mix(in_srgb,var(--warning)_10%,var(--bg-elevated))] p-2 text-[var(--text-primary)]">
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--warning)]" aria-hidden />
+      <Text variant="meta" as="span" className="text-current">{children}</Text>
+    </div>
+  );
+}
+
+function corDoGrupo(id: string): string {
+  if (id === 'gravacao') return 'var(--accent-orange)';
+  if (id === 'producao') return 'var(--accent-blue)';
+  return 'var(--text-tertiary)';
 }
 
 /** Total da semana, formatos e proporção, a partir de uma segunda escolhida. */
@@ -103,6 +123,7 @@ function EditorDaConta({
   hoje,
   onSalvar,
   onCancelar,
+  onDirtyChange,
   embutido = false,
 }: {
   conta: Platform;
@@ -111,6 +132,7 @@ function EditorDaConta({
   hoje: string;
   onSalvar: (linhas: MetaDaContaVigencia[]) => void;
   onCancelar: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
   /** Na aba da conta o editor fica na página. Na gaveta, ocupa o painel. */
   embutido?: boolean;
 }) {
@@ -221,155 +243,254 @@ function EditorDaConta({
   };
 
   const sobra = total != null && somaParcelas <= total ? total - somaParcelas : 0;
-  const notas = [
+  const notas: string[] = [
     sobra > 0
       ? (sobra === 1 ? '1 publicação sem formato definido.' : `${sobra} publicações sem formato definido.`)
       : '',
     total == null && somaParcelas > 0 ? 'Sem total, a meta da conta é a soma dos formatos.' : '',
     rede === 'instagram' ? 'Stories ficam fora da meta semanal.' : '',
-  ].filter(Boolean).join(' ');
+  ].filter(Boolean);
+  const formatoFechado = total != null && somaParcelas > 0 && somaParcelas === total
+    ? `Formato fechado: ${formatos
+        .filter(formato => (parcelasNumero[formato] ?? 0) > 0)
+        .map(formato => `${parcelasNumero[formato]} ${nomeNoResumo(formato, rede, parcelasNumero[formato])}`)
+        .join(' + ')} = ${total} ${total === 1 ? 'publicação por semana' : 'publicações por semana'}.`
+    : '';
+  const { estaSemana } = domingosParaVigencia(hoje);
+  const sujo = !igualHoje || desde !== estaSemana || editandoProporcao;
+
+  useEffect(() => {
+    onDirtyChange?.(sujo);
+  }, [onDirtyChange, sujo]);
+  const subtituloDaMeta = desde !== estaSemana
+    ? `Vale a partir de ${segundaCurta(desde)}`
+    : null;
   const textoProporcao = modo === 'propria'
     ? (proporcao ? proporcaoEmTexto(proporcao) : '')
     : (proporcaoGeral ? proporcaoEmTexto(proporcaoGeral) : 'Ainda não definida.');
 
-  return (
-    <div className={embutido ? 'stack-lg' : 'flex min-h-0 flex-1 flex-col'}>
-      <div className={embutido ? 'stack-lg' : 'overlay-body min-h-0 flex-1 overflow-y-auto'}>
-        <div className="stack-lg">
-          <div className="flex items-start justify-between gap-4">
-            <div className="stack-xs">
-              <Text variant="bodyStrong" as="span">Meta semanal</Text>
-              <Text variant="secondary" as="p">Publicações por semana</Text>
-              {total == null ? (
-                <Text variant="meta" as="p" className="text-[var(--text-secondary)]">Sem meta para este período.</Text>
-              ) : null}
-            </div>
-            <div className="grid gap-2 sm:grid-cols-3">
-              <CampoStepper id={`conta-${conta.id}-minimo`} label="Mínimo" value={minimo} onChange={setMinimo} />
-              <CampoStepper id={`conta-${conta.id}-limite`} label="Meta" hint="Vazio, o total da conta é a soma dos formatos." value={limite} onChange={setLimite} />
-              <CampoStepper id={`conta-${conta.id}-maximo`} label="Máximo" hint="Vazio, avisa acima da meta." value={maximo} onChange={setMaximo} />
-            </div>
-          </div>
-
-          {formatos.length > 0 ? (
-            <div className="stack-sm">
-              <div className="inline-flex items-center">
-                <Text variant="bodyStrong" as="span">Metas por formato</Text>
-                <Ajuda rotulo="Sobre metas por formato" texto="Quer acompanhar Reels, Shorts ou outro formato de perto? Escolha o formato e defina a quantidade." />
-              </div>
-              {gruposDeFormato.map(grupo => (
-                <div key={grupo.id} className="stack-sm">
-                  <Text variant="label" as="p">{grupo.titulo}</Text>
-                  {grupo.itens.map(formato => (
-                    <div key={formato} className="stack-xs">
-                      <Text variant="bodyStrong" as="span">{rotuloDoFormato(formato, rede)}</Text>
-                      <div className="grid gap-2 sm:grid-cols-3">
-                        <CampoStepper
-                          id={`conta-${conta.id}-formato-${formato}-min`}
-                          label="Mínimo"
-                          zeroViraVazio
-                          value={faixas[formato]?.minimo ?? ''}
-                          onChange={valor => setFaixas(atuais => ({ ...atuais, [formato]: { minimo: valor, maximo: atuais[formato]?.maximo ?? '' } }))}
-                        />
-                        <CampoStepper
-                          id={`conta-${conta.id}-formato-${formato}`}
-                          label="Meta"
-                          zeroViraVazio
-                          value={parcelas[formato] ?? ''}
-                          onChange={valor => setParcelas(atuais => ({ ...atuais, [formato]: valor }))}
-                        />
-                        <CampoStepper
-                          id={`conta-${conta.id}-formato-${formato}-max`}
-                          label="Máximo"
-                          zeroViraVazio
-                          value={faixas[formato]?.maximo ?? ''}
-                          onChange={valor => setFaixas(atuais => ({ ...atuais, [formato]: { minimo: atuais[formato]?.minimo ?? '', maximo: valor } }))}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ))}
-              {avisoSoma ? <Text variant="meta" className="text-[var(--accent-orange)]">{avisoSoma} Dá para salvar assim.</Text> : null}
-              {avisoGravacao ? <Text variant="meta" className="text-[var(--accent-orange)]">{avisoGravacao} Dá para salvar assim.</Text> : null}
-              {ordemInvalida ? <Text variant="meta" className="text-[var(--accent-red)]">{ordemInvalida}</Text> : null}
-              {notas ? <Text variant="secondary" as="p">{notas}</Text> : null}
-            </div>
-          ) : rede === 'instagram' ? (
-            <Text variant="secondary" as="p">Stories ficam fora da meta semanal.</Text>
+  const metaSemanal = (
+    <div className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="stack-xs">
+          <Text variant="bodyStrong" as="span">Meta semanal</Text>
+          <Text variant="secondary" as="p">Publicações por semana</Text>
+          {total == null ? (
+            <Text variant="meta" as="p" className="text-[var(--text-secondary)]">Sem meta para este período.</Text>
           ) : null}
-
-          <div className="stack-sm">
-            <div className="inline-flex items-center">
-              <Text variant="bodyStrong" as="span">Distribuição por objetivo</Text>
-              <Ajuda rotulo="Sobre a distribuição da conta" texto="Você pode usar a mesma distribuição da Direção editorial ou escolher uma para esta conta." />
-            </div>
-            <div role="radiogroup" aria-label="Distribuição da conta" className="flex flex-wrap gap-2">
-              <OpcaoMarcada
-                marcada={modo === 'geral'}
-                onClick={() => {
-                  setModo('geral');
-                  setEditandoProporcao(false);
-                }}
-              >
-                Usar a distribuição geral
-              </OpcaoMarcada>
-              <OpcaoMarcada
-                marcada={modo === 'propria'}
-                onClick={() => {
-                  setModo('propria');
-                  if (!proporcao) setEditandoProporcao(true);
-                }}
-              >
-                Definir para esta conta
-              </OpcaoMarcada>
-            </div>
-            {modo === 'propria' && editandoProporcao ? (
-              <ProporcaoObjetivosEditor
-                idBase={`conta-${conta.id}-proporcao`}
-                valor={proporcao ?? proporcaoGeral}
-                rotuloSalvar="Aplicar distribuição"
-                varianteSalvar="secondary"
-                onCancelar={() => {
-                  setEditandoProporcao(false);
-                  if (!proporcao) setModo('geral');
-                }}
-                onSalvar={nova => {
-                  setProporcao(nova);
-                  setEditandoProporcao(false);
-                  if (!nova) setModo('geral');
-                }}
-              />
-            ) : (
-              <div className="stack-xs">
-                {textoProporcao ? <Text variant="secondary" as="p">{textoProporcao}</Text> : null}
-                {modo === 'propria' && proporcao ? (
-                  <AppButton variant="ghost" size="sm" className="self-start" leftIcon={<Pencil className="h-4 w-4" />} onClick={() => setEditandoProporcao(true)}>
-                    Editar distribuição
-                  </AppButton>
-                ) : null}
-              </div>
-            )}
-          </div>
-
-          <ValeAPartirDe id={`conta-${conta.id}-desde`} valor={desde} onChange={setDesde} hoje={hoje} aparencia="cartoes" />
+        </div>
+        <div className="grid gap-2 sm:grid-cols-3 sm:items-end">
+          <CampoStepper id={`conta-${conta.id}-minimo`} label="Mínimo" value={minimo} onChange={setMinimo} />
+          <CampoStepper id={`conta-${conta.id}-limite`} label="Meta" hint="Vazio, o total da conta é a soma dos formatos." value={limite} onChange={setLimite} />
+          <CampoStepper id={`conta-${conta.id}-maximo`} label="Máximo" hint="Vazio, avisa acima da meta." value={maximo} onChange={setMaximo} />
         </div>
       </div>
+    </div>
+  );
 
-      <div className={embutido
-        ? 'flex flex-wrap justify-end gap-2'
-        : 'flex shrink-0 justify-end gap-2 border-t border-[var(--border-color)] px-6 py-4'}
-      >
-        <AppButton variant="secondary" onClick={onCancelar}>Cancelar</AppButton>
-        <AppButton
-          variant="primary"
-          onClick={salvar}
-          disabled={Boolean(bloqueio) || editandoProporcao}
-          disabledReason={bloqueio ?? (editandoProporcao ? 'Termine a distribuição antes de salvar.' : undefined)}
-        >
-          Salvar meta
-        </AppButton>
+  const metasPorFormato = formatos.length > 0 ? (
+    <div className="stack-sm">
+      <div className="inline-flex items-center">
+        <Text variant="bodyStrong" as="span">Metas por formato</Text>
+        <Ajuda rotulo="Sobre metas por formato" texto="Quer acompanhar Reels, Shorts ou outro formato de perto? Escolha o formato e defina a quantidade." />
       </div>
+      {gruposDeFormato.map(grupo => (
+        <div key={grupo.id} className="stack-sm rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3">
+          <Text variant="label" as="p" className="inline-flex items-center gap-1.5 uppercase tracking-wider text-[var(--text-tertiary)]">
+            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: corDoGrupo(grupo.id) }} aria-hidden />
+            {grupo.titulo}
+          </Text>
+          {grupo.itens.map((formato, i) => (
+            <div key={formato} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+              <Text variant="bodyStrong" as="span" className="min-w-0 truncate">{rotuloDoFormato(formato, rede)}</Text>
+              <div className="grid grid-cols-3 gap-2">
+                <CampoStepper
+                  id={`conta-${conta.id}-formato-${formato}-min`}
+                  label="Mínimo"
+                  rotuloVisivel={i === 0}
+                  zeroViraVazio
+                  value={faixas[formato]?.minimo ?? ''}
+                  onChange={valor => setFaixas(atuais => ({ ...atuais, [formato]: { minimo: valor, maximo: atuais[formato]?.maximo ?? '' } }))}
+                />
+                <CampoStepper
+                  id={`conta-${conta.id}-formato-${formato}`}
+                  label="Meta"
+                  rotuloVisivel={i === 0}
+                  zeroViraVazio
+                  value={parcelas[formato] ?? ''}
+                  onChange={valor => setParcelas(atuais => ({ ...atuais, [formato]: valor }))}
+                />
+                <CampoStepper
+                  id={`conta-${conta.id}-formato-${formato}-max`}
+                  label="Máximo"
+                  rotuloVisivel={i === 0}
+                  zeroViraVazio
+                  value={faixas[formato]?.maximo ?? ''}
+                  onChange={valor => setFaixas(atuais => ({ ...atuais, [formato]: { minimo: atuais[formato]?.minimo ?? '', maximo: valor } }))}
+                />
+              </div>
+            </div>
+          ))}
+          {avisoGravacao && grupo.id === 'gravacao' ? (
+            <AvisoDaMeta>{avisoGravacao} Dá para salvar assim.</AvisoDaMeta>
+          ) : null}
+        </div>
+      ))}
+      {avisoSoma ? <AvisoDaMeta>{avisoSoma} Dá para salvar assim.</AvisoDaMeta> : null}
+      {ordemInvalida ? <Text variant="meta" className="text-[var(--accent-red)]">{ordemInvalida}</Text> : null}
+      {notas.length > 0 || formatoFechado ? (
+        <div className="stack-xs">
+          {notas.map(nota => (
+            <Text key={nota} variant="meta" as="p" className="text-[var(--text-secondary)]">{nota}</Text>
+          ))}
+          {formatoFechado ? (
+            <Text variant="meta" as="p" className="text-[var(--text-secondary)]">{formatoFechado}</Text>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  ) : rede === 'instagram' ? (
+    <Text variant="secondary" as="p">Stories ficam fora da meta semanal.</Text>
+  ) : null;
+
+  const distribuicao = (
+    <div className="stack-sm">
+      <div className="inline-flex items-center">
+        <Text variant="bodyStrong" as="span">Distribuição por objetivo</Text>
+        <Ajuda rotulo="Sobre a distribuição da conta" texto="Você pode usar a mesma distribuição da Direção editorial ou escolher uma para esta conta." />
+      </div>
+      <div role="radiogroup" aria-label="Distribuição da conta" className="stack-sm">
+        <OpcaoMarcada
+          marcada={modo === 'geral'}
+          descricao={modo === 'geral' ? textoProporcao : undefined}
+          onClick={() => {
+            setModo('geral');
+            setEditandoProporcao(false);
+          }}
+        >
+          Usar a distribuição geral
+        </OpcaoMarcada>
+        <div
+          className={cn(
+            'stack-sm rounded-[var(--radius-input)] border p-3',
+            modo === 'propria'
+              ? 'border-[var(--text-primary)] bg-[var(--surface-subtle)]'
+              : 'border-[var(--border-color)] bg-[var(--bg-elevated)]',
+          )}
+        >
+          <button
+            type="button"
+            role="radio"
+            aria-checked={modo === 'propria'}
+            onClick={() => {
+              setModo('propria');
+              if (!proporcao) setEditandoProporcao(true);
+            }}
+            className="w-full text-left focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+          >
+            <Text variant="bodyStrong" as="span">Definir para esta conta</Text>
+          </button>
+          {modo === 'propria' && editandoProporcao ? (
+            <ProporcaoObjetivosEditor
+              idBase={`conta-${conta.id}-proporcao`}
+              valor={proporcao ?? proporcaoGeral}
+              rotuloSalvar="Aplicar distribuição"
+              varianteSalvar="secondary"
+              onCancelar={() => {
+                setEditandoProporcao(false);
+                if (!proporcao) setModo('geral');
+              }}
+              onSalvar={nova => {
+                setProporcao(nova);
+                setEditandoProporcao(false);
+                if (!nova) setModo('geral');
+              }}
+            />
+          ) : modo === 'propria' && proporcao ? (
+            <div className="stack-xs">
+              {textoProporcao ? <Text variant="secondary" as="p">{textoProporcao}</Text> : null}
+              <AppButton variant="secondary" size="sm" className="self-start" leftIcon={<Pencil className="h-4 w-4" />} onClick={() => setEditandoProporcao(true)}>
+                Editar distribuição
+              </AppButton>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+
+  const valeAPartirDe = (
+    <ValeAPartirDe id={`conta-${conta.id}-desde`} valor={desde} onChange={setDesde} hoje={hoje} aparencia="cartoes" />
+  );
+
+  const acoes = (
+    <div className={embutido
+      ? 'flex flex-wrap justify-end gap-2 border-t border-[var(--border-subtle)] pt-4'
+      : 'flex shrink-0 justify-end gap-2 border-t border-[var(--border-color)] px-6 py-4'}
+    >
+      <AppButton variant="secondary" onClick={onCancelar}>Cancelar</AppButton>
+      <AppButton
+        variant="primary"
+        onClick={salvar}
+        disabled={Boolean(bloqueio) || editandoProporcao}
+        disabledReason={bloqueio ?? (editandoProporcao ? 'Termine a distribuição antes de salvar.' : undefined)}
+      >
+        Salvar meta
+      </AppButton>
+    </div>
+  );
+
+  const cabecalhoDaMeta = (
+    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border-subtle)] pb-3">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <Gauge className="h-5 w-5 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
+        <Text variant="sectionTitle" as="h2">Meta da conta</Text>
+        {sujo ? <Badge variant="warning">Alterações em curso</Badge> : null}
+      </div>
+      {subtituloDaMeta ? (
+        <Text variant="meta" as="span" className="text-[var(--text-secondary)]">{subtituloDaMeta}</Text>
+      ) : null}
+    </div>
+  );
+
+  if (embutido) {
+    return (
+      <Surface
+        padding="md"
+        className={cn(
+          'stack-lg',
+          sujo && 'ring-1 ring-[color-mix(in_srgb,var(--warning)_45%,var(--border-color))]',
+        )}
+      >
+        {cabecalhoDaMeta}
+        <div className="grid grid-cols-1 items-stretch gap-8 xl:grid-cols-12">
+          <div className="min-w-0 stack-lg xl:col-span-7 xl:border-r xl:border-[var(--border-subtle)] xl:pr-6">
+            {metaSemanal}
+            {metasPorFormato}
+          </div>
+          <div className="flex min-w-0 flex-col justify-between gap-6 xl:col-span-5">
+            <div className="stack-lg">
+              {distribuicao}
+              {valeAPartirDe}
+            </div>
+            {acoes}
+          </div>
+        </div>
+      </Surface>
+    );
+  }
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="overlay-body min-h-0 flex-1 overflow-y-auto">
+        <div className="stack-lg">
+          {metaSemanal}
+          {metasPorFormato}
+          {distribuicao}
+          {valeAPartirDe}
+        </div>
+      </div>
+      {acoes}
     </div>
   );
 }
@@ -383,9 +504,27 @@ export function PainelMetaDaConta({
   onClose: () => void;
 }) {
   const { settings, gravar } = useEditorialPlano();
+  const [sujo, setSujo] = useState(false);
+  const [confirmandoDescarte, setConfirmandoDescarte] = useState(false);
   const hoje = format(new Date(), 'yyyy-MM-dd');
   const linhas = settings.metasDasContas ?? [];
   const handle = conta ? exibirHandle(conta.handle) : null;
+
+  useEffect(() => {
+    if (!conta) {
+      setSujo(false);
+      setConfirmandoDescarte(false);
+    }
+  }, [conta]);
+
+  const tentarFechar = () => {
+    if (confirmandoDescarte) return;
+    if (sujo) {
+      setConfirmandoDescarte(true);
+      return;
+    }
+    onClose();
+  };
 
   const salvar = (novas: MetaDaContaVigencia[]) => {
     void gravar({ ...settings, metasDasContas: novas });
@@ -393,62 +532,152 @@ export function PainelMetaDaConta({
   };
 
   return (
-    <Drawer
-      open={conta != null}
-      onClose={onClose}
-      ariaLabel={conta ? `Editar meta do ${nomeDaRede(conta)}` : 'Editar meta'}
-      widthClassName="max-w-xl"
-    >
-      {conta ? (
-        <>
-          <OverlayHeader onClose={onClose}>
-            <div className="flex items-start gap-3">
-              <PlatformIcon platform={iconeDaConta(conta)} colored className="mt-1 h-6 w-6 shrink-0" />
-              <div className="min-w-0">
-                <Text variant="sectionTitle" as="h2">Editar meta do {nomeDaRede(conta)}</Text>
-                {handle ? (
-                  <Text variant="meta" className="mt-1 text-[var(--text-secondary)]">{handle}</Text>
-                ) : null}
+    <>
+      <Drawer
+        open={conta != null}
+        onClose={tentarFechar}
+        ariaLabel={conta ? `Editar meta do ${nomeDaRede(conta)}` : 'Editar meta'}
+        widthClassName="w-full max-w-none sm:max-w-[560px]"
+      >
+        {conta ? (
+          <>
+            <OverlayHeader onClose={tentarFechar}>
+              <div className="stack-xs">
+                <span className="inline-flex items-center gap-1.5 t-meta text-[var(--text-secondary)]">
+                  <PlatformIcon platform={iconeDaConta(conta)} colored className="h-3.5 w-3.5 shrink-0" />
+                  <span>{nomeDaRede(conta)}{handle ? ` ${handle}` : ''}</span>
+                  <span className="text-[var(--text-tertiary)]" aria-hidden>/</span>
+                  <span>Meta da conta</span>
+                </span>
+                <Text variant="sectionTitle" as="h2">Editar meta da conta</Text>
               </div>
-            </div>
-          </OverlayHeader>
-          <EditorDaConta
-            key={conta.id}
-            conta={conta}
-            linhas={linhas}
-            proporcaoGeral={settings.proporcaoFuncoes}
-            hoje={hoje}
-            onCancelar={onClose}
-            onSalvar={salvar}
-          />
-        </>
-      ) : null}
-    </Drawer>
+            </OverlayHeader>
+            <EditorDaConta
+              key={conta.id}
+              conta={conta}
+              linhas={linhas}
+              proporcaoGeral={settings.proporcaoFuncoes}
+              hoje={hoje}
+              onDirtyChange={setSujo}
+              onCancelar={tentarFechar}
+              onSalvar={salvar}
+            />
+          </>
+        ) : null}
+      </Drawer>
+
+      <ConfirmModal
+        open={confirmandoDescarte}
+        message="Você tem alterações não salvas. Deseja descartá-las?"
+        confirmLabel="Descartar alterações"
+        cancelLabel="Continuar editando"
+        onConfirm={() => {
+          setConfirmandoDescarte(false);
+          onClose();
+        }}
+        onCancel={() => setConfirmandoDescarte(false)}
+      />
+    </>
   );
 }
 
-/** A mesma meta da gaveta, na aba da conta: total, formatos e proporção própria ou herdada. */
+/** Resumo somente leitura da meta da conta em 3 colunas; edição acontece na gaveta lateral. */
 export function MetaDaContaEmbutida({ conta }: { conta: Platform }) {
-  const { settings, gravar } = useEditorialPlano();
-  const [versao, setVersao] = useState(0);
+  const { settings } = useEditorialPlano();
+  const [editando, setEditando] = useState(false);
   const hoje = format(new Date(), 'yyyy-MM-dd');
+  const { estaSemana } = domingosParaVigencia(hoje);
   const linhas = settings.metasDasContas ?? [];
+  const atual = metaDaContaHoje(linhas, conta.id, hoje);
+  const rede = redeDaConta(conta);
+  const resumoFormatos = textoPorFormato(atual, rede);
+  const minMax = [
+    atual?.minimoSemanal != null ? `mín. ${atual.minimoSemanal}` : null,
+    atual?.maximoSemanal != null ? `máx. ${atual.maximoSemanal}` : null,
+  ].filter((parte): parte is string => parte != null).join(' · ');
+
+  const rotuloVigencia = atual?.vigenteDesde
+    ? (atual.vigenteDesde === estaSemana ? 'Vigente desde esta semana' : `Vigente desde ${segundaCurta(atual.vigenteDesde)}`)
+    : null;
 
   return (
-    <Surface padding="md" className="stack-md">
-      <Text variant="sectionTitle" as="h2">Meta da conta</Text>
-      <EditorDaConta
-        key={`${conta.id}-${versao}`}
-        embutido
-        conta={conta}
-        linhas={linhas}
-        proporcaoGeral={settings.proporcaoFuncoes}
-        hoje={hoje}
-        onCancelar={() => setVersao(atual => atual + 1)}
-        onSalvar={novas => {
-          void gravar({ ...settings, metasDasContas: novas });
-        }}
-      />
-    </Surface>
+    <>
+      <Surface padding="lg" className="stack-md">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Text variant="itemTitle" as="h3">Meta da conta</Text>
+            {rotuloVigencia ? (
+              <Badge variant="neutral" className="tabular-nums">
+                {rotuloVigencia}
+              </Badge>
+            ) : null}
+          </div>
+          <AppButton
+            variant="secondary"
+            size="sm"
+            onClick={() => setEditando(true)}
+          >
+            Editar
+          </AppButton>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 divide-y divide-[var(--border-subtle)] lg:grid-cols-3 lg:gap-0 lg:divide-x lg:divide-y-0">
+          <div className="stack-xs lg:pr-6">
+            <Text variant="eyebrow" as="p" className="text-[var(--text-tertiary)]">
+              Postagens por semana
+            </Text>
+            {atual?.limiteSemanal != null ? (
+              <div className="flex items-baseline gap-2">
+                <Text variant="pageTitle" as="span" className="tabular-nums text-[var(--brand-accent-text)]">
+                  {atual.limiteSemanal}
+                </Text>
+                <Text variant="secondary" as="span" className="text-[var(--text-secondary)]">
+                  por semana
+                </Text>
+              </div>
+            ) : (
+              <Text variant="sectionTitle" as="p" className="text-[var(--text-tertiary)]">
+                Não definido
+              </Text>
+            )}
+            <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+              {minMax || 'Sem mínimo ou máximo definidos'}
+            </Text>
+          </div>
+
+          <div className="stack-xs pt-4 lg:px-6 lg:pt-0">
+            <Text variant="eyebrow" as="p" className="text-[var(--text-tertiary)]">
+              Formatos
+            </Text>
+            <Text
+              variant={resumoFormatos ? 'bodyStrong' : 'sectionTitle'}
+              as="p"
+              className={resumoFormatos ? 'text-[var(--text-primary)] tabular-nums' : 'text-[var(--text-tertiary)]'}
+            >
+              {resumoFormatos || 'Não definido'}
+            </Text>
+            <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+              {rede === 'instagram' ? 'Stories ficam fora da meta semanal.' : 'Distribuição por formato na semana.'}
+            </Text>
+          </div>
+
+          <div className="stack-xs pt-4 lg:pl-6 lg:pt-0">
+            <Text variant="eyebrow" as="p" className="text-[var(--text-tertiary)]">
+              Objetivos
+            </Text>
+            <Text variant="bodyStrong" as="p" className="text-[var(--text-primary)]">
+              {atual?.proporcaoFuncoes ? 'Distribuição própria' : 'Segue a distribuição geral'}
+            </Text>
+            <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+              {atual?.proporcaoFuncoes
+                ? proporcaoEmTexto(atual.proporcaoFuncoes)
+                : 'Usa os percentuais definidos em Geral.'}
+            </Text>
+          </div>
+        </div>
+      </Surface>
+
+      <PainelMetaDaConta conta={editando ? conta : null} onClose={() => setEditando(false)} />
+    </>
   );
 }

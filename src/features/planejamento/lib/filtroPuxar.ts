@@ -1,13 +1,15 @@
-import type {Content, Pilar, RedeSocial, Serie, Tema} from '../../../lib/database.ts';
+import type {Content, Pilar, Serie, Tema} from '../../../lib/database.ts';
 import {etiquetasVisiveis} from '../../creation/lib/creationItemPresentation.ts';
 import {passaNoFiltroRede} from '../../creation/lib/creationRedeFilter.ts';
 import type {RedeDoFiltro} from '../../contas/lib/contas.ts';
+import {CONTENT_STATUS, normalizeContentStatus} from '../../contents/lib/contentPipeline.ts';
 import {pilarDoConteudo, type SerieClassificacao} from '../../editorial/lib/herancaSerie.ts';
 import {caminhoDaSerie, conteudoNaSubarvore} from '../../editorial/lib/serieArvore.ts';
 import {seriesParaFiltro} from '../../settings/lib/serieAgrupamento.ts';
 
 type ConteudoFiltravel = Pick<Content, 'seriesId' | 'pilarId' | 'tags' | 'temaIds'>
-  & Partial<Pick<Content, 'pilarOrigem' | 'classificacaoCongeladaEm'>>;
+  & Partial<Pick<Content, 'pilarOrigem' | 'classificacaoCongeladaEm' | 'status'>>;
+type ConteudoOrdenavel = Pick<Content, 'status'> & Partial<Pick<Content, 'title'>>;
 type SerieRef = Pick<Serie, 'id' | 'name'> & SerieClassificacao & Partial<Pick<Serie, 'parentId'>>;
 type PilarRef = Pick<Pilar, 'id' | 'nome'>;
 type TemaRef = Pick<Tema, 'id' | 'nome'>;
@@ -20,6 +22,7 @@ export interface FiltroPuxar {
   serieIds: string[];
   pilarIds: string[];
   tags: string[];
+  statusIds: string[];
   redes?: RedeDoFiltro[];
 }
 
@@ -28,7 +31,15 @@ export interface OpcaoFiltro {
   label: string;
 }
 
-export const FILTRO_PUXAR_VAZIO: FiltroPuxar = {serieIds: [], pilarIds: [], tags: [], redes: []};
+export const FILTRO_PUXAR_VAZIO: FiltroPuxar = {serieIds: [], pilarIds: [], tags: [], statusIds: [], redes: []};
+
+/** Na fila do Puxar, o mais perto de publicar vem primeiro. Status desconhecido fica por último. */
+export const PRIORIDADE_STATUS_PUXAR = [
+  CONTENT_STATUS.EDICAO,
+  CONTENT_STATUS.PRODUCAO,
+  CONTENT_STATUS.ROTEIRO,
+  CONTENT_STATUS.IDEIA,
+] as const;
 
 export function chaveDaTag(tag: string): string {
   return tag.trim().replace(/\s+/g, ' ').toLocaleLowerCase('pt-BR');
@@ -44,8 +55,20 @@ export function filtroPuxarAtivo(filtro: FiltroPuxar): boolean {
     filtro.serieIds.length > 0 ||
     filtro.pilarIds.length > 0 ||
     filtro.tags.length > 0 ||
+    filtro.statusIds.length > 0 ||
     Boolean(filtro.redes && filtro.redes.length > 0)
   );
+}
+
+/** Quantos grupos de filtro (série, pilar, tags, status, redes) estão ativos. */
+export function quantosFiltrosPuxar(filtro: FiltroPuxar): number {
+  return [
+    filtro.serieIds,
+    filtro.pilarIds,
+    filtro.tags,
+    filtro.statusIds,
+    filtro.redes ?? [],
+  ].filter(lista => lista.length > 0).length;
 }
 
 export function passaNoFiltroPuxar(
@@ -65,10 +88,28 @@ export function passaNoFiltroPuxar(
     const chaves = etiquetasVisiveis(content, temas).map(chaveDaTag);
     if (!filtro.tags.some(tag => chaves.includes(tag))) return false;
   }
+  if (filtro.statusIds.length > 0) {
+    const status = normalizeContentStatus(content.status ?? '');
+    if (!filtro.statusIds.includes(status)) return false;
+  }
   if (filtro.redes && filtro.redes.length > 0) {
     if (!passaNoFiltroRede(redesDoConteudo, filtro.redes)) return false;
   }
   return true;
+}
+
+export function prioridadeStatusPuxar(status: string): number {
+  const rank = (PRIORIDADE_STATUS_PUXAR as readonly string[]).indexOf(normalizeContentStatus(status));
+  return rank === -1 ? PRIORIDADE_STATUS_PUXAR.length : rank;
+}
+
+/** Edição, Produção, Roteiro, Ideia; empate por título A–Z (pt-BR); status desconhecido por último. */
+export function ordenarPorPrioridadeDeStatus<T extends ConteudoOrdenavel>(contents: readonly T[]): T[] {
+  return [...contents].sort((left, right) => {
+    const porStatus = prioridadeStatusPuxar(left.status) - prioridadeStatusPuxar(right.status);
+    if (porStatus !== 0) return porStatus;
+    return (left.title || '').localeCompare(right.title || '', 'pt-BR');
+  });
 }
 
 /**
@@ -80,10 +121,11 @@ export function opcoesDoFiltroPuxar(
   series: readonly SerieRef[],
   pilares: readonly PilarRef[],
   temas: readonly TemaRef[],
-): {series: OpcaoFiltro[]; pilares: OpcaoFiltro[]; tags: OpcaoFiltro[]} {
+): {series: OpcaoFiltro[]; pilares: OpcaoFiltro[]; tags: OpcaoFiltro[]; status: OpcaoFiltro[]} {
   const serieIds = new Set<string>();
   const pilarIds = new Set<string>();
   const tags = new Map<string, string>();
+  const statusPresentes = new Set<string>();
   for (const content of contents) {
     // A série de cima entra mesmo sem conteúdo direto: escolhê-la traz os quadros.
     if (content.seriesId) for (const no of caminhoDaSerie(content.seriesId, series)) serieIds.add(no.id);
@@ -93,7 +135,12 @@ export function opcoesDoFiltroPuxar(
       const chave = chaveDaTag(tag);
       if (!tags.has(chave)) tags.set(chave, tag);
     }
+    if (content.status) statusPresentes.add(normalizeContentStatus(content.status));
   }
+  const conhecidos = (PRIORIDADE_STATUS_PUXAR as readonly string[]).filter(status => statusPresentes.has(status));
+  const outros = [...statusPresentes]
+    .filter(status => !conhecidos.includes(status))
+    .sort((a, b) => a.localeCompare(b, 'pt-BR'));
   return {
     // Quadros não entram na lista: escolher a série já traz o conteúdo deles.
     series: seriesParaFiltro(series)
@@ -105,5 +152,6 @@ export function opcoesDoFiltroPuxar(
     tags: [...tags]
       .map(([value, label]) => ({value, label}))
       .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR')),
+    status: [...conhecidos, ...outros].map(status => ({value: status, label: status})),
   };
 }

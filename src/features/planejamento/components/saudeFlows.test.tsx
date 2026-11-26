@@ -14,6 +14,9 @@ import type {AvisoOrientacao} from '../lib/orientacaoEditorial';
 import {SugestaoGravacaoConteudo} from '../../recording/components/SugestaoGravacaoPanel';
 import {SaveFeedbackToast} from '../../../components/ui/SaveFeedbackToast';
 import {clearSaveFeedback, getSaveFeedbackState, notifySaveFeedback} from '../../../lib/saveFeedback';
+import {DEFAULT_EDITORIAL_SETTINGS} from '../../editorial/lib/editorialSettings';
+import {saudeDoMes} from '../lib/monthHealth';
+import {SaudeEditorialPanel} from './SaudeEditorialPanel';
 
 const noop = () => {};
 const postIt = {id:'p1',userId:'',texto:'Episódio de sexta',date:'2026-11-06',contentId:null,createdAt:'',updatedAt:''};
@@ -147,5 +150,119 @@ describe('gravação por energia', () => {
     assert.match(fila, /Gravar com esta energia/);
     assert.ok(!blocos.includes('Gravar com esta energia'));
     assert.match(fila, /Buscar roteiro, pilar ou série/);
+  });
+});
+
+describe('Saúde do Planejamento (placar e 3 perguntas)', () => {
+  it('renderiza cabeçalho com navegação, placar de 3 sinais e as 3 perguntas sem rodapé artificial', () => {
+    const pilares = [
+      { id: 'pil-1', userId: '', nome: 'Literatura Clássica', descricao: '', cor: '#914660', ativo: true, plataformas: [], createdAt: '', updatedAt: '' },
+      { id: 'pil-2', userId: '', nome: 'Hábitos de Leitura', descricao: '', cor: '#B80049', ativo: true, plataformas: [], createdAt: '', updatedAt: '' },
+    ];
+    const contents = [
+      createContentDraft({ id: 'c1', title: 'Clássicos Sem Medo #12', status: CONTENT_STATUS.PRODUCAO, publishDate: '2026-11-10', pilarId: 'pil-1' }),
+    ];
+    const counts = {
+      ...saudeDoMes({
+        postIts: [],
+        contents,
+        series: [],
+        pilares,
+        settings: {
+          ...DEFAULT_EDITORIAL_SETTINGS,
+          preferencias: { ...DEFAULT_EDITORIAL_SETTINGS.preferencias, limiteSemanal: 7 },
+        },
+        periodo: { inicio: '2026-11-09', fim: '2026-11-15' },
+        platforms: [],
+      }),
+      previsto: 5,
+      limite: 7,
+      preparo: { total: 5, publicadas: 1, prontas: 0, gravacao: 1, escrita: 2, edicao: 1 },
+    };
+
+    const html = renderToStaticMarkup(
+      <MemoryRouter>
+        <SaudeEditorialPanel
+          rotuloPeriodo="11 a 17 nov"
+          escopoRotulo="Semana visível"
+          onFechar={noop}
+          onPeriodoAnterior={noop}
+          onProximoPeriodo={noop}
+          pilares={pilares}
+          counts={counts}
+          contents={contents}
+          foraDoPrazo={[
+            { id: 'i-late', contentId: 'c1', tipo: 'original', postItId: null, data: '2026-11-01', hora: null, contaNaGrade: true, etapa: 'roteiro', realizada: false, realizadaEm: null, pilarId: 'pil-1', serieId: 's1', funcao: 'aprofundar' },
+          ]}
+          roteiroIds={['c1']}
+          onResolverData={noop}
+          objetivos={{
+            total: 5,
+            linhas: [
+              { funcao: 'aprofundar', rotulo: 'Aprofundar', quantidade: 3, previstoPct: 60, desejadoPct: 50, metaQuantidade: 3, metaAjustada: false, itens: [] },
+              { funcao: 'atrair', rotulo: 'Atrair alcance', quantidade: 2, previstoPct: 40, desejadoPct: 50, metaQuantidade: 3, metaAjustada: false, itens: [] },
+            ],
+            semObjetivo: [],
+            semObjetivoPct: 0,
+            incompleta: false,
+            temProporcao: true,
+          }}
+          faixas={{
+            gerais: [
+              { id: 'postagem', rotulo: 'Postagem', valor: 5, faixa: { minimo: 5, meta: 7, maximo: 9 }, leitura: { estado: 'progresso', referencia: 'meta', aviso: null }, secao: 'producao' },
+            ],
+            contas: [],
+          }}
+          continuidade={{
+            nenhumaAcompanhada: false,
+            linhas: [
+              {
+                chave: 's1',
+                serieId: 's1',
+                nome: 'Clássicos Sem Medo',
+                tipo: 'serie',
+                paiNome: null,
+                frequencia: '1 por semana',
+                intervalos: [{ inicio: '2026-11-09', fim: '2026-11-15', quantidade: 0, meta: 1, episodios: 0, reservas: 0, foraDoPeriodo: 0, estado: 'abaixo', nota: null, abaixo: true, pausada: false, parcial: false }],
+                abaixo: [],
+                reservadas: [],
+                concentrada: false,
+                semEpisodios: false,
+                foraDoPeriodo: 0,
+                precisaAtencao: true,
+                itens: [],
+              },
+            ],
+            pendencias: [],
+            naoAvaliadas: [],
+            resumo: '',
+            resumoPendencias: null,
+          }}
+          onAddReserva={noop}
+          onOpenGravacao={noop}
+        />
+      </MemoryRouter>,
+    );
+
+    assert.match(html, /Saúde do Planejamento/);
+    assert.match(html, /Período anterior/);
+    assert.match(html, /Próximo período/);
+    assert.match(html, /Metas/);
+    assert.match(html, /Placar de diagnóstico rápido/);
+    assert.match(html, /1\. Equilíbrio/);
+    assert.match(html, /2\. Ritmo/);
+    assert.match(html, /3\. Séries/);
+    assert.match(html, /Mín 5 · Meta 7 · Máx 9/);
+    assert.match(html, /Está equilibrado\?/);
+    assert.match(html, /Falta algo\?/);
+    assert.match(html, /As séries estão em dia\?/);
+    assert.match(html, /id="conferencia-series"/);
+    assert.match(html, /Resolver data/);
+    assert.match(html, /Preparar sessão/);
+    assert.match(html, /Adicionar reserva/);
+    assert.match(html, /Clássicos Sem Medo/);
+    assert.ok(!html.includes('Validar Planejamento'));
+    assert.ok(!html.includes('Versão 2'));
+    assert.ok(!html.includes('OS Ativo'));
   });
 });

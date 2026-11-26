@@ -18,7 +18,7 @@ import {cn} from '../../../../lib/utils';
 import type {Content, Pilar, WritingMode} from '../../../../lib/database';
 import {WRITING_MODE_HINTS, WRITING_MODE_LABELS, WRITING_MODES} from '../../lib/carouselSlides';
 import type {ContentPrimaryAction, ContentPrimaryActionId} from '../../lib/contentPipeline';
-import {getDisplayStatus} from '../../lib/contentPipeline';
+import {statusNaTela} from '../../lib/esteiraDisplay';
 import {ContentTemaChips} from '../ContentTemaChips';
 import {DesktopPageHeader} from '../../../../layouts/page/DesktopPageHeader';
 import {PAGE_SECTION} from '../../../../layouts/navigation/navConfig';
@@ -150,7 +150,7 @@ export function ContentDetailHeader({
   const menuRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const hasPrimaryAction = primaryAction.id !== 'none';
-  const displayStatus = getDisplayStatus(content);
+  const selo = statusNaTela(content);
   const workflowBusy = primaryBusy ?? isSaving;
 
   useEffect(() => {
@@ -392,8 +392,8 @@ export function ContentDetailHeader({
       <div className="min-w-0 stack-sm">
         {titleBlock}
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <Badge variant="status" status={displayStatus}>
-            {displayStatus}
+          <Badge variant="status" status={selo.status}>
+            {selo.rotulo}
           </Badge>
           <ContentTemaChips temaIds={content.temaIds} max={6} />
           {saveIndicator ? (

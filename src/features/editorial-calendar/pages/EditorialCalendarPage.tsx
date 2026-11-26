@@ -68,7 +68,7 @@ import {getGentleExperienceSettings} from '../../settings/lib/gentleExperience';
 import {itensPendenciaDoDia, type ItemPendenciaDoDia} from '../../planejamento/lib/avisosPendencia';
 import {generateUUID} from '../../../utils/uuid';
 import {calendarEntryIcon, CalendarLegend} from '../components/CalendarNetworkIcons';
-import {PublishCalendarCard} from '../components/PublishCalendarCard';
+import {PublishCalendarCard, estadoDoCard} from '../components/PublishCalendarCard';
 import {contasAtivas, rotuloConta, rotuloDaRef} from '../../contas/lib/contas';
 import {editarVersaoPropria, ESTADO_LEGENDA_ROTULO, estadoLegenda, legendaEfetiva} from '../../editorial/lib/captions';
 import {
@@ -994,10 +994,10 @@ function CalendarWeekView({
                         key={entry.id}
                         label={entry.label}
                         time={entry.time}
-                        secondary={getEntryLabel(entry)}
+                        secondary={entry.secondary}
                         contas={entry.contas}
                         variant="expanded"
-                        style={calendarEntryPillStyle(entry)}
+                        estado={estadoDoCard(entry)}
                         onOpen={() => {
                           onSelectDate(day);
                           onSelectEntry(entry);
@@ -1111,10 +1111,10 @@ function CalendarAgendaListView({
                         key={entry.id}
                         label={entry.label}
                         time={entry.time}
-                        secondary={[...new Set([getEntryLabel(entry), entry.secondary].filter(Boolean))].join(' · ')}
+                        secondary={entry.secondary}
                         contas={entry.contas}
                         variant="expanded"
-                        style={calendarEntryPillStyle(entry)}
+                        estado={estadoDoCard(entry)}
                         onOpen={() => {
                           onSelectDate(date);
                           onSelectEntry(entry);
@@ -1187,7 +1187,7 @@ function CalendarDayPanel({
           onClick={() => onSelectEntry(primaryEntry)}
           className="mb-4 w-full rounded-[var(--radius-input)] border border-[color-mix(in_srgb,var(--accent-blue),transparent_62%)] bg-[color-mix(in_srgb,var(--accent-blue),transparent_94%)] p-4 text-left"
         >
-          <span className="status-pill mb-3" style={calendarEntryPillStyle({type: primaryEntry.type, posted: primaryEntry.posted})}>
+          <span className="status-pill mb-3" style={calendarEntryPillStyle({type: primaryEntry.type, posted: primaryEntry.posted, editado: primaryEntry.editado})}>
             {getEntryLabel(primaryEntry)}
           </span>
           <Text variant="itemTitle">{primaryEntry.label}</Text>
@@ -1223,7 +1223,7 @@ function CalendarDayPanel({
                     secondary={entry.secondary}
                     contas={entry.contas}
                     variant="expanded"
-                    style={calendarEntryPillStyle(entry)}
+                    estado={estadoDoCard(entry)}
                     onOpen={() => onSelectEntry(entry)}
                   />
                 ) : (

@@ -13,7 +13,7 @@ import {
   isDraftTitle,
   isRecentlyCreated,
 } from '../../lib/contentCardMeta';
-import {getDisplayStatus, getDisplayStatusLabel} from '../../lib/contentPipeline';
+import {statusNaTela} from '../../lib/esteiraDisplay';
 import { rotuloDaRef } from '../../../contas/lib/contas';
 
 interface PipelineContentCardProps {
@@ -49,7 +49,7 @@ export function PipelineContentCard({
   const isDraft = isDraftTitle(content.title);
   const isNew = isRecentlyCreated(content);
   const platformName = resolvePrimaryPlatformName(content, platforms);
-  const displayStatus = getDisplayStatus(content);
+  const selo = statusNaTela(content, platforms);
   const notesCount = (content.scriptNotes || []).length;
   const wordCount = getScriptWordCount(content);
 
@@ -98,7 +98,7 @@ export function PipelineContentCard({
           }}
           className="flex w-full min-w-0 flex-col gap-2 text-left"
         >
-          <Badge variant="status" status={displayStatus}>{getDisplayStatusLabel(content)}</Badge>
+          <Badge variant="status" status={selo.status}>{selo.rotulo}</Badge>
           <div className="flex items-start gap-1">
             {(isNew || isDraft) ? (
               <span className="mt-0.5 inline-flex shrink-0 items-center gap-0.5">

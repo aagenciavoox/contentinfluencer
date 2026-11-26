@@ -1,5 +1,5 @@
 import { useId, useMemo, useRef, type ReactNode } from 'react';
-import { Check, ChevronDown, ChevronUp, FileText, Lightbulb, Plus } from 'lucide-react';
+import { Check, CheckCircle2, ChevronDown, ChevronUp, Plus } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { Badge } from '../../../../components/ui/Badge';
@@ -7,15 +7,18 @@ import { MoreMenu, type MoreMenuItem } from '../../../../components/ui/MoreMenu'
 import { PlatformIcon } from '../../../../components/ui/PlatformIcon';
 import { PlatformIcons } from '../../../../components/ui/PlatformIcons';
 import { rotuloDoFoco } from '../../../editorial/lib/focoTemporada';
+import { etapaDoStatus } from '../../../editorial/lib/etapas';
 import { normalizarRedesPostIt } from '../../../planejamento/lib/redesPostIt';
 import { Text } from '../../../../components/ui/Text';
 import type { Content, Platform, Serie, SerieTipoAgrupamento, Temporada } from '../../../../lib/database';
-import { cn } from '../../../../lib/utils';
+import { dia, hora } from '../../../../lib/dates';
+import { cn, htmlToReadableText } from '../../../../lib/utils';
 import { isPostedContent } from '../../../contents/lib/contentWorkflow';
-import { TIPO_AGRUPAMENTO_LABEL, ehIdeia, textoConteudos } from '../../lib/serieAgrupamento';
+import { ehIdeia } from '../../lib/serieAgrupamento';
 import type { BlocoRede, GrupoConteudos } from '../../lib/seriesGrupos';
+import { redesDoConteudo } from '../../lib/seriesGrupos';
 import { contagemDoGrupo, episodioPostado, exibidosDoGrupo, ordenarParaExibir, podeReordenarEpisodio, type AgruparLista } from '../../lib/seriesLista';
-import { seloDoFluxo, textoDoFormatoDoEpisodio } from '../../lib/seriesSecoes';
+import { contasDoCicloAtual, seloDoFluxo, textoDoFormatoDoEpisodio } from '../../lib/seriesSecoes';
 import { estadoDaMarcacao, type EstadoMarcacao } from '../../lib/selecaoEpisodios';
 import { CaixaMarcacao } from './SeriesAcoesEmMassa';
 
@@ -46,6 +49,67 @@ export type SelecaoDaLista = {
 
 /** Segurar o dedo por este tempo entra no modo seleção. */
 const TOQUE_LONGO_MS = 450;
+
+function etapaVisualDoEpisodio(content: Content): { rotulo: string; corVar: string } {
+  const etapa = etapaDoStatus(content.status);
+  if (etapa === 'postado') return { rotulo: 'Publicado', corVar: 'var(--status-posted)' };
+  if (etapa === 'ideia' || etapa === 'planejamento') return { rotulo: 'Em ideia', corVar: 'var(--status-idea)' };
+  if (etapa === 'roteiro') return { rotulo: 'Roteiro', corVar: 'var(--status-writing)' };
+  if (etapa === 'producao') return { rotulo: 'Produção', corVar: 'var(--status-production)' };
+  if (content.edicaoConcluidaEm || content.edicaoDispensada) {
+    return { rotulo: 'Pronto p/ publicar', corVar: 'var(--status-scheduled)' };
+  }
+  return { rotulo: 'Edição', corVar: 'var(--status-editing)' };
+}
+
+function trechoDoRoteiro(script: string | null | undefined): string | null {
+  const legivel = htmlToReadableText(script);
+  if (!legivel) return null;
+  const primeiraLinha = legivel
+    .split('\n')
+    .map(linha => linha.trim())
+    .find(Boolean);
+  if (!primeiraLinha) return null;
+  return primeiraLinha.length > 150 ? `${primeiraLinha.slice(0, 147).trimEnd()}…` : primeiraLinha;
+}
+
+function datasDoEpisodio(content: Content, publicado: boolean): {
+  principal: string;
+  secundario: string | null;
+  destaquePronto?: boolean;
+  semData?: boolean;
+} {
+  if (publicado) {
+    const dataPub = content.postedAt || content.publishDate;
+    return {
+      principal: dataPub ? `Pub: ${dia(dataPub)}` : 'Publicado',
+      secundario: null,
+    };
+  }
+  if (content.recordedAt) {
+    return {
+      principal: 'Gravado',
+      secundario: content.publishDate ? `Prog: ${dia(content.publishDate)}` : null,
+    };
+  }
+  if (content.recordingDate) {
+    return {
+      principal: `Grav: ${dia(content.recordingDate)}`,
+      secundario: content.publishDate
+        ? `Previsto ${dia(content.publishDate)}`
+        : content.recordingTime ? hora(content.recordingTime) : null,
+    };
+  }
+  if (content.publishDate) {
+    const pronto = Boolean(content.edicaoConcluidaEm || content.edicaoDispensada);
+    return {
+      principal: `Prog: ${dia(content.publishDate)}`,
+      secundario: content.publishTime ? hora(content.publishTime) : null,
+      destaquePronto: pronto,
+    };
+  }
+  return { principal: 'Sem data', secundario: null, semData: true };
+}
 
 function CaixaSelecao({ marcada, titulo, onToggle }: { marcada: boolean; titulo: string; onToggle: () => void }) {
   return (
@@ -90,6 +154,8 @@ function BotaoRecolher({ aberta, controla, onToggle }: { aberta: boolean; contro
 type PropsDaLinha = {
   grupo: GrupoConteudos;
   agruparPor: AgruparLista;
+  serieDaPagina: string;
+  temQuadros: boolean;
   series: readonly Serie[];
   temporadas: readonly Temporada[];
   contas: readonly Platform[];
@@ -103,6 +169,8 @@ function LinhaConteudo({
   noBloco,
   grupo,
   agruparPor,
+  serieDaPagina,
+  temQuadros,
   series,
   temporadas,
   contas,
@@ -116,16 +184,14 @@ function LinhaConteudo({
   const titulo = content.title?.trim() || 'Sem título';
   const selo = seloDoFluxo(content.status);
   const formato = textoDoFormatoDoEpisodio(content, contas);
-  const dono = content.seriesId && content.seriesId !== grupo.serieId
-    ? series.find(item => item.id === content.seriesId)?.name?.trim()
+  const dono = content.seriesId && content.seriesId !== serieDaPagina
+    ? series.find(item => item.id === content.seriesId)?.name?.trim() ?? null
     : null;
   const temporada = agruparPor !== 'temporada' && content.temporadaId
     ? temporadas.find(item => item.id === content.temporadaId)?.nome ?? null
     : null;
-  const etiquetas = [dono, temporada].filter(Boolean).join(' · ');
   const marcada = selecao.ids.has(content.id);
   const publicado = isPostedContent(content);
-  const Icone = ehIdeia(content) ? Lightbulb : FileText;
   const rota = acoes.rotaDoConteudo(content);
   const navigate = useNavigate();
 
@@ -156,42 +222,143 @@ function LinhaConteudo({
     return padrao;
   };
 
+  const itensMenu: MoreMenuItem[] = [
+    ...(podeMover ? [
+      { label: 'Subir', disabled: !sobe, onClick: () => acoes.onMoverEpisodio?.(lista, content, 'subir') },
+      { label: 'Descer', disabled: !desce, onClick: () => acoes.onMoverEpisodio?.(lista, content, 'descer') },
+    ] : []),
+    ...(celular ? [{ label: 'Selecionar', onClick: () => selecao.entrar(content.id) }] : []),
+    { label: 'Abrir no editor', onClick: () => navigate(rota.to, { state: rota.state }) },
+    { label: 'Copiar link', onClick: () => acoes.onCopiarLink(content) },
+    {
+      label: ehIdeia(content) ? 'Excluir ideia' : 'Excluir roteiro',
+      tone: 'danger' as const,
+      onClick: () => acoes.onExcluir(content),
+    },
+  ];
+
+  if (celular) {
+    return (
+      <li
+        title={publicado ? 'Publicado' : undefined}
+        className={cn(
+          'relative flex min-h-12 items-center justify-between gap-3 border-t border-[var(--border-color)] px-4 py-3 select-none [-webkit-touch-callout:none]',
+          noBloco && 'pl-8 sm:pl-16',
+          publicado ? 'serie-episodio-postado' : 'hover:bg-[var(--bg-hover)]',
+          marcada && publicado && 'serie-episodio-postado-selecionado',
+          marcada && !publicado && 'bg-[var(--bg-hover)]',
+        )}
+        onPointerDown={event => {
+          if (selecao.ativa || event.pointerType === 'mouse') return;
+          const timer = window.setTimeout(() => {
+            toqueLongo.current = null;
+            ignorarClique.current = true;
+            navigator.vibrate?.(10);
+            selecao.entrar(content.id);
+          }, TOQUE_LONGO_MS);
+          toqueLongo.current = { timer, x: event.clientX, y: event.clientY };
+        }}
+        onPointerMove={event => {
+          const inicio = toqueLongo.current;
+          if (inicio && Math.hypot(event.clientX - inicio.x, event.clientY - inicio.y) > 10) cancelarToque();
+        }}
+        onPointerUp={cancelarToque}
+        onPointerCancel={cancelarToque}
+        onClickCapture={event => {
+          if (!ignorarClique.current) return;
+          ignorarClique.current = false;
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+        onContextMenu={event => {
+          event.preventDefault();
+        }}
+      >
+        {selecao.ativa ? (
+          <button
+            type="button"
+            onClick={() => selecao.alternar(content.id)}
+            className="absolute inset-0 z-0 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+            aria-label={`${marcada ? 'Desmarcar' : 'Marcar'} ${titulo}`}
+            tabIndex={-1}
+          />
+        ) : (
+          <Link
+            to={rota.to}
+            state={rota.state}
+            className="absolute inset-0 z-0 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+            aria-label={`Abrir ${titulo}`}
+            draggable={false}
+          />
+        )}
+
+        <div className="pointer-events-none relative z-[1] flex min-w-0 flex-1 items-center gap-3">
+          {selecao.ativa ? (
+            <span className="pointer-events-auto">
+              <CaixaSelecao
+                marcada={marcada}
+                titulo={titulo}
+                onToggle={() => selecao.alternar(content.id)}
+              />
+            </span>
+          ) : null}
+
+          <Text
+            variant="meta"
+            as="span"
+            className={cn(
+              'min-w-12 shrink-0 tabular-nums',
+              publicado ? 'text-[var(--status-posted)]' : 'text-[var(--text-secondary)]',
+            )}
+          >
+            {`Ep. ${String(numero).padStart(2, '0')}`}
+          </Text>
+
+          {pontoEtapa}
+
+          <span className="min-w-0 flex-1">
+            <Text variant="bodyStrong" as="span" className="block truncate text-[var(--text-primary)]">
+              {titulo}
+            </Text>
+            {formato ? (
+              <Text variant="meta" as="span" className="block truncate text-[var(--text-secondary)]">
+                {formato}
+              </Text>
+            ) : null}
+          </span>
+        </div>
+
+        <div className="relative z-[2] flex shrink-0 items-center gap-3">
+          <MoreMenu
+            size="sm"
+            label={`Mais opções de ${titulo}`}
+            items={itensMenu}
+          />
+        </div>
+      </li>
+    );
+  }
+
+  const etapaVisual = etapaVisualDoEpisodio(content);
+  const previa = trechoDoRoteiro(content.script) ?? formato;
+  const infoData = datasDoEpisodio(content, publicado);
+  const redes = redesDoConteudo(content, contas);
+  const contasAtivas = contasDoCicloAtual(content, contas);
+  const mostrarSeloQuadro = agruparPor !== 'quadro' && (Boolean(dono) || temQuadros);
+  const numeroFormatado = `#${String(numero).padStart(2, '0')}`;
+
   return (
     <li
       title={publicado ? 'Publicado' : undefined}
       className={cn(
-        'relative flex min-h-12 items-center justify-between gap-3 border-t border-[var(--border-color)] px-4 py-3',
-        noBloco && 'pl-8 sm:pl-16',
-        publicado ? 'serie-episodio-postado' : 'hover:bg-[var(--bg-hover)]',
-        marcada && publicado && 'serie-episodio-postado-selecionado',
-        marcada && !publicado && 'bg-[var(--bg-hover)]',
-        celular && 'select-none [-webkit-touch-callout:none]',
+        'group relative flex min-h-14 items-center gap-4 border-t border-[var(--border-color)] px-4 py-3 transition-colors',
+        noBloco && 'pl-12',
+        marcada
+          ? 'bg-[var(--bg-hover)]'
+          : publicado
+            ? 'bg-[color-mix(in_srgb,var(--status-posted)_6%,var(--bg-elevated))] hover:bg-[color-mix(in_srgb,var(--status-posted)_11%,var(--bg-elevated))]'
+            : 'bg-[var(--bg-elevated)] hover:bg-[var(--bg-hover)]',
       )}
-      onPointerDown={event => {
-        if (!celular || selecao.ativa || event.pointerType === 'mouse') return;
-        const timer = window.setTimeout(() => {
-          toqueLongo.current = null;
-          ignorarClique.current = true;
-          navigator.vibrate?.(10);
-          selecao.entrar(content.id);
-        }, TOQUE_LONGO_MS);
-        toqueLongo.current = { timer, x: event.clientX, y: event.clientY };
-      }}
-      onPointerMove={event => {
-        const inicio = toqueLongo.current;
-        if (inicio && Math.hypot(event.clientX - inicio.x, event.clientY - inicio.y) > 10) cancelarToque();
-      }}
-      onPointerUp={cancelarToque}
-      onPointerCancel={cancelarToque}
-      onClickCapture={event => {
-        if (!ignorarClique.current) return;
-        ignorarClique.current = false;
-        event.preventDefault();
-        event.stopPropagation();
-      }}
-      onContextMenu={event => {
-        if (celular) event.preventDefault();
-      }}
     >
       {selecao.ativa ? (
         <button
@@ -211,88 +378,160 @@ function LinhaConteudo({
         />
       )}
 
-      {/* Lado Esquerdo: Badge + Título */}
-      <div className="pointer-events-none relative z-[1] flex min-w-0 flex-1 items-center gap-3">
-        {!celular || selecao.ativa ? (
-          <span className="pointer-events-auto">
-            <CaixaSelecao
-              marcada={marcada}
-              titulo={titulo}
-              onToggle={() => (selecao.ativa ? selecao.alternar(content.id) : selecao.entrar(content.id))}
-            />
-          </span>
+      {/* Seleção, ordem e número */}
+      <div className="relative z-[2] flex shrink-0 items-center gap-2">
+        <CaixaSelecao
+          marcada={marcada}
+          titulo={titulo}
+          onToggle={() => (selecao.ativa ? selecao.alternar(content.id) : selecao.entrar(content.id))}
+        />
+
+        {podeMover ? (
+          <div className="flex items-center">
+            <AppButton
+              variant="ghost"
+              size="xs"
+              iconOnly
+              aria-label="Subir episódio"
+              title={tituloDaSeta('subir', sobe, 'Subir episódio')}
+              disabled={!sobe}
+              onClick={() => acoes.onMoverEpisodio?.(lista, content, 'subir')}
+              className="h-7 w-7"
+            >
+              <ChevronUp className="h-3.5 w-3.5" aria-hidden />
+            </AppButton>
+            <AppButton
+              variant="ghost"
+              size="xs"
+              iconOnly
+              aria-label="Descer episódio"
+              title={tituloDaSeta('descer', desce, 'Descer episódio')}
+              disabled={!desce}
+              onClick={() => acoes.onMoverEpisodio?.(lista, content, 'descer')}
+              className="h-7 w-7"
+            >
+              <ChevronDown className="h-3.5 w-3.5" aria-hidden />
+            </AppButton>
+          </div>
         ) : null}
 
         <Text
           variant="meta"
           as="span"
           className={cn(
-            'min-w-12 shrink-0 tabular-nums',
-            publicado ? 'text-[var(--status-posted)]' : 'text-[var(--text-secondary)]',
+            'w-8 text-center tabular-nums',
+            publicado ? 'text-[var(--status-posted)]' : 'text-[var(--text-tertiary)]',
           )}
         >
-          {`Ep. ${String(numero).padStart(2, '0')}`}
+          {numeroFormatado}
         </Text>
+      </div>
 
-        {pontoEtapa}
-
-        <span className="min-w-0 flex-1">
-          <Text variant="bodyStrong" as="span" className="block truncate text-[var(--text-primary)]">
+      {/* Título, origem (quadro/série mãe) e prévia do roteiro/formato */}
+      <div className="pointer-events-none relative z-[1] flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 items-center gap-2">
+          <Text
+            variant="bodyStrong"
+            as="span"
+            className="truncate text-[var(--text-primary)] transition-colors group-hover:text-[var(--brand-accent-text)]"
+          >
             {titulo}
           </Text>
-          {formato ? (
-            <Text variant="meta" as="span" className="block truncate text-[var(--text-secondary)]">
-              {formato}
-            </Text>
+          {mostrarSeloQuadro ? (
+            dono ? (
+              <span className="t-meta inline-flex shrink-0 items-center rounded-[var(--radius-sm)] border border-[var(--border-color)] bg-[var(--surface-subtle)] px-2 py-0.5 text-[var(--text-secondary)]">
+                {`Quadro: ${dono}`}
+              </span>
+            ) : (
+              <Text variant="meta" as="span" className="shrink-0 text-[var(--text-tertiary)]">
+                — Série mãe
+              </Text>
+            )
           ) : null}
+          {temporada ? (
+            <span className="t-meta inline-flex shrink-0 items-center rounded-[var(--radius-sm)] border border-[var(--border-color)] bg-[var(--surface-subtle)] px-2 py-0.5 text-[var(--text-secondary)]">
+              {temporada}
+            </span>
+          ) : null}
+        </div>
+
+        {previa ? (
+          <Text variant="meta" as="span" className="mt-0.5 truncate text-[var(--text-secondary)]">
+            {previa}
+          </Text>
+        ) : null}
+      </div>
+
+      {/* Etapa no fluxo */}
+      <div className="pointer-events-none relative z-[1] hidden w-36 shrink-0 md:block">
+        <span
+          className="t-label inline-flex max-w-full items-center gap-1.5 rounded-[var(--radius-pill)] px-2.5 py-1"
+          style={{
+            backgroundColor: `color-mix(in srgb, ${etapaVisual.corVar} 12%, var(--bg-elevated))`,
+            color: `color-mix(in srgb, ${etapaVisual.corVar} var(--tint-text-share), var(--text-primary))`,
+          }}
+        >
+          <span
+            className="h-1.5 w-1.5 shrink-0 rounded-full"
+            style={{ backgroundColor: etapaVisual.corVar }}
+            aria-hidden
+          />
+          <span className="truncate">{etapaVisual.rotulo}</span>
         </span>
       </div>
 
-      {/* Lado Direito: redes escolhidas e ações */}
-      <div className="relative z-[2] flex shrink-0 items-center gap-3 sm:gap-4">
-        {podeMover ? (
-          <div className="hidden items-center gap-0.5 sm:flex">
-            <AppButton
-              variant="ghost"
-              size="sm"
-              iconOnly
-              aria-label="Subir episódio"
-              title={tituloDaSeta('subir', sobe, 'Subir episódio')}
-              disabled={!sobe}
-              onClick={() => acoes.onMoverEpisodio?.(lista, content, 'subir')}
-            >
-              <ChevronUp className="h-4 w-4" aria-hidden />
-            </AppButton>
-            <AppButton
-              variant="ghost"
-              size="sm"
-              iconOnly
-              aria-label="Descer episódio"
-              title={tituloDaSeta('descer', desce, 'Descer episódio')}
-              disabled={!desce}
-              onClick={() => acoes.onMoverEpisodio?.(lista, content, 'descer')}
-            >
-              <ChevronDown className="h-4 w-4" aria-hidden />
-            </AppButton>
-          </div>
+      {/* Datas de gravação / publicação */}
+      <div className="pointer-events-none relative z-[1] hidden w-28 shrink-0 flex-col text-right lg:flex">
+        <Text
+          variant={infoData.semData ? 'meta' : 'label'}
+          as="span"
+          className={cn(
+            'truncate tabular-nums',
+            infoData.semData ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-primary)]',
+          )}
+        >
+          {infoData.principal}
+        </Text>
+        {infoData.secundario ? (
+          <Text
+            variant="meta"
+            as="span"
+            className={cn(
+              'truncate tabular-nums',
+              infoData.destaquePronto ? 'text-[var(--status-posted)]' : 'text-[var(--text-tertiary)]',
+            )}
+          >
+            {infoData.secundario}
+          </Text>
         ) : null}
+      </div>
+
+      {/* Ícones compactos das redes */}
+      <div className="relative z-[2] hidden w-20 shrink-0 items-center justify-end gap-1 text-[var(--text-tertiary)] xl:flex">
+        {redes.map(rede => {
+          const contasDaRede = contasAtivas
+            .filter(conta => conta.rede === rede || conta.nome.toLowerCase().includes(rede))
+            .map(conta => conta.nome.trim())
+            .filter(Boolean);
+          const dica = contasDaRede.length > 0 ? contasDaRede.join(', ') : rede;
+          return (
+            <span
+              key={rede}
+              title={dica}
+              className="flex h-6 w-6 items-center justify-center rounded-[var(--radius-sm)] transition-colors hover:text-[var(--text-primary)]"
+            >
+              <PlatformIcon platform={rede} className="h-4 w-4" />
+            </span>
+          );
+        })}
+      </div>
+
+      {/* Menu da linha */}
+      <div className="relative z-[2] shrink-0">
         <MoreMenu
           size="sm"
           label={`Mais opções de ${titulo}`}
-          items={[
-            ...(podeMover ? [
-              { label: 'Subir', disabled: !sobe, onClick: () => acoes.onMoverEpisodio?.(lista, content, 'subir') },
-              { label: 'Descer', disabled: !desce, onClick: () => acoes.onMoverEpisodio?.(lista, content, 'descer') },
-            ] : []),
-            ...(celular ? [{ label: 'Selecionar', onClick: () => selecao.entrar(content.id) }] : []),
-            { label: 'Abrir no editor', onClick: () => navigate(rota.to, { state: rota.state }) },
-            { label: 'Copiar link', onClick: () => acoes.onCopiarLink(content) },
-            {
-              label: ehIdeia(content) ? 'Excluir ideia' : 'Excluir roteiro',
-              tone: 'danger' as const,
-              onClick: () => acoes.onExcluir(content),
-            },
-          ]}
+          items={itensMenu}
         />
       </div>
     </li>
@@ -357,24 +596,28 @@ function CabecalhoDoGrupo({
   controla,
   onToggle,
   onNovo,
-  tipoDoFilho,
   filtrando,
   serieDaPagina,
   series,
+  celular,
   menu,
   marcacao,
+  postados,
+  totalNoGrupo,
 }: {
   grupo: GrupoConteudos;
   aberto: boolean;
   controla: string;
   onToggle: () => void;
   onNovo?: () => void;
-  tipoDoFilho: SerieTipoAgrupamento | null;
   filtrando: boolean;
   serieDaPagina: string;
   series: readonly Serie[];
+  celular: boolean;
   menu: MoreMenuItem[];
   marcacao?: { estado: EstadoMarcacao; onToggle: () => void };
+  postados: number;
+  totalNoGrupo: number;
 }) {
   const linkDoTitulo = grupo.temporada
     ? `/series/${serieDaPagina}/temporadas/${grupo.temporada.id}`
@@ -385,22 +628,112 @@ function CabecalhoDoGrupo({
     : [];
   const foco = focoDaTemporada.length > 0 ? focoDaTemporada : focoDoQuadro;
 
-  const rotuloExibicao = grupo.id === 'temp:none'
-    ? 'CONTEÚDOS DIRETOS DA SÉRIE (SEM TEMPORADA)'
-    : grupo.rotulo.toUpperCase();
-
-  // Criar daqui já deixa o episódio nesta divisão (temporada, quadro ou direto na série).
-  const textoAcaoNovo = 'Novo episódio';
-
-  // Com filtro: "3 de 8 episódios".
   const contagemRotulo = contagemDoGrupo(grupo.visiveis, grupo.total, filtrando);
 
+  if (celular) {
+    const rotuloExibicao = grupo.id === 'temp:none'
+      ? 'CONTEÚDOS DIRETOS DA SÉRIE (SEM TEMPORADA)'
+      : grupo.rotulo.toUpperCase();
+
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          {marcacao ? (
+            <CaixaMarcacao estado={marcacao.estado} rotulo={`Selecionar os episódios exibidos de ${grupo.rotulo}`} onToggle={marcacao.onToggle} className="-ml-2" />
+          ) : null}
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              {linkDoTitulo ? (
+                <Link
+                  to={linkDoTitulo}
+                  className="min-w-0 hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                >
+                  <Text variant="itemTitle" as="span" className="text-[var(--text-primary)]">
+                    {rotuloExibicao}
+                  </Text>
+                </Link>
+              ) : (
+                <Text variant="itemTitle" as="span" className="min-w-0 text-[var(--text-primary)]">
+                  {rotuloExibicao}
+                </Text>
+              )}
+              <Badge variant="neutral">
+                {contagemRotulo}
+              </Badge>
+              {foco.length > 0 ? <PlatformIcons redes={foco} max={6} /> : null}
+            </div>
+            {foco.length > 0 ? (
+              <Text variant="meta" as="p" className="text-[var(--text-secondary)]">{rotuloDoFoco(foco)}</Text>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {onNovo ? (
+            <AppButton variant="secondary" size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={onNovo}>
+              Novo episódio
+            </AppButton>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-expanded={aberto}
+            aria-controls={controla}
+            aria-label={aberto ? 'Recolher' : 'Mostrar'}
+            className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+          >
+            {aberto ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+
+          {menu.length > 0 ? (
+            <MoreMenu size="sm" items={menu} label={`Mais opções de ${grupo.rotulo}`} />
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  const arquivada = grupo.temporada?.status === 'arquivada';
+  const concluida = totalNoGrupo > 0 && postados === totalNoGrupo;
+  const percentual = totalNoGrupo > 0 ? Math.round((postados / totalNoGrupo) * 100) : 0;
+  const tituloDesktop = grupo.id === 'temp:none'
+    ? 'Conteúdos diretos da série (sem temporada)'
+    : grupo.rotulo;
+  const textoAcaoNovo = grupo.temporada
+    ? 'Episódio nesta temporada'
+    : grupo.filhoId
+      ? 'Episódio neste quadro'
+      : 'Novo episódio';
+
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+    <div
+      className="flex flex-wrap items-center justify-between gap-4 px-6 py-4"
+      style={{
+        backgroundColor: 'color-mix(in srgb, var(--surface-subtle) 55%, var(--bg-elevated))',
+      }}
+    >
       <div className="flex min-w-0 flex-1 items-center gap-3">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={aberto}
+          aria-controls={controla}
+          aria-label={aberto ? 'Recolher grupo' : 'Expandir grupo'}
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+        >
+          {aberto ? <ChevronUp className="h-4 w-4" aria-hidden /> : <ChevronDown className="h-4 w-4" aria-hidden />}
+        </button>
+
         {marcacao ? (
-          <CaixaMarcacao estado={marcacao.estado} rotulo={`Selecionar os episódios exibidos de ${grupo.rotulo}`} onToggle={marcacao.onToggle} className="-ml-2" />
+          <CaixaMarcacao
+            estado={marcacao.estado}
+            rotulo={`Selecionar os episódios exibidos de ${grupo.rotulo}`}
+            onToggle={marcacao.onToggle}
+            className="-ml-1"
+          />
         ) : null}
+
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             {linkDoTitulo ? (
@@ -408,43 +741,86 @@ function CabecalhoDoGrupo({
                 to={linkDoTitulo}
                 className="min-w-0 hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
               >
-                <Text variant="itemTitle" as="span" className="text-[var(--text-primary)]">
-                  {rotuloExibicao}
+                <Text variant="sectionTitle" as="h2" className="truncate text-[var(--text-primary)]">
+                  {tituloDesktop}
                 </Text>
               </Link>
             ) : (
-              <Text variant="itemTitle" as="span" className="min-w-0 text-[var(--text-primary)]">
-                {rotuloExibicao}
+              <Text variant="sectionTitle" as="h2" className="min-w-0 truncate text-[var(--text-primary)]">
+                {tituloDesktop}
               </Text>
             )}
-            <Badge variant="neutral">
-              {contagemRotulo}
-            </Badge>
+
+            {arquivada ? (
+              <Badge variant="neutral">Arquivada</Badge>
+            ) : concluida ? (
+              <Badge variant="success">Concluída · 100%</Badge>
+            ) : null}
+
+            {filtrando ? (
+              <Badge variant="neutral">{contagemRotulo}</Badge>
+            ) : null}
+
             {foco.length > 0 ? <PlatformIcons redes={foco} max={6} /> : null}
           </div>
-          {foco.length > 0 ? (
-            <Text variant="meta" as="p" className="text-[var(--text-secondary)]">{rotuloDoFoco(foco)}</Text>
+
+          {grupo.temporada?.descricao?.trim() ? (
+            <Text variant="meta" as="p" className="mt-0.5 truncate text-[var(--text-secondary)]">
+              {grupo.temporada.descricao.trim()}
+            </Text>
+          ) : foco.length > 0 ? (
+            <Text variant="meta" as="p" className="mt-0.5 text-[var(--text-secondary)]">
+              {rotuloDoFoco(foco)}
+            </Text>
           ) : null}
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        {onNovo ? (
-          <AppButton variant="secondary" size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={onNovo}>
-            {textoAcaoNovo}
-          </AppButton>
-        ) : null}
+      <div className="flex shrink-0 flex-wrap items-center gap-3">
+        {totalNoGrupo > 0 ? (
+          arquivada || concluida ? (
+            <div className="flex items-center gap-1.5 text-[var(--text-secondary)]">
+              <CheckCircle2 className="h-4 w-4 text-[var(--status-posted)]" aria-hidden />
+              <Text variant="meta" as="span" className="tabular-nums text-[var(--text-secondary)]">
+                {`${postados} de ${totalNoGrupo} publicados`}
+              </Text>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2.5">
+              <Text variant="meta" as="span" className="tabular-nums text-[var(--text-secondary)]">
+                {`Progresso: `}
+                <strong className="t-label text-[var(--text-primary)]">{`${postados} de ${totalNoGrupo}`}</strong>
+              </Text>
+              <div
+                className="h-1.5 w-24 overflow-hidden rounded-[var(--radius-pill)] bg-[var(--border-color)]"
+                aria-hidden
+              >
+                <div
+                  className="h-full rounded-[var(--radius-pill)] bg-[var(--brand-accent-strong)] transition-all duration-300"
+                  style={{ width: `${percentual}%` }}
+                />
+              </div>
+            </div>
+          )
+        ) : (
+          <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">
+            0 episódios
+          </Text>
+        )}
 
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-expanded={aberto}
-          aria-controls={controla}
-          aria-label={aberto ? 'Recolher' : 'Mostrar'}
-          className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-        >
-          {aberto ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-        </button>
+        {onNovo ? (
+          <>
+            <span className="hidden h-4 w-px bg-[var(--border-color)] sm:block" aria-hidden />
+            <AppButton
+              variant="secondary"
+              size="xs"
+              leftIcon={<Plus className="h-3.5 w-3.5" />}
+              onClick={onNovo}
+            >
+              {textoAcaoNovo}
+            </AppButton>
+          </>
+        ) : null}
 
         {menu.length > 0 ? (
           <MoreMenu size="sm" items={menu} label={`Mais opções de ${grupo.rotulo}`} />
@@ -462,6 +838,7 @@ export function SeriesGruposLista({
   grupos,
   agruparPor,
   serieDaPagina,
+  temQuadros = false,
   series,
   tipos,
   temporadas,
@@ -477,6 +854,7 @@ export function SeriesGruposLista({
   grupos: readonly GrupoConteudos[];
   agruparPor: AgruparLista;
   serieDaPagina: string;
+  temQuadros?: boolean;
   series: readonly Serie[];
   tipos: ReadonlyMap<string, SerieTipoAgrupamento>;
   temporadas: readonly Temporada[];
@@ -490,18 +868,16 @@ export function SeriesGruposLista({
   /** Na família, "+ Nova série" no fim da lista. */
   rodape?: ReactNode;
 }) {
-  const primeiraComConteudo = grupos.findIndex(grupo => grupo.total > 0);
   const unico = grupos.length === 1 && (grupos[0].id === 'direto' || grupos[0].id === 'todos');
 
   return (
-    <div className="stack-md">
-      {grupos.map((grupo, indice) => {
-        const padrao = true;
+    <div className="stack-lg">
+      {grupos.map((grupo) => {
+        const padrao = grupo.temporada?.status !== 'arquivada';
         return (
           <Grupo
             key={grupo.id}
             grupo={grupo}
-            primeiro={indice === 0}
             semCabecalho={false}
             aberto={unico || filtrando || estaAberta(grupo.id, padrao)}
             onToggle={() => alternar(grupo.id, padrao)}
@@ -510,7 +886,7 @@ export function SeriesGruposLista({
             filtrando={filtrando}
             estaAberta={estaAberta}
             alternar={alternar}
-            linha={{ grupo, agruparPor, series, temporadas, contas, celular, acoes, selecao }}
+            linha={{ grupo, agruparPor, serieDaPagina, temQuadros, series, temporadas, contas, celular, acoes, selecao }}
           />
         );
       })}
@@ -523,7 +899,6 @@ export function SeriesGruposLista({
 
 function Grupo({
   grupo,
-  primeiro,
   semCabecalho,
   aberto,
   onToggle,
@@ -535,7 +910,6 @@ function Grupo({
   linha,
 }: {
   grupo: GrupoConteudos;
-  primeiro: boolean;
   semCabecalho: boolean;
   aberto: boolean;
   onToggle: () => void;
@@ -562,18 +936,20 @@ function Grupo({
     ] : []),
   ];
   const vazio = grupo.contents.length === 0 && grupo.blocos.length === 0;
+  const exibidos = useMemo(() => exibidosDoGrupo(grupo), [grupo]);
+  const postadosNoGrupo = useMemo(
+    () => exibidos.filter(isPostedContent).length,
+    [exibidos],
+  );
   // O número é a posição na página: postados na sequência da postagem, depois a ordem ajustável. O bloco "YouTube longo" não renumera.
   const posicoes = useMemo(() => {
-    const manual = ordenarParaExibir(
-      [...grupo.contents, ...grupo.blocos.flatMap(bloco => bloco.contents)],
-      'manual',
-    );
+    const manual = ordenarParaExibir(exibidos, 'manual');
     return new Map(manual.map((item, indice) => [item.id, indice + 1]));
-  }, [grupo]);
+  }, [exibidos]);
 
   return (
     <section
-      className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-sm"
+      className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)]"
       aria-label={grupo.rotulo}
     >
       {semCabecalho ? null : (
@@ -583,14 +959,16 @@ function Grupo({
           controla={corpoId}
           onToggle={onToggle}
           onNovo={recebeConteudo ? () => acoes.onNovo(grupo.serieId, grupo.temporadaId) : undefined}
-          tipoDoFilho={tipoDoFilho}
           filtrando={filtrando}
           serieDaPagina={serieDaPagina}
           series={linha.series}
+          celular={celular}
           menu={menu}
-          marcacao={(!celular || selecao.ativa) && exibidosDoGrupo(grupo).length > 0 ? {
-            estado: estadoDaMarcacao(exibidosDoGrupo(grupo).map(content => content.id), selecao.ids),
-            onToggle: () => selecao.alternarVarios(exibidosDoGrupo(grupo).map(content => content.id)),
+          postados={postadosNoGrupo}
+          totalNoGrupo={exibidos.length}
+          marcacao={(!celular || selecao.ativa) && exibidos.length > 0 ? {
+            estado: estadoDaMarcacao(exibidos.map(content => content.id), selecao.ids),
+            onToggle: () => selecao.alternarVarios(exibidos.map(content => content.id)),
           } : undefined}
         />
       )}

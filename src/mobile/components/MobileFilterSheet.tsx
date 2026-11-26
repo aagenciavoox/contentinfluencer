@@ -32,13 +32,16 @@ export function MobileFilterSheet({
     <BottomSheetModal open={open} onClose={onClose} desktopMaxW="max-w-xl" zIndex="z-[110]" ariaLabel={title}>
       <OverlayHeader title={title} onClose={onClose} />
       <OverlayBody className="stack-lg px-4 py-4">{children}</OverlayBody>
-      {onClear ? (
-        <OverlayFooter className="pb-safe">
-          <AppButton variant="secondary" fullWidth onClick={onClear}>
+      <OverlayFooter className="pb-safe">
+        {onClear ? (
+          <AppButton variant="secondary" className="flex-1" onClick={onClear}>
             {clearLabel}
           </AppButton>
-        </OverlayFooter>
-      ) : null}
+        ) : null}
+        <AppButton variant="primary" className="flex-1" onClick={onClose}>
+          Ver resultados
+        </AppButton>
+      </OverlayFooter>
     </BottomSheetModal>
   );
 }

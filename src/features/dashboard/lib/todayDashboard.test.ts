@@ -6,6 +6,14 @@ import { createContentDraft } from '../../contents/lib/createContentDraft.ts';
 import { getTodayAgenda } from './todayAgenda.ts';
 import { getTodayWork } from './todayWork.ts';
 import { getTodayPublications } from './todayPublications.ts';
+import {
+  buildOperationalSubtitle,
+  countIdeasAwaitingTriage,
+  getTodayEditorialFocus,
+  getUpcomingPublicationsWindow,
+  getWeeklyPublishingPace,
+  resolveTimeGreeting,
+} from './todayOperational.ts';
 import { buildDayPulse, localDateKey } from './dayPulse.ts';
 import { buildDailySessionBlock } from './dailySession.ts';
 import { saveDailySession } from './saveDailySession.ts';
@@ -122,5 +130,56 @@ describe('Hoje: rascunho de ideia', () => {
   it('tolera dados inválidos e armazenamento bloqueado', () => {
     assert.deepEqual(readIdeaDraft({ getItem: () => '{invalid' }, 'key'), emptyIdeaDraft());
     assert.doesNotThrow(() => writeIdeaDraft({ setItem: () => { throw new Error('blocked'); }, removeItem: () => {} }, 'key', { ...emptyIdeaDraft(), title: 'Texto' }));
+  });
+});
+
+describe('Hoje: visão operacional desktop', () => {
+  const platforms = [
+    { id: 'ig', nome: 'Instagram', userId: 'u', ativo: true, createdAt: day },
+    { id: 'yt', nome: 'YouTube', userId: 'u', ativo: true, createdAt: day },
+  ];
+  const series = [
+    { id: 's1', name: 'Ensaios Rápidos', userId: 'u', createdAt: day, updatedAt: day },
+  ] as unknown as import('../../../lib/database.ts').Serie[];
+
+  it('equilibra Roteiro, Gravação pronta e Edição em Trabalhar hoje', () => {
+    const contents = [
+      content('rot1', { status: 'Roteiro', title: 'O BookTok', seriesId: 's1', notes: 'Contrapor elitismo.', updatedAt: '2026-11-03T15:00:00Z' }),
+      content('grav1', { status: 'Produção', title: '5 livros na chuva', updatedAt: '2026-11-03T14:00:00Z' }),
+      content('ed1', { status: 'Edição', title: 'Sagas infinitas', updatedAt: '2026-11-03T13:00:00Z', plataformas: [publication('p1', 'ig', { legenda: '' })] }),
+      content('rot2', { status: 'Roteiro', title: 'Outro roteiro', updatedAt: '2026-11-03T12:00:00Z' }),
+      content('idea1', { status: 'Ideia', title: 'Ideia solta' }),
+    ];
+    const focus = getTodayEditorialFocus({ contents, recordingBlocks: [], series, platforms, recordingEnabled: true });
+    assert.deepEqual(focus.map(item => [item.id, item.stage]), [
+      ['rot1', 'roteiro'],
+      ['grav1', 'gravacao'],
+      ['ed1', 'edicao'],
+    ]);
+    assert.equal(focus[0].seriesName, 'Ensaios Rápidos');
+    assert.match(focus[2].nextAction, /legenda/);
+    assert.equal(countIdeasAwaitingTriage(contents), 1);
+  });
+
+  it('agrupa publicações nos próximos 3 dias e calcula ritmo semanal real', () => {
+    const today = new Date(2026, 10, 3, 10, 0); // Terça, 2026-11-03
+    const contents = [
+      content('c1', { title: 'Hoje post', plataformas: [publication('p1', 'ig', { publishDate: '2026-11-03', publishTime: '18:30', legenda: 'Ok' })] }),
+      content('c2', { title: 'Amanhã post', plataformas: [publication('p2', 'yt', { publishDate: '2026-11-04', publishTime: '12:00' })] }),
+      content('c3', { title: 'Fora janela', plataformas: [publication('p3', 'ig', { publishDate: '2026-11-07', publishTime: '10:00' })] }),
+    ];
+    const upcoming = getUpcomingPublicationsWindow({ contents, platforms, series: [], redeReferenciaId: null }, today, 3);
+    assert.deepEqual(upcoming.map(item => [item.contentId, item.dayBadge]), [
+      ['c1', 'Hoje'],
+      ['c2', 'Amanhã'],
+    ]);
+    const pace = getWeeklyPublishingPace({
+      contents, platforms, series: [], redeReferenciaId: null, limiteSemanal: 5, minimoSemanal: null, today,
+    });
+    assert.equal(pace.weekCount, 3);
+    assert.equal(pace.summaryText, '3 de 5 na semana');
+    assert.equal(pace.days.length, 7);
+    assert.equal(resolveTimeGreeting(today), 'Bom dia');
+    assert.match(buildOperationalSubtitle({ inProductionCount: 3, todayPublicationsCount: 1, showCounts: true, dataReady: true, pauseMode: false }), /3 conteúdos em produção e 1 publicação prevista para hoje/);
   });
 });

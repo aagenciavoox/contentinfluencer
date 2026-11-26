@@ -1,12 +1,16 @@
 import type { Content } from '../../../lib/database.ts';
 import { dia } from '../../../lib/dates.ts';
 import { htmlToReadableText } from '../../../lib/utils.ts';
+import type { ContaRef } from '../../contas/lib/contas.ts';
 import {
   CONTENT_STATUS,
+  DISPLAY_STATUS,
+  getDisplayStatus,
   normalizeContentStatus,
   PRODUCTION_TAGS,
 } from '../../contents/lib/contentPipeline.ts';
 import { transitionCreationStatus, type CreationTab } from '../../contents/lib/creationContent.ts';
+import { estaEditado, tipoDaPeca } from '../../contents/lib/esteiraDisplay.ts';
 import { getVisualFormatLabel } from '../../../constants.ts';
 import { contentReadableBody } from '../../contents/lib/carouselSlides.ts';
 
@@ -32,6 +36,139 @@ const TAB_TO_STATUS: Record<CreationKanbanTab, string> = {
 
 export function isIdeaContent(content: Pick<Content, 'status'>) {
   return normalizeContentStatus(content.status) === CONTENT_STATUS.IDEIA;
+}
+
+export type CreationCardStageKind =
+  | 'idea'
+  | 'script'
+  | 'production'
+  | 'editing'
+  | 'scheduled'
+  | 'posted'
+  | 'archived'
+  | 'trash';
+
+export interface CreationCardCompletionBadge {
+  kind: 'edited' | 'design';
+  label: string;
+}
+
+export interface CreationCardPresentation {
+  stageKind: CreationCardStageKind;
+  stageLabel: string;
+  completionBadge: CreationCardCompletionBadge | null;
+  isTrash: boolean;
+  isIdea: boolean;
+}
+
+/**
+ * Resolve o estado visual canônico do card da Tela Criação (Ideia, Roteiro,
+ * Edição concluída, Carrossel/Design pronto, Lixeira e demais etapas).
+ */
+export function getCreationCardPresentation(
+  content: Content,
+  contas: readonly ContaRef[] = [],
+): CreationCardPresentation {
+  if (content.deletedAt) {
+    return {
+      stageKind: 'trash',
+      stageLabel: 'Na lixeira',
+      completionBadge: null,
+      isTrash: true,
+      isIdea: false,
+    };
+  }
+
+  const isIdea = isIdeaContent(content);
+  const edited = !content.archivedAt && estaEditado(content, contas);
+  const tipo = tipoDaPeca(content, contas);
+  const completionBadge: CreationCardCompletionBadge | null = edited
+    ? tipo === 'carrossel'
+      ? { kind: 'design', label: '✓ Design pronto' }
+      : { kind: 'edited', label: '✓ Editado' }
+    : null;
+
+  if (content.archivedAt) {
+    return {
+      stageKind: 'archived',
+      stageLabel: 'Arquivado',
+      completionBadge: null,
+      isTrash: false,
+      isIdea,
+    };
+  }
+
+  const display = getDisplayStatus({ ...content, publishDate: content.publishDate ?? null });
+  if (display === CONTENT_STATUS.POSTADO || Boolean(content.postedAt)) {
+    return {
+      stageKind: 'posted',
+      stageLabel: 'Publicado',
+      completionBadge: null,
+      isTrash: false,
+      isIdea: false,
+    };
+  }
+  if (display === DISPLAY_STATUS.PROGRAMADO) {
+    return {
+      stageKind: 'scheduled',
+      stageLabel: 'Programado',
+      completionBadge: null,
+      isTrash: false,
+      isIdea: false,
+    };
+  }
+
+  const status = normalizeContentStatus(content.status);
+  if (status === CONTENT_STATUS.IDEIA) {
+    return {
+      stageKind: 'idea',
+      stageLabel: 'Ideia',
+      completionBadge: null,
+      isTrash: false,
+      isIdea: true,
+    };
+  }
+  if (status === CONTENT_STATUS.PRODUCAO) {
+    return {
+      stageKind: 'production',
+      stageLabel: tipo === 'carrossel' ? 'Design' : 'Produção',
+      completionBadge,
+      isTrash: false,
+      isIdea: false,
+    };
+  }
+  if (status === CONTENT_STATUS.EDICAO) {
+    return {
+      stageKind: 'editing',
+      stageLabel: 'Edição',
+      completionBadge,
+      isTrash: false,
+      isIdea: false,
+    };
+  }
+
+  return {
+    stageKind: 'script',
+    stageLabel: 'Roteiro',
+    completionBadge,
+    isTrash: false,
+    isIdea: false,
+  };
+}
+
+/** Rótulo de tempo real na lixeira, baseado em `deletedAt`. */
+export function getCreationTrashAgeLabel(
+  deletedAt: string | null | undefined,
+  now: Date = new Date(),
+): string | null {
+  if (!deletedAt) return null;
+  const date = new Date(deletedAt);
+  if (Number.isNaN(date.getTime())) return null;
+  const diff = localDayDiff(date, now);
+  if (diff <= 0) return 'Movido hoje';
+  if (diff === 1) return 'Movido ontem';
+  if (diff < 30) return `Há ${diff} dias`;
+  return formatCreationCardDate(date, now);
 }
 
 export function getCreationTitle(content: Content) {

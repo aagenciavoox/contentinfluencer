@@ -32,6 +32,7 @@ import { NovoConteudoDialog, type PedidoNovoConteudo } from '../components/serie
 import { SeriesBulkDrawer, type PedidoMassa } from '../components/series-detail/SeriesBulkDrawer';
 import { SeriesDetailHeader } from '../components/series-detail/SeriesDetailHeader';
 import { SeriesGruposLista, type AcoesDosGrupos, type SelecaoDaLista } from '../components/series-detail/SeriesGruposLista';
+import { QuadrosDerivadosSection } from '../components/series-detail/QuadrosDerivadosSection';
 import { BarraDeAcoes, CaixaMarcacao, DefinirQuadroSheet, DefinirTemporadaSheet } from '../components/series-detail/SeriesAcoesEmMassa';
 import { ExcluirEstruturaDialog, type AlvoExclusao } from '../components/series-detail/ExcluirEstruturaDialog';
 import { TemporadaDialogs, type EdicaoTemporada } from '../components/series-detail/TemporadaDialogs';
@@ -77,6 +78,7 @@ import { gravarPreferenciaLista, lerPreferenciaLista, type PreferenciaLista } fr
 import { generateUUID } from '../../../utils/uuid';
 import {
   ehIdeia,
+  pilarEfetivoDaSerie,
   tipoDaSerie,
   tiposDasSeries,
 } from '../lib/serieAgrupamento';
@@ -534,7 +536,14 @@ export function SeriesScriptsPage() {
     : '';
 
   const ancestrais = ancestraisDaSerie(serie.id, state.series).reverse().map(no => ({ id: no.id, name: no.name ?? '' }));
-  const toolbar = (
+  const pilarResolvido = pilarEfetivoDaSerie(serie.id, state.series);
+  const pilarNome = pilarResolvido.pilarId
+    ? state.pilares.find(item => item.id === pilarResolvido.pilarId)?.nome ?? null
+    : null;
+  const quadrosFilhos = filhos
+    .map(no => state.series.find(item => item.id === no.id))
+    .filter((item): item is NonNullable<typeof item> => Boolean(item));
+  const criarToolbar = (noCelular: boolean) => (
     <SeriesListaToolbar
       filtros={filtros}
       onFiltros={patch => setEstado(atual => ({ ...atual, filtros: { ...atual.filtros, ...patch } }))}
@@ -550,8 +559,13 @@ export function SeriesScriptsPage() {
       temporadas={temporadasValidas ? temporadasValidas.map(item => ({ id: item.id, label: item.nome })) : null}
       visiveis={visiveis.length}
       total={episodios.length}
-      celular={celular}
+      celular={noCelular}
       avisoOrdem={avisoOrdem}
+      selecaoTodos={!noCelular && visiveis.length > 0 ? {
+        estado: marcacaoGeral,
+        rotulo: `Selecionar os ${visiveis.length} exibidos`,
+        onToggle: () => selecaoDaLista.alternarVarios(exibidosIds),
+      } : null}
       acoes={undefined}
     />
   );
@@ -567,6 +581,7 @@ export function SeriesScriptsPage() {
       ancestrais={ancestrais}
       temporada={temporada}
       totais={totais}
+      pilarNome={pilarNome}
       celular={noCelular}
       onConfigure={() => navigate(`/series/${serie.id}/editar`)}
       onCreate={() => setNovoEm({ serieId: serie.id, temporadaId: temporadaId ?? null })}
@@ -579,12 +594,15 @@ export function SeriesScriptsPage() {
     <PageLayout
       contentWidth="wide"
       contentStack="dense"
-      header={cabecalho(false)}
-      toolbar={toolbar}
+      header={undefined}
+      toolbar={undefined}
       mobileHeader={cabecalho(true)}
-      mobileToolbar={toolbar}
+      mobileToolbar={criarToolbar(true)}
     >
-      <div ref={rolagem} className="stack-lg">
+      <div ref={rolagem} className={celular ? 'stack-lg' : 'stack-xl'}>
+        {!celular ? cabecalho(false) : null}
+        {!celular ? criarToolbar(false) : null}
+
         {state.editorial.openInfoNotices && abertos.length > 0 ? (
           <OpenInfoNotice
             items={abertos}
@@ -631,7 +649,7 @@ export function SeriesScriptsPage() {
             />
           ) : (
             <>
-            {!celular || selecao.ativa ? (
+            {celular && selecao.ativa ? (
               <div className="flex items-center gap-1 px-2">
                 <CaixaMarcacao
                   estado={marcacaoGeral}
@@ -649,6 +667,7 @@ export function SeriesScriptsPage() {
               grupos={grupos}
               agruparPor={agrupar}
               serieDaPagina={serie.id}
+              temQuadros={filhos.length > 0}
               series={state.series}
               tipos={tipos}
               temporadas={state.temporadas}
@@ -663,6 +682,15 @@ export function SeriesScriptsPage() {
             </>
           )}
         </div>
+
+        {!celular && tipo === 'serie' && !temporada && quadrosFilhos.length > 0 ? (
+          <QuadrosDerivadosSection
+            serie={serie}
+            quadros={quadrosFilhos}
+            contents={state.contents}
+            onNovoQuadro={() => setModalTarget({ tipo: 'quadro', seriePaiId: serie.id })}
+          />
+        ) : null}
 
         {selecao.ativa || selecao.ids.size > 0 ? (
           <BarraDeAcoes

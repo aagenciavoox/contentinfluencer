@@ -2,13 +2,14 @@ import { useState, type ReactNode } from 'react';
 import {
   BookOpen,
   Check,
+  ChevronDown,
   Download,
   Pencil,
   Plus,
   Star,
 } from 'lucide-react';
 import type { Anotacao, BibliotecaItem } from '../../../lib/database';
-import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
+import { Drawer } from '../../../components/overlays/Drawer';
 import { OverlayBody } from '../../../components/overlays/OverlayBody';
 import { OverlayFooter } from '../../../components/overlays/OverlayFooter';
 import { OverlayHeader } from '../../../components/overlays/OverlayHeader';
@@ -29,6 +30,7 @@ import type { AvaliacaoCriterios, CriterioAvaliacao } from '../../../features/li
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { MobileSectionHeader } from '../../components/MobileSectionHeader';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
+import { MobileSearchBar } from '../../components/MobileSearchBar';
 
 export type BookDetailTab = 'info' | 'anotacoes' | 'conteudos';
 type TipoAnotacao = Anotacao['tipo'];
@@ -115,6 +117,15 @@ export function BookDetailMobileScreen({
   roteirosContent,
 }: BookDetailMobileScreenProps) {
   const [editInfoOpen, setEditInfoOpen] = useState(false);
+  const [buscaAnotacao, setBuscaAnotacao] = useState('');
+
+  const termoAnotacao = buscaAnotacao.trim().toLocaleLowerCase('pt-BR');
+  const anotacoesVisiveis = termoAnotacao
+    ? anotacoesFiltradas.filter(anotacao => (
+        anotacao.texto.toLocaleLowerCase('pt-BR').includes(termoAnotacao)
+        || (anotacao.capituloRef ?? '').toLocaleLowerCase('pt-BR').includes(termoAnotacao)
+      ))
+    : anotacoesFiltradas;
 
   const progressPercent =
     typeof infoLocal.totalPaginas === 'number' && infoLocal.totalPaginas > 0
@@ -182,16 +193,6 @@ export function BookDetailMobileScreen({
                 ))}
               </div>
             ) : null}
-            <AppButton
-              variant="secondary"
-              size="xs"
-              onClick={onDownloadWord}
-              disabled={baixandoWord}
-              leftIcon={<Download className="h-3.5 w-3.5" aria-hidden />}
-              className="mt-1 self-start"
-            >
-              {baixandoWord ? 'Gerando Word…' : 'Baixar em Word'}
-            </AppButton>
           </div>
         </div>
       </Surface>
@@ -281,6 +282,16 @@ export function BookDetailMobileScreen({
             </dl>
           </Surface>
 
+          <AppButton
+            variant="secondary"
+            fullWidth
+            onClick={onDownloadWord}
+            disabled={baixandoWord}
+            leftIcon={<Download className="h-4 w-4" aria-hidden />}
+          >
+            {baixandoWord ? 'Gerando Word…' : 'Baixar anotações em Word'}
+          </AppButton>
+
           {/* Ação destrutiva com moldura (antes era texto rosa a 70% de opacidade, quase invisível).
               A confirmação continua no ConfirmModal. */}
           <AppButton variant="secondary" fullWidth onClick={onRequestDelete} className="text-[var(--danger)]">
@@ -290,27 +301,52 @@ export function BookDetailMobileScreen({
       ) : null}
 
       {tab === 'anotacoes' ? (
-        <div className="stack-md">
+        <div className="stack-sm">
           {leituraNasAnotacoes ? (
-            <BookReadingPanel
-              status={infoLocal.statusLeitura}
-              statusOptions={statusLeituraOptions}
-              onStatusChange={onStatusChange}
-              criterios={infoLocal.avaliacaoCriterios}
-              onCriterioChange={onCriterioChange}
-              className="bg-[var(--bg-secondary)]"
-            />
+            <details className="group overflow-hidden rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)]">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]">
+                <div className="flex min-w-0 items-center gap-2">
+                  <Text variant="bodyStrong" as="span">Leitura e avaliação</Text>
+                  <Badge variant="neutral">{infoLocal.statusLeitura}</Badge>
+                </div>
+                <ChevronDown className="h-4 w-4 shrink-0 text-[var(--text-tertiary)] transition-transform group-open:rotate-180" aria-hidden />
+              </summary>
+              <div className="border-t border-[var(--border-color)] p-3">
+                <BookReadingPanel
+                  status={infoLocal.statusLeitura}
+                  statusOptions={statusLeituraOptions}
+                  onStatusChange={onStatusChange}
+                  criterios={infoLocal.avaliacaoCriterios}
+                  onCriterioChange={onCriterioChange}
+                  className="border-0 bg-transparent p-0"
+                />
+              </div>
+            </details>
           ) : null}
 
-          <div className="mobile-sticky-below-header sticky z-20 -mx-4 bg-[var(--bg-primary)] px-4 py-2">
-            <AppButton
-              variant="secondary"
-              fullWidth
-              onClick={onOpenAnnotationComposer}
-              leftIcon={<Pencil className="h-4 w-4" aria-hidden />}
-            >
-              Adicionar anotação
-            </AppButton>
+          <div className="mobile-sticky-below-header sticky z-20 -mx-4 bg-[var(--bg-primary)] px-4 py-2 stack-xs">
+            <div className="flex items-center gap-2">
+              {livro.anotacoes.length > 0 ? (
+                <div className="min-w-0 flex-1">
+                  <MobileSearchBar
+                    value={buscaAnotacao}
+                    onChange={setBuscaAnotacao}
+                    placeholder="Buscar nas anotações"
+                    rounded="tight"
+                  />
+                </div>
+              ) : null}
+              <AppButton
+                variant="primary"
+                size="sm"
+                fullWidth={livro.anotacoes.length === 0}
+                onClick={onOpenAnnotationComposer}
+                leftIcon={<Plus className="h-4 w-4" aria-hidden />}
+                className="shrink-0"
+              >
+                {livro.anotacoes.length === 0 ? 'Adicionar anotação' : 'Nova'}
+              </AppButton>
+            </div>
           </div>
 
           {/* Uma fileira só, rolando para o lado (antes quebrava em duas linhas). */}
@@ -323,23 +359,29 @@ export function BookDetailMobileScreen({
             onChange={onFiltroTipoChange}
           />
 
-          {anotacoesFiltradas.length === 0 && livro.anotacoes.length > 0 ? (
+          {anotacoesVisiveis.length === 0 && livro.anotacoes.length > 0 ? (
             <EmptyState compact
-              title="Nenhuma anotação nesse filtro"
-              description="Troque o filtro acima para ver as outras anotações."
+              title="Nenhuma anotação encontrada"
+              description="Troque a busca ou o filtro acima para ver as outras anotações."
               action={
-                <AppButton variant="secondary" onClick={() => onFiltroTipoChange('Todos')}>
+                <AppButton
+                  variant="secondary"
+                  onClick={() => {
+                    setBuscaAnotacao('');
+                    onFiltroTipoChange('Todos');
+                  }}
+                >
                   Ver todas
                 </AppButton>
               }
               icon={<BookOpen className="h-8 w-8" />}
             />
-          ) : anotacoesFiltradas.length === 0 ? (
+          ) : anotacoesVisiveis.length === 0 ? (
             <EmptyState compact
               title="Nenhuma anotação ainda"
               description="Registre trechos, reações ou ideias."
               action={
-                <AppButton variant="primary" fullWidth onClick={onOpenAnnotationComposer} leftIcon={<Plus className="h-4 w-4" />}>
+                <AppButton variant="secondary" fullWidth onClick={onOpenAnnotationComposer} leftIcon={<Plus className="h-4 w-4" />}>
                   Nova anotação
                 </AppButton>
               }
@@ -347,7 +389,7 @@ export function BookDetailMobileScreen({
             />
           ) : (
             <div className="stack-sm">
-              {anotacoesFiltradas.map((anotacao) => (
+              {anotacoesVisiveis.map((anotacao) => (
                 <AnnotationNoteCard
                   key={anotacao.id}
                   anotacao={anotacao}
@@ -356,6 +398,7 @@ export function BookDetailMobileScreen({
                   onTransformContent={() => onTransformContent(anotacao)}
                   onDelete={() => onDeleteAnotacao(anotacao.id)}
                   actionsClassName="opacity-100"
+                  compactActions
                 />
               ))}
             </div>
@@ -365,15 +408,15 @@ export function BookDetailMobileScreen({
 
       {tab === 'conteudos' ? roteirosContent : null}
 
-      <BottomSheetModal
+      <Drawer
         open={editInfoOpen}
         onClose={() => setEditInfoOpen(false)}
-        desktopMaxW="max-w-md"
+        widthClassName="w-full max-w-none"
         zIndex="z-[110]"
         ariaLabel="Editar obra"
       >
         <OverlayHeader title="Editar obra" onClose={() => setEditInfoOpen(false)} />
-        <OverlayBody className="stack-lg">
+        <OverlayBody className="stack-md p-4 pb-safe">
 
           <label className="block stack-sm">
             <Text variant="label" as="span" className="text-[var(--text-tertiary)]">Título</Text>
@@ -485,12 +528,15 @@ export function BookDetailMobileScreen({
             </label>
           </div>
         </OverlayBody>
-        <OverlayFooter className="pb-safe px-4">
-          <AppButton variant="primary" fullWidth onClick={handleSaveInfo} leftIcon={<Check className="h-4 w-4" />}>
+        <OverlayFooter className="px-4 pb-safe">
+          <AppButton variant="secondary" className="flex-1" onClick={() => setEditInfoOpen(false)}>
+            Cancelar
+          </AppButton>
+          <AppButton variant="primary" className="flex-1" onClick={handleSaveInfo} leftIcon={<Check className="h-4 w-4" />}>
             {infoSalvo ? 'Salvo' : 'Salvar'}
           </AppButton>
         </OverlayFooter>
-      </BottomSheetModal>
+      </Drawer>
     </div>
   );
 }

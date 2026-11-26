@@ -4,6 +4,13 @@ import {Badge} from '../../../components/ui/Badge';
 import {Surface} from '../../../components/ui/Surface';
 import {Text} from '../../../components/ui/Text';
 import type {Content} from '../../../lib/database';
+import {statusNaTela} from '../../contents/lib/esteiraDisplay';
+
+/** Status do banco, ou "✓ Editado" com a cor própria quando a edição já foi concluída. */
+function SeloDoRoteiro({content}: {content: Content}) {
+  const selo = statusNaTela(content, [], content.status);
+  return <Badge variant="status" status={selo.status}>{selo.rotulo}</Badge>;
+}
 
 export const UNDATED_ROTEIRO_MIME = 'application/x-calendario-roteiro';
 /** Aberta ou fechada fica guardada neste navegador. Começa fechada. */
@@ -62,7 +69,7 @@ export function UndatedRoteiroPile({
                   <Text variant="itemTitle" as="p" className="truncate text-[var(--text-primary)]">
                     {content.title || 'Sem título'}
                   </Text>
-                  <Badge variant="status" status={content.status}>{content.status}</Badge>
+                  <SeloDoRoteiro content={content} />
                   {onPlace ? (
                     <AppButton variant="ghost" size="xs" onClick={() => onPlace(content)}>
                       {placeLabel}

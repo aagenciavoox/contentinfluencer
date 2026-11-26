@@ -36,7 +36,7 @@ export function ValeAPartirDe({
   valor: string;
   onChange: (inicioSemana: string) => void;
   hoje: string;
-  /** `cartoes`: três opções lado a lado, a marcada na cor da marca. */
+  /** `cartoes`: três opções lado a lado, a marcada com borda e texto principal. */
   aparencia?: 'padrao' | 'cartoes';
 }) {
   const { estaSemana, proxima } = domingosParaVigencia(hoje);
@@ -68,16 +68,16 @@ export function ValeAPartirDe({
                 aria-checked={marcada}
                 onClick={() => escolher(opcao.value)}
                 className={cn(
-                  'flex min-h-16 flex-col items-start justify-center rounded-[var(--radius-input)] border bg-[var(--bg-elevated)] px-3 py-2 text-left focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                  'flex min-h-16 flex-col items-center justify-center rounded-[var(--radius-input)] border bg-[var(--bg-elevated)] px-3 py-2 text-center focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
                   marcada
-                    ? 'border-[var(--brand-accent-strong)]'
+                    ? 'border-[var(--text-primary)]'
                     : 'border-[var(--border-color)] hover:bg-[var(--bg-hover)]',
                 )}
               >
-                <Text variant="meta" className={marcada ? 'text-[var(--brand-accent-strong)]' : 'text-[var(--text-primary)]'}>
+                <Text variant={marcada ? 'bodyStrong' : 'meta'} className="text-[var(--text-primary)]">
                   {opcao.label}
                 </Text>
-                <Text variant="meta" className={marcada ? 'text-[var(--brand-accent-strong)]' : 'text-[var(--text-secondary)]'}>
+                <Text variant="meta" className="text-[var(--text-secondary)]">
                   {opcao.description}
                 </Text>
               </button>

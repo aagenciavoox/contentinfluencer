@@ -27,6 +27,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { CreateMenuButton } from '../../../components/ui/CreateMenuButton';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
+import { PAGE_SECTION } from '../../../layouts/navigation/navConfig';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import { MobileFilterSheet } from '../../../mobile/components/MobileFilterSheet';
 import { MobileSearchBar } from '../../../mobile/components/MobileSearchBar';
@@ -1336,7 +1337,7 @@ export function CreationHubPage() {
         contentStack="dense"
         header={isStorageTab ? (
           <DesktopPageHeader
-            section="Produção"
+            section={PAGE_SECTION.producao}
             backLabel="Criação"
             onBack={leaveStorage}
             title={activeTab}
@@ -1345,7 +1346,7 @@ export function CreationHubPage() {
           />
         ) : (
           <DesktopPageHeader
-            section="Produção"
+            section={PAGE_SECTION.producao}
             title="Criação"
             rowAlign="center"
             actions={(
@@ -1440,6 +1441,7 @@ export function CreationHubPage() {
             {viewMode === 'grid' ? (
               <CreationGridView
                 items={listItems}
+                platforms={state.platforms}
                 selectionMode={exportMode}
                 compact={isMobile}
                 onOpen={openContent}
@@ -1463,10 +1465,12 @@ export function CreationHubPage() {
             {viewMode === 'kanban' ? (
               <CreationKanbanView
                 contents={kanbanContents}
+                platforms={state.platforms}
                 activeTab={activeTab}
                 resolveItem={resolveItem}
                 selectionMode={exportMode}
                 onOpen={openContent}
+                onToggleSelect={content => toggleExportSelection(content.id)}
                 actions={itemActions}
                 onMoveToTab={handleMoveToTab}
                 persistingIds={persistingIds}

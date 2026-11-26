@@ -1,6 +1,6 @@
 import {useCallback, useEffect, useRef, useState, type ReactNode} from 'react';
 import type {Editor} from '@tiptap/react';
-import {PenLine, Pencil, SlidersHorizontal} from 'lucide-react';
+import {AlignLeft, Columns3, PenLine, Pencil, SlidersHorizontal} from 'lucide-react';
 import {MobileScriptEditor} from '../../../../../mobile/components/MobileScriptEditor';
 import type {CommentPatch} from '../../../../../components/editors/commentModel';
 import {AppButton} from '../../../../../components/ui/AppButton';
@@ -176,6 +176,7 @@ export function RoteiroSection({
   const [draftScrollTop, setDraftScrollTop] = useState(0);
   const [draftClosedThisSession, setDraftClosedThisSession] = useState(false);
   const [draftSessionHintDismissed, setDraftSessionHintDismissed] = useState(false);
+  const [mobileSubTab, setMobileSubTab] = useState<'roteiro' | 'legenda'>('roteiro');
   const workspacePane = workspacePaneChoice?.contentId === contentId
     ? workspacePaneChoice.pane
     : 'write';
@@ -392,21 +393,25 @@ export function RoteiroSection({
     setVisaoChoice({contentId: contentId ?? '', visao: proxima});
   };
 
+  const seletorVisaoYoutube = isYoutube ? (
+    <SegmentTabs<'texto' | 'colunas'>
+      ariaLabel="Visão do roteiro"
+      activateOnPointerDown
+      value={visaoYoutube}
+      onChange={escolherVisao}
+      options={[
+        {id: 'texto', label: 'Texto', icon: <AlignLeft className="h-3.5 w-3.5" />},
+        {id: 'colunas', label: 'Colunas', icon: <Columns3 className="h-3.5 w-3.5" />},
+      ]}
+    />
+  ) : null;
+
   /** No YouTube longo do computador, Texto e Colunas editam os mesmos blocos. */
-  const areaDeEscrita = (fullscreenAside?: ReactNode) => {
+  const areaDeEscrita = (fullscreenAside?: ReactNode, incluirSeletorVisao = true) => {
     if (!isYoutube) return writingArea(fullscreenAside);
     return (
       <div className="stack-sm">
-        <SegmentTabs<'texto' | 'colunas'>
-          ariaLabel="Visão do roteiro"
-          activateOnPointerDown
-          value={visaoYoutube}
-          onChange={escolherVisao}
-          options={[
-            {id: 'texto', label: 'Texto'},
-            {id: 'colunas', label: 'Colunas'},
-          ]}
-        />
+        {incluirSeletorVisao ? seletorVisaoYoutube : null}
         {visaoYoutube === 'colunas' ? (
           <YoutubeColunasEditor
             blocos={draft.youtubeBlocos ?? blocosDesdeRoteiro(draft.script)}
@@ -531,19 +536,18 @@ export function RoteiroSection({
           </div>
 
           {isYoutube ? (
-            <div className="min-w-0 stack-sm">
-              <YoutubeScriptHeader
-                contentId={contentId}
-                title={titleValue}
-                onTitleChange={changeTitle}
-                onTitleEnter={() => {
-                  if (workspacePane === 'write') focusWritingArea();
-                }}
-                proposta={draft.proposta ?? ''}
-                onPropostaChange={proposta => onChange({proposta})}
-              />
-              <ContentTemaChips temaIds={draft.temaIds} max={6} />
-            </div>
+            <YoutubeScriptHeader
+              contentId={contentId}
+              title={titleValue}
+              onTitleChange={changeTitle}
+              onTitleEnter={() => {
+                if (workspacePane === 'write') focusWritingArea();
+              }}
+              proposta={draft.proposta ?? ''}
+              onPropostaChange={proposta => onChange({proposta})}
+              viewSelector={workspacePane === 'write' ? seletorVisaoYoutube : undefined}
+              temaChips={<ContentTemaChips temaIds={draft.temaIds} max={6} />}
+            />
           ) : (
           /* Título editável sem caixa: tamanho moderado, lápis só no hover/foco. */
           <div className="min-w-0 stack-sm">
@@ -608,6 +612,7 @@ export function RoteiroSection({
                 notesOpen
                   ? notesPane('h-full max-h-none min-h-0 flex-1 rounded-none border-0 shadow-none')
                   : undefined,
+                false,
               )}
             </div>
           )}
@@ -673,46 +678,67 @@ export function RoteiroSection({
       );
     }
 
+    const showCaptionSubTab = !pecaDeTexto && Boolean(captionEditor);
+
     return (
       <div className="stack-sm">
-        <input
-          value={draft.title === 'Novo roteiro' ? '' : draft.title}
-          onChange={event => onChange({title: event.target.value})}
-          // Title 2 (22px): o campo herdava 16px e ficava menor que o texto do roteiro (17px).
-          className="t-page-title w-full border-0 bg-transparent py-1 !text-[length:var(--font-size-title-2)] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
-          placeholder="Título"
-          aria-label={pecaDeTexto ? 'Título do texto' : 'Título do roteiro'}
-        />
-        {onOpenDraft && hasWritingNotesText(draft.writingNotes) && !htmlToReadableText(draft.script) ? (
-          <button
-            type="button"
-            onClick={onOpenDraft}
-            className="self-start text-[var(--text-secondary)] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-          >
-            <Text variant="meta" as="span">O texto está no rascunho</Text>
-          </button>
-        ) : null}
-        {isCarousel ? carouselEditor : (
-          <MobileScriptEditor
-            content={draft.script || ''}
-            onChange={html => onChange({script: html})}
-            placeholder={pecaDeTexto ? 'Escreva o texto…' : 'Escreva o roteiro…'}
-            documentTitle={draft.title?.trim() || (pecaDeTexto ? 'Novo texto' : 'Novo roteiro')}
-            autoFocus={autoFocusScript}
-            saveState={saveState}
-            toolbarStart={
-              <ScriptBlockToolbar
-                menuPlacement="top"
-                onInsertBlock={handleInsertBlock}
-                onApplyTemplate={handleApplyTemplate}
-              />
-            }
-            onSave={onSave}
-            hasUnsavedChanges={hasUnsavedChanges}
-            authorName={authorName}
-            annotations={draft.scriptNotes || []}
-            {...annotationHandlers}
+        {showCaptionSubTab ? (
+          <SegmentTabs<'roteiro' | 'legenda'>
+            ariaLabel="Seção do roteiro"
+            fullWidth
+            activateOnPointerDown
+            value={mobileSubTab}
+            onChange={setMobileSubTab}
+            options={[
+              {id: 'roteiro', label: 'Roteiro'},
+              {id: 'legenda', label: 'Legenda'},
+            ]}
           />
+        ) : null}
+        {showCaptionSubTab && mobileSubTab === 'legenda' ? (
+          captionEditor
+        ) : (
+          <>
+            <input
+              value={draft.title === 'Novo roteiro' ? '' : draft.title}
+              onChange={event => onChange({title: event.target.value})}
+              // Title 2 (22px): o campo herdava 16px e ficava menor que o texto do roteiro (17px).
+              className="t-page-title w-full border-0 bg-transparent py-0.5 !text-[length:var(--font-size-title-2)] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
+              placeholder="Título"
+              aria-label={pecaDeTexto ? 'Título do texto' : 'Título do roteiro'}
+            />
+            {onOpenDraft && hasWritingNotesText(draft.writingNotes) && !htmlToReadableText(draft.script) ? (
+              <button
+                type="button"
+                onClick={onOpenDraft}
+                className="self-start text-[var(--text-secondary)] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              >
+                <Text variant="meta" as="span">O texto está no rascunho</Text>
+              </button>
+            ) : null}
+            {isCarousel ? carouselEditor : (
+              <MobileScriptEditor
+                content={draft.script || ''}
+                onChange={html => onChange({script: html})}
+                placeholder={pecaDeTexto ? 'Escreva o texto…' : 'Escreva o roteiro…'}
+                documentTitle={draft.title?.trim() || (pecaDeTexto ? 'Novo texto' : 'Novo roteiro')}
+                autoFocus={autoFocusScript}
+                saveState={saveState}
+                toolbarStart={
+                  <ScriptBlockToolbar
+                    menuPlacement="top"
+                    onInsertBlock={handleInsertBlock}
+                    onApplyTemplate={handleApplyTemplate}
+                  />
+                }
+                onSave={onSave}
+                hasUnsavedChanges={hasUnsavedChanges}
+                authorName={authorName}
+                annotations={draft.scriptNotes || []}
+                {...annotationHandlers}
+              />
+            )}
+          </>
         )}
       </div>
     );

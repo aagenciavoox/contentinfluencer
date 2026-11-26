@@ -17,6 +17,7 @@ export const STATUS_TOKEN: Record<string, string> = {
   Gravado: 'recorded',
   'A Editar': 'editing',
   Editado: 'edited',
+  'Design pronto': 'edited',
   Arquivado: 'archived',
   // Production tags sometimes surface as status chips
   [PRODUCTION_TAGS.GRAVAR]: 'ready',

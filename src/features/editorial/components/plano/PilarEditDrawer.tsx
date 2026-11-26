@@ -1,6 +1,4 @@
 import { useCallback, useMemo, useState } from 'react';
-import { SidePanel } from '../../../../components/layout/SidePanel';
-import { AppButton } from '../../../../components/ui/AppButton';
 import { useAppContext } from '../../../../context/AppContext';
 import { useAuth } from '../../../../context/AuthContext';
 import { contasAtivas } from '../../../contas/lib/contas';
@@ -10,10 +8,11 @@ import {
   type PilarEditSavePayload,
 } from '../../../settings/components/PilarEditForm';
 import { patchSerieAoVincularPilar, serieLigadaAoPilar } from '../../lib/vincularSerieAoPilar';
+import { EditorialDrawer } from './EditorialDrawer';
 
 /**
- * Pilar numa gaveta (~560px) sem sair da Direção editorial: o mesmo formulário da página,
- * com legenda-base e dias e horários por conta. `pilarId` = 'nova' cria um pilar.
+ * Pilar numa gaveta padrão do Editorial (560px no desktop, tela inteira no mobile).
+ * `pilarId` = 'nova' cria um pilar. Preserva todos os vínculos existentes com as séries.
  */
 export function PilarEditDrawer({ pilarId, onClose }: { pilarId: string | null; onClose: () => void }) {
   const { state, dispatch } = useAppContext();
@@ -46,37 +45,34 @@ export function PilarEditDrawer({ pilarId, onClose }: { pilarId: string | null; 
   const mudarChrome = useCallback((next: PilarEditChromeState) => setChrome(next), []);
 
   return (
-    <SidePanel
+    <EditorialDrawer
       open={aberto}
       onClose={onClose}
-      title={criando ? 'Novo pilar' : pilar?.nome ?? 'Pilar'}
+      title={criando ? 'Adicionar pilar' : `Editar pilar: ${pilar?.nome ?? 'Pilar'}`}
       subtitle="Que tipo de conteúdo entra aqui?"
-      widthClassName="max-w-[560px]"
+      escopoConta="Geral"
+      secao="Identidade"
+      dirty={Boolean(chrome?.isDirty)}
+      onSave={() => chrome?.handleSave()}
+      canSave={Boolean(chrome?.canSave)}
+      saveLabel="Salvar pilar"
     >
       {aberto ? (
-        <div className="stack-md">
-          <PilarEditForm
-            key={pilar?.id ?? 'nova'}
-            compacto
-            initial={pilar ?? {}}
-            platformNames={contas}
-            series={state.series}
-            postingTimeEntries={state.postingTimeEntries}
-            platforms={state.platforms}
-            initialLinkedSerieIds={ligadas}
-            pilares={state.pilares}
-            onSave={salvar}
-            onCancel={onClose}
-            onChromeChange={mudarChrome}
-          />
-          <div className="sticky bottom-0 flex justify-end gap-2 border-t border-[var(--border-subtle)] bg-[var(--bg-primary)] py-3">
-            <AppButton variant="secondary" size="sm" onClick={onClose}>Cancelar</AppButton>
-            <AppButton variant="primary" size="sm" disabled={!chrome?.canSave} onClick={() => chrome?.handleSave()}>
-              Salvar pilar
-            </AppButton>
-          </div>
-        </div>
+        <PilarEditForm
+          key={pilar?.id ?? 'nova'}
+          compacto
+          initial={pilar ?? {}}
+          platformNames={contas}
+          series={state.series}
+          postingTimeEntries={state.postingTimeEntries}
+          platforms={state.platforms}
+          initialLinkedSerieIds={ligadas}
+          pilares={state.pilares}
+          onSave={salvar}
+          onCancel={onClose}
+          onChromeChange={mudarChrome}
+        />
       ) : null}
-    </SidePanel>
+    </EditorialDrawer>
   );
 }

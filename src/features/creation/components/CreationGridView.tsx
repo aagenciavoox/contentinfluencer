@@ -1,4 +1,5 @@
 import type { Content, Pilar, Serie } from '../../../lib/database';
+import type { ContaRef } from '../../contas/lib/contas';
 import { CreationGridCard } from './CreationGridCard';
 import type { CreationItemActionHandlers } from '../lib/creationItemActions';
 
@@ -13,6 +14,7 @@ export interface CreationGridItemModel {
 
 interface CreationGridViewProps {
   items: CreationGridItemModel[];
+  platforms?: readonly ContaRef[];
   selectionMode: boolean;
   compact?: boolean;
   onOpen: (content: Content) => void;
@@ -22,6 +24,7 @@ interface CreationGridViewProps {
 
 export function CreationGridView({
   items,
+  platforms,
   selectionMode,
   compact = false,
   onOpen,
@@ -36,6 +39,7 @@ export function CreationGridView({
           content={item.content}
           pillar={item.pillar}
           series={item.series}
+          platforms={platforms}
           selectionMode={selectionMode}
           selectable={item.selectable}
           selected={item.selected}

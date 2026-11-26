@@ -4,8 +4,10 @@ import {
   blocosDesdeRoteiro,
   blocosParaHtml,
   htmlParaBlocos,
+  metricasDosBlocos,
   moverBloco,
   readYoutubeBlocos,
+  reordenarBloco,
 } from './youtubeBlocos.ts';
 
 const corrido = [
@@ -50,5 +52,24 @@ assert.deepEqual(moverBloco(comModelo, comModelo[1].id, -1).map(bloco => bloco.n
 assert.equal(readYoutubeBlocos(null), null);
 assert.equal(readYoutubeBlocos('não é json'), null);
 assert.equal(readYoutubeBlocos([{ nome: 'Cena', roteiro: '<p>a</p>', referencias: 'som' }])?.[0]?.nome, 'Cena');
+
+const ordenaveis = [
+  { id: 'b1', nome: 'Abertura', roteiro: '<p>' + 'palavra '.repeat(65) + '</p><div data-na-tela>texto ignorado</div>', referencias: 'nota ignorada' },
+  { id: 'b2', nome: 'Meio', roteiro: '<p></p>', referencias: '' },
+  { id: 'b3', nome: 'Fim', roteiro: '<p>' + 'palavra '.repeat(130) + '</p>', referencias: '' },
+];
+assert.deepEqual(reordenarBloco(ordenaveis, 'b3', 'b1').map(b => b.id), ['b3', 'b1', 'b2']);
+assert.deepEqual(reordenarBloco(ordenaveis, 'b1', 'b3').map(b => b.id), ['b2', 'b3', 'b1']);
+
+const metricas = metricasDosBlocos(ordenaveis);
+assert.equal(metricas.porId.b1?.palavras, 65);
+assert.equal(metricas.porId.b1?.segundos, 30);
+assert.equal(metricas.porId.b1?.janelaTempo, '~00:00 – 00:30');
+assert.equal(metricas.porId.b2?.palavras, 0);
+assert.equal(metricas.porId.b2?.janelaTempo, null);
+assert.equal(metricas.porId.b3?.palavras, 130);
+assert.equal(metricas.porId.b3?.janelaTempo, '~00:30 – 01:30');
+assert.equal(metricas.totalPalavras, 195);
+assert.equal(metricas.totalDuracaoCurta, '~1 min 30s');
 
 console.log('ok - youtubeBlocos');

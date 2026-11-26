@@ -26,7 +26,7 @@ export function SettingsSectionCard({
 }: SettingsSectionCardProps) {
   return (
     <Surface variant="outlined" padding={padding} className={className}>
-      <div className="stack-lg">
+      <div className="stack-lg h-full">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 stack-xs">
             <div className="flex min-w-0 items-center gap-2">

@@ -7,6 +7,8 @@ interface CreationCategoryLabelProps {
   extraCount?: number;
   /** Lista completa, para o hover do card (o pai precisa da classe `group`). */
   names?: readonly string[];
+  /** Fundo mais claro quando a etiqueta está sobre o papel suave do card de Ideia. */
+  onPaper?: boolean;
   className?: string;
 }
 
@@ -15,19 +17,33 @@ export function CreationCategoryLabel({
   label,
   extraCount = 0,
   names,
+  onPaper = false,
   className,
 }: CreationCategoryLabelProps) {
   const all = names?.length ? names : [label];
   return (
     <span
-      className={cn('relative inline-flex min-w-0 max-w-full items-center gap-1.5', className)}
+      className={cn('relative inline-flex min-w-0 max-w-full items-center gap-1', className)}
       title={all.join(', ')}
     >
-      <Badge variant="tag" className="max-w-full truncate text-2xs">
+      <Badge
+        variant="tag"
+        className={cn(
+          'max-w-full truncate rounded-[var(--radius-sm)] text-2xs',
+          onPaper && 'border-[var(--border-subtle)] bg-[var(--bg-elevated)]',
+        )}
+      >
         #{label.replace(/^#+/, '')}
       </Badge>
       {extraCount > 0 ? (
-        <Text variant="meta" as="span" className="shrink-0 leading-none">
+        <Text
+          variant="meta"
+          as="span"
+          className={cn(
+            'shrink-0 rounded-[var(--radius-sm)] px-1.5 py-0.5 text-2xs leading-none text-[var(--text-tertiary)]',
+            onPaper ? 'bg-[var(--bg-elevated)]' : 'bg-[var(--tag-bg)]',
+          )}
+        >
           +{extraCount}
         </Text>
       ) : null}

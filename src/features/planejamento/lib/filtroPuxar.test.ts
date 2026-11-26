@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict';
+import {CONTENT_STATUS} from '../../contents/lib/contentPipeline.ts';
 import {
   FILTRO_PUXAR_VAZIO,
   filtroPuxarAtivo,
   opcoesDoFiltroPuxar,
+  ordenarPorPrioridadeDeStatus,
   passaNoFiltroPuxar,
   pilarEfetivo,
+  prioridadeStatusPuxar,
+  quantosFiltrosPuxar,
 } from './filtroPuxar.ts';
 
 const series = [
@@ -19,7 +23,7 @@ const pilares = [
 ];
 const temas = [{id: 't-hal', nome: 'Halloween'}];
 
-function conteudo(partial: Partial<{seriesId: string | null; pilarId: string | null; tags: string[]; temaIds: string[]}>) {
+function conteudo(partial: Partial<{seriesId: string | null; pilarId: string | null; tags: string[]; temaIds: string[]; status: string; title: string}>) {
   return {seriesId: null, pilarId: null, tags: [], temaIds: [], ...partial};
 }
 
@@ -48,7 +52,7 @@ function testFiltroCombinaSeriePilarETag() {
   assert.equal(passaNoFiltroPuxar(ciencia, {...FILTRO_PUXAR_VAZIO, tags: ['gravar']}, series, temas), false);
   // Entre filtros, precisa passar em todos.
   assert.equal(
-    passaNoFiltroPuxar(resenha, {serieIds: ['s-res'], pilarIds: ['p-cie'], tags: []}, series, temas),
+    passaNoFiltroPuxar(resenha, {...FILTRO_PUXAR_VAZIO, serieIds: ['s-res'], pilarIds: ['p-cie']}, series, temas),
     false,
   );
 }
@@ -70,6 +74,7 @@ function testOpcoesSoTrazemOQueExisteNosConteudos() {
     {value: 'halloween', label: 'Halloween'},
     {value: 'terror', label: 'Terror'},
   ]);
+  assert.deepEqual(opcoes.status, []);
 }
 
 function testSerieTrazOsQuadrosEOsQuadrosMostramOCaminho() {
@@ -90,6 +95,9 @@ function testFiltroAtivo() {
   assert.equal(filtroPuxarAtivo(FILTRO_PUXAR_VAZIO), false);
   assert.equal(filtroPuxarAtivo({...FILTRO_PUXAR_VAZIO, tags: ['terror']}), true);
   assert.equal(filtroPuxarAtivo({...FILTRO_PUXAR_VAZIO, redes: ['instagram']}), true);
+  assert.equal(filtroPuxarAtivo({...FILTRO_PUXAR_VAZIO, statusIds: [CONTENT_STATUS.EDICAO]}), true);
+  assert.equal(quantosFiltrosPuxar(FILTRO_PUXAR_VAZIO), 0);
+  assert.equal(quantosFiltrosPuxar({...FILTRO_PUXAR_VAZIO, tags: ['terror', 'natal'], statusIds: [CONTENT_STATUS.EDICAO]}), 2);
 }
 
 function testFiltroRede() {
@@ -120,9 +128,77 @@ function testFiltroRede() {
   assert.equal(passaNoFiltroPuxar(item, filtroYtLongo, series, temas, ['youtube-shorts']), false);
 }
 
+function testFiltroStatus() {
+  const edicao = conteudo({status: CONTENT_STATUS.EDICAO});
+  const producao = conteudo({status: CONTENT_STATUS.PRODUCAO});
+  const legado = conteudo({status: 'Gravado'});
+
+  assert.equal(passaNoFiltroPuxar(edicao, FILTRO_PUXAR_VAZIO, series, temas), true);
+  assert.equal(passaNoFiltroPuxar(edicao, {...FILTRO_PUXAR_VAZIO, statusIds: [CONTENT_STATUS.EDICAO]}, series, temas), true);
+  assert.equal(passaNoFiltroPuxar(producao, {...FILTRO_PUXAR_VAZIO, statusIds: [CONTENT_STATUS.EDICAO]}, series, temas), false);
+  // Dentro do mesmo filtro, basta um dos escolhidos.
+  assert.equal(
+    passaNoFiltroPuxar(producao, {...FILTRO_PUXAR_VAZIO, statusIds: [CONTENT_STATUS.EDICAO, CONTENT_STATUS.PRODUCAO]}, series, temas),
+    true,
+  );
+  // Status legado entra pelo canônico.
+  assert.equal(passaNoFiltroPuxar(legado, {...FILTRO_PUXAR_VAZIO, statusIds: [CONTENT_STATUS.EDICAO]}, series, temas), true);
+  // Entre filtros, precisa passar em todos.
+  assert.equal(
+    passaNoFiltroPuxar(edicao, {...FILTRO_PUXAR_VAZIO, statusIds: [CONTENT_STATUS.EDICAO], tags: ['terror']}, series, temas),
+    false,
+  );
+}
+
+function testOpcoesStatusSoTrazemOQueExisteENaPrioridade() {
+  const opcoes = opcoesDoFiltroPuxar(
+    [
+      conteudo({status: CONTENT_STATUS.IDEIA}),
+      conteudo({status: 'Gravado'}),
+      conteudo({status: CONTENT_STATUS.PRODUCAO}),
+      conteudo({status: CONTENT_STATUS.IDEIA}),
+    ],
+    series,
+    pilares,
+    temas,
+  );
+  assert.deepEqual(opcoes.status, [
+    {value: CONTENT_STATUS.EDICAO, label: CONTENT_STATUS.EDICAO},
+    {value: CONTENT_STATUS.PRODUCAO, label: CONTENT_STATUS.PRODUCAO},
+    {value: CONTENT_STATUS.IDEIA, label: CONTENT_STATUS.IDEIA},
+  ]);
+}
+
+function testOrdenarPorPrioridadeDeStatus() {
+  const ideiaB = {status: CONTENT_STATUS.IDEIA, title: 'Beta'};
+  const ideiaA = {status: CONTENT_STATUS.IDEIA, title: 'Alfa'};
+  const producao = {status: CONTENT_STATUS.PRODUCAO, title: 'Zebra'};
+  const edicao = {status: 'Gravado', title: 'Meio'};
+  const roteiro = {status: CONTENT_STATUS.ROTEIRO, title: 'Roteiro'};
+  const desconhecido = {status: 'Outro', title: 'Aaa'};
+  const semTitulo = {status: CONTENT_STATUS.EDICAO, title: ''};
+
+  assert.deepEqual(
+    ordenarPorPrioridadeDeStatus([ideiaB, desconhecido, producao, ideiaA, roteiro, edicao, semTitulo]).map(item => `${item.status}:${item.title}`),
+    [
+      `${CONTENT_STATUS.EDICAO}:`,
+      'Gravado:Meio',
+      `${CONTENT_STATUS.PRODUCAO}:Zebra`,
+      `${CONTENT_STATUS.ROTEIRO}:Roteiro`,
+      `${CONTENT_STATUS.IDEIA}:Alfa`,
+      `${CONTENT_STATUS.IDEIA}:Beta`,
+      'Outro:Aaa',
+    ],
+  );
+  assert.equal(prioridadeStatusPuxar('Outro') > prioridadeStatusPuxar(CONTENT_STATUS.IDEIA), true);
+}
+
 testPilarVemDaSerieQuandoOConteudoNaoTem();
 testFiltroCombinaSeriePilarETag();
 testOpcoesSoTrazemOQueExisteNosConteudos();
 testSerieTrazOsQuadrosEOsQuadrosMostramOCaminho();
 testFiltroAtivo();
 testFiltroRede();
+testFiltroStatus();
+testOpcoesStatusSoTrazemOQueExisteENaPrioridade();
+testOrdenarPorPrioridadeDeStatus();

@@ -1,7 +1,7 @@
 import {INICIO_DA_SEMANA} from '../../../lib/semana.ts';
 import {useEffect, useMemo, useState, type DragEvent as ReactDragEvent} from 'react';
 import {useLocation, useNavigate} from 'react-router-dom';
-import {format} from 'date-fns';
+import {addMonths, addWeeks, format} from 'date-fns';
 import {type GradeEntry} from '../../editorial/lib/gradeEntries';
 import {orientacaoDoPlanejamento} from '../lib/saudeActions';
 import {ptBR} from 'date-fns/locale';
@@ -996,6 +996,23 @@ export function PlanejamentoPage() {
         aberta={analiseAberta}
         onFechar={() => setAnaliseAberta(false)}
         rotuloPeriodo={rotuloSaude}
+        escopoRotulo={
+          trecho === 'intervalo'
+            ? 'Intervalo'
+            : vista === 'semana'
+              ? 'Semana visível'
+              : 'Mês visível'
+        }
+        onPeriodoAnterior={
+          trecho === 'calendario' && !intervaloEmFoco && !origemSaude
+            ? () => navegarCalendario(vista === 'semana' ? addWeeks(month, -1) : addMonths(month, -1))
+            : undefined
+        }
+        onProximoPeriodo={
+          trecho === 'calendario' && !intervaloEmFoco && !origemSaude
+            ? () => navegarCalendario(vista === 'semana' ? addWeeks(month, 1) : addMonths(month, 1))
+            : undefined
+        }
         avisoPeriodo={avisoSaude}
         counts={monthHealth.counts}
         foraDoPrazo={foraDoPrazo}

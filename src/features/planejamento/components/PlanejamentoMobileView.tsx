@@ -11,7 +11,7 @@ import {
   startOfWeek,
 } from 'date-fns';
 import {ptBR} from 'date-fns/locale';
-import {ArrowDownToLine, Bell, LayoutGrid, Plus, StickyNote} from 'lucide-react';
+import {Activity, ArrowDownToLine, Bell, LayoutGrid, Plus, StickyNote} from 'lucide-react';
 import {CalendarPeriodNav} from '../../../components/calendar';
 import {AppButton} from '../../../components/ui/AppButton';
 import {Badge} from '../../../components/ui/Badge';
@@ -26,14 +26,10 @@ import type {VistaPlanejamento} from '../lib/periodoPlanejamento';
 import {diasDoCalendario, type IntervaloSaude} from '../lib/saudeActions';
 import {fimDeSemana} from '../lib/periodoPlanejamento';
 import {SemDataPanel} from './SemDataPanel';
-import {AvisosFaixa} from './AvisosFaixa';
-import {BottomSheet} from '../../../components/overlays/BottomSheet';
-import {OverlayBody} from '../../../components/overlays/OverlayBody';
-import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
 import {pontosParaRevisar, type AvisoOrientacao} from '../lib/orientacaoEditorial';
-import {ReguaDeFrequencia} from './ReguaDeFrequencia';
-import {classeDiaPausaPublicacao, linhasDaRegua, resumoDaRegua} from '../lib/reguaFrequencia';
+import {classeDiaPausaPublicacao, linhasDaRegua} from '../lib/reguaFrequencia';
 import type {Continuidade} from '../lib/saudeIndicadores';
+import {PlanejamentoSaudeDrawer, type AbaSaudeDrawer} from './PlanejamentoSaudeDrawer';
 
 /** Convite do período sem pauta (celular). */
 export const CONVITE_PERIODO_VAZIO = 'Período livre por aqui. Que tal criar um post-it ou puxar algo da Criação?';
@@ -242,13 +238,27 @@ export function PlanejamentoMobileView({
   const today = new Date();
   const todayKey = dateKey(today);
   const [undatedOpen, setUndatedOpen] = useState(undated.length > 0);
-  const [avisosAbertos, setAvisosAbertos] = useState(false);
+  const [saudeDrawerAberto, setSaudeDrawerAberto] = useState(false);
+  const [abaSaude, setAbaSaude] = useState<AbaSaudeDrawer>('ajustes');
   const revisar = pontosParaRevisar(avisos);
+  const totalAjustes = revisar > 0 ? revisar : avisos.length;
   const undatedId = useId();
-  const ritmoId = useId();
-  const [ritmoAberto, setRitmoAberto] = useState(false);
   const linhasRegua = useMemo(() => linhasDaRegua(continuidade), [continuidade]);
   const currentWeekRef = useRef<HTMLElement | null>(null);
+
+  const abrirSaude = (aba: AbaSaudeDrawer) => {
+    setAbaSaude(aba);
+    setSaudeDrawerAberto(true);
+  };
+
+  useEffect(() => {
+    const abrirRitmo = () => {
+      setAbaSaude('ritmo');
+      setSaudeDrawerAberto(true);
+    };
+    window.addEventListener('criaki:abrir-ritmo', abrirRitmo);
+    return () => window.removeEventListener('criaki:abrir-ritmo', abrirRitmo);
+  }, []);
 
   const assuntoOptions = useMemo(
     () => [{id: TODOS_OS_ASSUNTOS, label: 'Todos'}, ...temas.map(tema => ({id: tema.id, label: tema.nome}))],
@@ -330,34 +340,30 @@ export function PlanejamentoMobileView({
         <AppButton
           variant="secondary"
           size="sm"
-          leftIcon={<Bell className="h-4 w-4" />}
-          onClick={() => setAvisosAbertos(true)}
+          leftIcon={
+            revisar > 0 ? (
+              <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--accent-orange)]" aria-hidden />
+            ) : (
+              <Bell className="h-4 w-4" />
+            )
+          }
+          aria-expanded={saudeDrawerAberto && abaSaude === 'ajustes'}
+          onClick={() => abrirSaude('ajustes')}
         >
-          {revisar > 0 ? `Avisos (${revisar})` : 'Avisos'}
+          {totalAjustes > 0 ? `Ajustes (${totalAjustes})` : 'Ajustes'}
         </AppButton>
-      </div>
-
-      {linhasRegua.length > 0 ? (
-        <section className="min-w-0 rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-1">
-          <DisclosureButton
-            open={ritmoAberto}
-            onToggle={() => setRitmoAberto(open => !open)}
-            controls={ritmoId}
-            trailing={(
-              <Text variant="meta" as="span" className="truncate text-[var(--text-secondary)]">
-                {resumoDaRegua(linhasRegua)}
-              </Text>
-            )}
+        {linhasRegua.length > 0 ? (
+          <AppButton
+            variant="secondary"
+            size="sm"
+            leftIcon={<Activity className="h-4 w-4" />}
+            aria-expanded={saudeDrawerAberto && abaSaude === 'ritmo'}
+            onClick={() => abrirSaude('ritmo')}
           >
-            <Text variant="sectionTitle" as="span">Ritmo</Text>
-          </DisclosureButton>
-          {ritmoAberto ? (
-            <div id={ritmoId} className="p-2">
-              <ReguaDeFrequencia continuidade={continuidade} compacto />
-            </div>
-          ) : null}
-        </section>
-      ) : null}
+            {`Ritmo (${linhasRegua.length})`}
+          </AppButton>
+        ) : null}
+      </div>
 
       {temas.length > 0 ? (
         <FilterChips
@@ -470,34 +476,20 @@ export function PlanejamentoMobileView({
         ) : null}
       </section>
 
-      <BottomSheet
-        open={avisosAbertos}
-        onClose={() => setAvisosAbertos(false)}
-        ariaLabel="Avisos do planejamento"
-      >
-        <OverlayHeader title="Avisos" onClose={() => setAvisosAbertos(false)} />
-        <OverlayBody className="stack-md">
-          <AvisosFaixa
-            onFoiDeProposito={onFoiDeProposito}
-            onQueroFazerAMais={onQueroFazerAMais}
-            avisos={avisos}
-            avisoAtivoId={avisoAtivoId}
-            onLocalizar={aviso => {
-              onLocalizarAviso?.(aviso);
-              setAvisosAbertos(false);
-            }}
-            onLimparDestaque={onLimparDestaque}
-            onVerAnalise={onVerAnalise ? () => {
-              setAvisosAbertos(false);
-              onVerAnalise();
-            } : undefined}
-            onAbrirEditorial={() => {
-              setAvisosAbertos(false);
-              onEditorial();
-            }}
-          />
-        </OverlayBody>
-      </BottomSheet>
+      <PlanejamentoSaudeDrawer
+        open={saudeDrawerAberto}
+        abaAtiva={abaSaude}
+        onAbaChange={setAbaSaude}
+        onClose={() => setSaudeDrawerAberto(false)}
+        avisos={avisos}
+        avisoAtivoId={avisoAtivoId}
+        onLocalizar={aviso => onLocalizarAviso?.(aviso)}
+        onFoiDeProposito={onFoiDeProposito}
+        onQueroFazerAMais={onQueroFazerAMais}
+        onLimparDestaque={onLimparDestaque}
+        continuidade={continuidade}
+        onVerAnalise={() => onVerAnalise?.()}
+      />
     </div>
   );
 }

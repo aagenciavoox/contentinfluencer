@@ -12,7 +12,7 @@ import {
 import {ptBR} from 'date-fns/locale';
 import {calendarEntryPillStyle, CalendarEventPill} from '../../../components/calendar';
 import {calendarEntryIcon} from './CalendarNetworkIcons';
-import {PublishCalendarCard} from './PublishCalendarCard';
+import {PublishCalendarCard, estadoDoCard} from './PublishCalendarCard';
 import {Text} from '../../../components/ui/Text';
 import {keyboardActivation} from '../../../lib/a11y/keyboardActivation';
 import {cn} from '../../../lib/utils';
@@ -158,7 +158,7 @@ export function CalendarTimelineView({
                             secondary={entry.secondary}
                             contas={entry.contas}
                             variant="compact"
-                            style={calendarEntryPillStyle(entry)}
+                            estado={estadoDoCard(entry)}
                             onOpen={() => {
                               onSelectDate?.(day);
                               onSelectEntry?.(entry);

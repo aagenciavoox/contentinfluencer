@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { addDays, format } from 'date-fns';
+import { FileText, Plus } from 'lucide-react';
 import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import type { AppDataDomain, Content, ContentPlataforma } from '../../../lib/database';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
+import { PAGE_SECTION } from '../../../layouts/navigation/navConfig';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useIsMobile } from '../../../hooks/useIsMobile';
@@ -19,22 +21,28 @@ import { ScriptComposer } from '../../creation/components/ScriptComposer';
 import { aplicarEscolhasDaSerie } from '../../editorial/lib/escolhasSerie';
 import { getGentleExperienceSettings } from '../../settings/lib/gentleExperience';
 import { itensPendenciaDoDia } from '../../planejamento/lib/avisosPendencia';
-import { CreateMenuButton } from '../../../components/ui/CreateMenuButton';
+import { AppButton } from '../../../components/ui/AppButton';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
 import { getErrorMessage, notifySaveFeedback } from '../../../lib/saveFeedback';
-import { DayPulse } from '../components/DayPulse';
 import { TodayHome } from '../components/TodayHome';
-import { buildDailySessionBlock, getSessionCandidates, suggestionSummary, suggestSessionIds } from '../lib/dailySession';
+import { buildDailySessionBlock, getSessionCandidates, suggestSessionIds } from '../lib/dailySession';
 import { buildDayPulse, formatDayTitle, formatWeekdayShort, localDateKey } from '../lib/dayPulse';
 import { resolveCurrentRead } from '../lib/currentRead';
 import { getTodayAgenda } from '../lib/todayAgenda';
 import { getTodayWork } from '../lib/todayWork';
 import { getTodayPublications } from '../lib/todayPublications';
+import {
+  buildOperationalSubtitle,
+  countIdeasAwaitingTriage,
+  getTodayEditorialFocus,
+  getUpcomingPublicationsWindow,
+  getWeeklyPublishingPace,
+  resolveTimeGreeting,
+} from '../lib/todayOperational';
 import { saveDailySession, type DailySessionPayload } from '../lib/saveDailySession';
 import { useToday } from '../hooks/useToday';
 import { useTodayIdeaDraft } from '../hooks/useTodayIdeaDraft';
-import { TodayWork } from '../components/TodayWork';
 import { TodayPublications } from '../components/TodayPublications';
 import {
   computeReadingsFromApp,
@@ -78,6 +86,7 @@ export function DashboardPage() {
   const pendingSession = useRef<DailySessionPayload | null>(null);
   const pendingIdea = useRef<{ snapshot: string; content: Content } | null>(null);
   const pendingScript = useRef<Content | null>(null);
+  const quickCaptureInputRef = useRef<HTMLInputElement | null>(null);
 
   const domains = (requested: AppDataDomain[]) => {
     const ready = requested.every(isDomainReady);
@@ -95,12 +104,13 @@ export function DashboardPage() {
 
   useEffect(() => {
     const requested: AppDataDomain[] = ['content', 'production'];
+    if (!isMobile) requested.push('voice');
     if (moduleFlags.library) requested.push('library');
     if (moduleFlags.recording) requested.push('recording');
     if (moduleFlags.calendar) requested.push('agenda');
     if (moduleFlags.projects) requested.push('projects');
     void ensureDataDomains(requested).catch(() => {});
-  }, [ensureDataDomains, moduleFlags.library, moduleFlags.recording, moduleFlags.calendar, moduleFlags.projects]);
+  }, [ensureDataDomains, isMobile, moduleFlags.library, moduleFlags.recording, moduleFlags.calendar, moduleFlags.projects]);
 
   const candidates = useMemo(
     () => getSessionCandidates(state.contents, state.recordingBlocks),
@@ -110,10 +120,6 @@ export function DashboardPage() {
     const ids = new Set(suggestSessionIds(candidates));
     return candidates.filter(content => ids.has(content.id));
   }, [candidates]);
-  const suggestionText = useMemo(
-    () => suggestionSummary(candidates, state.series),
-    [candidates, state.series],
-  );
   const pendenciasDoDia = useMemo(() => {
     if (!gentleExperience.calmSuggestions || gentleExperience.pauseMode) return [];
     return itensPendenciaDoDia({
@@ -267,11 +273,75 @@ export function DashboardPage() {
     }
   };
 
+  const redeReferenciaId =
+    state.editorial.preferencias?.redeReferenciaId ?? state.editorial.redeReferenciaId ?? null;
+
   const workItems = getTodayWork(state.contents, scripts.ready ? state.recordingBlocks : [], moduleFlags.recording);
+  const focusItems = useMemo(
+    () =>
+      scripts.ready
+        ? getTodayEditorialFocus({
+            contents: state.contents,
+            recordingBlocks: state.recordingBlocks,
+            series: state.series,
+            platforms: state.platforms,
+            recordingEnabled: moduleFlags.recording,
+          })
+        : [],
+    [scripts.ready, state.contents, state.recordingBlocks, state.series, state.platforms, moduleFlags.recording],
+  );
   const publicationsToday = useMemo(() => getTodayPublications({
     contents: state.contents, platforms: state.platforms, series: state.series,
-    redeReferenciaId: state.editorial.preferencias?.redeReferenciaId ?? state.editorial.redeReferenciaId,
-  }, todayKey), [state.contents, state.platforms, state.series, state.editorial, todayKey]);
+    redeReferenciaId,
+  }, todayKey), [state.contents, state.platforms, state.series, redeReferenciaId, todayKey]);
+  const upcomingPublications = useMemo(
+    () =>
+      moduleFlags.calendar
+        ? getUpcomingPublicationsWindow(
+            {
+              contents: state.contents,
+              platforms: state.platforms,
+              series: state.series,
+              redeReferenciaId,
+            },
+            today,
+            3,
+          )
+        : [],
+    [moduleFlags.calendar, state.contents, state.platforms, state.series, redeReferenciaId, today],
+  );
+  const weeklyPace = useMemo(
+    () =>
+      getWeeklyPublishingPace({
+        contents: state.contents,
+        platforms: state.platforms,
+        series: state.series,
+        redeReferenciaId,
+        limiteSemanal: state.editorial.preferencias?.limiteSemanal ?? null,
+        minimoSemanal: state.editorial.preferencias?.minimoSemanal ?? null,
+        today,
+      }),
+    [state.contents, state.platforms, state.series, redeReferenciaId, state.editorial.preferencias, today],
+  );
+  const ideasAwaitingTriage = useMemo(
+    () => (gentleExperience.pauseMode ? 0 : countIdeasAwaitingTriage(state.contents)),
+    [gentleExperience.pauseMode, state.contents],
+  );
+  const toneReminder =
+    state.dnaVoz?.tom?.trim() ||
+    state.dnaVoz?.promessaCentral?.trim() ||
+    state.editorial.perfil?.linguagens?.trim() ||
+    null;
+  const continueScriptTarget =
+    focusItems.find(item => item.stage === 'roteiro') ?? focusItems[0] ?? null;
+  const timeGreeting = resolveTimeGreeting(today);
+  const operationalSubtitle = buildOperationalSubtitle({
+    inProductionCount: focusItems.length,
+    todayPublicationsCount: publicationsToday.length,
+    showCounts: gentleExperience.dashboardCounts,
+    dataReady: scripts.ready,
+    pauseMode: gentleExperience.pauseMode,
+  });
 
   const publicationsNode = moduleFlags.calendar ? (
     <TodayPublications
@@ -337,6 +407,16 @@ export function DashboardPage() {
       workItems={scripts.ready ? workItems : []}
       metrics={metricsData}
       publicationsSlot={publicationsNode}
+      focusItems={focusItems}
+      upcomingPublications={upcomingPublications}
+      publicationsLoading={publications.loading}
+      publicationsError={publications.error}
+      onRetryPublications={() => retry(['content', 'production'])}
+      weeklyPace={weeklyPace}
+      ideasAwaitingTriage={ideasAwaitingTriage}
+      toneReminder={toneReminder}
+      showCounts={gentleExperience.dashboardCounts}
+      quickCaptureInputRef={quickCaptureInputRef}
     />
   );
 
@@ -372,14 +452,37 @@ export function DashboardPage() {
       contentWidth="wide"
       header={
         <DesktopPageHeader
-          section="Hoje"
-          title={dayTitle}
+          section={PAGE_SECTION.hoje}
+          title={`${timeGreeting}, ${greetingName}. O que vamos criar hoje?`}
+          subtitle={`${dayTitle} · ${operationalSubtitle}`}
+          rowAlign="center"
           actions={
-            <CreateMenuButton
-              variant="secondary"
-              onCreateIdea={() => navigate('/criacao?compose=idea')}
-              onCreateScript={handleNovoRoteiro}
-            />
+            <>
+              <AppButton
+                variant="primary"
+                leftIcon={<Plus className="h-4 w-4" />}
+                onClick={() => quickCaptureInputRef.current?.focus()}
+              >
+                Nova ideia
+              </AppButton>
+              {continueScriptTarget ? (
+                <AppButton
+                  variant="secondary"
+                  leftIcon={<FileText className="h-4 w-4" />}
+                  onClick={() => navigate(continueScriptTarget.to, detailBackState)}
+                >
+                  Continuar roteiro aberto
+                </AppButton>
+              ) : (
+                <AppButton
+                  variant="secondary"
+                  leftIcon={<FileText className="h-4 w-4" />}
+                  onClick={handleNovoRoteiro}
+                >
+                  Novo roteiro
+                </AppButton>
+              )}
+            </>
           }
         />
       }

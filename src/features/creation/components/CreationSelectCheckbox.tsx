@@ -25,13 +25,13 @@ export function CreationSelectCheckbox({
         onToggle();
       }}
       className={cn(
-        'relative inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border transition-[opacity,colors,box-shadow] duration-150',
+        'relative inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border transition-[opacity,colors,box-shadow] duration-150',
         // No toque, a caixa continua pequena mas a área de toque vai a 44px.
         "pointer-coarse:before:absolute pointer-coarse:before:-inset-3 pointer-coarse:before:content-['']",
         'focus-visible:opacity-100 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
         selected
           ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)] opacity-100'
-          : 'pointer-events-none border-[var(--border-color)] bg-[var(--bg-elevated)] text-transparent opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 hover:border-[var(--border-strong)]',
+          : 'pointer-events-none border-[var(--border-input)] bg-[var(--bg-elevated)] text-transparent opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 hover:border-[var(--text-primary)]',
         forceVisible && 'pointer-events-auto opacity-100',
         className,
       )}

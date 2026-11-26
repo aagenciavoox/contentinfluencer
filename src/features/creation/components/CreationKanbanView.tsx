@@ -1,12 +1,12 @@
 import { useState, type DragEvent } from 'react';
 import type { Content, Pilar, Serie } from '../../../lib/database';
+import type { ContaRef } from '../../contas/lib/contas';
 import { Badge } from '../../../components/ui/Badge';
 import { Text } from '../../../components/ui/Text';
 import { cn } from '../../../lib/utils';
 import { filterContentsByCreationTab, type CreationTab } from '../../contents/lib/creationContent';
-import { CreationCategoryLabel } from './CreationCategoryLabel';
-import { CreationEntityMarks, creationEntityHint } from './CreationEntityMarks';
-import { CreationItemMenu } from './CreationItemMenu';
+import { CreationCardContent } from './CreationCardContent';
+import { creationEntityHint } from './CreationEntityMarks';
 import {
   buildCreationItemMenuItems,
   type CreationItemActionHandlers,
@@ -26,15 +26,19 @@ export interface CreationKanbanItemModel {
   content: Content;
   pillar?: Pilar | null;
   series?: Serie | null;
+  selectable?: boolean;
+  selected?: boolean;
   etiquetas?: readonly string[];
 }
 
 interface CreationKanbanViewProps {
   contents: Content[];
+  platforms?: readonly ContaRef[];
   activeTab: CreationTab;
   resolveItem: (content: Content) => CreationKanbanItemModel;
   selectionMode: boolean;
   onOpen: (content: Content) => void;
+  onToggleSelect?: (content: Content) => void;
   actions: CreationItemActionHandlers;
   onMoveToTab: (content: Content, tab: CreationKanbanTab) => Promise<void> | void;
   persistingIds?: Set<string>;
@@ -44,118 +48,119 @@ function CreationKanbanCard({
   content,
   pillar,
   series,
+  platforms,
   etiquetas,
   selectionMode,
+  selectable = false,
+  selected = false,
   isDragging,
   isPersisting,
   draggable,
   onOpen,
+  onToggleSelect,
   onDragStart,
   onDragEnd,
   actions,
 }: CreationKanbanItemModel & {
+  platforms?: readonly ContaRef[];
   selectionMode: boolean;
   isDragging: boolean;
   isPersisting: boolean;
   draggable: boolean;
   onOpen: () => void;
+  onToggleSelect?: () => void;
   onDragStart: (event: DragEvent<HTMLElement>) => void;
   onDragEnd: () => void;
   actions: CreationItemActionHandlers;
 }) {
   const title = getCreationTitle(content);
-  const isIdea = isIdeaContent(content);
+  const isTrash = Boolean(content.deletedAt);
+  const isIdea = !isTrash && isIdeaContent(content);
   const tags = etiquetas ?? getCreationCardTags(content);
   const excerpt = getCreationNoteExcerpt(content);
-  const canOpen = !content.deletedAt && !selectionMode;
+  const canOpen = !isTrash && !selectionMode;
+  const canActivate = selectionMode ? selectable : canOpen;
   const entityHint = creationEntityHint(pillar, series, content.pilarId, content.seriesId);
-  const hasMarks = entityHint.length > 0;
+  const topAccentColor = !isIdea && !isTrash ? (series?.cor || pillar?.cor || undefined) : undefined;
   const menuItems = buildCreationItemMenuItems(content, actions, {
     includeMoveActions: draggable,
   });
 
+  const handleActivate = () => {
+    if (selectionMode) {
+      if (selectable) onToggleSelect?.();
+      return;
+    }
+    if (canOpen) onOpen();
+  };
+
   return (
     <article
-      style={{ borderTopColor: series?.cor || pillar?.cor || undefined }}
+      style={topAccentColor ? { borderTopColor: topAccentColor } : undefined}
       draggable={draggable}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      onClick={() => {
-        if (canOpen) onOpen();
-      }}
+      onClick={handleActivate}
       onKeyDown={event => {
-        if (!canOpen) return;
+        if (!canActivate) return;
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
-          onOpen();
+          handleActivate();
         }
       }}
-      role={canOpen ? 'button' : undefined}
-      tabIndex={canOpen ? 0 : undefined}
-      aria-label={[canOpen ? `Abrir ${title}` : title, entityHint, tags.length > 0 ? `Tags: ${tags.join(', ')}` : null].filter(Boolean).join(', ')}
+      role={canActivate ? 'button' : undefined}
+      tabIndex={canActivate ? 0 : undefined}
+      aria-label={[
+        isTrash
+          ? `${title}, bloqueado na lixeira`
+          : selectionMode
+            ? (selectable ? `${selected ? 'Desmarcar' : 'Selecionar'} ${title}` : `${title} não pode ser selecionado`)
+            : (canOpen ? `Abrir ${title}` : title),
+        entityHint,
+        tags.length > 0 ? `Tags: ${tags.join(', ')}` : null,
+      ].filter(Boolean).join(', ')}
       className={cn(
         'creation-hub-card group relative flex flex-col rounded-[var(--radius-card)] border shadow-none',
-        isIdea
-          ? 'creation-hub-card--idea border-[var(--idea-card-border)] bg-[var(--idea-card-bg)]'
-          : 'border-[var(--border-color)] bg-[var(--bg-elevated)]',
+        isIdea && 'creation-hub-card--idea',
+        isTrash && 'creation-hub-card--trash select-none cursor-not-allowed',
+        selected && 'creation-hub-card--selected',
+        selectionMode && !selectable && !isTrash && 'opacity-55',
         'transition-[border-color,box-shadow,opacity,transform] duration-200',
-        'hover:shadow-[var(--shadow-card-hover)]',
+        !isTrash && 'hover:shadow-[var(--shadow-card-hover)]',
         'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-        'focus-within:shadow-[var(--shadow-card-hover)]',
-        canOpen && 'cursor-pointer',
+        !isTrash && 'focus-within:shadow-[var(--shadow-card-hover)]',
+        canActivate && 'cursor-pointer',
         isDragging && 'opacity-60',
       )}
     >
-      <div className="relative">
-        <span
-          className="absolute top-0 right-0 z-[2]"
-          onClick={event => event.stopPropagation()}
-          onKeyDown={event => event.stopPropagation()}
-        >
-          <CreationItemMenu items={menuItems} label={`Ações de ${title}`} alwaysVisible />
-        </span>
-        <div className="card-body pr-9">
-        <Text variant="itemTitle" className="creation-hub-card__title line-clamp-2">
-          {title}
-        </Text>
-        {excerpt ? (
-          <Text variant="secondary" className="card-excerpt">
-            {excerpt}
-          </Text>
-        ) : null}
-        {isPersisting ? (
-          <Text variant="meta" as="p" className="leading-none">
-            Salvando…
-          </Text>
-        ) : null}
-      </div>
-
-      {hasMarks ? (
-        <CreationEntityMarks
-          pillar={pillar}
-          series={series}
-          pillarId={content.pilarId}
-          seriesId={content.seriesId}
-          display="all"
-          className="creation-hub-card__entities"
-        />
-      ) : null}
-      {tags.length > 0 ? (
-        <div className="creation-hub-card__footer">
-          <CreationCategoryLabel label={tags[0]} extraCount={tags.length - 1} names={tags} />
-        </div>
-      ) : null}
-      </div>
+      <CreationCardContent
+        content={content}
+        title={title}
+        excerpt={excerpt}
+        tags={tags}
+        pillar={pillar}
+        series={series}
+        platforms={platforms}
+        menuItems={menuItems}
+        selectionMode={selectionMode}
+        selectable={selectable}
+        selected={selected}
+        isPersisting={isPersisting}
+        stopInteractivePropagation
+        onToggleSelect={onToggleSelect}
+      />
     </article>
   );
 }
 
 export function CreationKanbanView({
   contents,
+  platforms,
   activeTab,
   resolveItem,
   selectionMode,
   onOpen,
+  onToggleSelect,
   actions,
   onMoveToTab,
   persistingIds,
@@ -183,7 +188,7 @@ export function CreationKanbanView({
             key={tab}
             className={cn(
               'flex h-full w-[min(300px,86vw)] shrink-0 flex-col rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)]/20',
-              'md:w-auto md:min-w-[240px] md:flex-1 md:basis-0',
+              'md:w-auto md:min-w-[260px] md:flex-1 md:basis-0',
               'transition-[border-color,background-color] duration-150',
               showAllStages && activeTab === tab && 'border-[var(--border-strong)] bg-[var(--bg-hover)]/40',
               isActiveDrop && 'border-[var(--border-strong)] bg-[var(--bg-hover)]/45',
@@ -228,11 +233,13 @@ export function CreationKanbanView({
                     <CreationKanbanCard
                       key={content.id}
                       {...item}
+                      platforms={platforms}
                       selectionMode={selectionMode}
                       isDragging={draggingId === content.id}
                       isPersisting={Boolean(persistingIds?.has(content.id))}
                       draggable={canDrag}
                       onOpen={() => onOpen(content)}
+                      onToggleSelect={onToggleSelect ? () => onToggleSelect(content) : undefined}
                       onDragStart={event => {
                         if (!canDrag) {
                           event.preventDefault();

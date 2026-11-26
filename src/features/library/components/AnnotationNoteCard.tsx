@@ -2,6 +2,7 @@ import { Text } from '../../../components/ui/Text';
 import type { ReactNode } from 'react';
 import { Bookmark, CheckCircle2, Film, Lightbulb, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { MoreMenu, type MoreMenuItem } from '../../../components/ui/MoreMenu';
 import type { Anotacao } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
 import { formatAnnotationReference } from './BookAnnotationCard';
@@ -98,6 +99,8 @@ interface AnnotationNoteCardProps {
   layout?: boolean;
   showHighlight?: boolean;
   showTransformContent?: boolean;
+  /** No mobile, condensa ações secundárias num menu ⋯ para não espremer os metadados. */
+  compactActions?: boolean;
   className?: string;
 }
 
@@ -112,9 +115,22 @@ export function AnnotationNoteCard({
   layout = true,
   showHighlight = true,
   showTransformContent = true,
+  compactActions = false,
   className,
 }: AnnotationNoteCardProps) {
   const tipoClass = TIPO_CORES[anotacao.tipo] || TIPO_CORES['Anotação'];
+
+  const compactMenuItems: MoreMenuItem[] = compactActions
+    ? [
+        ...(onTransformIdea && !anotacao.destilada
+          ? [{ id: 'ideia', label: 'Transformar em ideia', onClick: onTransformIdea }]
+          : []),
+        ...(showTransformContent && onTransformContent
+          ? [{ id: 'roteiro', label: 'Criar roteiro', onClick: onTransformContent }]
+          : []),
+        { id: 'excluir', label: 'Excluir', tone: 'danger' as const, onClick: onDelete },
+      ]
+    : [];
 
   const body = (
     <div className="p-3">
@@ -136,7 +152,25 @@ export function AnnotationNoteCard({
             </Text>
           ) : null}
         </div>
-        {(showHighlight || onTransformIdea || (showTransformContent && onTransformContent)) ? (
+        {compactActions ? (
+          <div className={cn('flex shrink-0 items-center gap-0.5', actionsClassName)}>
+            {showHighlight && onToggleHighlight ? (
+              <button
+                type="button"
+                onClick={onToggleHighlight}
+                title={anotacao.contentPotential ? 'Remover destaque' : 'Destacar'}
+                aria-label={anotacao.contentPotential ? 'Remover destaque' : 'Destacar anotação'}
+                className={cn(
+                  'inline-flex h-9 w-9 items-center justify-center rounded-[var(--radius-sm)] transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                  anotacao.contentPotential ? 'text-[var(--accent-orange)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]',
+                )}
+              >
+                <Bookmark className={cn('h-4 w-4', anotacao.contentPotential && 'fill-[var(--accent-orange)] text-[var(--accent-orange)]')} />
+              </button>
+            ) : null}
+            <MoreMenu size="sm" label="Mais opções da anotação" items={compactMenuItems} />
+          </div>
+        ) : (showHighlight || onTransformIdea || (showTransformContent && onTransformContent)) ? (
           <AnnotationCardActions
             anotacao={anotacao}
             onToggleHighlight={onToggleHighlight ?? (() => {})}

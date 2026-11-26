@@ -75,7 +75,7 @@ export function MobileScriptEditor({
       }
       className={cn('border-0 bg-transparent shadow-none', className)}
       editorViewportClassName="bg-transparent p-0"
-      editorCanvasClassName="min-h-[50dvh] rounded-none border-0 bg-transparent px-0 py-2 shadow-none"
+      editorCanvasClassName="min-h-[30dvh] rounded-none border-0 bg-transparent px-0 py-2 shadow-none"
     />
     </div>
   );

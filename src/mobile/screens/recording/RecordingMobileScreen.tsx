@@ -4,7 +4,7 @@ import {energiaDaSerie} from '../../../features/editorial/lib/herancaSerie';
 import {contentPassaFiltroSerie} from '../../../features/editorial/lib/filtroSubarvore';
 import {seriesParaFiltro} from '../../../features/settings/lib/serieAgrupamento';
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
-import { BookOpenText, Check, Clapperboard, ExternalLink, Layers3, Plus, SearchCheck, Tags, Video } from 'lucide-react';
+import { Check, Clapperboard, Layers3, Plus, SearchCheck, Tags, Video } from 'lucide-react';
 import type { Content, Pilar, Platform, RecordingBlock, Serie } from '../../../lib/database';
 import { PlatformIcons } from '../../../components/ui/PlatformIcons';
 import { EmptyState } from '../../../components/ui/EmptyState';
@@ -12,6 +12,7 @@ import { SkeletonList } from '../../../components/ui/Skeleton';
 import { EMPTY } from '../../../lib/uiCopy';
 import { MobileFilterSelect, MobileFilterSheet } from '../../components/MobileFilterSheet';
 import { Badge } from '../../../components/ui/Badge';
+import { MoreMenu } from '../../../components/ui/MoreMenu';
 import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { MobileListCard } from '../../components/MobileListCard';
 import { MobileSearchBar } from '../../components/MobileSearchBar';
@@ -190,6 +191,13 @@ export function RecordingMobileScreen({
     setTargetBlockId('');
   };
 
+  const activeFilterCount =
+    (pilarFilter !== 'all' ? 1 : 0)
+    + (seriesFilter !== 'all' ? 1 : 0)
+    + (tagFilter !== 'all' ? 1 : 0)
+    + (energiaFilter !== 'all' ? 1 : 0)
+    + (redesFilter.length > 0 ? 1 : 0)
+    + (sortValue !== 'recentes' ? 1 : 0);
   const hasActiveFilters =
     Boolean(search.trim())
     || pilarFilter !== 'all'
@@ -246,7 +254,7 @@ export function RecordingMobileScreen({
           <>
             {onGravarComEnergia ? (
               <div className="flex justify-end">
-                <AppButton variant="secondary" disabled={!countsReady} onClick={onGravarComEnergia}>Gravar com esta energia</AppButton>
+                <AppButton variant="secondary" size="sm" disabled={!countsReady} onClick={onGravarComEnergia}>Gravar com esta energia</AppButton>
               </div>
             ) : null}
             <MobileSearchBar
@@ -255,6 +263,7 @@ export function RecordingMobileScreen({
               placeholder="Buscar roteiro, pilar ou série"
               onFilterClick={() => setIsFilterSheetOpen(true)}
               filterLabel="Abrir filtros da gravação"
+              activeFilterCount={activeFilterCount}
             />
             {redesRapidas.length > 1 ? (
               <CreationRedeQuickFilter
@@ -320,30 +329,22 @@ export function RecordingMobileScreen({
                       title={content.title || 'Roteiro sem título'}
                       description={showWordCount ? undefined : statusLabel}
                       trailing={
-                        <div className="flex items-center gap-1">
-                          <AppButton
-                            variant="ghost"
-                            size="xs"
-                            iconOnly
-                            leftIcon={<BookOpenText className="h-3.5 w-3.5" />}
-                            onClick={event => {
-                              event.stopPropagation();
-                              onReadContent(content.id);
-                            }}
-                            className="h-11 w-11 border-[var(--border-color)]"
-                            aria-label="Abrir modo leitura"
-                          />
-                          <AppButton
-                            variant="ghost"
-                            size="xs"
-                            iconOnly
-                            leftIcon={<ExternalLink className="h-3.5 w-3.5" />}
-                            onClick={event => {
-                              event.stopPropagation();
-                              onOpenContent(content.id);
-                            }}
-                            className="h-11 w-11 border-[var(--border-color)]"
-                            aria-label="Abrir detalhes do roteiro"
+                        <div onClick={event => event.stopPropagation()}>
+                          <MoreMenu
+                            size="sm"
+                            label="Mais opções do roteiro"
+                            items={[
+                              {
+                                id: 'read',
+                                label: 'Abrir modo leitura',
+                                onClick: () => onReadContent(content.id),
+                              },
+                              {
+                                id: 'open',
+                                label: 'Abrir detalhes do roteiro',
+                                onClick: () => onOpenContent(content.id),
+                              },
+                            ]}
                           />
                         </div>
                       }

@@ -55,7 +55,7 @@ export function proporcaoEmTexto(proporcao: ProporcaoFuncoes | null): string {
     .join(' · ');
 }
 
-/** Exibição visual da proporção com barra segmentada e mini-cards por objetivo. */
+/** Exibição visual da proporção com barra segmentada e legenda horizontal por objetivo. */
 export function ResumoDaProporcao({ proporcao }: { proporcao: ProporcaoFuncoes | null }) {
   if (!proporcao) {
     return <Text variant="secondary">Nenhuma distribuição definida. As metas ficam em branco até você definir.</Text>;
@@ -64,7 +64,7 @@ export function ResumoDaProporcao({ proporcao }: { proporcao: ProporcaoFuncoes |
   const soma = somaDaProporcao(efetiva);
 
   return (
-    <div className="stack-md">
+    <div className="stack-sm">
       {/* Barra de distribuição multi-segmento */}
       <div className="h-3 w-full rounded-[var(--radius-pill)] bg-[var(--surface-subtle)] overflow-hidden flex border border-[var(--border-subtle)]">
         {FUNCOES.map(funcao => {
@@ -81,44 +81,51 @@ export function ResumoDaProporcao({ proporcao }: { proporcao: ProporcaoFuncoes |
         })}
       </div>
 
-      {/* Grid de objetivos com porcentagens e cores */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+      {/* Legenda horizontal limpa */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2.5">
         {FUNCOES.map(funcao => {
           const cfg = OBJETIVO_CONFIG[funcao];
           const pct = efetiva[funcao] ?? 0;
           return (
-            <div
-              key={funcao}
-              className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-3 flex flex-col justify-between"
-            >
+            <div key={funcao} className="flex flex-col gap-0.5 min-w-0">
               <div className="flex items-center gap-1.5 min-w-0">
-                <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: cfg.cor }} />
-                <Text variant="meta" as="span" className="truncate text-[var(--text-secondary)]">
+                <span
+                  className="h-2.5 w-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: cfg.cor }}
+                  aria-hidden
+                />
+                <Text
+                  variant="meta"
+                  as="span"
+                  className={cn(
+                    'truncate',
+                    pct === 0 ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-secondary)]',
+                  )}
+                >
                   {FUNCAO_CURTA[funcao]}
                 </Text>
                 <Ajuda rotulo={`Sobre ${FUNCAO_CURTA[funcao]}`} texto={FUNCAO_DESCRICOES[funcao]} />
               </div>
-              <div className="mt-2 flex items-baseline gap-1">
-                <Text variant="sectionTitle" as="span" className="tabular-nums text-[var(--text-primary)]">
-                  {pct}%
-                </Text>
-              </div>
-              <div className="mt-2 h-1 w-full rounded-[var(--radius-pill)] bg-[var(--surface-subtle)] overflow-hidden">
-                <div
-                  className="h-full rounded-[var(--radius-pill)]"
-                  style={{ width: `${Math.min(100, pct)}%`, backgroundColor: cfg.cor }}
-                />
-              </div>
+              <Text
+                variant="bodyStrong"
+                as="span"
+                className={cn(
+                  'pl-4 tabular-nums',
+                  pct === 0 ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-primary)]',
+                )}
+              >
+                {pct}%
+              </Text>
             </div>
           );
         })}
       </div>
 
-      <Text variant="bodyStrong" as="p" className="tabular-nums">Total: {soma}%</Text>
-
       {soma !== 100 ? (
-        <Text variant="meta" as="p" className="text-[var(--accent-orange)]">
-          {soma < 100 ? `Faltam ${100 - soma}% para fechar 100%.` : `Passou ${soma - 100}%. Ajuste os percentuais para somarem 100%.`}
+        <Text variant="meta" as="p" className="tabular-nums text-[var(--accent-orange)]">
+          {soma < 100
+            ? `Total: ${soma}%. Faltam ${100 - soma}% para fechar 100%.`
+            : `Total: ${soma}%. Passou ${soma - 100}%. Ajuste os percentuais para somarem 100%.`}
         </Text>
       ) : null}
     </div>

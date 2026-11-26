@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react';
-import { BookOpen, CornerDownLeft, PencilLine, Plus, X } from 'lucide-react';
+import { useRef, useState, type RefObject } from 'react';
+import { BookOpen, CornerDownLeft, PencilLine, Plus, X, Zap } from 'lucide-react';
 import type { AppState } from '../../../app/providers/appState';
 import { AppButton } from '../../../components/ui/AppButton';
 import { SelectMenu } from '../../../components/ui/SelectMenu';
+import { Text } from '../../../components/ui/Text';
 import { getActivePilares } from '../../settings/lib/activePilares';
 import { seriesParaFiltro } from '../../settings/lib/serieAgrupamento';
 import { cn, getEntityTagStyle } from '../../../lib/utils';
@@ -20,11 +21,13 @@ interface IdeaQuickCaptureProps {
   onSelectedSeriesChange: (value: string) => void;
   onSelectedBibliotecaIdChange: (value: string) => void;
   onSave: () => void;
-  variant?: 'compact' | 'default' | 'single-line';
+  variant?: 'compact' | 'default' | 'single-line' | 'operational';
   autoFocus?: boolean;
   /** Com plataformas já escolhidas, o título deixa de ser obrigatório. */
   allowEmptyText?: boolean;
   disabledReason?: string;
+  inputId?: string;
+  inputRef?: RefObject<HTMLInputElement | null>;
 }
 
 type MetaField = 'pilar' | 'serie' | 'origem';
@@ -49,6 +52,8 @@ export function IdeaQuickCapture({
   autoFocus = true,
   allowEmptyText = false,
   disabledReason = 'Escreva um título para salvar a ideia.',
+  inputId,
+  inputRef,
 }: IdeaQuickCaptureProps) {
   const [expanded, setExpanded] = useState(variant === 'default');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -60,6 +65,7 @@ export function IdeaQuickCapture({
   const canSave = title.trim().length > 0 || notes.trim().length > 0 || allowEmptyText;
   const isCompact = variant === 'compact';
   const isSingleLine = variant === 'single-line';
+  const isOperational = variant === 'operational';
 
   const selectedPilar = state.pilares.find((pilar) => pilar.id === selectedPilarId) ?? null;
   const selectedSerie = state.series.find((serie) => serie.id === selectedSeries) ?? null;
@@ -155,6 +161,108 @@ export function IdeaQuickCapture({
       </div>
     );
   };
+
+  if (isOperational) {
+    const resolvedInputId = inputId ?? 'today-quick-capture-input';
+    const hasDetails = Boolean(notes.trim() || selectedPilarId || selectedSeries || selectedBibliotecaId);
+    return (
+      <div
+        ref={containerRef}
+        className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-3 transition-colors"
+      >
+        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+          <label
+            htmlFor={resolvedInputId}
+            className="flex shrink-0 items-center gap-2 pl-1 text-[var(--text-secondary)]"
+          >
+            <Zap className="h-4 w-4 text-[var(--brand-accent-strong)]" aria-hidden="true" />
+            <Text variant="eyebrow" as="span" className="whitespace-nowrap text-[var(--text-secondary)]">
+              Captura rápida
+            </Text>
+          </label>
+          <div className="min-w-0 flex-1">
+            <input
+              ref={inputRef}
+              id={resolvedInputId}
+              autoFocus={autoFocus}
+              value={title}
+              onChange={(event) => onTitleChange(event.target.value)}
+              onKeyDown={handleTitleKeyDown}
+              placeholder="Anotar uma ideia rápida, referência ou faísca de gancho..."
+              className="h-[var(--control-height)] w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 t-body text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] transition-colors hover:border-[var(--border-strong)] focus:border-[var(--accent-blue)] focus:bg-[var(--bg-elevated)] focus:outline-none focus:shadow-[var(--focus-ring)]"
+            />
+          </div>
+          <div className="flex shrink-0 items-center justify-end gap-2">
+            <Text variant="meta" className="hidden whitespace-nowrap xl:inline">
+              Pressione ↵ Enter
+            </Text>
+            <AppButton
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setExpanded(!expanded)}
+            >
+              {expanded ? 'Menos' : hasDetails ? 'Detalhes' : '+ Detalhes'}
+            </AppButton>
+            <AppButton
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={onSave}
+              disabled={!canSave}
+              disabledReason={disabledReason}
+              className="bg-[var(--surface-subtle)] border-[var(--border-color)] hover:bg-[var(--bg-hover)]"
+            >
+              Salvar rascunho
+            </AppButton>
+          </div>
+        </div>
+
+        <div
+          className={cn(
+            'overflow-hidden transition-all duration-200',
+            expanded ? 'mt-3 max-h-56 border-t border-[var(--border-subtle)] pt-3 opacity-100 stack-sm' : 'max-h-0 opacity-0',
+          )}
+        >
+          <textarea
+            value={notes}
+            onChange={(event) => onNotesChange(event.target.value)}
+            onKeyDown={handleNotesKeyDown}
+            rows={2}
+            placeholder="Observações adicionais (opcional)"
+            aria-label="Observações da ideia"
+            className={cn(
+              fieldClassName,
+              'min-h-[4rem] max-h-24 resize-none bg-[var(--bg-primary)] px-3 py-2 t-body leading-relaxed custom-scrollbar',
+            )}
+          />
+          <div className="flex flex-wrap items-center gap-1.5">
+            {renderMetaChip(
+              'pilar',
+              'Pilar',
+              selectedPilar?.nome ?? null,
+              getEntityTagStyle(selectedPilar?.cor),
+            )}
+            {renderMetaChip(
+              'serie',
+              'Série',
+              selectedSerie?.name ?? null,
+              getEntityTagStyle(selectedSerie?.cor),
+            )}
+            {consumindo.length > 0
+              ? renderMetaChip(
+                  'origem',
+                  'Origem',
+                  selectedOrigem?.titulo.slice(0, 28) ?? null,
+                  undefined,
+                  <BookOpen className="h-3 w-3 shrink-0 text-[var(--accent-orange)]" />,
+                )
+              : null}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isSingleLine) {
     return (

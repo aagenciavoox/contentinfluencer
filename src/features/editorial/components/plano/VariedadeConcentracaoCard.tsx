@@ -1,30 +1,41 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { endOfMonth, format, parseISO } from 'date-fns';
-import { Pencil, Plus, Shuffle, Trash2 } from 'lucide-react';
-import { SidePanel } from '../../../../components/layout/SidePanel';
+import { Plus, Trash2 } from 'lucide-react';
+import { Ajuda } from '../../../../components/ui/Ajuda';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { Badge } from '../../../../components/ui/Badge';
 import { ChoiceChips } from '../../../../components/ui/ChoiceChips';
 import { SelectField } from '../../../../components/ui/SelectField';
-import { ToggleSwitch } from '../../../../components/ui/ToggleSwitch';
+import { Surface } from '../../../../components/ui/Surface';
 import { Text } from '../../../../components/ui/Text';
+import { ToggleSwitch } from '../../../../components/ui/ToggleSwitch';
 import { generateUUID } from '../../../../utils/uuid';
 import { rotuloConta } from '../../../contas/lib/contas';
 import {
   excecoesEmVigor,
   FAIXAS_CONCENTRACAO,
   LIMITES_CONCENTRACAO_PADRAO,
-  limitesPadrao,
   problemaDaExcecao,
-  rotuloFracao,
   type ExcecaoConcentracao,
   type LimitesConcentracao,
 } from '../../lib/concentracao';
-import { CAMPO, CAMPO_BASE, CampoStepper, CardConfiguracao, inteiroOuNull } from './campos';
+import { CAMPO, CAMPO_BASE, CampoStepper, inteiroOuNull } from './campos';
+import { EditorialDrawer } from './EditorialDrawer';
 import { useEditorialPlano } from './useEditorialPlano';
 import { diaMes } from './ValeAPartirDe';
 
-type LimitesDraft = { repeticoes: string; janela: string; percentual: string; minimo: string; assuntoRepeticoes: string; assuntoJanela: string };
+type LimitesDraft = {
+  repeticoes: string;
+  janela: string;
+  percentual: string;
+  minimo: string;
+  assuntoRepeticoes: string;
+  assuntoJanela: string;
+  contarSequencia: boolean;
+};
+
+type ModoDrawer = 'fechado' | 'regras' | 'nova-excecao';
+type OrigemExcecao = 'pagina' | 'regras';
 
 function draftDe(limites: LimitesConcentracao): LimitesDraft {
   return {
@@ -34,6 +45,7 @@ function draftDe(limites: LimitesConcentracao): LimitesDraft {
     minimo: String(limites.assuntoMinPautas),
     assuntoRepeticoes: String(limites.assuntoRepeticoes),
     assuntoJanela: String(limites.assuntoJanelaDias),
+    contarSequencia: limites.contarSequencia,
   };
 }
 
@@ -45,23 +57,8 @@ function foraDaFaixa(valor: number | null, faixa: { min: number; max: number }):
 
 type Alvo = { id: string; nome: string };
 
-/** Nova exceção: obra ou assunto, datas, conta (ou todas) e nota. A busca evita uma lista com a biblioteca inteira. */
-function EditorDaExcecao({
-  obras,
-  assuntos,
-  contas,
-  hoje,
-  onSalvar,
-  onCancelar,
-}: {
-  obras: readonly Alvo[];
-  assuntos: readonly Alvo[];
-  contas: readonly { id: string; rotulo: string }[];
-  hoje: string;
-  onSalvar: (excecao: ExcecaoConcentracao) => void;
-  onCancelar: () => void;
-}) {
-  const [rascunho, setRascunho] = useState<ExcecaoConcentracao>(() => ({
+function novaExcecaoVazia(hoje: string): ExcecaoConcentracao {
+  return {
     id: generateUUID(),
     tipo: 'obra',
     alvoId: '',
@@ -69,153 +66,44 @@ function EditorDaExcecao({
     inicio: hoje,
     fim: format(endOfMonth(parseISO(hoje)), 'yyyy-MM-dd'),
     nota: '',
-  }));
-  const [busca, setBusca] = useState('');
-  const mudar = (patch: Partial<ExcecaoConcentracao>) => setRascunho(atual => ({ ...atual, ...patch }));
-  const lista = rascunho.tipo === 'obra' ? obras : assuntos;
-  const escolhido = lista.find(item => item.id === rascunho.alvoId) ?? null;
-  const termo = busca.trim().toLocaleLowerCase('pt-BR');
-  const encontrados = termo
-    ? lista.filter(item => item.nome.toLocaleLowerCase('pt-BR').includes(termo)).slice(0, 8)
-    : [];
-  const problema = problemaDaExcecao(rascunho);
-
-  return (
-    <div className="stack-lg">
-      <div className="stack-sm">
-        <Text variant="bodyStrong" as="span">O que concentra de propósito</Text>
-        <ChoiceChips<ExcecaoConcentracao['tipo']>
-          label="Tipo da exceção"
-          value={rascunho.tipo}
-          onChange={tipo => {
-            if (!tipo) return;
-            mudar({ tipo, alvoId: '' });
-            setBusca('');
-          }}
-          options={[
-            { value: 'obra', label: 'Uma obra', description: 'Várias pautas do mesmo livro, filme ou série' },
-            { value: 'assunto', label: 'Um assunto', description: 'Um assunto que se repete no intervalo' },
-          ]}
-        />
-      </div>
-
-      <div className="stack-xs">
-        <label htmlFor="excecao-busca">
-          <Text variant="bodyStrong" as="span">{rascunho.tipo === 'obra' ? 'Obra' : 'Assunto'}</Text>
-        </label>
-        {escolhido ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="neutral">{escolhido.nome}</Badge>
-            <AppButton variant="ghost" size="sm" onClick={() => mudar({ alvoId: '' })}>Trocar</AppButton>
-          </div>
-        ) : (
-          <>
-            <input
-              id="excecao-busca"
-              type="search"
-              autoComplete="off"
-              className={CAMPO}
-              placeholder={rascunho.tipo === 'obra' ? 'Buscar pelo título' : 'Buscar pelo nome'}
-              value={busca}
-              onChange={event => setBusca(event.target.value)}
-            />
-            {termo && encontrados.length === 0 ? (
-              <Text variant="meta" className="text-[var(--text-secondary)]">Nada encontrado.</Text>
-            ) : null}
-            {encontrados.length > 0 ? (
-              <ul className="stack-xs">
-                {encontrados.map(item => (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      className="w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2 text-left hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-                      onClick={() => {
-                        mudar({ alvoId: item.id });
-                        setBusca('');
-                      }}
-                    >
-                      <Text variant="body" as="span">{item.nome}</Text>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </>
-        )}
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="stack-xs" htmlFor="excecao-inicio">
-          <Text variant="bodyStrong" as="span">De</Text>
-          <input id="excecao-inicio" type="date" className={`${CAMPO_BASE} min-h-11`} value={rascunho.inicio} onChange={event => mudar({ inicio: event.target.value })} />
-        </label>
-        <label className="stack-xs" htmlFor="excecao-fim">
-          <Text variant="bodyStrong" as="span">Até</Text>
-          <input id="excecao-fim" type="date" className={`${CAMPO_BASE} min-h-11`} min={rascunho.inicio} value={rascunho.fim} onChange={event => mudar({ fim: event.target.value })} />
-        </label>
-      </div>
-
-      <div className="stack-xs">
-        <Text variant="bodyStrong" as="span">Conta</Text>
-        <SelectField
-          ariaLabel="Conta da exceção"
-          block
-          value={rascunho.platformId ?? ''}
-          onChange={platformId => mudar({ platformId: platformId || null })}
-          options={[{ value: '', label: 'Todas as contas' }, ...contas.map(conta => ({ value: conta.id, label: conta.rotulo }))]}
-        />
-        <Text variant="meta" className="text-[var(--text-secondary)]">Exceção de uma conta só cala o aviso quando a análise é daquela conta.</Text>
-      </div>
-
-      <label className="stack-xs" htmlFor="excecao-nota">
-        <Text variant="bodyStrong" as="span">Por quê</Text>
-        <input
-          id="excecao-nota"
-          type="text"
-          className={CAMPO}
-          placeholder="Ex.: mês temático do lançamento"
-          value={rascunho.nota}
-          onChange={event => mudar({ nota: event.target.value })}
-        />
-      </label>
-
-      <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--border-subtle)] pt-4">
-        <AppButton variant="secondary" size="sm" onClick={onCancelar}>Cancelar</AppButton>
-        <AppButton
-          variant="primary"
-          size="sm"
-          disabled={problema != null}
-          disabledReason={problema ?? undefined}
-          onClick={() => onSalvar({ ...rascunho, nota: rascunho.nota.trim() })}
-        >
-          Salvar
-        </AppButton>
-      </div>
-    </div>
-  );
+  };
 }
 
 /**
- * Variedade e concentração (Ritmo & Regras). Os limites só avisam no Planejamento, não bloqueiam.
- * Exceção intencional cala o aviso daquela obra ou assunto só nas datas dela.
+ * Variedade e concentração em modo leitura na página.
+ * Edição de regras e adição/remoção de exceções acontecem no mesmo drawer, sem empilhar drawers.
  */
-export function VariedadeConcentracaoCard() {
+export function VariedadeConcentracaoCard({ embutido: _embutido = false }: { embutido?: boolean } = {}) {
   const { state, settings, gravar } = useEditorialPlano();
   const limites = settings.concentracao ?? LIMITES_CONCENTRACAO_PADRAO;
-  const [editando, setEditando] = useState(false);
-  const [draft, setDraft] = useState<LimitesDraft>(() => draftDe(limites));
-  const [novaExcecao, setNovaExcecao] = useState(false);
   const hoje = format(new Date(), 'yyyy-MM-dd');
-  const excecoes = settings.excecoesConcentracao ?? [];
-  const emVigor = excecoesEmVigor(excecoes, hoje);
+  const excecoesSalvas = settings.excecoesConcentracao ?? [];
+  const emVigor = excecoesEmVigor(excecoesSalvas, hoje);
 
-  const obras: Alvo[] = state.bibliotecaItems
-    .map(item => ({ id: item.id, nome: item.titulo?.trim() || 'Obra sem título' }))
-    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-  const assuntos: Alvo[] = state.temas
-    .map(tema => ({ id: tema.id, nome: tema.nome.trim() || 'Assunto sem nome' }))
-    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-  const contas = state.platforms.filter(conta => conta.ativo).map(conta => ({ id: conta.id, rotulo: rotuloConta(conta) }));
+  const [modo, setModo] = useState<ModoDrawer>('fechado');
+  const [origemExcecao, setOrigemExcecao] = useState<OrigemExcecao>('pagina');
+  const [draft, setDraft] = useState<LimitesDraft>(() => draftDe(limites));
+  const [excecoesDraft, setExcecoesDraft] = useState<ExcecaoConcentracao[]>(excecoesSalvas);
+  const [excecaoForm, setExcecaoForm] = useState<ExcecaoConcentracao>(() => novaExcecaoVazia(hoje));
+  const [buscaExcecao, setBuscaExcecao] = useState('');
+
+  const obras: Alvo[] = useMemo(
+    () => state.bibliotecaItems
+      .map(item => ({ id: item.id, nome: item.titulo?.trim() || 'Obra sem título' }))
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+    [state.bibliotecaItems],
+  );
+  const assuntos: Alvo[] = useMemo(
+    () => state.temas
+      .map(tema => ({ id: tema.id, nome: tema.nome.trim() || 'Assunto sem nome' }))
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+    [state.temas],
+  );
+  const contas = useMemo(
+    () => state.platforms.filter(conta => conta.ativo).map(conta => ({ id: conta.id, rotulo: rotuloConta(conta) })),
+    [state.platforms],
+  );
+
   const nomeDoAlvo = (excecao: ExcecaoConcentracao) => (
     (excecao.tipo === 'obra' ? obras : assuntos).find(item => item.id === excecao.alvoId)?.nome
       ?? (excecao.tipo === 'obra' ? 'Obra removida' : 'Assunto removido')
@@ -238,54 +126,141 @@ export function VariedadeConcentracaoCard() {
     percentual: foraDaFaixa(percentual, FAIXAS_CONCENTRACAO.assuntoPercentual),
     minimo: foraDaFaixa(minimo, FAIXAS_CONCENTRACAO.assuntoMinPautas),
   };
-  const invalido = Object.values(erros).some(Boolean);
+  const regrasInvalidas = Object.values(erros).some(Boolean);
+  const problemaExcecao = problemaDaExcecao(excecaoForm);
 
-  const salvarLimites = () => {
-    if (invalido) return;
-    // O mesmo percentual de antes guarda a fração de antes (1/3 aparece como 33%, mas continua 1/3).
-    const fracao = percentual === Math.round(limites.assuntoFracaoMax * 100) ? limites.assuntoFracaoMax : percentual! / 100;
-    gravar({
-      ...settings,
-      concentracao: { contarSequencia: limites.contarSequencia, assuntoRepeticoes: assuntoRepeticoes!, assuntoJanelaDias: assuntoJanela!, obraRepeticoes: repeticoes!, obraJanelaDias: janela!, assuntoFracaoMax: fracao, assuntoMinPautas: minimo! },
-    });
-    setEditando(false);
+  const salvoDraft = draftDe(limites);
+  const dirtyRegras = JSON.stringify(draft) !== JSON.stringify(salvoDraft)
+    || JSON.stringify(excecoesDraft) !== JSON.stringify(excecoesSalvas);
+  const dirtyExcecao = Boolean(
+    excecaoForm.alvoId
+    || excecaoForm.nota.trim()
+    || excecaoForm.platformId != null
+    || excecaoForm.tipo !== 'obra',
+  );
+  const dirty = modo === 'regras'
+    ? dirtyRegras
+    : modo === 'nova-excecao'
+      ? (dirtyExcecao || (origemExcecao === 'regras' && dirtyRegras))
+      : false;
+
+  const abrirRegras = () => {
+    setDraft(draftDe(limites));
+    setExcecoesDraft(excecoesSalvas);
+    setModo('regras');
   };
 
+  const abrirNovaExcecao = (origem: OrigemExcecao) => {
+    if (origem === 'pagina') {
+      setDraft(draftDe(limites));
+      setExcecoesDraft(excecoesSalvas);
+    }
+    setOrigemExcecao(origem);
+    setExcecaoForm(novaExcecaoVazia(hoje));
+    setBuscaExcecao('');
+    setModo('nova-excecao');
+  };
+
+  const fechar = () => {
+    setModo('fechado');
+    setBuscaExcecao('');
+  };
+
+  const salvarRegras = () => {
+    if (regrasInvalidas) return;
+    const fracao = percentual === Math.round(limites.assuntoFracaoMax * 100)
+      ? limites.assuntoFracaoMax
+      : percentual! / 100;
+    gravar({
+      ...settings,
+      concentracao: {
+        contarSequencia: draft.contarSequencia,
+        assuntoRepeticoes: assuntoRepeticoes!,
+        assuntoJanelaDias: assuntoJanela!,
+        obraRepeticoes: repeticoes!,
+        obraJanelaDias: janela!,
+        assuntoFracaoMax: fracao,
+        assuntoMinPautas: minimo!,
+      },
+      excecoesConcentracao: excecoesDraft,
+    });
+    setModo('fechado');
+  };
+
+  const salvarExcecao = () => {
+    if (problemaExcecao != null) return;
+    const limpa: ExcecaoConcentracao = { ...excecaoForm, nota: excecaoForm.nota.trim() };
+    if (origemExcecao === 'regras') {
+      setExcecoesDraft(atual => [...atual, limpa]);
+      setModo('regras');
+      return;
+    }
+    gravar({ ...settings, excecoesConcentracao: [...excecoesSalvas, limpa] });
+    setModo('fechado');
+  };
+
+  const listaAlvos = excecaoForm.tipo === 'obra' ? obras : assuntos;
+  const alvoEscolhido = listaAlvos.find(item => item.id === excecaoForm.alvoId) ?? null;
+  const termoBusca = buscaExcecao.trim().toLocaleLowerCase('pt-BR');
+  const encontrados = termoBusca
+    ? listaAlvos.filter(item => item.nome.toLocaleLowerCase('pt-BR').includes(termoBusca)).slice(0, 8)
+    : [];
+  const emVigorDraft = excecoesEmVigor(excecoesDraft, hoje);
+
+  const textoExcecoes = emVigor.length === 0
+    ? 'nenhuma exceção'
+    : emVigor.length === 1
+      ? '1 exceção ativa'
+      : `${emVigor.length} exceções ativas`;
+
   return (
-    <CardConfiguracao
-      icone={<Shuffle className="h-5 w-5" />}
-      titulo="Variedade e concentração"
-      descricao="Quando o Planejamento avisa que uma obra ou um assunto está se repetindo. Só avisa, não bloqueia. Quadro em dias seguidos fica no acompanhamento de cada série, desligado por padrão."
-      acao={editando ? undefined : (
-        <AppButton
-          variant="secondary"
-          size="sm"
-          leftIcon={<Pencil className="h-4 w-4" />}
-          onClick={() => {
-            setDraft(draftDe(limites));
-            setEditando(true);
-          }}
-        >
-          Editar limites
-        </AppButton>
-      )}
-    >
-      <div className="stack-lg">
-        <div className="flex items-center justify-between gap-3">
-          <label htmlFor="concentracao-sequencia" className="stack-xs">
-            <Text variant="bodyStrong" as="span">Contar sequência uma vez</Text>
-            <Text variant="secondary" as="span">Quando ligado, a sequência da mesma série ou wave e da mesma obra conta uma vez nas janelas de obra e assunto.</Text>
-          </label>
-          <ToggleSwitch
-            id="concentracao-sequencia"
-            label="Contar sequência uma vez"
-            enabled={limites.contarSequencia}
-            onToggle={() => gravar({...settings, concentracao: {...limites, contarSequencia: !limites.contarSequencia}})}
-          />
+    <div className="h-full">
+      <Surface padding="lg" className="flex h-full flex-col justify-between gap-4">
+        <div className="stack-xs">
+          <Text variant="itemTitle" as="h3">Variedade e concentração</Text>
+          <Text variant="meta" as="p" className="text-[var(--text-secondary)] tabular-nums">
+            3 critérios · {textoExcecoes}
+          </Text>
         </div>
-        {editando ? (
-          <div className="stack-md">
-            <div className="grid gap-6 md:grid-cols-2">
+
+        <div className="flex justify-end">
+          <AppButton variant="secondary" size="sm" onClick={abrirRegras}>
+            Editar
+          </AppButton>
+        </div>
+      </Surface>
+
+      <EditorialDrawer
+        open={modo !== 'fechado'}
+        title={modo === 'nova-excecao' ? 'Nova exceção de concentração' : 'Editar variedade e concentração'}
+        subtitle={modo === 'nova-excecao'
+          ? 'Cala o aviso da obra ou assunto apenas nas datas escolhidas.'
+          : 'Ajuste os critérios de repetição e gerencie exceções em vigor.'}
+        escopoConta="Geral"
+        secao="Regras e avisos"
+        onBack={modo === 'nova-excecao' && origemExcecao === 'regras' ? () => setModo('regras') : undefined}
+        backLabel="Voltar para regras"
+        dirty={dirty}
+        onClose={fechar}
+        onSave={modo === 'nova-excecao' ? salvarExcecao : salvarRegras}
+        saveLabel={modo === 'nova-excecao' ? (origemExcecao === 'regras' ? 'Adicionar à lista' : 'Salvar exceção') : 'Salvar regras'}
+        canSave={modo === 'nova-excecao' ? problemaExcecao == null : !regrasInvalidas}
+        saveDisabledReason={modo === 'nova-excecao'
+          ? (problemaExcecao ?? undefined)
+          : (regrasInvalidas ? 'Confira os números destacados.' : undefined)}
+        footerLeft={modo === 'regras' ? (
+          <AppButton
+            variant="ghost"
+            size="sm"
+            onClick={() => setDraft(draftDe(LIMITES_CONCENTRACAO_PADRAO))}
+          >
+            Voltar ao padrão
+          </AppButton>
+        ) : undefined}
+      >
+        {modo === 'regras' ? (
+          <div className="stack-lg">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <CampoStepper
                 id="concentracao-repeticoes"
                 label="Mesma obra"
@@ -328,7 +303,7 @@ export function VariedadeConcentracaoCard() {
                 unidade="pautas ou mais"
                 hint="Quantas pautas do mesmo assunto disparam o aviso em dias corridos."
                 value={draft.assuntoRepeticoes}
-                onChange={valor => setDraft(atual => ({...atual, assuntoRepeticoes: valor}))}
+                onChange={valor => setDraft(atual => ({ ...atual, assuntoRepeticoes: valor }))}
                 erro={erros.assuntoRepeticoes}
               />
               <CampoStepper
@@ -337,119 +312,190 @@ export function VariedadeConcentracaoCard() {
                 unidade="dias"
                 hint="Independente da janela da obra e da fração do intervalo."
                 value={draft.assuntoJanela}
-                onChange={valor => setDraft(atual => ({...atual, assuntoJanela: valor}))}
+                onChange={valor => setDraft(atual => ({ ...atual, assuntoJanela: valor }))}
                 erro={erros.assuntoJanela}
               />
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-subtle)] pt-3">
-              <AppButton variant="ghost" size="sm" onClick={() => setDraft(draftDe(LIMITES_CONCENTRACAO_PADRAO))}>
-                Voltar ao padrão
-              </AppButton>
-              <div className="flex flex-wrap gap-2">
-                <AppButton variant="secondary" size="sm" onClick={() => setEditando(false)}>Cancelar</AppButton>
+
+            <div className="flex items-center justify-between gap-3 border-t border-[var(--border-subtle)] pt-4">
+              <span className="inline-flex min-w-0 items-center">
+                <label htmlFor="concentracao-sequencia">
+                  <Text variant="bodyStrong" as="span">Contar sequência uma vez</Text>
+                </label>
+                <Ajuda
+                  rotulo="Sobre contar sequência uma vez"
+                  texto="Quando ligado, a sequência da mesma série ou wave e da mesma obra conta uma vez nas janelas de obra e assunto."
+                />
+              </span>
+              <ToggleSwitch
+                id="concentracao-sequencia"
+                label="Contar sequência uma vez"
+                enabled={draft.contarSequencia}
+                onToggle={() => setDraft(atual => ({ ...atual, contarSequencia: !atual.contarSequencia }))}
+              />
+            </div>
+
+            <div className="stack-sm border-t border-[var(--border-subtle)] pt-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Text variant="bodyStrong" as="h3">Exceções em vigor</Text>
                 <AppButton
-                  variant="primary"
+                  variant="secondary"
                   size="sm"
-                  onClick={salvarLimites}
-                  disabled={invalido}
-                  disabledReason={invalido ? 'Confira os números destacados.' : undefined}
+                  leftIcon={<Plus className="h-4 w-4" />}
+                  onClick={() => abrirNovaExcecao('regras')}
                 >
-                  Salvar
+                  Adicionar exceção
                 </AppButton>
               </div>
+              {emVigorDraft.length === 0 ? (
+                <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+                  Nenhuma exceção em vigor.
+                </Text>
+              ) : (
+                <ul className="divide-y divide-[var(--border-subtle)] rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] px-3">
+                  {emVigorDraft.map(excecao => (
+                    <li key={excecao.id} className="flex items-start justify-between gap-3 py-2.5">
+                      <div className="min-w-0">
+                        <Text variant="body" as="p">
+                          {excecao.tipo === 'obra' ? 'Obra' : 'Assunto'}: {nomeDoAlvo(excecao)}
+                        </Text>
+                        <Text variant="meta" as="p" className="text-[var(--text-secondary)] tabular-nums">
+                          {diaMes(excecao.inicio)} a {diaMes(excecao.fim)} · {nomeDaConta(excecao.platformId)}
+                          {excecao.nota ? ` · ${excecao.nota}` : ''}
+                        </Text>
+                      </div>
+                      <AppButton
+                        variant="ghost"
+                        size="sm"
+                        leftIcon={<Trash2 className="h-4 w-4" />}
+                        onClick={() => setExcecoesDraft(atual => atual.filter(item => item.id !== excecao.id))}
+                      >
+                        Remover
+                      </AppButton>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
-        ) : (
-          <div className="stack-sm">
-            <ul className="stack-xs">
-              <li className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                <Badge variant="neutral" className="shrink-0">Mesma obra</Badge>
-                <Text variant="body" as="span">
-                  Aviso com {limites.obraRepeticoes} pautas ou mais em {limites.obraJanelaDias} dias.
-                </Text>
-              </li>
-              <li className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                <Badge variant="neutral" className="shrink-0">Assunto (proporção)</Badge>
-                <Text variant="body" as="span">
-                  Aviso acima de {rotuloFracao(limites.assuntoFracaoMax)} das pautas do intervalo, com pelo menos {limites.assuntoMinPautas} pautas.
-                </Text>
-              </li>
-              <li className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                <Badge variant="neutral" className="shrink-0">Assunto (janela curta)</Badge>
-                <Text variant="body" as="span">
-                  Aviso com {limites.assuntoRepeticoes} pautas ou mais em {limites.assuntoJanelaDias} dias, mesmo com menos de {limites.assuntoMinPautas} pautas no intervalo.
-                </Text>
-              </li>
-            </ul>
-            <div>
-              <Badge variant="neutral">{limitesPadrao(limites) ? 'Limites padrão' : 'Limites seus'}</Badge>
+        ) : modo === 'nova-excecao' ? (
+          <div className="stack-lg">
+            <div className="stack-sm">
+              <Text variant="bodyStrong" as="span">O que concentra de propósito</Text>
+              <ChoiceChips<ExcecaoConcentracao['tipo']>
+                label="Tipo da exceção"
+                value={excecaoForm.tipo}
+                onChange={tipo => {
+                  if (!tipo) return;
+                  setExcecaoForm(atual => ({ ...atual, tipo, alvoId: '' }));
+                  setBuscaExcecao('');
+                }}
+                options={[
+                  { value: 'obra', label: 'Uma obra', description: 'Várias pautas do mesmo livro, filme ou série' },
+                  { value: 'assunto', label: 'Um assunto', description: 'Um assunto que se repete no intervalo' },
+                ]}
+              />
             </div>
-          </div>
-        )}
 
-        <div className="stack-sm border-t border-[var(--border-subtle)] pt-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="min-w-0">
-              <Text variant="bodyStrong" as="h3">Exceções</Text>
-              <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
-                Concentração de propósito: cala o aviso daquela obra ou assunto só nas datas dela. Os outros avisos continuam.
+            <div className="stack-xs">
+              <label htmlFor="excecao-busca">
+                <Text variant="bodyStrong" as="span">{excecaoForm.tipo === 'obra' ? 'Obra' : 'Assunto'}</Text>
+              </label>
+              {alvoEscolhido ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="neutral">{alvoEscolhido.nome}</Badge>
+                  <AppButton variant="ghost" size="sm" onClick={() => setExcecaoForm(atual => ({ ...atual, alvoId: '' }))}>
+                    Trocar
+                  </AppButton>
+                </div>
+              ) : (
+                <>
+                  <input
+                    id="excecao-busca"
+                    type="search"
+                    autoComplete="off"
+                    className={CAMPO}
+                    placeholder={excecaoForm.tipo === 'obra' ? 'Buscar pelo título' : 'Buscar pelo nome'}
+                    value={buscaExcecao}
+                    onChange={event => setBuscaExcecao(event.target.value)}
+                  />
+                  {termoBusca && encontrados.length === 0 ? (
+                    <Text variant="meta" className="text-[var(--text-secondary)]">Nada encontrado.</Text>
+                  ) : null}
+                  {encontrados.length > 0 ? (
+                    <ul className="stack-xs">
+                      {encontrados.map(item => (
+                        <li key={item.id}>
+                          <button
+                            type="button"
+                            className="w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2 text-left hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                            onClick={() => {
+                              setExcecaoForm(atual => ({ ...atual, alvoId: item.id }));
+                              setBuscaExcecao('');
+                            }}
+                          >
+                            <Text variant="body" as="span">{item.nome}</Text>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </>
+              )}
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="stack-xs" htmlFor="excecao-inicio">
+                <Text variant="bodyStrong" as="span">De</Text>
+                <input
+                  id="excecao-inicio"
+                  type="date"
+                  className={`${CAMPO_BASE} min-h-11`}
+                  value={excecaoForm.inicio}
+                  onChange={event => setExcecaoForm(atual => ({ ...atual, inicio: event.target.value }))}
+                />
+              </label>
+              <label className="stack-xs" htmlFor="excecao-fim">
+                <Text variant="bodyStrong" as="span">Até</Text>
+                <input
+                  id="excecao-fim"
+                  type="date"
+                  className={`${CAMPO_BASE} min-h-11`}
+                  min={excecaoForm.inicio}
+                  value={excecaoForm.fim}
+                  onChange={event => setExcecaoForm(atual => ({ ...atual, fim: event.target.value }))}
+                />
+              </label>
+            </div>
+
+            <div className="stack-xs">
+              <Text variant="bodyStrong" as="span">Conta</Text>
+              <SelectField
+                ariaLabel="Conta da exceção"
+                block
+                value={excecaoForm.platformId ?? ''}
+                onChange={platformId => setExcecaoForm(atual => ({ ...atual, platformId: platformId || null }))}
+                options={[{ value: '', label: 'Todas as contas' }, ...contas.map(conta => ({ value: conta.id, label: conta.rotulo }))]}
+              />
+              <Text variant="meta" className="text-[var(--text-secondary)]">
+                Exceção de uma conta só cala o aviso quando a análise é daquela conta.
               </Text>
             </div>
-            <AppButton variant="secondary" size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setNovaExcecao(true)}>
-              Adicionar exceção
-            </AppButton>
-          </div>
-          {emVigor.length === 0 ? (
-            <Text variant="secondary" as="p">Nenhuma exceção em vigor.</Text>
-          ) : (
-            <ul className="divide-y divide-[var(--border-subtle)]">
-              {emVigor.map(excecao => (
-                <li key={excecao.id} className="flex items-start justify-between gap-3 py-2">
-                  <div className="min-w-0">
-                    <Text variant="body" as="p">
-                      {excecao.tipo === 'obra' ? 'Obra' : 'Assunto'}: {nomeDoAlvo(excecao)}
-                    </Text>
-                    <Text variant="meta" as="p" className="text-[var(--text-secondary)] tabular-nums">
-                      {diaMes(excecao.inicio)} a {diaMes(excecao.fim)} · {nomeDaConta(excecao.platformId)}
-                      {excecao.nota ? ` · ${excecao.nota}` : ''}
-                    </Text>
-                  </div>
-                  <AppButton
-                    variant="ghost"
-                    size="sm"
-                    leftIcon={<Trash2 className="h-4 w-4" />}
-                    onClick={() => gravar({ ...settings, excecoesConcentracao: excecoes.filter(item => item.id !== excecao.id) })}
-                  >
-                    Remover
-                  </AppButton>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
 
-      <SidePanel
-        open={novaExcecao}
-        onClose={() => setNovaExcecao(false)}
-        title="Nova exceção"
-        subtitle="Vale só nas datas escolhidas e vence sozinha no fim."
-        widthClassName="max-w-2xl"
-      >
-        {novaExcecao ? (
-          <EditorDaExcecao
-            obras={obras}
-            assuntos={assuntos}
-            contas={contas}
-            hoje={hoje}
-            onCancelar={() => setNovaExcecao(false)}
-            onSalvar={excecao => {
-              gravar({ ...settings, excecoesConcentracao: [...excecoes, excecao] });
-              setNovaExcecao(false);
-            }}
-          />
+            <label className="stack-xs" htmlFor="excecao-nota">
+              <Text variant="bodyStrong" as="span">Por quê</Text>
+              <input
+                id="excecao-nota"
+                type="text"
+                className={CAMPO}
+                placeholder="Ex.: mês temático do lançamento"
+                value={excecaoForm.nota}
+                onChange={event => setExcecaoForm(atual => ({ ...atual, nota: event.target.value }))}
+              />
+            </label>
+          </div>
         ) : null}
-      </SidePanel>
-    </CardConfiguracao>
+      </EditorialDrawer>
+    </div>
   );
 }

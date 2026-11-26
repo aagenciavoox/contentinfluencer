@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { AppButton } from '../../../components/ui/AppButton';
 import { MoreMenu } from '../../../components/ui/MoreMenu';
+import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
 import { useAppContext } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -124,7 +125,7 @@ export function SeriesEditPage() {
     aplicarFuncao: boolean;
   } | null>(null);
 
-  const { pathname } = useLocation();
+  const { pathname, search, hash } = useLocation();
   // Quadro só nasce dentro de uma série: /series/:serieId/quadros/novo.
   const criandoQuadro = pathname.endsWith('/quadros/novo');
   const isCreate = criandoQuadro || !serieId || serieId === 'nova';
@@ -148,6 +149,76 @@ export function SeriesEditPage() {
       : tipoCriacao;
   const quadroSemSerie = criandoQuadro
     && (!serieDoQuadro || tipoDaSerie(serieDoQuadro.id, state.series) !== 'serie');
+
+  const atalhos = useMemo<ReadonlyArray<{ id: string; label: string }>>(() => {
+    if (tipo === 'familia') return [];
+    if (tipo === 'quadro') {
+      return [
+        { id: 'serie-identidade', label: 'Identidade' },
+        { id: 'serie-contas', label: 'Contas e legendas' },
+      ];
+    }
+    return [
+      { id: 'serie-identidade', label: 'Identidade' },
+      { id: 'serie-ritmo', label: 'Ritmo e metas' },
+      { id: 'serie-contas', label: 'Contas e legendas' },
+      { id: 'serie-quadros', label: 'Quadros e temporadas' },
+    ];
+  }, [tipo]);
+
+  const [secaoAtiva, setSecaoAtiva] = useState<string>('serie-identidade');
+
+  useEffect(() => {
+    const ancora = hash.replace(/^#/, '');
+    if (ancora && atalhos.some(item => item.id === ancora)) {
+      setSecaoAtiva(ancora);
+      window.setTimeout(() => {
+        document.getElementById(ancora)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 0);
+      return;
+    }
+    if (atalhos.length > 0) {
+      setSecaoAtiva(atual => (atalhos.some(item => item.id === atual) ? atual : atalhos[0].id));
+    }
+  }, [atalhos, hash]);
+
+  const rolarParaSecao = (id: string) => {
+    setSecaoAtiva(id);
+    const alvo = document.getElementById(id);
+    if (alvo) {
+      alvo.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    if (window.location.hash !== `#${id}`) {
+      window.history.replaceState(null, '', `${pathname}${search}#${id}`);
+    }
+  };
+
+  const atalhosSecoes = atalhos.length > 1 ? (
+    <nav
+      aria-label="Atalhos das seções"
+      className="mobile-h-scroll scrollbar-none flex items-center gap-6 pt-1"
+    >
+      {atalhos.map(secao => {
+        const ativa = secaoAtiva === secao.id;
+        return (
+          <a
+            key={secao.id}
+            href={`#${secao.id}`}
+            aria-current={ativa ? 'location' : undefined}
+            onClick={event => {
+              event.preventDefault();
+              rolarParaSecao(secao.id);
+            }}
+            className={ativa
+              ? 'shrink-0 py-1 t-label text-[var(--brand-accent-text)] transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]'
+              : 'shrink-0 py-1 t-label text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]'}
+          >
+            {secao.label}
+          </a>
+        );
+      })}
+    </nav>
+  ) : null;
 
   const contas = useMemo(() => {
     const ligadas = new Set((editingSerie?.plataformas ?? []).map(item => item.platformId));
@@ -350,6 +421,7 @@ export function SeriesEditPage() {
             }
           />
         }
+        navigation={atalhosSecoes}
         mobileHeader={(
           <div className="flex flex-wrap items-center justify-between gap-2">
             {pageMeta ? (
@@ -368,10 +440,11 @@ export function SeriesEditPage() {
             />
           </div>
         )}
+        mobileToolbar={atalhosSecoes}
       >
         <div className="w-full stack-lg">
           {isCreate && !criandoQuadro ? (
-            <div className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-4 sm:p-6 stack-sm">
+            <Surface variant="outlined" padding="lg" className="stack-sm">
               <Text variant="label" as="div" className="text-[var(--text-secondary)] uppercase">
                 Tipo de Agrupamento
               </Text>
@@ -427,7 +500,7 @@ export function SeriesEditPage() {
                   );
                 })}
               </div>
-            </div>
+            </Surface>
           ) : null}
           {formElement}
         </div>

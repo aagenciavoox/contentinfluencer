@@ -1,24 +1,19 @@
-import React, {useMemo, useState} from 'react';
+import {useMemo, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
-import {Layers, Play, Tags, Trash2, Video} from 'lucide-react';
-import {dia} from '../../../../lib/dates';
+import {Trash2, Video} from 'lucide-react';
 import {AppButton} from '../../../../components/ui/AppButton';
+import {EmptyState} from '../../../../components/ui/EmptyState';
 import {ConfirmModal} from '../../../../components/feedback/modals/ConfirmModal';
 import {CONFIRM, EMPTY, type ConfirmState} from '../../../../lib/uiCopy';
 import {Text} from '../../../../components/ui/Text';
 import {useAppContext} from '../../../../context/AppContext';
 import {Content, RecordingBlock} from '../../../../lib/database';
-import {cn} from '../../../../lib/utils';
-import {RECORDING_READY_STATUS} from '../../../contents/lib/contentWorkflow';
-import {
-  getRecordingBlockProgress,
-  resolveRecordingContextSummary,
-} from '../../lib/recordingWorkflow';
+import {RecordingBlockCard} from './RecordingBlockCard';
 
 type ConfirmStateLocal = ConfirmState | null;
 
 function getBlockContents(block: RecordingBlock, contents: Content[]) {
-  return block.contents
+  return [...block.contents]
     .sort((left, right) => left.ordem - right.ordem)
     .map(({contentId}) => contents.find(content => content.id === contentId) ?? null)
     .filter((content): content is Content => content !== null);
@@ -54,8 +49,7 @@ export function RecordingQueueTab() {
     });
   };
 
-  const handleDeleteBlock = (id: string, event: React.MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
+  const handleDeleteBlock = (id: string) => {
     setConfirm({
       ...CONFIRM.excluirBloco,
       onConfirm: () => dispatch({type: 'DELETE_RECORDING_BLOCK', payload: id}),
@@ -64,15 +58,14 @@ export function RecordingQueueTab() {
 
   return (
     <div className="stack-2xl">
-      <div className="grid-content">
+      <div className="grid-content recording-blocks-grid">
         {filled.length === 0 && empty.length === 0 ? (
-          <div className="col-span-full mt-8 flex flex-col items-center gap-6 rounded-[var(--radius-card)] border-2 border-dashed border-[var(--border-color)] py-32 text-center opacity-30">
-            <Video className="h-12 w-12" />
-            <Text variant="eyebrow" as="p">{EMPTY.blocos.title}</Text>
-            <Text variant="meta" as="span" className="mt-2 text-center opacity-70">
-              {EMPTY.blocos.description}
-            </Text>
-          </div>
+          <EmptyState
+            className="col-span-full"
+            icon={<Video className="h-12 w-12" />}
+            title={EMPTY.blocos.title}
+            description={EMPTY.blocos.description}
+          />
         ) : (
           filled.map(({block, contents}) => (
             <RecordingBlockCard
@@ -98,7 +91,7 @@ export function RecordingQueueTab() {
               {empty.length === 1 ? 'Excluir o vazio' : `Excluir os ${empty.length} vazios`}
             </AppButton>
           </div>
-          <div className="grid-content">
+          <div className="grid-content recording-blocks-grid">
             {empty.map(({block, contents}) => (
               <RecordingBlockCard
                 key={block.id}
@@ -123,141 +116,6 @@ export function RecordingQueueTab() {
         }}
         onCancel={() => setConfirm(null)}
       />
-    </div>
-  );
-}
-
-type RecordingBlockCardProps = {
-  block: RecordingBlock;
-  contents: Content[];
-  onOpen: () => void;
-  onRecord?: () => void;
-  onDelete: (id: string, event: React.MouseEvent<HTMLButtonElement>) => void;
-};
-
-function formatBlockDate(value: string): string | null {
-  if (!value || Number.isNaN(new Date(value).getTime())) return null;
-  return dia(value);
-}
-
-function RecordingBlockCard({block, contents, onOpen, onRecord, onDelete}: RecordingBlockCardProps) {
-  const firstContent = contents[0] ?? null;
-  const {completedCount, isCompleted, progressPercentage, totalCount} = getRecordingBlockProgress(
-    block,
-    contents
-  );
-  const isEmpty = totalCount === 0;
-  const createdLabel = formatBlockDate(block.createdAt);
-
-  return (
-    <div
-      onClick={onOpen}
-      onKeyDown={event => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          onOpen();
-        }
-      }}
-      role="button"
-      tabIndex={0}
-      aria-label={`Abrir bloco ${block.name}`}
-      className={cn(
-        'ds-card ds-card-interactive group flex cursor-pointer flex-col justify-between p-6',
-        isCompleted && !isEmpty && 'opacity-70'
-      )}
-    >
-      <div>
-        <div className="mb-4 flex items-center justify-between">
-          <Text variant="label" as="span"
-            className={cn(
-              'rounded-full border px-3 py-1 ',
-              isEmpty
-                ? 'border-[var(--border-color)] bg-[var(--bg-hover)] text-[var(--text-secondary)]'
-                : isCompleted
-                ? 'border-[var(--accent-green)]/20 bg-[var(--accent-green)]/10 text-[var(--accent-green)]'
-                : 'border-[var(--accent-blue)]/20 bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]'
-            )}
-          >
-            {isEmpty ? 'Vazio' : isCompleted ? 'Gravado' : 'Para gravar'}
-          </Text>
-
-          <button
-            type="button"
-            aria-label={`Excluir bloco ${block.name}`}
-            onClick={event => onDelete(block.id, event)}
-            className="card-actions rounded-full p-2 text-[var(--accent-pink)] hover:bg-[var(--accent-pink)]/10"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
-
-        <Text variant="itemTitle" className="mb-2 line-clamp-2 leading-snug">
-          {block.name}
-        </Text>
-
-        {createdLabel ? (
-          <Text variant="meta" as="p" className="mb-2">Criado em {createdLabel}</Text>
-        ) : null}
-
-        {firstContent ? (
-          <Text variant="secondary" className="mb-6 line-clamp-2">
-            {/* "Ex.:" é o prefixo de placeholder da casa; num título real parecia campo vazio. */}
-            Começa com: {firstContent.title}
-          </Text>
-        ) : null}
-
-        <div className="mt-2 stack-sm">
-          <div className="flex items-center justify-between t-label text-[var(--text-secondary)]">
-            <span>Progresso</span>
-            <span>
-              {completedCount} de {totalCount} gravados ({progressPercentage}%)
-            </span>
-          </div>
-
-          <div className="h-1.5 w-full overflow-hidden rounded-full border border-[var(--border-color)] bg-[var(--bg-primary)]">
-            <div
-              className={cn(
-                'h-full rounded-full transition-all duration-500',
-                isCompleted && !isEmpty ? 'bg-[var(--accent-green)]' : 'bg-[var(--text-primary)]'
-              )}
-              style={{width: `${progressPercentage}%`}}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-6 grid grid-cols-2 gap-3">
-        <div className="stack-sm">
-          <div className="flex items-center gap-2 t-label text-[var(--text-tertiary)]">
-            <Layers className="h-3 w-3" /> Roteiros
-          </div>
-          <Text variant="sectionTitle" as="p" className="text-[var(--text-primary)]">{contents.length}</Text>
-        </div>
-
-        <div className="stack-sm">
-          <div className="flex items-center gap-2 t-label text-[var(--text-tertiary)]">
-            <Tags className="h-3 w-3" /> Marcadores
-          </div>
-          <Text variant="label" as="p" className="truncate text-[var(--text-primary)]">
-            {resolveRecordingContextSummary({block, content: firstContent})}
-          </Text>
-        </div>
-      </div>
-
-      {onRecord && !isEmpty && !isCompleted ? (
-        <AppButton
-          variant="secondary"
-          fullWidth
-          className="mt-4"
-          leftIcon={<Play className="h-4 w-4" />}
-          onClick={event => {
-            event.stopPropagation();
-            onRecord();
-          }}
-        >
-          Gravar
-        </AppButton>
-      ) : null}
     </div>
   );
 }

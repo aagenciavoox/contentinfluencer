@@ -361,9 +361,11 @@ export function PilarEditForm({
 
       <div className={cn('grid w-full grid-cols-1 items-start gap-3', !compacto && 'lg:grid-cols-[minmax(0,1.7fr)_minmax(280px,0.95fr)]')}>
         <div className="flex min-w-0 flex-col gap-3">
-          <SettingsSectionCard padding="md" 
-              title="Identidade"
-            >
+          <SettingsSectionCard
+            padding="md"
+            className={compacto ? 'border-0 bg-transparent !p-0 shadow-none' : undefined}
+            title="Identidade"
+          >
             <div className="stack-lg">
               <div className="stack-sm">
                 <FieldLabel required>Nome</FieldLabel>
@@ -415,10 +417,12 @@ export function PilarEditForm({
             </div>
           </SettingsSectionCard>
 
-          <SettingsSectionCard padding="md" 
-              title="Plataformas"
-              description="Hashtags, dias e janela de publicação por conta."
-            >
+          <SettingsSectionCard
+            padding="md"
+            className={compacto ? 'border-0 border-t border-[var(--border-subtle)] rounded-none bg-transparent !px-0 !pb-0 !pt-4 shadow-none' : undefined}
+            title="Plataformas"
+            description="Hashtags, dias e janela de publicação por conta."
+          >
             {platformNames.length === 0 ? (
               <Text variant="meta" className="text-[var(--text-tertiary)]">
                 Nenhuma conta ativa configurada.
@@ -534,10 +538,12 @@ export function PilarEditForm({
         </div>
 
         <aside className={cn('flex min-w-0 flex-col gap-3', !compacto && 'lg:sticky lg:top-24 lg:self-start')}>
-          <SettingsSectionCard padding="md" 
-              title="Séries vinculadas"
-              description="Vincular aqui muda o pilar principal da série."
-            >
+          <SettingsSectionCard
+            padding="md"
+            className={compacto ? 'border-0 border-t border-[var(--border-subtle)] rounded-none bg-transparent !px-0 !pb-0 !pt-4 shadow-none' : undefined}
+            title="Séries vinculadas"
+            description="Vincular aqui muda o pilar principal da série."
+          >
             <div className="stack-md">
               {linkedSeries.map(item => (
                 <div

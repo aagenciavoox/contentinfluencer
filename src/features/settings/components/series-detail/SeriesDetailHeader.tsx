@@ -1,4 +1,4 @@
-import { ArrowLeft, Calendar, Plus } from 'lucide-react';
+import { ArrowLeft, BookmarkPlus, Calendar, ListPlus, Plus } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { interceptBackLink } from '../../../../lib/navigation/goBack';
 import { statusDaSerie } from '../../lib/statusSerie';
@@ -6,7 +6,8 @@ import { AppButton } from '../../../../components/ui/AppButton';
 import { Badge } from '../../../../components/ui/Badge';
 import { MoreMenu, type MoreMenuItem } from '../../../../components/ui/MoreMenu';
 import { Text } from '../../../../components/ui/Text';
-import { cn } from '../../../../lib/utils';
+import { DesktopPageHeader } from '../../../../layouts/page/DesktopPageHeader';
+import { PAGE_SECTION } from '../../../../layouts/navigation/navConfig';
 import type { Serie, SerieTipoAgrupamento, Temporada } from '../../../../lib/database';
 import { TIPO_AGRUPAMENTO_LABEL } from '../../lib/serieAgrupamento';
 import { textoDaCadencia, type TotaisDoCabecalho } from '../../lib/serieCabecalho';
@@ -17,11 +18,15 @@ function capaHttp(value: string | null | undefined) {
 }
 
 /** Ativa no ar; arquivada aparece como pausa. Rascunho continua rascunho. */
-function seloDaSerie(serie: Serie): { rotulo: string; variant: 'success' | 'warning' | 'neutral' } {
+function seloDaSerie(serie: Serie): { rotulo: string; variant: 'success' | 'warning' | 'neutral'; dotClass: string } {
   const status = statusDaSerie(serie);
-  if (status === 'ativa') return { rotulo: 'Ativa', variant: 'success' };
-  if (status === 'rascunho') return { rotulo: 'Rascunho', variant: 'warning' };
-  return { rotulo: 'Pausada', variant: 'neutral' };
+  if (status === 'ativa') {
+    return { rotulo: 'Ativa', variant: 'success', dotClass: 'bg-[var(--brand-accent-strong)]' };
+  }
+  if (status === 'rascunho') {
+    return { rotulo: 'Rascunho', variant: 'warning', dotClass: 'bg-[var(--warning)]' };
+  }
+  return { rotulo: 'Pausada', variant: 'neutral', dotClass: 'bg-[var(--text-tertiary)]' };
 }
 
 function contagem(n: number, um: string, varios: string): string {
@@ -29,8 +34,8 @@ function contagem(n: number, um: string, varios: string): string {
 }
 
 /**
- * Topo da série: capa, título, descrição, cadência e o atalho de episódio.
- * A contagem fica numa faixa abaixo, sem a conta de cotas do período.
+ * Topo da série: capa, título, descrição, cadência e atalhos principais.
+ * No celular mantém o cabeçalho compacto atual; no desktop usa DesktopPageHeader.
  */
 export function SeriesDetailHeader({
   serie,
@@ -38,6 +43,7 @@ export function SeriesDetailHeader({
   ancestrais,
   temporada,
   totais,
+  pilarNome,
   celular,
   onConfigure,
   onCreate,
@@ -50,11 +56,12 @@ export function SeriesDetailHeader({
   ancestrais: readonly Pick<Serie, 'id' | 'name'>[];
   temporada: Temporada | null;
   totais: TotaisDoCabecalho;
+  pilarNome?: string | null;
   celular: boolean;
   onConfigure: () => void;
   onCreate: () => void;
   onBulk: () => void;
-  /** Na série e no quadro, temporada e quadro entram no menu ao lado de Novo episódio. */
+  /** Na série e no quadro, temporada e quadro entram nas ações ao lado de Novo episódio. */
   adicionar?: { onEpisodio: () => void; onTemporada?: () => void; onQuadro?: () => void } | null;
 }) {
   const descricao = (temporada?.descricao?.trim() || serie.notes?.trim()) || '';
@@ -68,73 +75,166 @@ export function SeriesDetailHeader({
   const navigate = useNavigate();
   const volta = temporada ? `/series/${serie.id}` : pai ? `/series/${pai.id}` : '/series';
   const depoisDaVolta = temporada ? nome : pai?.name?.trim() || '';
-  const menu: MoreMenuItem[] = [
+  const menuMobile: MoreMenuItem[] = [
     { label: tipo === 'quadro' ? 'Editar quadro' : 'Editar série', onClick: onConfigure },
     { label: 'Criar em massa', onClick: onBulk },
     ...(adicionar?.onTemporada ? [{ label: 'Nova temporada', onClick: adicionar.onTemporada }] : []),
     ...(adicionar?.onQuadro ? [{ label: 'Novo quadro', onClick: adicionar.onQuadro }] : []),
   ];
 
-  return (
-    <div className="w-full stack-lg">
-      <nav className="flex flex-wrap items-center gap-1.5 text-[var(--text-secondary)]" aria-label="Caminho">
-        <Link
-          to={volta}
-          onClick={event => interceptBackLink(event, navigate, volta)}
-          className="flex items-center gap-1 text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] hover:underline"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <Text variant="secondary" as="span">Voltar</Text>
-        </Link>
-        {depoisDaVolta ? (
-          <>
-            <span className="text-[var(--text-tertiary)]" aria-hidden>/</span>
-            <Text variant="secondary" as="span">{depoisDaVolta}</Text>
-          </>
-        ) : null}
-      </nav>
+  if (celular) {
+    return (
+      <div className="w-full stack-lg">
+        <nav className="flex flex-wrap items-center gap-1.5 text-[var(--text-secondary)]" aria-label="Caminho">
+          <Link
+            to={volta}
+            onClick={event => interceptBackLink(event, navigate, volta)}
+            className="flex items-center gap-1 text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] hover:underline"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <Text variant="secondary" as="span">Voltar</Text>
+          </Link>
+          {depoisDaVolta ? (
+            <>
+              <span className="text-[var(--text-tertiary)]" aria-hidden>/</span>
+              <Text variant="secondary" as="span">{depoisDaVolta}</Text>
+            </>
+          ) : null}
+        </nav>
 
-      <div className={cn('flex gap-4', celular ? 'flex-col' : 'items-center justify-between')}>
-        <div className="flex min-w-0 flex-1 items-start gap-4">
-          {capa ? (
-            <img src={capa} alt="" className="h-28 w-44 shrink-0 rounded-[var(--radius-card)] object-cover" />
-          ) : (
-            <div
-              className="flex h-28 w-44 shrink-0 items-center justify-center rounded-[var(--radius-card)]"
-              style={{ backgroundColor: `${serie.cor || '#e11d48'}18`, color: serie.cor || '#e11d48' }}
-              aria-hidden="true"
+        <div className="flex flex-col gap-4">
+          <div className="flex min-w-0 flex-1 items-start gap-4">
+            {capa ? (
+              <img src={capa} alt="" className="h-28 w-44 shrink-0 rounded-[var(--radius-card)] object-cover" />
+            ) : (
+              <div
+                className="flex h-28 w-44 shrink-0 items-center justify-center rounded-[var(--radius-card)]"
+                style={{ backgroundColor: `${serie.cor || '#e11d48'}18`, color: serie.cor || '#e11d48' }}
+                aria-hidden="true"
+              >
+                <Text variant="sectionTitle" as="span">{iniciais}</Text>
+              </div>
+            )}
+            <div className="min-w-0 flex-1 stack-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <Text variant="pageTitle" as="h1" className="text-[var(--text-primary)]">{titulo}</Text>
+                {tipo !== 'serie' ? <Badge variant="neutral">{TIPO_AGRUPAMENTO_LABEL[tipo]}</Badge> : null}
+                <Badge variant={selo.variant}>{selo.rotulo}</Badge>
+              </div>
+              {descricao ? (
+                <Text variant="secondary" as="p" className="max-w-3xl">{descricao}</Text>
+              ) : null}
+              <span className="flex items-center gap-2 text-[var(--text-secondary)]">
+                <Calendar className="h-4 w-4 shrink-0" aria-hidden />
+                <Text variant="secondary" as="span">{cadencia}</Text>
+              </span>
+            </div>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2">
+            <AppButton
+              variant="primary"
+              onClick={adicionar ? adicionar.onEpisodio : onCreate}
+              leftIcon={<Plus className="h-4 w-4" />}
             >
-              <Text variant="sectionTitle" as="span">{iniciais}</Text>
-            </div>
-          )}
-          <div className="min-w-0 flex-1 stack-sm">
-            <div className="flex flex-wrap items-center gap-2">
-              <Text variant="pageTitle" as="h1" className="text-[var(--text-primary)]">{titulo}</Text>
-              {tipo !== 'serie' ? <Badge variant="neutral">{TIPO_AGRUPAMENTO_LABEL[tipo]}</Badge> : null}
-              <Badge variant={selo.variant}>{selo.rotulo}</Badge>
-            </div>
-            {descricao ? (
-              <Text variant="secondary" as="p" className="max-w-3xl">{descricao}</Text>
-            ) : null}
-            <span className="flex items-center gap-2 text-[var(--text-secondary)]">
-              <Calendar className="h-4 w-4 shrink-0" aria-hidden />
-              <Text variant="secondary" as="span">{cadencia}</Text>
-            </span>
+              Novo episódio
+            </AppButton>
+            <MoreMenu items={menuMobile} label={`Mais ações de ${titulo}`} />
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
-          <AppButton
-            variant="primary"
-            onClick={adicionar ? adicionar.onEpisodio : onCreate}
-            leftIcon={<Plus className="h-4 w-4" />}
-          >
-            Novo episódio
-          </AppButton>
-          <MoreMenu items={menu} label={`Mais ações de ${titulo}`} />
+        <div className="flex flex-wrap items-baseline gap-3 border-t border-[var(--border-color)] pt-[var(--space-md)]">
+          <Text variant="sectionTitle" as="h2">Episódios</Text>
+          <Text variant="sectionTitle" as="span" className="tabular-nums">{totais.total}</Text>
+          <span className="hidden h-5 self-center border-l border-[var(--border-color)] sm:block" aria-hidden />
+          <Text variant="secondary" as="p">
+            {[
+              contagem(totais.ideias, 'ideia', 'ideias'),
+              contagem(totais.roteiros, 'roteiro', 'roteiros'),
+              contagem(totais.producao, 'em produção', 'em produção'),
+              contagem(totais.postados, 'postado', 'postados'),
+            ].join(' · ')}
+          </Text>
         </div>
       </div>
+    );
+  }
 
+  const menuDesktop: MoreMenuItem[] = [
+    { label: tipo === 'quadro' ? 'Editar quadro' : 'Editar série', onClick: onConfigure },
+    ...(adicionar?.onQuadro ? [{ label: 'Novo quadro derivado', onClick: adicionar.onQuadro }] : []),
+  ];
+
+  const identidade = (
+    <div className="flex min-w-0 flex-1 items-start gap-4">
+      {capa ? (
+        <img src={capa} alt="" className="h-28 w-44 shrink-0 rounded-[var(--radius-card)] object-cover" />
+      ) : (
+        <div
+          className="flex h-28 w-44 shrink-0 items-center justify-center rounded-[var(--radius-card)]"
+          style={{ backgroundColor: `${serie.cor || '#e11d48'}18`, color: serie.cor || '#e11d48' }}
+          aria-hidden="true"
+        >
+          <Text variant="sectionTitle" as="span">{iniciais}</Text>
+        </div>
+      )}
+      <div className="min-w-0 flex-1 stack-sm">
+        <div className="flex flex-wrap items-center gap-2">
+          <Text variant="pageTitle" as="h1" className="text-[var(--text-primary)]">{titulo}</Text>
+          {tipo !== 'serie' ? <Badge variant="neutral">{TIPO_AGRUPAMENTO_LABEL[tipo]}</Badge> : null}
+          <Badge variant={selo.variant}>{selo.rotulo}</Badge>
+          {pilarNome ? <Badge variant="neutral">{pilarNome}</Badge> : null}
+        </div>
+        {descricao ? (
+          <Text variant="secondary" as="p" className="max-w-3xl">{descricao}</Text>
+        ) : null}
+        <span className="flex items-center gap-2 text-[var(--text-secondary)]">
+          <Calendar className="h-4 w-4 shrink-0" aria-hidden />
+          <Text variant="secondary" as="span">{cadencia}</Text>
+        </span>
+      </div>
+    </div>
+  );
+
+  const acoes = (
+    <>
+      <AppButton
+        variant="primary"
+        onClick={adicionar ? adicionar.onEpisodio : onCreate}
+        leftIcon={<Plus className="h-4 w-4" />}
+      >
+        Novo episódio
+      </AppButton>
+      <AppButton
+        variant="secondary"
+        onClick={onBulk}
+        leftIcon={<ListPlus className="h-4 w-4" />}
+      >
+        Criar em massa
+      </AppButton>
+      {adicionar?.onTemporada ? (
+        <AppButton
+          variant="secondary"
+          onClick={adicionar.onTemporada}
+          leftIcon={<BookmarkPlus className="h-4 w-4" />}
+        >
+          Nova temporada
+        </AppButton>
+      ) : null}
+      <MoreMenu items={menuDesktop} label={`Mais ações de ${titulo}`} />
+    </>
+  );
+
+  return (
+    <div className="w-full stack-lg">
+      <DesktopPageHeader
+        section={PAGE_SECTION.producao}
+        title={titulo}
+        backLabel="Séries e quadros"
+        backTo="/series"
+        titleContent={identidade}
+        actions={acoes}
+      />
       <div className="flex flex-wrap items-baseline gap-3 border-t border-[var(--border-color)] pt-[var(--space-md)]">
         <Text variant="sectionTitle" as="h2">Episódios</Text>
         <Text variant="sectionTitle" as="span" className="tabular-nums">{totais.total}</Text>

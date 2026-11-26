@@ -5,41 +5,40 @@ import {Plus} from 'lucide-react';
 import {AppButton} from '../../../components/ui/AppButton';
 import {Badge} from '../../../components/ui/Badge';
 import {PlatformIcons} from '../../../components/ui/PlatformIcons';
-import {TagSelect} from '../../../components/ui/TagSelect';
 import {Text} from '../../../components/ui/Text';
 import {ToolbarSearchInput} from '../../../components/ui/ToolbarSearchInput';
 import {Dialog} from '../../../components/overlays/Dialog';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
 import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
 import {useAppContext} from '../../../context/AppContext';
-import type {Content, RedeSocial} from '../../../lib/database';
-import {CreationRedeQuickFilter} from '../../creation/components/CreationRedeQuickFilter';
+import type {Content} from '../../../lib/database';
 import {
   mapaDeRedesDaCriacao,
+  normalizarRedesDoFiltro,
   redesDoFiltroRapido,
 } from '../../creation/lib/creationRedeFilter';
-import {etiquetasVisiveis} from '../../creation/lib/creationItemPresentation';
 import {normalizeContentStatus} from '../../contents/lib/contentPipeline';
 import {sortPilares} from '../../settings/lib/activePilares';
 import {
   FILTRO_PUXAR_VAZIO,
   filtroPuxarAtivo,
   opcoesDoFiltroPuxar,
+  ordenarPorPrioridadeDeStatus,
   passaNoFiltroPuxar,
   pilarEfetivo,
+  quantosFiltrosPuxar,
   type FiltroPuxar,
 } from '../lib/filtroPuxar';
-import {normalizarRedesDoFiltro} from '../../creation/lib/creationRedeFilter';
 import {lerPreferenciaLista} from '../../settings/lib/preferenciaLista';
 import {colunaDeOrdemDisponivel} from '../../settings/lib/seriesLista';
 import {posicoesNaSerie, secoesDaSerie, type SecaoPuxar} from '../lib/secoesPuxar';
-import {PostItTemas} from './PostItNote';
+import {PuxarBuscaAvancadaDialog} from './PuxarBuscaAvancadaDialog';
 
 /** Tempo em que um clique na lista ainda é o mesmo gesto que abriu o modal. */
 const ESPERA_APOS_ABRIR_MS = 400;
 
 /**
- * Lista o que pode entrar no planejamento e filtra por título, série, pilar e tag.
+ * Lista o que pode entrar no planejamento e filtra por título, série, pilar, tag, status e rede.
  * Escolher não muda o conteúdo: quem grava o vínculo é a página.
  */
 export function PuxarConteudoDialog({
@@ -58,6 +57,7 @@ export function PuxarConteudoDialog({
   const {state} = useAppContext();
   const [busca, setBusca] = useState('');
   const [filtro, setFiltro] = useState<FiltroPuxar>(FILTRO_PUXAR_VAZIO);
+  const [buscaAvancadaAberta, setBuscaAvancadaAberta] = useState(false);
   const abertoEm = useRef(0);
 
   useLayoutEffect(() => {
@@ -65,6 +65,7 @@ export function PuxarConteudoDialog({
     abertoEm.current = performance.now();
     setBusca('');
     setFiltro(FILTRO_PUXAR_VAZIO);
+    setBuscaAvancadaAberta(false);
   }, [open]);
 
   // O modal abre com um item embaixo do cursor: o segundo clique de um duplo clique no "+"
@@ -72,6 +73,12 @@ export function PuxarConteudoDialog({
   const escolher = (content: Content, event: MouseEvent<HTMLButtonElement>) => {
     if (event.detail > 1 || performance.now() - abertoEm.current < ESPERA_APOS_ABRIR_MS) return;
     onPuxar(content);
+  };
+
+  const fechar = () => {
+    // ESC e clique fora deste modal não podem fechar a lista enquanto a busca avançada está na frente.
+    if (buscaAvancadaAberta) return;
+    onClose();
   };
 
   const pilaresOrdenados = useMemo(() => sortPilares(state.pilares), [state.pilares]);
@@ -91,22 +98,14 @@ export function PuxarConteudoDialog({
     return normalizarRedesDoFiltro([...dasContas, ...dosCandidatos, ...(filtro.redes ?? [])]);
   }, [state.platforms, filtro.redes, candidatos, redesPorConteudo]);
 
-  const redeQuickFilter = redesRapidas.length > 0 ? (
-    <CreationRedeQuickFilter
-      redes={redesRapidas}
-      value={filtro.redes ?? []}
-      onChange={redes => setFiltro(atual => ({...atual, redes}))}
-    />
-  ) : null;
-
   // Com série escolhida, a lista é a da página da série, com o agrupamento e a ordem salvos lá.
-  // Sem série, por título. A preferência é relida a cada abertura: pode ter mudado na outra tela.
+  // Sem série, por prioridade de status e, no empate, por título.
   const porSerie = filtro.serieIds.length > 0;
   const secoes = useMemo<SecaoPuxar[]>(() => {
     const termo = busca.trim().toLocaleLowerCase('pt-BR');
     const visiveis = candidatos
       .filter(content => passaNoFiltroPuxar(content, filtro, state.series, state.temas, redesPorConteudo.get(content.id)))
-      .filter(content => !termo || `${content.title} ${content.status}`.toLocaleLowerCase('pt-BR').includes(termo));
+      .filter(content => !termo || (content.title || '').toLocaleLowerCase('pt-BR').includes(termo));
     if (porSerie) {
       return secoesDaSerie(visiveis, filtro.serieIds, state.series, state.temporadas, {
         preferencia: lerPreferenciaLista,
@@ -117,7 +116,7 @@ export function PuxarConteudoDialog({
       id: 'titulo',
       rotulo: null,
       numerar: false,
-      contents: [...visiveis].sort((left, right) => (left.title || '').localeCompare(right.title || '', 'pt-BR')),
+      contents: ordenarPorPrioridadeDeStatus(visiveis),
     }];
   }, [busca, candidatos, filtro, porSerie, redesPorConteudo, state.series, state.temas, state.temporadas]);
   const total = secoes.reduce((soma, secao) => soma + secao.contents.length, 0);
@@ -133,11 +132,13 @@ export function PuxarConteudoDialog({
   const nomeDaSerie = new Map(state.series.map(serie => [serie.id, serie.name.trim()]));
   const nomeDoPilar = new Map(state.pilares.map(pilar => [pilar.id, pilar.nome.trim()]));
   const filtrando = filtroPuxarAtivo(filtro) || Boolean(busca.trim());
+  const filtrosAtivos = quantosFiltrosPuxar(filtro);
 
   return (
+    <>
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={fechar}
       desktopMaxW="md:max-w-3xl"
       desktopPanelClassName="h-[85dvh] md:h-[80dvh]"
       ariaLabel={date ? 'Puxar para o dia' : 'Puxar para fora do calendário'}
@@ -149,7 +150,7 @@ export function PuxarConteudoDialog({
             ? format(new Date(`${date}T12:00:00`), "EEEE, d 'de' MMMM", {locale: ptBR})
             : undefined}
           icon={<Plus className="h-6 w-6 text-[var(--brand-accent-text)]" />}
-          onClose={onClose}
+          onClose={fechar}
         />
         <div className="overlay-body stack-sm shrink-0 border-b border-[var(--border-color)]">
           <Text variant="meta" className="text-[var(--text-secondary)]">
@@ -162,38 +163,16 @@ export function PuxarConteudoDialog({
               placeholder="Buscar pelo título"
               className="filter-bar-search--fluid min-w-0"
             />
-            {redeQuickFilter}
-          </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <TagSelect
-              id="puxar-serie"
-              label="Série"
-              placeholder="Todas as séries"
-              searchable
-              values={filtro.serieIds}
-              options={opcoes.series}
-              disabled={opcoes.series.length === 0}
-              onChange={serieIds => setFiltro(atual => ({...atual, serieIds}))}
-            />
-            <TagSelect
-              id="puxar-pilar"
-              label="Pilar"
-              placeholder="Todos os pilares"
-              values={filtro.pilarIds}
-              options={opcoes.pilares}
-              disabled={opcoes.pilares.length === 0}
-              onChange={pilarIds => setFiltro(atual => ({...atual, pilarIds}))}
-            />
-            <TagSelect
-              id="puxar-tags"
-              label="Tags"
-              placeholder="Todas as tags"
-              searchable
-              values={filtro.tags}
-              options={opcoes.tags}
-              disabled={opcoes.tags.length === 0}
-              onChange={tags => setFiltro(atual => ({...atual, tags}))}
-            />
+            <AppButton
+              variant="secondary"
+              size="sm"
+              aria-expanded={buscaAvancadaAberta}
+              aria-haspopup="dialog"
+              count={filtrosAtivos > 0 ? filtrosAtivos : undefined}
+              onClick={() => setBuscaAvancadaAberta(true)}
+            >
+              Busca avançada
+            </AppButton>
           </div>
         </div>
         <OverlayBody>
@@ -260,7 +239,6 @@ export function PuxarConteudoDialog({
                                     {classe.join(' · ')}
                                   </Text>
                                 ) : null}
-                                <PostItTemas temas={etiquetasVisiveis(content, state.temas)} />
                               </span>
                               <div className="flex shrink-0 flex-col items-end gap-1.5">
                                 <Badge variant="status" status={status}>{status}</Badge>
@@ -281,5 +259,14 @@ export function PuxarConteudoDialog({
         </OverlayBody>
       </div>
     </Dialog>
+    <PuxarBuscaAvancadaDialog
+      open={open && buscaAvancadaAberta}
+      filtro={filtro}
+      opcoes={opcoes}
+      redesRapidas={redesRapidas}
+      onChange={setFiltro}
+      onClose={() => setBuscaAvancadaAberta(false)}
+    />
+    </>
   );
 }

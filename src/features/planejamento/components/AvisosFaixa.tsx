@@ -178,7 +178,9 @@ const GRUPOS: {id: string; titulo: string; tipos: readonly TipoAvisoOrientacao[]
   {id: 'assuntos', titulo: 'Assuntos repetidos', tipos: ['obra-repetida', 'tema-concentrado', 'saturacao-quadro']},
 ];
 
-/** Lista expansível de grupos de ajustes, reutilizada tanto no card avulso quanto na barra unificada. */
+const LIMITE_INICIAL_GRUPO = 5;
+
+/** Lista expansível de grupos de ajustes, reutilizada tanto no card avulso quanto no drawer de saúde. */
 export function AjustesGruposPainel({
   id,
   avisos,
@@ -197,6 +199,7 @@ export function AjustesGruposPainel({
   onLimparDestaque?: () => void;
 }) {
   const [escolhidos, setEscolhidos] = useState<Record<string, boolean>>({});
+  const [gruposCompletos, setGruposCompletos] = useState<Record<string, boolean>>({});
   const grupos = GRUPOS.map(grupo => ({
     ...grupo,
     itens: avisos
@@ -210,7 +213,7 @@ export function AjustesGruposPainel({
 
   if (grupos.length === 0) {
     return (
-      <div id={id} className="border-t border-[var(--border-subtle)] px-4 py-3">
+      <div id={id} className="rounded-[var(--radius-card)] bg-[var(--surface-subtle)] px-4 py-6 text-center">
         <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
           Nada para revisar neste trecho.
         </Text>
@@ -219,42 +222,64 @@ export function AjustesGruposPainel({
   }
 
   return (
-    <div id={id} className="border-t border-[var(--border-subtle)]">
+    <div id={id} className="stack-sm">
       {grupos.map(grupo => {
         const pedeRevisao = grupo.itens.some(aviso => aviso.severidade === 'revisar');
-        // Capacidade e frequência abrem quando pedem revisão. As outras linhas ficam recolhidas, com o resumo na frente.
+        // Capacidade e frequência abrem quando pedem revisão. Os demais começam recolhidos.
         const padraoAberto = (grupo.id === 'capacidade' || grupo.id === 'frequencia') && pedeRevisao;
         const aberto = grupo.id in escolhidos ? escolhidos[grupo.id] : padraoAberto;
+        const mostrarTodos = Boolean(gruposCompletos[grupo.id]);
+        const visiveis = mostrarTodos ? grupo.itens : grupo.itens.slice(0, LIMITE_INICIAL_GRUPO);
+        const restantes = grupo.itens.length - visiveis.length;
+
         return (
-          <section key={grupo.id} className="border-t border-[var(--border-subtle)] first:border-t-0">
+          <section key={grupo.id} className="stack-xs">
             <button
               type="button"
-              className="flex w-full items-center gap-3 px-4 py-3 text-left"
+              className="flex w-full items-center justify-between gap-3 rounded-[var(--radius-card)] bg-[var(--surface-subtle)] px-4 py-3 text-left transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
               aria-expanded={aberto}
               onClick={() => alternar(grupo.id, padraoAberto)}
             >
-              <MarcaDoGrupo id={grupo.id} revisar={pedeRevisao} />
-              <Text variant="bodyStrong" as="span" className="shrink-0">{grupo.titulo}</Text>
-              <Text variant="meta" as="span" className="min-w-0 flex-1 truncate">{resumoDoGrupo(grupo.id, grupo.itens)}</Text>
-              <ChevronDown
-                className={cn(
-                  'h-4 w-4 shrink-0 text-[var(--text-tertiary)] transition-transform',
-                  !aberto && '-rotate-90',
+              <span className="flex min-w-0 items-center gap-2.5">
+                <MarcaDoGrupo id={grupo.id} revisar={pedeRevisao} />
+                <Text variant="bodyStrong" as="span" className="min-w-0 truncate">
+                  {grupo.titulo}
+                </Text>
+              </span>
+              <span className="flex shrink-0 items-center gap-2 text-[var(--text-secondary)]">
+                <Text variant="meta" as="span" className="tabular-nums text-[var(--text-secondary)]">
+                  {grupo.itens.length}
+                </Text>
+                {aberto ? (
+                  <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />
+                ) : (
+                  <ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
                 )}
-                aria-hidden
-              />
+              </span>
             </button>
+
             {aberto ? (
-              <div className="px-4 pb-3 pl-9">
+              <div className="divide-y divide-[var(--border-subtle)] px-2">
                 <DetalheDoGrupo
                   id={grupo.id}
-                  itens={grupo.itens}
+                  itens={visiveis}
                   avisoAtivoId={avisoAtivoId}
                   onLocalizar={onLocalizar}
                   onFoiDeProposito={onFoiDeProposito}
                   onQueroFazerAMais={onQueroFazerAMais}
                   onLimparDestaque={onLimparDestaque}
                 />
+                {restantes > 0 ? (
+                  <div className="py-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setGruposCompletos(atual => ({...atual, [grupo.id]: true}))}
+                      className="t-label text-[var(--brand-accent-text)] transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                    >
+                      {`Mostrar mais ${restantes}`}
+                    </button>
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </section>
@@ -338,15 +363,17 @@ function AjustesDoPlanejamento({
       </div>
 
       {painelAberto && avisos.length > 0 ? (
-        <AjustesGruposPainel
-          id={painelId}
-          avisos={avisos}
-          avisoAtivoId={avisoAtivoId}
-          onLocalizar={onLocalizar}
-          onFoiDeProposito={onFoiDeProposito}
-          onQueroFazerAMais={onQueroFazerAMais}
-          onLimparDestaque={onLimparDestaque}
-        />
+        <div className="border-t border-[var(--border-subtle)] p-4">
+          <AjustesGruposPainel
+            id={painelId}
+            avisos={avisos}
+            avisoAtivoId={avisoAtivoId}
+            onLocalizar={onLocalizar}
+            onFoiDeProposito={onFoiDeProposito}
+            onQueroFazerAMais={onQueroFazerAMais}
+            onLimparDestaque={onLimparDestaque}
+          />
+        </div>
       ) : null}
     </Surface>
   );
@@ -367,6 +394,9 @@ function MarcaDoGrupo({id, revisar}: {id: string; revisar: boolean}) {
   const Icone = id === 'metas' ? Target : id === 'assuntos' ? Orbit : Calendar;
   return <Icone className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" aria-hidden />;
 }
+
+const textoClicavelClass =
+  'block w-full rounded-[var(--radius-sm)] text-left transition-colors hover:text-[var(--brand-accent-text)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
 
 function DetalheDoGrupo({
   id,
@@ -399,10 +429,18 @@ function DetalheDoGrupo({
   }
   if (id === 'frequencia') return <DetalheFrequencia itens={itens} onLocalizar={onLocalizar} />;
   return (
-    <div className="stack-sm">
+    <>
       {itens.map(aviso => (
-        <div key={aviso.id} className="flex flex-wrap items-center justify-between gap-2">
-          <Text variant="meta" as="p" className="min-w-0 flex-1">{linhaDoAviso(id, aviso)}</Text>
+        <div key={aviso.id} className="py-3 stack-xs">
+          <button
+            type="button"
+            className={textoClicavelClass}
+            onClick={() => onLocalizar(aviso)}
+          >
+            <Text variant="body" as="span" className="text-current">
+              {linhaDoAviso(id, aviso)}
+            </Text>
+          </button>
           <AcoesDoAviso
             aviso={aviso}
             avisoAtivoId={avisoAtivoId}
@@ -413,7 +451,7 @@ function DetalheDoGrupo({
           />
         </div>
       ))}
-    </div>
+    </>
   );
 }
 
@@ -432,41 +470,53 @@ function DetalheCapacidade({
   onLimparDestaque?: () => void;
   avisoAtivoId?: string | null;
 }) {
-  const semana = itens.find(aviso => aviso.tipo === 'capacidade-semana') ?? null;
-  const gravacoes = itens.filter(aviso => aviso.tipo === 'gravacoes-no-dia');
-  const faixas = itens.filter(aviso => aviso.tipo === 'gravacao-antecedencia' || aviso.tipo === 'faixa-abaixo' || aviso.tipo === 'faixa-acima' || aviso.tipo === 'faixa-config');
-  const detalhe = semana ? detalheDaCapacidade(semana.texto) : null;
   return (
-    <div className="stack-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0 flex-1 stack-xs">
-          {detalhe ? <Text variant="meta" as="p">{detalhe}</Text> : null}
-          {gravacoes.map(aviso => (
-            <Text key={aviso.id} variant="meta" as="p">{aviso.texto}</Text>
-          ))}
-        </div>
-        {semana ? (
-          <AppButton variant="secondary" size="sm" onClick={abrirRitmo}>
-            Ajustar ritmo →
-          </AppButton>
-        ) : gravacoes[0] ? (
-          <LinkVerPautas onClick={() => onLocalizar(gravacoes[0])} />
-        ) : null}
-      </div>
-      {faixas.map(aviso => (
-        <div key={aviso.id} className="flex flex-wrap items-center justify-between gap-2">
-          <Text variant="meta" as="p" className="min-w-0 flex-1">{aviso.texto}</Text>
-          <AcoesDoAviso
-            aviso={aviso}
-            avisoAtivoId={avisoAtivoId}
-            onLocalizar={onLocalizar}
-            onFoiDeProposito={onFoiDeProposito}
-            onQueroFazerAMais={onQueroFazerAMais}
-            onLimparDestaque={onLimparDestaque}
-          />
-        </div>
-      ))}
-    </div>
+    <>
+      {itens.map(aviso => {
+        if (aviso.tipo === 'capacidade-semana') {
+          const detalhe = detalheDaCapacidade(aviso.texto);
+          return (
+            <div key={aviso.id} className="py-3 stack-xs">
+              <Text variant="body" as="p" className="text-[var(--text-primary)]">
+                {aviso.texto}
+              </Text>
+              {detalhe ? (
+                <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+                  {detalhe}
+                </Text>
+              ) : null}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <AppButton variant="secondary" size="xs" onClick={abrirRitmo}>
+                  Ajustar ritmo →
+                </AppButton>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div key={aviso.id} className="py-3 stack-xs">
+            <button
+              type="button"
+              className={textoClicavelClass}
+              onClick={() => onLocalizar(aviso)}
+            >
+              <Text variant="body" as="span" className="text-current">
+                {aviso.texto}
+              </Text>
+            </button>
+            <AcoesDoAviso
+              aviso={aviso}
+              avisoAtivoId={avisoAtivoId}
+              onLocalizar={onLocalizar}
+              onFoiDeProposito={onFoiDeProposito}
+              onQueroFazerAMais={onQueroFazerAMais}
+              onLimparDestaque={onLimparDestaque}
+            />
+          </div>
+        );
+      })}
+    </>
   );
 }
 
@@ -478,24 +528,50 @@ function DetalheFrequencia({
   onLocalizar: (aviso: AvisoOrientacao) => void;
 }) {
   return (
-    <div className="stack-sm">
+    <>
       {itens.map(aviso => {
         const partes = partesDaFrequencia(aviso.texto);
         return (
-          <div key={aviso.id} className="flex flex-wrap items-end justify-between gap-3">
-            <div className="min-w-0 flex-1 stack-xs">
-              {partes.nome ? <Text variant="bodyStrong" as="p">{partes.nome}</Text> : (
-                <Text variant="meta" as="p">{aviso.texto}</Text>
+          <div key={aviso.id} className="py-3 stack-xs">
+            <button
+              type="button"
+              className={cn(textoClicavelClass, 'stack-xs')}
+              onClick={() => onLocalizar(aviso)}
+            >
+              {partes.nome ? (
+                <Text variant="bodyStrong" as="span" className="block text-current">
+                  {partes.nome}
+                </Text>
+              ) : (
+                <Text variant="body" as="span" className="block text-current">
+                  {aviso.texto}
+                </Text>
               )}
-              {partes.intervalo ? <Text variant="meta" as="p">{partes.intervalo}</Text> : null}
-              {partes.ciclo ? <Text variant="meta" as="p">A frequência é avaliada por ciclo.</Text> : null}
-              {partes.nome && partes.nota ? <Text variant="meta" as="p">{partes.nota}</Text> : null}
+              {partes.intervalo ? (
+                <Text variant="meta" as="span" className="block text-[var(--text-secondary)]">
+                  {partes.intervalo}
+                </Text>
+              ) : null}
+              {partes.ciclo ? (
+                <Text variant="meta" as="span" className="block text-[var(--text-secondary)]">
+                  A frequência é avaliada por ciclo.
+                </Text>
+              ) : null}
+              {partes.nome && partes.nota ? (
+                <Text variant="meta" as="span" className="block text-[var(--text-secondary)]">
+                  {partes.nota}
+                </Text>
+              ) : null}
+            </button>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <AppButton variant="ghost" size="xs" onClick={() => onLocalizar(aviso)}>
+                Localizar
+              </AppButton>
             </div>
-            <LinkVerPautas onClick={() => onLocalizar(aviso)} />
           </div>
         );
       })}
-    </div>
+    </>
   );
 }
 
@@ -515,32 +591,26 @@ function AcoesDoAviso({
   onLimparDestaque?: () => void;
 }) {
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-2">
-      <LinkVerPautas onClick={() => onLocalizar(aviso)} />
+    <div className="flex flex-wrap items-center gap-2 pt-1">
+      <AppButton variant="ghost" size="xs" onClick={() => onLocalizar(aviso)}>
+        Localizar
+      </AppButton>
       {onFoiDeProposito && podeMarcar(aviso) ? (
-        <AppButton variant="secondary" size="sm" onClick={() => onFoiDeProposito(aviso)}>
+        <AppButton variant="secondary" size="xs" onClick={() => onFoiDeProposito(aviso)}>
           Foi de propósito
         </AppButton>
       ) : null}
       {onQueroFazerAMais && aviso.ciente && !aviso.reconhecido ? (
-        <AppButton variant="secondary" size="sm" onClick={() => onQueroFazerAMais(aviso)}>
+        <AppButton variant="secondary" size="xs" onClick={() => onQueroFazerAMais(aviso)}>
           Quero fazer a mais
         </AppButton>
       ) : null}
       {avisoAtivoId === aviso.id && onLimparDestaque ? (
-        <AppButton variant="ghost" size="sm" onClick={onLimparDestaque}>
+        <AppButton variant="ghost" size="xs" onClick={onLimparDestaque}>
           Limpar
         </AppButton>
       ) : null}
     </div>
-  );
-}
-
-function LinkVerPautas({onClick}: {onClick: () => void}) {
-  return (
-    <button type="button" className="t-meta shrink-0" style={{color: 'var(--accent-purple)'}} onClick={onClick}>
-      Ver pautas →
-    </button>
   );
 }
 
@@ -550,37 +620,6 @@ function podeMarcar(aviso: AvisoOrientacao): boolean {
 
 function abrirRitmo() {
   window.dispatchEvent(new Event('criaki:abrir-ritmo'));
-  document.querySelector('[data-planejamento-regua-slot]')?.scrollIntoView({behavior: 'smooth', block: 'start'});
-}
-
-function resumoDoGrupo(id: string, itens: readonly AvisoOrientacao[]): string {
-  if (id === 'capacidade') return resumoDaCapacidade(itens);
-  if (id === 'frequencia') return resumoDaFrequencia(itens);
-  if (id === 'continuidade') return resumoDaContinuidade(itens);
-  if (id === 'metas') return resumoDasMetas(itens);
-  return resumoDosAssuntos(itens);
-}
-
-function resumoDaCapacidade(itens: readonly AvisoOrientacao[]): string {
-  const semana = itens.find(aviso => aviso.tipo === 'capacidade-semana');
-  if (semana) {
-    const match = semana.texto.match(/pede ([0-9]+(?:,[0-9]+)?) roteiros? e cabem (\d+) gravações?/);
-    if (match) {
-      const [, pede, grava] = match;
-      return `${pede} ${pede === '1' ? 'roteiro' : 'roteiros'} nesta semana · ${grava} ${grava === '1' ? 'gravação disponível' : 'gravações disponíveis'}`;
-    }
-    return semana.texto;
-  }
-  const gravacao = itens.find(aviso => aviso.tipo === 'gravacao-antecedencia');
-  const faixa = itens.find(aviso => aviso.tipo === 'faixa-abaixo' || aviso.tipo === 'faixa-acima' || aviso.tipo === 'faixa-config');
-  const dias = itens.filter(aviso => aviso.tipo === 'gravacoes-no-dia' || aviso.tipo === 'videos-dia-acima' || aviso.tipo === 'videos-dia-abaixo');
-  if (!semana && gravacao && dias.length === 0 && !faixa) return gravacao.texto;
-  if (!semana && faixa && dias.length === 0 && !gravacao) return faixa.texto;
-  if (gravacao) {
-    const diasTexto = dias.length === 1 ? '1 dia acima do limite de gravação' : `${dias.length} dias acima do limite de gravação`;
-    return `${diasTexto} · ${gravacao.texto}`;
-  }
-  return itens.length === 1 ? itens[0].texto : `${itens.length} dias acima do limite de gravação`;
 }
 
 function detalheDaCapacidade(texto: string): string | null {
@@ -590,11 +629,10 @@ function detalheDaCapacidade(texto: string): string | null {
   return `${dias} ${dias === '1' ? 'dia' : 'dias'} de gravação × ${limite} por dia`;
 }
 
-function partesDaFrequencia(texto: string): {resumo: string; nome: string | null; intervalo: string | null; ciclo: boolean; nota: string | null} {
+function partesDaFrequencia(texto: string): {nome: string | null; intervalo: string | null; ciclo: boolean; nota: string | null} {
   const um = texto.match(/^(.+?) tem (\d+) pautas? em ([^;]+); a frequência pede (\d+)/);
   if (um) {
     return {
-      resumo: `${um[2]} ${um[2] === '1' ? 'pauta' : 'pautas'} no ciclo · meta de ${um[4]}`,
       nome: um[1],
       intervalo: um[3],
       ciclo: true,
@@ -604,7 +642,6 @@ function partesDaFrequencia(texto: string): {resumo: string; nome: string | null
   const varias = texto.match(/^(.+?) passa da frequência em (\d+) janelas: (\d+) pautas onde a frequência pede (\d+)/);
   if (varias) {
     return {
-      resumo: `${varias[3]} pautas em ${varias[2]} janelas · meta de ${varias[4]}`,
       nome: varias[1],
       intervalo: null,
       ciclo: true,
@@ -615,7 +652,6 @@ function partesDaFrequencia(texto: string): {resumo: string; nome: string | null
   if (reserva) {
     const n = reserva[2];
     return {
-      resumo: `${reserva[1]} · ${n} ${n === '1' ? 'janela só com post-it' : 'janelas só com post-it'}`,
       nome: reserva[1],
       intervalo: null,
       ciclo: false,
@@ -624,48 +660,13 @@ function partesDaFrequencia(texto: string): {resumo: string; nome: string | null
         : `${n} janelas cobertas só por post-it, conteúdo a desenvolver.`,
     };
   }
-  return {resumo: texto, nome: null, intervalo: null, ciclo: false, nota: null};
-}
-
-function resumoDaFrequencia(itens: readonly AvisoOrientacao[]): string {
-  if (itens.length === 1) return partesDaFrequencia(itens[0].texto).resumo;
-  return `${itens.length} séries fora da frequência`;
-}
-
-function resumoDaContinuidade(itens: readonly AvisoOrientacao[]): string {
-  const doze = itens.filter(aviso => aviso.tipo === 'ausencia-12-dias');
-  const mes = itens.filter(aviso => aviso.tipo === 'ausencia-mes');
-  const vespera = itens.filter(aviso => aviso.tipo === 'vespera-sem-pronto');
-  const partes: string[] = [];
-  if (doze.length === 1) partes.push(doze[0].texto);
-  else if (doze.length > 1) partes.push(`${doze.length} séries sem pauta nos próximos 12 dias`);
-  if (mes.length === 1) partes.push(mes[0].texto);
-  else if (mes.length > 1) partes.push(`${mes.length} séries sem pauta no mês`);
-  if (vespera.length === 1) partes.push('1 pauta com pendência de gravação');
-  else if (vespera.length > 1) partes.push(`${vespera.length} pautas com pendência de gravação`);
-  if (partes.length > 0) return partes.join(' · ');
-  return itens.length === 1 ? itens[0].texto : `${itens.length} séries sem pauta neste trecho`;
-}
-
-function resumoDasMetas(itens: readonly AvisoOrientacao[]): string {
-  if (itens.length === 1) return linhaDaMeta(itens[0].texto);
-  return `${itens.length} séries com episódios em falta`;
+  return {nome: null, intervalo: null, ciclo: false, nota: null};
 }
 
 function linhaDaMeta(texto: string): string {
   const match = texto.match(/^Mais (\d+) episódios? de (.+) pra fechar o período/);
   if (!match) return texto;
   return `${match[2]}: faltam ${match[1]} ${match[1] === '1' ? 'episódio' : 'episódios'}`;
-}
-
-function resumoDosAssuntos(itens: readonly AvisoOrientacao[]): string {
-  if (itens.length === 1) return linhaDoAssunto(itens[0].texto);
-  const nomes = itens.map(aviso => nomeDoAlvo(aviso.texto)).filter((nome): nome is string => Boolean(nome));
-  const amostra = nomes.slice(0, 2).join(' e ');
-  const contagem = itens[0].texto.match(/^(\d+) pautas/);
-  const janela = itens[0].texto.match(/em (\d+) dias/);
-  if (amostra && contagem && janela) return `${amostra} · ${contagem[1]} pautas por assunto em ${janela[1]} dias`;
-  return `${itens.length} assuntos repetidos neste trecho`;
 }
 
 function linhaDoAviso(id: string, aviso: AvisoOrientacao): string {
@@ -680,9 +681,4 @@ function linhaDoAssunto(texto: string): string {
   const obra = texto.match(/^(\d+) pautas da mesma obra em (\d+) dias: ([^(]+)/);
   if (obra) return `${obra[3].trim()} · ${obra[1]} pautas da mesma obra em ${obra[2]} dias`;
   return texto;
-}
-
-function nomeDoAlvo(texto: string): string | null {
-  const match = texto.match(/: ([^(]+?)(?:\s*\(|$)/);
-  return match ? match[1].trim() : null;
 }

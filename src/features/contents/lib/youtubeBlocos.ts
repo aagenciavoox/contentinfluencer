@@ -1,4 +1,5 @@
 import { generateUUID } from '../../../utils/uuid.ts';
+import { countSpokenWords, YOUTUBE_WPM_FAST, YOUTUBE_WPM_SLOW } from './youtubeScript.ts';
 
 /**
  * Um bloco do YouTube longo. O roteiro corrido é a projeção destes blocos:
@@ -113,6 +114,83 @@ export function moverBloco(blocos: readonly YoutubeBloco[], id: string, delta: -
   const [item] = next.splice(index, 1);
   next.splice(destino, 0, item);
   return next;
+}
+
+export function reordenarBloco(
+  blocos: readonly YoutubeBloco[],
+  origemId: string,
+  destinoId: string,
+): YoutubeBloco[] {
+  if (origemId === destinoId) return [...blocos];
+  const origemIndex = blocos.findIndex(bloco => bloco.id === origemId);
+  const destinoIndex = blocos.findIndex(bloco => bloco.id === destinoId);
+  if (origemIndex < 0 || destinoIndex < 0) return [...blocos];
+  const next = [...blocos];
+  const [item] = next.splice(origemIndex, 1);
+  next.splice(destinoIndex, 0, item);
+  return next;
+}
+
+export interface MetricaBloco {
+  palavras: number;
+  segundos: number;
+  duracaoCurta: string;
+  janelaTempo: string | null;
+}
+
+export interface MetricasDosBlocos {
+  porId: Record<string, MetricaBloco>;
+  totalPalavras: number;
+  totalSegundos: number;
+  totalDuracaoCurta: string;
+}
+
+const WPM_MEDIO = (YOUTUBE_WPM_SLOW + YOUTUBE_WPM_FAST) / 2;
+
+function formatarMinSeg(totalSegundos: number): string {
+  const minutos = Math.floor(totalSegundos / 60);
+  const segundos = totalSegundos % 60;
+  return `${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`;
+}
+
+export function formatarDuracaoCurta(totalSegundos: number): string {
+  if (totalSegundos <= 0) return '';
+  if (totalSegundos < 60) return `~${totalSegundos}s`;
+  const minutos = Math.floor(totalSegundos / 60);
+  const segundos = totalSegundos % 60;
+  return segundos > 0 ? `~${minutos} min ${segundos}s` : `~${minutos} min`;
+}
+
+/**
+ * Conta palavras faladas por bloco (sem "Na tela" nem referências) e calcula a janela
+ * acumulada estimada a partir do ritmo médio de fala (130 ppm).
+ */
+export function metricasDosBlocos(blocos: readonly YoutubeBloco[]): MetricasDosBlocos {
+  const porId: Record<string, MetricaBloco> = {};
+  let totalPalavras = 0;
+  let acumuladoSegundos = 0;
+
+  for (const bloco of blocos) {
+    const palavras = countSpokenWords(bloco.roteiro);
+    const segundos = palavras > 0 ? Math.max(1, Math.round((palavras / WPM_MEDIO) * 60)) : 0;
+    const inicio = acumuladoSegundos;
+    acumuladoSegundos += segundos;
+    totalPalavras += palavras;
+
+    porId[bloco.id] = {
+      palavras,
+      segundos,
+      duracaoCurta: formatarDuracaoCurta(segundos),
+      janelaTempo: segundos > 0 ? `~${formatarMinSeg(inicio)} – ${formatarMinSeg(acumuladoSegundos)}` : null,
+    };
+  }
+
+  return {
+    porId,
+    totalPalavras,
+    totalSegundos: acumuladoSegundos,
+    totalDuracaoCurta: formatarDuracaoCurta(acumuladoSegundos),
+  };
 }
 
 export function removerBloco(blocos: readonly YoutubeBloco[], id: string): YoutubeBloco[] {

@@ -18,6 +18,7 @@ import {
   getStatusChipClass,
   getUsefulExcerpt,
 } from '../../lib/contentCardMeta';
+import { statusNaTela } from '../../lib/esteiraDisplay';
 
 interface ContentPreviewSheetProps {
   content: Content | null;
@@ -82,6 +83,7 @@ export function ContentPreviewSheet({
   const previewContent = resolvedContent ?? content;
   const excerpt = getUsefulExcerpt(previewContent);
   const scriptPreview = htmlToReadableText(previewContent.script || previewContent.notes || '').trim();
+  const selo = statusNaTela(content, [], content.status);
 
   return (
     <Drawer open={!!content} onClose={onClose} widthClassName="max-w-lg">
@@ -94,9 +96,9 @@ export function ContentPreviewSheet({
         <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-2">
           <span
-            className={`inline-flex w-fit rounded-full px-2.5 py-0.5 t-label ${getStatusChipClass(content.status)}`}
+            className={`inline-flex w-fit rounded-full px-2.5 py-0.5 t-label ${getStatusChipClass(selo.status)}`}
           >
-            {content.status}
+            {selo.rotulo}
           </span>
           <ContentEntityTags pillar={pillar} series={series} size="sm" />
         </div>

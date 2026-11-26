@@ -1,14 +1,16 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, Pencil } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import type { Platform, PostingTimeEntry } from '../../../lib/database';
-import { Ajuda } from '../../../components/ui/Ajuda';
 import { AppButton } from '../../../components/ui/AppButton';
+import { PlatformIcon } from '../../../components/ui/PlatformIcon';
+import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
-import { SidePanel } from '../../../components/layout/SidePanel';
 import { tintedTextColor } from '../../../lib/utils';
-import { REDE_ROTULO, ordenarContas, redeDaConta } from '../../contas/lib/contas';
-import { MAX_TIMES_PER_DAY, WEEKDAY_LABELS, WEEKDAYS_ORDERED, type Weekday } from '../lib/postingTimes';
+import { iconeDaConta, REDE_ROTULO, ordenarContas, redeDaConta, rotuloConta } from '../../contas/lib/contas';
+import { EditorialDrawer } from '../../editorial/components/plano/EditorialDrawer';
+import { MAX_TIMES_PER_DAY, WEEKDAYS_ORDERED, type Weekday } from '../lib/postingTimes';
+import { agruparDiasComMesmosHorarios, rotuloDosDias } from '../lib/agruparHorariosIguais';
 import { PostingTimesEditor } from './PostingTimesEditor';
 
 type Horarios = Map<string, string[]>;
@@ -108,8 +110,86 @@ function ChipsDeHorario({ times, proprio = false }: { times: string[]; proprio?:
   );
 }
 
+function ListaDeGrupos({
+  grupos,
+  proprio = false,
+  rotulo,
+  className,
+}: {
+  grupos: { dias: Weekday[]; times: string[] }[];
+  proprio?: boolean;
+  rotulo: string;
+  className?: string;
+}) {
+  if (grupos.length === 0) return null;
+  return (
+    <div className={['stack-xs', className].filter(Boolean).join(' ')}>
+      <Text
+        variant="bodyStrong"
+        as="h3"
+        style={proprio ? { color: MARCA_TEXTO } : undefined}
+      >
+        {rotulo}
+      </Text>
+      <ul aria-label={rotulo}>
+        {grupos.map(grupo => (
+          <li
+            key={grupo.dias.join('-')}
+            className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-[var(--border-subtle)] py-2 first:border-t-0"
+          >
+            <Text variant="bodyStrong" as="span">{rotuloDosDias(grupo.dias)}</Text>
+            <ChipsDeHorario times={grupo.times} proprio={proprio} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** Padrão geral e, abaixo, só os dias com horário próprio da conta, já agrupados. */
+function ListaCompactaDeHorarios({
+  horarios,
+  contas,
+  somenteContaId,
+}: {
+  horarios: (platformId: string | null, weekday: Weekday) => string[];
+  contas: Platform[];
+  somenteContaId?: string;
+}) {
+  const diasComExcecao = new Set(
+    somenteContaId
+      ? WEEKDAYS_ORDERED.filter(dia => contas.some(conta => horarios(conta.id, dia).length > 0))
+      : [],
+  );
+  const diasDoPadrao = somenteContaId
+    ? WEEKDAYS_ORDERED.filter(dia => !diasComExcecao.has(dia))
+    : WEEKDAYS_ORDERED;
+  const gruposPadrao = agruparDiasComMesmosHorarios(dia => horarios(null, dia), diasDoPadrao);
+  const contasComExcecao = somenteContaId
+    ? contas.filter(conta => WEEKDAYS_ORDERED.some(dia => horarios(conta.id, dia).length > 0))
+    : contas;
+
+  return (
+    <div className="stack-sm rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-4 py-3">
+      <ListaDeGrupos rotulo="Padrão geral" grupos={gruposPadrao} />
+      {contasComExcecao.map(conta => (
+        <ListaDeGrupos
+          key={conta.id}
+          className={gruposPadrao.length > 0 ? 'border-t border-[var(--border-subtle)] pt-3' : undefined}
+          rotulo={`${nomeDaConta(conta)} · horários próprios`}
+          proprio
+          grupos={agruparDiasComMesmosHorarios(
+            dia => horarios(conta.id, dia),
+            WEEKDAYS_ORDERED.filter(dia => horarios(conta.id, dia).length > 0),
+          )}
+        />
+      ))}
+    </div>
+  );
+}
+
 /**
- * Horários de postagem: o padrão geral e, ao lado, só as contas com horário próprio.
+ * Horários de postagem: o padrão geral e os dias com horário próprio da conta, agrupados quando coincidem.
  * "Editar horários" abre o editor completo.
  */
 export function PostingTimesOverview({ somenteContaId }: { somenteContaId?: string } = {}) {
@@ -123,110 +203,48 @@ export function PostingTimesOverview({ somenteContaId }: { somenteContaId?: stri
 
   const horarios = (platformId: string | null, weekday: Weekday) => salvos.get(chave(platformId, weekday)) ?? [];
   const diasProprios = (conta: Platform) => WEEKDAYS_ORDERED.filter(day => horarios(conta.id, day).length > 0).length;
-  const comExcecao = contas.filter(conta => diasProprios(conta) > 0);
+  const colunasDaConta = somenteContaId ? contas : contas.filter(conta => diasProprios(conta) > 0);
+  const contaFoco = somenteContaId ? contas[0] ?? null : null;
 
   return (
-    <section className="stack-md" aria-labelledby="horarios-titulo">
+    <Surface padding="lg" className="stack-md" as="section" aria-labelledby="horarios-titulo">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 stack-xs">
-          <div className="inline-flex items-center">
-            <Text variant="sectionTitle" as="h2"><span id="horarios-titulo">Horários sugeridos</span></Text>
-            <Ajuda
-              rotulo="Sobre horários sugeridos"
-              texto="Quando você for programar um post nesta conta, estes horários já aparecem como sugestão."
-            />
-          </div>
-          <Text variant="secondary" as="p">{fraseDasExcecoes(contas, diasProprios)}</Text>
+          <Text variant="itemTitle" as="h3">
+            <span id="horarios-titulo">Horários sugeridos</span>
+          </Text>
+          <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+            {fraseDasExcecoes(contas, diasProprios)}
+          </Text>
         </div>
-        <AppButton variant="secondary" leftIcon={<Pencil className="h-4 w-4" />} onClick={() => setEditorAberto(true)}>
-          Editar horários
+        <AppButton variant="secondary" size="sm" onClick={() => setEditorAberto(true)}>
+          Editar
         </AppButton>
       </div>
 
-      <div className="hidden md:block overflow-x-auto rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)]">
-        <table className="w-full border-collapse text-left">
-          <thead className="bg-[var(--surface-subtle)]">
-            <tr>
-              <th scope="col" className="sticky left-0 z-[1] w-36 bg-[var(--surface-subtle)] px-4 py-3 align-middle font-normal">
-                <Text variant="label" as="span" className="text-[var(--text-secondary)]">Dia</Text>
-              </th>
-              <th scope="col" className="min-w-[16rem] border-l border-[var(--border-color)] px-4 py-3 align-middle font-normal">
-                <Text variant="bodyStrong" as="span">Padrão geral</Text>
-              </th>
-              {comExcecao.map(conta => (
-                <th key={conta.id} scope="col" className="min-w-[12rem] border-l border-[var(--border-color)] px-4 py-3 align-middle font-normal">
-                  <Text variant="bodyStrong" as="span" style={{ color: 'var(--brand-accent-strong)' }}>
-                    {nomeDaConta(conta)} · horários próprios
-                  </Text>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {WEEKDAYS_ORDERED.map(day => (
-              <tr key={day} className="border-t border-[var(--border-color)]">
-                <th scope="row" className="sticky left-0 z-[1] bg-[var(--bg-elevated)] px-4 py-3 align-middle font-normal">
-                  <Text variant="bodyStrong" as="span">{WEEKDAY_LABELS[day]}</Text>
-                </th>
-                <td className="border-l border-[var(--border-color)] px-4 py-3 align-middle">
-                  <ChipsDeHorario times={horarios(null, day)} />
-                </td>
-                {comExcecao.map(conta => (
-                  <td key={conta.id} className="border-l border-[var(--border-color)] px-4 py-3 align-middle">
-                    <ChipsDeHorario times={horarios(conta.id, day)} proprio />
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <ListaCompactaDeHorarios
+        horarios={horarios}
+        contas={colunasDaConta}
+        somenteContaId={somenteContaId}
+      />
 
-      <ul className="md:hidden stack-sm" aria-label="Horários sugeridos por dia da semana">
-        {WEEKDAYS_ORDERED.map(day => {
-          const contasNoDia = comExcecao.filter(conta => horarios(conta.id, day).length > 0);
-          return (
-            <li
-              key={day}
-              className="rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-3.5 stack-sm"
-            >
-              <Text variant="bodyStrong" as="h3">{WEEKDAY_LABELS[day]}</Text>
-              <div className="stack-xs">
-                <Text variant="meta" as="span" className="text-[var(--text-secondary)]">
-                  Padrão geral
-                </Text>
-                <ChipsDeHorario times={horarios(null, day)} />
-              </div>
-              {contasNoDia.map(conta => (
-                <div
-                  key={conta.id}
-                  className="stack-xs border-t border-[var(--border-subtle)] pt-2"
-                >
-                  <Text variant="meta" as="span" style={{ color: 'var(--brand-accent-strong)' }}>
-                    {nomeDaConta(conta)}
-                  </Text>
-                  <ChipsDeHorario times={horarios(conta.id, day)} proprio />
-                </div>
-              ))}
-            </li>
-          );
-        })}
-      </ul>
-
-      <SidePanel
+      <EditorialDrawer
         open={editorAberto}
         onClose={() => setEditorAberto(false)}
         title="Editar horários"
         subtitle="Escolha o padrão geral ou uma conta. Os dias sem horário próprio usam o padrão geral."
-        widthClassName="max-w-3xl"
+        escopoConta={contaFoco ? rotuloConta(contaFoco) : 'Geral'}
+        secao="Horários"
+        escopoIcone={contaFoco ? <PlatformIcon platform={iconeDaConta(contaFoco)} colored className="h-3.5 w-3.5" /> : undefined}
+        hideFooter
       >
         <PostingTimesEditor
-          contaInicialId={null}
+          contaInicialId={somenteContaId ?? null}
           comecarEditando
           aoSalvar={() => setEditorAberto(false)}
           aoCancelar={() => setEditorAberto(false)}
         />
-      </SidePanel>
-    </section>
+      </EditorialDrawer>
+    </Surface>
   );
 }

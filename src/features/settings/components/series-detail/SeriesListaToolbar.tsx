@@ -6,8 +6,10 @@ import { OverlayFooter } from '../../../../components/overlays/OverlayFooter';
 import { OverlayHeader } from '../../../../components/overlays/OverlayHeader';
 import { AppButton } from '../../../../components/ui/AppButton';
 import { SelectField } from '../../../../components/ui/SelectField';
+import { Surface } from '../../../../components/ui/Surface';
 import { Text } from '../../../../components/ui/Text';
 import { ToolbarSearchInput } from '../../../../components/ui/ToolbarSearchInput';
+import type { EstadoMarcacao } from '../../lib/selecaoEpisodios';
 import {
   ETAPAS_DO_FILTRO,
   ROTULO_AGRUPAR,
@@ -18,6 +20,7 @@ import {
   type FiltrosLista,
   type OrdemLista,
 } from '../../lib/seriesLista';
+import { CaixaMarcacao } from './SeriesAcoesEmMassa';
 
 type Opcao = { id: string; label: string };
 
@@ -40,6 +43,12 @@ type Props = {
   celular: boolean;
   /** Aviso curto sobre a ordem manual (ex.: indisponível ou sem setas nesta visualização). */
   avisoOrdem: string | null;
+  /** Seleção em massa integrada na barra no desktop. */
+  selecaoTodos?: {
+    estado: EstadoMarcacao;
+    rotulo: string;
+    onToggle: () => void;
+  } | null;
   acoes?: ReactNode;
 };
 
@@ -55,7 +64,6 @@ function Campo({ rotulo, children }: { rotulo: string; children: ReactNode }) {
 /** Busca, filtros, agrupamento e ordem da lista da série. Só muda a apresentação. */
 export function SeriesListaToolbar(props: Props) {
   const { filtros, onFiltros, onLimpar, celular, visiveis, total } = props;
-  const [maisFiltros, setMaisFiltros] = useState(false);
   const [painel, setPainel] = useState(false);
   const ativos = filtrosListaAtivos(filtros);
 
@@ -71,11 +79,12 @@ export function SeriesListaToolbar(props: Props) {
   const etapa = (
     <SelectField
       ariaLabel="Etapa"
+      prefix={celular ? undefined : 'Etapa:'}
       value={filtros.etapa}
       onChange={valor => onFiltros({ etapa: valor as FiltrosLista['etapa'] })}
       options={ETAPAS_DO_FILTRO.map(item => ({
         value: item.value,
-        label: item.value === 'todas' ? 'Todas as etapas' : item.label,
+        label: item.value === 'todas' ? (celular ? 'Todas as etapas' : 'Todas') : item.label,
       }))}
       selected={filtros.etapa !== 'todas'}
       block={celular}
@@ -117,6 +126,7 @@ export function SeriesListaToolbar(props: Props) {
   const agrupar = props.opcoesAgrupar.length > 1 ? (
     <SelectField
       ariaLabel="Agrupar por"
+      prefix={celular ? undefined : 'Agrupar:'}
       value={props.agrupar}
       onChange={valor => props.onAgrupar(valor as AgruparLista)}
       options={props.opcoesAgrupar.map(item => ({ value: item, label: ROTULO_AGRUPAR[item] }))}
@@ -126,15 +136,15 @@ export function SeriesListaToolbar(props: Props) {
   const ordenar = (
     <SelectField
       ariaLabel="Ordenar"
+      prefix={celular ? undefined : 'Ordem:'}
       value={props.ordem}
       onChange={valor => props.onOrdem(valor as OrdemLista)}
       options={props.opcoesOrdem.map(item => ({ value: item, label: ROTULO_ORDEM[item] }))}
       block={celular}
     />
   );
-  const extras = [quadro, conta, temporada].filter(Boolean).length;
 
-  const resumo = (
+  const resumoMobile = (
     <div className="flex flex-wrap items-center gap-2">
       <Text variant="meta" as="span" aria-live="polite">{textoExibindo(visiveis, total)}</Text>
       {chips.map(chip => (
@@ -170,7 +180,7 @@ export function SeriesListaToolbar(props: Props) {
             Filtrar e organizar
           </AppButton>
         </div>
-        {resumo}
+        {resumoMobile}
         <BottomSheetModal open={painel} onClose={() => setPainel(false)} desktopMaxW="max-w-md" ariaLabel="Filtrar e organizar">
           <OverlayHeader title="Filtrar e organizar" onClose={() => setPainel(false)} />
           <OverlayBody className="stack-md">
@@ -191,39 +201,79 @@ export function SeriesListaToolbar(props: Props) {
   }
 
   return (
-    <div className="stack-sm py-2">
-      <div className="flex flex-wrap items-center gap-2">
+    <Surface variant="outlined" padding="md" className="stack-md">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <ToolbarSearchInput
           value={filtros.busca}
           onChange={valor => onFiltros({ busca: valor })}
-          placeholder="Buscar episódio"
-          className="w-full max-w-xs"
+          placeholder="Buscar episódio por título..."
+          className="min-w-56 flex-1 max-w-md"
         />
-        {etapa}
-        {extras > 0 ? (
-          <AppButton
-            variant="secondary"
-            leftIcon={<SlidersHorizontal className="h-4 w-4" />}
-            aria-expanded={maisFiltros}
-            onClick={() => setMaisFiltros(aberto => !aberto)}
-          >
-            Mais filtros
-          </AppButton>
-        ) : null}
-        <div className="ml-auto flex flex-wrap items-center gap-2">
+
+        <div className="flex flex-wrap items-center gap-2">
+          {quadro}
+          {temporada}
+          {etapa}
+          {conta}
+          {props.selecaoTodos ? (
+            <>
+              <span className="hidden h-5 w-px bg-[var(--border-color)] xl:block" aria-hidden />
+              <div className="inline-flex items-center gap-1 pl-1">
+                <CaixaMarcacao
+                  estado={props.selecaoTodos.estado}
+                  rotulo={props.selecaoTodos.rotulo}
+                  onToggle={props.selecaoTodos.onToggle}
+                />
+                <button
+                  type="button"
+                  onClick={props.selecaoTodos.onToggle}
+                  className="t-meta text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] rounded-[var(--radius-sm)] px-1 py-0.5"
+                >
+                  Selecionar todos
+                </button>
+              </div>
+            </>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border-color)] pt-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {chips.map(chip => (
+            <button
+              key={chip.id}
+              type="button"
+              onClick={chip.limpar}
+              className="inline-flex max-w-full items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-color)] bg-[var(--surface-subtle)] px-2 py-1 text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              aria-label={`Remover filtro ${chip.label}`}
+            >
+              <Text variant="meta" as="span" className="truncate">{chip.label}</Text>
+              <X className="h-3 w-3 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
+            </button>
+          ))}
+          {ativos ? (
+            <button
+              type="button"
+              onClick={onLimpar}
+              className="t-meta rounded-[var(--radius-sm)] px-2 py-1 text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+            >
+              Limpar filtros
+            </button>
+          ) : null}
+          {props.avisoOrdem ? (
+            <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">{props.avisoOrdem}</Text>
+          ) : null}
+          <Text variant="meta" as="span" aria-live="polite" className="tabular-nums text-[var(--text-secondary)]">
+            {textoExibindo(visiveis, total)}
+          </Text>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
           {agrupar}
           {ordenar}
           {props.acoes}
         </div>
       </div>
-      {maisFiltros && extras > 0 ? (
-        <div className="flex flex-wrap items-center gap-2">
-          {quadro}
-          {conta}
-          {temporada}
-        </div>
-      ) : null}
-      {chips.length > 0 || props.avisoOrdem ? resumo : null}
-    </div>
+    </Surface>
   );
 }

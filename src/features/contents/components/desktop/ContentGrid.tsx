@@ -16,6 +16,7 @@ import {
   isRecentlyCreated,
   resolveContentEntities,
 } from '../../lib/contentCardMeta';
+import { statusNaTela } from '../../lib/esteiraDisplay';
 import { PipelineContentCard } from './PipelineContentCard';
 
 interface ContentGridProps {
@@ -172,6 +173,7 @@ export function ContentGrid({
           const title = getDisplayTitle(content.title);
           const isDraft = isDraftTitle(content.title);
           const isNew = isRecentlyCreated(content);
+          const selo = statusNaTela(content, [], content.status);
           const metaLine = buildContentMetaLine(content, {
             pillarName: pillar?.nome,
             seriesName: series?.name,
@@ -185,8 +187,8 @@ export function ContentGrid({
                   <Text variant="label" as="span" className="inline-flex rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-[var(--text-secondary)]">
                     {formatPublishDate(content.publishDate)}
                   </Text>
-                  <Text variant="label" as="span" className={cn('inline-flex rounded-full px-2 py-0.5 ', getStatusChipClass(content.status))}>
-                    {content.status}
+                  <Text variant="label" as="span" className={cn('inline-flex rounded-full px-2 py-0.5 ', getStatusChipClass(selo.status))}>
+                    {selo.rotulo}
                   </Text>
                   {isNew ? (
                     <Text variant="label" as="span" className="inline-flex rounded-full bg-[var(--accent-blue)]/10 px-1.5 py-0.5 text-[var(--accent-blue)]">Novo</Text>

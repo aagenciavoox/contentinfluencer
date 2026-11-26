@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Minus, X } from 'lucide-react';
+import { Check, ChevronDown, Minus, Trash2, X } from 'lucide-react';
 import { BottomSheetModal } from '../../../../components/feedback/modals/BottomSheetModal';
 import { OverlayBody } from '../../../../components/overlays/OverlayBody';
 import { OverlayFooter } from '../../../../components/overlays/OverlayFooter';
@@ -93,6 +93,91 @@ export function BarraDeAcoes({
       </AppButton>
     </>
   );
+  if (!celular) {
+    return (
+      <div className="sticky bottom-[var(--space-xl)] z-30 flex flex-col items-center gap-2">
+        <section
+          aria-label="Ações nos episódios selecionados"
+          className="mx-auto flex w-fit max-w-full flex-wrap items-center gap-3 rounded-[var(--radius-card)] bg-[var(--accent)] px-4 py-3 text-[var(--bg-primary)] shadow-[var(--shadow-dropdown)]"
+        >
+          <div className="flex items-center gap-2" aria-live="polite">
+            <span className="t-label inline-flex h-6 min-w-6 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--brand-accent-strong)] px-1.5 tabular-nums text-[var(--brand-on-accent)]">
+              {quantidade}
+            </span>
+            <Text variant="label" as="span" className="text-[var(--bg-primary)]">
+              {quantidade === 1 ? 'episódio selecionado' : 'episódios selecionados'}
+            </Text>
+          </div>
+
+          <span
+            className="h-4 w-px"
+            style={{ backgroundColor: 'color-mix(in srgb, var(--bg-primary) 22%, transparent)' }}
+            aria-hidden
+          />
+
+          <div className="flex flex-wrap items-center gap-2">
+            {temporadasHabilitadas ? (
+              <button
+                type="button"
+                disabled={!disponivel}
+                onClick={onDefinirTemporada}
+                className="t-label inline-flex items-center gap-1 rounded-[var(--radius-sm)] px-3 py-1.5 text-[var(--bg-primary)] transition-colors hover:bg-[color-mix(in_srgb,var(--bg-primary)_16%,transparent)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-50"
+                style={{ backgroundColor: 'color-mix(in srgb, var(--bg-primary) 10%, transparent)' }}
+              >
+                <span>Mover temporada</span>
+                <ChevronDown className="h-3.5 w-3.5" aria-hidden />
+              </button>
+            ) : null}
+
+            <button
+              type="button"
+              disabled={!disponivel}
+              onClick={onDefinirQuadro}
+              className="t-label inline-flex items-center gap-1 rounded-[var(--radius-sm)] px-3 py-1.5 text-[var(--bg-primary)] transition-colors hover:bg-[color-mix(in_srgb,var(--bg-primary)_16%,transparent)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-50"
+              style={{ backgroundColor: 'color-mix(in srgb, var(--bg-primary) 10%, transparent)' }}
+            >
+              <span>Atribuir quadro</span>
+              <ChevronDown className="h-3.5 w-3.5" aria-hidden />
+            </button>
+          </div>
+
+          <span
+            className="h-4 w-px"
+            style={{ backgroundColor: 'color-mix(in srgb, var(--bg-primary) 22%, transparent)' }}
+            aria-hidden
+          />
+
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              disabled={quantidade === 0}
+              onClick={onExcluir}
+              title="Mover para a lixeira"
+              aria-label="Mover episódios selecionados para a lixeira"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--brand-accent-soft)] transition-colors hover:bg-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:text-[var(--bg-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Trash2 className="h-4 w-4" aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={onLimpar}
+              title="Limpar seleção"
+              aria-label="Limpar seleção"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--bg-primary)] transition-colors hover:bg-[color-mix(in_srgb,var(--bg-primary)_16%,transparent)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
+          </div>
+        </section>
+        {aviso ? (
+          <Text variant="meta" as="p" className="text-[var(--text-tertiary)]">
+            {aviso}
+          </Text>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
@@ -106,31 +191,20 @@ export function BarraDeAcoes({
         className="mx-auto flex w-full flex-wrap items-center gap-2 rounded-[var(--radius-overlay)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-2 pl-4 shadow-[var(--shadow-dropdown)] md:w-fit md:max-w-full md:flex-nowrap md:gap-3"
       >
         <p className="t-item-title min-w-0 flex-1 truncate text-[var(--text-primary)] md:flex-none" aria-live="polite">{titulo}</p>
-        {celular ? (
-          <AppButton variant="primary" size="sm" onClick={() => setMenu(true)}>Ações</AppButton>
-        ) : (
-          <>
-            {botoes(false)}
-            <AppButton variant="ghost" size="sm" onClick={onLimpar}>Limpar seleção</AppButton>
-          </>
-        )}
-        {celular ? (
-          <AppButton variant="ghost" size="sm" iconOnly aria-label="Limpar seleção" title="Limpar seleção" onClick={onLimpar}>
-            <X className="h-4 w-4" />
-          </AppButton>
-        ) : null}
+        <AppButton variant="primary" size="sm" onClick={() => setMenu(true)}>Ações</AppButton>
+        <AppButton variant="ghost" size="sm" iconOnly aria-label="Limpar seleção" title="Limpar seleção" onClick={onLimpar}>
+          <X className="h-4 w-4" />
+        </AppButton>
         {aviso ? <Text variant="meta" as="p" className="w-full text-[var(--text-tertiary)]">{aviso}</Text> : null}
       </section>
-      {celular ? (
-        <BottomSheetModal open={menu} onClose={() => setMenu(false)} desktopMaxW="max-w-md" ariaLabel="Ações">
-          <OverlayHeader title={titulo} onClose={() => setMenu(false)} />
-          <OverlayBody className="stack-sm">
-            {botoes(true)}
-            <AppButton variant="ghost" size="sm" className="w-full" onClick={() => { setMenu(false); onLimpar(); }}>Limpar seleção</AppButton>
-            {aviso ? <Text variant="meta" as="p">{aviso}</Text> : null}
-          </OverlayBody>
-        </BottomSheetModal>
-      ) : null}
+      <BottomSheetModal open={menu} onClose={() => setMenu(false)} desktopMaxW="max-w-md" ariaLabel="Ações">
+        <OverlayHeader title={titulo} onClose={() => setMenu(false)} />
+        <OverlayBody className="stack-sm">
+          {botoes(true)}
+          <AppButton variant="ghost" size="sm" className="w-full" onClick={() => { setMenu(false); onLimpar(); }}>Limpar seleção</AppButton>
+          {aviso ? <Text variant="meta" as="p">{aviso}</Text> : null}
+        </OverlayBody>
+      </BottomSheetModal>
     </div>
   );
 }

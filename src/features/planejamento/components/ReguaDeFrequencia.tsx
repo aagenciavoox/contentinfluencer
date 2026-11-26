@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { format, isValid, parseISO } from 'date-fns';
 import { Check, ChevronDown, Circle, Minus, Pause, Pencil } from 'lucide-react';
 import { Badge } from '../../../components/ui/Badge';
 import { Surface } from '../../../components/ui/Surface';
@@ -15,10 +16,8 @@ import {
   ordemDaRegua,
   resumoDaRegua,
   rotuloDaMarca,
-  type CelulaDaRegua,
   type ColunaDaRegua,
   type LinhaDaRegua,
-  type LinhaNaRegua,
   type MarcaDaJanela,
   type MarcaRegua,
 } from '../lib/reguaFrequencia';
@@ -127,26 +126,19 @@ function MarcaPequena({ marca }: { marca: MarcaRegua }) {
   );
 }
 
-/** Mantém o quadro debaixo da série ao partir a lista em duas colunas. */
-function colunasDaLista(ordem: readonly LinhaNaRegua[]): LinhaNaRegua[][] {
-  const grupos: LinhaNaRegua[][] = [];
-  for (const item of ordem) {
-    if (!item.filha || grupos.length === 0) grupos.push([item]);
-    else grupos[grupos.length - 1].push(item);
-  }
-  const alvo = Math.ceil(ordem.length / 2);
-  const esquerda: LinhaNaRegua[] = [];
-  const direita: LinhaNaRegua[] = [];
-  for (const grupo of grupos) {
-    if (direita.length === 0 && esquerda.length < alvo) esquerda.push(...grupo);
-    else direita.push(...grupo);
-  }
-  return direita.length > 0 ? [esquerda, direita] : [esquerda];
+function rotuloSemana(isoDate: string): string {
+  const parsed = parseISO(isoDate);
+  if (!isValid(parsed)) return isoDate;
+  return format(parsed, 'dd/MM');
+}
+
+function temPendencia(linha: LinhaDaRegua): boolean {
+  return linha.marcas.some(marca => marca.marca === 'abaixo' || marca.marca === 'reservada');
 }
 
 function trilhaDasSemanas(total: number): string {
   if (total <= 0) return 'minmax(0,1fr)';
-  return `minmax(0,1fr) repeat(${total}, 1.75rem)`;
+  return `minmax(9rem,1fr) repeat(${total}, 2.75rem)`;
 }
 
 function LinhaRegua({
@@ -345,9 +337,19 @@ function CabecalhoDaColuna({ semanas }: { semanas: ColunaDaRegua[] }) {
           style={{ gridTemplateColumns: trilhaDasSemanas(semanas.length) }}
         >
           <span />
-          {semanas.map((semana, indice) => (
-            <span key={semana.inicio} className="t-meta text-center">{indice + 1}</span>
-          ))}
+          {semanas.map(semana => {
+            const inicioCurto = rotuloSemana(semana.inicio);
+            const fimCurto = rotuloSemana(semana.fim);
+            return (
+              <span
+                key={semana.inicio}
+                title={`${inicioCurto} – ${fimCurto}`}
+                className="t-meta whitespace-nowrap text-center tabular-nums text-[var(--text-secondary)]"
+              >
+                {inicioCurto}
+              </span>
+            );
+          })}
         </div>
       ) : null}
     </div>
@@ -383,7 +385,9 @@ function LegendaDaRegua() {
   );
 }
 
-/** Conteúdo da régua em duas colunas (sem moldura externa), usado pela barra unificada de saúde. */
+type FiltroRegua = 'todas' | 'pendencias';
+
+/** Conteúdo da régua em coluna única (sem moldura externa), usado no drawer de saúde e no disclosure. */
 export function ReguaDeFrequenciaPainel({
   id,
   continuidade,
@@ -393,22 +397,74 @@ export function ReguaDeFrequenciaPainel({
   continuidade: Continuidade<unknown> | null | undefined;
   onFrequenciaSalva?: (serieId: string) => void;
 }) {
+  const [filtro, setFiltro] = useState<FiltroRegua>('todas');
   const linhas = linhasDaRegua(continuidade);
   if (linhas.length === 0) return null;
 
   const semanas = colunasDaRegua(linhas);
-  const listas = colunasDaLista(ordemDaRegua(linhas));
+  const pendentesCount = linhas.filter(temPendencia).length;
+  const linhasVisiveis = filtro === 'pendencias' ? linhas.filter(temPendencia) : linhas;
+  const listaOrdenada = ordemDaRegua(linhasVisiveis);
 
   return (
-    <div id={id} className="border-t border-[var(--border-subtle)] px-3 pt-3 pb-2">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
+    <div id={id} className="stack-md">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div
+          role="group"
+          aria-label="Filtrar séries por situação"
+          className="inline-flex items-center gap-1 rounded-[var(--radius-input)] bg-[var(--surface-subtle)] p-1"
+        >
+          <button
+            type="button"
+            aria-pressed={filtro === 'todas'}
+            onClick={() => setFiltro('todas')}
+            className={cn(
+              'inline-flex min-h-7 items-center gap-1.5 rounded-[var(--radius-sm)] px-2.5 py-1 transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+              filtro === 'todas'
+                ? 'border border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-primary)]'
+                : 'border border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
+            )}
+          >
+            <Text variant="label" as="span" className="text-current">
+              Todas
+            </Text>
+          </button>
+          <button
+            type="button"
+            aria-pressed={filtro === 'pendencias'}
+            onClick={() => setFiltro('pendencias')}
+            className={cn(
+              'inline-flex min-h-7 items-center gap-1.5 rounded-[var(--radius-sm)] px-2.5 py-1 transition-colors focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+              filtro === 'pendencias'
+                ? 'border border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-primary)]'
+                : 'border border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
+            )}
+          >
+            <Text variant="label" as="span" className="text-current">
+              Só pendências
+            </Text>
+            {pendentesCount > 0 ? (
+              <Badge variant="warning" className="px-1.5 py-0 tabular-nums">
+                {pendentesCount}
+              </Badge>
+            ) : null}
+          </button>
+        </div>
+
         <LegendaDaRegua />
       </div>
-      <div className={cn('grid items-start gap-4', listas.length > 1 && 'lg:grid-cols-2')}>
-        {listas.map((lista, indice) => (
-          <div key={lista[0]?.linha.chave ?? indice} className="min-w-0">
+
+      {listaOrdenada.length === 0 ? (
+        <div className="rounded-[var(--radius-card)] bg-[var(--surface-subtle)] px-4 py-6 text-center">
+          <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+            Nenhuma série com pendências neste período.
+          </Text>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <div className="min-w-0">
             <CabecalhoDaColuna semanas={semanas} />
-            {lista.map(({ linha, filha }) => (
+            {listaOrdenada.map(({ linha, filha }) => (
               <LinhaDaColuna
                 key={linha.chave}
                 linha={linha}
@@ -418,8 +474,8 @@ export function ReguaDeFrequenciaPainel({
               />
             ))}
           </div>
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -500,11 +556,13 @@ export function ReguaDeFrequencia({
       </div>
 
       {aberto ? (
-        <ReguaDeFrequenciaPainel
-          id={painelId}
-          continuidade={continuidade}
-          onFrequenciaSalva={onFrequenciaSalva}
-        />
+        <div className="border-t border-[var(--border-subtle)] p-4">
+          <ReguaDeFrequenciaPainel
+            id={painelId}
+            continuidade={continuidade}
+            onFrequenciaSalva={onFrequenciaSalva}
+          />
+        </div>
       ) : null}
     </Surface>
   );

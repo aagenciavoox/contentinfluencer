@@ -1,5 +1,5 @@
-import type { CSSProperties } from 'react';
-import { AlertTriangle, MoreVertical } from 'lucide-react';
+import { useState, type CSSProperties } from 'react';
+import { AlertTriangle, Link2, MoreVertical, Pencil } from 'lucide-react';
 import { MoreMenu, type MoreMenuItem } from '../../../components/ui/MoreMenu';
 import { RedeIcon } from '../../../components/ui/PlatformIcons';
 import { Badge } from '../../../components/ui/Badge';
@@ -111,14 +111,21 @@ export function PlanejamentoReservaCard({
   const titulo = (linhas.length > 0 ? linhas[0] : null) || content?.title?.trim() || 'Reserva de Espaço';
   const descricao = linhas.length > 1 ? linhas.slice(1).join(' ') : null;
   const redes = postIt.redes && postIt.redes.length > 0 ? postIt.redes : [];
+  const [dragging, setDragging] = useState(false);
 
-  // Quadrada, com a ponta dobrada. Sem pilar o papel é branco; com pilar, a borda e a dobra levam a cor.
-  const styleCustom = cor ? ({'--card-accent': cor} as CSSProperties) : undefined;
+  const usarVincular = !nomeAgrupamento && Boolean(onEncaixar);
+  const styleCustom = cor && !pausada ? ({ '--card-accent': cor } as CSSProperties) : undefined;
+  const ariaLabel = [
+    `Reserva de espaço: ${titulo}`,
+    nomeAgrupamento ? `Série: ${nomeAgrupamento}` : null,
+    pendente ? TEXTO_RESERVA_PENDENTE : pausada ? 'Série em pausa' : selo || 'Livre',
+  ].filter(Boolean).join(', ');
 
   return (
     <div
       role="button"
       tabIndex={0}
+      aria-label={ariaLabel}
       aria-pressed={onToggleSelect ? selected : undefined}
       draggable={draggable}
       onDragStart={event => {
@@ -127,8 +134,10 @@ export function PlanejamentoReservaCard({
           event.preventDefault();
           return;
         }
+        setDragging(true);
         onDragStart?.(event);
       }}
+      onDragEnd={() => setDragging(false)}
       onClick={event => {
         if ((event.ctrlKey || event.metaKey) && onToggleSelect) {
           event.preventDefault();
@@ -143,105 +152,160 @@ export function PlanejamentoReservaCard({
           onOpen();
         }
       }}
-      style={{
-        ...styleCustom,
-        ...(selected ? ({ '--card-edge': 'var(--text-primary)' } as CSSProperties) : {}),
-      }}
+      style={styleCustom}
       className={cn(
-        'post-it-card group relative flex flex-col justify-between p-2.5 pb-3.5 text-left cursor-pointer',
-        cor && 'post-it-card--pilar',
+        'post-it-card group relative flex flex-col justify-between gap-1.5 p-2 text-left cursor-pointer select-none',
+        pausada ? 'post-it-card--pausada' : cor && 'post-it-card--pilar',
         draggable && 'cursor-grab active:cursor-grabbing',
-        selected && 'ring-2 ring-[var(--text-primary)]',
+        selected && 'post-it-card--selected',
+        dragging && 'post-it-card--dragging',
         className,
       )}
     >
-      <div>
-        {/* Selo da reserva + menu ⋮ na mesma linha */}
-        <div className="absolute right-1 top-1 z-20 flex items-center justify-end gap-1 rounded-[var(--radius-pill)] opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:static [@media(hover:none)]:opacity-100">
+      <div className="flex flex-col gap-1.5">
+        {/* Topo: pílula de status + menu ⋮ sempre acessível */}
+        <div className="flex items-start justify-between gap-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-1">
+            {pendente ? (
+              <Badge variant="warning" className="inline-flex items-center gap-1 px-1.5 py-0">
+                <AlertTriangle className="h-2.5 w-2.5 shrink-0" aria-hidden />
+                {TEXTO_RESERVA_PENDENTE}
+              </Badge>
+            ) : pausada ? (
+              <Badge variant="neutral" className="px-1.5 py-0">
+                Pausa
+              </Badge>
+            ) : selo ? (
+              <Badge variant="neutral" className="inline-flex items-center gap-1 px-1.5 py-0">
+                <span className="h-1.5 w-1.5 rounded-full bg-[var(--warning)]" aria-hidden />
+                {selo}
+              </Badge>
+            ) : (
+              <Badge variant="neutral" className="px-1.5 py-0">
+                Livre
+              </Badge>
+            )}
+            {pendente && pausada ? (
+              <Badge variant="neutral" className="px-1.5 py-0">
+                Pausa
+              </Badge>
+            ) : null}
+          </div>
 
-          <div className="-mr-1 shrink-0" onClick={e => e.stopPropagation()} onDragStart={e => e.stopPropagation()}>
+          <div
+            className="-mr-1 -mt-1 shrink-0"
+            onClick={e => e.stopPropagation()}
+            onDragStart={e => e.stopPropagation()}
+          >
             <MoreMenu
               items={menuItems}
               size="sm"
               label="Opções da reserva"
-              trigger={<MoreVertical className="h-3.5 w-3.5 text-current opacity-70" />}
+              trigger={<MoreVertical className="h-3.5 w-3.5 text-current" />}
               triggerClassName="h-6 w-6 p-0 text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
             />
           </div>
         </div>
 
-        {pendente ? (
-          <Badge
-            variant="tag"
-            className="mb-1 inline-flex items-center gap-1 px-1.5 py-0"
-            style={{
-              backgroundColor: 'var(--warning-bg-hover)',
-              color: 'var(--warning)',
-              border: '1px solid color-mix(in srgb, var(--warning) 45%, transparent)',
-            }}
-          >
-            <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden />
-            {TEXTO_RESERVA_PENDENTE}
-          </Badge>
-        ) : selo ? (
-          <Badge variant="tag" className="mb-1 px-1.5 py-0">
-            {selo}
-          </Badge>
-        ) : null}
-        {pausada ? (
-          <Badge variant="neutral" className="mb-1 px-1.5 py-0">Pausa</Badge>
-        ) : null}
-        <Text variant="bodyStrong" as="p" className="planner-card-title line-clamp-2 pr-6 leading-snug text-[var(--text-primary)]">
+        {/* Série / Pilar */}
+        <div className="flex min-w-0 items-center gap-1.5">
+          {nomeAgrupamento ? (
+            <>
+              <span
+                className="h-1.5 w-1.5 rounded-full shrink-0"
+                style={{ backgroundColor: pausada ? 'var(--text-tertiary)' : (cor || 'var(--text-tertiary)') }}
+                aria-hidden
+              />
+              <Text
+                variant="meta"
+                as="span"
+                title={nomeAgrupamento}
+                className={cn(
+                  'min-w-0 flex-1 truncate',
+                  pausada ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-secondary)]',
+                )}
+              >
+                {nomeAgrupamento}
+              </Text>
+            </>
+          ) : (
+            <Text variant="meta" as="span" className="truncate text-[var(--text-tertiary)]">
+              Sem série vinculada
+            </Text>
+          )}
+        </div>
+
+        {/* Título da reserva (até 2 linhas) */}
+        <Text
+          variant="bodyStrong"
+          as="p"
+          className={cn(
+            'planner-card-title line-clamp-2 leading-snug',
+            pausada ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)]',
+          )}
+        >
           {titulo}
         </Text>
 
         {/* Descrição / Anotação */}
         {descricao ? (
-          <div className="mt-1 leading-normal">
-            <Text variant="meta" as="div" className="line-clamp-2 text-[var(--text-secondary)]">
-              {descricao}
-            </Text>
-          </div>
+          <Text
+            variant="meta"
+            as="p"
+            className={cn(
+              'line-clamp-2',
+              pausada ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-secondary)]',
+            )}
+          >
+            {descricao}
+          </Text>
         ) : null}
 
-        {/* Série (com a cor) e redes. Sem série nem pilar, só as redes. */}
-        {nomeAgrupamento || redes.length > 0 ? (
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            {nomeAgrupamento ? (
-              <span
-                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[var(--radius-pill)] max-w-full truncate"
-                style={
-                  cor
-                    ? {
-                        backgroundColor: `color-mix(in srgb, ${cor} 12%, var(--bg-elevated))`,
-                        color: `color-mix(in srgb, ${cor} 80%, var(--text-primary))`,
-                      }
-                    : {
-                        backgroundColor: 'var(--surface-subtle)',
-                        color: 'var(--text-secondary)',
-                      }
-                }
-              >
-                <span
-                  className="h-1.5 w-1.5 rounded-full shrink-0"
-                  style={{ backgroundColor: cor || 'var(--text-tertiary)' }}
-                  aria-hidden
-                />
-                <Text variant="meta" as="span" className="truncate max-w-[140px]">
-                  {nomeAgrupamento}
-                </Text>
-              </span>
-            ) : null}
-            {redes.length > 0 ? (
-              <span className="flex items-center gap-1 text-[var(--text-secondary)]">
-                {redes.slice(0, 3).map(r => (
-                  <RedeIcon key={r} rede={r} className="h-3.5 w-3.5 shrink-0" />
-                ))}
-              </span>
-            ) : null}
+        {/* Redes previstas */}
+        {redes.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-1 pt-0.5 text-[var(--text-secondary)]">
+            {redes.slice(0, 3).map(r => (
+              <RedeIcon key={r} rede={r} className="h-3.5 w-3.5 shrink-0" />
+            ))}
           </div>
         ) : null}
       </div>
+
+      {/* Ação direta: reduz 1 clique para desenvolver ou vincular */}
+      {pausada ? (
+        <div className="mt-1 w-full rounded-[var(--radius-sm)] bg-[var(--bg-hover)] px-1.5 py-1 text-center">
+          <Text variant="meta" as="span" className="text-[var(--text-tertiary)]">
+            Série em pausa
+          </Text>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={event => {
+            event.stopPropagation();
+            if (usarVincular && onEncaixar) {
+              onEncaixar();
+            } else {
+              onDesenvolver();
+            }
+          }}
+          onDragStart={event => event.stopPropagation()}
+          className="mt-1 flex w-full items-center justify-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-1.5 py-1 text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
+        >
+          {usarVincular ? (
+            <Link2 className="h-3 w-3 shrink-0 text-[var(--text-secondary)]" aria-hidden />
+          ) : (
+            <Pencil
+              className="h-3 w-3 shrink-0"
+              style={{ color: cor || 'var(--brand-accent-strong)' }}
+              aria-hidden
+            />
+          )}
+          <Text variant="meta" as="span" className="truncate text-[var(--text-primary)]">
+            {usarVincular ? 'Vincular' : 'Desenvolver'}
+          </Text>
+        </button>
+      )}
     </div>
   );
 }

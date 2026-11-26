@@ -27,6 +27,11 @@ export const APOIO_DA_ABA: Record<EditorialAba, string> = {
 /** Frase da aba de uma conta. */
 export const APOIO_DA_CONTA = 'Formatos, horários e a pausa desta conta.';
 
+/** Âncoras das três seções principais do Geral. */
+export const ANCORA_IDENTIDADE = 'identidade';
+export const ANCORA_PLANEJAMENTO = 'planejamento';
+export const ANCORA_REGRAS_E_AVISOS = 'regras-e-avisos';
+
 /** Âncoras dos blocos que antes eram abas. */
 export const ANCORA_DNA = 'dna-da-voz';
 export const ANCORA_PILARES = 'pilares';

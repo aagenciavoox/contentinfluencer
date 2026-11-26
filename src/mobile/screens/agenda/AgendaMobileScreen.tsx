@@ -20,12 +20,9 @@ import {
 import {ptBR} from 'date-fns/locale';
 import {SEMANA} from '../../../lib/semana';
 import {
-  BriefcaseBusiness,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Clapperboard,
-  Mic2,
   Plus,
   Radio,
   SearchCheck,
@@ -33,16 +30,15 @@ import {
 import type {AgendaItem, Content, Platform, Projeto, Serie} from '../../../lib/database';
 import type {CalendarEntry} from '../../../features/editorial-calendar/components/MonthlyCalendarView';
 import {readStoredJson, writeStoredJson} from '../../../lib/browserStorage';
-import {cn, getEntityTagStyle, tintedTextColor} from '../../../lib/utils';
+import {cn} from '../../../lib/utils';
 import {AppButton} from '../../../components/ui/AppButton';
 import {Text} from '../../../components/ui/Text';
 import {FilterBar} from '../../../components/ui/FilterBar';
 import {MultiFilterChips} from '../../../components/ui/MultiFilterChips';
 import {EmptyState} from '../../../components/ui/EmptyState';
-import {MobileListCard} from '../../components/MobileListCard';
 import {MobileSearchBar} from '../../components/MobileSearchBar';
 import {MobileSegmentTabs} from '../../components/MobileSegmentTabs';
-import {CONTENT_STATUS, DISPLAY_STATUS, getDisplayStatus} from '../../../features/contents/lib/contentPipeline';
+import {getDisplayStatus} from '../../../features/contents/lib/contentPipeline';
 import {
   ALL_PLATFORMS,
   ALL_STATUSES,
@@ -52,12 +48,11 @@ import {
   platformFilterOptions,
 } from '../../../features/editorial-calendar/lib/calendarContentFilters';
 import {buildPublishCalendarItems, isScheduledItem, publishItemStatus, todayKey, type PublishCalendarConta} from '../../../features/editorial-calendar/lib/publishCalendarItems';
-import {PublishCalendarCard} from '../../../features/editorial-calendar/components/PublishCalendarCard';
-import {calendarEntryPillStyle} from '../../../components/calendar/calendarPillStyles';
 import {UNDATED_PILE_STORAGE_KEY} from '../../../features/editorial-calendar/components/UndatedRoteiroPile';
-import {AgendaTipoIcon} from '../../../features/projects/components/AgendaTipoIcon';
 import {diasCobertos} from '../../../features/projects/lib/agendaEventos';
 import {rotuloDaRef} from '../../../features/contas/lib/contas';
+import {estaEditado, rotuloDaEtapaNaTela} from '../../../features/contents/lib/esteiraDisplay';
+import {AgendaMobileCard} from './AgendaMobileCard';
 
 type AgendaTimelineKind = 'agenda' | 'recording' | 'publish' | 'project';
 
@@ -98,6 +93,8 @@ interface AgendaTimelineEntry {
   contentStatus?: string;
   posted?: boolean;
   scheduled?: boolean;
+  /** Roteiro com a edição (ou o design) pronta, ainda sem programar nem postar. */
+  editado?: boolean;
 }
 
 const KIND_LABELS: Record<AgendaTimelineKind, string> = {
@@ -190,6 +187,7 @@ function buildTimelineEntries(contents: Content[], platforms: Platform[], agenda
 
   contents.forEach(content => {
     const displayStatus = getDisplayStatus(content);
+    const editado = estaEditado(content, platforms);
     const platformNames = content.plataformas.map(
       plataforma => rotuloDaRef(plataforma.platformId, platforms),
     );
@@ -200,9 +198,10 @@ function buildTimelineEntries(contents: Content[], platforms: Platform[], agenda
         title: content.title || 'Roteiro sem título',
         date: content.recordingDate,
         contentId: content.id,
-        secondary: displayStatus || 'Para gravar',
+        secondary: (editado ? rotuloDaEtapaNaTela(content, platforms) : displayStatus) || 'Para gravar',
         platformNames,
         contentStatus: displayStatus,
+        editado,
       });
     }
     const publishItems = buildPublishCalendarItems({
@@ -231,6 +230,7 @@ function buildTimelineEntries(contents: Content[], platforms: Platform[], agenda
         contentStatus: publishStatus,
         posted: item.posted,
         scheduled: isScheduledItem(item, content),
+        editado: editado && !item.posted && !isScheduledItem(item, content),
       });
     });
   });
@@ -354,6 +354,7 @@ export function AgendaMobileScreen({
       status: entry.contentStatus ?? '',
       platformFilter,
       statusFilter,
+      editado: entry.editado,
     });
   }, [platformFilter, statusFilter]);
 
@@ -630,9 +631,6 @@ export function AgendaMobileScreen({
 
                 <div className="stack-sm">
                   {group.items.map(entry => {
-                    const accentColor = entry.posted
-                      ? 'var(--status-posted)'
-                      : entry.color || KIND_ACCENTS[entry.kind];
                     const calendarType =
                       entry.kind === 'recording'
                         ? 'recording'
@@ -641,48 +639,22 @@ export function AgendaMobileScreen({
                           : entry.kind === 'agenda'
                             ? 'agenda'
                             : 'project';
-                    if (entry.kind === 'publish') {
-                      return (
-                        <PublishCalendarCard
-                          key={entry.id}
-                          variant="expanded"
-                          label={entry.title}
-                          time={entry.time}
-                          secondary={format(parseISO(entry.date), "d 'de' MMMM", {locale: ptBR})}
-                          contas={entry.contas}
-                          style={calendarEntryPillStyle({type: 'publish', posted: entry.posted})}
-                          onOpen={() =>
-                            onSelectEntry?.({
-                              id: entry.id,
-                              type: 'publish',
-                              label: entry.title,
-                              date: entry.date,
-                              time: entry.time,
-                              secondary: entry.secondary || undefined,
-                              color: entry.color,
-                              contentId: entry.contentId,
-                              plataformaId: entry.plataformaId,
-                              platformNames: entry.platformNames,
-                              contas: entry.contas,
-                              posted: entry.posted,
-                              scheduled: entry.scheduled,
-                            })
-                          }
-                        />
-                      );
-                    }
                     return (
-                      <MobileListCard
+                      <AgendaMobileCard
                         key={entry.id}
-                        eyebrow={entry.posted
-                          ? CONTENT_STATUS.POSTADO
-                          : entry.scheduled
-                            ? DISPLAY_STATUS.PROGRAMADO
-                            : entry.kind === 'agenda' && entry.agendaTipo
-                              ? entry.agendaTipo
-                              : KIND_LABELS[entry.kind]}
+                        kind={entry.kind}
                         title={entry.title}
-                        description={entry.secondary || ''}
+                        date={entry.date}
+                        time={entry.time}
+                        secondary={entry.secondary}
+                        color={entry.color}
+                        agendaTipo={entry.agendaTipo}
+                        platformNames={entry.platformNames}
+                        contas={entry.contas}
+                        contentStatus={entry.contentStatus}
+                        posted={entry.posted}
+                        scheduled={entry.scheduled}
+                        editado={entry.editado}
                         onClick={() =>
                           onSelectEntry?.({
                             id: entry.id,
@@ -694,32 +666,14 @@ export function AgendaMobileScreen({
                             color: entry.color,
                             contentId: entry.contentId,
                             plataformaId: entry.plataformaId,
+                            platformNames: entry.platformNames,
+                            contas: entry.contas,
                             posted: entry.posted,
                             scheduled: entry.scheduled,
                             agendaId: entry.agendaId,
                             agendaTipo: entry.agendaTipo,
                             projetoId: entry.projetoId,
                           })
-                        }
-                        meta={
-                          <Text variant="label" as="span"
-                            className="rounded-full px-2.5 py-1 text-inherit"
-                            style={getEntityTagStyle(accentColor)}
-                          >
-                            {entry.time ? `${entry.time} · ` : ''}
-                            {format(parseISO(entry.date), 'dd/MM')}
-                          </Text>
-                        }
-                        trailing={
-                          entry.kind === 'recording' ? (
-                            <Mic2 className="h-4 w-4 text-[var(--accent-orange)]" />
-                          ) : entry.kind === 'project' ? (
-                            <BriefcaseBusiness className="h-4 w-4" style={{ color: tintedTextColor(entry.color || 'var(--accent-purple)') }} />
-                          ) : (
-                            <span style={{color: tintedTextColor(entry.color || 'var(--accent-green)')}}>
-                              <AgendaTipoIcon tipo={entry.agendaTipo || 'Outro'} className="h-4 w-4" />
-                            </span>
-                          )
                         }
                       />
                     );

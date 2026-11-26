@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { BookOpen, CalendarDays, Video } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { AppButton } from '../../../components/ui/AppButton';
@@ -12,11 +12,25 @@ import { IdeaQuickCapture } from '../../ideas/components/IdeaQuickCapture';
 import { buildContentDetailRoute } from '../../contents/lib/contentDetailRoute';
 import { LeiturasLista } from '../../editorial/components/LeiturasLista';
 import type { Leitura } from '../../editorial/lib/editorialReadings';
+import { TodayDesktopWorkspace } from './TodayDesktopWorkspace';
 import { TodayLoadError } from './TodayLoadError';
 import { TodayMetricsSummary, type TodayMetrics } from './TodayMetricsSummary';
 import { TodayWork } from './TodayWork';
 import type { TodayWorkItem } from '../lib/todayWork';
+import type {
+  EditorialFocusItem,
+  UpcomingPublicationGroup,
+  WeeklyPaceSummary,
+} from '../lib/todayOperational';
 import type { ItemPendenciaDoDia } from '../../planejamento/lib/avisosPendencia';
+
+const EMPTY_WEEKLY_PACE: WeeklyPaceSummary = {
+  weekCount: 0,
+  postedCount: 0,
+  target: null,
+  summaryText: 'Nenhuma publicação planejada esta semana',
+  days: [],
+};
 
 function readingProgress(book: BibliotecaItem): number | null {
   if (!book.totalPaginas || book.paginasLidas == null || book.totalPaginas <= 0) return null;
@@ -104,6 +118,16 @@ export function TodayHome({
   workItems,
   metrics,
   publicationsSlot,
+  focusItems = [],
+  upcomingPublications = [],
+  publicationsLoading = false,
+  publicationsError = false,
+  onRetryPublications = () => {},
+  weeklyPace = EMPTY_WEEKLY_PACE,
+  ideasAwaitingTriage = 0,
+  toneReminder = null,
+  showCounts = true,
+  quickCaptureInputRef,
 }: {
   state: AppState;
   book: BibliotecaItem | null;
@@ -153,13 +177,77 @@ export function TodayHome({
   workItems?: TodayWorkItem[];
   metrics?: TodayMetrics;
   publicationsSlot?: ReactNode;
+  focusItems?: EditorialFocusItem[];
+  upcomingPublications?: UpcomingPublicationGroup[];
+  publicationsLoading?: boolean;
+  publicationsError?: boolean;
+  onRetryPublications?: () => void;
+  weeklyPace?: WeeklyPaceSummary;
+  ideasAwaitingTriage?: number;
+  toneReminder?: string | null;
+  showCounts?: boolean;
+  quickCaptureInputRef?: RefObject<HTMLInputElement | null>;
 }) {
+  if (density === 'desktop') {
+    return (
+      <TodayDesktopWorkspace
+        state={state}
+        book={book}
+        bookLoading={bookLoading}
+        bookError={bookError}
+        libraryEnabled={libraryEnabled}
+        onRetryBook={onRetryBook}
+        scripts={scripts}
+        scriptsLoading={scriptsLoading}
+        scriptsError={scriptsError}
+        onRetryScripts={onRetryScripts}
+        focusItems={focusItems}
+        upcomingPublications={upcomingPublications}
+        publicationsLoading={publicationsLoading}
+        publicationsError={publicationsError}
+        onRetryPublications={onRetryPublications}
+        weeklyPace={weeklyPace}
+        ideasAwaitingTriage={ideasAwaitingTriage}
+        toneReminder={toneReminder}
+        showCounts={showCounts}
+        ideaSaving={ideaSaving}
+        pendencias={pendencias}
+        recordingEnabled={recordingEnabled}
+        isBusy={isBusy}
+        errorMessage={errorMessage}
+        detailBack={detailBack}
+        ideaTitle={ideaTitle}
+        ideaNotes={ideaNotes}
+        ideaPilarId={ideaPilarId}
+        ideaSeriesId={ideaSeriesId}
+        ideaOriginId={ideaOriginId}
+        onIdeaTitle={onIdeaTitle}
+        onIdeaNotes={onIdeaNotes}
+        onIdeaPilar={onIdeaPilar}
+        onIdeaSeries={onIdeaSeries}
+        onIdeaOrigin={onIdeaOrigin}
+        onSaveIdea={onSaveIdea}
+        onOpenBook={onOpenBook}
+        onOpenLibrary={onOpenLibrary}
+        onStartSession={onStartSession}
+        onOpenQueue={onOpenQueue}
+        onCreateScript={onCreateScript}
+        agenda={agenda}
+        agendaLoading={agendaLoading}
+        agendaError={agendaError}
+        calendarEnabled={calendarEnabled}
+        onRetryAgenda={onRetryAgenda}
+        onOpenCalendar={onOpenCalendar}
+        leituras={leituras}
+        quickCaptureInputRef={quickCaptureInputRef}
+      />
+    );
+  }
+
   const progress = book ? readingProgress(book) : null;
   // Agenda vazia não ganha card: o subtítulo do dia já diz "nada na agenda".
   const showAgendaCard = calendarEnabled && (agenda.length > 0 || agendaLoading || agendaError);
-  const mainGridClass = density === 'desktop'
-    ? (showAgendaCard ? 'grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch' : 'grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch')
-    : 'stack-md';
+  const mainGridClass = 'stack-md';
 
   return (
     <div className="stack-lg">
@@ -208,7 +296,7 @@ export function TodayHome({
 
       {/* 2. Layout em 2 Colunas no Topo: Continuar trabalho + Resumo rápido de métricas */}
       {metrics ? (
-        <div className={density === 'desktop' ? 'grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch' : 'stack-md'}>
+        <div className="stack-md">
           <TodayWork items={workItems ?? []} detailBack={detailBack} />
           <TodayMetricsSummary metrics={metrics} />
         </div>

@@ -98,6 +98,58 @@ export function nomeDaEtapaNaTela(
   return status;
 }
 
+/** Chave de cor e nome do filtro para o roteiro editado (ou design pronto). Não é status do banco. */
+export const STATUS_EDITADO = 'Editado';
+
+/**
+ * Edição concluída (ou design do carrossel pronto), antes de programar ou postar.
+ * Vem do status Edição (ou Produção, no carrossel) com edicaoConcluidaEm; o banco não muda.
+ */
+export function estaEditado(
+  content: ConteudoDaEsteira,
+  contas: readonly ContaRef[] = [],
+): boolean {
+  if (!content.edicaoConcluidaEm) return false;
+  const display = getDisplayStatus(conteudoParaEtapa(content));
+  if (display === CONTENT_STATUS.POSTADO || display === DISPLAY_STATUS.PROGRAMADO) return false;
+  const status = normalizeContentStatus(content.status);
+  if (status === CONTENT_STATUS.EDICAO) return true;
+  return status === CONTENT_STATUS.PRODUCAO && tipoDaPeca(content, contas) === 'carrossel';
+}
+
+/** Nome da etapa com ✓ quando já está editado: "✓ Editado" ou "✓ Design pronto". */
+export function rotuloDaEtapaNaTela(
+  content: ConteudoDaEsteira,
+  contas: readonly ContaRef[] = [],
+): string {
+  const nome = nomeDaEtapaNaTela(content, contas);
+  return estaEditado(content, contas) ? `✓ ${nome}` : nome;
+}
+
+export type StatusNaTela = {
+  /** Escolhe a cor do selo (Badge, chip, calendário). */
+  status: string;
+  /** Texto do selo. */
+  rotulo: string;
+  editado: boolean;
+};
+
+/**
+ * Selo de status do card. Editado ganha a cor própria e "✓ Editado" (carrossel: "✓ Design pronto").
+ * Fora isso, mostra `base` (por padrão o status de exibição, com Postado e Programado na frente).
+ */
+export function statusNaTela(
+  content: ConteudoDaEsteira,
+  contas: readonly ContaRef[] = [],
+  base?: string,
+): StatusNaTela {
+  if (estaEditado(content, contas)) {
+    return {status: STATUS_EDITADO, rotulo: `✓ ${nomeDaEtapaNaTela(content, contas)}`, editado: true};
+  }
+  const status = base ?? getDisplayStatus(conteudoParaEtapa(content));
+  return {status, rotulo: status, editado: false};
+}
+
 function contaCobraLegenda(publicacao: Pick<ContentPlataforma, 'status'>): boolean {
   const situacao = normalizePublicacaoStatus(publicacao.status);
   return situacao === 'prevista';

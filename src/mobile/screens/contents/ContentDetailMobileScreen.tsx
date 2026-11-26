@@ -1,6 +1,6 @@
 import { useState, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Check, ChevronDown, ChevronLeft, FileText, MoreHorizontal, Settings2, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, ChevronLeft, MoreHorizontal, Settings2, Trash2 } from 'lucide-react';
 import { BottomSheetModal } from '../../../components/feedback/modals/BottomSheetModal';
 import { OverlayBody } from '../../../components/overlays/OverlayBody';
 import { AppButton } from '../../../components/ui/AppButton';
@@ -159,7 +159,7 @@ export function ContentDetailMobileScreen({
           </div>
         ) : null}
         {operationalPanel}
-        {tabOptions.length > 1 ? (
+        {isScriptTab && tabOptions.length > 1 ? (
           <MobileSegmentTabs
             rounded="tight"
             tabs={tabOptions}
@@ -302,11 +302,11 @@ export function ContentDetailMobileScreen({
         <div
           className="flex-1 px-4"
           style={{
-            paddingTop: 'calc(env(safe-area-inset-top, 0px) + 3.5rem + 0.75rem)',
+            paddingTop: 'calc(env(safe-area-inset-top, 0px) + 3.5rem + 0.5rem)',
             // A pílula só fica na tela enquanto o texto está em foco (ou o teclado aberto).
             paddingBottom: keyboard.open
               ? keyboard.inset + 72
-              : 'calc(max(0.75rem, env(safe-area-inset-bottom, 0px)) + 4.5rem)',
+              : 'calc(max(0.75rem, env(safe-area-inset-bottom, 0px)) + 2.5rem)',
           }}
         >
           {section}
@@ -320,15 +320,6 @@ export function ContentDetailMobileScreen({
 
   return (
     <div className="stack-md pb-8">
-      <AppButton
-        variant="secondary"
-        fullWidth
-        onClick={() => onTabChange('roteiro')}
-        leftIcon={<FileText className="h-4 w-4" aria-hidden />}
-      >
-        Ver roteiro
-      </AppButton>
-
       <details className="group overflow-hidden rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)]">
         <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-3 py-1 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]">
           <div className="min-w-0">

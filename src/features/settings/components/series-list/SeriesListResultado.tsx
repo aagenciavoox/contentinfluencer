@@ -48,6 +48,7 @@ export function ResultadoDaLista({ modelo, celular = false }: { modelo: SeriesLi
       onMudarStatus={acoes.onMudarStatus}
       onCriarFilho={acoes.onCriarFilho}
       onMoverParaFamilia={acoes.onMoverParaFamilia}
+      celular={celular}
     />
   );
 

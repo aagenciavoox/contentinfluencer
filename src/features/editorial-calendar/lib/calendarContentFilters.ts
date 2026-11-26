@@ -1,6 +1,7 @@
 import type {Platform} from '../../../lib/database';
 import {rotuloConta} from '../../contas/lib/contas.ts';
 import {CONTENT_STATUS, DISPLAY_STATUS} from '../../contents/lib/contentPipeline';
+import {STATUS_EDITADO} from '../../contents/lib/esteiraDisplay';
 
 export const ALL_PLATFORMS = 'todas';
 export const ALL_STATUSES = 'todos';
@@ -11,6 +12,7 @@ export const CONTENT_STATUS_FILTER_OPTIONS = [
   {label: CONTENT_STATUS.ROTEIRO, value: CONTENT_STATUS.ROTEIRO},
   {label: CONTENT_STATUS.PRODUCAO, value: CONTENT_STATUS.PRODUCAO},
   {label: CONTENT_STATUS.EDICAO, value: CONTENT_STATUS.EDICAO},
+  {label: STATUS_EDITADO, value: STATUS_EDITADO},
   {label: DISPLAY_STATUS.PROGRAMADO, value: DISPLAY_STATUS.PROGRAMADO},
   {label: CONTENT_STATUS.POSTADO, value: CONTENT_STATUS.POSTADO},
 ];
@@ -38,8 +40,11 @@ export function matchesContentFilters(input: {
   status: string;
   platformFilter: string;
   statusFilter: string;
+  /** Roteiro editado (ou design pronto): entra só no filtro Editado, não em Edição nem Produção. */
+  editado?: boolean;
 }) {
-  if (input.statusFilter !== ALL_STATUSES && input.status !== input.statusFilter) return false;
+  const statusDoFiltro = input.editado ? STATUS_EDITADO : input.status;
+  if (input.statusFilter !== ALL_STATUSES && statusDoFiltro !== input.statusFilter) return false;
   if (input.platformFilter !== ALL_PLATFORMS && !input.platformNames.includes(input.platformFilter)) return false;
   return true;
 }

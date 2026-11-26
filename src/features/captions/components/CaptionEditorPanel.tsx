@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, ArrowUpRight, Calendar, Check, Copy, Layers, MoreVertical, Plus, Trash2, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ArrowUpRight, Calendar, Check, Copy, FileText, Layers, MoreVertical, Plus, Trash2, X } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
 import { ChoiceChips } from '../../../components/ui/ChoiceChips';
 import { Surface } from '../../../components/ui/Surface';
@@ -14,10 +14,12 @@ import { contaDaRef, iconeDaConta, rotuloConta, redeDaRef, type ContaRef } from 
 import { formatoNoYoutube } from '../../editorial/lib/publicacoes';
 import { CopyCaptionToAccountsModal } from './CopyCaptionToAccountsModal';
 import { limiteDoCampo } from '../../editorial/lib/platformFields';
-import { parseHashtags, joinHashtags } from '../../contents/lib/captionHashtags';
-import { legendaEfetiva, hashtagsNaLegenda, legendasQueSeriamApagadas, publicacaoJaPostada } from '../../editorial/lib/captions';
+import { captionHashtagPresets, parseHashtags, joinHashtags, mergeHashtags } from '../../contents/lib/captionHashtags';
+import { legendaEfetiva, hashtagsNaLegenda, legendasQueSeriamApagadas, publicacaoJaPostada, temLegenda } from '../../editorial/lib/captions';
+import { useEditorialPlano } from '../../editorial/components/plano/useEditorialPlano';
 import { ConfirmModal } from '../../../components/feedback/modals/ConfirmModal';
 import { alternarDestino } from '../../editorial/lib/destinations';
+import { useCopyScript } from '../lib/useCopyScript';
 
 interface CaptionEditorPanelProps {
   content: Content;
@@ -28,6 +30,11 @@ interface CaptionEditorPanelProps {
   pilares: Pilar[];
   contas: readonly ContaRef[];
   onBackToList?: () => void;
+  onNextPending?: () => void;
+  hasNextPending?: boolean;
+  focusSignal?: number;
+  hasHydrationError?: boolean;
+  onRetryHydration?: () => void;
 }
 
 export function CaptionEditorPanel({
@@ -39,7 +46,13 @@ export function CaptionEditorPanel({
   pilares,
   contas,
   onBackToList,
+  onNextPending,
+  hasNextPending = false,
+  focusSignal = 0,
+  hasHydrationError = false,
+  onRetryHydration,
 }: CaptionEditorPanelProps) {
+  const { settings } = useEditorialPlano();
   const activePublicacoes = useMemo(() => {
     return content.plataformas.filter(p => !publicacaoJaPostada(p, content));
   }, [content.plataformas, content]);
@@ -57,11 +70,24 @@ export function CaptionEditorPanel({
   const [copiedPronto, setCopiedPronto] = useState(false);
   const [newTagInput, setNewTagInput] = useState('');
   const [desativarPendente, setDesativarPendente] = useState<string | null>(null);
+  const copyScriptState = useCopyScript({
+    content,
+    hasHydrationError,
+    onRetryHydration,
+  });
 
   // Local draft state for the current publication
   const [localText, setLocalText] = useState('');
   const [localTags, setLocalTags] = useState<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (!focusSignal) return;
+    const raf = window.requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [focusSignal]);
 
   const rede = redeDaRef(publicacao?.platformId, contas) || 'instagram';
 
@@ -349,18 +375,88 @@ export function CaptionEditorPanel({
     { id: 'copiar-contas', label: 'Copiar para outras contas…', onClick: () => setCopyModalOpen(true) },
   ];
 
+  const tituloRoteiro = content.title.trim() || 'Sem título';
+  const dataRoteiro = publicacao?.publishDate || content.publishDate || null;
+  const trilhaRoteiro = [
+    serie?.name ?? null,
+    pilar?.nome ?? null,
+    dataRoteiro ? `${dataRoteiro}${publicacao?.publishTime ? ` às ${publicacao.publishTime}` : ''}` : null,
+  ].filter((parte): parte is string => Boolean(parte));
+
+  const presetsHashtags = useMemo(() => {
+    if (!publicacao) return [];
+    const base = captionHashtagPresets(publicacao.platformId, serie ?? null, pilar ?? null, contas);
+    const gerais = parseHashtags(settings.preferencias.hashtagsForaSeries || '');
+    const todos = [
+      ...base.map(preset => ({
+        id: preset.key,
+        rotulo: `+ ${preset.sourceLabel}: ${preset.name}`,
+        tags: preset.tags,
+      })),
+      ...(gerais.length > 0 ? [{ id: 'gerais', rotulo: '+ Hashtags gerais', tags: gerais }] : []),
+    ];
+    const existentes = new Set(localTags.map(tag => tag.toLowerCase()));
+    return todos.filter(preset => preset.tags.some(tag => !existentes.has(tag.toLowerCase())));
+  }, [contas, localTags, pilar, publicacao, serie, settings.preferencias.hashtagsForaSeries]);
+
+  const handleInsertPresetTags = (tags: string[]) => {
+    if (!publicacao) return;
+    const merged = mergeHashtags(localTags, tags);
+    setLocalTags(merged);
+    triggerSave(localText, merged);
+  };
+
   return (
     <div className="stack-md min-w-0">
-      {/* Mobile back button */}
-      {onBackToList ? (
-        <div className="lg:hidden pb-1">
-          <AppButton size="sm" variant="ghost" onClick={onBackToList} leftIcon={<ArrowLeft className="h-4 w-4" />}>
-            Voltar para lista de saídas
-          </AppButton>
-        </div>
-      ) : null}
+      {/* Cabeçalho do roteiro (sempre visível no desktop e mobile) */}
+      <div className="stack-sm">
+        {onBackToList ? (
+          <div className="lg:hidden">
+            <AppButton size="sm" variant="ghost" onClick={onBackToList} leftIcon={<ArrowLeft className="h-4 w-4" />}>
+              Voltar para fila
+            </AppButton>
+          </div>
+        ) : null}
 
-      {/* Account tabs */}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 flex-1 stack-xs">
+            {trilhaRoteiro.length > 0 ? (
+              <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
+                {trilhaRoteiro.join(' · ')}
+              </Text>
+            ) : null}
+            <Text variant="sectionTitle" as="h2" className="min-w-0 [overflow-wrap:anywhere]">
+              {tituloRoteiro}
+            </Text>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+            <AppButton
+              size="xs"
+              variant={copyScriptState.copied ? 'primary' : 'secondary'}
+              disabled={copyScriptState.disabled}
+              onClick={() => void copyScriptState.copyScript()}
+              aria-label={copyScriptState.ariaLabel}
+              title={copyScriptState.ariaLabel}
+              leftIcon={copyScriptState.copied ? <Check className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}
+            >
+              {copyScriptState.label}
+            </AppButton>
+            <Link
+              to={buildContentDetailRoute(content.id)}
+              state={{ from: '/criacao/legendas' }}
+              className="inline-flex h-8 items-center gap-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-2.5 t-label text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              title="Abrir roteiro completo"
+              aria-label={`Abrir roteiro de ${tituloRoteiro}`}
+            >
+              <span>Abrir roteiro</span>
+              <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Account tabs com indicador de preenchimento por conta */}
       <div className="flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Contas desta pauta">
         {activePublicacoes.map(pub => {
           const pubConta = contaDaRef(pub.platformId, contas);
@@ -372,6 +468,7 @@ export function CaptionEditorPanel({
             : null;
           const iconePub = noYt && noYt.formato === 'short' ? 'youtube-shorts' : (pubConta ? iconeDaConta(pubConta) : pub.platformId);
           const complementoFormato = noYt ? (noYt.formato === 'short' ? ' · Shorts' : ' · Vídeo longo') : '';
+          const pubPronta = isActive ? localText.trim().length > 0 : temLegenda(content.legendaBase, pub);
 
           return (
             <div
@@ -390,8 +487,16 @@ export function CaptionEditorPanel({
                 onClick={() => onSelectPublicacaoId(pub.id)}
                 className="inline-flex items-center gap-1.5 py-1.5 pl-3 pr-1.5"
               >
+                <span
+                  aria-hidden
+                  title={pubPronta ? 'Legenda preenchida' : 'Legenda pendente'}
+                  className={cn(
+                    'h-2 w-2 shrink-0 rounded-full',
+                    pubPronta ? 'bg-[var(--success)]' : 'bg-[var(--warning)]',
+                  )}
+                />
                 <PlatformIcon platform={iconePub} colored className="h-4 w-4" />
-                <Text variant="label" as="span" className={cn('text-current', isActive && 'font-[var(--font-weight-semibold,600)]')}>
+                <Text variant="label" as="span" className="text-current">
                   {pubNome}{complementoFormato}
                 </Text>
               </button>
@@ -469,7 +574,7 @@ export function CaptionEditorPanel({
               ) : null}
             </div>
 
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex flex-wrap items-center gap-1.5 shrink-0">
               <AppButton
                 size="xs"
                 variant={copiedPronto ? 'primary' : 'secondary'}
@@ -479,14 +584,6 @@ export function CaptionEditorPanel({
                 {copiedPronto ? 'Copiada' : 'Copiar legenda'}
               </AppButton>
               <MoreMenu size="sm" items={menuItems} trigger={<MoreVertical className="h-3.5 w-3.5" />} />
-              <Link
-                to={buildContentDetailRoute(content.id)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-input)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-                title="Abrir roteiro"
-                aria-label="Abrir roteiro"
-              >
-                <ArrowUpRight className="h-4 w-4" />
-              </Link>
             </div>
           </div>
 
@@ -586,14 +683,56 @@ export function CaptionEditorPanel({
                     }
                   }}
                   onBlur={handleAddTag}
-                  className="w-24 bg-transparent t-label text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
+                  className="w-28 !h-auto !min-h-0 !border-0 !bg-transparent !p-0 !shadow-none t-label text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
                 />
               </div>
               <Text variant="meta" as="span" className="tabular-nums text-[var(--text-tertiary)]">
                 {localTags.length}/{limiteTags}
               </Text>
             </div>
+
+            {presetsHashtags.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                {presetsHashtags.map(preset => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => handleInsertPresetTags(preset.tags)}
+                    className="inline-flex items-center rounded-[var(--radius-pill)] border border-[var(--border-subtle)] bg-[var(--surface-subtle)] px-2.5 py-1 t-meta text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                  >
+                    {preset.rotulo}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
+
+          {/* Rodapé de ações em lote */}
+          {(activePublicacoes.length > 1 || (hasNextPending && onNextPending)) ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-subtle)] pt-3">
+              <div>
+                {activePublicacoes.length > 1 ? (
+                  <AppButton
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setCopyModalOpen(true)}
+                  >
+                    Copiar para outras contas
+                  </AppButton>
+                ) : null}
+              </div>
+              {hasNextPending && onNextPending ? (
+                <AppButton
+                  size="sm"
+                  variant="ghost"
+                  rightIcon={<ArrowRight className="h-4 w-4" />}
+                  onClick={onNextPending}
+                >
+                  Próximo pendente
+                </AppButton>
+              ) : null}
+            </div>
+          ) : null}
         </Surface>
       )}
 

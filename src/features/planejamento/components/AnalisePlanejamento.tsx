@@ -1,25 +1,23 @@
-import {Drawer} from '../../../components/overlays/Drawer';
-import {SaudeEditorialPanel} from './SaudeEditorialPanel';
-import type {ComponentProps} from 'react';
+import { Drawer } from '../../../components/overlays/Drawer';
+import { SaudeEditorialPanel } from './SaudeEditorialPanel';
+import type { ComponentProps } from 'react';
 
 type PanelProps = ComponentProps<typeof SaudeEditorialPanel>;
 
-/** Análise da Saúde: drawer por cima da tela, em qualquer largura; no celular ocupa a tela inteira. */
+/** Análise da Saúde: drawer de 720px no desktop e tela inteira no celular. */
 export function AnalisePlanejamento({
   aberta,
   onFechar,
   ...panel
-}: {aberta: boolean; onFechar: () => void} & Omit<PanelProps, 'modo' | 'onFechar'>) {
+}: { aberta: boolean; onFechar: () => void } & Omit<PanelProps, 'modo' | 'onFechar'>) {
   return (
     <Drawer
       open={aberta}
       onClose={onFechar}
-      widthClassName="max-w-xl"
-      ariaLabel="Análise da Saúde"
+      widthClassName="sm:max-w-[720px]"
+      ariaLabel="Saúde do Planejamento"
     >
-      <div className="h-full min-h-0 overflow-y-auto bg-[var(--bg-elevated)]">
-        <SaudeEditorialPanel modo="analise" onFechar={onFechar} {...panel} />
-      </div>
+      <SaudeEditorialPanel modo="analise" onFechar={onFechar} {...panel} />
     </Drawer>
   );
 }
