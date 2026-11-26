@@ -234,7 +234,7 @@ export function CalendarMonthGrid({
                     className={cn(
                       'flex h-6 w-6 items-center justify-center rounded-full',
                       isToday
-                        ? 'bg-[#ec4899] text-white shadow-sm'
+                        ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
                         : isSelected
                           ? 'bg-[color-mix(in_srgb,var(--accent),transparent_88%)] text-[var(--text-primary)]'
                           : inMonth

@@ -160,7 +160,7 @@ export function IdeaQuickCapture({
     return (
       <div
         ref={containerRef}
-        className="rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--surface-editorial)] p-2 shadow-[var(--shadow-soft)] transition-all"
+        className="rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--surface-editorial)] p-2 transition-all"
       >
         <div className="flex items-center gap-2">
           <div className="group relative min-w-0 flex-1">
@@ -251,7 +251,7 @@ export function IdeaQuickCapture({
   return (
     <div
       ref={containerRef}
-      className="stack-sm rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--surface-editorial)] p-2.5 shadow-[var(--shadow-soft)]"
+      className="stack-sm rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--surface-editorial)] p-2.5"
     >
       <div className="flex items-center gap-2">
         <div className="group relative min-w-0 flex-1">

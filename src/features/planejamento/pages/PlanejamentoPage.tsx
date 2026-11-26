@@ -34,6 +34,7 @@ import {useAppContext} from '../../../context/AppContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
+import {PAGE_SECTION} from '../../../layouts/navigation/navConfig';
 import {cn, tintedTextColor} from '../../../lib/utils';
 import {TemaField} from '../../contents/components/detail/TemaField';
 import {buildContentDetailRoute} from '../../contents/lib/contentDetailRoute';
@@ -478,7 +479,7 @@ export function PlanejamentoPage() {
       contentWidth="wide"
       header={(
         <DesktopPageHeader
-          section="Produção"
+          section={PAGE_SECTION.estrategia}
           title="Planejamento"
           subtitle="Distribua suas pautas e encontre espaço para novas ideias."
           actions={(

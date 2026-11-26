@@ -24,6 +24,7 @@ import {
   CalendarQuickCreatePopover,
 } from '../../../components/calendar';
 import {AppButton} from '../../../components/ui/AppButton';
+import {EmptyState} from '../../../components/ui/EmptyState';
 import {FilterBar} from '../../../components/ui/FilterBar';
 import {MultiFilterChips} from '../../../components/ui/MultiFilterChips';
 import {PageToolbar} from '../../../components/ui/PageToolbar';
@@ -33,6 +34,7 @@ import {TagSelect} from '../../../components/ui/TagSelect';
 import {ToolbarSearchInput} from '../../../components/ui/ToolbarSearchInput';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
+import {PAGE_SECTION} from '../../../layouts/navigation/navConfig';
 import {Dialog} from '../../../components/overlays/Dialog';
 import {OverlayBody} from '../../../components/overlays/OverlayBody';
 import {OverlayFooter} from '../../../components/overlays/OverlayFooter';
@@ -533,7 +535,7 @@ export function EditorialCalendarPage() {
       contentWidth="wide"
       header={
         <DesktopPageHeader
-          section="Agenda"
+          section={PAGE_SECTION.agenda}
           title="Calendário"
           rowAlign="center"
           actions={(
@@ -952,7 +954,7 @@ function CalendarWeekView({
               <Text variant="bodyStrong" as="span" className={cn(
                 'flex h-8 w-8 items-center justify-center rounded-full text-[var(--text-primary)]',
                 isToday
-                  ? 'bg-[#ec4899] text-white shadow-sm'
+                  ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
                   : active
                     ? 'bg-[var(--accent-blue)] text-[var(--text-on-accent-color)]'
                     : ''
@@ -984,9 +986,7 @@ function CalendarWeekView({
             >
               <div className="stack-sm">
                 {entries.length === 0 ? (
-                  <div className="rounded-[var(--radius-input)] border border-dashed border-[var(--border-color)] px-3 py-8 text-center t-meta text-[var(--text-tertiary)]">
-                    Livre
-                  </div>
+                  <EmptyState compact title="Livre" description="" />
                 ) : (
                   entries.map(entry => (
                     entry.type === 'publish' ? (

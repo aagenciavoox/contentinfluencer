@@ -226,7 +226,7 @@ export function TodayHome({
         ) : book ? (
           <Surface variant="outlined" padding="md" className="flex h-full flex-col justify-between" onClick={onOpenBook}>
             <div className="flex gap-4">
-              <div className="h-44 w-32 shrink-0 overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)] shadow-sm">
+              <div className="h-44 w-32 shrink-0 overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-color)] bg-[var(--bg-hover)]">
                 {book.capaUrl ? (
                   <img src={book.capaUrl} alt="" className="h-full w-full object-cover" />
                 ) : (

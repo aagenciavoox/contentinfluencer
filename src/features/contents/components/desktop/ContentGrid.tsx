@@ -1,3 +1,4 @@
+import { EmptyState } from '../../../../components/ui/EmptyState';
 import { Text } from '../../../../components/ui/Text';
 import { Check } from 'lucide-react';
 import { CountBadge } from '../../../../components/ui/CountBadge';
@@ -134,8 +135,8 @@ export function ContentGrid({
     return (
       <div className="stack-md">
         {selectionToolbar}
-        <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-color)] px-4 py-16 text-center">
-          <Text variant="secondary" as="p" role="status" className="text-[var(--text-secondary)]">{emptyMessage}</Text>
+        <div role="status">
+          <EmptyState title={emptyMessage} description="" />
         </div>
       </div>
     );

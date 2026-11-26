@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CalendarDays, Plus } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { useDomainsReady } from '../../../hooks/useDomainsReady';
+import { PAGE_SECTION } from '../../../layouts/navigation/navConfig';
 import { DesktopPageHeader } from '../../../layouts/page/DesktopPageHeader';
 import { PageLayout } from '../../../layouts/page/PageLayout';
 import { AppButton } from '../../../components/ui/AppButton';
@@ -72,14 +73,14 @@ export function AnalyticsPage() {
       contentWidth="wide"
       header={(
         <DesktopPageHeader
-          section="Estratégia"
-          title="Análise"
+          section={PAGE_SECTION.biblioteca}
+          title="Panorama"
           backLabel="Biblioteca"
           backTo="/biblioteca"
           rowAlign="center"
           actions={(
             <AppButton variant="primary" leftIcon={<Plus className="h-4 w-4" />} onClick={newItem}>
-              Novo item
+              Nova obra
             </AppButton>
           )}
         />
@@ -97,7 +98,7 @@ export function AnalyticsPage() {
           <div className="flex items-center gap-2 [&>*:first-child]:min-w-0 [&>*:first-child]:flex-1">
             {periodSelect}
             <AppButton variant="primary" leftIcon={<Plus className="h-4 w-4" />} onClick={newItem}>
-              Novo item
+              Nova obra
             </AppButton>
           </div>
           <LibraryFormatChips value={format} onChange={setFormat} />
