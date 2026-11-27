@@ -256,7 +256,8 @@ export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMe
       return {
         title: 'Legendas',
         mode: 'back',
-        backTo: '/criacao',
+        // Com um item aberto (`?item=`), voltar leva para a fila.
+        backTo: new URLSearchParams(search).has('item') ? '/criacao/legendas' : '/criacao',
         titleVariant: 'compact-center',
       };
     case '/criacao/transcricao':

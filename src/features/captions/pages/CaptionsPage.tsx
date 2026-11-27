@@ -1,5 +1,6 @@
 import { Captions } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { FilterBar } from '../../../components/ui/FilterBar';
 import { PageToolbar } from '../../../components/ui/PageToolbar';
@@ -35,16 +36,19 @@ const STATUS_OPTIONS: { id: CaptionListFilter; label: string }[] = [
 export function CaptionsPage() {
   const { state, updateContent } = useAppContext();
   const isMobile = useIsMobile();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [filter, setFilter] = useState<CaptionListFilter>('todas');
   const [selectedAccount, setSelectedAccount] = useState<string>('todas');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
+  const mobileItemId = searchParams.get('item');
+  const mobileViewingEditor = isMobile && Boolean(mobileItemId);
+
   // Selected Content (Roteiro) and publication within that Content
-  const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
+  const [selectedContentId, setSelectedContentId] = useState<string | null>(() => mobileItemId);
   const [selectedPublicacaoId, setSelectedPublicacaoId] = useState<string | null>(null);
-  const [mobileViewingEditor, setMobileViewingEditor] = useState(false);
   const [focusEditorTarget, setFocusEditorTarget] = useState<{ id: string; seq: number } | null>(null);
 
   const orderRef = useRef<{ key: string; ids: string[] }>({ key: '', ids: [] });
@@ -77,8 +81,19 @@ export function CaptionsPage() {
 
   const pageData = useMemo(() => paginateCaptionQueue(items, page, CAPTION_PAGE_SIZE), [items, page]);
 
+  // Sync URL ?item= with selected roteiro on mobile (and deep links)
+  useEffect(() => {
+    if (!mobileItemId) return;
+    if (selectedContentId !== mobileItemId) {
+      const target = items.find(item => item.content.id === mobileItemId);
+      setSelectedContentId(mobileItemId);
+      setSelectedPublicacaoId(target?.activePublicacoes[0]?.id ?? null);
+    }
+  }, [mobileItemId, items, selectedContentId]);
+
   // Ensure a roteiro is selected by default
   useEffect(() => {
+    if (mobileItemId) return;
     if (items.length > 0) {
       if (!selectedContentId || !items.some(item => item.content.id === selectedContentId)) {
         setSelectedContentId(items[0].content.id);
@@ -88,7 +103,7 @@ export function CaptionsPage() {
       setSelectedContentId(null);
       setSelectedPublicacaoId(null);
     }
-  }, [items, selectedContentId]);
+  }, [items, selectedContentId, mobileItemId]);
 
   useEffect(() => {
     setPage(1);
@@ -195,10 +210,17 @@ export function CaptionsPage() {
     return null;
   }, [items, selectedContentId]);
 
+  const openMobileEditor = (contentId: string, replace = false) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('item', contentId);
+    setSearchParams(next, { replace });
+  };
+
   const handleNextPending = () => {
     if (!nextPendingItem) return;
     setSelectedContentId(nextPendingItem.content.id);
     setSelectedPublicacaoId(nextPendingItem.activePublicacoes[0]?.id ?? null);
+    if (isMobile) openMobileEditor(nextPendingItem.content.id, true);
     const nextIndex = items.findIndex(item => item.content.id === nextPendingItem.content.id);
     if (nextIndex >= 0) {
       setPage(Math.floor(nextIndex / CAPTION_PAGE_SIZE) + 1);
@@ -292,12 +314,12 @@ export function CaptionsPage() {
                     onSelect={() => {
                       setSelectedContentId(item.content.id);
                       setSelectedPublicacaoId(item.activePublicacoes[0]?.id ?? null);
-                      if (isMobile) setMobileViewingEditor(true);
+                      if (isMobile) openMobileEditor(item.content.id);
                     }}
                     onWriteNow={() => {
                       setSelectedContentId(item.content.id);
                       setSelectedPublicacaoId(item.activePublicacoes[0]?.id ?? null);
-                      if (isMobile) setMobileViewingEditor(true);
+                      if (isMobile) openMobileEditor(item.content.id);
                       setFocusEditorTarget(prev => ({
                         id: item.content.id,
                         seq: (prev?.seq ?? 0) + 1,
@@ -349,7 +371,6 @@ export function CaptionsPage() {
                   series={state.series}
                   pilares={state.pilares}
                   contas={state.platforms}
-                  onBackToList={isMobile ? () => setMobileViewingEditor(false) : undefined}
                   onNextPending={handleNextPending}
                   hasNextPending={nextPendingItem != null}
                   focusSignal={focusEditorTarget?.id === selectedItem.content.id ? focusEditorTarget.seq : 0}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, ArrowUpRight, Calendar, Check, Copy, FileText, Layers, MoreVertical, Plus, Trash2, X } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Calendar, Check, Copy, FileText, Layers, MoreVertical, Plus, Trash2, X } from 'lucide-react';
 import { AppButton } from '../../../components/ui/AppButton';
 import { ChoiceChips } from '../../../components/ui/ChoiceChips';
 import { Surface } from '../../../components/ui/Surface';
@@ -29,7 +29,6 @@ interface CaptionEditorPanelProps {
   series: Serie[];
   pilares: Pilar[];
   contas: readonly ContaRef[];
-  onBackToList?: () => void;
   onNextPending?: () => void;
   hasNextPending?: boolean;
   focusSignal?: number;
@@ -45,7 +44,6 @@ export function CaptionEditorPanel({
   series,
   pilares,
   contas,
-  onBackToList,
   onNextPending,
   hasNextPending = false,
   focusSignal = 0,
@@ -410,15 +408,7 @@ export function CaptionEditorPanel({
     <div className="stack-md min-w-0">
       {/* Cabeçalho do roteiro (sempre visível no desktop e mobile) */}
       <div className="stack-sm">
-        {onBackToList ? (
-          <div className="lg:hidden">
-            <AppButton size="sm" variant="ghost" onClick={onBackToList} leftIcon={<ArrowLeft className="h-4 w-4" />}>
-              Voltar para fila
-            </AppButton>
-          </div>
-        ) : null}
-
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-start md:justify-between">
           <div className="min-w-0 flex-1 stack-xs">
             {trilhaRoteiro.length > 0 ? (
               <Text variant="meta" as="p" className="text-[var(--text-secondary)]">
@@ -430,22 +420,23 @@ export function CaptionEditorPanel({
             </Text>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+          <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:items-center md:gap-1.5 md:shrink-0">
             <AppButton
               size="xs"
-              variant={copyScriptState.copied ? 'primary' : 'secondary'}
+              variant="secondary"
               disabled={copyScriptState.disabled}
               onClick={() => void copyScriptState.copyScript()}
               aria-label={copyScriptState.ariaLabel}
               title={copyScriptState.ariaLabel}
               leftIcon={copyScriptState.copied ? <Check className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}
+              className="w-full justify-center md:w-auto"
             >
               {copyScriptState.label}
             </AppButton>
             <Link
               to={buildContentDetailRoute(content.id)}
-              state={{ from: '/criacao/legendas' }}
-              className="inline-flex h-8 items-center gap-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-2.5 t-label text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              state={{ from: `/criacao/legendas?item=${content.id}` }}
+              className="inline-flex h-11 w-full items-center justify-center gap-1 rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-elevated)] px-2.5 t-label text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] md:h-8 md:w-auto"
               title="Abrir roteiro completo"
               aria-label={`Abrir roteiro de ${tituloRoteiro}`}
             >
@@ -457,7 +448,11 @@ export function CaptionEditorPanel({
       </div>
 
       {/* Account tabs com indicador de preenchimento por conta */}
-      <div className="flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Contas desta pauta">
+      <div
+        className="mobile-h-scroll scrollbar-none flex flex-nowrap items-center gap-1.5 overflow-x-auto md:flex-wrap md:overflow-visible"
+        role="tablist"
+        aria-label="Contas desta pauta"
+      >
         {activePublicacoes.map(pub => {
           const pubConta = contaDaRef(pub.platformId, contas);
           const pubNome = pubConta ? rotuloConta(pubConta) : pub.platformId;
@@ -474,7 +469,7 @@ export function CaptionEditorPanel({
             <div
               key={pub.id}
               className={cn(
-                'group inline-flex items-center rounded-[var(--radius-pill)] border transition-colors select-none',
+                'group inline-flex shrink-0 items-center rounded-[var(--radius-pill)] border transition-colors select-none',
                 isActive
                   ? 'border-[var(--text-primary)] bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-xs'
                   : 'border-[var(--border-color)] bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
@@ -485,7 +480,7 @@ export function CaptionEditorPanel({
                 role="tab"
                 aria-selected={isActive}
                 onClick={() => onSelectPublicacaoId(pub.id)}
-                className="inline-flex items-center gap-1.5 py-1.5 pl-3 pr-1.5"
+                className="inline-flex min-h-11 items-center gap-1.5 py-1.5 pl-3 pr-1.5 md:min-h-0"
               >
                 <span
                   aria-hidden
@@ -495,8 +490,8 @@ export function CaptionEditorPanel({
                     pubPronta ? 'bg-[var(--success)]' : 'bg-[var(--warning)]',
                   )}
                 />
-                <PlatformIcon platform={iconePub} colored className="h-4 w-4" />
-                <Text variant="label" as="span" className="text-current">
+                <PlatformIcon platform={iconePub} colored className="h-4 w-4 shrink-0" />
+                <Text variant="label" as="span" className="whitespace-nowrap text-current">
                   {pubNome}{complementoFormato}
                 </Text>
               </button>
@@ -507,13 +502,13 @@ export function CaptionEditorPanel({
                   pedirDesativarConta(pub.id);
                 }}
                 className={cn(
-                  'mr-1.5 p-0.5 rounded-full opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100 hover:text-[var(--danger)] transition-opacity',
+                  'mr-1.5 inline-flex items-center justify-center rounded-full p-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:min-h-9 pointer-coarse:min-w-9 pointer-coarse:opacity-100 hover:text-[var(--danger)] transition-opacity',
                   'text-[var(--text-tertiary)]',
                 )}
                 title={`Desativar ${pubNome} desta pauta`}
                 aria-label={`Desativar ${pubNome} desta pauta`}
               >
-                <X className="h-3 w-3" />
+                <X className="h-3.5 w-3.5 md:h-3 md:w-3" />
               </button>
             </div>
           );

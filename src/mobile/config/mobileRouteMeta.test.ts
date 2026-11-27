@@ -39,6 +39,7 @@ const legendas = getMobileRouteMeta('/criacao/legendas');
 assert.equal(legendas.title, 'Legendas');
 assert.equal(legendas.mode, 'back');
 assert.equal(legendas.backTo, '/criacao');
+assert.equal(getMobileRouteMeta('/criacao/legendas', '?item=content-1').backTo, '/criacao/legendas');
 
 const transcricao = getMobileRouteMeta('/criacao/transcricao');
 assert.equal(transcricao.title, 'Transcrição');
