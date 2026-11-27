@@ -1123,11 +1123,11 @@ export function BurstModeMobileScreen({
               type="button"
               onClick={handleRedoSection}
               className={cn(
-                'inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1',
+                'inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3',
                 theme.border
               )}
             >
-              <RotateCcw className="h-3 w-3" />
+              <RotateCcw className="h-3.5 w-3.5" />
               <Text variant="button" as="span" className="text-inherit">Refazer</Text>
             </button>
           </div>
@@ -1135,7 +1135,7 @@ export function BurstModeMobileScreen({
 
         <div
           className={cn(
-            'pointer-events-auto mx-auto flex items-center gap-2 rounded-[var(--radius-overlay)] border p-2 shadow-[var(--shadow-dropdown)]',
+            'pointer-events-auto mx-auto flex items-center gap-1.5 rounded-[var(--radius-overlay)] border p-2 shadow-[var(--shadow-dropdown)]',
             theme.card,
             theme.border
           )}
@@ -1179,7 +1179,7 @@ export function BurstModeMobileScreen({
             )}
           >
             <CheckCircle2 className="h-4 w-4 shrink-0" />
-            <span className="truncate">{currentEntry.gravado ? 'Gravado' : 'Marcar como gravado'}</span>
+            <span className="truncate">{currentEntry.gravado ? 'Gravado' : 'Marcar gravado'}</span>
           </button>
           <ActionIconButton
             textClassName={theme.text}
@@ -1362,15 +1362,16 @@ function ActionIconButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-label={label}
+      title={label}
       className={cn(
-        'flex flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] border px-3 py-3 text-center transition-colors disabled:opacity-40',
+        'flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-md)] border transition-colors disabled:opacity-40',
         active
           ? 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_12%,transparent)] text-[var(--success)]'
           : cn('border-[var(--border-color)]', textClassName ?? 'text-[var(--text-primary)]')
       )}
     >
       {icon}
-      <Text variant="label" as="span" className="text-inherit">{label}</Text>
     </button>
   );
 }
