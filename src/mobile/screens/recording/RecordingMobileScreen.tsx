@@ -4,8 +4,9 @@ import {energiaDaSerie} from '../../../features/editorial/lib/herancaSerie';
 import {contentPassaFiltroSerie} from '../../../features/editorial/lib/filtroSubarvore';
 import {seriesParaFiltro} from '../../../features/settings/lib/serieAgrupamento';
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
-import { Check, Clapperboard, Layers3, Plus, SearchCheck, Tags, Video } from 'lucide-react';
+import { Check, Clapperboard, Layers3, Plus, SearchCheck, Tags, Video, Zap } from 'lucide-react';
 import type { Content, Pilar, Platform, RecordingBlock, Serie } from '../../../lib/database';
+import { Dialog } from '../../../components/overlays/Dialog';
 import { PlatformIcons } from '../../../components/ui/PlatformIcons';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { SkeletonList } from '../../../components/ui/Skeleton';
@@ -17,6 +18,7 @@ import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { MobileListCard } from '../../components/MobileListCard';
 import { MobileSearchBar } from '../../components/MobileSearchBar';
 import { MobileSegmentTabs } from '../../components/MobileSegmentTabs';
+import { MobileStickyActionBar } from '../../components/MobileStickyActionBar';
 import {getRecordingBlockProgress, normalizeRecordingTags, recordingTagChipStyle, resolveRecordingContextSummary} from '../../../features/recording/lib/recordingWorkflow';
 import { TagSelect } from '../../../components/ui/TagSelect';
 import { AppButton } from '../../../components/ui/AppButton';
@@ -252,24 +254,37 @@ export function RecordingMobileScreen({
       <section className="stack-md">
         {activeTab === 'queue' ? (
           <>
-            {onGravarComEnergia ? (
-              <div className="flex justify-end">
-                <AppButton variant="secondary" size="sm" disabled={!countsReady} onClick={onGravarComEnergia}>Gravar com esta energia</AppButton>
+            <div className="flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <MobileSearchBar
+                  value={search}
+                  onChange={setSearch}
+                  placeholder="Buscar roteiro, pilar ou série"
+                  onFilterClick={() => setIsFilterSheetOpen(true)}
+                  filterLabel="Abrir filtros da gravação"
+                  activeFilterCount={activeFilterCount}
+                />
               </div>
-            ) : null}
-            <MobileSearchBar
-              value={search}
-              onChange={setSearch}
-              placeholder="Buscar roteiro, pilar ou série"
-              onFilterClick={() => setIsFilterSheetOpen(true)}
-              filterLabel="Abrir filtros da gravação"
-              activeFilterCount={activeFilterCount}
-            />
+              {onGravarComEnergia ? (
+                <AppButton
+                  variant="secondary"
+                  size="sm"
+                  disabled={!countsReady}
+                  onClick={onGravarComEnergia}
+                  leftIcon={<Zap className="h-4 w-4" />}
+                  aria-label="Gravar com esta energia"
+                  className="shrink-0"
+                >
+                  Energia
+                </AppButton>
+              ) : null}
+            </div>
             {redesRapidas.length > 1 ? (
               <CreationRedeQuickFilter
                 redes={redesRapidas}
                 value={redesFilter}
                 onChange={setRedesFilter}
+                compacto
               />
             ) : null}
 
@@ -352,12 +367,12 @@ export function RecordingMobileScreen({
                         <>
                           <PlatformIcons redes={redesDoItemDeCriacao(content, platforms)} max={4} />
                           {showWordCount ? (
-                            <div className="basis-full">
-                              <TextCount
-                                value={contentReadableBody(content) || htmlToReadableText(content.notes || '')}
-                                mode="words"
-                              />
-                            </div>
+                            <TextCount
+                              as="span"
+                              value={contentReadableBody(content) || htmlToReadableText(content.notes || '')}
+                              mode="words"
+                              className="text-left"
+                            />
                           ) : null}
                           {pilarName ? (
                             <Text variant="label" as="span"
@@ -390,10 +405,10 @@ export function RecordingMobileScreen({
                     />
                     {bodyStatus === 'error' && onRetryHydration ? (
                       <AppButton
-                        variant="ghost"
+                        variant="secondary"
                         size="xs"
                         onClick={() => onRetryHydration?.(content.id)}
-                        className="self-start border-[var(--border-color)]"
+                        className="self-start"
                       >
                         Tentar novamente
                       </AppButton>
@@ -414,99 +429,128 @@ export function RecordingMobileScreen({
             )}
 
             {selectedIds.size > 0 ? (
-              <div className="stack-md rounded-[var(--radius-card-mobile)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
-                {showCreateForm ? (
-                  <>
-                    {recordingBlocks.length > 0 ? (
-                      <SegmentTabs<'novo' | 'existente'>
-                        ariaLabel="Onde guardar os roteiros"
-                        options={[
-                          { id: 'novo', label: 'Novo bloco' },
-                          { id: 'existente', label: 'Bloco existente' },
-                        ]}
-                        value={blockMode}
-                        onChange={setBlockMode}
-                      />
-                    ) : null}
+              <>
+                <div className="h-24" aria-hidden />
+                <MobileStickyActionBar
+                  summary={`${selectedIds.size} ${selectedIds.size === 1 ? 'selecionado' : 'selecionados'}`}
+                  secondaryAction={{
+                    label: 'Cancelar',
+                    onClick: () => {
+                      setSelectedIds(new Set());
+                      cancelBlockForm();
+                    },
+                  }}
+                  primaryAction={{
+                    label: recordingBlocks.length > 0
+                      ? `Bloco (${selectedIds.size})`
+                      : `Criar bloco (${selectedIds.size})`,
+                    onClick: () => setShowCreateForm(true),
+                    leftIcon: <Plus className="h-4 w-4" />,
+                  }}
+                />
+              </>
+            ) : null}
 
-                    {blockMode === 'novo' ? (
-                      <>
-                        <input
-                          autoFocus
-                          aria-label="Nome do bloco"
-                          value={blockName}
-                          onChange={(event) => setBlockName(event.target.value)}
-                          placeholder={`Nome do bloco (${selectedIds.size} ${selectedIds.size === 1 ? 'selecionado' : 'selecionados'})`}
-                          className="w-full"
-                        />
-                        <TagSelect
-                          label="Marcadores de gravação"
-                          hint="Selecione ou crie marcadores para organizar o bloco."
-                          values={blockTags}
-                          onChange={setBlockTags}
-                          options={availableTags.map(tag => ({ value: tag, label: tag }))}
-                          creatable
-                          placeholder="Ex.: roupa preta, estante, caneca"
-                        />
-                        <div className="flex gap-3">
-                          <AppButton variant="primary" onClick={handleCreate} disabled={!blockName.trim()} className="flex-1">
-                            Criar bloco
-                          </AppButton>
-                          <AppButton variant="secondary" onClick={cancelBlockForm} className="flex-1">
-                            Cancelar
-                          </AppButton>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <Text variant="label" as="p" id="recording-existing-block-label" className="text-[var(--text-tertiary)]">Escolher bloco existente</Text>
-                        <div className="grid max-h-48 gap-2 overflow-y-auto" role="group" aria-labelledby="recording-existing-block-label">
-                          {recordingBlocks.map(block => (
-                            <button
-                              key={block.id}
-                              type="button"
-                              onClick={() => setTargetBlockId(block.id)}
-                              aria-pressed={targetBlockId === block.id}
-                              className={cn(
-                                'flex min-h-11 items-center justify-between rounded-[var(--radius-input)] border px-4 py-3 text-left t-body focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-                                targetBlockId === block.id
-                                  ? 'border-[var(--text-primary)] bg-[var(--text-primary)]/5 text-[var(--text-primary)]'
-                                  : 'border-[var(--border-color)] text-[var(--text-primary)]'
-                              )}
-                            >
-                              <span className="truncate">{block.name}</span>
-                              <Text variant="meta" as="span" className="ml-2 flex shrink-0 items-center gap-2 text-[var(--text-tertiary)]">
-                                {block.contents.length} {block.contents.length === 1 ? 'roteiro' : 'roteiros'}
-                                {targetBlockId === block.id ? <Check className="h-4 w-4 text-[var(--text-primary)]" /> : null}
-                              </Text>
-                            </button>
-                          ))}
-                        </div>
-                        <div className="flex gap-3">
-                          <AppButton
-                            variant="primary"
-                            onClick={() => void handleAddToExisting()}
-                            disabled={!targetBlockId}
-                            className="flex-1"
-                          >
-                            Adicionar ao bloco
-                          </AppButton>
-                          <AppButton variant="secondary" onClick={cancelBlockForm} className="flex-1">
-                            Cancelar
-                          </AppButton>
-                        </div>
-                      </>
-                    )}
+            <Dialog
+              open={showCreateForm && selectedIds.size > 0}
+              onClose={cancelBlockForm}
+              fitVisualViewport
+              ariaLabel="Guardar roteiros em bloco"
+            >
+              <div className="stack-md p-4">
+                <Text variant="sectionTitle" as="h2">
+                  {recordingBlocks.length > 0 ? 'Guardar em bloco' : 'Criar bloco'}
+                </Text>
+
+                {recordingBlocks.length > 0 ? (
+                  <SegmentTabs<'novo' | 'existente'>
+                    ariaLabel="Onde guardar os roteiros"
+                    options={[
+                      { id: 'novo', label: 'Novo bloco' },
+                      { id: 'existente', label: 'Bloco existente' },
+                    ]}
+                    value={blockMode}
+                    onChange={setBlockMode}
+                  />
+                ) : null}
+
+                {blockMode === 'novo' ? (
+                  <>
+                    <div className="stack-xs">
+                      <label htmlFor="recording-mobile-block-name" className="t-label text-[var(--text-secondary)]">
+                        Nome do bloco
+                      </label>
+                      <input
+                        id="recording-mobile-block-name"
+                        autoFocus
+                        value={blockName}
+                        onChange={(event) => setBlockName(event.target.value)}
+                        placeholder={`Ex.: Gravação de quinta (${selectedIds.size})`}
+                        className="input w-full"
+                      />
+                    </div>
+                    <TagSelect
+                      label="Marcadores de gravação"
+                      hint="Selecione ou crie marcadores para organizar o bloco."
+                      values={blockTags}
+                      onChange={setBlockTags}
+                      options={availableTags.map(tag => ({ value: tag, label: tag }))}
+                      creatable
+                      placeholder="Ex.: roupa preta, estante, caneca"
+                    />
+                    <div className="flex gap-3">
+                      <AppButton variant="secondary" onClick={cancelBlockForm} className="flex-1">
+                        Cancelar
+                      </AppButton>
+                      <AppButton variant="primary" onClick={handleCreate} disabled={!blockName.trim()} className="flex-1">
+                        Criar bloco
+                      </AppButton>
+                    </div>
                   </>
                 ) : (
-                  <AppButton variant="primary" fullWidth onClick={() => setShowCreateForm(true)} leftIcon={<Plus className="h-4 w-4" />}>
-                    {recordingBlocks.length > 0
-                      ? `Criar ou adicionar ao bloco (${selectedIds.size})`
-                      : `Criar bloco (${selectedIds.size})`}
-                  </AppButton>
+                  <>
+                    <Text variant="label" as="p" id="recording-existing-block-label" className="text-[var(--text-tertiary)]">
+                      Escolher bloco existente
+                    </Text>
+                    <div className="grid max-h-48 gap-2 overflow-y-auto" role="group" aria-labelledby="recording-existing-block-label">
+                      {recordingBlocks.map(block => (
+                        <button
+                          key={block.id}
+                          type="button"
+                          onClick={() => setTargetBlockId(block.id)}
+                          aria-pressed={targetBlockId === block.id}
+                          className={cn(
+                            'flex min-h-11 items-center justify-between rounded-[var(--radius-input)] border px-4 py-3 text-left t-body focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                            targetBlockId === block.id
+                              ? 'border-[var(--text-primary)] bg-[var(--text-primary)]/5 text-[var(--text-primary)]'
+                              : 'border-[var(--border-color)] text-[var(--text-primary)]'
+                          )}
+                        >
+                          <span className="truncate">{block.name}</span>
+                          <Text variant="meta" as="span" className="ml-2 flex shrink-0 items-center gap-2 text-[var(--text-tertiary)]">
+                            {block.contents.length} {block.contents.length === 1 ? 'roteiro' : 'roteiros'}
+                            {targetBlockId === block.id ? <Check className="h-4 w-4 text-[var(--text-primary)]" /> : null}
+                          </Text>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex gap-3">
+                      <AppButton variant="secondary" onClick={cancelBlockForm} className="flex-1">
+                        Cancelar
+                      </AppButton>
+                      <AppButton
+                        variant="primary"
+                        onClick={() => void handleAddToExisting()}
+                        disabled={!targetBlockId}
+                        className="flex-1"
+                      >
+                        Adicionar ao bloco
+                      </AppButton>
+                    </div>
+                  </>
                 )}
               </div>
-            ) : null}
+            </Dialog>
           </>
         ) : (
           <>
