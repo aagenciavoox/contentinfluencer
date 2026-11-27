@@ -21,6 +21,7 @@ import { FilterChips } from '../../../components/ui/FilterChips';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { Surface } from '../../../components/ui/Surface';
 import { Text } from '../../../components/ui/Text';
+import { useIsMobile } from '../../../hooks/useIsMobile';
 import { cn } from '../../../lib/utils';
 import { LibraryGenreIcon } from '../../library/components/LibraryGenreIcon';
 import type { BibliotecaItem } from '../../../lib/database';
@@ -97,14 +98,24 @@ const FORMAT_OPTIONS: Array<{ id: LibraryFormatFilter; label: string }> = [
   ...LIBRARY_FORMATS.map(format => ({ id: format.id, label: format.label })),
 ];
 
-export function LibraryFormatChips({ value, onChange }: { value: LibraryFormatFilter; onChange: (value: LibraryFormatFilter) => void }) {
+export function LibraryFormatChips({
+  value,
+  onChange,
+  layout = 'wrap',
+}: {
+  value: LibraryFormatFilter;
+  onChange: (value: LibraryFormatFilter) => void;
+  layout?: 'wrap' | 'scroll';
+}) {
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex min-w-0 items-center gap-3">
       <Text variant="bodyStrong" as="span" className="hidden shrink-0 md:inline">Formato</Text>
       <FilterChips<LibraryFormatFilter>
         ariaLabel="Formato"
         value={value}
         onChange={onChange}
+        layout={layout}
+        className={layout === 'scroll' ? 'min-w-0 flex-1' : undefined}
         options={FORMAT_OPTIONS.map(option => ({
           id: option.id,
           label: option.label,
@@ -144,6 +155,7 @@ export function LibraryKpis({ analysis, formatLabel, rangeText, loading }: { ana
 }
 
 export function LibraryConsumptionTable({ analysis, loading, showAllFormats }: { analysis: LibraryPeriodAnalysis; loading: boolean; showAllFormats: boolean }) {
+  const isMobile = useIsMobile();
   const [showEmpty, setShowEmpty] = useState(false);
   const emptyRows = analysis.formats.filter(row => row.inCollection === 0);
   // Em "Todos", formatos sem itens ficam recolhidos; com um formato escolhido, a linha sempre aparece.
@@ -155,12 +167,45 @@ export function LibraryConsumptionTable({ analysis, loading, showAllFormats }: {
       <CardHeader
         title="Consumo por formato"
       />
-      <div className="mt-4 overflow-x-auto">
-        {loading ? (
-          <div className="stack-md" aria-busy="true">
-            {['a', 'b', 'c'].map(key => <Skeleton key={key} className="h-9 w-full" />)}
-          </div>
-        ) : (
+      {loading ? (
+        <div className="mt-4 stack-md" aria-busy="true">
+          {['a', 'b', 'c'].map(key => <Skeleton key={key} className="h-9 w-full" />)}
+        </div>
+      ) : isMobile ? (
+        <ul className="mt-4 divide-y divide-[var(--border-subtle)]">
+          {rows.map(row => {
+            const empty = row.inCollection === 0;
+            const metaParts = [
+              `Concluídos: ${row.completed}`,
+              `Em andamento: ${row.active}`,
+              ...(row.amount > 0 ? [formatConsumption(row)] : []),
+            ];
+            return (
+              <li
+                key={row.id}
+                className={cn(
+                  'py-3 first:pt-0 last:pb-0',
+                  empty ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-primary)]',
+                )}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span className={cn('shrink-0', empty && 'opacity-60')}><IconTile><FormatIcon tipo={row.id} /></IconTile></span>
+                    <span className={cn('truncate', !empty && 't-body-strong')}>{row.label}</span>
+                  </span>
+                  <span className={cn('shrink-0 tabular-nums', empty ? 't-meta' : 't-body-strong')}>
+                    {row.inCollection} <span className="t-meta font-normal text-[var(--text-secondary)]">no acervo</span>
+                  </span>
+                </div>
+                <Text variant="meta" as="p" className="mt-1.5 pl-11 tabular-nums text-[var(--text-secondary)]">
+                  {metaParts.join(' · ')}
+                </Text>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[600px] t-body">
             <thead>
               <tr className="bg-[var(--surface-subtle)] t-meta">
@@ -197,14 +242,14 @@ export function LibraryConsumptionTable({ analysis, loading, showAllFormats }: {
               })}
             </tbody>
           </table>
-        )}
-      </div>
+        </div>
+      )}
       {!loading && collapsible ? (
         <button
           type="button"
           onClick={() => setShowEmpty(value => !value)}
           aria-expanded={showEmpty}
-          className="mt-3 t-body-strong text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+          className="mt-3 inline-flex items-center pointer-coarse:min-h-11 t-body-strong text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
         >
           {showEmpty ? 'Ocultar formatos sem itens' : `Mostrar formatos sem itens (${emptyRows.length})`}
         </button>

@@ -95,13 +95,8 @@ export function AnalyticsPage() {
       mobileHeader={(
         <div className="stack-sm">
           <LibrarySectionTabs />
-          <div className="flex items-center gap-2 [&>*:first-child]:min-w-0 [&>*:first-child]:flex-1">
-            {periodSelect}
-            <AppButton variant="primary" leftIcon={<Plus className="h-4 w-4" />} onClick={newItem}>
-              Nova obra
-            </AppButton>
-          </div>
-          <LibraryFormatChips value={format} onChange={setFormat} />
+          {periodSelect}
+          <LibraryFormatChips value={format} onChange={setFormat} layout="scroll" />
         </div>
       )}
     >
