@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
 import { BookOpen, ChevronLeft, ChevronRight, ImagePlus, Loader2, Pin, Plus, SearchCheck } from 'lucide-react';
 import type { BibliotecaItem, BibliotecaItemMeta } from '../../../lib/database';
 import { cn } from '../../../lib/utils';
@@ -8,13 +7,13 @@ import { QueryViewState, type QueryViewStatus } from '../../../components/ui/Que
 import { MobileFilterSelect, MobileFilterSheet } from '../../components/MobileFilterSheet';
 import { Badge } from '../../../components/ui/Badge';
 import { FilterChips } from '../../../components/ui/FilterChips';
-import { SegmentTabs } from '../../../components/ui/SegmentTabs';
 import { MobileSearchBar } from '../../components/MobileSearchBar';
 import { AppButton } from '../../../components/ui/AppButton';
 import { EMPTY } from '../../../lib/uiCopy';
 import { Text } from '../../../components/ui/Text';
 import { ValorVazio } from '../../../components/ui/ValorVazio';
 import { CoverFallback } from '../../../features/library/components/CoverFallback';
+import { LibrarySectionTabs } from '../../../features/library/components/LibrarySectionTabs';
 import type { BibliotecaCapaFilter } from '../../../features/library/components/LibraryToolbar';
 import { useAuth } from '../../../context/AuthContext';
 import { causaDoErro, mensagemDeErro, notifySaveFeedback } from '../../../lib/saveFeedback';
@@ -27,7 +26,6 @@ import {
 type BibliotecaTipo = BibliotecaItem['tipo'];
 type StatusLeitura = BibliotecaItem['status'];
 type LibraryMobileTab = 'current' | 'wishlist' | 'done';
-type LibrarySection = 'collection' | 'analysis';
 
 interface LibraryMobileScreenProps {
   items: BibliotecaItem[];
@@ -168,17 +166,11 @@ export function LibraryMobileScreen({
   errorMessage = null,
   onRetry,
 }: LibraryMobileScreenProps) {
-  const location = useLocation();
-  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<LibraryMobileTab>('current');
   const [typeFilter, setTypeFilter] = useState<'all' | BibliotecaTipo>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | StatusLeitura>('all');
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
-
-  const activeSection: LibrarySection = location.pathname === '/biblioteca/analise'
-    ? 'analysis'
-    : 'collection';
 
   const tabCounts = useMemo(
     () => ({
@@ -257,22 +249,10 @@ export function LibraryMobileScreen({
           {libraryTotal === 1 ? '1 obra' : `${libraryTotal.toLocaleString('pt-BR')} obras`}
         </Text>
       ) : null}
-      {/* Seção (Acervo / Panorama) é aba: trilho de largura toda, metades iguais, preenchido.
+      {/* Seção (Acervo / Panorama / Anotações) usa as mesmas abas nas três rotas.
           Momento (Agora / Fila / Feitos) é filtro: chip baixo e contornado, abaixo da aba. */}
       <div className="stack-sm">
-        <SegmentTabs<LibrarySection>
-          ariaLabel="Seções da biblioteca"
-          fullWidth
-          options={[
-            { id: 'collection', label: 'Acervo' },
-            { id: 'analysis', label: 'Panorama' },
-          ]}
-          value={activeSection}
-          onChange={section => {
-            if (section === activeSection) return;
-            navigate(section === 'analysis' ? '/biblioteca/analise' : '/biblioteca');
-          }}
-        />
+        <LibrarySectionTabs />
 
         <FilterChips<LibraryMobileTab>
           ariaLabel="Filtrar por momento"

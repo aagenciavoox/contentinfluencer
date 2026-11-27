@@ -72,6 +72,10 @@ assert.equal(getMobileRouteMeta('/menu').title, 'Menu');
 assert.equal(getMobileRouteMeta('/menu').mode, undefined);
 assert.equal(getMobileRouteMeta('/criacao').mode, undefined);
 assert.equal(getMobileRouteMeta('/biblioteca').mode, undefined);
+assert.equal(getMobileRouteMeta('/biblioteca/analise').title, 'Biblioteca');
+assert.equal(getMobileRouteMeta('/biblioteca/analise').mode, undefined);
+assert.equal(getMobileRouteMeta('/biblioteca/anotacoes').title, 'Biblioteca');
+assert.equal(getMobileRouteMeta('/biblioteca/anotacoes').mode, undefined);
 assert.equal(getMobileRouteMeta('/gravacao').mode, undefined);
 
 const recordingBlock = getMobileRouteMeta('/gravacao/bloco-123');

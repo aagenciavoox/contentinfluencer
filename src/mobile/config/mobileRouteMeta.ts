@@ -47,19 +47,10 @@ function isContentScriptTab(search: string) {
 }
 
 export function getMobileRouteMeta(pathname: string, search = ''): MobileRouteMeta {
-  if (pathname === '/biblioteca/analise') {
+  if (pathname === '/biblioteca/analise' || pathname === '/biblioteca/anotacoes') {
     return {
-      title: 'Análise',
-      mode: 'back',
-      backTo: '/biblioteca',
-    };
-  }
-
-  if (pathname === '/biblioteca/anotacoes') {
-    return {
-      title: 'Anotações',
-      mode: 'back',
-      backTo: '/biblioteca/analise',
+      title: GLOSSARY.biblioteca,
+      titleVariant: 'compact-center',
     };
   }
 
