@@ -32,6 +32,7 @@ import {OverlayFooter} from '../../../components/overlays/OverlayFooter';
 import {OverlayHeader} from '../../../components/overlays/OverlayHeader';
 import {useAppContext} from '../../../context/AppContext';
 import {useIsMobile} from '../../../hooks/useIsMobile';
+import {useDomainsReady} from '../../../hooks/useDomainsReady';
 import {PageLayout} from '../../../layouts/page/PageLayout';
 import {DesktopPageHeader} from '../../../layouts/page/DesktopPageHeader';
 import {PAGE_SECTION} from '../../../layouts/navigation/navConfig';
@@ -120,6 +121,11 @@ export function PlanejamentoPage() {
   const location = useLocation();
   const retornoPlanejamento = `${location.pathname}${location.search}`;
   const isMobile = useIsMobile();
+  const dataReady = useDomainsReady(['content', 'planejamento']);
+  const [focusDateKey, setFocusDateKey] = useState<string | null>(() => {
+    const dataParam = new URLSearchParams(location.search).get('data');
+    return dataParam && /^\d{4}-\d{2}-\d{2}$/.test(dataParam) ? dataParam : null;
+  });
   const {
     searchParams, setSearchParams,
     month, setMonth, vista, setVista, setVistaRaw,
@@ -197,7 +203,10 @@ export function PlanejamentoPage() {
     const pedido = postIts.find(postIt => postIt.id === postItPedido);
     if (!pedido) return;
     const dia = diaNoQuadro(pedido, contentById(contents, pedido.contentId));
-    if (dia) setMonth(new Date(`${dia}T12:00:00`));
+    if (dia) {
+      setMonth(new Date(`${dia}T12:00:00`));
+      setFocusDateKey(dia);
+    }
     setOpenId(pedido.id);
     setSearchParams(previous => {
       const next = new URLSearchParams(previous);
@@ -776,6 +785,11 @@ export function PlanejamentoPage() {
                 onLimparDestaque={limparDestaque}
                 assuntoFiltroId={assuntoFiltroId}
                 onAssuntoFiltroChange={setAssuntoFiltroId}
+                filtro={filtro}
+                onFiltroChange={setFiltro}
+                platforms={state.platforms}
+                dataReady={dataReady}
+                focusDateKey={focusDateKey}
                 continuidade={monthHealth.continuidade}
                 pausedDateKeys={pausedDateKeys}
               />

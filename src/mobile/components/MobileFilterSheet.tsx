@@ -14,6 +14,8 @@ interface MobileFilterSheetProps {
   /** Volta os filtros ao padrão. Fica no rodapé, como ação secundária. */
   onClear?: () => void;
   clearLabel?: string;
+  /** Quando informado, aparece no botão primário: "Ver resultados (N)". */
+  resultCount?: number;
 }
 
 /**
@@ -27,6 +29,7 @@ export function MobileFilterSheet({
   children,
   onClear,
   clearLabel = 'Limpar filtros',
+  resultCount,
 }: MobileFilterSheetProps) {
   return (
     <BottomSheetModal open={open} onClose={onClose} desktopMaxW="max-w-xl" zIndex="z-[110]" ariaLabel={title}>
@@ -39,7 +42,7 @@ export function MobileFilterSheet({
           </AppButton>
         ) : null}
         <AppButton variant="primary" className="flex-1" onClick={onClose}>
-          Ver resultados
+          {resultCount != null ? `Ver resultados (${resultCount})` : 'Ver resultados'}
         </AppButton>
       </OverlayFooter>
     </BottomSheetModal>
